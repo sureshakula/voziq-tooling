@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aipass"
+version = "0.1.0-dev"
+description = "Orchestration framework for autonomous AI agent ecosystems"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "AIPass", email = "aipass.system@gmail.com" },
+]
+dependencies = [
+    "trinity-pattern>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 120
