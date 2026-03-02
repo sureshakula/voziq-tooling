@@ -36,11 +36,18 @@ Repository = "https://github.com/AIOSAI/AIPass"
 trinity = [
     "trinity-pattern>=1.0.0",
 ]
+seedgo = []
 dev = [
     "pytest",
     "pytest-cov",
     "ruff",
 ]
+
+[project.scripts]
+seedgo = "seedgo.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aipass", "src/seedgo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -114,6 +114,110 @@ except BranchNotFoundError as e:
     print(f"Branch not found: {e}")
 ```
 
+## Seed Go
+
+> Linters enforce language rules. Seed Go enforces yours.
+
+A portable, plugin-based code standards checker. Define your team's conventions
+as simple Python functions — function length limits, docstring coverage, file
+structure rules — and run them like any other linter. Zero external dependencies.
+No API keys. Deterministic results.
+
+### Quick Start
+
+```bash
+# Install
+pip install aipass[seedgo]
+
+# Initialize config in your project
+seedgo init
+
+# Run all enabled plugins
+seedgo check
+
+# List available plugins
+seedgo list
+```
+
+### Write a Plugin in 60 Seconds
+
+```python
+# .seedgo/plugins/my_plugin.py
+import re
+from seedgo import CheckResult, CheckItem, Severity
+
+PLUGIN_NAME = "no-bare-except"
+PLUGIN_DESCRIPTION = "Flag bare except: clauses."
+FILE_TYPES = ["*.py"]
+
+_BARE_EXCEPT = re.compile(r"^\s*except\s*:\s*(#.*)?$")
+
+def check(file_path: str, config: dict | None = None) -> CheckResult:
+    lines = open(file_path).readlines()
+    violations = [
+        CheckItem(
+            name="bare-except",
+            passed=False,
+            message=f"Bare except: at line {i+1}",
+            severity=Severity.WARNING,
+            line=i + 1,
+            fix_hint="Use `except Exception:` instead.",
+        )
+        for i, line in enumerate(lines)
+        if _BARE_EXCEPT.match(line)
+    ]
+    return CheckResult(
+        plugin=PLUGIN_NAME,
+        passed=not violations,
+        checks=violations or [CheckItem(name="bare-except", passed=True,
+                                        message="No bare excepts found.",
+                                        severity=Severity.WARNING)],
+        file_path=file_path,
+    )
+```
+
+### Starter Plugins (5 Built-in)
+
+| Plugin | What it checks | Linter equivalent? |
+|---|---|---|
+| `no-bare-except` | Bare `except:` clauses | ruff E722 (but with fix hints) |
+| `type-hints-required` | Missing type annotations | mypy (but project-configurable) |
+| `docstring-coverage` | Missing module/function docstrings | pydocstyle (but simpler) |
+| `function-length` | Functions exceeding N lines | **No linter equivalent** |
+| `file-structure` | Forbidden files in root/dirs | **No linter equivalent** |
+
+Two of the five check things no standard linter can enforce.
+
+### vs. Pre-Commit
+
+Seed Go is complementary to pre-commit, not a replacement. Run it as a hook:
+
+```yaml
+# .pre-commit-config.yaml
+- repo: local
+  hooks:
+    - id: seedgo
+      name: Seed Go standards check
+      entry: seedgo check
+      language: system
+      pass_filenames: false
+```
+
+Or standalone in CI:
+
+```bash
+seedgo check --format github  # GitHub Actions annotations
+seedgo check --format json    # machine-readable output
+```
+
+### Honest About What It Is
+
+- Deterministic checks — same input always produces same output
+- No AI in the validation loop — no API keys, no network calls
+- Plugin contract is stable: `check(file_path, config) -> CheckResult`
+- Scores are weighted: errors block (weight 1.0), warnings degrade (0.5),
+  info is reported only (0.0). Threshold is configurable (default: 75/100).
+
 ## License
 
 MIT

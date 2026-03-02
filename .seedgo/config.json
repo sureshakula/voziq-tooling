@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "profile": null,
+  "plugins": {
+    "enabled": [
+      "no-bare-except",
+      "type-hints-required",
+      "docstring-coverage",
+      "function-length",
+      "file-structure"
+    ],
+    "disabled": [],
+    "config": {
+      "function-length": {
+        "max_lines": 50
+      },
+      "file-structure": {
+        "allowed_root_files": [
+          "setup.py",
+          "conftest.py",
+          "manage.py"
+        ]
+      }
+    }
+  },
+  "scoring": {
+    "threshold": 75,
+    "error_weight": 1.0,
+    "warning_weight": 0.5,
+    "info_weight": 0.0
+  },
+  "paths": {
+    "include": [
+      "src/seedgo/"
+    ],
+    "exclude": [
+      "tests/",
+      "*.generated.py"
+    ]
+  },
+  "overrides": []
+}
