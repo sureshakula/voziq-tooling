@@ -159,7 +159,7 @@ def _cmd_init(args: argparse.Namespace) -> None:
 
     try:
         config_path = create_default_config(project_root, profile=profile)
-        print(f"Seed Go initialized.")
+        print("Seed Go initialized.")
         print(f"  Config: {config_path}")
         print(f"  Plugins: {str(Path(config_path).parent / 'plugins')}")
         if profile:

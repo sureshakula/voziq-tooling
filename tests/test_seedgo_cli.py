@@ -14,18 +14,11 @@ sys.path fix ensures src/ is importable when running from the repo root:
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-
-# ---------------------------------------------------------------------------
-# sys.path fix — must appear before any seedgo imports
-# ---------------------------------------------------------------------------
-
-_src_path = str(Path(__file__).parent.parent / "src")
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
 
 from seedgo.models import CheckItem, CheckResult, Severity
 from seedgo.runner import (
@@ -791,18 +784,16 @@ class TestReportGitHub:
 # ---------------------------------------------------------------------------
 
 
-import subprocess
-
 
 class TestCLIInit:
     def test_init_creates_config_file(self, tmp_path):
-        result = subprocess.run(
+        subprocess.run(
             [sys.executable, "-m", "seedgo.cli"],
             input="",
             capture_output=True,
             text=True,
             cwd=str(tmp_path),
-            env={**__import__("os").environ, "PYTHONPATH": _src_path},
+            env={**__import__("os").environ, "PYTHONPATH": str(Path(__file__).parent.parent / "src")},
         )
         # The above runs cli as module — we need the main() entry
         # Actually test by calling main() directly via runner script

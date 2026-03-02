@@ -17,19 +17,12 @@ Each plugin has:
 Uses tmp_path for isolated test directories.
 """
 
-import sys
+import importlib.util
 from pathlib import Path
 
 import pytest
 
-# Ensure src/ is on the path when running from the repo root
 _repo_root = Path(__file__).parent.parent
-_src_path = str(_repo_root / "src")
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
-
-# Import plugin modules directly for unit testing
-import importlib.util
 
 def _load_plugin(plugin_filename: str | Path):
     """Load a plugin module by filename from the plugins directory."""

@@ -12,16 +12,9 @@ Target: 85%+ coverage of src/seedgo/ core modules.
 """
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
-
-# Ensure src/ is on the path when running from the repo root
-_repo_root = Path(__file__).parent.parent
-_src_path = str(_repo_root / "src")
-if _src_path not in sys.path:
-    sys.path.insert(0, _src_path)
 
 from seedgo.models import CheckItem, CheckResult, Severity
 from seedgo.config import (
