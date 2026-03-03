@@ -18,6 +18,7 @@ from aipass.drone.modules import (
     ModuleInfo,
     get_module_help,
     get_module_info,
+    get_module_introspective,
     is_module,
     list_modules,
     register_module,
@@ -179,6 +180,42 @@ class TestModuleHelp:
         assert get_module_help("nonexistent") == ""
 
 
+class TestModuleIntrospective:
+    """Test module introspective (discovery) retrieval."""
+
+    def test_seedgo_introspective_shows_plugins(self):
+        """get_module_introspective for seedgo lists discovered plugins."""
+        text = get_module_introspective("seedgo")
+        assert text != ""
+        assert "SEEDGO" in text
+        assert "Discovered Plugins" in text
+        # Should show at least some known plugins
+        assert "drone-compliance" in text or "no-bare-except" in text
+
+    def test_introspective_shows_version(self):
+        """Introspective includes the module version."""
+        text = get_module_introspective("seedgo")
+        assert "1.0.0" in text
+
+    def test_introspective_points_to_help(self):
+        """Introspective tells you how to get help."""
+        text = get_module_introspective("seedgo")
+        assert "--help" in text
+
+    def test_unknown_module_introspective_returns_empty(self):
+        """get_module_introspective for unknown module returns empty string."""
+        assert get_module_introspective("nonexistent") == ""
+
+    def test_introspective_differs_from_help(self):
+        """Introspective and help return different content."""
+        intro = get_module_introspective("seedgo")
+        help_text = get_module_help("seedgo")
+        # Both non-empty but different
+        assert intro != ""
+        assert help_text != ""
+        assert intro != help_text
+
+
 # ---------------------------------------------------------------------------
 # CLI integration — drone systems shows modules
 # ---------------------------------------------------------------------------
@@ -227,11 +264,14 @@ class TestCLIModuleRouting:
         assert "seedgo" in out
         assert "check" in out
 
-    def test_seedgo_no_args_shows_help(self):
-        """drone @seedgo with no command shows help."""
+    def test_seedgo_no_args_shows_introspective(self):
+        """drone @seedgo with no command shows introspective (discovery)."""
         code, out, _ = _run_cli("@seedgo")
         assert code == 0
-        assert "seedgo" in out
+        assert "SEEDGO" in out
+        assert "Discovered Plugins" in out
+        # Should NOT be the help text (which has "Commands:" section)
+        assert "Examples:" not in out
 
     def test_seedgo_list(self):
         """drone @seedgo list shows plugins."""

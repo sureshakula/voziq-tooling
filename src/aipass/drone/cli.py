@@ -31,6 +31,7 @@ from aipass.drone.modules import (
     is_module,
     list_modules,
     get_module_info,
+    get_module_introspective,
     route_module_command,
     get_module_help,
 )
@@ -171,9 +172,22 @@ def _cmd_branch(args: list[str]) -> None:
 
 
 def _cmd_module(name: str, args: list[str]) -> None:
-    """Handle routing to an internal module (e.g. @seedgo)."""
-    # drone @module --help (or no args)
-    if not args or args == ["--help"]:
+    """Handle routing to an internal module (e.g. @seedgo).
+
+    No args → introspective (discovery: what's connected).
+    --help  → help text (usage documentation).
+    """
+    # drone @module (no args) → introspective / discovery
+    if not args:
+        intro_text = get_module_introspective(name)
+        if intro_text:
+            print(intro_text, end="")
+        else:
+            print(f"No information available for @{name}.")
+        sys.exit(0)
+
+    # drone @module --help → usage documentation
+    if args == ["--help"]:
         help_text = get_module_help(name)
         if help_text:
             print(help_text, end="")

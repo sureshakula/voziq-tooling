@@ -95,6 +95,32 @@ def get_module_help(name: str, command: str | None = None) -> str:
         return ""
 
 
+def get_module_introspective(name: str) -> str:
+    """Get introspective view from a module's drone adapter.
+
+    Introspective = discovery mode (no args): shows what's connected.
+    Falls back to help text if the adapter doesn't implement get_introspective().
+
+    Returns introspective string, or empty string if unavailable.
+    """
+    adapter_path = _MODULE_REGISTRY.get(name)
+    if adapter_path is None:
+        return ""
+    try:
+        mod = importlib.import_module(adapter_path)
+        # Try introspective first, fall back to help
+        intro_fn = getattr(mod, "get_introspective", None)
+        if intro_fn is not None:
+            return intro_fn()
+        # Fallback: use help if no introspective defined
+        help_fn = getattr(mod, "get_help", None)
+        if help_fn is not None:
+            return help_fn(None)
+        return ""
+    except (ImportError, AttributeError):
+        return ""
+
+
 def register_module(name: str, adapter_path: str) -> None:
     """Register a new module. Used for dynamic registration (e.g., plugins)."""
     _MODULE_REGISTRY[name] = adapter_path
