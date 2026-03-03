@@ -32,6 +32,13 @@ from pathlib import Path
 
 from .config import ConfigError, create_default_config, find_project_root
 from .discovery import discover_plugins
+from .display import (
+    print_error,
+    print_header,
+    print_init_success,
+    print_plugin_table,
+    print_warning,
+)
 from .reporter import report_results
 from .runner import run_checks
 
@@ -159,17 +166,10 @@ def _cmd_init(args: argparse.Namespace) -> None:
 
     try:
         config_path = create_default_config(project_root, profile=profile)
-        print("Seed Go initialized.")
-        print(f"  Config: {config_path}")
-        print(f"  Plugins: {str(Path(config_path).parent / 'plugins')}")
-        if profile:
-            print(f"  Profile: {profile}")
-        print("")
-        print("Next steps:")
-        print("  1. Add plugins to .seedgo/plugins/")
-        print("  2. Run: seedgo check")
+        plugins_path = str(Path(config_path).parent / "plugins")
+        print_init_success(config_path, plugins_path, profile=profile)
     except ConfigError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print_error(str(exc), suggestion="Check directory permissions and try again.")
         sys.exit(1)
 
 
@@ -220,13 +220,14 @@ def _cmd_check(args: argparse.Namespace) -> None:
             overall["passed"] = overall["overall_score"] >= args.threshold and error_count == 0
 
         output = report_results(results, overall, format=args.format)
-        print(output)
+        if output:
+            print(output)
 
     except ConfigError as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        print_error(f"Config error: {exc}")
         sys.exit(1)
     except Exception as exc:
-        print(f"Unexpected error: {exc}", file=sys.stderr)
+        print_error(f"Unexpected error: {exc}")
         sys.exit(1)
 
     sys.exit(0 if overall.get("passed", True) else 1)
@@ -235,7 +236,7 @@ def _cmd_check(args: argparse.Namespace) -> None:
 def _cmd_list(_args: argparse.Namespace) -> None:
     """Handle `seedgo list`.
 
-    Discovers all plugins and prints a formatted table showing:
+    Discovers all plugins and prints a Rich table showing:
       name, description, source, file types.
 
     Exits 0 always (listing is informational).
@@ -247,30 +248,11 @@ def _cmd_list(_args: argparse.Namespace) -> None:
     plugins = discover_plugins(project_root)
 
     if not plugins:
-        print("No plugins found.")
-        print("")
-        print("Add plugins to .seedgo/plugins/ or install plugin packages.")
+        print_warning("No plugins found.")
+        print_header("SEEDGO — Plugins", "Add plugins to .seedgo/plugins/ or install plugin packages.")
         sys.exit(0)
 
-    print(f"Found {len(plugins)} plugin(s):\n")
-
-    col_name = max(len(p["name"]) for p in plugins) + 2
-    col_source = max(len(p["source"]) for p in plugins) + 2
-
-    header = (
-        f"  {'NAME':<{col_name}}{'SOURCE':<{col_source}}{'FILE TYPES':<20}  DESCRIPTION"
-    )
-    print(header)
-    print("  " + "-" * (len(header) - 2))
-
-    for plugin in plugins:
-        module = plugin["module"]
-        name = plugin["name"]
-        source = plugin["source"]
-        description = getattr(module, "PLUGIN_DESCRIPTION", "")
-        file_types = getattr(module, "FILE_TYPES", ["*"])
-        types_str = ", ".join(file_types)
-
-        print(f"  {name:<{col_name}}{source:<{col_source}}{types_str:<20}  {description}")
+    print_header("SEEDGO — Plugins", f"{len(plugins)} plugin(s) discovered")
+    print_plugin_table(plugins)
 
     sys.exit(0)

@@ -548,6 +548,8 @@ def check(file_path, config=None):
 
 
 class TestReportHuman:
+    """Human format prints directly via Rich console. Tests capture stdout."""
+
     def _make_result(self, passed=True, score=100, checks=None):
         return CheckResult(
             plugin="test-plugin",
@@ -569,34 +571,39 @@ class TestReportHuman:
             "info_count": 0,
         }
 
-    def test_output_contains_plugin_name(self):
+    def _report_captured(self, results, overall, capsys):
+        """Call report_results for human format and return captured output."""
+        report_results(results, overall, format="human")
+        return capsys.readouterr().out
+
+    def test_output_contains_plugin_name(self, capsys):
         result = self._make_result()
-        output = report_results([result], self._overall())
+        output = self._report_captured([result], self._overall(), capsys)
         assert "test-plugin" in output
 
-    def test_passing_result_contains_pass(self):
+    def test_passing_result_contains_pass(self, capsys):
         result = self._make_result(passed=True, score=100)
-        output = report_results([result], self._overall(score=100, passed=True))
+        output = self._report_captured([result], self._overall(score=100, passed=True), capsys)
         assert "PASS" in output
 
-    def test_failing_result_contains_fail(self):
+    def test_failing_result_contains_fail(self, capsys):
         checks = [CheckItem(name="c", passed=False, message="fail", severity=Severity.ERROR)]
         result = self._make_result(passed=False, score=0, checks=checks)
-        output = report_results([result], self._overall(score=0, passed=False))
+        output = self._report_captured([result], self._overall(score=0, passed=False), capsys)
         assert "FAIL" in output
 
-    def test_score_shown_in_output(self):
+    def test_score_shown_in_output(self, capsys):
         result = self._make_result(score=75)
-        output = report_results([result], self._overall(score=75))
+        output = self._report_captured([result], self._overall(score=75), capsys)
         assert "75" in output
 
-    def test_check_item_message_shown(self):
+    def test_check_item_message_shown(self, capsys):
         checks = [CheckItem(name="bare-except", passed=False, message="Found bare except", severity=Severity.ERROR)]
         result = self._make_result(passed=False, checks=checks)
-        output = report_results([result], self._overall(passed=False))
+        output = self._report_captured([result], self._overall(passed=False), capsys)
         assert "Found bare except" in output
 
-    def test_fix_hint_shown_for_failing_check(self):
+    def test_fix_hint_shown_for_failing_check(self, capsys):
         checks = [
             CheckItem(
                 name="c",
@@ -607,22 +614,22 @@ class TestReportHuman:
             )
         ]
         result = self._make_result(passed=False, checks=checks)
-        output = report_results([result], self._overall(passed=False))
+        output = self._report_captured([result], self._overall(passed=False), capsys)
         assert "Use except Exception:" in output
 
-    def test_no_results_shows_no_checks_ran(self):
-        output = report_results([], self._overall())
+    def test_no_results_shows_no_checks_ran(self, capsys):
+        output = self._report_captured([], self._overall(), capsys)
         assert "No checks ran" in output
 
-    def test_threshold_shown_in_summary(self):
+    def test_threshold_shown_in_summary(self, capsys):
         result = self._make_result()
-        output = report_results([result], self._overall(threshold=80))
+        output = self._report_captured([result], self._overall(threshold=80), capsys)
         assert "80" in output
 
-    def test_line_number_shown_when_present(self):
+    def test_line_number_shown_when_present(self, capsys):
         checks = [CheckItem(name="c", passed=False, message="fail", severity=Severity.ERROR, line=42)]
         result = self._make_result(passed=False, checks=checks)
-        output = report_results([result], self._overall(passed=False))
+        output = self._report_captured([result], self._overall(passed=False), capsys)
         assert "42" in output
 
     def test_invalid_format_raises_value_error(self):

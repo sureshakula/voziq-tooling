@@ -3,10 +3,9 @@ Seed Go Result Reporter
 
 Formats check results for display in three output modes:
 
-  "human"  — Colored terminal output using raw ANSI escape codes.
+  "human"  — Rich-formatted terminal output using the display module.
              Shows plugin names, pass/fail verdicts, scores, and per-check
              items with severity markers. Summary line at the bottom.
-             No external dependencies (no Rich, no colorama).
 
   "json"   — Machine-readable JSON dict. Includes all result data and the
              overall summary. Safe for piping to other tools.
@@ -20,19 +19,15 @@ All formats are produced by a single entry point: report_results().
 import dataclasses
 import json
 from .models import CheckResult, Severity
-
-
-# ---------------------------------------------------------------------------
-# ANSI color codes (raw escape sequences — zero dependencies)
-# ---------------------------------------------------------------------------
-
-_RESET = "\033[0m"
-_BOLD = "\033[1m"
-_RED = "\033[31m"
-_GREEN = "\033[32m"
-_YELLOW = "\033[33m"
-_CYAN = "\033[36m"
-_DIM = "\033[2m"
+from .display import (
+    print_header,
+    print_plugin,
+    print_check_item,
+    print_summary,
+    print_counts,
+    print_separator,
+    print_no_results,
+)
 
 
 def report_results(
@@ -51,18 +46,21 @@ def report_results(
                  threshold, plugins_passed, plugins_failed, error_count,
                  warning_count, info_count.
         format: Output format. One of:
-                  "human"  — Colored terminal output (default).
+                  "human"  — Rich terminal output (default). Prints directly,
+                             returns empty string.
                   "json"   — JSON-encoded string, machine-readable.
                   "github" — GitHub Actions annotation lines.
 
     Returns:
         Formatted string ready to print or write to stdout.
+        For "human" format, prints directly and returns empty string.
 
     Raises:
         ValueError: If format is not one of the three supported values.
     """
     if format == "human":
-        return _format_human(results, overall)
+        _format_human(results, overall)
+        return ""
     elif format == "json":
         return _format_json(results, overall)
     elif format == "github":
@@ -76,112 +74,59 @@ def report_results(
 # ---------------------------------------------------------------------------
 
 
-def _format_human(results: list[CheckResult], overall: dict) -> str:
-    """Produce colored terminal output for human consumption.
+def _format_human(results: list[CheckResult], overall: dict) -> None:
+    """Print Rich-formatted terminal output for human consumption.
+
+    Prints directly to the Rich console via the display module.
 
     Layout:
-        plugin-name .............. PASS (100/100)
-        another-plugin ........... FAIL (60/100)
-          ✗ check-name: message [line N]
-            hint: fix_hint text
-          ✓ passing-check: message
+        ╭─ SEEDGO ─────────────────────────────╮
+        │  Code Standards Check                 │
+        │  5 plugins · 3 files · threshold: 75  │
+        ╰───────────────────────────────────────╯
 
+        ✓ plugin-name  file.py ········· PASS (100/100)
+            ✓ check-name: message
+        ✗ another-plugin  file.py ······ FAIL (60/100)
+            ✗ check-name: message [line N]
+              hint: fix_hint text
+
+        ─────────────────────────────────────────
         Overall: 80/100 — PASS (threshold: 75)
         2 checks ran, 1 passed, 1 failed
     """
-    lines: list[str] = []
-
-    if not results:
-        lines.append(f"{_DIM}No checks ran.{_RESET}")
-        lines.append(_summary_line(overall))
-        return "\n".join(lines)
-
-    # Group results by plugin name for a cleaner display
-    for result in results:
-        lines.append(_plugin_header_line(result))
-        for item in result.checks:
-            lines.extend(_check_item_lines(item))
-
-    lines.append("")
-    lines.append(_summary_line(overall))
-    lines.append(_counts_line(overall))
-
-    return "\n".join(lines)
-
-
-def _plugin_header_line(result: CheckResult) -> str:
-    """Format the plugin name + verdict + score header line."""
-    name = result.plugin
-    score = result.score
-    file_label = f"  [{result.file_path}]" if result.file_path else ""
-
-    dots = "." * max(1, 50 - len(name) - len(file_label))
-
-    if result.passed:
-        verdict = f"{_GREEN}PASS{_RESET}"
-    else:
-        verdict = f"{_RED}FAIL{_RESET}"
-
-    score_str = f"({score}/100)"
-    return f"  {_BOLD}{name}{_RESET}{file_label} {_DIM}{dots}{_RESET} {verdict} {_DIM}{score_str}{_RESET}"
-
-
-def _check_item_lines(item) -> list[str]:
-    """Format a single CheckItem into one or two display lines."""
-    lines: list[str] = []
-
-    if item.passed:
-        marker = f"{_GREEN}✓{_RESET}"
-        color = _DIM
-    elif item.severity == Severity.ERROR:
-        marker = f"{_RED}✗{_RESET}"
-        color = _RED
-    elif item.severity == Severity.WARNING:
-        marker = f"{_YELLOW}⚠{_RESET}"
-        color = _YELLOW
-    else:
-        marker = f"{_CYAN}ℹ{_RESET}"
-        color = _CYAN
-
-    line_ref = f" [line {item.line}]" if item.line is not None else ""
-    main = f"    {marker} {color}{item.name}{_RESET}: {item.message}{line_ref}"
-    lines.append(main)
-
-    if item.fix_hint and not item.passed:
-        lines.append(f"      {_DIM}hint: {item.fix_hint}{_RESET}")
-
-    return lines
-
-
-def _summary_line(overall: dict) -> str:
-    """Format the overall score summary line."""
     score = overall.get("overall_score", 100)
-    passed = overall.get("passed", True)
     threshold = overall.get("threshold", 75)
-
-    if passed:
-        verdict = f"{_GREEN}{_BOLD}PASS{_RESET}"
-    else:
-        verdict = f"{_RED}{_BOLD}FAIL{_RESET}"
-
-    return f"  {_BOLD}Overall:{_RESET} {score}/100 — {verdict} {_DIM}(threshold: {threshold}){_RESET}"
-
-
-def _counts_line(overall: dict) -> str:
-    """Format the plugin count summary line."""
+    passed = overall.get("passed", True)
     p_passed = overall.get("plugins_passed", 0)
     p_failed = overall.get("plugins_failed", 0)
-    total = p_passed + p_failed
-    errors = overall.get("error_count", 0)
-    warnings = overall.get("warning_count", 0)
 
-    parts = [f"{total} check(s) ran", f"{p_passed} passed", f"{p_failed} failed"]
-    if errors:
-        parts.append(f"{_RED}{errors} error(s){_RESET}")
-    if warnings:
-        parts.append(f"{_YELLOW}{warnings} warning(s){_RESET}")
+    # Header
+    total_plugins = p_passed + p_failed
+    subtitle = f"{total_plugins} plugin(s) · threshold: {threshold}"
+    print_header("SEEDGO — Code Standards Check", subtitle)
 
-    return "  " + ", ".join(parts)
+    if not results:
+        print_no_results()
+        print_separator()
+        print_summary(score, passed, threshold)
+        return
+
+    for result in results:
+        print_plugin(result.plugin, result.file_path, result.passed, result.score)
+        for item in result.checks:
+            print_check_item(
+                item.name, item.passed, item.message, item.severity,
+                line=item.line, fix_hint=item.fix_hint,
+            )
+
+    print_separator()
+    print_summary(score, passed, threshold)
+    print_counts(
+        p_passed, p_failed,
+        error_count=overall.get("error_count", 0),
+        warning_count=overall.get("warning_count", 0),
+    )
 
 
 # ---------------------------------------------------------------------------

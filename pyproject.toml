@@ -25,7 +25,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = []
+dependencies = [
+    "rich>=13.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/AIOSAI/AIPass"
