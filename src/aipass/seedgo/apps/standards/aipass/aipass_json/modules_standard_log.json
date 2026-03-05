@@ -1,0 +1,324 @@
+[
+  {
+    "timestamp": "2025-11-12T19:43:18.071481",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T19:44:06.427026",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:37.712811",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:26:54.817702",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:27:00.722338",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:28:10.993144",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:28:49.909160",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:35:03.763738",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:50:57.555239",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:45:22.863774",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:47:13.677996",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T15:30:05.783080",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T16:08:16.912814",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T16:08:17.299277",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T16:15:15.714711",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T16:15:16.705014",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T17:54:12.642555",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T20:59:01.993393",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:08:18.339471",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:28:54.688129",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:28:55.605157",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:28:56.901192",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:14.142705",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:26:42.566123",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:33:53.887201",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:38:45.656503",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:40:05.722727",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:40:05.847402",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T10:09:10.458606",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T10:15:20.273965",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T10:26:51.691305",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T10:34:31.711453",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T10:53:48.898609",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T00:29:42.591039",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T12:38:33.948683",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T12:43:18.859900",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T13:37:00.604158",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T15:11:18.778225",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T16:31:06.261192",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T01:57:12.207513",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-27T11:39:36.358712",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T02:38:33.626410",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T02:41:17.912948",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T19:02:27.525727",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T20:29:20.195502",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T21:28:37.306411",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "modules"
+    }
+  }
+]

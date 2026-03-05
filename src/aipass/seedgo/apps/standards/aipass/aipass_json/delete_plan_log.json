@@ -1,0 +1,400 @@
+[
+  {
+    "timestamp": "2025-11-15T09:37:44.474899",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": []
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:37:50.380855",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "6",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:38:27.090929",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "7",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:38:31.005806",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "8",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:38:42.362311",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T09:43:06.043552",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "11",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:06:58.750352",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:06:58.751089",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "12",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:09.365912",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:09.366727",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "13"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:13.521687",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:13.522518",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "13"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:17.731565",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:17.732432",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:21.944014",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-15T11:07:21.945144",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": []
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:05:07.490262",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete_plan",
+      "args": [
+        "--help"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:05:09.862141",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "15"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:05:12.177458",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "16",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:05:14.857550",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "15",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:21:13.238219",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "15"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:21:21.069660",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "--help"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:21:32.301561",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete_plan",
+      "args": [
+        "1"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:21:36.610788",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete_plan",
+      "args": [
+        "1",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:42:34.813012",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "17"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:42:35.408310",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "17",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:43:59.735092",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "18"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T09:44:09.507475",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "18",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T10:56:17.014948",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:27:58.197273",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:08.234592",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:15.404034",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:42.333317",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:50.061506",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:50.062722",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:53.784377",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:32:57.696432",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:33:15.864461",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "0001"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:33:28.205329",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "0020",
+        "--yes"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:33:38.193820",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "0019"
+      ]
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:33:42.082335",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:33:42.083620",
+    "operation": "plan_deleted",
+    "data": {
+      "command": "delete",
+      "args": [
+        "9999"
+      ]
+    }
+  }
+]

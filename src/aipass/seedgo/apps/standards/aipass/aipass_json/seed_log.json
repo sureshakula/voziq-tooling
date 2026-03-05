@@ -1,0 +1,802 @@
+[
+  {
+    "timestamp": "2026-03-03T20:25:05.147640",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T20:47:43.202560",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T21:05:56.995725",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:14:03.575473",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:14:49.776606",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:16:52.511261",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:18:02.583608",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-03T23:34:26.668625",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T03:02:33.964134",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T03:03:40.236227",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T03:05:00.045797",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:00:38.702562",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:00:43.909654",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:00.474620",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:20.417304",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:25.755539",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:33.713871",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:44.051817",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:32:24.178891",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:33:26.104790",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:34:09.375872",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:35:01.666652",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:35:42.607443",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:36:05.369728",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:36:20.618306",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:37:46.390563",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:38:03.112012",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T17:23:30.092888",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:35.138726",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:40.736174",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:46.405310",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:52.037741",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:57.730819",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:03.291112",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:09.014518",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:30.512175",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:36.286629",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:41.950508",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:47.665975",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:53.279210",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:58.822607",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:04.688819",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:10.382807",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:15.979774",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:34.568427",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:40.408124",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:46.198432",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:51.868482",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:57.816913",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:03.501552",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:09.278073",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:15.074477",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:20.811181",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:26.533701",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:55.874686",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:01.715217",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:07.396706",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:13.121538",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:18.923715",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:24.710596",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:30.439319",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:36.231449",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:41.949142",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:47.964126",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:53.788912",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:59.679026",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:05.409200",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:11.178736",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:16.768657",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:22.617397",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:18.102284",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:24.024031",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:29.901512",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:54.485702",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:44:33.289529",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:44:39.056038",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:01.842293",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:07.454499",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:13.206846",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:19.096982",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:24.683932",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:06:12.780146",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:07:11.596579",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:08:45.207915",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:11:53.660356",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:10.228670",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:16.157577",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:22.083933",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:27.914358",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:33.766472",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:14:17.876357",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:14:24.070478",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:16:05.148421",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:16:10.994837",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:16:35.482586",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "audit",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:20.922698",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:26.675896",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:32.350475",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:38.170690",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:43.984543",
+    "operation": "seed_command_attempted",
+    "data": {
+      "command": "checklist",
+      "modules_discovered": 20
+    }
+  }
+]

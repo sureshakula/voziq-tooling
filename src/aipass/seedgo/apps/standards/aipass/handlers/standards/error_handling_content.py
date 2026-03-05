@@ -1,0 +1,173 @@
+#!/home/aipass/.venv/bin/python3
+
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: error_handling_content.py - Error Handling Standards Content Handler
+# Date: 2025-11-21
+# Version: 1.1.0
+# Category: seed/standards/handlers
+#
+# CHANGELOG (Max 5 entries):
+#   - v1.1.0 (2026-01-31): Added ERROR vs WARNING log level guidelines
+#   - v1.0.0 (2025-11-21): Initial handler - error handling 3-tier standard
+#
+# CODE STANDARDS:
+#   - Handler provides content, module orchestrates output
+#   - Pure function - returns string, no side effects
+# =============================================
+
+"""
+Error Handling Standards Content Handler
+
+Provides formatted error handling standards content (3-tier architecture).
+Module orchestrates, handler implements.
+"""
+
+
+def get_error_handling_standards() -> str:
+    """Return formatted error handling standards content with Rich markup
+
+    Returns:
+        str: Formatted standards text with Rich styling
+    """
+    lines = [
+        "[bold red]3-TIER LOGGING ARCHITECTURE[/bold red]",
+        "",
+        "[yellow]CORE PRINCIPLE:[/yellow] Logging responsibility follows architectural hierarchy",
+        "",
+        "[bold cyan]TIER 1: ENTRY POINTS[/bold cyan] (flow.py, seed.py, etc.)",
+        "  [dim]Prax Import:[/dim] YES (minimal)",
+        "  [dim]Logging Scope:[/dim] Operational only (discovery, routing, help)",
+        "  [red]✗ NO business error logging[/red]",
+        "",
+        "[bold cyan]TIER 2: MODULES[/bold cyan] (apps/modules/*.py)",
+        "  [dim]Prax Import:[/dim] [green]YES (REQUIRED)[/green]",
+        "  [dim]Logging Scope:[/dim] [green]ALL BUSINESS LOGGING[/green]",
+        "  [green]✓ Log ALL errors: logger.error(f'[{MODULE_NAME}] {msg}')[/green]",
+        "  [green]✓ Catch exceptions from handlers[/green]",
+        "  [green]✓ Provide context for debugging[/green]",
+        "  [green]✓ Return bool to entry point[/green]",
+        "",
+        "[bold cyan]TIER 3: HANDLERS[/bold cyan] (apps/handlers/**/*.py)",
+        "  [dim]Prax Import:[/dim] [red]NO (PROHIBITED)[/red]",
+        "  [dim]Logging Scope:[/dim] [red]NONE[/red]",
+        "  [red]✗ NO Prax imports[/red]",
+        "  [red]✗ NO logger calls[/red]",
+        "  [green]✓ Return status dicts or raise exceptions[/green]",
+        "  [green]✓ Pure workers - testable in isolation[/green]",
+        "",
+        "─" * 70,
+        "",
+        "[bold yellow]HANDLER RETURN PATTERNS:[/bold yellow]",
+        "",
+        "[dim]Option 1: Status Dict[/dim]",
+        "  return {'success': True, 'data': result, 'error': None}",
+        "  return {'success': False, 'data': None, 'error': 'Error message'}",
+        "",
+        "[dim]Option 2: Raise Exceptions[/dim]",
+        "  raise ValueError('Invalid input')",
+        "  raise FileNotFoundError('Config missing')",
+        "",
+        "─" * 70,
+        "",
+        "[bold yellow]MODULE ERROR HANDLING PATTERN:[/bold yellow]",
+        "",
+        "  [dim]MODULE_NAME = \"module_name\"[/dim]",
+        "",
+        "  [dim]try:[/dim]",
+        "    [dim]result = handler_function(**args)[/dim]",
+        "    [dim]if result['success']:[/dim]",
+        "      [dim]logger.info(f\"[{MODULE_NAME}] Success\")[/dim]",
+        "    [dim]else:[/dim]",
+        "      [dim]logger.error(f\"[{MODULE_NAME}] {result['error']}\")[/dim]",
+        "  [dim]except Exception as e:[/dim]",
+        "    [dim]logger.error(f\"[{MODULE_NAME}] Error: {e}\")[/dim]",
+        "",
+        "─" * 70,
+        "",
+        "[bold yellow]LOG LEVEL GUIDELINES: ERROR vs WARNING[/bold yellow]",
+        "",
+        "[dim]Core Distinction:[/dim] ERROR triggers Prax escalation, WARNING does not",
+        "",
+        "[red]logger.error()[/red] → [bold]System failures[/bold]",
+        "  File I/O errors, crashes, dependency failures, unexpected exceptions",
+        "",
+        "[yellow]logger.warning()[/yellow] → [bold]User input issues[/bold]",
+        "  'Plan not found', 'Field required', 'Invalid format', 'Already exists'",
+        "",
+        "[dim]Pattern:[/dim]",
+        "  [red]# System failure → ERROR (Prax escalates)[/red]",
+        "  [dim]logger.error(f\"[{MODULE_NAME}] Failed to write file: {e}\")[/dim]",
+        "",
+        "  [yellow]# User input issue → WARNING (no escalation)[/yellow]",
+        "  [dim]logger.warning(f\"[{MODULE_NAME}] Plan {plan_id} not found\")[/dim]",
+        "",
+        "[green]✓ CLI can still show 'ERROR' text to user (feedback)[/green]",
+        "[green]✓ System logs use WARNING level (no Prax escalation)[/green]",
+        "",
+        "─" * 70,
+        "",
+        "[bold yellow]WHY THIS PATTERN:[/bold yellow]",
+        "",
+        "[green]✓ Scalability:[/green] 17 branches × 50+ handlers = 850 files to manage",
+        "[green]✓ Auditability:[/green] Check modules/ only - all logging in one place",
+        "[green]✓ Testability:[/green] Automated scans verify compliance",
+        "[green]✓ Consistency:[/green] Single pattern across entire ecosystem",
+        "",
+        "─" * 70,
+        "",
+        "[bold yellow]VALIDATION RULES:[/bold yellow]",
+        "",
+        "[dim]# All modules MUST import Prax[/dim]",
+        "[dim]grep -r \"from prax\" apps/modules/*.py[/dim]",
+        "",
+        "[dim]# NO handlers can import Prax[/dim]",
+        "[dim]grep -r \"from prax\" apps/handlers/**/*.py  # Should find NOTHING[/dim]",
+        "",
+        "[dim]# NO handlers can call logger[/dim]",
+        "[dim]grep -r \"logger\\.\" apps/handlers/**/*.py  # Should find NOTHING[/dim]",
+        "",
+        "─" * 70,
+        "",
+        "[bold cyan]REFERENCE:[/bold cyan]",
+        "  [dim]/home/aipass/standards/CODE_STANDARDS/error_handling.md[/dim]",
+        "  [dim]/home/aipass/aipass_core/flow/apps/modules/ (working example)[/dim]",
+        "  [dim]/home/aipass/seed/apps/modules/ (reference implementation)[/dim]",
+        "",
+        "[bold]Decision:[/bold] 3-Tier approved 2025-11-21, ERROR/WARNING 2026-01-31",
+        "[bold]Status:[/bold] Active - All 18 branches",
+        "",
+        "─" * 70,
+        "",
+        "[bold magenta]SERVICE LOGGING STANDARDS[/bold magenta]",
+        "",
+        "[yellow]For services with user-facing interactions (bridges, APIs, bots):[/yellow]",
+        "",
+        "[bold cyan]1. LOG MEANINGFUL CONTENT[/bold cyan]",
+        "  [green]✓ 'Received from user X: hello' + 'Sent: Hi!'[/green]",
+        "  [red]✗ 'Message received' + 'Response sent'[/red]",
+        "",
+        "[bold cyan]2. AUDIT TRAILS REQUIRED[/bold cyan]",
+        "  • Chat messages and responses",
+        "  • API requests and responses",
+        "  • User interactions with context",
+        "",
+        "[bold cyan]3. LOG LOCATIONS[/bold cyan]",
+        "  [dim]~/system_logs/[/dim]         → Prax operational logs",
+        "  [dim]<branch>/logs/[/dim]         → Service content logs",
+        "  [dim]<branch>/logs/audit/[/dim]   → Interaction audit trails",
+        "",
+        "[bold cyan]4. CONTENT LOG FORMAT[/bold cyan]",
+        "  [dim]{[/dim]",
+        "    [dim]'timestamp': '2026-02-04T10:30:00Z',[/dim]",
+        "    [dim]'direction': 'inbound',[/dim]",
+        "    [dim]'user': 'user_id',[/dim]",
+        "    [dim]'content': 'message text',[/dim]",
+        "    [dim]'response': 'bot response',[/dim]",
+        "    [dim]'metadata': {...}[/dim]",
+        "  [dim]}[/dim]",
+        "",
+        "[bold]Added:[/bold] 2026-02-04 - Service logging for user-facing interactions",
+    ]
+
+    return "\n".join(lines)

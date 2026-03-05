@@ -1,0 +1,32 @@
+{
+  "module_name": "backup_core",
+  "created": "2025-11-13",
+  "last_updated": "2025-11-18",
+  "operations_total": 0,
+  "operations_successful": 0,
+  "operations_failed": 0,
+  "runtime_state": {
+    "current_status": "completed",
+    "last_backup": "2025-11-18T19:30:07.237970",
+    "active_mode": "snapshot",
+    "total_files_backed_up": 20279,
+    "backup_in_progress": false
+  },
+  "statistics": {
+    "total_backups": 1,
+    "successful_backups": 1,
+    "failed_backups": 0,
+    "snapshot_backups": 1,
+    "versioned_backups": 0,
+    "total_files_processed": 20279
+  },
+  "recent_backups": [
+    {
+      "timestamp": "2025-11-18T19:30:07.237984",
+      "mode": "snapshot",
+      "success": true,
+      "files_copied": 20279,
+      "errors": 0
+    }
+  ]
+}

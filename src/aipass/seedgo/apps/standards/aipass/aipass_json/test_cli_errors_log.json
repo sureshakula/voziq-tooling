@@ -1,0 +1,639 @@
+[
+  {
+    "timestamp": "2025-11-12T22:04:05.325609",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:04:05.328880",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:06:14.814082",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:06:14.817649",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:17:45.787391",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:17:45.791544",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:47:08.755832",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T22:47:08.760383",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:16:48.563949",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:16:48.571988",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:17:07.316533",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:17:07.324315",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:17:36.128958",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:17:36.138034",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:22:30.223600",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:22:30.235898",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:46:30.759281",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:46:30.768284",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:50:34.607769",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:50:34.616801",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:53:57.505298",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:53:57.517001",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:54:26.805899",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-12T23:54:26.815344",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:12:27.966029",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:12:27.982160",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:11.530672",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:11.547517",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:29.894917",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:29.913026",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:52.754477",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:52.773289",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:57.091457",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:14:57.113636",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:15:28.139466",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:15:28.157198",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:25:43.243306",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:25:43.268960",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:25:43.292321",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:25:43.318490",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:26:41.955007",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:26:41.973818",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:28:00.744566",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:28:00.763195",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:28:47.257996",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:28:47.282062",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:29:54.368778",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:29:54.390566",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:11.009994",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:11.032063",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:12.765236",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:12.787141",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:14.288716",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:30:14.314541",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:31:25.831748",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:31:25.862958",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:32:03.710385",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T00:32:03.734936",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:59:04.619003",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T12:59:04.644773",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:46:11.205713",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:46:11.234590",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:46:29.456821",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:46:29.491121",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:47:03.266141",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T13:47:03.291554",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:00:20.795101",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:00:31.148086",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:00:31.191357",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:01:07.823512",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:01:07.864088",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:01:20.978155",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:01:21.016911",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:32.138317",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:32.179546",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:37.193926",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:37.233872",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:45.666760",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:45.712594",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:48.081670",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:48.124283",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:49.706650",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:49.750672",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:51.732013",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "started"
+    }
+  },
+  {
+    "timestamp": "2025-11-13T21:29:51.776318",
+    "operation": "test_cli_errors_run",
+    "data": {
+      "status": "completed",
+      "success": true
+    }
+  }
+]

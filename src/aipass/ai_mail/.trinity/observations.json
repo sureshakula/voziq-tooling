@@ -1,0 +1,37 @@
+{
+  "document_metadata": {
+    "document_type": "collaboration_patterns",
+    "document_name": "AI_MAIL.OBSERVATIONS",
+    "version": "1.0.0",
+    "schema_version": "1.0.0",
+    "created": "2026-03-05",
+    "last_updated": "2026-03-05",
+    "managed_by": "AI_MAIL",
+    "tags": ["collaboration", "patterns", "AI_MAIL"],
+    "limits": {
+      "max_lines": 600,
+      "note": "Auto-rollover when max_lines exceeded"
+    },
+    "status": {
+      "health": "healthy",
+      "current_lines": 0,
+      "last_health_check": "2026-03-05"
+    }
+  },
+  "guidelines": {
+    "purpose": "Capture collaboration patterns and experiential insights over time",
+    "chronological_order": "Newest entries at TOP, oldest at BOTTOM - NEVER reorder"
+  },
+  "observations": [
+    {
+      "date": "2026-03-05",
+      "session": 1,
+      "entries": [
+        {
+          "title": "First Contact",
+          "detail": "Branch initialized. Ready to begin capturing collaboration patterns."
+        }
+      ]
+    }
+  ]
+}

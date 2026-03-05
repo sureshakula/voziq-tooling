@@ -1,0 +1,15 @@
+{
+  "id": "31",
+  "name": "SEEDGO Birth Certificate",
+  "type": "birth_certificate",
+  "creator": "SYSTEM",
+  "owner": "SEEDGO",
+  "rarity": "unique",
+  "description": "Official birth certificate for SEEDGO. Citizen #31, registered using 'library' template. Purpose: Enforce code standards through pluggable standard packs with 3-source discovery",
+  "metadata": {
+    "citizen_number": "31",
+    "template": "library",
+    "purpose": "Enforce code standards through pluggable standard packs with 3-source discovery"
+  },
+  "created_at": "2026-03-05"
+}

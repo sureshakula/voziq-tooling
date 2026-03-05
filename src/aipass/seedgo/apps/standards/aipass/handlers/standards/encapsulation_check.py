@@ -1,0 +1,546 @@
+#!/home/aipass/.venv/bin/python3
+
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: encapsulation_check.py - Handler Encapsulation Standards Checker
+# Date: 2025-11-28
+# Version: 0.1.1
+# Category: seed/standards/checkers
+#
+# CHANGELOG (Max 5 entries):
+#   - v0.1.0 (2025-11-28): Initial implementation - cross-handler import detection
+#
+# CODE STANDARDS:
+#   - Handler implements checking logic, module orchestrates
+# =============================================
+
+"""
+Handler Encapsulation Standards Checker
+
+Validates that handlers are properly encapsulated:
+- No cross-branch handler imports (Branch A importing Branch B's handlers)
+- No cross-package handler imports (handlers/X importing handlers/Y)
+- Handlers should be accessed through module entry points, not directly
+"""
+
+import re
+import json
+from pathlib import Path
+from typing import Dict, List, Optional
+
+# Infrastructure
+AIPASS_ROOT = Path.home() / "aipass_core"
+SEED_ROOT = Path.home() / "seed"
+
+# Branch registry for detecting branch context
+BRANCH_REGISTRY_PATH = Path.home() / "BRANCH_REGISTRY.json"
+
+
+def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
+    """Check if a violation should be bypassed"""
+    if not bypass_rules:
+        return False
+    for rule in bypass_rules:
+        # Must match standard
+        if rule.get('standard') and rule.get('standard') != standard:
+            continue
+        # Must match file (check if rule file path is in the full path)
+        rule_file = rule.get('file', '')
+        if rule_file and rule_file not in file_path:
+            continue
+        # Check line-specific bypass
+        rule_lines = rule.get('lines', [])
+        if rule_lines and line is not None:
+            if line in rule_lines:
+                return True
+        elif not rule_lines:
+            return True
+    return False
+
+
+def get_branch_from_path(file_path: str) -> Optional[Dict]:
+    """Detect which branch a file belongs to"""
+    try:
+        if not BRANCH_REGISTRY_PATH.exists():
+            return None
+
+        with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
+            registry = json.load(f)
+
+        if not registry:
+            return None
+
+        file_path = str(Path(file_path).resolve())
+
+        # Sort branches by path length (longest first) to match most specific
+        branches = sorted(registry.get('branches', []),
+                         key=lambda b: len(b.get('path', '')),
+                         reverse=True)
+
+        for branch in branches:
+            branch_path = branch.get('path', '')
+            if file_path.startswith(branch_path + '/') or file_path == branch_path:
+                return branch
+
+        return None
+    except Exception:
+        return None
+
+
+def extract_branch_from_import(import_line: str) -> Optional[str]:
+    """
+    Extract branch name from an import statement
+
+    Examples:
+        'from flow.apps.handlers.plan.validator import X' -> 'flow'
+        'from aipass_core.api.apps.handlers.openrouter import X' -> 'api'
+        'from apps.handlers.json import X' -> None (local, no branch)
+    """
+    # Pattern 1: branch.apps.handlers...
+    match = re.search(r'from\s+(\w+)\.apps\.handlers', import_line)
+    if match:
+        return match.group(1)
+
+    # Pattern 2: aipass_core.branch.apps.handlers...
+    match = re.search(r'from\s+aipass_core\.(\w+)\.apps\.handlers', import_line)
+    if match:
+        return match.group(1)
+
+    # Pattern 3: import branch.apps.handlers...
+    match = re.search(r'import\s+(\w+)\.apps\.handlers', import_line)
+    if match:
+        return match.group(1)
+
+    return None
+
+
+def extract_handler_package(import_line: str) -> Optional[str]:
+    """
+    Extract the handler package name from an import
+
+    Examples:
+        'from apps.handlers.json.json_handler import X' -> 'json'
+        'from apps.handlers.dashboard.refresh import X' -> 'dashboard'
+        'from flow.apps.handlers.plan.validator import X' -> 'plan'
+    """
+    match = re.search(r'apps\.handlers\.(\w+)', import_line)
+    if match:
+        return match.group(1)
+    return None
+
+
+def get_file_handler_package(file_path: str) -> Optional[str]:
+    """
+    Get the handler package a file belongs to
+
+    Examples:
+        '/home/.../apps/handlers/json/json_handler.py' -> 'json'
+        '/home/.../apps/modules/something.py' -> None (not a handler)
+    """
+    path_str = str(file_path)
+
+    if 'apps/handlers/' not in path_str:
+        return None
+
+    # Extract package after apps/handlers/
+    match = re.search(r'apps/handlers/(\w+)', path_str)
+    if match:
+        return match.group(1)
+    return None
+
+
+def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
+    """
+    Check if file respects handler encapsulation
+
+    Args:
+        module_path: Path to Python file to check
+        bypass_rules: Optional list of bypass rules to apply
+
+    Returns:
+        dict: {
+            'passed': bool,
+            'checks': [{'name': str, 'passed': bool, 'message': str}],
+            'score': int,
+            'standard': str
+        }
+    """
+    checks = []
+    path = Path(module_path)
+
+    # Check if entire standard is bypassed
+    if is_bypassed(module_path, 'encapsulation', bypass_rules=bypass_rules):
+        return {
+            'passed': True,
+            'checks': [{'name': 'Bypassed', 'passed': True, 'message': 'Standard bypassed via .seed/bypass.json'}],
+            'score': 100,
+            'standard': 'ENCAPSULATION'
+        }
+
+    # Validate file exists
+    if not path.exists():
+        return {
+            'passed': False,
+            'checks': [{'name': 'File exists', 'passed': False, 'message': f'File not found: {module_path}'}],
+            'score': 0,
+            'standard': 'ENCAPSULATION'
+        }
+
+    # Read file
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            lines = content.split('\n')
+    except Exception as e:
+        return {
+            'passed': False,
+            'checks': [{'name': 'File readable', 'passed': False, 'message': f'Error reading file: {e}'}],
+            'score': 0,
+            'standard': 'ENCAPSULATION'
+        }
+
+    # Detect this file's context
+    file_branch = get_branch_from_path(module_path)
+    file_branch_name = file_branch.get('name', '').lower() if file_branch else None
+    file_handler_package = get_file_handler_package(module_path)
+    is_handler_file = file_handler_package is not None
+    is_module_file = 'apps/modules/' in str(module_path)
+
+    # Check 1: Cross-branch handler imports
+    cross_branch_check = check_cross_branch_imports(
+        lines, module_path, file_branch_name, bypass_rules
+    )
+    checks.append(cross_branch_check)
+
+    # Check 2: Cross-package handler imports (only for handler files)
+    if is_handler_file:
+        cross_package_check = check_cross_package_imports(
+            lines, module_path, file_handler_package, bypass_rules
+        )
+        checks.append(cross_package_check)
+
+    # Check 3: Direct handler imports from non-handler/non-module files
+    if not is_handler_file and not is_module_file:
+        direct_import_check = check_direct_handler_imports(
+            lines, module_path, bypass_rules
+        )
+        checks.append(direct_import_check)
+
+    # Calculate score
+    if not checks:
+        return {
+            'passed': True,
+            'checks': [{'name': 'Encapsulation', 'passed': True, 'message': 'No checks applicable'}],
+            'score': 100,
+            'standard': 'ENCAPSULATION'
+        }
+
+    passed_checks = sum(1 for check in checks if check['passed'])
+    total_checks = len(checks)
+    score = int((passed_checks / total_checks * 100)) if total_checks > 0 else 100
+
+    return {
+        'passed': score >= 75,
+        'checks': checks,
+        'score': score,
+        'standard': 'ENCAPSULATION'
+    }
+
+
+def check_cross_branch_imports(lines: List[str], module_path: str,
+                                file_branch: Optional[str], bypass_rules: list | None = None) -> Dict:
+    """
+    Check for cross-branch handler imports
+
+    BAD: from flow.apps.handlers.plan.validator import X (when not in flow branch)
+    BAD: from api.apps.handlers.openrouter.client import X (when not in api branch)
+
+    EXCEPTIONS:
+    - Prax logger (from prax.apps.modules.logger) - allowed everywhere
+    - CLI services (from cli.apps.modules) - allowed everywhere
+    - Same branch imports - allowed
+    """
+    violations = []
+
+    in_docstring = False
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Track docstrings
+        if stripped.startswith('"""') or stripped.startswith("'''"):
+            quote_marker = '"""' if stripped.startswith('"""') else "'''"
+            quote_count = stripped.count(quote_marker)
+            if quote_count >= 2:
+                continue
+            else:
+                in_docstring = not in_docstring
+
+        if in_docstring or not stripped or stripped.startswith('#'):
+            continue
+
+        # Check for imports
+        if not ('from ' in stripped or 'import ' in stripped):
+            continue
+
+        # Skip string literals - check if line is a string or apps.handlers is inside quotes
+        if stripped.startswith('"') or stripped.startswith("'"):
+            continue
+        if '"from ' in stripped or "'from " in stripped:
+            continue
+        # Check if apps.handlers appears inside quotes (documentation examples)
+        if '"apps.handlers' in stripped or "'apps.handlers" in stripped:
+            continue
+        if 'apps.handlers' in stripped:
+            # Check if it's inside a string by looking for quotes before it
+            handler_pos = stripped.find('apps.handlers')
+            before = stripped[:handler_pos]
+            # If there's an odd number of quotes before, it's inside a string
+            if before.count('"') % 2 == 1 or before.count("'") % 2 == 1:
+                continue
+
+        # Extract code part (before comment)
+        code_part = stripped.split('#')[0] if '#' in stripped else stripped
+
+        # Check for handler imports
+        if 'apps.handlers' not in code_part:
+            continue
+
+        # Check if bypassed
+        if is_bypassed(module_path, 'encapsulation', line=i, bypass_rules=bypass_rules):
+            continue
+
+        # Extract the branch being imported from
+        imported_branch = extract_branch_from_import(code_part)
+
+        if imported_branch is None:
+            # Local import (from apps.handlers.X) - will be caught by cross-package check
+            continue
+
+        # Allow same-branch imports
+        if file_branch and imported_branch.lower() == file_branch.lower():
+            continue
+
+        # Disallow cross-branch handler imports (even from service branches)
+        # Service branches should be accessed via modules, not handlers
+        violations.append({
+            'line': i,
+            'code': code_part.strip(),
+            'from_branch': imported_branch,
+            'to_branch': file_branch or 'unknown'
+        })
+
+    if violations:
+        first = violations[0]
+        return {
+            'name': 'Cross-branch handler imports',
+            'passed': False,
+            'message': f"Line {first['line']}: {first['from_branch']}.apps.handlers imported (use modules entry point)"
+        }
+
+    return {
+        'name': 'Cross-branch handler imports',
+        'passed': True,
+        'message': 'No cross-branch handler imports detected'
+    }
+
+
+def check_cross_package_imports(lines: List[str], module_path: str,
+                                 file_package: str, bypass_rules: list | None = None) -> Dict:
+    """
+    Check for cross-package handler imports within same branch
+
+    BAD (in handlers/standards/): from apps.handlers.json.json_handler import X
+    GOOD: Use relative imports or module entry points
+
+    EXCEPTIONS:
+    - json_handler is allowed (default handler pattern)
+    - Same package relative imports (from .something import X)
+    """
+    violations = []
+
+    # Allowed default handlers that can be imported anywhere
+    allowed_handlers = {'json_handler', 'file_handler'}
+
+    in_docstring = False
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Track docstrings
+        if stripped.startswith('"""') or stripped.startswith("'''"):
+            quote_marker = '"""' if stripped.startswith('"""') else "'''"
+            quote_count = stripped.count(quote_marker)
+            if quote_count >= 2:
+                continue
+            else:
+                in_docstring = not in_docstring
+
+        if in_docstring or not stripped or stripped.startswith('#'):
+            continue
+
+        # Check for imports
+        if not ('from ' in stripped or 'import ' in stripped):
+            continue
+
+        # Skip string literals
+        if stripped.startswith('"') or stripped.startswith("'"):
+            continue
+        if '"from ' in stripped or "'from " in stripped:
+            continue
+        if '"apps.handlers' in stripped or "'apps.handlers" in stripped:
+            continue
+        if 'apps.handlers' in stripped:
+            handler_pos = stripped.find('apps.handlers')
+            before = stripped[:handler_pos]
+            if before.count('"') % 2 == 1 or before.count("'") % 2 == 1:
+                continue
+
+        # Skip relative imports (same package)
+        if stripped.startswith('from .'):
+            continue
+
+        # Extract code part
+        code_part = stripped.split('#')[0] if '#' in stripped else stripped
+
+        # Check for handler imports (local, not cross-branch)
+        if 'apps.handlers' not in code_part:
+            continue
+
+        # Skip cross-branch imports (handled by other check)
+        imported_branch = extract_branch_from_import(code_part)
+        if imported_branch is not None:
+            continue
+
+        # Check if bypassed
+        if is_bypassed(module_path, 'encapsulation', line=i, bypass_rules=bypass_rules):
+            continue
+
+        # Extract the handler package being imported
+        imported_package = extract_handler_package(code_part)
+
+        if imported_package is None:
+            continue
+
+        # Allow same-package imports
+        if imported_package == file_package:
+            continue
+
+        # Allow default handlers
+        for allowed in allowed_handlers:
+            if allowed in code_part:
+                continue
+
+        # This is a cross-package handler import
+        violations.append({
+            'line': i,
+            'code': code_part.strip(),
+            'from_package': imported_package,
+            'to_package': file_package
+        })
+
+    if violations:
+        first = violations[0]
+        return {
+            'name': 'Cross-package handler imports',
+            'passed': False,
+            'message': f"Line {first['line']}: handlers.{first['from_package']} imported from handlers.{first['to_package']}"
+        }
+
+    return {
+        'name': 'Cross-package handler imports',
+        'passed': True,
+        'message': 'No forbidden cross-package handler imports'
+    }
+
+
+def check_direct_handler_imports(lines: List[str], module_path: str,
+                                  bypass_rules: list | None = None) -> Dict:
+    """
+    Check that non-handler, non-module files don't import handlers directly
+
+    Entry points and other files should use module entry points, not handlers.
+
+    BAD (in api.py): from apps.handlers.openrouter.client import get_response
+    GOOD: from apps.modules.openrouter_client import get_response
+
+    EXCEPTIONS:
+    - json_handler is allowed (default pattern)
+    - file_handler is allowed (default pattern)
+    """
+    violations = []
+
+    # Allowed default handlers
+    allowed_handlers = {'json_handler', 'file_handler'}
+
+    in_docstring = False
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+
+        # Track docstrings
+        if stripped.startswith('"""') or stripped.startswith("'''"):
+            quote_marker = '"""' if stripped.startswith('"""') else "'''"
+            quote_count = stripped.count(quote_marker)
+            if quote_count >= 2:
+                continue
+            else:
+                in_docstring = not in_docstring
+
+        if in_docstring or not stripped or stripped.startswith('#'):
+            continue
+
+        # Check for imports
+        if not ('from ' in stripped or 'import ' in stripped):
+            continue
+
+        # Skip string literals
+        if stripped.startswith('"') or stripped.startswith("'"):
+            continue
+        if '"from ' in stripped or "'from " in stripped:
+            continue
+        if '"apps.handlers' in stripped or "'apps.handlers" in stripped:
+            continue
+        if 'apps.handlers' in stripped:
+            handler_pos = stripped.find('apps.handlers')
+            before = stripped[:handler_pos]
+            if before.count('"') % 2 == 1 or before.count("'") % 2 == 1:
+                continue
+
+        # Extract code part
+        code_part = stripped.split('#')[0] if '#' in stripped else stripped
+
+        # Check for handler imports
+        if 'apps.handlers' not in code_part:
+            continue
+
+        # Check if bypassed
+        if is_bypassed(module_path, 'encapsulation', line=i, bypass_rules=bypass_rules):
+            continue
+
+        # Allow default handlers
+        is_allowed = False
+        for allowed in allowed_handlers:
+            if allowed in code_part:
+                is_allowed = True
+                break
+
+        if is_allowed:
+            continue
+
+        # This file shouldn't be importing handlers directly
+        violations.append({
+            'line': i,
+            'code': code_part.strip()
+        })
+
+    if violations:
+        first = violations[0]
+        return {
+            'name': 'Direct handler imports',
+            'passed': False,
+            'message': f"Line {first['line']}: Handler imported directly (use module entry point)"
+        }
+
+    return {
+        'name': 'Direct handler imports',
+        'passed': True,
+        'message': 'No direct handler imports from entry point'
+    }

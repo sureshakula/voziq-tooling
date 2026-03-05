@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "description": "Template registry for tracking files",
+    "generated": true
+  },
+  "files": {
+    "f001": {
+      "path": ".aipass/aipass_local_prompt.md",
+      "name": "aipass_local_prompt.md",
+      "content_hash": "623927c451d34d39",
+      "has_branch_placeholder": false
+    },
+    "f002": {
+      "path": ".claude/settings.local.json",
+      "name": "settings.local.json",
+      "content_hash": "6379c5be3fb714ac",
+      "has_branch_placeholder": false
+    },
+    "f003": {
+      "path": ".gitignore",
+      "name": ".gitignore",
+      "content_hash": "841dedb922da7ddb",
+      "has_branch_placeholder": false
+    },
+    "f004": {
+      "path": ".trinity/local.json",
+      "name": "local.json",
+      "content_hash": "163a59e414a07c63",
+      "has_branch_placeholder": false
+    },
+    "f005": {
+      "path": ".trinity/observations.json",
+      "name": "observations.json",
+      "content_hash": "098cef7666f048fe",
+      "has_branch_placeholder": false
+    },
+    "f006": {
+      "path": ".trinity/passport.json",
+      "name": "passport.json",
+      "content_hash": "2fe32ad782b8afa1",
+      "has_branch_placeholder": false
+    },
+    "f007": {
+      "path": "DASHBOARD.local.json",
+      "name": "DASHBOARD.local.json",
+      "content_hash": "122532979ea8285b",
+      "has_branch_placeholder": false
+    },
+    "f008": {
+      "path": "README.md",
+      "name": "README.md",
+      "content_hash": "a1e79b8eb529627f",
+      "has_branch_placeholder": false
+    },
+    "f009": {
+      "path": "apps/__init__.py",
+      "name": "__init__.py",
+      "content_hash": "35d07ad93a305810",
+      "has_branch_placeholder": false
+    },
+    "f010": {
+      "path": "apps/branch.py",
+      "name": "branch.py",
+      "content_hash": "4788c309eae120b8",
+      "has_branch_placeholder": false
+    },
+    "f011": {
+      "path": "apps/handlers/__init__.py",
+      "name": "__init__.py",
+      "content_hash": "e3b0c44298fc1c14",
+      "has_branch_placeholder": false
+    },
+    "f012": {
+      "path": "apps/modules/__init__.py",
+      "name": "__init__.py",
+      "content_hash": "e3b0c44298fc1c14",
+      "has_branch_placeholder": false
+    },
+    "f013": {
+      "path": "apps/plugins/__init__.py",
+      "name": "__init__.py",
+      "content_hash": "e3b0c44298fc1c14",
+      "has_branch_placeholder": false
+    },
+    "f014": {
+      "path": "artifacts/birth_certificate.json",
+      "name": "birth_certificate.json",
+      "content_hash": "3ecb3401d38fff96",
+      "has_branch_placeholder": false
+    },
+    "f015": {
+      "path": "flow.local.md",
+      "name": "flow.local.md",
+      "content_hash": "b0d4aa4a3d8b8aa0",
+      "has_branch_placeholder": false
+    },
+    "f016": {
+      "path": "pytest.ini",
+      "name": "pytest.ini",
+      "content_hash": "7b39ba7bca4025c5",
+      "has_branch_placeholder": false
+    },
+    "f017": {
+      "path": "tests/__init__.py",
+      "name": "__init__.py",
+      "content_hash": "c853ec669ac5be9e",
+      "has_branch_placeholder": false
+    },
+    "f018": {
+      "path": "tests/conftest.py",
+      "name": "conftest.py",
+      "content_hash": "5e5f2399e0d70978",
+      "has_branch_placeholder": false
+    },
+    "f019": {
+      "path": "tools/verify_branch.py",
+      "name": "verify_branch.py",
+      "content_hash": "06803a84118e5453",
+      "has_branch_placeholder": false
+    }
+  },
+  "directories": {
+    "d001": {
+      "path": ".aipass",
+      "name": ".aipass"
+    },
+    "d002": {
+      "path": ".archive",
+      "name": ".archive"
+    },
+    "d003": {
+      "path": ".claude",
+      "name": ".claude"
+    },
+    "d004": {
+      "path": ".trinity",
+      "name": ".trinity"
+    },
+    "d005": {
+      "path": "apps",
+      "name": "apps"
+    },
+    "d006": {
+      "path": "apps/handlers",
+      "name": "handlers"
+    },
+    "d007": {
+      "path": "apps/modules",
+      "name": "modules"
+    },
+    "d008": {
+      "path": "apps/plugins",
+      "name": "plugins"
+    },
+    "d009": {
+      "path": "artifacts",
+      "name": "artifacts"
+    },
+    "d010": {
+      "path": "docs",
+      "name": "docs"
+    },
+    "d011": {
+      "path": "dropbox",
+      "name": "dropbox"
+    },
+    "d012": {
+      "path": "templates",
+      "name": "templates"
+    },
+    "d013": {
+      "path": "tests",
+      "name": "tests"
+    },
+    "d014": {
+      "path": "tools",
+      "name": "tools"
+    },
+    "d015": {
+      "path": "trigger_json",
+      "name": "trigger_json"
+    }
+  }
+}

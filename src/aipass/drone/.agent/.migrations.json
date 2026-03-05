@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Template structural migrations for branch updates",
+    "last_updated": "2025-11-07",
+    "applies_to_versions": ["all"]
+  },
+  "migrations": [
+    {
+      "id": "m001",
+      "description": "Example: Migrate flat metadata to document_metadata structure",
+      "version_introduced": "1.0.0",
+      "applies_to_files": ["*.id.json"],
+      "operations": [
+        {
+          "type": "key_rename",
+          "from": "metadata",
+          "to": "document_metadata"
+        },
+        {
+          "type": "move_to_nested",
+          "source_keys": ["branch_name", "path", "profile"],
+          "target_parent": "branch_info"
+        },
+        {
+          "type": "add_missing_keys",
+          "parent": "document_metadata",
+          "keys": {
+            "document_type": "branch_identity",
+            "schema_version": "1.0.0"
+          }
+        }
+      ]
+    }
+  ],
+  "options": {
+    "skip_if_target_exists": true,
+    "preserve_unknown_keys": true,
+    "recursive_application": false
+  },
+  "notes": {
+    "usage": "This file defines structural transformation rules applied during branch updates",
+    "pattern_matching": "applies_to_files uses glob patterns (*.json, *.id.json, etc.)",
+    "operation_order": "Operations execute in order listed within each migration",
+    "skip_behavior": "Operations skip if already compliant (target exists = success)",
+    "supported_operations": ["key_rename", "move_to_nested", "add_missing_keys"],
+    "future_operations": ["split_key", "combine_keys", "delete_key", "transform_value"]
+  }
+}

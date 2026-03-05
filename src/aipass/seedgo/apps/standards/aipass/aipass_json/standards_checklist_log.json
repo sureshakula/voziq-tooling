@@ -1,0 +1,1002 @@
+[
+  {
+    "timestamp": "2026-03-02T23:25:41.701093",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/reporter.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-02T23:26:23.683722",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/cli.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-02T23:27:50.453690",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/drone_adapter.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-02T23:28:36.890408",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/tests/test_seedgo_cli.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T20:23:04.580463",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_os/dev_central/devpulse/apps/modules/dev_flow.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T20:23:19.855290",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/flow/apps/modules/close_plan.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T20:23:23.044903",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_os/dev_central/devpulse/apps/modules/dev_flow.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T20:23:37.864640",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/flow/tools/backfill_closed_plans.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T20:47:43.205674",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/prax/apps/handlers/monitoring/telegram_relay.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T21:05:56.999024",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/prax/apps/handlers/monitoring/monitoring_filters.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:14:03.578961",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/api/apps/handlers/telegram/base_bot.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:14:49.778706",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/api/apps/handlers/telegram/branch_plugin.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T22:16:52.513953",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/api/tests/test_multi_bot.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-03T23:34:26.671368",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/api/apps/handlers/telegram/base_bot.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T03:02:33.967051",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/plugins/drone_compliance.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T03:03:40.238724",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/plugins/naming_convention.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T03:05:00.048222",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/tests/test_drone_compliance.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:00.477671",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:20.420430",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_os/dev_central/assistant/apps/assistant.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T04:01:25.757778",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_os/dev_central/assistant/apps/assistant.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:32:24.181110",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/plugins/silent_failure_detection.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:33:26.108197",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/tests/test_silent_failure_detection.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:34:09.377950",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/plugins/file_module_size.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:35:01.669690",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/tests/test_file_module_size.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:35:42.610494",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/plugins/silent_failure_detection.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:36:05.371963",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/seedgo/plugins/file_module_size.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:36:20.620451",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/tests/test_file_module_size.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:37:46.392827",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/tmp/test_silent_failure.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T07:38:03.114926",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/tmp/test_file_size.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T17:23:30.095206",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/vera/apps/handlers/post_medium.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:35.143031",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:40.738728",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/drone/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:46.407865",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/drone/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:52.040014",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/drone/modules/router.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:54:57.733107",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/drone/modules/resolver.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:03.293402",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/drone/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:09.017821",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/drone/handlers/dispatch.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:30.514570",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/mail/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:36.288862",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/mail/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:41.952987",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/mail/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:47.668326",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/flow/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:53.281385",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/flow/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:55:58.824781",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/flow/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:04.691519",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/devpulse/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:10.384960",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/devpulse/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:15.982151",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/devpulse/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:34.570664",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/seedgo/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:40.411137",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/seedgo/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:46.201033",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/seedgo/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:51.870784",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/seedgo/plugins/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:56:57.819301",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/prax/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:03.504256",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/prax/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:09.280166",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/prax/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:15.076989",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/trigger/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:20.813742",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/trigger/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:26.536034",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/trigger/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:57:55.876870",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/api/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:01.717449",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/api/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:07.399038",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/api/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:13.124019",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/memory/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:18.926431",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/memory/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:24.713235",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/memory/modules/trinity.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:30.441524",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/memory/modules/agents.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:36.233830",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/memory/modules/bank.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:41.951548",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/memory/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:47.966298",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:53.791759",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:58:59.681337",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/modules/scheduler.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:05.411517",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/plugins/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:11.181205",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/plugins/telegram.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:16.770850",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/plugins/calendar.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-04T23:59:22.619569",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/plugins/gmail.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:18.104636",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/devpulse/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:24.026294",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/devpulse/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:29.903679",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/devpulse/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:11:54.488140",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/assistant/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:44:33.291818",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/skills/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T00:44:39.058273",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/templates/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:01.844785",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/templates/cortex/branch_template/apps/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:07.457067",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/templates/cortex/branch_template/apps/branch.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:13.208909",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/templates/cortex/branch_template/apps/modules/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:19.099506",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/templates/cortex/branch_template/apps/handlers/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T01:06:24.686325",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/templates/cortex/branch_template/apps/plugins/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:06:12.783284",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/api/apps/handlers/telegram/base_bot.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:07:11.598859",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_core/api/tests/test_multi_bot.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:11:53.662677",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/templates/agent.template/tests/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:10.230925",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:16.159710",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/metadata.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:22.086712",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/placeholders.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:27.916690",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/file_ops.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:13:33.768974",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/registry.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:14:17.878738",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/spawn.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:14:24.073548",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/placeholders.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:16:05.150848",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/tests/__init__.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:16:10.997435",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/tests/test_spawn.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:20.925170",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/spawn.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:26.678040",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/registry.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:32.352983",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/file_ops.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:38.173047",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/placeholders.py"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-03-05T13:22:43.987078",
+    "operation": "checklist_run",
+    "data": {
+      "command": "checklist",
+      "args": [
+        "/home/aipass/aipass_business/AIPass/src/aipass/spawn/metadata.py"
+      ]
+    }
+  }
+]

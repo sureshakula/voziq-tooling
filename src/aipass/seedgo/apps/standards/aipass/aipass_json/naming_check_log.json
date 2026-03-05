@@ -1,0 +1,898 @@
+[
+  {
+    "timestamp": "2025-11-16T17:43:57.743548",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.746847",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.791029",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.793759",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.834576",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.837151",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.877403",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.880050",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.920887",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.923475",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.963863",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:57.966818",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:58.013096",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:58.015821",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:58.061566",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-16T17:43:58.064695",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.158958",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.162338",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.215750",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/api/apps/api.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.218677",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/api/apps/api.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.264208",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.267086",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.307295",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.310229",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.355114",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.357953",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.400182",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.403566",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.451611",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.454486",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.496790",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.499406",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.539617",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.542602",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.588352",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.591052",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.629857",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:51:55.632710",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.535915",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.539428",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.585599",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/api/apps/api.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.588328",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/api/apps/api.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.628046",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.630476",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.666470",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.669490",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.716056",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.718864",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.759753",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.762324",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.804325",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.806947",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.851546",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.854472",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.898007",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.901185",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.954137",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:01.958721",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:02.000641",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:02.003663",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.560192",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.563086",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/ai_mail/apps/ai_mail.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.605594",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/api/apps/api.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.608206",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/api/apps/api.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.648794",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.651397",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.689251",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.692091",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cli/apps/cli.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.733655",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.736488",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/cortex/apps/cortex.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.776827",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.779337",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/devpulse/apps/devpulse.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.832936",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.837279",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/drone/apps/drone.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.882769",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.885515",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/flow/apps/flow.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.927825",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.930779",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/MEMORY_BANK/apps/modules/rollover.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.978329",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:07.980909",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/prax/apps/prax.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:08.023158",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T17:52:08.026070",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/seed/apps/seed.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T20:38:09.485643",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/modules/backup_core.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T20:38:09.489680",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/modules/backup_core.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 4,
+      "passed_checks": 4
+    }
+  },
+  {
+    "timestamp": "2025-11-18T20:38:19.540066",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/handlers/operations/file_scanner.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T20:38:19.543547",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/handlers/operations/file_scanner.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-18T20:38:29.144047",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-18T20:38:29.147570",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "/home/aipass/aipass_core/backup_system/apps/backup_system.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:54:28.476262",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "apps/modules/imports_standard.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:54:28.480028",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "apps/modules/imports_standard.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:57:16.467439",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "apps/modules/imports_standard.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:57:16.470974",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "apps/modules/imports_standard.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:57:24.323665",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "apps/modules/documentation_standard.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:57:24.327222",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "apps/modules/documentation_standard.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:59:40.696832",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": ""
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:59:40.888259",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": ""
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:59:49.845918",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "apps/modules/standards_audit.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:59:49.849457",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "apps/modules/standards_audit.py",
+      "score": 100,
+      "passed": true,
+      "total_checks": 3,
+      "passed_checks": 3
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:59:50.982712",
+    "operation": "naming_check_started",
+    "data": {
+      "module_path": "apps/modules/standards_checklist.py"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T11:59:50.986429",
+    "operation": "naming_check_completed",
+    "data": {
+      "module_path": "apps/modules/standards_checklist.py",
+      "score": 66,
+      "passed": false,
+      "total_checks": 3,
+      "passed_checks": 2
+    }
+  }
+]

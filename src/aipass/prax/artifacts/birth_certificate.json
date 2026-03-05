@@ -1,0 +1,15 @@
+{
+  "id": "32",
+  "name": "PRAX Birth Certificate",
+  "type": "birth_certificate",
+  "creator": "SYSTEM",
+  "owner": "PRAX",
+  "rarity": "unique",
+  "description": "Official birth certificate for PRAX. Citizen #32, registered using 'library' template. Purpose: System logging, event tracking, and real-time monitoring infrastructure",
+  "metadata": {
+    "citizen_number": "32",
+    "template": "library",
+    "purpose": "System logging, event tracking, and real-time monitoring infrastructure"
+  },
+  "created_at": "2026-03-05"
+}

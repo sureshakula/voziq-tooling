@@ -1,0 +1,15 @@
+{
+  "id": "32",
+  "name": "TRIGGER Birth Certificate",
+  "type": "birth_certificate",
+  "creator": "SYSTEM",
+  "owner": "TRIGGER",
+  "rarity": "unique",
+  "description": "Official birth certificate for TRIGGER. Citizen #32, registered using 'library' template. Purpose: Error detection, pattern matching, auto-dispatch to responsible agents",
+  "metadata": {
+    "citizen_number": "32",
+    "template": "library",
+    "purpose": "Error detection, pattern matching, auto-dispatch to responsible agents"
+  },
+  "created_at": "2026-03-05"
+}

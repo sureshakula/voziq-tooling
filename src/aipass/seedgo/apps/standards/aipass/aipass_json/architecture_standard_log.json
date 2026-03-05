@@ -1,0 +1,247 @@
+[
+  {
+    "timestamp": "2025-11-21T13:47:24.176002",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "standalone"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T23:37:52.225537",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T23:42:15.108193",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-21T23:46:02.037429",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:25:07.514331",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:25:58.734088",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:26:38.092006",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:28:03.536628",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:28:32.379024",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:29:40.002505",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:30:06.219931",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:47:43.548047",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T08:52:39.901585",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T09:48:39.974302",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T15:14:03.334638",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-22T16:34:04.278865",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T00:44:57.023935",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T00:44:57.791408",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T01:57:15.464462",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-27T11:39:35.625169",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-27T13:14:16.237606",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-27T13:14:22.393549",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-27T13:19:14.689436",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-27T16:25:44.639900",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T16:20:49.665073",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T17:14:20.888954",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T18:41:38.941495",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T18:51:39.090768",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T19:02:13.197719",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T19:02:49.865801",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T20:29:10.213536",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T21:28:30.401709",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T21:28:32.453142",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2025-11-29T23:11:12.781040",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  },
+  {
+    "timestamp": "2026-01-30T22:42:26.774479",
+    "operation": "standard_displayed",
+    "data": {
+      "command": "architecture"
+    }
+  }
+]
