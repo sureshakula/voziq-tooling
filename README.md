@@ -1,12 +1,14 @@
 # AIPass
 
+> **Building in public.** This is an active development repo — not a finished product. Modules are being built, tested, and rewired in real time. Some things work, some things don't yet. Follow along, poke around, or fork it and experiment. Contributions welcome once we stabilize.
+
 Orchestration framework for autonomous AI agent ecosystems.
 
 ## What is this?
 
 AIPass gives multi-agent systems the infrastructure they usually lack: command routing, symbolic addressing, standards enforcement, workflow management, and inter-agent messaging. Instead of agents hard-coding paths to each other, they use `@branch` names that resolve at runtime. [Trinity Pattern](https://github.com/AIOSAI/Trinity-Pattern) provides the memory layer.
 
-**Status:** Early development. `drone` routing and `seedgo` standards are working. Other modules are being built.
+**Status:** Early development. `drone` routing and `seedgo` standards are working. Other modules are being built. Expect breaking changes.
 
 ## Quick Start
 

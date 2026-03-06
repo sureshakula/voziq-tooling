@@ -45,3 +45,4 @@ aipass_json/
 # AIPASS_REGISTRY.json — NOT ignored. Ships with core modules pre-registered.
 
 
+setup-workspace.sh
