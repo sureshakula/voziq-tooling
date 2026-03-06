@@ -30,3 +30,13 @@ site/
 
 .archive
 
+# Dev-Pass spawn artifacts (generated post-install, not source code)
+.trinity/
+.agent/
+DASHBOARD.local.json
+flow.local.md
+artifacts/
+tools/verify_branch.py
+aipass_json/
+AIPASS_REGISTRY.json
+
