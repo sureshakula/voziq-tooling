@@ -29,7 +29,7 @@ def check_help_consistency() -> Dict:
     Returns:
         Dict with check results
     """
-    seed_file = Path.home() / "seed" / "apps" / "seed.py"
+    seed_file = Path(__file__).resolve().parents[5] / "apps" / "seedgo.py"  # seedgo root / apps / seedgo.py
     issues = []
 
     if not seed_file.exists():

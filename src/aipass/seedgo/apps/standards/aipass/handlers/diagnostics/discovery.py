@@ -1,42 +1,68 @@
 """
 Branch Discovery Handler
 
-Discovers all branches from the registry for diagnostics scanning.
+Discovers all branches from AIPASS_REGISTRY.json for diagnostics scanning.
 """
 
 # =================== META ====================
 # Name: discovery.py
 # Description: Branch Discovery Handler
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-03-05
-# Modified: 2026-03-05
+# Modified: 2026-03-06
 # =============================================
 
 
+import json
+from pathlib import Path
 from typing import Dict, List
+
+
+def _find_registry() -> Path:
+    """Find AIPASS_REGISTRY.json by walking up from this file's location."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        candidate = parent / "AIPASS_REGISTRY.json"
+        if candidate.exists():
+            return candidate
+    return Path.cwd() / "AIPASS_REGISTRY.json"
 
 
 def discover_branches() -> List[Dict]:
     """
-    Discover all branches from registry
+    Discover all branches from AIPASS_REGISTRY.json for diagnostics.
 
     Returns:
         List of dicts with 'name' and 'path' keys
     """
-    import sys
-    from pathlib import Path
+    branches = []
+    registry_path = _find_registry()
 
-    # Infrastructure
-    AIPASS_ROOT = Path.home() / "aipass_core"
-    sys.path.insert(0, str(AIPASS_ROOT))
-    sys.path.insert(0, str(Path.home()))
-
-    # Import at function level to avoid orchestration at module level
-    from drone.apps.modules import get_all_branches
+    if not registry_path.exists():
+        return branches
 
     try:
-        branches = get_all_branches()
-        return branches
-    except Exception as e:
+        with open(registry_path, 'r', encoding='utf-8') as f:
+            registry_data = json.load(f)
+
+        registry_dir = registry_path.parent
+
+        for branch in registry_data.get('branches', []):
+            branch_name = branch.get('name', '')
+            raw_path = branch.get('path', '')
+            branch_path = Path(raw_path)
+
+            if not branch_path.is_absolute():
+                branch_path = (registry_dir / branch_path).resolve()
+
+            if branch_path.exists():
+                branches.append({
+                    'name': branch_name,
+                    'path': str(branch_path)
+                })
+
+        return sorted(branches, key=lambda x: x['name'])
+
+    except (json.JSONDecodeError, IOError) as e:
         print(f"Error discovering branches: {e}")
-        return []
+        return branches

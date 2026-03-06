@@ -28,8 +28,18 @@ from typing import Dict, List, Optional
 # CONSTANTS
 # =============================================================================
 
-REGISTRY_PATH = Path.home() / "BRANCH_REGISTRY.json"
-GENERATOR_PATH = Path.home() / "seed" / "apps" / "handlers" / "standards" / "readme_generator.py"
+def _find_registry() -> Path:
+    """Find AIPASS_REGISTRY.json by walking up from this file's location."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        candidate = parent / "AIPASS_REGISTRY.json"
+        if candidate.exists():
+            return candidate
+    return Path.cwd() / "AIPASS_REGISTRY.json"
+
+REGISTRY_PATH = _find_registry()
+# Generator lives in same handlers/standards/ directory as this file
+GENERATOR_PATH = Path(__file__).resolve().parent / "readme_generator.py"
 
 # Section display names for output
 SECTION_NAMES = {

@@ -31,11 +31,12 @@ import json
 
 def _is_branch_private(branch_name: str) -> bool:
     """Check if branch is in the private registry."""
-    registry_path = Path.home() / "PRIVATE_BRANCH_REGISTRY.json"
-    if not registry_path.exists():
+    registry_path = _find_registry()
+    priv_path = registry_path.parent / "PRIVATE_BRANCH_REGISTRY.json" if registry_path.exists() else None
+    if not priv_path or not priv_path.exists():
         return False
     try:
-        with open(registry_path, 'r', encoding='utf-8') as f:
+        with open(priv_path, 'r', encoding='utf-8') as f:
             registry = json.load(f)
         for branch in registry.get("branches", []):
             if branch.get("name", "").upper() == branch_name.upper():

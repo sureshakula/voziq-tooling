@@ -46,3 +46,6 @@ aipass_json/
 
 
 setup-workspace.sh
+
+# Local cheat sheets (not source code)
+# Docker.md

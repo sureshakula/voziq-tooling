@@ -37,7 +37,7 @@
     },
     {
       "name": "DEVPULSE",
-      "path": "/home/aipass/aipass_business/AIPass/src/aipass/devpulse",
+      "path": "src/aipass/devpulse",
       "profile": "library",
       "description": "Orchestration hub for AIPass public repo. Manages dev notes, DPLANs, system status dashboards. The DEV_CENTRAL of AIPass.",
       "email": "@devpulse",

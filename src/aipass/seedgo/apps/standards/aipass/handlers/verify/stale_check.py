@@ -29,7 +29,7 @@ def check_stale_patterns() -> Dict:
     Returns:
         Dict with check results
     """
-    seed_path = Path.home() / "seed"
+    seed_path = Path(__file__).resolve().parents[5]  # -> seedgo root
     deprecated_patterns = ignore_handler.get_deprecated_patterns()
 
     violations = []
