@@ -1,148 +1,95 @@
-# AIPass Framework
-
-<!-- ![CI](https://github.com/AIOSAI/AIPass/actions/workflows/ci.yml/badge.svg) -->
+# AIPass
 
 Orchestration framework for autonomous AI agent ecosystems.
 
 ## What is this?
 
-AIPass provides routing, workflow management, inter-agent messaging, and monitoring for autonomous AI agent ecosystems. It coordinates multiple agents working together across branches, plans, and tasks. [Trinity Pattern](https://github.com/AIOSAI/Trinity-Pattern) serves as the memory layer.
+AIPass gives multi-agent systems the infrastructure they usually lack: command routing, symbolic addressing, standards enforcement, workflow management, and inter-agent messaging. Instead of agents hard-coding paths to each other, they use `@branch` names that resolve at runtime. [Trinity Pattern](https://github.com/AIOSAI/Trinity-Pattern) provides the memory layer.
 
-## Install
+**Status:** Early development. `drone` routing and `seedgo` standards are working. Other modules are being built.
 
-```bash
-pip install aipass
-```
+## Quick Start
 
-> **Note:** This package is not yet published to PyPI. This repo is in early development.
-
-## Features
-
-### Routing & Discovery (v1.0)
-
-Symbolic addressing for multi-agent systems. Instead of hard-coded paths, agents use `@branch` symbolic names that resolve to actual locations at runtime.
-
-**Quick Start:**
-
-```python
-from aipass.routing import initialize_registry, register_branch, resolve_branch
-
-# Initialize registry (first time only)
-initialize_registry()
-
-# Register your agents
-register_branch("my_agent", "/path/to/agents/my_agent", branch_type="agent")
-register_branch("researcher", "/path/to/agents/researcher", branch_type="agent")
-register_branch("monitor", "/path/to/services/monitor", branch_type="service")
-
-# Resolve symbolic names to paths
-agent_path = resolve_branch("@my_agent")
-# Returns: "/path/to/agents/my_agent"
-
-# Works with or without @ prefix
-researcher_path = resolve_branch("researcher")
-# Returns: "/path/to/agents/researcher"
-```
-
-**Discovery:**
-
-```python
-from aipass.routing import list_branches, branch_exists, get_branch_info
-
-# Check if a branch exists
-if branch_exists("@my_agent"):
-    print("Agent found!")
-
-# List all registered branches
-all_branches = list_branches()
-# Returns: ["@my_agent", "@researcher", "@monitor"]
-
-# List branches by type
-agents_only = list_branches(branch_type="agent")
-# Returns: ["@my_agent", "@researcher"]
-
-# Get full branch metadata
-info = get_branch_info("@my_agent")
-# Returns: {
-#   "name": "my_agent",
-#   "path": "/path/to/agents/my_agent",
-#   "type": "agent",
-#   "status": "active",
-#   "created": "2026-03-01T10:00:00Z"
-# }
-```
-
-**Configuration:**
-
-By default, the registry is stored at `~/.aipass/BRANCH_REGISTRY.json`. You can customize this:
-
-```python
-from aipass.routing import set_registry_path
-
-# Set custom registry location
-set_registry_path("/custom/path/to/registry.json")
-```
-
-Or via environment variable:
+### From source (recommended for now)
 
 ```bash
-export AIPASS_REGISTRY_PATH=/custom/path/to/registry.json
+git clone https://github.com/AIOSAI/AIPass.git
+cd AIPass
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
 ```
 
-**Integration with Trinity Pattern:**
+### Verify it works
+
+```bash
+drone --help        # Command router
+drone systems       # List all registered modules and branches
+```
+
+You should see:
+
+```
+Modules (2):
+  @drone              Command routing and module discovery
+  @seedgo             Standards compliance through pluggable standard packs
+
+Branches (10):
+  @ai_mail  @api  @cli  @devpulse  @drone
+  @flow  @prax  @seedgo  @spawn  @trigger
+```
+
+## Docker (Isolated Testing)
+
+Run AIPass in a fully isolated container with VS Code in the browser:
+
+```bash
+cd AIPass
+docker build -t aipass-test .
+docker run -d -p 8080:8080 --name aipass-vscode aipass-test
+```
+
+Open `http://localhost:8080` — you get a full VS Code with AIPass pre-installed. The container clones the repo independently on first boot.
+
+## Core Concepts
+
+### Drone — Command Router
+
+Everything goes through `drone`. It resolves `@branch` names to paths and routes commands.
+
+```bash
+drone @seedgo audit aipass    # Route "audit aipass" to the seedgo module
+drone @seedgo list            # Route "list" to seedgo
+drone @flow status            # Route "status" to flow
+drone systems                 # List all registered modules
+drone @module --help          # Show help for any module
+```
+
+**In Python:**
 
 ```python
-from trinity_pattern import Agent
-from aipass.routing import resolve_branch
+from aipass.drone.apps.modules.registry import load_registry
 
-# Before: hard-coded paths
-agent = Agent(directory="/home/user/agents/my_agent")
-
-# After: symbolic addressing
-agent_dir = resolve_branch("@my_agent")
-agent = Agent(directory=agent_dir)
+registry = load_registry()
+# Returns all registered branches with their paths, types, and metadata
 ```
 
-**Error Handling:**
-
-```python
-from aipass.routing import resolve_branch, BranchNotFoundError
-
-try:
-    path = resolve_branch("@nonexistent")
-except BranchNotFoundError as e:
-    print(f"Branch not found: {e}")
-```
-
-## Seed Go
+### Seed Go — Standards Enforcement
 
 > Linters enforce language rules. Seed Go enforces yours.
 
-A portable, plugin-based code standards checker. Define your team's conventions
-as simple Python functions — function length limits, docstring coverage, file
-structure rules — and run them like any other linter. Zero external dependencies.
-No API keys. Deterministic results.
-
-### Quick Start
+A plugin-based code standards checker. Define your team's conventions as Python functions and run them like any linter. No API keys. Deterministic.
 
 ```bash
-# Install
-pip install aipass[seedgo]
-
-# Initialize config in your project
-seedgo init
-
-# Run all enabled plugins
-seedgo check
-
-# List available plugins
-seedgo list
+drone @seedgo verify          # Check seedgo installation health
+drone @seedgo list            # Show installed standard packs
+drone @seedgo audit aipass    # Run the aipass standards pack
 ```
 
-### Write a Plugin in 60 Seconds
+**Write a plugin in 60 seconds:**
 
 ```python
-# .seedgo/plugins/my_plugin.py
+# .seedgo/plugins/no_bare_except.py
 import re
 from seedgo import CheckResult, CheckItem, Severity
 
@@ -156,67 +103,95 @@ def check(file_path: str, config: dict | None = None) -> CheckResult:
     lines = open(file_path).readlines()
     violations = [
         CheckItem(
-            name="bare-except",
-            passed=False,
+            name="bare-except", passed=False,
             message=f"Bare except: at line {i+1}",
-            severity=Severity.WARNING,
-            line=i + 1,
+            severity=Severity.WARNING, line=i + 1,
             fix_hint="Use `except Exception:` instead.",
         )
-        for i, line in enumerate(lines)
-        if _BARE_EXCEPT.match(line)
+        for i, line in enumerate(lines) if _BARE_EXCEPT.match(line)
     ]
     return CheckResult(
-        plugin=PLUGIN_NAME,
-        passed=not violations,
-        checks=violations or [CheckItem(name="bare-except", passed=True,
-                                        message="No bare excepts found.",
-                                        severity=Severity.WARNING)],
+        plugin=PLUGIN_NAME, passed=not violations,
+        checks=violations or [CheckItem(
+            name="bare-except", passed=True,
+            message="No bare excepts found.",
+            severity=Severity.WARNING)],
         file_path=file_path,
     )
 ```
 
-### Starter Plugins (5 Built-in)
+**5 built-in plugins:**
 
 | Plugin | What it checks | Linter equivalent? |
 |---|---|---|
-| `no-bare-except` | Bare `except:` clauses | ruff E722 (but with fix hints) |
-| `type-hints-required` | Missing type annotations | mypy (but project-configurable) |
-| `docstring-coverage` | Missing module/function docstrings | pydocstyle (but simpler) |
-| `function-length` | Functions exceeding N lines | **No linter equivalent** |
-| `file-structure` | Forbidden files in root/dirs | **No linter equivalent** |
+| `no-bare-except` | Bare `except:` clauses | ruff E722 (with fix hints) |
+| `type-hints-required` | Missing type annotations | mypy (project-configurable) |
+| `docstring-coverage` | Missing docstrings | pydocstyle (simpler) |
+| `function-length` | Functions exceeding N lines | **None** |
+| `file-structure` | Forbidden files in dirs | **None** |
 
-Two of the five check things no standard linter can enforce.
+### Symbolic Addressing
 
-### vs. Pre-Commit
+Instead of hard-coding agent paths, register them and resolve by name:
 
-Seed Go is complementary to pre-commit, not a replacement. Run it as a hook:
+```python
+from aipass.routing import initialize_registry, register_branch, resolve_branch
 
-```yaml
-# .pre-commit-config.yaml
-- repo: local
-  hooks:
-    - id: seedgo
-      name: Seed Go standards check
-      entry: seedgo check
-      language: system
-      pass_filenames: false
+initialize_registry()
+register_branch("my_agent", "/path/to/my_agent", branch_type="agent")
+
+# Resolve @name to path
+path = resolve_branch("@my_agent")  # "/path/to/my_agent"
 ```
 
-Or standalone in CI:
+## Architecture
+
+All modules follow a 3-layer pattern:
+
+```
+src/aipass/<module>/
+├── apps/
+│   ├── branch.py      # Entry point (what drone calls)
+│   ├── modules/       # Business logic
+│   └── handlers/      # Implementation details
+```
+
+**10 modules:** drone, seedgo, flow, ai_mail, prax, cli, api, spawn, trigger, devpulse
+
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `drone` | Command routing, `@branch` resolution | Working |
+| `seedgo` | Standards enforcement, plugin system | Working |
+| `flow` | Workflow/plan management | Building |
+| `ai_mail` | Inter-agent messaging | Building |
+| `prax` | Real-time monitoring | Building |
+| `cli` | Display formatting | Building |
+| `api` | External API access | Building |
+| `spawn` | Agent lifecycle management | Building |
+| `trigger` | Event-driven automation | Building |
+| `devpulse` | Dev notes and status tracking | Building |
+
+## Configuration
+
+**Registry location** (default: `AIPASS_REGISTRY.json` in repo root):
 
 ```bash
-seedgo check --format github  # GitHub Actions annotations
-seedgo check --format json    # machine-readable output
+export AIPASS_REGISTRY_PATH=/custom/path/to/registry.json
 ```
 
-### Honest About What It Is
+**Seed Go config** (default: `.seedgo/` in project root):
 
-- Deterministic checks — same input always produces same output
-- No AI in the validation loop — no API keys, no network calls
-- Plugin contract is stable: `check(file_path, config) -> CheckResult`
-- Scores are weighted: errors block (weight 1.0), warnings degrade (0.5),
-  info is reported only (0.0). Threshold is configurable (default: 75/100).
+```bash
+seedgo init          # Create .seedgo/ config directory
+seedgo check         # Run all enabled plugins
+seedgo list          # Show available plugins
+```
+
+## Requirements
+
+- Python 3.10+
+- No external API keys required
+- Dependencies: `rich` (terminal formatting)
 
 ## License
 
