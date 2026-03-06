@@ -134,16 +134,18 @@ def check(file_path: str, config: dict | None = None) -> CheckResult:
 
 ### Symbolic Addressing
 
-Instead of hard-coding agent paths, register them and resolve by name:
+Instead of hard-coding agent paths, resolve them by `@name`:
 
 ```python
-from aipass.routing import initialize_registry, register_branch, resolve_branch
-
-initialize_registry()
-register_branch("my_agent", "/path/to/my_agent", branch_type="agent")
+from aipass.drone.apps.modules.resolver import resolve_branch
+from aipass.drone.apps.modules.registry import load_registry
 
 # Resolve @name to path
-path = resolve_branch("@my_agent")  # "/path/to/my_agent"
+path = resolve_branch("@drone")  # Returns the drone module path
+
+# Load the full registry
+registry = load_registry()
+# Returns all registered branches with their paths, types, and metadata
 ```
 
 ## Architecture

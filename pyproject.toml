@@ -27,6 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "rich>=13.0",
+    "watchdog>=3.0",
 ]
 
 [project.urls]
