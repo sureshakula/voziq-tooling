@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_level_content.py - Log Level Hygiene Standards Content
-# Date: 2026-02-13
-# Version: 1.0.0
-# Category: seed/standards/content
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-13): Initial content - log level hygiene standard
-#
-# CODE STANDARDS:
-#   - Content handler provides Rich-formatted text for display
-# =============================================
-
 """
 Log Level Hygiene Standards Content
 

@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: display.py - Audit Display Handler
-# Date: 2025-11-29
-# Version: 1.0.0
-# Category: seed/handlers/audit
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-29): Extracted from standards_audit.py module
-#
-# CODE STANDARDS:
-#   - Implementation handler for audit display
-#   - Formats and prints audit results
-# =============================================
-
 """
 Audit Display Handler
 
@@ -30,15 +13,10 @@ from collections import defaultdict
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
 # IMPORTS
 # =============================================================================
 
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 
 # =============================================================================

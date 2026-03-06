@@ -1,27 +1,9 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: discovery.py - Branch Discovery Handler
-# Date: 2025-11-29
-# Version: 1.0.0
-# Category: seed/handlers/audit
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-29): Extracted from standards_audit.py module
-#
-# CODE STANDARDS:
-#   - Implementation handler for branch discovery
-#   - Reads BRANCH_REGISTRY.json to find all branches
-# =============================================
-
 """
 Branch Discovery Handler
 
 Discovers all AIPass branches from BRANCH_REGISTRY.json
 """
 
-import sys
 from pathlib import Path
 from typing import List, Dict
 
@@ -29,11 +11,6 @@ from typing import List, Dict
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
 # IMPORTS
 # =============================================================================
 
@@ -75,9 +52,10 @@ def discover_branches(include_private: bool = False) -> List[Dict[str, str]]:
         List of dicts with 'name', 'path', 'entry_file' keys
     """
     branches = []
-    registry_path = Path.home() / "BRANCH_REGISTRY.json"
+    # AIPass public repo registry
+    registry_path = Path(__file__).parents[8] / "AIPASS_REGISTRY.json"
 
-    # Try to read from BRANCH_REGISTRY.json (source of truth)
+    # Try to read from AIPASS_REGISTRY.json (source of truth)
     if registry_path.exists():
         try:
             with open(registry_path, 'r', encoding='utf-8') as f:

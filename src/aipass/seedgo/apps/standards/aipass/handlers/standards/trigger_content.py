@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: trigger_content.py - Trigger Standards Content Handler
-# Date: 2025-12-04
-# Version: 0.1.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-12-04): Initial handler - Trigger event bus standards
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Trigger Standards Content Handler
 
@@ -24,12 +7,6 @@ Module orchestrates, handler implements.
 
 import sys
 from pathlib import Path
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def get_trigger_standards() -> str:
     """Return formatted trigger standards content with Rich markup

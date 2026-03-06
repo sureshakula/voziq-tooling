@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: readme_content.py - README Standards Content
-# Date: 2026-02-21
-# Version: 1.0.0
-# Category: seed/standards/content
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-21): Initial content - README completeness standard
-#
-# CODE STANDARDS:
-#   - Content handler provides Rich-formatted text for display
-# =============================================
-
 """
 README Standards Content
 
@@ -22,12 +6,6 @@ Provides Rich-formatted reference text for the README standard.
 
 import sys
 from pathlib import Path
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def get_readme_standards() -> str:
     """Return Rich-formatted README standards text"""

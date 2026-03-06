@@ -1,22 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: readme_ops.py - README Update Operations Handler
-# Date: 2026-02-21
-# Version: 1.0.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-21): Initial build - extracted from readme_update module (DPLAN-026 Phase 4)
-#
-# CODE STANDARDS:
-#   - Handler: implementation details for readme_update module
-#   - Uses importlib for cross-branch generator loading
-#   - Reads BRANCH_REGISTRY.json for branch resolution
-#   - No CLI output, no logger - returns data to module
-# =============================================
-
 """
 README Update Operations Handler
 
@@ -35,11 +16,6 @@ from typing import Dict, List, Optional
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
 # CONSTANTS
 # =============================================================================
 

@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - JSON Auto-Creating Handler
-# Date: 2025-11-21
-# Version: 1.1.0
-# Category: seed/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2025-11-21): Refactored to comply with error handling
-#   - v1.0.0 (2025-11-13): Initial JSON auto-creation system
-#
-# CODE STANDARDS:
-#   - Pure functions with proper error raising
-#   - No Prax imports (handler tier 3)
-# =============================================
-
 import json
 from pathlib import Path
 from datetime import datetime
@@ -23,14 +5,9 @@ from typing import Dict, List, Any, Optional
 import sys
 import inspect
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-
-# Constants
-SEED_ROOT = Path.home() / "seed"
-SEED_JSON_DIR = SEED_ROOT / "seed_json"
-JSON_TEMPLATES_DIR = SEED_ROOT / "apps" / "json_templates"
+PACK_ROOT = Path(__file__).resolve().parent.parent.parent  # json/ -> handlers/ -> aipass/
+SEED_JSON_DIR = PACK_ROOT / "aipass_json"
+JSON_TEMPLATES_DIR = PACK_ROOT / "json_templates"
 
 
 def _get_caller_module_name() -> str:

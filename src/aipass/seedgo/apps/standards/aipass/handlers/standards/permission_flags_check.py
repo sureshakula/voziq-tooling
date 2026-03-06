@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: permission_flags_check.py - Permission Flags Standards Checker Handler
-# Date: 2026-02-26
-# Version: 1.0.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-26): Initial implementation - permission flag validation
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Permission Flags Standards Checker Handler
 
@@ -33,12 +17,6 @@ import sys
 import re
 from pathlib import Path
 from typing import Dict, List
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""

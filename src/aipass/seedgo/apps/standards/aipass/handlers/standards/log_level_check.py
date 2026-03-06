@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_level_check.py - Log Level Hygiene Standards Checker Handler
-# Date: 2026-02-13
-# Version: 1.0.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-13): Initial implementation - log level correctness validation
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Log Level Hygiene Standards Checker Handler
 
@@ -32,12 +16,6 @@ import sys
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""

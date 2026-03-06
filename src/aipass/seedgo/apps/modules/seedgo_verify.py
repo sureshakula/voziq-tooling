@@ -1,179 +1,138 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: standards_verify.py - Seed Sync Verification Module
-# Date: 2025-11-25
-# Version: 0.1.0
-# Category: seed/standards
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-25): Initial implementation - verify seed sync status
-#
-# CODE STANDARDS:
-#   - Checks for deprecated patterns in codebase
-#   - Verifies file freshness and consistency
-#   - Validates help text accuracy
-# =============================================
-
 """
-Standards Verify Module
+Seedgo Verify Module
 
-Verifies that seed branch is in sync with recent changes.
-Checks for stale patterns, file freshness, and help consistency.
+Self-check for seedgo installation integrity.
+Verifies packs are loadable, manifests are valid, and standards are consistent.
 
-Run: python3 seed.py verify
+Run: seedgo verify
 """
 
-import sys
+import json
 from pathlib import Path
 from typing import List
-from datetime import datetime
 
-# =============================================================================
-# INFRASTRUCTURE SETUP
-# =============================================================================
-
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
-# IMPORTS
-# =============================================================================
-
-# Prax logger (system-wide, always first)
-from prax.apps.modules.logger import system_logger as logger
-
-# JSON handler for tracking
-from seed.apps.handlers.json import json_handler
-
-# CLI services (display/output formatting)
-from cli.apps.modules import console
-
-# Verification orchestrator handler
-from seed.apps.handlers.verify.orchestrator import run_verification
+from aipass.prax import logger
+from aipass.cli import console
 
 
-# =============================================================================
-# COMMAND HANDLER
-# =============================================================================
+SEEDGO_ROOT = Path(__file__).resolve().parent.parent  # modules/ -> apps/
+STANDARDS_DIR = SEEDGO_ROOT / "standards"
+
 
 def handle_command(command: str, args: List[str]) -> bool:
-    """
-    Handle 'verify' command
-
-    Args:
-        command: Command name
-        args: Additional arguments
-
-    Returns:
-        True if handled, False if not this module's command
-    """
+    """Handle 'verify' command."""
     if command != "verify":
         return False
 
-    # Check for help flag
-    if args and args[0] in ['--help', '-h', 'help']:
+    if args and args[0] in ["--help", "-h", "help"]:
         print_help()
         return True
 
-    # Log verification start
-    json_handler.log_operation(
-        "standards_verify_started",
-        {"timestamp": datetime.now().isoformat()}
-    )
-
-    # Run verification
-    result = run_verification()
-
-    # Log completion
-    json_handler.log_operation(
-        "standards_verify_completed",
-        {
-            "passed": result['passed'],
-            "total": result['total'],
-            "score": result['score']
-        }
-    )
-
+    run_verify()
     return True
 
 
-def print_help():
-    """Print help information"""
+def run_verify() -> None:
+    """Run seedgo self-verification checks."""
     console.print()
-    console.print("[bold cyan]Standards Verify Module[/bold cyan]")
-    console.print("Seed Sync Verification - Check for stale patterns and outdated files")
-    console.print()
-
-    console.print("[yellow]COMMANDS:[/yellow]")
-    console.print("  Commands: verify, --help")
-    console.print()
-    console.print("  [cyan]verify[/cyan]  - Run all verification checks")
+    console.print("[bold cyan]SEEDGO VERIFY[/bold cyan]")
     console.print()
 
-    console.print("[yellow]USAGE:[/yellow]")
-    console.print("  [dim]# Via drone[/dim]")
-    console.print("  drone @seed verify")
+    checks_passed = 0
+    checks_total = 0
+
+    # Check 1: Standards directory exists
+    checks_total += 1
+    if STANDARDS_DIR.exists():
+        console.print("[green]✓[/green] Standards directory exists")
+        checks_passed += 1
+    else:
+        console.print("[red]✗[/red] Standards directory missing")
+
+    # Check 2: At least one pack installed
+    checks_total += 1
+    packs = [d for d in STANDARDS_DIR.iterdir()
+             if d.is_dir() and not d.name.endswith(".example") and (d / "pack.json").exists()]
+    if packs:
+        console.print(f"[green]✓[/green] {len(packs)} standard pack(s) installed: {', '.join(p.name for p in packs)}")
+        checks_passed += 1
+    else:
+        console.print("[red]✗[/red] No standard packs found")
+
+    # Check 3: Each pack has valid manifest
+    for pack_dir in packs:
+        checks_total += 1
+        manifest_path = pack_dir / "pack.json"
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                manifest = json.load(f)
+            required_keys = ["name", "version", "standards"]
+            missing = [k for k in required_keys if k not in manifest]
+            if missing:
+                console.print(f"[red]✗[/red] Pack '{pack_dir.name}': manifest missing keys: {missing}")
+            else:
+                console.print(f"[green]✓[/green] Pack '{pack_dir.name}': valid manifest (v{manifest['version']}, {len(manifest['standards'])} standards)")
+                checks_passed += 1
+        except Exception as e:
+            console.print(f"[red]✗[/red] Pack '{pack_dir.name}': manifest error: {e}")
+
+    # Check 4: Each pack has entry point
+    for pack_dir in packs:
+        checks_total += 1
+        entry = pack_dir / "pack_entry.py"
+        if entry.exists():
+            console.print(f"[green]✓[/green] Pack '{pack_dir.name}': entry point exists")
+            checks_passed += 1
+        else:
+            console.print(f"[red]✗[/red] Pack '{pack_dir.name}': missing entry point ({entry.name})")
+
+    # Check 5: Each pack's listed standards have check files
+    for pack_dir in packs:
+        manifest_path = pack_dir / "pack.json"
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                manifest = json.load(f)
+            standards = manifest.get("standards", [])
+            checks_dir = pack_dir / "handlers" / "standards"
+            missing_checks = []
+            for std in standards:
+                check_file = checks_dir / f"{std}_check.py"
+                if not check_file.exists():
+                    missing_checks.append(std)
+
+            checks_total += 1
+            if missing_checks:
+                console.print(f"[red]✗[/red] Pack '{pack_dir.name}': missing check files: {missing_checks}")
+            else:
+                console.print(f"[green]✓[/green] Pack '{pack_dir.name}': all {len(standards)} standard check files present")
+                checks_passed += 1
+        except Exception:
+            pass
+
+    # Summary
     console.print()
-    console.print("  [dim]# Direct execution[/dim]")
-    console.print("  python3 seed.py verify")
-    console.print("  python3 seed.py verify --help")
+    score = int(checks_passed / checks_total * 100) if checks_total > 0 else 0
+    status = "[green]PASS[/green]" if checks_passed == checks_total else "[yellow]PARTIAL[/yellow]"
+    console.print(f"  {status}  {checks_passed}/{checks_total} checks passed ({score}%)")
     console.print()
 
-    console.print("[yellow]CHECKS PERFORMED:[/yellow]")
-    console.print("  [green]1.[/green] Stale Pattern Check")
-    console.print("     [dim]• Searches for deprecated flags (--verbose, --full)[/dim]")
-    console.print("     [dim]• Reports file:line where found[/dim]")
-    console.print()
-    console.print("  [green]2.[/green] File Freshness Check")
-    console.print("     [dim]• Compares modification dates of key files[/dim]")
-    console.print("     [dim]• Checks if README.md is outdated[/dim]")
-    console.print("     [dim]• Verifies SEED.local.json was updated today[/dim]")
-    console.print()
-    console.print("  [green]3.[/green] Help Consistency Check")
-    console.print("     [dim]• Verifies seed.py doesn't mention removed flags[/dim]")
-    console.print("     [dim]• Ensures help text is accurate[/dim]")
-    console.print()
-    console.print("  [green]4.[/green] Command Consistency Check")
-    console.print("     [dim]• Validates flag documentation across module.py, handler, README[/dim]")
-    console.print("     [dim]• Catches flags that exist but aren't documented everywhere[/dim]")
-    console.print()
-    console.print("  [green]5.[/green] Checker-Doc Sync Check")
-    console.print("     [dim]• Verifies checker count matches README, SEED.id.json, seed.py[/dim]")
-    console.print("     [dim]• Checks CODE_STANDARDS docs exist for each checker[/dim]")
-    console.print("     [dim]• Validates trigger_check patterns match trigger_content docs[/dim]")
-    console.print()
-
-    console.print("[yellow]EXAMPLES:[/yellow]")
-    console.print("  [dim]# Quick verification[/dim]")
-    console.print("  python3 seed.py verify")
-    console.print()
-    console.print("  [dim]# Show help[/dim]")
-    console.print("  python3 seed.py verify --help")
-    console.print()
-
-    console.print("[yellow]REFERENCE:[/yellow]")
-    console.print("  Ensures seed branch stays in sync with recent changes.")
-    console.print("  Detects stale patterns, outdated docs, and inconsistent help text.")
-    console.print()
+    logger.info(f"Seedgo verify: {checks_passed}/{checks_total} ({score}%)")
 
 
-if __name__ == "__main__":
-    # Handle help flag
-    if len(sys.argv) > 1 and sys.argv[1] in ['--help', '-h', 'help']:
-        print_help()
-        sys.exit(0)
-
-    # Confirm Prax logger connection
-    logger.info("Prax logger connected to standards_verify")
-
-    # Log standalone execution
-    json_handler.log_operation(
-        "verify_run",
-        {"command": "standalone", "args": sys.argv[1:]}
-    )
-
-    # Run verification
-    handle_command("verify", sys.argv[1:])
+def print_help() -> None:
+    """Print help information."""
+    console.print()
+    console.print("[bold cyan]Seedgo Verify[/bold cyan]")
+    console.print("Self-check for seedgo installation integrity")
+    console.print()
+    console.print("[bold]Usage:[/bold]")
+    console.print("  seedgo verify          Run all verification checks")
+    console.print("  seedgo verify --help   Show this help")
+    console.print()
+    console.print("[bold]Checks:[/bold]")
+    console.print("  1. Standards directory exists")
+    console.print("  2. At least one pack installed")
+    console.print("  3. Pack manifests are valid")
+    console.print("  4. Pack entry points exist")
+    console.print("  5. Standard check files present")
+    console.print()

@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: diagnostics_check.py - Type Error Diagnostics Checker
-# Date: 2025-11-28
-# Version: 0.2.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-28): Added Rich console output, Prax logger
-#   - v0.1.0 (2025-11-28): Initial implementation - pyright integration
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Type Error Diagnostics Checker
 
@@ -30,16 +13,10 @@ from typing import Dict, List
 
 from rich.console import Console
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-SEED_ROOT = Path.home() / "seed"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 console = Console()
 
 # Import ignore patterns from config handler (same branch)
-from seed.apps.handlers.config.ignore_handler import get_audit_ignore_patterns
+from ..config.ignore_handler import get_audit_ignore_patterns
 
 
 def should_ignore_file(file_path: str, ignore_patterns: List[str]) -> bool:

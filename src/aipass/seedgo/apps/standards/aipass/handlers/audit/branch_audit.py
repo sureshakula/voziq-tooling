@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: branch_audit.py - Branch Audit Handler
-# Date: 2025-11-29
-# Version: 1.0.0
-# Category: seed/handlers/audit
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-29): Extracted from standards_audit.py module
-#
-# CODE STANDARDS:
-#   - Implementation handler for branch auditing
-#   - Runs all standard checkers on branch files
-# =============================================
-
 """
 Branch Audit Handler
 
@@ -29,34 +12,29 @@ from typing import Dict
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
 # IMPORTS
 # =============================================================================
 
-from seed.apps.handlers.standards import imports_check
-from seed.apps.handlers.standards import architecture_check
-from seed.apps.handlers.standards import naming_check
-from seed.apps.handlers.standards import cli_check
-from seed.apps.handlers.standards import handlers_check
-from seed.apps.handlers.standards import modules_check
-from seed.apps.handlers.standards import documentation_check
-from seed.apps.handlers.standards import json_structure_check
-from seed.apps.handlers.standards import testing_check
-from seed.apps.handlers.standards import error_handling_check
-from seed.apps.handlers.standards import encapsulation_check
-from seed.apps.handlers.standards import trigger_check
-from seed.apps.handlers.standards import log_level_check
-from seed.apps.handlers.standards import cli_flags_check
-from seed.apps.handlers.standards import log_handler_check
-from seed.apps.handlers.standards import log_visibility_check
-from seed.apps.handlers.standards import permission_flags_check
-from seed.apps.handlers.standards import readme_check
-from seed.apps.handlers.standards import diagnostics_check
-from seed.apps.handlers.config import ignore_handler
+from ..standards import imports_check
+from ..standards import architecture_check
+from ..standards import naming_check
+from ..standards import cli_check
+from ..standards import handlers_check
+from ..standards import modules_check
+from ..standards import documentation_check
+from ..standards import json_structure_check
+from ..standards import testing_check
+from ..standards import error_handling_check
+from ..standards import encapsulation_check
+from ..standards import trigger_check
+from ..standards import log_level_check
+from ..standards import cli_flags_check
+from ..standards import log_handler_check
+from ..standards import log_visibility_check
+from ..standards import permission_flags_check
+from ..standards import readme_check
+from ..standards import diagnostics_check
+from ..config import ignore_handler
 
 
 # =============================================================================

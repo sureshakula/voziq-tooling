@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: imports_content.py - Import Standards Content Handler
-# Date: 2025-11-13
-# Version: 0.2.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-13): Condensed version - truth-checked against codebase
-#   - v0.1.0 (2025-11-13): Initial handler - Import standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Import Standards Content Handler
 

@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: orchestrator.py - Verification Orchestrator Handler
-# Date: 2025-11-29
-# Version: 0.1.0
-# Category: seed/handlers/verify
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-29): Initial - orchestrates verification checks
-#
-# CODE STANDARDS:
-#   - Pure handler - orchestrates check handlers
-#   - Returns data dict, display handled separately
-# =============================================
-
 """
 Verification Orchestrator Handler
 
@@ -30,19 +13,14 @@ from typing import Dict
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# CLI services for display
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 # Check handlers
-from seed.apps.handlers.verify.stale_check import check_stale_patterns
-from seed.apps.handlers.verify.freshness_check import check_file_freshness
-from seed.apps.handlers.verify.help_check import check_help_consistency
-from seed.apps.handlers.verify.command_check import check_command_consistency
-from seed.apps.handlers.verify.checker_sync import check_checker_sync
+from ..verify.stale_check import check_stale_patterns
+from ..verify.freshness_check import check_file_freshness
+from ..verify.help_check import check_help_consistency
+from ..verify.command_check import check_command_consistency
+from ..verify.checker_sync import check_checker_sync
 
 
 def run_verification() -> Dict:

@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_handling_content.py - Error Handling Standards Content Handler
-# Date: 2025-11-21
-# Version: 1.1.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-01-31): Added ERROR vs WARNING log level guidelines
-#   - v1.0.0 (2025-11-21): Initial handler - error handling 3-tier standard
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Error Handling Standards Content Handler
 

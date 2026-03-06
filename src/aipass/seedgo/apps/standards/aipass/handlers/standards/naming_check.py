@@ -1,23 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: naming_check.py - Naming Standards Checker Handler
-# Date: 2025-11-22
-# Version: 0.5.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.5.0 (2025-11-22): Fixed false positive - logger = system_logger pattern now recognized
-#   - v0.4.0 (2025-11-22): Fixed false positive - imports (logger, console) no longer flagged as constants
-#   - v0.3.0 (2025-11-21): Fixed multi-line string tracking bug - prevents epilog strings from confusing scope
-#   - v0.2.0 (2025-11-21): Fixed scope tracking bug - if __name__ blocks now treated as function scope
-#   - v0.1.0 (2025-11-15): Initial implementation - naming standards checking
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Naming Standards Checker Handler
 
@@ -29,12 +9,6 @@ import sys
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))  # Seed-specific: enables `from seed.apps.handlers...` imports
-
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""

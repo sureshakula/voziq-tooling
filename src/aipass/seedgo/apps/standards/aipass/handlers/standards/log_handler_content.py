@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_handler_content.py - Log Handler Standards Content
-# Date: 2026-02-26
-# Version: 1.0.0
-# Category: seed/standards/content
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-26): Initial content - log handler rotation standard
-#
-# CODE STANDARDS:
-#   - Content handler provides Rich-formatted text for display
-# =============================================
-
 """
 Log Handler Standards Content
 

@@ -1,25 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: standards_audit.py - Branch-wide Standards Audit Module
-# Date: 2025-11-29
-# Version: 0.5.0
-# Category: seed/standards
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.5.0 (2025-11-29): Refactored to thin orchestrator - extracted implementation to handlers
-#   - v0.4.0 (2025-11-25): Simplified - audit now always checks ALL files with full details (no flags needed)
-#   - v0.3.0 (2025-11-25): Added --full flag to check ALL Python files (not just entry points)
-#   - v0.2.0 (2025-11-21): Now uses BRANCH_REGISTRY.json as source of truth (finds all 19 branches)
-#   - v0.1.0 (2025-11-16): Initial implementation - system-wide branch compliance audit
-#
-# CODE STANDARDS:
-#   - Thin orchestrator - delegates to handlers
-#   - Scans all branches for standards compliance
-#   - Aggregates scores into dashboard report
-# =============================================
-
 """
 Standards Audit Module
 
@@ -38,39 +16,28 @@ from collections import defaultdict
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
 # IMPORTS
 # =============================================================================
 
 # Prax logger (system-wide, always first)
-from prax.apps.modules.logger import system_logger as logger
-
+from aipass.prax import logger
 # JSON handler for tracking
-from seed.apps.handlers.json import json_handler
+from handlers.json import json_handler
 
 # CLI services (display/output formatting)
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 # Audit handlers (implementation)
-from seed.apps.handlers.audit import (
-    discover_branches,
-    audit_branch,
-    audit_bypasses,
-    print_branch_summary,
-    print_system_summary,
-    print_bypass_audit
-)
-from seed.apps.handlers.audit.discovery import _is_branch_private
+from handlers.audit.discovery import discover_branches, _is_branch_private
+from handlers.audit.branch_audit import audit_branch
+from handlers.audit.bypass_audit import audit_bypasses
+from handlers.audit.display import print_branch_summary, print_system_summary, print_bypass_audit
 
 # Bypass system - import from checklist
-from seed.apps.modules.standards_checklist import load_bypass_rules
+from modules.standards_checklist import load_bypass_rules
 
 # Drone services for @ resolution
-from drone.apps.modules import normalize_branch_arg
+from aipass.drone.apps.modules import normalize_branch_arg
 
 
 # =============================================================================

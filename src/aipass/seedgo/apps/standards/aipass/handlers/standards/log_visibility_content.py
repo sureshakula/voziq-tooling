@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_visibility_content.py - Log Visibility Standards Content
-# Date: 2026-02-27
-# Version: 2.0.0
-# Category: seed/standards/content
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-27): Updated for unified Prax logging — handlers no longer exempt
-#   - v1.0.0 (2026-02-27): Initial content - log visibility standard
-#
-# CODE STANDARDS:
-#   - Content handler provides Rich-formatted text for display
-# =============================================
-
 """
 Log Visibility Standards Content
 
@@ -24,12 +7,6 @@ Provides Rich-formatted reference text for the log visibility standard.
 import sys
 from pathlib import Path
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# Build example strings via concatenation to avoid triggering checkers
 _GETLOGGER = "logging" + ".getLogger"
 _FILEHANDLER = "logging" + ".FileHandler"
 _PRAX_IMPORT = "from prax.apps.modules.logger import system_logger as logger"

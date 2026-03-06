@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_handling_check.py - Error Handling Standards Checker Handler
-# Date: 2025-11-21
-# Version: 1.1.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-27): Unified Prax logging — handlers now ALLOWED/ENCOURAGED to use Prax, stdlib getLogger flagged
-#   - v1.1.0 (2026-01-31): Added ERROR vs WARNING usage check - detects user input validation in logger.error()
-#   - v1.0.0 (2025-11-21): Initial implementation - 3-tier logging validation
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Error Handling Standards Checker Handler
 
@@ -27,12 +9,6 @@ import sys
 import re
 from pathlib import Path
 from typing import Dict, List
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""

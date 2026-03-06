@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: standards_checklist.py - Standards Checklist Module
-# Date: 2025-11-12
-# Version: 0.1.0
-# Category: seed/standards
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-12): Initial standards checklist module - framework only
-#
-# CODE STANDARDS:
-#   - This module checks other modules for standards compliance
-# =============================================
-
 """
 Standards Checklist Module
 
@@ -31,47 +15,42 @@ from datetime import datetime
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))  # For seed package imports
 
 # =============================================================================
 # IMPORTS - DEMONSTRATES PROPER IMPORT PATTERN
 # =============================================================================
 
 # Prax logger (system-wide, always first)
-from prax.apps.modules.logger import system_logger as logger
-
+from aipass.prax import logger
 # JSON handler for tracking
-from seed.apps.handlers.json import json_handler
+from handlers.json import json_handler
 
 # CLI services (display/output formatting)
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 # Standards checkers
-from seed.apps.handlers.standards import imports_check
-from seed.apps.handlers.standards import architecture_check
-from seed.apps.handlers.standards import naming_check
-from seed.apps.handlers.standards import cli_check
-from seed.apps.handlers.standards import handlers_check
-from seed.apps.handlers.standards import modules_check
-from seed.apps.handlers.standards import documentation_check
-from seed.apps.handlers.standards import json_structure_check
-from seed.apps.handlers.standards import testing_check
-from seed.apps.handlers.standards import error_handling_check
-from seed.apps.handlers.standards import encapsulation_check
-from seed.apps.handlers.standards import trigger_check
-from seed.apps.handlers.standards import log_level_check
-from seed.apps.handlers.standards import cli_flags_check
-from seed.apps.handlers.standards import log_handler_check
-from seed.apps.handlers.standards import log_visibility_check
-from seed.apps.handlers.standards import permission_flags_check
+from handlers.standards import imports_check
+from handlers.standards import architecture_check
+from handlers.standards import naming_check
+from handlers.standards import cli_check
+from handlers.standards import handlers_check
+from handlers.standards import modules_check
+from handlers.standards import documentation_check
+from handlers.standards import json_structure_check
+from handlers.standards import testing_check
+from handlers.standards import error_handling_check
+from handlers.standards import encapsulation_check
+from handlers.standards import trigger_check
+from handlers.standards import log_level_check
+from handlers.standards import cli_flags_check
+from handlers.standards import log_handler_check
+from handlers.standards import log_visibility_check
+from handlers.standards import permission_flags_check
 
 # =============================================================================
 # BYPASS SYSTEM - .seed/ config per branch
 # =============================================================================
 
-BRANCH_REGISTRY_PATH = Path.home() / "BRANCH_REGISTRY.json"
 
 BYPASS_TEMPLATE = {
     "metadata": {

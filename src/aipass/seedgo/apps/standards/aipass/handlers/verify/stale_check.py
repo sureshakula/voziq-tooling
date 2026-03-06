@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: stale_check.py - Stale Patterns Checker Handler
-# Date: 2025-11-29
-# Version: 0.1.0
-# Category: seed/verify/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-29): Initial implementation - extracted from standards_verify module
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-#   - NO Prax logger in handlers (handlers don't log)
-# =============================================
-
 """
 Stale Patterns Checker Handler
 
@@ -27,12 +10,6 @@ import subprocess
 from pathlib import Path
 from typing import Dict
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# Business logic imports
 from seed.apps.handlers.config import ignore_handler
 
 

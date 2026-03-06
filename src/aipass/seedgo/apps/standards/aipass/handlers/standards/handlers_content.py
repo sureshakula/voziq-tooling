@@ -1,27 +1,5 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: handlers_content.py - Handlers Standards Content Handler
-# Date: 2025-11-13
-# Version: 0.2.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-29): Added Drone architecture clarification
-#   - v0.1.0 (2025-11-13): Initial handler - handlers standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 import sys
 from pathlib import Path
-
-# AIPASS_ROOT setup
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
 
 """
 Handlers Standards Content Handler

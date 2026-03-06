@@ -1,22 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_structure_content.py - JSON Structure Standards Content Handler
-# Date: 2025-11-13
-# Version: 0.3.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.3.0 (2025-11-21): Added mandatory json_handler.py setup section with path configuration warnings
-#   - v0.2.0 (2025-11-13): Condensed content - truth-checked against codebase
-#   - v0.1.0 (2025-11-13): Initial handler - JSON structure standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 JSON Structure Standards Content Handler
 

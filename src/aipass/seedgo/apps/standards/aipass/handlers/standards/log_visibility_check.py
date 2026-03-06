@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_visibility_check.py - Log Visibility Standards Checker Handler
-# Date: 2026-02-27
-# Version: 2.0.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v3.0.0 (2026-02-27): Remove handler exemption from Check 1 — unified Prax logging everywhere
-#   - v2.0.0 (2026-02-27): Two-check system: prax import + local FileHandler detection
-#   - v1.0.0 (2026-02-27): Initial implementation - detect raw logging.getLogger without prax
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Log Visibility Standards Checker Handler
 
@@ -35,16 +17,9 @@ import re
 from pathlib import Path
 from typing import Dict, List
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-
 # Patterns built via concatenation to avoid self-detection by checkers
 _GETLOGGER_PAT = r'logging' + r'\.getLogger\s*\('
 _FILEHANDLER_PAT = r'logging' + r'\.FileHandler\s*\('
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""
     if not bypass_rules:

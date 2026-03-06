@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: naming_content.py - Naming Standards Content Handler
-# Date: 2025-11-13
-# Version: 0.1.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-13): Initial handler - Naming standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Naming Standards Content Handler
 

@@ -1,23 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: trigger_check.py - Trigger Standards Checker Handler
-# Date: 2025-12-04
-# Version: 1.0.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-12-04): Added inline filesystem ops: .unlink(), .rename() detection
-#   - v0.9.0 (2025-12-04): Added repair/recovery/cleanup/backup/system lifecycle patterns
-#   - v0.8.0 (2025-12-04): Added line numbers to violation messages for navigation
-#   - v0.7.0 (2025-12-04): Added central patterns: update_central, write_central_*
-#   - v0.6.0 (2025-12-04): Added registry patterns: save/add/remove/sync_registry
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Trigger Standards Checker Handler
 

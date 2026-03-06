@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: cli_flags_standard.py - CLI Flags Standards Module
-# Date: 2026-02-21
-# Version: 1.0.0
-# Category: seed/standards
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-21): Initial standards module - CLI flags
-#
-# CODE STANDARDS:
-#   - This module provides CLI flags standards when queried
-# =============================================
-
 """
 CLI Flags Standards Module
 
@@ -25,15 +9,11 @@ import sys
 from pathlib import Path
 from typing import List
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
+from aipass.prax import logger
+from handlers.json import json_handler
+from handlers.standards.cli_flags_content import get_cli_flags_standards
 
-from prax.apps.modules.logger import system_logger as logger
-from seed.apps.handlers.json import json_handler
-from seed.apps.handlers.standards.cli_flags_content import get_cli_flags_standards
-
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 
 def print_introspection():

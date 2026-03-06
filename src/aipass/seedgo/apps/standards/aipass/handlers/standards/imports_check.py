@@ -1,23 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: imports_check.py - Imports Standards Checker Handler
-# Date: 2025-11-15
-# Version: 0.5.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.5.0 (2025-11-15): Fixed docstring filtering bug - prevents false negatives from import examples in docstrings
-#   - v0.4.0 (2025-11-15): Fixed handler independence to allow service imports (prax, cli)
-#   - v0.3.0 (2025-11-15): Added proper infrastructure - AIPASS_ROOT, sys.path, Prax logger, JSON tracking
-#   - v0.2.0 (2025-11-15): Fixed critical bugs - false positives, handler independence check, Prax conditional
-#   - v0.1.0 (2025-11-15): Initial implementation - imports standards checking
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Imports Standards Checker Handler
 
@@ -34,12 +14,6 @@ Fixed bugs:
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""

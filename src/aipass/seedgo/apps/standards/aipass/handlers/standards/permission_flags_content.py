@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: permission_flags_content.py - Permission Flags Standards Content
-# Date: 2026-02-26
-# Version: 1.0.0
-# Category: seed/standards/content
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-26): Initial content - permission flags standard
-#
-# CODE STANDARDS:
-#   - Content handler provides Rich-formatted text for display
-# =============================================
-
 """
 Permission Flags Standards Content
 

@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: diagnostics_audit.py - System-wide Type Error Diagnostics
-# Date: 2025-11-28
-# Version: 0.1.0
-# Category: seed/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-28): Initial implementation - pyright system scan
-#
-# CODE STANDARDS:
-#   - Module orchestrates, handlers implement
-# =============================================
-
 """
 System-wide Type Error Diagnostics
 
@@ -29,27 +13,20 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-SEED_ROOT = Path.home() / "seed"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# Prax logger (system-wide)
-from prax.apps.modules.logger import system_logger as logger
-
+from aipass.prax import logger
 # CLI service
-from cli.apps.modules import console
-from cli.apps.modules.display import header
+from aipass.cli import console
+from aipass.cli import header
 
 # JSON handler for logging
-from seed.apps.handlers.json import json_handler
+from handlers.json import json_handler
 
 # Drone services for @ resolution
-from drone.apps.modules import normalize_branch_arg
+from aipass.drone.apps.modules import normalize_branch_arg
 
 # Diagnostics handlers
-from seed.apps.handlers.diagnostics import discover_branches, run_branch_diagnostics
+from handlers.diagnostics.discovery import discover_branches
+from handlers.diagnostics.runner import run_branch_diagnostics
 
 
 def print_branch_diagnostics(result: Dict):

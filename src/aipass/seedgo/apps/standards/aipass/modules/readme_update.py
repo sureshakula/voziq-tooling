@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: readme_update.py - README Auto-Update Module
-# Date: 2026-02-21
-# Version: 1.0.0
-# Category: seed/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-21): Initial build (DPLAN-026 Phase 4)
-#
-# CODE STANDARDS:
-#   - Module interface: handle_command(command, args) -> bool
-#   - Auto-discovered by seed.py entry point
-#   - Thin orchestrator - delegates to handlers
-# =============================================
-
 """
 README Auto-Update Module
 
@@ -34,25 +16,19 @@ from typing import List
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# =============================================================================
 # IMPORTS
 # =============================================================================
 
 # Prax logger (system-wide, always first)
-from prax.apps.modules.logger import system_logger as logger
-
+from aipass.prax import logger
 # JSON handler for tracking
-from seed.apps.handlers.json import json_handler
+from handlers.json import json_handler
 
 # CLI services (display/output formatting)
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 # Handler (implementation)
-from seed.apps.handlers.standards.readme_ops import (
+from handlers.standards.readme_ops import (
     load_generator,
     resolve_targets,
     SECTION_NAMES,

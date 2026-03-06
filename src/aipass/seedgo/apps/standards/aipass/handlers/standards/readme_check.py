@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: readme_check.py - README Standards Checker Handler
-# Date: 2026-02-21
-# Version: 1.0.0
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-21): Initial implementation - README completeness and freshness validation
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 README Standards Checker Handler
 
@@ -34,12 +18,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:
     """Check if a violation should be bypassed"""

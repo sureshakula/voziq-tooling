@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: readme_generator.py - README Section Auto-Generator
-# Date: 2026-02-21
-# Version: 1.0.0
-# Category: seed/standards/generators
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-21): Initial implementation - auto-generate README sections for branches
-#
-# CODE STANDARDS:
-#   - Utility handler, no Rich imports
-#   - Pure pathlib for file operations
-#   - Graceful error handling (return empty/None, don't crash)
-# =============================================
-
 """
 README Section Auto-Generator
 
@@ -40,12 +22,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-# Directories and files to exclude from tree generation entirely
 TREE_EXCLUDE = {
     '__pycache__', '.gitkeep', '.git', 'node_modules',
     '.pytest_cache', '.mypy_cache',

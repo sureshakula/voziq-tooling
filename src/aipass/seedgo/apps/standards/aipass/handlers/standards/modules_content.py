@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: modules_content.py - Modules Standards Content Handler
-# Date: 2025-11-13
-# Version: 0.2.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-13): Updated to condensed format with verified patterns
-#   - v0.1.0 (2025-11-13): Initial handler - Modules standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Modules Standards Content Handler
 

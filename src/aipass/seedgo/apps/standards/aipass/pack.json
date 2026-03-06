@@ -1,0 +1,34 @@
+{
+  "name": "aipass",
+  "version": "1.0.0",
+  "description": "AIPass framework standards for multi-agent Python projects",
+  "author": "AIPass",
+  "file_types": ["*.py"],
+  "standards_count": 19,
+  "standards": [
+    "architecture",
+    "cli",
+    "cli_flags",
+    "diagnostics",
+    "documentation",
+    "encapsulation",
+    "error_handling",
+    "handlers",
+    "imports",
+    "json_structure",
+    "log_handler",
+    "log_level",
+    "log_visibility",
+    "modules",
+    "naming",
+    "permission_flags",
+    "readme",
+    "testing",
+    "trigger"
+  ],
+  "defaults": {
+    "threshold": 75,
+    "error_weight": 1.0,
+    "warning_weight": 0.5
+  }
+}

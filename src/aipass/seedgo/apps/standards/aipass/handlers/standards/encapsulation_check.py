@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: encapsulation_check.py - Handler Encapsulation Standards Checker
-# Date: 2025-11-28
-# Version: 0.1.1
-# Category: seed/standards/checkers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-28): Initial implementation - cross-handler import detection
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-# =============================================
-
 """
 Handler Encapsulation Standards Checker
 
@@ -28,12 +12,7 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-SEED_ROOT = Path.home() / "seed"
-
 # Branch registry for detecting branch context
-BRANCH_REGISTRY_PATH = Path.home() / "BRANCH_REGISTRY.json"
 
 
 def is_bypassed(file_path: str, standard: str, line: int | None = None, bypass_rules: list | None = None) -> bool:

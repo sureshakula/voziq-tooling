@@ -1,5 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
 """
 Template Scanner - Automatically scan template to discover structure
 
@@ -13,10 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Set
 from rich.console import Console
 
-# Setup AIPASS_ROOT for imports
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-
+PACK_ROOT = Path(__file__).resolve().parent.parent.parent  # standards/ -> handlers/ -> aipass/
 console = Console()
 
 def load_ignore_patterns(template_path: Path) -> Dict:
@@ -136,8 +131,8 @@ def compare_to_branch(template_structure: Dict, branch_path: Path, branch_name: 
 if __name__ == "__main__":
     import sys
 
-    # Test on SEED
-    template_path = Path("/home/aipass/aipass_core/cortex/templates/branch_template")
+    # Test on pack root
+    template_path = PACK_ROOT
 
     console.print("Scanning template...")
     structure = scan_template(template_path)

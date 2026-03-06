@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_handling_standard.py - Error Handling Standards Module
-# Date: 2025-11-21
-# Version: 0.1.0
-# Category: seed/standards
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-21): Initial standards module - error handling
-#
-# CODE STANDARDS:
-#   - This module provides error handling standards when queried
-# =============================================
-
 """
 Error Handling Standards Module
 
@@ -25,16 +9,13 @@ import sys
 from pathlib import Path
 from typing import List
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))  # For seed package imports
 
-from prax.apps.modules.logger import system_logger as logger
-from seed.apps.handlers.json import json_handler
-from seed.apps.handlers.standards.error_handling_content import get_error_handling_standards
+from aipass.prax import logger
+from handlers.json import json_handler
+from handlers.standards.error_handling_content import get_error_handling_standards
 
 # Import CLI services (Rich console + display functions)
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 
 def print_introspection():

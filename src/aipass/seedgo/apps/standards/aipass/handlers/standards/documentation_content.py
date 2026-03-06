@@ -1,21 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: documentation_content.py - Documentation Standards Content Handler
-# Date: 2025-11-13
-# Version: 1.0.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-13): Truth-checked and condensed - verified against actual codebase
-#   - v0.1.0 (2025-11-13): Initial handler - Documentation standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Documentation Standards Content Handler
 

@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: file_handler.py - Text File Reading Handler
-# Date: 2025-11-27
-# Version: 0.1.0
-# Category: seed/handlers/file
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-27): Initial implementation - read_text function
-#
-# CODE STANDARDS:
-#   - Handler provides file reading abstraction
-#   - Used by modules needing to read non-JSON text files
-# =============================================
-
 """
 File Handler
 

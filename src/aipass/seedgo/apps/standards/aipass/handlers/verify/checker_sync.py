@@ -1,20 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: checker_sync.py - Checker Documentation Sync Check
-# Date: 2025-12-04
-# Version: 0.1.0
-# Category: seed/handlers/verify
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-12-04): Initial - verifies checker patterns match docs
-#
-# CODE STANDARDS:
-#   - Pure handler - returns check data dict
-#   - Verifies pattern counts match between checker and content handler
-# =============================================
-
 """
 Checker Documentation Sync Check
 
@@ -31,11 +14,7 @@ from typing import Dict, List
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-SEED_ROOT = Path.home() / "seed"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
+PACK_ROOT = Path(__file__).resolve().parent.parent.parent  # verify/ -> handlers/ -> aipass/
 
 def check_checker_sync() -> Dict:
     """
@@ -54,8 +33,8 @@ def check_checker_sync() -> Dict:
     checked = []
 
     # Check trigger_check.py vs trigger_content.py
-    trigger_check_path = SEED_ROOT / "apps/handlers/standards/trigger_check.py"
-    trigger_content_path = SEED_ROOT / "apps/handlers/standards/trigger_content.py"
+    trigger_check_path = PACK_ROOT / "apps/handlers/standards/trigger_check.py"
+    trigger_content_path = PACK_ROOT / "apps/handlers/standards/trigger_content.py"
 
     if trigger_check_path.exists() and trigger_content_path.exists():
         check_content = trigger_check_path.read_text()
@@ -109,10 +88,10 @@ def check_checker_sync() -> Dict:
             issues.append("trigger_content.py not found")
 
     # Define common paths
-    checkers_dir = SEED_ROOT / "apps/handlers/standards"
+    checkers_dir = PACK_ROOT / "apps/handlers/standards"
 
     # Check README.md standards count
-    readme_path = SEED_ROOT / "README.md"
+    readme_path = PACK_ROOT / "README.md"
     if readme_path.exists():
         readme_content = readme_path.read_text()
         # Count actual checker files
@@ -127,8 +106,8 @@ def check_checker_sync() -> Dict:
                     issues.append(f"README.md says {readme_count} standards but {actual_checkers} checkers exist")
 
     # Check verify --help lists all checks
-    verify_module_path = SEED_ROOT / "apps/modules/standards_verify.py"
-    orchestrator_path = SEED_ROOT / "apps/handlers/verify/orchestrator.py"
+    verify_module_path = PACK_ROOT / "apps/modules/standards_verify.py"
+    orchestrator_path = PACK_ROOT / "apps/handlers/verify/orchestrator.py"
     if verify_module_path.exists() and orchestrator_path.exists():
         verify_content = verify_module_path.read_text()
         orchestrator_content = orchestrator_path.read_text()
@@ -144,7 +123,7 @@ def check_checker_sync() -> Dict:
             issues.append(f"verify --help shows {documented_checks} checks but orchestrator runs {actual_checks}")
 
     # Check trigger.md documents pattern categories
-    trigger_md_path = SEED_ROOT / "standards/CODE_STANDARDS/trigger.md"
+    trigger_md_path = PACK_ROOT / "standards/CODE_STANDARDS/trigger.md"
     if trigger_md_path.exists() and trigger_check_path.exists():
         trigger_md_content = trigger_md_path.read_text()
         check_content = trigger_check_path.read_text()
@@ -165,7 +144,7 @@ def check_checker_sync() -> Dict:
                 issues.append("trigger.md doesn't document inline filesystem detection (.unlink/.rename)")
 
     # Check each checker has corresponding CODE_STANDARDS doc
-    code_standards_dir = SEED_ROOT / "standards/CODE_STANDARDS"
+    code_standards_dir = PACK_ROOT / "standards/CODE_STANDARDS"
     if checkers_dir.exists() and code_standards_dir.exists():
         checker_names = [f.stem.replace('_check', '') for f in checkers_dir.glob("*_check.py")]
         doc_names = [f.stem for f in code_standards_dir.glob("*.md") if f.stem not in ['README', '_template']]
@@ -175,7 +154,7 @@ def check_checker_sync() -> Dict:
             issues.append(f"Checkers missing CODE_STANDARDS docs: {missing_docs}")
 
     # Check docs/checkers.md mentions all checkers
-    checkers_doc_path = SEED_ROOT / "docs/checkers.md"
+    checkers_doc_path = PACK_ROOT / "docs/checkers.md"
     if checkers_doc_path.exists() and checkers_dir.exists():
         checkers_doc_content = checkers_doc_path.read_text()
         checker_files = [f.name for f in checkers_dir.glob("*_check.py")]
@@ -190,7 +169,7 @@ def check_checker_sync() -> Dict:
             issues.append(f"docs/checkers.md missing: {missing_in_doc}")
 
     # Check SEED.id.json standards count
-    seed_id_path = SEED_ROOT / "SEED.id.json"
+    seed_id_path = PACK_ROOT / "SEED.id.json"
     if seed_id_path.exists() and checkers_dir.exists():
         seed_id_content = seed_id_path.read_text()
         actual_checkers = len([f for f in checkers_dir.glob("*_check.py")])
@@ -203,7 +182,7 @@ def check_checker_sync() -> Dict:
                 issues.append(f"SEED.id.json says {count} standards but {actual_checkers} checkers exist")
 
     # Check seed.py --help for consistent standards count
-    seed_entry_path = SEED_ROOT / "apps/seed.py"
+    seed_entry_path = PACK_ROOT / "apps/seed.py"
     if seed_entry_path.exists() and checkers_dir.exists():
         seed_py_content = seed_entry_path.read_text()
         actual_checkers = len([f for f in checkers_dir.glob("*_check.py")])

@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: discovery.py - Branch Discovery Handler
-# Date: 2025-11-29
-# Version: 0.1.0
-# Category: seed/handlers/diagnostics
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-29): Initial implementation - branch discovery
-#
-# CODE STANDARDS:
-#   - Handlers implement, modules orchestrate
-# =============================================
-
 """
 Branch Discovery Handler
 

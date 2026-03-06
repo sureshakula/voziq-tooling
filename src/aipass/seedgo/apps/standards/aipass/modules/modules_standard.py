@@ -1,19 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: modules_standard.py - Modules Standards Module
-# Date: 2025-11-12
-# Version: 0.1.0
-# Category: seed/standards
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-12): Initial standards module - modules
-#
-# CODE STANDARDS:
-#   - This module provides module standards when queried
-# =============================================
-
 """
 Modules Standards Module
 
@@ -25,17 +9,12 @@ import sys
 from pathlib import Path
 from typing import List
 
-# Infrastructure
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))  # For seed package imports
-
-from prax.apps.modules.logger import system_logger as logger
-from seed.apps.handlers.json import json_handler
-from seed.apps.handlers.standards.modules_content import get_modules_standards
+from aipass.prax import logger
+from handlers.json import json_handler
+from handlers.standards.modules_content import get_modules_standards
 
 # Import CLI services (Rich console + display functions)
-from cli.apps.modules import console, header
+from aipass.cli import console, header
 
 
 def print_introspection():

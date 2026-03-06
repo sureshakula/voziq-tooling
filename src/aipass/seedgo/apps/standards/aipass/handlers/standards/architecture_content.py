@@ -1,23 +1,3 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: architecture_content.py - Architecture Standards Content Handler
-# Date: 2025-11-22
-# Version: 0.4.0
-# Category: seed/standards/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.4.0 (2025-11-22): Added two-level introspection pattern (main=modules, module=handlers)
-#   - v0.3.0 (2025-11-22): Added foundation service independence rule (CLI ↔ Prax)
-#   - v0.2.0 (2025-11-21): Added template baseline compliance section
-#   - v0.1.0 (2025-11-13): Initial handler - Architecture standards content
-#
-# CODE STANDARDS:
-#   - Handler provides content, module orchestrates output
-#   - Pure function - returns string, no side effects
-# =============================================
-
 """
 Architecture Standards Content Handler
 
