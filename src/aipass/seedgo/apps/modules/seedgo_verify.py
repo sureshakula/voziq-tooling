@@ -115,8 +115,8 @@ def run_verify() -> None:
             else:
                 console.print(f"[green]✓[/green] Pack '{pack_dir.name}': all {len(standards)} standard check files present")
                 checks_passed += 1
-        except Exception:
-            pass
+        except Exception as e:
+            console.print(f"[red]✗[/red] Pack '{pack_dir.name}': verification error: {e}")
 
     # Summary
     console.print()
