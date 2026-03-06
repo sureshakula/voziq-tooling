@@ -33,7 +33,7 @@ def check_command_consistency() -> Dict:
     Returns:
         Dict with check results
     """
-    seed_path = Path.home() / "seed"
+    seed_path = Path(__file__).resolve().parents[5]  # -> seedgo root
     missing_docs = []
 
     # Define command flags to check (source of truth: where they're implemented)

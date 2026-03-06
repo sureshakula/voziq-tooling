@@ -26,7 +26,7 @@ def check_file_freshness() -> Dict:
     Returns:
         Dict with check results
     """
-    seed_path = Path.home() / "seed"
+    seed_path = Path(__file__).resolve().parents[5]  # -> seedgo root
     issues = []
 
     # Check if standards_audit.py exists

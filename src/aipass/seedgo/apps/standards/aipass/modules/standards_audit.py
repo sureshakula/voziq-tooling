@@ -100,34 +100,13 @@ def handle_command(command: str, args: List[str]) -> bool:
     # If targeting a private branch directly, only allow audit from inside
     # that branch's directory. This enforces isolation per DPLAN-035.
     if specific_branch and _is_branch_private(specific_branch):
-        # Resolve branch path from registry to check CWD
-        import json as _json
-        _registry_path = Path.home() / "BRANCH_REGISTRY.json"
+        # Look up branch path from discovered branches (uses registry internally)
         _branch_path = None
-        if _registry_path.exists():
-            try:
-                with open(_registry_path, 'r', encoding='utf-8') as _f:
-                    _reg = _json.load(_f)
-                for _b in _reg.get('branches', []):
-                    if _b.get('name', '').upper() == specific_branch.upper():
-                        _branch_path = Path(_b['path'])
-                        break
-            except (ValueError, IOError):
-                pass
-
-        # Also check PRIVATE_BRANCH_REGISTRY for path
-        if _branch_path is None:
-            _priv_path = Path.home() / "PRIVATE_BRANCH_REGISTRY.json"
-            if _priv_path.exists():
-                try:
-                    with open(_priv_path, 'r', encoding='utf-8') as _f:
-                        _priv = _json.load(_f)
-                    for _b in _priv.get('branches', []):
-                        if _b.get('name', '').upper() == specific_branch.upper():
-                            _branch_path = Path(_b['path'])
-                            break
-                except (ValueError, IOError):
-                    pass
+        _priv_branches = discover_branches(include_private=True)
+        for _b in _priv_branches:
+            if _b['name'].upper() == specific_branch.upper():
+                _branch_path = Path(_b['path'])
+                break
 
         if _branch_path is not None:
             cwd = Path.cwd()

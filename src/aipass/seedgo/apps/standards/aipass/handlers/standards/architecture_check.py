@@ -411,7 +411,7 @@ def check_template_baseline(module_path: str, bypass_rules: list | None = None) 
 
     # Find the branch root (parent of apps/ directory)
     current = path.parent
-    while current != Path.home() and current.name != '/':
+    while current != current.parent:
         if current.name == 'apps' and current.parent:
             branch_path = current.parent
             break

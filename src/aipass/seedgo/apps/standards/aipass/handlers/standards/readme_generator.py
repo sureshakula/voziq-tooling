@@ -661,7 +661,7 @@ def update_readme_auto_sections(branch_path: str, dry_run: bool = False) -> dict
 
 
 if __name__ == "__main__":
-    target = sys.argv[1] if len(sys.argv) > 1 else str(Path.home() / "aipass_core" / "cortex")
+    target = sys.argv[1] if len(sys.argv) > 1 else str(Path.cwd())
     print(f"Generating README sections for: {target}\n{'='*70}")
     sections = generate_all_sections(target)
     for name, content in sections.items():

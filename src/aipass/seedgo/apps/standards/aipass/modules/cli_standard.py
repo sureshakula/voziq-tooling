@@ -121,7 +121,7 @@ def print_standard():
 def run_demo():
     """Run the CLI layout demo"""
     import subprocess
-    demo_path = "/home/aipass/aipass_core/cli/tools/cli_layout_demo.py"
+    demo_path = str(Path(__file__).resolve().parents[3] / "cli" / "tools" / "cli_layout_demo.py")
 
     console.print()
     console.print("[bold cyan]Running CLI Demo...[/bold cyan]")
