@@ -39,6 +39,22 @@ artifacts/
 tools/
 aipass_json/
 
+# Spawn templates MUST be tracked (agents need these files to build from)
+!src/aipass/spawn/templates/**/.trinity/
+!src/aipass/spawn/templates/**/.trinity/**
+!src/aipass/spawn/templates/**/.agent/
+!src/aipass/spawn/templates/**/.agent/**
+!src/aipass/spawn/templates/**/.aipass/
+!src/aipass/spawn/templates/**/.aipass/**
+!src/aipass/spawn/templates/**/.archive
+!src/aipass/spawn/templates/**/.archive/**
+!src/aipass/spawn/templates/**/artifacts/
+!src/aipass/spawn/templates/**/artifacts/**
+!src/aipass/spawn/templates/**/tools/
+!src/aipass/spawn/templates/**/tools/**
+!src/aipass/spawn/templates/**/DASHBOARD.local.json
+!src/aipass/spawn/templates/**/flow.local.md
+
 # Seedgo runtime artifacts (created by seedgo audit)
 .seed/
 .standards/

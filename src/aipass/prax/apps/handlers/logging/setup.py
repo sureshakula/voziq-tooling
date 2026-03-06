@@ -122,7 +122,7 @@ def setup_individual_logger(module_name: str) -> logging.Logger:
     if branch:
         # Create branch logs directory if it doesn't exist
         # Branch format is now "aipass_core/module" or "project_name"
-        branch_logs_dir = Path("/home/aipass") / branch / "logs"
+        branch_logs_dir = Path.home() / branch / "logs"
         branch_logs_dir.mkdir(parents=True, exist_ok=True)
 
         # Create branch-local log file

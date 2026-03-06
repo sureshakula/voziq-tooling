@@ -1,0 +1,301 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-02-20",
+    "description": "Template file tracking registry for ID-based updates"
+  },
+  "files": {
+    "f001": {
+      "current_name": "BRANCH.ID.json",
+      "path": "BRANCH.ID.json",
+      "content_hash": "e9bc2347d373",
+      "has_branch_placeholder": false
+    },
+    "f003": {
+      "current_name": "dev.local.md",
+      "path": "dev.local.md",
+      "content_hash": "6c1c5e099790",
+      "has_branch_placeholder": false
+    },
+    "f035": {
+      "current_name": ".gitkeep",
+      "path": "ai_mail.local/.archive/.gitkeep",
+      "content_hash": "e3b0c44298fc",
+      "has_branch_placeholder": false
+    },
+    "f008": {
+      "current_name": "DASHBOARD.local.json",
+      "path": "DASHBOARD.local.json",
+      "content_hash": "3f0528b4c5d5",
+      "has_branch_placeholder": false
+    },
+    "f007": {
+      "current_name": ".migrations.json",
+      "path": ".migrations.json",
+      "content_hash": "4ca241607dc3",
+      "has_branch_placeholder": false
+    },
+    "f010": {
+      "current_name": "OBSERVATIONS.json",
+      "path": "OBSERVATIONS.json",
+      "content_hash": "58ea8609fbe0",
+      "has_branch_placeholder": false
+    },
+    "f011": {
+      "current_name": "requirements.txt",
+      "path": "requirements.txt",
+      "content_hash": "66dfffc70d53",
+      "has_branch_placeholder": false
+    },
+    "f021": {
+      "current_name": "README.md",
+      "path": "README.md",
+      "content_hash": "4e946f67a130",
+      "has_branch_placeholder": false
+    },
+    "f012": {
+      "current_name": "LOCAL.json",
+      "path": "LOCAL.json",
+      "content_hash": "459dbe18d40a",
+      "has_branch_placeholder": false
+    },
+    "f006": {
+      "current_name": "pytest.ini",
+      "path": "pytest.ini",
+      "content_hash": "7b39ba7bca40",
+      "has_branch_placeholder": false
+    },
+    "f022": {
+      "current_name": "_template.md",
+      "path": "docs/_template.md",
+      "content_hash": "79ce97b0e613",
+      "has_branch_placeholder": false
+    },
+    "f016": {
+      "current_name": "__init__.py",
+      "path": "tests/__init__.py",
+      "content_hash": "1fcd8126d174",
+      "has_branch_placeholder": false
+    },
+    "f019": {
+      "current_name": "conftest.py",
+      "path": "tests/conftest.py",
+      "content_hash": "2887db109a6b",
+      "has_branch_placeholder": false
+    },
+    "f004": {
+      "current_name": "BRANCH.py",
+      "path": "apps/BRANCH.py",
+      "content_hash": "44f22cc95232",
+      "has_branch_placeholder": false
+    },
+    "f009": {
+      "current_name": "__init__.py",
+      "path": "apps/__init__.py",
+      "content_hash": "5c38204be5fc",
+      "has_branch_placeholder": false
+    },
+    "f013": {
+      "current_name": "#@comments.txt.removed_from_template",
+      "path": ".archive/#@comments.txt.removed_from_template",
+      "content_hash": "651126c1e7a9",
+      "has_branch_placeholder": false
+    },
+    "f028": {
+      "current_name": "deleted.json.old_template_format",
+      "path": ".archive/deleted.json.old_template_format",
+      "content_hash": "48a3a33dd73a",
+      "has_branch_placeholder": false
+    },
+    "f002": {
+      "current_name": "branch_system_prompt.md",
+      "path": ".aipass/branch_system_prompt.md",
+      "content_hash": "897c7beb66f5",
+      "has_branch_placeholder": false
+    },
+    "f026": {
+      "current_name": "inbox.json",
+      "path": "ai_mail.local/inbox.json",
+      "content_hash": "c9702fe2cc21",
+      "has_branch_placeholder": false
+    },
+    "f027": {
+      "current_name": "sent.json",
+      "path": "ai_mail.local/sent.json",
+      "content_hash": "240132e5a567",
+      "has_branch_placeholder": false
+    },
+    "f014": {
+      "current_name": "__init__.py",
+      "path": "apps/handlers/__init__.py",
+      "content_hash": "657d98ad4b98",
+      "has_branch_placeholder": false
+    },
+    "f015": {
+      "current_name": "__init__.py",
+      "path": "apps/json_templates/__init__.py",
+      "content_hash": "330b189c08c7",
+      "has_branch_placeholder": false
+    },
+    "f020": {
+      "current_name": "__init__.py",
+      "path": "apps/plugins/__init__.py",
+      "content_hash": "39158d26a19c",
+      "has_branch_placeholder": false
+    },
+    "f023": {
+      "current_name": "__init__.py",
+      "path": "apps/modules/__init__.py",
+      "content_hash": "bc25a8b75e81",
+      "has_branch_placeholder": false
+    },
+    "f024": {
+      "current_name": "__init__.py",
+      "path": "apps/extensions/__init__.py",
+      "content_hash": "6742ceb64ec1",
+      "has_branch_placeholder": false
+    },
+    "f032": {
+      "current_name": "data.json",
+      "path": "apps/json_templates/default/data.json",
+      "content_hash": "0531a02be998",
+      "has_branch_placeholder": false
+    },
+    "f033": {
+      "current_name": "log.json",
+      "path": "apps/json_templates/default/log.json",
+      "content_hash": "37517e5f3dc6",
+      "has_branch_placeholder": false
+    },
+    "f034": {
+      "current_name": "config.json",
+      "path": "apps/json_templates/default/config.json",
+      "content_hash": "3759a05e171d",
+      "has_branch_placeholder": false
+    },
+    "f005": {
+      "current_name": "json_handler.py",
+      "path": "apps/handlers/json/json_handler.py",
+      "content_hash": "3449629aff23",
+      "has_branch_placeholder": false
+    },
+    "f017": {
+      "current_name": "__init__.py",
+      "path": "apps/handlers/json/__init__.py",
+      "content_hash": "ad3629e381ca",
+      "has_branch_placeholder": false
+    }
+  },
+  "directories": {
+    "d001": {
+      "current_name": "tools",
+      "path": "tools",
+      "has_branch_placeholder": false
+    },
+    "d002": {
+      "current_name": "docs",
+      "path": "docs",
+      "has_branch_placeholder": false
+    },
+    "d003": {
+      "current_name": "tests",
+      "path": "tests",
+      "has_branch_placeholder": false
+    },
+    "d004": {
+      "current_name": "apps",
+      "path": "apps",
+      "has_branch_placeholder": false
+    },
+    "d005": {
+      "current_name": ".archive",
+      "path": ".archive",
+      "has_branch_placeholder": false
+    },
+    "d006": {
+      "current_name": "logs",
+      "path": "logs",
+      "has_branch_placeholder": false
+    },
+    "d009": {
+      "current_name": ".backup",
+      "path": ".backup",
+      "has_branch_placeholder": false
+    },
+    "d008": {
+      "current_name": "{{BRANCH}}_json",
+      "path": "{{BRANCH}}_json",
+      "has_branch_placeholder": true
+    },
+    "d010": {
+      "current_name": "artifacts",
+      "path": "artifacts",
+      "has_branch_placeholder": false
+    },
+    "d012": {
+      "current_name": ".aipass",
+      "path": ".aipass",
+      "has_branch_placeholder": false
+    },
+    "d011": {
+      "current_name": "ai_mail.local",
+      "path": "ai_mail.local",
+      "has_branch_placeholder": false
+    },
+    "d007": {
+      "current_name": "dropbox",
+      "path": "dropbox",
+      "has_branch_placeholder": false
+    },
+    "d013": {
+      "current_name": "handlers",
+      "path": "apps/handlers",
+      "has_branch_placeholder": false
+    },
+    "d014": {
+      "current_name": "json_templates",
+      "path": "apps/json_templates",
+      "has_branch_placeholder": false
+    },
+    "d015": {
+      "current_name": "plugins",
+      "path": "apps/plugins",
+      "has_branch_placeholder": false
+    },
+    "d016": {
+      "current_name": "modules",
+      "path": "apps/modules",
+      "has_branch_placeholder": false
+    },
+    "d017": {
+      "current_name": "extensions",
+      "path": "apps/extensions",
+      "has_branch_placeholder": false
+    },
+    "d018": {
+      "current_name": "sent",
+      "path": "ai_mail.local/sent",
+      "has_branch_placeholder": false
+    },
+    "d019": {
+      "current_name": "deleted",
+      "path": "ai_mail.local/deleted",
+      "has_branch_placeholder": false
+    },
+    "d020": {
+      "current_name": ".archive",
+      "path": "ai_mail.local/.archive",
+      "has_branch_placeholder": false
+    },
+    "d027": {
+      "current_name": "json",
+      "path": "apps/handlers/json",
+      "has_branch_placeholder": false
+    },
+    "d024": {
+      "current_name": "default",
+      "path": "apps/json_templates/default",
+      "has_branch_placeholder": false
+    }
+  }
+}
