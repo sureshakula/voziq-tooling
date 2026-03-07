@@ -3,8 +3,8 @@
   "last_updated": "2026-03-07",
   "branch_stats": {
     "SPAWN": {
-      "unread": 1,
-      "total": 1
+      "unread": 2,
+      "total": 2
     },
     "DEVPULSE": {
       "unread": 1,
@@ -16,7 +16,7 @@
     }
   },
   "system_totals": {
-    "total_unread": 2,
-    "total_messages": 5
+    "total_unread": 3,
+    "total_messages": 6
   }
 }
