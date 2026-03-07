@@ -66,4 +66,4 @@ aipass_json/
 # Claude local settings (per-branch, not source code)
 .claude/
 
-setup-workspace.sh
+# setup-workspace.sh — tracked, needed for Docker build
