@@ -1,3 +1,11 @@
+# =================== META ====================
+# Name: registry.py
+# Description: AIPASS_REGISTRY.json CRUD operations
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-07
+# =============================================
+
 """AIPASS_REGISTRY.json CRUD operations."""
 
 import json
@@ -117,6 +125,19 @@ def save_registry(registry_path, data):
         return True
     except (IOError, TypeError):
         return False
+
+
+def get_next_citizen_number(registry_path):
+    """Get next citizen number from registry (count of existing branches + 1).
+
+    Args:
+        registry_path: Path to AIPASS_REGISTRY.json
+
+    Returns:
+        int: Next citizen number
+    """
+    data = load_registry(registry_path)
+    return len(data.get("branches", [])) + 1
 
 
 def add_to_registry(registry_path, branch_name, branch_path, profile, email, purpose=""):

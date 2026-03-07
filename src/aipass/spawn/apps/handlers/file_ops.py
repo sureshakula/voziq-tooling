@@ -1,5 +1,15 @@
+# =================== META ====================
+# Name: file_ops.py
+# Description: Template copy and file operations
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-07
+# =============================================
+
 """Template copy and file rename operations."""
 
+import hashlib
+import json
 import shutil
 from pathlib import Path
 
@@ -7,6 +17,11 @@ from aipass.spawn.apps.handlers.placeholders import replace_placeholders
 
 # Patterns to skip during template copy
 SKIP_NAMES = {"__pycache__", ".git", ".template_registry.json"}
+
+
+def ensure_directory(path):
+    """Create directory and parents if they don't exist."""
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def copy_template(template_dir, target_dir, replacements):
@@ -123,3 +138,77 @@ def _replace_path_placeholders(rel_path, replacements):
         new_part = replace_placeholders(part, replacements)
         parts.append(new_part)
     return Path(*parts) if parts else rel_path
+
+
+def regenerate_template_registry(target_dir):
+    """
+    Regenerate .template_registry.json with fresh SHA-256 hashes.
+
+    Scans all files in the agent directory and builds a new registry
+    with accurate content hashes.
+
+    Args:
+        target_dir: Path to the spawned agent directory
+    """
+    target_dir = Path(target_dir)
+    agent_dir = target_dir / ".agent"
+    if not agent_dir.exists():
+        return
+
+    registry_file = agent_dir / ".template_registry.json"
+
+    files = {}
+    directories = {}
+    file_idx = 1
+    dir_idx = 1
+
+    for item in sorted(target_dir.rglob("*")):
+        rel = item.relative_to(target_dir)
+
+        # Skip .agent internal files and __pycache__
+        if ".agent" in rel.parts or "__pycache__" in rel.parts:
+            continue
+
+        if item.is_dir():
+            dir_id = f"d{dir_idx:03d}"
+            directories[dir_id] = {
+                "path": str(rel),
+                "name": item.name,
+            }
+            dir_idx += 1
+        elif item.is_file():
+            file_id = f"f{file_idx:03d}"
+            try:
+                content = item.read_bytes()
+                content_hash = hashlib.sha256(content).hexdigest()[:16]
+            except (IOError, PermissionError):
+                content_hash = "unreadable"
+
+            has_placeholder = False
+            try:
+                text = item.read_text(encoding="utf-8")
+                has_placeholder = "{{" in text and "}}" in text
+            except (UnicodeDecodeError, IOError):
+                pass
+
+            files[file_id] = {
+                "path": str(rel),
+                "name": item.name,
+                "content_hash": content_hash,
+                "has_branch_placeholder": has_placeholder,
+            }
+            file_idx += 1
+
+    registry = {
+        "metadata": {
+            "description": "Template registry for tracking files",
+            "generated": True,
+        },
+        "files": files,
+        "directories": directories,
+    }
+
+    registry_file.write_text(
+        json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )

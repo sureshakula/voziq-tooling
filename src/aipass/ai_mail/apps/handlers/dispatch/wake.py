@@ -303,7 +303,7 @@ def _check_pid_alive(pid: int) -> bool:
 # ─── Branch Resolution ──────────────────────────────────
 
 def resolve_branch(branch_email: str) -> Optional[Tuple[Path, str]]:
-    """Resolve a branch email to its filesystem path."""
+    """Resolve a branch email to its absolute filesystem path."""
     email = f"@{branch_email.lstrip('@').lower()}"
     registry = _read_json(BRANCH_REGISTRY)
     if registry is None:
@@ -311,6 +311,8 @@ def resolve_branch(branch_email: str) -> Optional[Tuple[Path, str]]:
     for branch in registry.get("branches", []):
         if branch.get("email", "").lower() == email:
             path = Path(branch.get("path", ""))
+            if not path.is_absolute():
+                path = _REPO_ROOT / path
             if path.exists():
                 return path, email
             return None

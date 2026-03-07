@@ -29,10 +29,15 @@ def execute_command(
     cwd: str,
     timeout: int = 30,
     env: dict | None = None,
+    interactive: bool = False,
 ) -> CommandResult:
     """Execute a command via subprocess with safety guards.
 
     Never uses shell=True to prevent shell injection attacks.
+
+    Args:
+        interactive: If True, inherit stdio (no capture, no timeout).
+                     Used for long-running commands like prax monitor.
     """
     import os
 
@@ -45,14 +50,23 @@ def execute_command(
         run_env.update(env)
 
     try:
-        result = subprocess.run(
-            full_cmd,
-            cwd=cwd,
-            capture_output=True,
-            timeout=timeout,
-            shell=False,
-            env=run_env,
-        )
+        if interactive:
+            # Inherit stdin/stdout/stderr for live interaction
+            result = subprocess.run(
+                full_cmd,
+                cwd=cwd,
+                shell=False,
+                env=run_env,
+            )
+        else:
+            result = subprocess.run(
+                full_cmd,
+                cwd=cwd,
+                capture_output=True,
+                timeout=timeout,
+                shell=False,
+                env=run_env,
+            )
     except subprocess.TimeoutExpired as e:
         raise CommandExecutionError(
             f"Command timed out after {timeout}s: {' '.join(full_cmd)}"
@@ -65,6 +79,15 @@ def execute_command(
         raise CommandExecutionError(
             f"OS error executing command: {e}"
         ) from e
+
+    if interactive:
+        return CommandResult(
+            stdout="",
+            stderr="",
+            exit_code=result.returncode,
+            branch="",
+            command="",
+        )
 
     stdout = result.stdout.decode("utf-8", errors="replace")
     stderr = result.stderr.decode("utf-8", errors="replace")

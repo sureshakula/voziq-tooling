@@ -32,12 +32,16 @@ def route_command(
     command: str,
     args: Optional[List[str]] = None,
     timeout: int = 30,
+    interactive: bool = False,
 ) -> CommandResult:
     """Route a command to a branch's entry point.
 
     Resolves @target to an absolute path, locates the branch entry point at
     {path}/apps/{branch_name}.py, then executes:
         python3 apps/{name}.py {command} [args...]
+
+    Args:
+        interactive: If True, inherit stdio for long-running/interactive commands.
     """
     if args is None:
         args = []
@@ -59,6 +63,7 @@ def route_command(
         cwd=branch_path,
         timeout=timeout,
         env=caller_env,
+        interactive=interactive,
     )
 
     return CommandResult(

@@ -67,3 +67,20 @@ aipass_json/
 .claude/
 
 # setup-workspace.sh — tracked, needed for Docker build
+src/aipass/trigger/trigger_json/trigger_data.json
+
+
+# Sorting/working
+
+*config.json
+*data.json
+*inbox.json
+*log.json
+*sent.json
+.ai_mail.local
+ai_mail.local
+*_json
+dropbox
+system_logs
+AIPASS_REGISTRY.json
+docker.md

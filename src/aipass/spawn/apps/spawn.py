@@ -1,3 +1,11 @@
+# =================== META ====================
+# Name: spawn.py
+# Description: Entry point CLI for drone @spawn
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-07
+# =============================================
+
 """
 SPAWN Branch - Agent Creation System
 
@@ -40,7 +48,7 @@ def print_help():
 
 def handle_create(args):
     """Handle the create command."""
-    from aipass.spawn.apps.modules.core import spawn_agent
+    from aipass.spawn.apps.modules.core import _spawn_agent as spawn_agent
 
     if not args:
         console.print("[red]Error: target path required[/red]")

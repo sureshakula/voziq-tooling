@@ -1,0 +1,22 @@
+{
+  "service": "ai_mail",
+  "last_updated": "2026-03-07",
+  "branch_stats": {
+    "SPAWN": {
+      "unread": 1,
+      "total": 1
+    },
+    "DEVPULSE": {
+      "unread": 1,
+      "total": 1
+    },
+    "AI_MAIL": {
+      "unread": 0,
+      "total": 3
+    }
+  },
+  "system_totals": {
+    "total_unread": 2,
+    "total_messages": 5
+  }
+}

@@ -69,7 +69,14 @@ spawn/
 ## Integration Points
 
 ### Depends On
-- Python stdlib only (`pathlib`, `json`, `shutil`, `hashlib`, `re`)
+- `aipass.prax` — Logging via `system_logger`
+- `aipass.cli` — Console output and headers
+- Python stdlib (`pathlib`, `json`, `shutil`, `hashlib`, `re`)
 
 ### Provides To
-- All modules — agent scaffolding and lifecycle setup
+- All modules — agent creation service and lifecycle setup
+- Registry: Reads/writes `AIPASS_REGISTRY.json`
+
+---
+
+*Last Updated: 2026-03-07*

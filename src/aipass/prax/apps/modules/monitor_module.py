@@ -240,6 +240,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     _monitoring_active = True
 
     # Parse args for initial branch filters
+    _is_tty = sys.stdin.isatty()
     if args:
         if args[0] == 'all':
             # Watch all branches
@@ -250,13 +251,20 @@ def handle_command(command: str, args: List[str]) -> bool:
             initial_branches = args[0].split(',')
             _filter_state.watched_branches = set(normalize_branch_arg(b.strip()) for b in initial_branches)
             _filter_state.show_info = True
+    elif not _is_tty:
+        # No TTY and no args — default to watching all (can't type 'watch all')
+        _filter_state.show_all = True
+        _filter_state.show_info = True
 
     # Display header
     console.print()
     header("PRAX Mission Control - Unified Monitoring")
     console.print()
     console.print("[green]Monitoring system starting...[/green]")
-    console.print("[yellow]Quiet mode active - type 'help' for commands[/yellow]")
+    if _is_tty:
+        console.print("[yellow]Quiet mode active - type 'help' for commands[/yellow]")
+    else:
+        console.print("[yellow]Passive mode - no TTY detected, watching all (Ctrl+C to stop)[/yellow]")
     console.print()
 
     # Start monitoring threads + Telegram relay
@@ -629,8 +637,18 @@ def _log_watcher_worker():
 
 
 def _interactive_loop():
-    """Interactive command loop - handles user input"""
+    """Interactive command loop - handles user input, or passive loop if no TTY"""
     global _monitoring_active, _filter_state, _event_queue
+
+    # Non-TTY mode: no interactive input available, just keep alive
+    if not sys.stdin.isatty():
+        logger.info("[monitor] No TTY detected - running in passive mode (Ctrl+C to stop)")
+        try:
+            while _monitoring_active:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Stopping monitoring...[/yellow]")
+        return
 
     from aipass.prax.apps.handlers.monitoring.interactive_filter import (
         parse_command,

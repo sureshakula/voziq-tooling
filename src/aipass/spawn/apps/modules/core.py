@@ -1,3 +1,11 @@
+# =================== META ====================
+# Name: core.py
+# Description: Main orchestrator for agent spawning
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-07
+# =============================================
+
 """
 Spawn Module — Create new AIPass agents from templates.
 
@@ -11,21 +19,64 @@ Orchestrates the full agent creation workflow:
 7. Validate no unreplaced placeholders remain
 """
 
-import hashlib
-import json
 from pathlib import Path
+from typing import List
 
+from aipass.prax import logger
 from aipass.spawn.apps.handlers.metadata import get_branch_name, normalize_branch_name, detect_profile
 from aipass.spawn.apps.handlers.placeholders import build_replacements_dict, validate_no_placeholders
-from aipass.spawn.apps.handlers.file_ops import copy_template, rename_placeholder_paths
-from aipass.spawn.apps.handlers.registry import find_registry, add_to_registry
+from aipass.spawn.apps.handlers.file_ops import copy_template, rename_placeholder_paths, regenerate_template_registry, ensure_directory
+from aipass.spawn.apps.handlers.registry import find_registry, add_to_registry, get_next_citizen_number
 
 # Default template location (relative to spawn package root)
 DEFAULT_TEMPLATE = Path(__file__).parents[2] / "templates" / "agent.template"
 
 
-def spawn_agent(target_path, role="", traits="", purpose="", profile=None,
-                template_dir=None, registry_path=None):
+def handle_command(command: str, args: List[str]) -> bool:
+    """
+    Route spawn commands to implementation.
+
+    Args:
+        command: The command string (e.g. "create")
+        args: List of arguments for the command
+
+    Returns:
+        True if command succeeded, False otherwise
+    """
+    if command == "create":
+        if not args:
+            logger.error("spawn create requires a target path")
+            return False
+        target_path = args[0]
+        kwargs = {}
+        i = 1
+        while i < len(args):
+            if args[i] == "--role" and i + 1 < len(args):
+                kwargs["role"] = args[i + 1]
+                i += 2
+            elif args[i] == "--traits" and i + 1 < len(args):
+                kwargs["traits"] = args[i + 1]
+                i += 2
+            elif args[i] == "--purpose" and i + 1 < len(args):
+                kwargs["purpose"] = args[i + 1]
+                i += 2
+            elif args[i] == "--template" and i + 1 < len(args):
+                kwargs["template_dir"] = args[i + 1]
+                i += 2
+            elif args[i] == "--registry" and i + 1 < len(args):
+                kwargs["registry_path"] = args[i + 1]
+                i += 2
+            else:
+                i += 1
+        result = _spawn_agent(target_path, **kwargs)
+        return result["success"]
+    else:
+        logger.error(f"Unknown spawn command: {command}")
+        return False
+
+
+def _spawn_agent(target_path, role="", traits="", purpose="", profile=None,
+                 template_dir=None, registry_path=None):
     """
     Create a new AIPass agent from template.
 
@@ -65,7 +116,7 @@ def spawn_agent(target_path, role="", traits="", purpose="", profile=None,
 
     # Determine citizen number from registry
     reg_path = Path(registry_path) if registry_path else find_registry(target.parent)
-    citizen_number = _get_next_citizen_number(reg_path)
+    citizen_number = get_next_citizen_number(reg_path)
 
     # Build placeholder replacements
     replacements = build_replacements_dict(
@@ -75,14 +126,14 @@ def spawn_agent(target_path, role="", traits="", purpose="", profile=None,
     )
 
     # Step 1: Copy template with placeholder replacement in content
-    target.mkdir(parents=True, exist_ok=True)
+    ensure_directory(target)
     copied, skipped = copy_template(template, target, replacements)
 
     # Step 2: Rename any {{BRANCH}} dirs/files that weren't caught by path replacement
     renamed = rename_placeholder_paths(target, folder_name)
 
     # Step 3: Regenerate .template_registry.json with fresh hashes
-    _regenerate_template_registry(target)
+    regenerate_template_registry(target)
 
     # Step 4: Register in AIPASS_REGISTRY.json
     registry_updated = add_to_registry(
@@ -106,89 +157,6 @@ def spawn_agent(target_path, role="", traits="", purpose="", profile=None,
         "citizen_number": citizen_number,
         "validation_issues": issues,
     }
-
-
-def _get_next_citizen_number(registry_path):
-    """Get next citizen number from registry (count of existing branches + 1)."""
-    registry_path = Path(registry_path)
-    if not registry_path.exists():
-        return 1
-    try:
-        data = json.loads(registry_path.read_text(encoding="utf-8"))
-        return len(data.get("branches", [])) + 1
-    except (json.JSONDecodeError, IOError):
-        return 1
-
-
-def _regenerate_template_registry(target_dir):
-    """
-    Regenerate .template_registry.json with fresh SHA-256 hashes.
-
-    Scans all files in the agent directory and builds a new registry
-    with accurate content hashes.
-    """
-    target_dir = Path(target_dir)
-    agent_dir = target_dir / ".agent"
-    if not agent_dir.exists():
-        return
-
-    registry_file = agent_dir / ".template_registry.json"
-
-    files = {}
-    directories = {}
-    file_idx = 1
-    dir_idx = 1
-
-    for item in sorted(target_dir.rglob("*")):
-        rel = item.relative_to(target_dir)
-
-        # Skip .agent internal files and __pycache__
-        if ".agent" in rel.parts or "__pycache__" in rel.parts:
-            continue
-
-        if item.is_dir():
-            dir_id = f"d{dir_idx:03d}"
-            directories[dir_id] = {
-                "path": str(rel),
-                "name": item.name,
-            }
-            dir_idx += 1
-        elif item.is_file():
-            file_id = f"f{file_idx:03d}"
-            try:
-                content = item.read_bytes()
-                content_hash = hashlib.sha256(content).hexdigest()[:16]
-            except (IOError, PermissionError):
-                content_hash = "unreadable"
-
-            has_placeholder = False
-            try:
-                text = item.read_text(encoding="utf-8")
-                has_placeholder = "{{" in text and "}}" in text
-            except (UnicodeDecodeError, IOError):
-                pass
-
-            files[file_id] = {
-                "path": str(rel),
-                "name": item.name,
-                "content_hash": content_hash,
-                "has_branch_placeholder": has_placeholder,
-            }
-            file_idx += 1
-
-    registry = {
-        "metadata": {
-            "description": "Template registry for tracking files",
-            "generated": True,
-        },
-        "files": files,
-        "directories": directories,
-    }
-
-    registry_file.write_text(
-        json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
 
 
 def _error(message):

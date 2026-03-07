@@ -190,8 +190,15 @@ def _handle_target(args: List[str]) -> int:
     command = rest[0]
     cmd_args = rest[1:]
 
+    # Long-running interactive commands bypass capture + timeout
+    interactive = command in ("monitor",)
+
     try:
-        result = route_command(target, command, args=cmd_args if cmd_args else None)
+        result = route_command(
+            target, command,
+            args=cmd_args if cmd_args else None,
+            interactive=interactive,
+        )
     except BranchNotFoundError as exc:
         print(f"drone: {exc}", file=sys.stderr)
         return 1

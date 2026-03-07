@@ -1,3 +1,11 @@
+# =================== META ====================
+# Name: metadata.py
+# Description: Branch name extraction and profile detection
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-07
+# =============================================
+
 """Branch name extraction and profile detection."""
 
 from pathlib import Path

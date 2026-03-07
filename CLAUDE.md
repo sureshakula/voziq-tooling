@@ -66,6 +66,14 @@ apps/
 ## DevPulse
 DevPulse (`src/aipass/devpulse/`) is the orchestration hub for this repo. It coordinates work across modules, tracks status, and manages dev notes. It is to AIPass what DEV_CENTRAL is to Dev-Pass.
 
+## Container Mounts
+When running inside the Docker container (code-server at localhost:8080):
+- **Shared folder**: `/home/coder/share` (read-write) — dropbox for files between host and container
+- **Screenshots**: `/home/coder/screenshots` (read-only) — host screenshots are accessible here
+- Use the `Read` tool to view screenshot images (PNG, JPG) — Claude is multimodal and can interpret them
+- When user pastes host paths like `file:///home/aipass/Pictures/Screenshots/...`, translate to `/home/coder/screenshots/...`
+- Never use host paths (`/home/aipass/...`) directly — they don't exist inside the container
+
 ## Core Principles
 - Code is truth - if it doesn't run, it's not real
 - Test in Docker for isolation verification

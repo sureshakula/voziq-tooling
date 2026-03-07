@@ -1,3 +1,11 @@
+# =================== META ====================
+# Name: test_spawn.py
+# Description: Test suite for spawn module
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-07
+# =============================================
+
 """Tests for the aipass.spawn module."""
 
 import json
