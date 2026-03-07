@@ -3,8 +3,8 @@ set -e
 
 WORKSPACE="/home/coder/workspace"
 PROJECT="$WORKSPACE/AIPass"
-FORK="git@github.com:Input-X/AIPass.git"
-UPSTREAM="git@github.com:AIOSAI/AIPass.git"
+FORK="https://github.com/Input-X/AIPass.git"
+UPSTREAM="https://github.com/AIOSAI/AIPass.git"
 
 export PATH="/opt/venv/bin:$PATH"
 
