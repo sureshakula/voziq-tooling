@@ -18,7 +18,6 @@ from dataclasses import dataclass
 _MODULE_REGISTRY: dict[str, str] = {
     "drone": "aipass.drone.drone_adapter",
     "seedgo": "aipass.seedgo.drone_adapter",
-    "spawn": "aipass.spawn.drone_adapter",
 }
 
 

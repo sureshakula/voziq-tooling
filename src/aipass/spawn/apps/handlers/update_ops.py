@@ -36,7 +36,7 @@ from aipass.spawn.apps.handlers.placeholders import build_replacements_dict, rep
 from aipass.spawn.apps.handlers.registry import find_registry, load_registry
 
 # Repo root — resolved from spawn package location
-_REPO_ROOT = Path(__file__).parents[4]  # src/aipass/spawn/apps/handlers -> repo root
+_REPO_ROOT = Path(__file__).parents[5]  # handlers/apps/spawn/aipass/src/AIPass
 
 
 # =============================================================================

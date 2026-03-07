@@ -20,7 +20,7 @@ from pathlib import Path
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 # Repo root — resolved from spawn package location
-_REPO_ROOT = Path(__file__).parents[4]  # src/aipass/spawn/apps/handlers -> repo root
+_REPO_ROOT = Path(__file__).parents[5]  # handlers/apps/spawn/aipass/src/AIPass
 
 # Path to template_owners.json
 _TEMPLATE_OWNERS_PATH = (

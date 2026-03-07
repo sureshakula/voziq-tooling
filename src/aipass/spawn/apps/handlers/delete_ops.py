@@ -25,7 +25,7 @@ from aipass.spawn.apps.handlers.registry import (
 )
 
 # Repo root — resolved from spawn package location
-_REPO_ROOT = Path(__file__).parents[4]  # src/aipass/spawn/apps/handlers -> repo root
+_REPO_ROOT = Path(__file__).parents[5]  # handlers/apps/spawn/aipass/src/AIPass
 
 # Branches that cannot be deleted (critical infrastructure)
 _PROTECTED_BRANCHES = {"spawn", "devpulse", "drone"}
