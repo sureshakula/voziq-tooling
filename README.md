@@ -5,7 +5,7 @@
 
 > **Building in public.** Active development — not a finished product. Expect breaking changes.
 
-Orchestration framework for autonomous AI agent ecosystems. Command routing, symbolic addressing, standards enforcement, workflow management, and inter-agent messaging. Agents use `@branch` names that resolve at runtime instead of hard-coded paths. [Trinity Pattern](https://github.com/AIOSAI/Trinity-Pattern) provides the memory layer.
+Orchestration framework for autonomous AI agent ecosystems. Command routing, symbolic addressing, standards enforcement, workflow management, and inter-agent messaging. Agents use `@branch` names that resolve at runtime instead of hard-coded paths. Each agent has persistent identity and memory via `.trinity/` files (passport, session history, observations).
 
 ## Quick Start
 
@@ -112,20 +112,25 @@ src/aipass/<module>/
 │   └── handlers/      # Implementation details
 ```
 
-**10 modules:**
+**15 branches** — all under active development. Ported from a private predecessor project; not all modules are fully tested or wired up yet.
 
-| Module | Purpose | Status |
-|--------|---------|--------|
-| `drone` | Command routing, `@branch` resolution | Working |
-| `seedgo` | Standards enforcement, 21-standard pack | Working |
-| `spawn` | Branch lifecycle — create, update, delete | Working |
-| `cli` | Display formatting (Rich) | Working |
-| `flow` | Workflow/plan management | Building |
-| `ai_mail` | Inter-agent messaging, dispatch, wake | Building |
-| `prax` | Logging and monitoring | Building |
-| `api` | LLM access and model routing | Building |
-| `trigger` | Event-driven automation | Building |
-| `devpulse` | Orchestration hub (no code — coordination only) | Active |
+| Branch | Purpose |
+|--------|---------|
+| `drone` | Command routing, `@branch` resolution |
+| `seedgo` | Standards enforcement, 21-standard audit pack |
+| `prax` | Logging and monitoring (the only logger) |
+| `cli` | Display formatting (Rich) |
+| `flow` | Workflow and plan management (FPLAN lifecycle) |
+| `ai_mail` | Inter-agent messaging, dispatch, wake |
+| `spawn` | Branch lifecycle — create, update, delete |
+| `trigger` | Event-driven automation, circuit breaker |
+| `api` | LLM access via OpenRouter, key management |
+| `backup` | Multi-mode backup (snapshot, versioned, Google Drive) |
+| `daemon` | Background scheduler, cron, Telegram notifications |
+| `memory` | Vector memory bank (ChromaDB, sentence-transformers) |
+| `commons` | Social network for branches — posts, rooms, artifacts |
+| `skills` | Capability framework — discoverable, executable skill units |
+| `devpulse` | Orchestration hub (no code — coordination only) |
 
 ## Docker
 

@@ -5,6 +5,7 @@ Routes commands to branch entry points by resolving symbolic @branch names,
 locating the branch's apps/{name}.py entry point, and executing via subprocess.
 """
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -25,6 +26,31 @@ def _find_entry_point(branch_path: str, branch_name: str) -> Path:
             f"Entry point not found for branch '{branch_name}': {entry_point}"
         )
     return entry_point
+
+
+def _detect_caller_branch_name(cwd: Path) -> str | None:
+    """Walk up from cwd to find .trinity/passport.json and extract branch name."""
+    current = cwd.resolve()
+    for _ in range(10):
+        passport = current / ".trinity" / "passport.json"
+        if passport.exists():
+            try:
+                with open(passport, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                # Handle both passport formats:
+                # v1: branch_info.branch_name (local/full passport)
+                # v2: identity.name (Docker/minimal passport)
+                name = data.get("branch_info", {}).get("branch_name")
+                if not name:
+                    name = data.get("identity", {}).get("name")
+                return name
+            except Exception:
+                return None
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
 
 
 def route_command(
@@ -56,6 +82,11 @@ def route_command(
 
     # Pass caller's CWD so target branches can detect who invoked them
     caller_env = {"AIPASS_CALLER_CWD": str(Path.cwd())}
+
+    # Detect caller branch name from passport.json and pass it explicitly
+    caller_branch = _detect_caller_branch_name(Path.cwd())
+    if caller_branch:
+        caller_env["AIPASS_CALLER_BRANCH"] = caller_branch
 
     result = execute_command(
         executable=sys.executable,

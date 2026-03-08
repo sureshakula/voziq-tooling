@@ -44,6 +44,20 @@ def _find_repo_root() -> Path:
 
 BRANCH_REGISTRY_PATH = _find_repo_root() / "AIPASS_REGISTRY.json"
 
+
+def _get_branches_list(registry: dict) -> list:
+    """Normalize branches from registry to a list of dicts.
+
+    Handles both formats:
+    - List: [{"name": "DEVPULSE", ...}, ...]
+    - Dict: {"devpulse": {"name": "devpulse", ...}, ...}
+    """
+    branches = registry.get("branches", [])
+    if isinstance(branches, dict):
+        return list(branches.values())
+    return branches
+
+
 # =============================================
 # BRANCH DETECTION FUNCTIONS
 # =============================================
@@ -67,7 +81,14 @@ def detect_branch_from_pwd() -> Dict | None:
         None if no branch detected
     """
     try:
-        # Use caller's CWD if passed by drone, otherwise fall back to process CWD
+        # Primary: use explicit branch name passed by drone (works in Docker + local)
+        caller_branch = os.environ.get("AIPASS_CALLER_BRANCH")
+        if caller_branch:
+            branch_info = _lookup_branch_by_name(caller_branch)
+            if branch_info:
+                return branch_info
+
+        # Fallback: use caller's CWD for path-based detection (local only)
         caller_cwd = os.environ.get("AIPASS_CALLER_CWD")
         cwd = Path(caller_cwd) if caller_cwd else Path.cwd()
 
@@ -82,6 +103,38 @@ def detect_branch_from_pwd() -> Dict | None:
             return None
 
         return branch_info
+
+    except Exception:
+        return None
+
+
+def _lookup_branch_by_name(branch_name: str) -> Dict | None:
+    """
+    Look up branch in the registry by name (case-insensitive).
+
+    Handles both registry formats:
+    - List format: {"branches": [{"name": "DEVPULSE", ...}, ...]}
+    - Dict format: {"branches": {"devpulse": {"name": "devpulse", ...}, ...}}
+
+    Args:
+        branch_name: Branch name (e.g., "DEVPULSE", "devpulse")
+
+    Returns:
+        Dict with branch info from registry, or None if not found
+    """
+    if not BRANCH_REGISTRY_PATH.exists():
+        return None
+
+    try:
+        with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
+            registry = json.load(f)
+
+        name_lower = branch_name.lower()
+        for branch in _get_branches_list(registry):
+            if branch.get("name", "").lower() == name_lower:
+                return branch
+
+        return None
 
     except Exception:
         return None
@@ -138,7 +191,7 @@ def get_branch_info_from_registry(branch_path: Path) -> Dict | None:
         branch_path_resolved = branch_path.resolve()
 
         # Search registry for matching path
-        for branch in registry.get("branches", []):
+        for branch in _get_branches_list(registry):
             reg_path = Path(branch["path"])
             # Resolve relative paths against registry location, not CWD
             if not reg_path.is_absolute():

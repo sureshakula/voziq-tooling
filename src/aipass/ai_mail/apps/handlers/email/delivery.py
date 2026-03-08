@@ -90,7 +90,11 @@ def get_all_branches() -> List[Dict]:
             registry_data = json.load(f)
 
         # Parse branch entries from JSON structure
-        for branch in registry_data.get("branches", []):
+        # Handle both formats: list of dicts or dict keyed by name
+        raw_branches = registry_data.get("branches", [])
+        if isinstance(raw_branches, dict):
+            raw_branches = list(raw_branches.values())
+        for branch in raw_branches:
             branch_name = branch.get("name", "")
             path = branch.get("path", "")
 

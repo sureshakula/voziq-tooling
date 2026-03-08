@@ -107,10 +107,9 @@ def get_user_by_email(email: str) -> Dict | None:
     Returns:
         Dict containing user info, or None if not found
     """
-    from .branch_detection import get_branch_info_from_registry
+    from .branch_detection import BRANCH_REGISTRY_PATH, _get_branches_list
 
     # Use registry lookup
-    from .branch_detection import BRANCH_REGISTRY_PATH
     registry_path = BRANCH_REGISTRY_PATH
     if not registry_path.exists():
         return None
@@ -120,7 +119,7 @@ def get_user_by_email(email: str) -> Dict | None:
         with open(registry_path, 'r', encoding='utf-8') as f:
             registry = json.load(f)
 
-        for branch in registry.get("branches", []):
+        for branch in _get_branches_list(registry):
             if branch.get("email") == email:
                 branch_path = Path(branch.get("path", ""))
                 return {
@@ -141,7 +140,7 @@ def get_all_users() -> Dict[str, Dict]:
     Returns:
         Dict mapping branch emails to user info dicts
     """
-    from .branch_detection import BRANCH_REGISTRY_PATH
+    from .branch_detection import BRANCH_REGISTRY_PATH, _get_branches_list
     registry_path = BRANCH_REGISTRY_PATH
     if not registry_path.exists():
         return {}
@@ -152,7 +151,7 @@ def get_all_users() -> Dict[str, Dict]:
             registry = json.load(f)
 
         users = {}
-        for branch in registry.get("branches", []):
+        for branch in _get_branches_list(registry):
             email = branch.get("email", "")
             if email:
                 branch_path = Path(branch.get("path", ""))
