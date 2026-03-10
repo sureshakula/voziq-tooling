@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: sync_templates.py
 # Description: Template sync — thin CLI layer for template synchronization
 # Version: 1.1.0
@@ -17,6 +17,37 @@ from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
 from aipass.spawn.apps.handlers.sync_templates_ops import sync_templates
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("sync_templates Module")
+    console.print("Template synchronization — pull managed files from source branches into templates")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - sync_templates_ops.py (sync_templates — compare hashes and pull updates from source branches)")
+    console.print()
+
+
+# =============================================================================
+# DRONE ROUTING
+# =============================================================================
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Args:
+        command: The command string (e.g. "sync-templates")
+        args: List of arguments for the command
+
+    Returns:
+        True if command was handled, False otherwise.
+    """
+    if command == "sync-templates":
+        return handle_sync_templates(args) == 0
+    return False
 
 
 # =============================================================================

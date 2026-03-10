@@ -1,52 +1,26 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dev_flow.py - Plan management module (thin orchestrator)
-# Date: 2025-12-02
-# Version: 4.0.0
-# Category: Module
-#
-# CHANGELOG (Max 5 entries):
-#   - v4.0.0 (2026-02-19): Multi-type (DPLAN/BPLAN), --type flag, @ branch resolution
-#   - v3.0.0 (2026-02-18): Tags, filters, registry, dashboard per FPLAN-0355
-#   - v2.0.0 (2025-12-02): Refactored to thin orchestrator - all logic in handlers
-#   - v1.0.0 (2025-12-02): Initial version - plan create/list/status commands
-#
-# CONNECTS:
-#   - handlers/plan/ (all plan handlers)
-#   - registry.py (plan tracking)
-#   - dashboard.py (DASHBOARD.local.json + DEVPULSE.central.json push)
-#   - BRANCH_REGISTRY.json (@ resolution)
-#
-# CODE STANDARDS:
-#   - Modules orchestrate, handlers implement (3-tier architecture)
-#   - handle_command() interface for drone routing
-#   - Module does the logging, handlers return errors
-#   - CLI services for output (no print())
-# ==============================================
+# =================== AIPass ====================
+# Name: dplan_flow.py
+# Description: Plan management module (thin orchestrator)
+# Version: 5.0.0
+# Created: 2025-12-02
+# Modified: 2025-12-02
+# =============================================
 
 """
 Plan Management Module - Thin Orchestrator
 
-Routes commands to handlers in handlers/plan/.
+Routes commands to handlers in handlers/dplan/.
 Manages numbered, dated planning documents (DPLAN, BPLAN) in dev_planning/.
 Supports @ branch resolution for creating plans in other branches.
 """
 
-# INFRASTRUCTURE IMPORT PATTERN
 import sys
-import json
 from pathlib import Path
-from typing import List, Optional
-
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
+from typing import List
 
 # Infrastructure imports (module does the logging)
-from prax.apps.modules.logger import system_logger as logger
-from cli.apps.modules import console, header, success, error
+from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.cli.apps.modules import console, header, success, error
 
 # Handler imports
 from aipass_os.dev_central.devpulse.apps.handlers.plan.create import create_plan
@@ -64,66 +38,72 @@ from aipass_os.dev_central.devpulse.apps.handlers.plan.registry import (
 from aipass_os.dev_central.devpulse.apps.handlers.plan.dashboard import push_all as _push_dashboard_raw
 from aipass_os.dev_central.devpulse.apps.handlers.dashboard.operations import write_section
 
+# Local handlers (file I/O extracted from this module)
+from aipass.flow.apps.handlers.dplan.branch_resolve import resolve_branch_target as _resolve_branch
+from aipass.flow.apps.handlers.dplan.closed_plans_registry import append_closed_dplan
+from aipass.flow.apps.handlers.dplan.log_setup import prepare_log_file
+from aipass.flow.apps.handlers.dplan.background_spawn import spawn_post_close
+
 
 def push_dashboard(activity: str | None = None) -> dict:
     """Module-level wrapper: injects write_section into handler."""
     return _push_dashboard_raw(activity=activity, write_fn=write_section)
 
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-BRANCH_REGISTRY_PATH = Path.home() / "BRANCH_REGISTRY.json"
-
 
 # =============================================================================
-# @ BRANCH RESOLUTION
+# @ BRANCH RESOLUTION (thin wrapper around handler)
 # =============================================================================
 
-def resolve_branch_target(branch_ref: str) -> Optional[Path]:
-    """
-    Resolve @branch reference to a filesystem path via BRANCH_REGISTRY.json.
-
-    Args:
-        branch_ref: Branch reference like "@vera" or "@team_1"
-
-    Returns:
-        Path to the branch directory, or None if not found
-    """
-    name = branch_ref.lstrip("@").upper()
-
-    if not BRANCH_REGISTRY_PATH.exists():
-        logger.warning(f"[dev_flow] BRANCH_REGISTRY.json not found at {BRANCH_REGISTRY_PATH}")
+def resolve_branch_target(branch_ref: str):
+    """Resolve @branch reference — delegates to handler, logs result."""
+    result = _resolve_branch(branch_ref)
+    if not result["success"]:
+        logger.warning(f"[dev_flow] {result['error']}")
         return None
-
-    try:
-        with open(BRANCH_REGISTRY_PATH, "r", encoding="utf-8") as f:
-            registry = json.load(f)
-
-        for branch in registry.get("branches", []):
-            if branch.get("name", "").upper() == name:
-                branch_path = Path(branch["path"])
-                if branch_path.exists():
-                    return branch_path
-                else:
-                    logger.warning(f"[dev_flow] Branch path does not exist: {branch_path}")
-                    return None
-
-        logger.warning(f"[dev_flow] Branch '{name}' not found in registry")
-        return None
-
-    except Exception as e:
-        logger.warning(f"[dev_flow] Failed to read branch registry: {e}")
-        return None
+    return result["path"]
 
 
 # =============================================================================
 # MODULE INTERFACE
 # =============================================================================
 
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("dplan_flow Module")
+    console.print("Plan management orchestrator — routes plan commands to handlers")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/plan/  (via aipass_os.dev_central.devpulse)")
+    console.print("    - create.py (create_plan — create new plans)")
+    console.print("    - list.py (list_plans — list plans with filters)")
+    console.print("    - status.py (get_status_summary — plan status aggregation)")
+    console.print("    - display.py (show_help — help text display)")
+    console.print("    - close.py (close_plan, get_open_plans — close plans)")
+    console.print("    - counter.py (VALID_PLAN_TYPES — plan type definitions)")
+    console.print("    - registry.py (register_plan, update_plan_status — registry ops)")
+    console.print("    - dashboard.py (push_all — dashboard updates)")
+    console.print()
+    console.print("  handlers/dashboard/  (via aipass_os.dev_central.devpulse)")
+    console.print("    - operations.py (write_section — dashboard section writer)")
+    console.print()
+    console.print("  handlers/dplan/")
+    console.print("    - branch_resolve.py (resolve_branch_target — @ branch resolution)")
+    console.print("    - closed_plans_registry.py (append_closed_dplan — closed plan tracking)")
+    console.print("    - log_setup.py (prepare_log_file — log file preparation)")
+    console.print("    - background_spawn.py (spawn_post_close — background archival)")
+    console.print()
+
+
+def print_help():
+    """Display D-PLAN help text — thin wrapper around handler's show_help()."""
+    header("D-PLAN - Development Planning")
+    console.print(show_help())
+
+
 def handle_command(command: str, args: List[str]) -> bool:
     """
-    Handle D-PLAN commands - routes to handlers
+    Handle D-PLAN commands - routes to handlers.
 
     Args:
         command: Command to execute ('plan')
@@ -135,16 +115,9 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'plan':
         return False
 
-    # Handle --help flag
-    if args and args[0] == '--help':
-        header("D-PLAN - Development Planning")
-        console.print(show_help())
-        return True
-
-    # Parse subcommand
-    if not args:
-        header("D-PLAN - Development Planning")
-        console.print(show_help())
+    # Handle --help / -h flag
+    if not args or (args[0] in ('--help', '-h')):
+        print_help()
         return True
 
     subcommand = args[0]
@@ -171,8 +144,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 
 def _handle_create(args: List[str]) -> bool:
     """Orchestrate plan creation - delegates to handler"""
-    # Handle --help flag
-    if args and args[0] == '--help':
+    if args and args[0] in ('--help', '-h'):
         console.print("\n[bold]USAGE:[/bold]")
         console.print("  plan create \"topic name\" [--type type] [--tag tag] [--dir subdir] [@branch]")
         console.print("\n[bold]OPTIONS:[/bold]")
@@ -200,7 +172,6 @@ def _handle_create(args: List[str]) -> bool:
     target_path = None
     target_branch_name = None
 
-    # Check for --dir flag
     if '--dir' in args:
         dir_idx = args.index('--dir')
         if dir_idx + 1 < len(args):
@@ -209,7 +180,6 @@ def _handle_create(args: List[str]) -> bool:
             error("--dir requires a subdirectory name")
             return True
 
-    # Check for --tag flag
     if '--tag' in args:
         tag_idx = args.index('--tag')
         if tag_idx + 1 < len(args):
@@ -221,7 +191,6 @@ def _handle_create(args: List[str]) -> bool:
             error("--tag requires a tag name")
             return True
 
-    # Check for --type flag
     if '--type' in args:
         type_idx = args.index('--type')
         if type_idx + 1 < len(args):
@@ -234,7 +203,7 @@ def _handle_create(args: List[str]) -> bool:
             error("--type requires a plan type (dplan, bplan)")
             return True
 
-    # Check for @branch target or pre-resolved path (drone resolves @vera to /path)
+    # Check for @branch target or pre-resolved path
     for arg in args[1:]:
         if arg.startswith("@") and not arg.startswith("--"):
             target_branch_name = arg
@@ -244,7 +213,6 @@ def _handle_create(args: List[str]) -> bool:
                 return True
             break
         elif arg.startswith("/") and Path(arg).exists():
-            # Drone pre-resolved @branch to absolute path
             target_branch_name = f"@{Path(arg).name}"
             target_path = Path(arg)
             break
@@ -262,10 +230,8 @@ def _handle_create(args: List[str]) -> bool:
         error(f"Failed to create plan: {err}")
         return True
 
-    # Log success (module does logging)
     logger.info(f"[dev_flow] Created {prefix}-{result['plan_number']:03d}: {result['filename']}")
 
-    # Log cache warning if any
     if result.get('cache_warning'):
         logger.warning(f"[dev_flow] {result['cache_warning']}")
 
@@ -284,7 +250,6 @@ def _handle_create(args: List[str]) -> bool:
         except Exception as e:
             logger.warning(f"[dev_flow] Failed to register plan: {e}")
 
-        # Push dashboard update with activity context
         try:
             activity = f"DPLAN-{result['plan_number']:03d} created ({result['topic'][:30]})"
             push_dashboard(activity=activity)
@@ -307,7 +272,6 @@ def _handle_create(args: List[str]) -> bool:
 
 def _handle_list(args: List[str]) -> bool:
     """Orchestrate plan listing with optional filters"""
-    # Parse filter flags
     filter_tag = None
     filter_status = None
     filter_type = None
@@ -327,7 +291,6 @@ def _handle_list(args: List[str]) -> bool:
         if type_idx + 1 < len(args):
             filter_type = args[type_idx + 1].lower()
 
-    # Delegate to handler (pass type filter for scanning)
     plans, err = list_plans(filter_type=filter_type)
 
     if err:
@@ -335,13 +298,11 @@ def _handle_list(args: List[str]) -> bool:
         error(f"Failed to list plans: {err}")
         return True
 
-    # Apply tag/status filters
     if filter_tag:
         plans = [p for p in plans if p.get("tag") == filter_tag]
     if filter_status:
         plans = [p for p in plans if p.get("status") == filter_status]
 
-    # Display results
     console.print()
     title = "Plans"
     if filter_type:
@@ -366,12 +327,10 @@ def _handle_list(args: List[str]) -> bool:
         tag_display = f"({p['tag']})" if p.get("tag") else ""
         prefix = p.get("prefix", "DPLAN")
 
-        # Get summary from cache or description
         summary = get_summary(p["number"])
         if not summary:
             summary = p.get("description", "")
 
-        # Format: icon PREFIX-NNN | Topic | (tag) | summary
         line = f"  {status_icon} [cyan]{prefix}-{p['number']:03d}[/cyan] | {p['topic'][:30]:<30}"
         if tag_display:
             line += f" | [dim]{tag_display}[/dim]"
@@ -389,14 +348,12 @@ def _handle_list(args: List[str]) -> bool:
 
 def _handle_status(args: List[str]) -> bool:
     """Orchestrate status display - delegates to handler"""
-    # Parse --type filter
     filter_type = None
     if '--type' in args:
         type_idx = args.index('--type')
         if type_idx + 1 < len(args):
             filter_type = args[type_idx + 1].lower()
 
-    # Delegate to handler
     status_counts, total, err = get_status_summary(filter_type=filter_type)
 
     if err:
@@ -404,7 +361,6 @@ def _handle_status(args: List[str]) -> bool:
         error(f"Failed to get status: {err}")
         return True
 
-    # Display results
     console.print()
     title = "Plan Status"
     if filter_type:
@@ -412,14 +368,14 @@ def _handle_status(args: List[str]) -> bool:
     header(title)
     console.print()
 
-    console.print(f"  [yellow]📋 Planning:[/yellow]        {status_counts['planning']}")
-    console.print(f"  [blue]🔄 In Progress:[/blue]      {status_counts['in_progress']}")
-    console.print(f"  [green]✅ Ready:[/green]            {status_counts['ready']}")
-    console.print(f"  [dim]✓ Complete:[/dim]         {status_counts['complete']}")
-    console.print(f"  [red]❌ Abandoned:[/red]        {status_counts['abandoned']}")
+    console.print(f"  [yellow]Planning:[/yellow]        {status_counts['planning']}")
+    console.print(f"  [blue]In Progress:[/blue]      {status_counts['in_progress']}")
+    console.print(f"  [green]Ready:[/green]            {status_counts['ready']}")
+    console.print(f"  [dim]Complete:[/dim]         {status_counts['complete']}")
+    console.print(f"  [red]Abandoned:[/red]        {status_counts['abandoned']}")
 
     if status_counts["unknown"] > 0:
-        console.print(f"  [dim]? Unknown:[/dim]          {status_counts['unknown']}")
+        console.print(f"  [dim]Unknown:[/dim]          {status_counts['unknown']}")
 
     console.print()
     console.print(f"[dim]Total: {total} plans[/dim]")
@@ -430,10 +386,7 @@ def _handle_status(args: List[str]) -> bool:
 
 def _handle_close(args: List[str]) -> bool:
     """Orchestrate plan closing - delegates to handler, spawns background archival"""
-    import subprocess
-
-    # Handle --help flag
-    if args and args[0] == '--help':
+    if args and args[0] in ('--help', '-h'):
         console.print("\n[bold]USAGE:[/bold]")
         console.print("  plan close <number>")
         console.print("  plan close --all")
@@ -443,7 +396,6 @@ def _handle_close(args: List[str]) -> bool:
         console.print("  plan close --all\n")
         return True
 
-    # Handle --all flag
     if args and args[0] == '--all':
         return _handle_close_all()
 
@@ -451,7 +403,6 @@ def _handle_close(args: List[str]) -> bool:
         error("Usage: plan close <number>")
         return True
 
-    # Parse plan number
     plan_num, err = normalize_plan_number(args[0])
     if err:
         logger.warning(f"[dev_flow] {err}")
@@ -474,7 +425,6 @@ def _handle_close(args: List[str]) -> bool:
     try:
         update_plan_status(plan_num, "complete")
 
-        # Generate and cache summary from description
         plan_file = Path(result.get('plan_file', ''))
         if plan_file.exists():
             summary = generate_description_summary(plan_file)
@@ -483,49 +433,29 @@ def _handle_close(args: List[str]) -> bool:
     except Exception as e:
         logger.warning(f"[dev_flow] Registry update failed: {e}")
 
-    # Push dashboard update with activity context
+    # Push dashboard update
     try:
         activity = f"DPLAN-{plan_num:03d} closed ({result['topic'][:30]})"
         push_dashboard(activity=activity)
     except Exception as e:
         logger.warning(f"[dev_flow] Dashboard push failed: {e}")
 
-    # Append to branch's CLOSED_PLANS.local.json
-    try:
-        from datetime import datetime as _dt
-        _closed_plans_path = Path("/home/aipass/aipass_os/dev_central/CLOSED_PLANS.local.json")
-        _entry = {
-            "plan_id": f"DPLAN-{plan_num:03d}",
-            "type": "DPLAN",
-            "subject": result.get("topic", ""),
-            "date_closed": _dt.now().strftime("%Y-%m-%d"),
-            "location": "dev_central"
-        }
-        if _closed_plans_path.exists():
-            _data = json.loads(_closed_plans_path.read_text())
-        else:
-            _data = {"closed_plans": []}
-        # Skip if already exists
-        if not any(p["plan_id"] == _entry["plan_id"] for p in _data["closed_plans"]):
-            _data["closed_plans"].insert(0, _entry)
-            _closed_plans_path.write_text(json.dumps(_data, indent=2) + "\n")
-        logger.info(f"[dev_flow] Updated CLOSED_PLANS registry with DPLAN-{plan_num:03d}")
-    except Exception as _e:
-        logger.warning(f"[dev_flow] CLOSED_PLANS update failed (non-critical): {_e}")
+    # Append to CLOSED_PLANS.local.json via handler
+    reg_result = append_closed_dplan(plan_num, result.get("topic", ""))
+    if reg_result["success"]:
+        logger.info(f"[dev_flow] Updated CLOSED_PLANS registry with {reg_result['plan_id']}")
+    else:
+        logger.warning(f"[dev_flow] CLOSED_PLANS update failed (non-critical): {reg_result['error']}")
 
     # Step 2/3: Spawn background processing
     console.print(f"[dim][2/3][/dim] Starting background archival...")
     try:
-        bg_runner = Path(__file__).parent / "post_close_runner.py"
-        log_file = Path.home() / "aipass_os" / "logs" / "post_close_runner.log"
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-        log_fh = open(log_file, "a")
-        subprocess.Popen(
-            [sys.executable, str(bg_runner)],
-            stdout=log_fh,
-            stderr=log_fh,
-            start_new_session=True
-        )
+        log_result = prepare_log_file("post_close_runner.log")
+        if not log_result["success"]:
+            raise RuntimeError(log_result["error"])
+        spawn_result = spawn_post_close(log_file_handle=log_result["file_handle"])
+        if not spawn_result["success"]:
+            raise RuntimeError(spawn_result["error"])
         logger.info(f"[dev_flow] Spawned background post-processing for DPLAN-{plan_num:03d}")
         console.print(f"[dim]  Memory Bank archival running in background[/dim]")
     except Exception as e:
@@ -545,8 +475,6 @@ def _handle_close(args: List[str]) -> bool:
 
 def _handle_close_all() -> bool:
     """Close all open plans"""
-    import subprocess
-
     open_plans = get_open_plans()
 
     if not open_plans:
@@ -571,39 +499,23 @@ def _handle_close_all() -> bool:
             logger.info(f"[dev_flow] Closed DPLAN-{p['number']:03d}")
             console.print(f"[green]  Marked as complete[/green]")
 
-            # Update registry
             try:
                 update_plan_status(p['number'], "complete")
             except Exception as reg_err:
                 logger.warning(f"[dev_flow] Registry update failed for DPLAN-{p['number']:03d}: {reg_err}")
 
-            # Append to branch's CLOSED_PLANS.local.json
-            try:
-                from datetime import datetime as _dt
-                _closed_plans_path = Path("/home/aipass/aipass_os/dev_central/CLOSED_PLANS.local.json")
-                _entry = {
-                    "plan_id": f"DPLAN-{p['number']:03d}",
-                    "type": "DPLAN",
-                    "subject": result.get("topic", ""),
-                    "date_closed": _dt.now().strftime("%Y-%m-%d"),
-                    "location": "dev_central"
-                }
-                if _closed_plans_path.exists():
-                    _data = json.loads(_closed_plans_path.read_text())
-                else:
-                    _data = {"closed_plans": []}
-                if not any(ep["plan_id"] == _entry["plan_id"] for ep in _data["closed_plans"]):
-                    _data["closed_plans"].insert(0, _entry)
-                    _closed_plans_path.write_text(json.dumps(_data, indent=2) + "\n")
-                logger.info(f"[dev_flow] Updated CLOSED_PLANS registry with DPLAN-{p['number']:03d}")
-            except Exception as _e:
-                logger.warning(f"[dev_flow] CLOSED_PLANS update failed (non-critical): {_e}")
+            # Append to CLOSED_PLANS.local.json via handler
+            reg_result = append_closed_dplan(p['number'], result.get("topic", ""))
+            if reg_result["success"]:
+                logger.info(f"[dev_flow] Updated CLOSED_PLANS registry with {reg_result['plan_id']}")
+            else:
+                logger.warning(f"[dev_flow] CLOSED_PLANS update failed (non-critical): {reg_result['error']}")
         else:
             failure_count += 1
             logger.warning(f"[dev_flow] Failed to close DPLAN-{p['number']:03d}: {err}")
             console.print(f"[red]  Failed: {err}[/red]")
 
-    # Push dashboard update with activity context
+    # Push dashboard
     try:
         activity = f"{success_count} plan(s) closed (batch)"
         push_dashboard(activity=activity)
@@ -613,24 +525,20 @@ def _handle_close_all() -> bool:
     # Spawn ONE background process for all closed plans
     if success_count > 0:
         try:
-            bg_runner = Path(__file__).parent / "post_close_runner.py"
-            subprocess.Popen(
-                [sys.executable, str(bg_runner)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
+            spawn_result = spawn_post_close()
+            if not spawn_result["success"]:
+                raise RuntimeError(spawn_result["error"])
             logger.info(f"[dev_flow] Spawned background processing for {success_count} closed plan(s)")
             console.print(f"\n[dim]Background processing started for {success_count} plan(s)[/dim]")
         except Exception as e:
             logger.warning(f"[dev_flow] Failed to spawn background processing: {e}")
             console.print(f"\n[yellow]Background processing failed to start[/yellow]")
 
-    console.print("\n" + "═" * 60)
+    console.print("\n" + "=" * 60)
     console.print("[bold green]CLOSE ALL COMPLETE[/bold green]")
     console.print(f"  - Successfully closed: {success_count}")
     console.print(f"  - Failed: {failure_count}")
-    console.print("═" * 60 + "\n")
+    console.print("=" * 60 + "\n")
 
     return True
 
@@ -665,18 +573,14 @@ def _handle_sync() -> bool:
 # =============================================================================
 
 if __name__ == "__main__":
-    # Show introspection when run without arguments
     if len(sys.argv) == 1:
         console.print(print_introspection())
         sys.exit(0)
 
-    # Handle help flag
     if sys.argv[1] in ['--help', '-h', 'help']:
-        header("D-PLAN - Development Planning")
-        console.print(show_help())
+        print_help()
         sys.exit(0)
 
-    # Route command: plan create "topic" -> handle_command("plan", ["create", "topic"])
     subcommand = sys.argv[1]
     remaining_args = sys.argv[2:] if len(sys.argv) > 2 else []
 

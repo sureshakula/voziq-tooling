@@ -1,21 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: backup.py - Backup System Entry Point
-# Date: 2025-11-22
-# Version: 1.3.0
-# Category: core/backup
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.3.0 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang, sys.path manipulation, prax/cli imports
-#     * Replaced get_modules() with explicit relative imports
-#     * Uses standard logging and rich console
-#   - v1.2.0 (2026-02-22): Seed CLI flags standard: --version, backup all command
-#   - v1.1.0 (2025-11-22): Fixed META header - correct filename, category, and standards
-#   - v1.0.0 (2025-11-08): Initial version - modular architecture
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
+# =================== AIPass ====================
+# Name: backup.py
+# Description: Entry point CLI for drone @backup
+# Version: 1.0.0
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -28,14 +16,11 @@ Main handles routing, modules implement functionality.
 # Standard library imports
 import sys
 import argparse
-import logging
 from pathlib import Path
 from typing import Any, List
 
-from rich.console import Console
-
-logger = logging.getLogger(__name__)
-console = Console()
+from aipass.cli.apps.modules import console
+from aipass.prax import logger
 
 # Explicit module imports (replaces dynamic discover_modules)
 from aipass.backup.apps.modules import backup_core, google_drive_sync, integrations, reauth_drive

@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: executor.py
+# Description: Safe subprocess execution for branch command routing
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Safe subprocess execution for branch command routing.
 
@@ -67,6 +75,13 @@ def execute_command(
                 shell=False,
                 env=run_env,
             )
+    except KeyboardInterrupt:
+        # Clean exit on Ctrl+C — no traceback
+        if interactive:
+            return CommandResult(
+                stdout="", stderr="", exit_code=130, branch="", command=""
+            )
+        raise
     except subprocess.TimeoutExpired as e:
         raise CommandExecutionError(
             f"Command timed out after {timeout}s: {' '.join(full_cmd)}"

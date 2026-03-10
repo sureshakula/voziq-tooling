@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory.py - Memory System Entry Point
-# Date: 2025-11-15
-# Version: 0.2.0
-# Category: memory
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed internal deps
-#   - v0.1.0 (2025-11-15): Initial version - modular architecture, module discovery
-#
-# CODE STANDARDS:
-#   - Follows AIPass architecture patterns (learned from Seed)
-#   - Module auto-discovery with handle_command() interface
+# =================== AIPass ====================
+# Name: memory.py
+# Description: Entry point CLI for drone @memory
+# Version: 1.0.0
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -29,22 +20,21 @@ ARCHITECTURE:
 import sys
 import time
 import signal
-import logging
+
 from pathlib import Path
 from typing import List, Any
 import importlib
 
-from rich.console import Console
 from rich.panel import Panel
 from rich import box
 from rich.table import Table
 
+from aipass.prax import logger
+from aipass.cli.apps.modules import console
+
 # =============================================================================
 # INFRASTRUCTURE SETUP
 # =============================================================================
-
-logger = logging.getLogger(__name__)
-console = Console()
 
 # Package name for module discovery (relative imports within this package)
 _PACKAGE_BASE = "aipass.memory.apps.modules"
@@ -267,7 +257,7 @@ def start_watch() -> None:
         is_memory_watcher_active,
         get_watcher_status
     )
-    from .modules.rollover import get_rollover_stats
+    from ..handlers.monitor.detector import get_rollover_stats
 
     # Signal handler for graceful shutdown
     def signal_handler(sig, frame):

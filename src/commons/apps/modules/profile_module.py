@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: profile_module.py - Social Profile Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: profile_module.py
+# Description: Social Profile Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -25,13 +16,9 @@ and renders results with Rich.
 Handles: profile, who commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.profile_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -42,6 +29,19 @@ except ImportError:
 from rich.panel import Panel
 
 from commons.apps.handlers.profiles.profile_ops import show_profile, list_members
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("profile_module Module")
+    console.print("Social profile orchestration — viewing, editing profiles and listing members")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/profiles/")
+    console.print("    - profile_ops.py (show_profile — display or update a branch profile)")
+    console.print("    - profile_ops.py (list_members — list all registered members)")
+    console.print()
 
 
 # =============================================================================

@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: status_module.py - PRAX Status Command
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: status_module.py
+# Description: PRAX Status Command
 # Version: 1.0.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Created with handle_command interface
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -72,6 +63,19 @@ def handle_command(command: str, args: List[str]) -> bool:
     console.print(f"Logger Override: {'🟢 Active' if status['logger_override_active'] else '🔴 Inactive'}")
     console.print("=" * 60 + "\n")
     return True
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("status_module Module")
+    console.print("Implements the 'status' command to display PRAX system status dashboard")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  modules/")
+    console.print("    - logger.py (get_system_status — returns module count, watcher, override status)")
+    console.print("    - logger.py (system_logger — auto-routing logger for module log files)")
+    console.print()
 
 
 if __name__ == "__main__":

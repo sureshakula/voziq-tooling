@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: cli.py - CLI Event Handler
-# Date: 2025-12-04
+# =================== AIPass ====================
+# Name: cli.py
+# Description: CLI event handler for header display events
 # Version: 0.1.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-12-04): Created CLI event handler
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Handlers must not import Prax logger
+# Created: 2025-12-04
+# Modified: 2025-12-04
 # =============================================
 
 """CLI Event Handler - Handle CLI display events"""

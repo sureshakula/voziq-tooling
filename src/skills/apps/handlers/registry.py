@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: registry.py - Skill registry management
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: registry.py
+# Description: Skill registry management
 # Version: 1.0.0
-# Category: skills/apps/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Initial implementation
-#
-# CODE STANDARDS:
-#   - Handler layer: returns dicts, NEVER prints
-#   - Manages discovered skills cache
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 from pathlib import Path

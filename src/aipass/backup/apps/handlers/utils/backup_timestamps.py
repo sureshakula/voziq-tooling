@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: backup_timestamps.py - Tracks last-run timestamps for all backup modes
-# Date: 2026-02-22
+# =================== AIPass ====================
+# Name: backup_timestamps.py
+# Description: Tracks last-run timestamps for all backup modes
 # Version: 1.0.0
-# Category: handlers/utils
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-22): Initial version - show/update backup timestamps
-#
-# CODE STANDARDS:
-#   - Handler utility: no console output, returns data for module layer
-#   - JSON file at backups/backup_timestamps.json
+# Created: 2026-02-22
+# Modified: 2026-03-09
 # =============================================
 
 """

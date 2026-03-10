@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reader.py - Branch Registry Reader Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: reader.py
+# Description: Branch Registry Reader Handler
 # Version: 0.1.0
-# Category: aipass/handlers/registry
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-15): Initial version - read branch registry
-#
-# CODE STANDARDS:
-#   - Error handling: Return None on errors, log failures
-#   - Logging: Use Prax logger
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """

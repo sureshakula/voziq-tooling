@@ -1,20 +1,10 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: cleanup.py - Usage data retention and cleanup
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: cleanup.py
+# Description: Usage data retention and cleanup
 # Version: 0.1.0
-# Category: api/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-16): Extracted from api_usage.py
-#   - v1.0.0 (2025-11-15): Initial handler - old data cleanup
-#
-# CODE STANDARDS:
-#   - Handler layer (standalone functions)
-#   - Uses CLI service for output
-#   - Under 300 lines
-# ==============================================
+# Created: 2025-11-16
+# Modified: 2025-11-16
+# =============================================
 
 """
 Usage Data Cleanup Handler
@@ -32,8 +22,8 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 
-# CLI services
-from aipass.cli.apps.modules import console, success, warning
+# Logging
+from aipass.prax import logger
 
 
 def _read_json(file_path: Path) -> Optional[Dict]:
@@ -99,13 +89,13 @@ def cleanup_old_data(data_file_path: Path, retention_days: int = 30) -> int:
 
         _write_json(data_file_path, data)
         # logger.info(f"Cleaned up {len(old_generations)} generation entries")
-        success(f"Cleaned up {len(old_generations)} generation entries older than {retention_days} days")
+        logger.info(f"Cleaned up {len(old_generations)} generation entries older than {retention_days} days")
 
         return len(old_generations)
 
     except Exception as e:
         # logger.error(f"Cleanup failed: {e}")
-        console.print(f"[red]Cleanup failed: {e}[/red]")
+        logger.error(f"Cleanup failed: {e}")
         raise
 
 
@@ -162,13 +152,13 @@ def cleanup_daily_totals(data_file_path: Path, retention_days: int = 90) -> int:
 
         _write_json(data_file_path, data)
         # logger.info(f"Cleaned up {len(old_dates)} daily total entries")
-        success(f"Cleaned up {len(old_dates)} daily total entries older than {retention_days} days")
+        logger.info(f"Cleaned up {len(old_dates)} daily total entries older than {retention_days} days")
 
         return len(old_dates)
 
     except Exception as e:
         # logger.error(f"Daily totals cleanup failed: {e}")
-        console.print(f"[red]Daily totals cleanup failed: {e}[/red]")
+        logger.error(f"Daily totals cleanup failed: {e}")
         raise
 
 
@@ -190,7 +180,7 @@ def auto_cleanup(data_file_path: Path, config: Optional[Dict] = None) -> Dict[st
 
     except Exception as e:
         # logger.error(f"Auto cleanup failed: {e}")
-        console.print(f"[red]Auto cleanup failed: {e}[/red]")
+        logger.error(f"Auto cleanup failed: {e}")
         raise
 
 

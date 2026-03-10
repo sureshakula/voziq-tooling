@@ -1,10 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: ai_mail.py - AI_MAIL Branch Orchestrator
-# Date: 2025-11-08
+# =================== AIPass ====================
+# Name: ai_mail.py
+# Description: Entry point CLI for drone @ai_mail — inter-branch email system
 # Version: 1.0.0
-# Category: ai_mail/orchestrator
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -26,7 +25,7 @@ from typing import Dict, Any, Optional, List
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # Dashboard integration (optional, requires dev_central package)
-_update_section = None  # type: ignore
+_UPDATE_SECTION = None  # type: ignore
 
 # AIPass infrastructure imports
 from aipass.prax.apps.modules.logger import system_logger as logger

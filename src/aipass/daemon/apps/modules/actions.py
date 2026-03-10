@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: actions.py - Action Registry CLI Module
-# Date: 2026-03-02
+# =================== AIPass ====================
+# Name: actions.py
+# Description: Action Registry CLI Module
 # Version: 1.0.0
-# Category: daemon/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-02): Initial creation - DPLAN-043
-#     * List, toggle, info, set reminder, set schedule
-#     * Plugin migration command
-#     * Formatted Rich console output
-#
-# CODE STANDARDS:
-#   - Seed pattern compliance - console.print() for all output
-#   - Thin orchestration - handlers implement logic
+# Created: 2026-03-02
+# Modified: 2026-03-02
 # =============================================
 
 """
@@ -29,11 +18,9 @@ import sys
 from pathlib import Path
 from typing import List
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
 
-from rich.console import Console
-console = Console()
+from aipass.cli.apps.modules import console
 
 def _header(text):
     console.print(f"\n[bold cyan]{'='*70}[/bold cyan]")
@@ -61,6 +48,22 @@ from aipass.daemon.apps.handlers.actions.actions_registry import (
 # =============================================
 
 MODULE_NAME = "actions"
+
+
+# =============================================
+# INTROSPECTION
+# =============================================
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("actions Module")
+    console.print("CLI interface for the numbered action registry (DPLAN-043)")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/actions/")
+    console.print("    - actions_registry.py (list_actions, get_action, toggle_action, delete_action, create_action, migrate_plugins, next_due_str — registry CRUD)")
+    console.print()
 
 
 # =============================================
@@ -169,7 +172,7 @@ def _print_action_detail(action: dict) -> None:
     console.print()
 
 
-def _print_help() -> None:
+def print_help() -> None:
     """Display help using Rich formatted output."""
     console.print()
     _header("Actions -- Numbered Action Registry")
@@ -455,7 +458,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     try:
         # No args or help
         if not args or args[0] in ['--help', '-h', 'help']:
-            _print_help()
+            print_help()
             return True
 
         subcommand = args[0]
@@ -517,7 +520,7 @@ def main() -> None:
     args = sys.argv[1:]
 
     if not args or args[0] in ['--help', '-h', 'help']:
-        _print_help()
+        print_help()
         return
 
     handle_command('actions', args)

@@ -1,36 +1,9 @@
-# =============================================================================
-# EXTRACTED FROM Dev-Pass devpulse on 2026-03-08
-# Original location: aipass_os/dev_central/devpulse/apps/handlers/dashboard/refresh.py
-# These files need adaptation for AIPass before use
-# Original imports use aipass_os.dev_central.devpulse — must be converted to aipass.prax
-# NOTE: This file has cross-handler imports (central.reader) that need resolution
-# =============================================================================
-
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: refresh.py - Dashboard Refresh Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: refresh.py
+# Description: Dashboard Refresh Handler
 # Version: 0.5.0
-# Category: aipass/handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.5.0 (2026-02-25): FPLAN-0374 Phase 4 - preserve write-through sections
-#       (e.g. agent_status) across refresh cycles, not just commons_activity
-#   - v0.4.0 (2026-02-25): FPLAN-0374 Phase 1 - commons refresh guard: preserve
-#       write-through data when COMMONS.central.json missing, return None instead
-#       of zeros, load existing dashboard commons_activity on refresh
-#   - v0.3.0 (2026-02-25): FPLAN-0373 Phase 5 - add last_updated to all extract
-#       functions, enrich devpulse section with dplan_counts + recent_activity
-#   - v0.2.0 (2026-02-25): FPLAN-0373 - remove bulletin_board, add commons_activity,
-#       updated quick_status with mentions, ISO timestamps
-#   - v0.1.0 (2025-11-27): Initial handler - refresh dashboards from centrals
-#
-# CODE STANDARDS:
-#   - Handler tier 3 - pure functions, raises exceptions
-#   - Reads from central files, writes to branch dashboards
-#   - No CLI imports, caller handles logging
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """

@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: main.py - api Branch Orchestrator
-# Date: 2025-11-08
+# =================== AIPass ====================
+# Name: api.py
+# Description: Entry point CLI for drone @api — LLM client via OpenRouter
 # Version: 1.0.0
-# Category: api/entry_point
-# CODE STANDARDS: Seed v1.0.0
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-08): Initial version - modular architecture
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """

@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: save_registry.py
-# Date: 2025-11-07
+# Description: Save Registry Handler
 # Version: 1.1.0
-# Category: flow/handlers/registry
-#
-# CHANGELOG:
-#   - v1.1.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v1.0.0 (2025-11-07): Extracted from flow_registry_monitor.py
+# Created: 2025-11-07
+# Modified: 2025-11-07
 # =============================================
 
 """

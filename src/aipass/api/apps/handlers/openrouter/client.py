@@ -1,15 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: client.py - OpenRouter Client Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: client.py
+# Description: OpenRouter Client Handler
 # Version: 3.0.0
-# Category: api/handlers/openrouter
-#
-# CHANGELOG (Max 5 entries):
-#   - v3.0.0 (2026-02-20): Fallback model chain in get_response() + retry logic in make_api_request()
-#   - v2.0.0 (2025-11-16): Complete extraction from archive - client creation, API requests, response handling
-#   - v1.0.0 (2025-11-15): Initial handler stub
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -31,7 +25,7 @@ Configuration:
 - Connection pooling via client caching
 
 Standards:
-- Uses console.print() for user output (NO print())
+- Uses prax logger for output (NO print() or console.print())
 - Uses logger.info() for system logging
 - Integrates with auth/keys, caller detection, usage tracking handlers
 - Standalone functions (no classes)
@@ -46,8 +40,8 @@ from pathlib import Path
 import time
 from typing import Optional, Dict, List, Any
 
-# AIPASS imports
-from aipass.cli.apps.modules import console
+# Logging
+from aipass.prax import logger
 
 # OpenAI SDK for OpenRouter compatibility
 try:
@@ -104,12 +98,12 @@ def create_client(api_key: str, base_url: str = OPENROUTER_BASE_URL, timeout: in
     """
     if not OPENAI_AVAILABLE:
         # logger.error("OpenAI SDK not installed - cannot create client")
-        console.print("[red]Error: OpenAI SDK not installed. Run: pip install openai[/red]")
+        logger.error("OpenAI SDK not installed. Run: pip install openai")
         return None
 
     if not api_key:
         # logger.error("Cannot create client - no API key provided")
-        console.print("[red]Error: API key required for client creation[/red]")
+        logger.error("API key required for client creation")
         return None
 
     try:
@@ -126,7 +120,7 @@ def create_client(api_key: str, base_url: str = OPENROUTER_BASE_URL, timeout: in
 
     except Exception as e:
         # logger.error(f"Failed to create OpenRouter client: {e}")
-        console.print(f"[red]Error creating OpenRouter client: {e}[/red]")
+        logger.error(f"Error creating OpenRouter client: {e}")
         return None
 
 
@@ -208,16 +202,16 @@ def make_api_request(client: OpenAI, messages: List[Dict], model: str, retries: 
         try:
             response = client.chat.completions.create(**api_params)
             if attempt > 0:
-                print(f"[INFO] API request succeeded on retry {attempt} for model {model}")
+                logger.info(f"API request succeeded on retry {attempt} for model {model}")
             return response
         except Exception as e:
             last_error = e
             if attempt < retries:
                 delay = 1.0 * (attempt + 1)  # 1s, 2s, ...
-                print(f"[INFO] API request failed for {model} (attempt {attempt + 1}/{1 + retries}): {e} — retrying in {delay:.0f}s")
+                logger.info(f"API request failed for {model} (attempt {attempt + 1}/{1 + retries}): {e} — retrying in {delay:.0f}s")
                 time.sleep(delay)
 
-    print(f"[INFO] API request failed for {model} after {1 + retries} attempts: {last_error}")
+    logger.error(f"API request failed for {model} after {1 + retries} attempts: {last_error}")
     return None
 
 
@@ -318,15 +312,15 @@ def get_response(prompt: str, caller: Optional[str] = None, model: Optional[str]
     # Step 2: Require model from caller - no defaults
     if not model:
         # logger.error("No model specified - caller must provide model from their branch config")
-        console.print("[red]Error: No model specified.[/red]")
-        console.print("[yellow]Callers must provide their own model via branch config (e.g., flow_json/openrouter_config.json)[/yellow]")
+        logger.error("No model specified.")
+        logger.warning("Callers must provide their own model via branch config (e.g., flow_json/openrouter_config.json)")
         return None
 
     # Step 3: Get API key
     api_key = get_api_key("openrouter")
     if not api_key:
         # logger.error("Cannot get response - no API key available")
-        console.print("[red]Error: No OpenRouter API key available[/red]")
+        logger.error("No OpenRouter API key available")
         return None
 
     # Step 4: Get or create client
@@ -376,7 +370,7 @@ def clear_client_cache() -> None:
     count = len(_client_cache)
     _client_cache.clear()
     # logger.info(f"Cleared {count} cached clients")
-    console.print(f"[green]Cleared {count} cached OpenRouter clients[/green]")
+    logger.info(f"Cleared {count} cached OpenRouter clients")
 
 
 def get_cache_stats() -> Dict[str, Any]:

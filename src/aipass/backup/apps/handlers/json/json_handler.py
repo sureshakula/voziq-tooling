@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - JSON Auto-Creating Handler
-# Date: 2025-11-22
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: JSON Auto-Creating Handler
 # Version: 3.1.0
-# Category: backup_system/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v3.1.0 (2026-01-31): Refactored to comply with error handling standards
-#   - v3.0.0 (2025-11-22): Updated to match Cortex template with all features
-#   - v2.0.0 (2025-11-16): Migrated to seed 3-layer architecture
-#   - v1.0.0 (2025-10-14): Initial implementation with auto-detection
-#
-# CODE STANDARDS:
-#   - Pure functions with proper error raising
-#   - No Prax imports (handler tier 3)
+# Created: 2025-11-22
+# Modified: 2026-03-09
 # =============================================
 
 import json

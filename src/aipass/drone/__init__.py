@@ -26,10 +26,11 @@ Registry Management:
 
 from aipass.drone.apps.modules.config import get_registry_path, reset_registry_path, set_registry_path
 from aipass.drone.apps.modules.discovery import HelpResult, discover_modules, get_help, get_system_help
-from aipass.drone.apps.handlers.exceptions import (
+from aipass.drone.apps.modules import (
     BranchAlreadyExistsError,
     BranchNotFoundError,
     CommandExecutionError,
+    CommandResult,
     InvalidPathError,
     RegistryCorruptError,
     RegistryError,
@@ -37,7 +38,6 @@ from aipass.drone.apps.handlers.exceptions import (
     RegistryPermissionError,
     RoutingError,
 )
-from aipass.drone.apps.handlers.executor import CommandResult
 from aipass.drone.apps.modules.resolver import branch_exists, get_branch_info, list_branches, resolve_branch
 from aipass.drone.apps.modules.router import route_all, route_command
 

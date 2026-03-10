@@ -1,13 +1,9 @@
-
-# =============================================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: caller.py
-# Date: 2025-11-16
+# Description: OpenRouter Caller Detection Handler
 # Version: 1.0.0
-# Category: api/handlers
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-16): Initial caller detection handler extracted from archive
+# Created: 2025-11-16
+# Modified: 2025-11-16
 # =============================================
 
 """

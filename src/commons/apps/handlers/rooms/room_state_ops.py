@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: room_state_ops.py - Room State CRUD Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: room_state_ops.py
+# Description: Room State CRUD Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/rooms
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: pure business logic
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """

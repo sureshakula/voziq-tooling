@@ -1,24 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: daemon.py - Dispatch Daemon Handler
-# Date: 2026-02-17
+# =================== AIPass ====================
+# Name: daemon.py
+# Description: Dispatch Daemon Handler
 # Version: 1.8.0
-# Category: ai_mail/handlers/dispatch
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.8.0 (2026-03-02): Wire spawn_agent through dispatch_monitor (bounce emails + guaranteed lock cleanup)
-#   - v1.7.0 (2026-03-02): Redirect stderr to log file + reap zombie children (debug silent deaths)
-#   - v1.6.0 (2026-03-01): Add AIPASS_SESSION_TYPE env var + session rename for /resume picker
-#   - v1.5.0 (2026-02-22): Stale lock cleanup every cycle + orphaned opened email retry (>30 min)
-#   - v1.4.0 (2026-02-21): Skip spawn if branch has active Claude session (prevent toe-stepping)
-#   - v1.3.0 (2026-02-20): DPLAN-024 Phase 3 - strip heartbeat logic (migrated to assistant plugins)
-#   - v1.2.0 (2026-02-20): DPLAN-024 - fix hardcoded paths, inline lock_utils
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-handler or module imports
-#   - Pure business logic only
-#   - Uses Prax system_logger (FPLAN-0382)
+# Created: 2026-02-17
+# Modified: 2026-02-17
 # =============================================
 
 """
@@ -238,7 +223,7 @@ def load_config() -> Dict[str, Any]:
         "kill_switch_path": str(_REPO_ROOT / ".aipass" / "autonomous_pause"),
         "poll_interval_seconds": 300,
         "max_depth": 3,
-        "max_turns_per_wake": 50,
+        "max_turns_per_wake": 100,
         "max_dispatches_per_branch_per_day": 10,
         "session_rotation_cycles": 12,
         "cold_start_prompt": "Hi. Check inbox, process new emails, update memories when done.",
@@ -407,7 +392,7 @@ def spawn_agent(
     sender = message.get("from", "unknown")
     msg_id = message.get("id", "unknown")
     subject = message.get("subject", "")
-    max_turns = config.get("max_turns_per_wake", 15)
+    max_turns = config.get("max_turns_per_wake", 100)
 
     lock_file_path = str(branch_path / ".ai_mail.local" / ".dispatch.lock")
 
@@ -480,11 +465,9 @@ def spawn_agent(
         notif_title = f"Daemon → {branch_email}"
         notif_body = f"Task from {sender}: \"{subject[:80]}\"" if subject else f"Dispatch from {sender}"
         try:
-            subprocess.run(
-                ["notify-send", "-i", "dialog-information", notif_title, notif_body],
-                capture_output=True, timeout=5
-            )
-        except (subprocess.SubprocessError, FileNotFoundError, OSError):
+            from aipass.ai_mail.apps.handlers.notify import send_notification
+            send_notification(notif_title, notif_body, source=branch_email.lstrip("@"))
+        except Exception:
             logger.info(f"Desktop notification unavailable for {branch_email}")
 
         logger.info(f"SPAWN {branch_email} PID={monitor_pid} (monitor) sender={sender} subject=\"{subject[:60]}\"")

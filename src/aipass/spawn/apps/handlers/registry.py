@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: registry.py
 # Description: AIPASS_REGISTRY.json CRUD operations
 # Version: 1.0.0

@@ -1,21 +1,10 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: status.py - D-PLAN status handler
-# Date: 2025-12-02
+# =================== AIPass ====================
+# Name: status.py
+# Description: D-PLAN status handler
 # Version: 1.1.0
-# Category: devpulse/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-18): Add VALID_TAGS, extract_tag(), extract_description() per FPLAN-0355
-#   - v1.0.0 (2025-12-02): Extracted from dev_flow.py module
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - NO Prax logging (per 3-tier: modules log, handlers don't)
-#   - Pure business logic only
-# ==============================================
+# Created: 2025-12-02
+# Modified: 2025-12-02
+# =============================================
 
 """
 Status Handler - D-PLAN Status Operations

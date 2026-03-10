@@ -1,5 +1,5 @@
 # AIPass System Context
-<!-- Injected on every prompt via hook. Branch-specific context appears below when in a branch directory. -->
+<!-- File: .aipass/aipass_global_prompt.md — Injected on every prompt via hook. Branch-specific context appears below when in a branch directory. -->
 
 **This prompt is your guide.** The patterns shown here are exact. Don't guess command syntax — the examples ARE the API.
 
@@ -42,12 +42,15 @@ src/aipass/{name}/
 **15 branches:** drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, devpulse, backup, daemon, memory, commons, skills
 
 ## Commands
+
+`drone` is a global CLI — never `cd` before running it. No full paths. Drone resolves everything.
+
 ```
 drone @branch command [args]      # Route command to any branch
 drone @branch --help              # Branch help
 drone systems                     # List all registered branches
 drone @seedgo audit aipass        # Run standards audit on all branches
-drone @seedgo verify              # Verify standards packs installed
+drone @seedgo standards_query aipass_standards  # List all standards (then query by name)
 drone @prax monitor               # Real-time monitoring (interactive)
 ```
 
@@ -82,6 +85,7 @@ from aipass.prax import logger
 - **No deleting files.** Move to `.archive/` or rename with `(disabled)`.
 - **Verify after fixing.** Run a test or command to confirm. Don't say "fixed" until verified.
 - **Cross-platform.** AIPass is a public package — code must work on Linux, macOS, and Windows. Use `pathlib.Path` not string concatenation. Use `Path.home()` not `~` or `/home/`. Secrets live at `~/.secrets/aipass/` (`Path.home() / ".secrets" / "aipass"`).
+- **Fail to errors, never fall back silently.** When a command, handler, or module receives input it can't handle, return an explicit error — not a silent fallback to default output. No dimming, no swallowing, no showing the same screen regardless of input. The user must see that their input was received and rejected. Show what's missing (no help available, no introspection, no subcommands) and where to look (file path). Dead ends must announce themselves.
 
 ## Memories
 

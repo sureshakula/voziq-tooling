@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: change_detection.py
 # Description: Template change detection — template vs branch metadata
 # Version: 1.0.0

@@ -1,28 +1,9 @@
-# =============================================================================
-# EXTRACTED FROM Dev-Pass devpulse on 2026-03-08
-# Original location: aipass_os/dev_central/devpulse/apps/handlers/dashboard/status.py
-# These files need adaptation for AIPass before use
-# Original imports use aipass_os.dev_central.devpulse — must be converted to aipass.prax
-# =============================================================================
-
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: status.py - Dashboard Status Calculation Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: status.py
+# Description: Dashboard Status Calculation Handler
 # Version: 0.2.0
-# Category: handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-02-25): FPLAN-0373 - live section data, remove bulletin_board,
-#       add commons mentions, updated action_required logic
-#   - v0.1.0 (2025-11-24): Initial handler - status calculation and branch paths
-#
-# CODE STANDARDS:
-#   - Pure business logic - no CLI imports
-#   - Raises exceptions, caller handles logging
-#   - Type hints on all functions
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -102,3 +83,35 @@ def get_branch_paths() -> List[Path]:
 
     data = json.loads(BRANCH_REGISTRY.read_text())
     return [Path(b.get("path", "")) for b in data.get("branches", [])]
+
+
+def resolve_branch_path(branch_ref: str) -> Path:
+    """
+    Resolve @branch reference to filesystem path via BRANCH_REGISTRY.json.
+
+    Handler-layer function: performs file I/O to read registry and
+    resolve branch name to its directory path.
+
+    Args:
+        branch_ref: Branch reference like "@flow" or "@vera"
+
+    Returns:
+        Path to the branch directory
+
+    Raises:
+        FileNotFoundError: If registry missing or branch not found
+    """
+    name = branch_ref.lstrip("@").upper()
+
+    if not BRANCH_REGISTRY.exists():
+        raise FileNotFoundError("BRANCH_REGISTRY.json not found")
+
+    data = json.loads(BRANCH_REGISTRY.read_text())
+    for branch in data.get("branches", []):
+        if branch.get("name", "").upper() == name:
+            path = Path(branch["path"])
+            if path.exists():
+                return path
+            raise FileNotFoundError(f"Branch path does not exist: {path}")
+
+    raise FileNotFoundError(f"Branch '{name}' not found in registry")

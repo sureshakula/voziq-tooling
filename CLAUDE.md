@@ -7,7 +7,7 @@ Injected every turn. Keep this lean — details live in README, --help, and .tri
 Greetings (`hi`, `hello`, `yo`, `hey`, `sup`, `good morning`, `good evening`, `what's up`) trigger startup protocol. Everything else is a direct task.
 
 **On startup, read:** `.trinity/passport.json`, `local.json`, `observations.json`, `DASHBOARD.local.json`, `README.md`
-**Then run:** `git status`, `drone systems`, `drone @seedgo verify`
+**Then run:** `git status`, `drone systems`
 
 ## Navigation
 

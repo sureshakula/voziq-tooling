@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: task_registry.py - DAEMON Scheduled Tasks Registry
-# Date: 2026-02-04
+# =================== AIPass ====================
+# Name: task_registry.py
+# Description: DAEMON Scheduled Tasks Registry
 # Version: 1.0.0
-# Category: daemon/handlers/schedule
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-04): Initial implementation - task storage and operations
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
-#   - No cross-branch imports, no Prax logger
+# Created: 2026-02-04
+# Modified: 2026-02-04
 # =============================================
 
 """
@@ -51,6 +43,17 @@ def _ensure_json_exists() -> None:
     if not SCHEDULE_JSON_PATH.exists():
         with open(SCHEDULE_JSON_PATH, 'w', encoding='utf-8') as f:
             json.dump(DEFAULT_SCHEDULE_DATA, f, indent=2, ensure_ascii=False)
+
+
+def ensure_lock_dir() -> Dict[str, Any]:
+    """Ensure the daemon_json directory exists for lock files.
+
+    Returns:
+        Dict with 'path' (str) of the lock file directory.
+    """
+    lock_dir = SCHEDULE_JSON_PATH.parent
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    return {"path": str(lock_dir)}
 
 
 def load_tasks() -> List[Dict[str, Any]]:
@@ -375,6 +378,137 @@ def get_pending_tasks() -> List[Dict[str, Any]]:
     """
     tasks = load_tasks()
     return [t for t in tasks if t.get("status") == "pending"]
+
+
+# =============================================
+# BATCH PROCESSING
+# =============================================
+
+def process_due_tasks_batch(
+    send_email_fn=None,
+    stale_max_age: int = 5,
+) -> Dict[str, Any]:
+    """
+    Process all due tasks: recover stale, dispatch emails, track results.
+
+    This is the implementation logic for batch task processing.
+    The module layer handles display; this handler returns raw data.
+
+    Args:
+        send_email_fn: Callable to send email (to_branch, subject, message, ...).
+                       If None, email dispatch is skipped.
+        stale_max_age: Maximum minutes before a dispatching task is considered stale.
+
+    Returns:
+        Dict with keys: due, success, failed, recovered, errors (list of str),
+        processed_tasks (list of dicts with id, recipient, task, status).
+    """
+    import time
+
+    results: Dict[str, Any] = {
+        "due": 0,
+        "success": 0,
+        "failed": 0,
+        "recovered": 0,
+        "errors": [],
+        "processed_tasks": [],
+    }
+
+    # Recover any stale dispatches
+    try:
+        recovered = recover_stale_dispatches(max_age_minutes=stale_max_age)
+        results["recovered"] = recovered
+    except Exception as e:
+        results["errors"].append(f"Stale recovery: {e}")
+
+    # Get due tasks
+    try:
+        due_tasks = get_due_tasks()
+    except Exception as e:
+        results["errors"].append(f"Load tasks: {e}")
+        return results
+
+    results["due"] = len(due_tasks)
+
+    if not due_tasks:
+        return results
+
+    for task in due_tasks:
+        task_id = task.get("id", "")
+        recipient = task.get("recipient", "")
+        task_desc = task.get("task", "")
+        message = task.get("message", "")
+
+        task_result = {
+            "id": task_id,
+            "recipient": recipient,
+            "task": task_desc,
+            "status": "pending",
+        }
+
+        # Mark as dispatching (prevents re-dispatch)
+        try:
+            mark_dispatching(task_id)
+        except Exception as e:
+            results["errors"].append(f"Mark dispatching {task_id[:8]}: {e}")
+            results["failed"] += 1
+            task_result["status"] = "error"
+            task_result["error"] = str(e)
+            results["processed_tasks"].append(task_result)
+            continue
+
+        # Build email body
+        email_body = f"{task_desc}"
+        if message:
+            email_body += f"\n\nDetails:\n{message}"
+
+        # Send the email
+        if send_email_fn is None:
+            mark_pending(task_id)
+            results["failed"] += 1
+            task_result["status"] = "skipped"
+            task_result["error"] = "email function not available"
+            results["errors"].append(f"Email unavailable for {task_id[:8]}")
+            results["processed_tasks"].append(task_result)
+            continue
+
+        try:
+            email_sent = send_email_fn(
+                to_branch=recipient,
+                subject=f"[SCHEDULED] {task_desc}",
+                message=email_body,
+                from_branch='@daemon',
+                auto_execute=True,
+                reply_to='@dev_central',
+            )
+
+            if email_sent:
+                mark_completed(task_id)
+                results["success"] += 1
+                task_result["status"] = "sent"
+            else:
+                mark_pending(task_id)
+                results["failed"] += 1
+                task_result["status"] = "failed"
+                task_result["error"] = "email send returned False"
+                results["errors"].append(f"Email failed: {task_id[:8]} -> {recipient}")
+
+        except Exception as e:
+            try:
+                mark_pending(task_id)
+            except Exception:
+                pass
+            results["failed"] += 1
+            task_result["status"] = "error"
+            task_result["error"] = str(e)
+            results["errors"].append(f"Email error {task_id[:8]}: {e}")
+
+        results["processed_tasks"].append(task_result)
+
+        # Small delay between dispatches (prevents thundering herd)
+        time.sleep(1.0)
+
+    return results
 
 
 # =============================================

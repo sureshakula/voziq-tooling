@@ -1,25 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: backup_core.py - Main backup system orchestration module
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: backup_core.py
+# Description: Main backup system orchestration module
 # Version: 2.1.0
-# Category: backup_system
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.1.0 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang, sys.path manipulation, prax/cli imports
-#     * Uses standard logging and rich console
-#     * Relative handler imports
-#     * JSON_DIR uses path relative to __file__
-#   - v2.0.4 (2025-11-23): CRITICAL FIX - Versioned dry-run accuracy
-#   - v2.0.3 (2025-11-23): Enhanced dry-run with accurate statistics
-#   - v2.0.2 (2025-11-23): CRITICAL FIX - Dry-run now shows proposed changes
-#   - v2.0.1 (2025-11-23): CRITICAL BUG FIX - Dry-run statistics counter
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Orchestrate workflows, delegate to handlers
-#   - Import handlers, never implement business logic
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -48,14 +32,11 @@ Architecture Pattern:
 # Infrastructure
 import sys
 import datetime
-import logging
 from pathlib import Path
 from typing import Dict
 
-from rich.console import Console
-
-logger = logging.getLogger(__name__)
-console = Console()
+from aipass.cli.apps.modules import console
+from aipass.prax import logger
 
 
 def _header(text):

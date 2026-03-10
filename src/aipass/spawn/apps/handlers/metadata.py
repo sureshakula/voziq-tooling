@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: metadata.py
 # Description: Branch name extraction and profile detection
 # Version: 1.0.0

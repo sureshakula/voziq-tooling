@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: delete_ops.py
 # Description: Delete handler — implementation logic for branch deletion
 # Version: 1.0.0

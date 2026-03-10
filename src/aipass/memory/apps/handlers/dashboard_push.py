@@ -1,19 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dashboard_push.py - Memory Bank Dashboard Write-Through
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: dashboard_push.py
+# Description: Memory Bank Dashboard Write-Through
 # Version: 0.2.0
-# Category: memory/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2026-02-25): Dashboard write-through for Memory Bank
-#
-# CODE STANDARDS:
-#   - Handler tier 3: Pure functions, no CLI/Prax imports
-#   - Dashboard write failures are silent (return False, never raise)
-#   - Uses subprocess for cross-branch dashboard writes (no cross-package imports)
-#   - BYPASS: Direct json reads required for central.json, registry, config files
+# Created: 2026-02-25
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -35,7 +25,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # Resolve paths relative to handler location
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]

@@ -1,30 +1,21 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: list_plans.py - PLAN listing module with filtering
-# Date: 2025-11-21
-# Version: 1.0.0
-# Category: flow/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-21): Initial implementation, handler-based architecture
-#
-# CODE STANDARDS:
-#   - Seedgo v3.0 compliant (imports, architecture, error handling)
-# ==============================================
+# =================== AIPass ====================
+# Name: list_plans.py
+# Description: PLAN listing module with filtering
+# Version: 1.1.0
+# Created: 2025-11-21
+# Modified: 2025-11-21
+# =============================================
 
 """
 List PLAN Module - Thin Orchestrator
 
 Orchestrates plan listing workflow by delegating to handlers.
-Module contains NO business logic - only workflow coordination.
+Module contains NO business logic - only workflow coordination and display.
 
 Workflow:
-    1. Parse arguments → command_parser handler
-    2. Load registry → registry handlers
-    3. Get statistics → registry handlers
-    4. Filter plans by status
-    5. Format and display results
+    1. Parse arguments
+    2. Call list_ops handler for data
+    3. Display results via console
 
 Usage:
     From flow.py: flow plan list [filter]
@@ -42,7 +33,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 # INFRASTRUCTURE IMPORT PATTERN
-_PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py → modules/ → apps/ → flow/ → aipass/
+_PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py -> modules/ -> apps/ -> flow/ -> aipass/
 FLOW_ROOT = _PKG_ROOT / "flow"
 
 # External: Prax logger
@@ -65,6 +56,9 @@ from aipass.flow.apps.handlers.plan.display import (
     format_statistics_summary
 )
 
+# Implementation handler
+from aipass.flow.apps.handlers.plan.list_ops import list_plans_impl
+
 # =============================================
 # CONFIGURATION
 # =============================================
@@ -81,15 +75,15 @@ def print_introspection():
     console.print("[bold cyan]list_plans Module[/bold cyan]")
     console.print()
 
+    # List handlers this module actually imports/uses
     console.print("[yellow]Connected Handlers:[/yellow]")
     console.print()
-
-    # List handlers this module actually imports/uses
     console.print("  [cyan]handlers/registry/[/cyan]")
     console.print("    [dim]- load_registry.py[/dim]")
     console.print("    [dim]- statistics.py[/dim]")
     console.print()
     console.print("  [cyan]handlers/plan/[/cyan]")
+    console.print("    [dim]- list_ops.py (implementation)[/dim]")
     console.print("    [dim]- display.py[/dim]")
     console.print()
 
@@ -136,10 +130,8 @@ def list_plans(filter_type: str = "open") -> bool:
     """
     Orchestrate plan listing workflow (thin orchestrator)
 
-    Delegates all business logic to handlers:
-    - Registry loading: load_registry handler
-    - Statistics: get_registry_statistics handler
-    - Display: format functions above
+    Delegates all business logic to list_ops handler.
+    Module handles all display output.
 
     Args:
         filter_type: Filter plans by status ("open", "closed", "all")
@@ -147,52 +139,36 @@ def list_plans(filter_type: str = "open") -> bool:
     Returns:
         True if successful, False otherwise
     """
-    try:
-        # STEP 1: Load registry (handler)
-        registry = load_registry()
+    result = list_plans_impl(
+        filter_type=filter_type,
+        load_registry=load_registry,
+        get_registry_statistics=get_registry_statistics,
+        format_plans_list=format_plans_list,
+        format_statistics_summary=format_statistics_summary,
+    )
 
-        # STEP 2: Get plans
-        plans = registry.get("plans", {})
-
-        if not plans:
-            console.print("[yellow]No plans found in registry[/yellow]")
-            logger.info(f"[{MODULE_NAME}] No plans in registry")
-            return True  # Not an error, just empty
-
-        # STEP 3: Determine filter
-        if filter_type == "all":
-            filter_status = None
-        else:
-            filter_status = filter_type  # "open" or "closed"
-
-        # STEP 4: Format and display plans
-        formatted_list = format_plans_list(plans, filter_status)
-        console.print(formatted_list)
-
-        # STEP 5: Get and display statistics
-        stats = get_registry_statistics(registry)
-        summary = format_statistics_summary(stats)
-        console.print(summary)
-
-        # STEP 6: Log success
-        logger.info(f"[{MODULE_NAME}] Listed plans (filter: {filter_type})")
-
+    # Module handles display
+    if result.get("empty") and result.get("success"):
+        console.print("[yellow]No plans found in registry[/yellow]")
         return True
 
-    except BrokenPipeError:
-        # Pipe closed by reader (e.g. automated subprocesses, head)
-        # Not a real error - command likely completed
-        logger.info(f"[{MODULE_NAME}] Broken pipe (stdout closed early)")
-        return True
-
-    except Exception as e:
-        error_msg = f"Error listing plans: {e}"
-        logger.error(f"[{MODULE_NAME}] {error_msg}")
+    if not result.get("success"):
+        error_msg = result.get("error", "Unknown error")
         try:
             console.print(f"[red]ERROR: {error_msg}[/red]")
         except BrokenPipeError:
             pass
         return False
+
+    # Display formatted results
+    try:
+        console.print(result["formatted_list"])
+        console.print(result["formatted_stats"])
+    except BrokenPipeError:
+        # Pipe closed by reader - not a real error
+        logger.info(f"[{MODULE_NAME}] Broken pipe (stdout closed early)")
+
+    return True
 
 
 def handle_command(command: str, args: List[str]) -> bool:

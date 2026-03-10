@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: meta_ops.py - Metadata Operations Handler
-# Date: 2025-11-04
+# =================== AIPass ====================
+# Name: meta_ops.py
+# Description: Metadata Operations Handler
 # Version: 1.0.0
-# Category: cortex/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-04): Metadata operations for branch updates
+# Created: 2025-11-04
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -24,6 +20,8 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional
+
+from aipass.prax import logger
 
 
 # =============================================================================
@@ -129,7 +127,7 @@ def load_branch_meta(branch_dir: Path) -> Optional[Dict]:
         with open(meta_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        print(f"ERROR loading .branch_meta.json: {e}")
+        logger.error(f"Loading .branch_meta.json: {e}")
         return None
 
 
@@ -158,12 +156,12 @@ def heal_branch_meta(
     """
     # If no metadata exists, signal caller to regenerate
     if branch_meta is None:
-        print("  No branch_meta - treating all template files as potential additions")
+        logger.info("No branch_meta - treating all template files as potential additions")
         return None
 
     # Check if file_tracking exists and needs healing
     if "file_tracking" not in branch_meta:
-        print("  Missing file_tracking - regenerating metadata")
+        logger.info("Missing file_tracking - regenerating metadata")
         return None
 
     file_tracking = branch_meta.get("file_tracking", {})
@@ -176,7 +174,7 @@ def heal_branch_meta(
 
     if isinstance(first_value, str):
         # OLD FORMAT DETECTED - Auto-heal to new format AND remap IDs
-        print("  Old branch_meta format detected - auto-healing...")
+        logger.info("Old branch_meta format detected - auto-healing...")
 
         # Build hash→template_id lookup for ID remapping
         hash_to_template_id = {}
@@ -220,14 +218,14 @@ def heal_branch_meta(
         save_branch_meta(branch_dir, branch_meta)
 
         if id_remapping:
-            print(f"  ✅ Branch metadata auto-healed and saved ({len(id_remapping)} IDs remapped)")
+            logger.info(f"Branch metadata auto-healed and saved ({len(id_remapping)} IDs remapped)")
         else:
-            print("  ✅ Branch metadata auto-healed and saved")
+            logger.info("Branch metadata auto-healed and saved")
 
         return branch_meta
 
     # Format is already correct - but check if IDs need remapping
-    print("  Checking for ID reassignments...")
+    logger.info("Checking for ID reassignments...")
 
     # Build hash→template_id lookup
     hash_to_template_id = {}
@@ -256,13 +254,13 @@ def heal_branch_meta(
 
     # If IDs were remapped, save updated metadata
     if id_remapping:
-        print(f"  ⚠️  Detected ID reassignments - remapping {len(id_remapping)} files...")
+        logger.warning(f"Detected ID reassignments - remapping {len(id_remapping)} files...")
         branch_meta["file_tracking"] = remapped_tracking
         branch_meta["last_updated"] = datetime.now().isoformat()
         save_branch_meta(branch_dir, branch_meta)
-        print("  ✅ Branch metadata updated with current template IDs")
+        logger.info("Branch metadata updated with current template IDs")
     else:
-        print("  ✅ All IDs current - no remapping needed")
+        logger.info("All IDs current - no remapping needed")
 
     # Format is already correct
     return branch_meta
@@ -286,7 +284,7 @@ def save_branch_meta(branch_dir: Path, metadata: Dict) -> bool:
             json.dump(metadata, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:
-        print(f"ERROR saving .branch_meta.json: {e}")
+        logger.error(f"Saving .branch_meta.json: {e}")
         return False
 
 

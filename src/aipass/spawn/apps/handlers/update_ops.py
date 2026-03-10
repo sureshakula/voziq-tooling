@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: update_ops.py
 # Description: Update handler — implementation logic for branch updates
 # Version: 1.0.0

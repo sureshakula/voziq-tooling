@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - JSON Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: JSON Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/json_utils
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial creation - auto-creating self-healing JSON
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - BYPASS: Direct json.load/json.dump required - this IS the json handler
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

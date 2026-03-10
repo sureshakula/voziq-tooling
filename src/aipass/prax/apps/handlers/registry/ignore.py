@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: ignore.py - Registry Ignore Pattern Handler
-# Date: 2025-11-06
+# =================== AIPass ====================
+# Name: ignore.py
+# Description: Registry Ignore Pattern Handler
 # Version: 1.0.0
-# Category: cortex/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-06): Initial implementation - template file exclusion patterns
+# Created: 2025-11-06
+# Modified: 2026-03-09
 # =============================================
 
 """

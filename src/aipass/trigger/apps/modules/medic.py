@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: medic.py - Medic Toggle Module
-# Date: 2026-03-01
+# =================== AIPass ====================
+# Name: medic.py
+# Description: Medic toggle module for auto-healing error dispatch control
 # Version: 1.4.0
-# Category: trigger/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.4.0 (2026-03-01): Persistent watcher via systemd service (trigger-log-watcher.service)
-#   - v1.3.0 (2026-02-25): FPLAN-0371 Phase 5 - Rich Panel formatting for on/off/mute/unmute output
-#   - v1.2.0 (2026-02-12): Improved status wording: standby vs stopped, added explanation lines
-#   - v1.1.0 (2026-02-12): Added mute/unmute per-branch commands (Phase 2)
-#   - v1.0.0 (2026-02-12): Created - Medic on/off/status toggle for error dispatch
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Module orchestrates, handler (medic_state.py) contains logic
-#   - No direct file operations - delegates to handler
+# Created: 2026-02-12
+# Modified: 2026-03-01
 # =============================================
 
 """
@@ -49,6 +36,30 @@ from aipass.trigger.apps.handlers.medic_state import (
 )
 
 SERVICE_NAME = "trigger-log-watcher.service"
+
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("medic Module")
+    console.print("Medic toggle — control auto-healing error dispatch on/off/mute/unmute")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - medic_state.py (is_enabled — check if medic is enabled)")
+    console.print("    - medic_state.py (set_enabled — toggle medic on/off)")
+    console.print("    - medic_state.py (get_muted_branches — list muted branches)")
+    console.print("    - medic_state.py (mute_branch — suppress dispatch for a branch)")
+    console.print("    - medic_state.py (unmute_branch — resume dispatch for a branch)")
+    console.print("    - medic_state.py (get_suppression_stats — suppression statistics)")
+    console.print("    - medic_state.py (get_rate_limit_stats — rate limit statistics)")
+    console.print()
 
 
 def _systemctl(action: str) -> bool:

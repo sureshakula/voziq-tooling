@@ -1,26 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_detected.py - Error Detected Event Handler
-# Date: 2026-02-14
+# =================== AIPass ====================
+# Name: error_detected.py
+# Description: Error detected event handler with Medic v2 dispatch gating
 # Version: 2.1.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.1.0 (2026-02-14): Dispatch threshold - count >= 2 required (skip first occurrence)
-#   - v2.0.0 (2026-02-13): Medic v2 Phase 3 - Circuit breaker + per-fingerprint backoff dispatch
-#   - v1.3.0 (2026-02-12): Medic Phase 2 - per-branch mute/unmute check
-#   - v1.2.0 (2026-02-12): Medic toggle - check medic_enabled before dispatching
-#   - v1.1.1 (2026-02-10): Add Seed standards reminder to error dispatch template
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO console.print() - handlers return data to modules
-#   - NO logger calls in handler (causes recursion with trigger)
-#   - Silent failure pattern - catch all exceptions
-#   - Responds to error_detected events from Trigger's log_watcher
-#   - Dispatch threshold: count >= 2 required (first occurrence is silent)
-#   - Dispatch gating: circuit breaker (global) + per-fingerprint backoff (Medic v2)
+# Created: 2026-02-10
+# Modified: 2026-02-14
 # =============================================
 
 """

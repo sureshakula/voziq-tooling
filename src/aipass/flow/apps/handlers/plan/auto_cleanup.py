@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: auto_cleanup.py - Plan Auto-Cleanup Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: auto_cleanup.py
+# Description: Plan Auto-Cleanup Handler
 # Version: 0.2.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v0.1.0 (2025-11-15): Initial handler - auto-close orphaned plans
-#
-# CODE STANDARDS:
-#   - Handler implements business logic
-#   - Module orchestrates, handler executes
-#   - No module imports (handler independence)
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

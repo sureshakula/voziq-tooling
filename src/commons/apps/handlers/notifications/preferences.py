@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: preferences.py - Notification Preferences Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: preferences.py
+# Description: Notification Preferences Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/notifications
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: pure business logic
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -25,14 +18,10 @@ Notification levels:
 - mute: No notifications for this target
 """
 
-import logging
 import sqlite3
 from typing import Optional, List, Dict, Any
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.preferences")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 
 def get_preference(

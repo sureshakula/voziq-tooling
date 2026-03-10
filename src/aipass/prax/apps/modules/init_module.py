@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: init_module.py - PRAX Init Command
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: init_module.py
+# Description: PRAX Init Command
 # Version: 1.0.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Created with handle_command interface
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """

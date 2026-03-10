@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory_threshold_exceeded.py - Memory Threshold Exceeded Event Handler
-# Date: 2026-01-31
+# =================== AIPass ====================
+# Name: memory_threshold_exceeded.py
+# Description: Memory threshold exceeded event handler for compression notifications
 # Version: 1.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-31): Created - Phase 3 migration (FPLAN-0280)
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO logger imports (causes infinite recursion in event handlers)
-#   - NO print statements (handlers must be silent)
-#   - Silent failure - catch all exceptions, pass
+# Created: 2026-01-31
+# Modified: 2026-01-31
 # =============================================
 
 """

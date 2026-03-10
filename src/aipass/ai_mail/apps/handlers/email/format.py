@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: format.py - Email Formatting Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: format.py
+# Description: Email Formatting Handler
 # Version: 1.1.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-21): DPLAN-027 - Show branch alias in sender display
-#   - v1.0.0 (2025-11-15): Created - email formatting and display utilities
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Uses Prax system_logger (FPLAN-0382)
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -28,7 +18,6 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console
 
 def _find_repo_root() -> Path:
     """Walk up from this file to find AIPASS_REGISTRY.json (repo root)."""
@@ -226,6 +215,7 @@ def truncate_text(text: str, max_length: int, suffix: str = "...") -> str:
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("EMAIL FORMATTING HANDLER")
     console.print("="*70)

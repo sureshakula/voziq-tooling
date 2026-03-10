@@ -1,15 +1,9 @@
-
-# =============================================
-# META DATA HEADER
-# Name: load.py - User Config Loading Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: load.py
+# Description: User Config Loading Handler
 # Version: 1.2.0
-# Category: ai_mail/handlers/users
-#
-# CHANGELOG:
-#   - v1.2.0 (2025-11-18): Added per-branch config support with PWD detection
-#   - v1.1.0 (2025-11-15): Renamed domain config -> users for business purpose naming
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_cli.py and ai_mail_local_memory_monitor.py
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

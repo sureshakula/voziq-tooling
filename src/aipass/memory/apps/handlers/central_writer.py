@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: central_writer.py - Central File Writer Handler
-# Date: 2025-11-27
+# =================== AIPass ====================
+# Name: central_writer.py
+# Description: Central File Writer Handler
 # Version: 0.2.0
-# Category: memory/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2025-11-27): Initial implementation - central file writer
-#
-# CODE STANDARDS:
-#   - Handler tier 3: Pure functions, raises exceptions
-#   - No CLI imports, no Prax imports
-#   - Returns success/error dicts
+# Created: 2025-11-27
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -32,7 +23,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # No service imports - handlers are pure workers (3-tier architecture)
 

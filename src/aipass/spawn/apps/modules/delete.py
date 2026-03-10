@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: delete.py
 # Description: Branch deletion — thin CLI layer for archive and deregister
 # Version: 1.1.0
@@ -17,6 +17,37 @@ from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
 from aipass.spawn.apps.handlers.delete_ops import delete_branch
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("delete Module")
+    console.print("Branch deletion — archive directory and deregister from AIPASS_REGISTRY")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - delete_ops.py (delete_branch — resolve path, archive, remove from registry)")
+    console.print()
+
+
+# =============================================================================
+# DRONE ROUTING
+# =============================================================================
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Args:
+        command: The command string (e.g. "delete")
+        args: List of arguments for the command
+
+    Returns:
+        True if command was handled, False otherwise.
+    """
+    if command == "delete":
+        return handle_delete(args) == 0
+    return False
 
 
 # =============================================================================

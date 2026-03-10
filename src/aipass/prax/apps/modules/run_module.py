@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: run_module.py - PRAX Run Command
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: run_module.py
+# Description: PRAX Run Command
 # Version: 1.0.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Created with handle_command interface
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -62,6 +53,19 @@ def handle_command(command: str, args: List[str]) -> bool:
     console.print("🚀 Starting PRAX continuous logging mode...")
     start_continuous_logging()
     return True
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("run_module Module")
+    console.print("Implements the 'run' command to start PRAX continuous logging mode")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  modules/")
+    console.print("    - logger.py (start_continuous_logging — starts background logging loop)")
+    console.print("    - logger.py (system_logger — auto-routing logger for module log files)")
+    console.print()
 
 
 if __name__ == "__main__":

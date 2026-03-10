@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: plan_file.py - PLAN file event handlers
-# Date: 2026-01-20
+# =================== AIPass ====================
+# Name: plan_file.py
+# Description: PLAN file event handlers for registry updates
 # Version: 1.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-20): Migrated from Flow's registry_monitor.py
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Handles plan_file_created, plan_file_deleted, plan_file_moved events
-#   - Updates Flow's registry when PLAN files change
-#   - No Prax logger imports (handler independence)
+# Created: 2026-01-20
+# Modified: 2026-01-20
 # =============================================
 
 """

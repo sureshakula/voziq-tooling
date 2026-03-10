@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: unified_stream.py - Unified Display Handler
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: unified_stream.py
+# Description: Unified Display Handler
 # Version: 0.1.1
-# Category: prax/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.1 (2026-02-27): Added PID to branch labels in print_event()
-#   - v0.1.0 (2025-11-23): Created - unified terminal output for monitoring
-#
-# DESCRIPTION:
-#   Single point for all monitoring terminal output with event formatting,
-#   branch attribution, color coding, and thread-safe console output.
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """

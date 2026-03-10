@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: search_module.py - Search & Log Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: search_module.py
+# Description: Search & Log Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/search/search_ops.py and renders results with Rich.
 Handles: search, log commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.search_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -39,6 +26,19 @@ except ImportError:
     console = Console()
 
 from commons.apps.handlers.search.search_ops import run_search, run_log_export
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("search_module Module")
+    console.print("Thin router for search and log export workflows.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/search/")
+    console.print("    - search_ops.py (run_search — execute content search across posts and comments)")
+    console.print("    - search_ops.py (run_log_export — export activity log for a branch or room)")
+    console.print()
 
 
 # =============================================================================

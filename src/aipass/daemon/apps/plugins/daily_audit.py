@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: daily_audit.py - Daily Standards Audit Plugin
-# Date: 2026-02-20
+# =================== AIPass ====================
+# Name: daily_audit.py
+# Description: Daily Standards Audit Plugin
 # Version: 1.0.0
-# Category: daemon/apps/plugins
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-20): Initial creation - daily Seed audit at 4am
-#
-# CODE STANDARDS:
-#   - Plugin interface: PLUGIN_CONFIG + run()
-#   - Named by action (audit), not target (seed) per naming standard
+# Created: 2026-02-20
+# Modified: 2026-02-20
 # =============================================
 
 """
@@ -22,8 +14,8 @@ Seed checks BRANCH_REGISTRY completeness, runs drone @seed audit @all,
 fixes non-compliance issues, and emails a summary to @dev_central.
 """
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+# logger imported from aipass.prax
 
 PLUGIN_CONFIG = {
     "name": "daily_audit",

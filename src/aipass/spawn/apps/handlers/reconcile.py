@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: reconcile.py
 # Description: Branch state reconciliation — filesystem vs metadata
 # Version: 1.0.0

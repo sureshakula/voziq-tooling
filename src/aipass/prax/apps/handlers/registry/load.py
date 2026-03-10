@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: load.py
-# Date: 2025-11-07
+# Description: Load Module Registry Handler
 # Version: 1.0.0
-# Category: prax/handlers/registry
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-07): Extracted from prax_registry.py - module registry loading
+# Created: 2025-11-07
+# Modified: 2026-03-09
 # =============================================
 
 """

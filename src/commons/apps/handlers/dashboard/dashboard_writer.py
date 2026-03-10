@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dashboard_writer.py - Dashboard Write-Through Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: dashboard_writer.py
+# Description: Dashboard Write-Through Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system for AIPass public framework
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts/bools, no console.print
-#   - No sys.path manipulation
-#   - Uses lazy import for devpulse write_section
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -38,11 +30,7 @@ import os
 import sqlite3
 from typing import Any, Dict, Optional
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.dashboard_writer")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: changelog_handler.py - Backup changelog management
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: changelog_handler.py
+# Description: Backup changelog management
 # Version: 1.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-16): Initial extraction from backup_core.py
-#     * load_changelog() - Load persistent changelog
-#     * save_changelog_entry() - Add new entry
-#     * display_previous_comments() - Show history
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-16
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -35,17 +23,12 @@ Functions:
 # =============================================
 
 import json
-import logging
+from aipass.prax import logger
 import datetime
 from pathlib import Path
 from typing import Dict
 
-logger = logging.getLogger(__name__)
-
-from rich.console import Console
-
-# Initialize console for output
-console = Console()
+# logger imported from aipass.prax
 
 # =============================================
 # CHANGELOG OPERATIONS
@@ -65,8 +48,7 @@ def load_changelog(changelog_file: Path) -> Dict:
             with open(changelog_file, 'r', encoding='utf-8', errors='replace') as f:
                 return json.load(f)
         except Exception as e:
-            console.print(f"[red]Error loading changelog: {e}[/red]")
-            logger.warning(f"Error loading changelog: {e}")
+            logger.error(f"Error loading changelog: {e}")
     return {"entries": []}
 
 
@@ -98,7 +80,6 @@ def save_changelog_entry(changelog_file: Path, note: str, mode: str,
         logger.info(f"[changelog_handler] Saved changelog entry: {note[:50]}")
         return True
     except Exception as e:
-        console.print(f"[red]Error saving changelog entry: {e}[/red]")
         logger.error(f"[changelog_handler] Error saving changelog: {e}")
         return False
 
@@ -115,14 +96,10 @@ def display_previous_comments(changelog_file: Path, mode_name: str):
         entries = changelog.get("entries", [])
 
         if not entries:
-            console.print(f"[yellow]No previous {mode_name} backup comments found.[/yellow]")
+            logger.warning(f"No previous {mode_name} backup comments found.")
             return
 
-        from rich.panel import Panel
-        console.print()
-        console.print(Panel(f"PREVIOUS {mode_name.upper()} BACKUP COMMENTS",
-                           style="bold cyan",
-                           border_style="cyan"))
+        logger.info(f"PREVIOUS {mode_name.upper()} BACKUP COMMENTS")
 
         # Show last 10 entries (most recent first)
         recent_entries = entries[-10:]
@@ -133,21 +110,20 @@ def display_previous_comments(changelog_file: Path, mode_name: str):
                 mode_info = entry.get('mode', 'unknown')
                 # Handle encoding issues in notes
                 note = str(entry['note']).encode('ascii', errors='replace').decode('ascii')
-                console.print(f"[bright_blue]{i:2d}.[/bright_blue] [{formatted_time}] [green][{mode_info}][/green] {note}")
+                logger.info(f"{i:2d}. [{formatted_time}] [{mode_info}] {note}")
             except Exception as e:
-                console.print(f"[bright_blue]{i:2d}.[/bright_blue] [red][ERROR] Failed to display entry: {e}[/red]")
+                logger.error(f"{i:2d}. [ERROR] Failed to display entry: {e}")
 
         if len(entries) > 10:
-            console.print(f"\n[dim]... and {len(entries) - 10} older entries[/dim]")
-        console.print()
+            logger.info(f"... and {len(entries) - 10} older entries")
     except FileNotFoundError:
-        console.print(f"[yellow]No previous {mode_name} backup comments found.[/yellow]")
+        logger.warning(f"No previous {mode_name} backup comments found.")
     except PermissionError as e:
-        console.print(f"[yellow]Warning: Cannot read backup history - permission denied: {e}[/yellow]")
-        console.print("[yellow]Continuing with backup...[/yellow]")
+        logger.warning(f"Cannot read backup history - permission denied: {e}")
+        logger.warning("Continuing with backup...")
     except Exception as e:
-        console.print(f"[yellow]Warning: Error displaying comments: {e}[/yellow]")
-        console.print("[yellow]Continuing with backup...[/yellow]")
+        logger.warning(f"Error displaying comments: {e}")
+        logger.warning("Continuing with backup...")
 
 
 # =============================================

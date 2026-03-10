@@ -1,21 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory_watcher.py - Memory File System Watcher
-# Date: 2025-11-26
+# =================== AIPass ====================
+# Name: memory_watcher.py
+# Description: Memory File System Watcher
 # Version: 1.1.0
-# Category: memory/handlers/monitor
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v1.0.0 (2025-11-26): Initial version
-#     * Watches memory files for modifications
-#     * Auto-updates line counts on file changes
-#     * Triggers rollover when files exceed 600 lines
-#
-# CODE STANDARDS:
-#   - Handler independence: Uses watchdog library
-#   - Error handling: Returns status dicts (3-tier architecture)
-#   - Pure handler - no CLI display imports
+# Created: 2025-11-26
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -50,8 +38,9 @@ except ImportError:
 # Handler imports (relative within package)
 from aipass.memory.apps.handlers.tracking.line_counter import update_line_count
 from aipass.memory.apps.handlers.monitor.detector import check_single_file
+from aipass.prax.apps.modules.logger import get_system_logger
 
-logger = logging.getLogger(__name__)
+logger = get_system_logger()
 
 # Memory root resolved relative to handler location
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]
@@ -204,10 +193,10 @@ def check_and_rollover() -> Dict[str, Any]:
         results['rollover_triggered'] = True
 
         try:
-            from aipass.memory.apps.modules.rollover import execute_rollover
+            from aipass.memory.apps.handlers.rollover.orchestrator import execute_rollover
             execute_rollover()
         except ImportError:
-            logger.warning("Rollover module not available")
+            logger.warning("Rollover handler not available")
         except Exception as e:
             results['rollover_error'] = str(e)
             results['success'] = False
@@ -457,8 +446,8 @@ class MemoryFileWatcher(FileSystemEventHandler):
             trigger = check_result.get('trigger')
             logger.warning(f"[memory_watcher] ROLLOVER TRIGGERED: {trigger}")
 
-            # Import rollover module here to avoid circular imports
-            from aipass.memory.apps.modules.rollover import execute_rollover
+            # Import rollover handler here to avoid circular imports
+            from aipass.memory.apps.handlers.rollover.orchestrator import execute_rollover
 
             # Trigger rollover
             logger.info(f"[memory_watcher] Triggering rollover for {file_path.name}")

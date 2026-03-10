@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: prax.py - PRAX Branch Orchestrator
-# Date: 2025-11-15
-# Version: 2.0.0
-# Category: prax
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2025-11-15): Refactored to use auto-discovery pattern from Seed
-#   - v1.0.0 (2025-11-08): Initial version - modular architecture
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Uses auto-discovery pattern for command modules
-#   - Minimal entry point - all logic in modules
+# =================== AIPass ====================
+# Name: prax.py
+# Description: Entry point CLI for drone @prax — logging, monitoring, dashboard
+# Version: 1.0.0
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """

@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: scheduler_cron.py - DAEMON Scheduler Cron Trigger
-# Date: 2026-02-15
+# =================== AIPass ====================
+# Name: scheduler_cron.py
+# Description: DAEMON Scheduler Cron Trigger
 # Version: 2.0.0
-# Category: daemon/apps
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-03-02): DPLAN-043 -- Action registry integration replaces direct plugin processing
-#   - v1.3.0 (2026-02-21): Self-dispatch support for plugins with dynamic branch targeting
-#   - v1.2.0 (2026-02-21): Detailed notification - plugin names, next-due times, next run
-#   - v1.1.0 (2026-02-20): Add plugin discovery and scheduled execution via wake.py
-#   - v1.0.0 (2026-02-15): Initial implementation - cron-triggered scheduler
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
-#   - No Rich console (headless cron execution)
-#   - Stdout logging (cron redirects to logs/scheduler_cron.log)
+# Created: 2026-02-15
+# Modified: 2026-03-02
 # =============================================
 
 """
@@ -47,37 +34,37 @@ from datetime import datetime, timedelta
 
 import fcntl
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.cli.apps.modules import console
 
 # =============================================
-# OPTIONAL IMPORTS
+# OPTIONAL IMPORTS (via module layer)
 # =============================================
 
-# Resolve package imports — this script can run standalone or as a module
+# Resolve package imports — route through modules, not handlers directly
 try:
-    from aipass.daemon.apps.handlers.schedule.telegram_notifier import (
+    from aipass.daemon.apps.modules.scheduler_ops import (
         notify_triggered,
         notify_complete,
         notify_error,
+        TELEGRAM_AVAILABLE,
     )
-    TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
     notify_triggered = None
     notify_complete = None
     notify_error = None
 
-# Task registry handler
+# Task registry (via module layer)
 try:
-    from aipass.daemon.apps.handlers.schedule.task_registry import (
+    from aipass.daemon.apps.modules.scheduler_ops import (
         get_due_tasks,
         mark_dispatching,
         mark_completed,
         mark_pending,
         recover_stale_dispatches,
+        TASK_REGISTRY_AVAILABLE,
     )
-    TASK_REGISTRY_AVAILABLE = True
 except ImportError:
     TASK_REGISTRY_AVAILABLE = False
     get_due_tasks = None
@@ -102,17 +89,17 @@ except ImportError:
     PLUGINS_AVAILABLE = False
     discover_plugins = None
 
-# Action registry (DPLAN-043)
+# Action registry (DPLAN-043) (via module layer)
 try:
-    from aipass.daemon.apps.handlers.actions.actions_registry import (
+    from aipass.daemon.apps.modules.scheduler_ops import (
         load_registry,
         is_action_due,
         update_last_run,
         mark_reminder_completed,
         migrate_plugins,
         next_due_str,
+        ACTION_REGISTRY_AVAILABLE,
     )
-    ACTION_REGISTRY_AVAILABLE = True
 except ImportError:
     ACTION_REGISTRY_AVAILABLE = False
     load_registry = None
@@ -142,10 +129,39 @@ PLUGIN_LAST_RUN_FILE = Path(__file__).parent / "plugins" / ".last_run.json"
 # LOGGING
 # =============================================
 
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("scheduler_cron Module")
+    console.print("Cron trigger for scheduled tasks and action registry processing")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  modules/")
+    console.print("    - scheduler_ops.py (notify_triggered, notify_complete, notify_error — Telegram notifications)")
+    console.print("    - scheduler_ops.py (get_due_tasks, mark_dispatching, mark_completed, mark_pending, recover_stale_dispatches — task registry ops)")
+    console.print("    - scheduler_ops.py (load_registry, is_action_due, update_last_run, mark_reminder_completed, migrate_plugins, next_due_str — action registry ops)")
+    console.print()
+    console.print("  plugins/")
+    console.print("    - discover_plugins (plugin discovery and scheduled execution)")
+    console.print()
+
+
+def print_help() -> None:
+    """Display usage information for scheduler_cron."""
+    console.print("\n[bold cyan]scheduler_cron.py - DAEMON Scheduler Cron Trigger[/bold cyan]")
+    console.print("\n[yellow]USAGE:[/yellow]")
+    console.print("  python scheduler_cron.py          Run the cron scheduler")
+    console.print("  python scheduler_cron.py --help   Show this help message")
+    console.print("\n[yellow]DESCRIPTION:[/yellow]")
+    console.print("  Processes due scheduled tasks and actions from the registry.")
+    console.print("  Intended to be called periodically by cron.")
+    console.print()
+
+
 def log(message: str) -> None:
     """Print timestamped log line to stdout (captured by cron redirect)."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}", flush=True)
+    console.print(f"[{timestamp}] {message}")
 
 
 # =============================================
@@ -770,6 +786,16 @@ def main() -> int:
     Returns:
         0 on success, 1 on error
     """
+    args = sys.argv[1:]
+
+    if not args:
+        print_introspection()
+        return 0
+
+    if args[0] in ['--help', '-h']:
+        print_help()
+        sys.exit(0)
+
     log("=" * 60)
     log("Scheduler cron triggered")
 
@@ -892,7 +918,7 @@ if __name__ == "__main__":
     except Exception as e:
         # Last-resort catch -- never crash silently
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{timestamp}] FATAL: Unhandled exception: {e}", flush=True)
+        console.print(f"[{timestamp}] FATAL: Unhandled exception: {e}")
         if TELEGRAM_AVAILABLE:
             try:
                 notify_error(EVENT_NAME, f"FATAL: {e}")

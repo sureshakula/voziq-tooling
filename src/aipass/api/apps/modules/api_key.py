@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: api_key.py - API Key Management Module
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: api_key.py
+# Description: API Key Management Module
 # Version: 1.0.0
-# Category: api/modules
-# CODE STANDARDS: Seed v1.0.0
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial module - orchestrates key management
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

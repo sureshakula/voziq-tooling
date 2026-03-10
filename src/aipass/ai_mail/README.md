@@ -1,41 +1,23 @@
-# ai_mail
+# AI_MAIL
 
-Inter-agent messaging for AIPass. File-based email system that lets agents send, receive, and process messages using `@branch` addresses. No SMTP, no external services — just JSON files and symbolic routing.
+**Purpose:** Inter-agent messaging for AIPass. File-based email system that lets agents send, receive, and process messages using `@branch` addresses. No SMTP, no external services — just JSON files and symbolic routing.
+**Module:** `aipass.ai_mail`
+**Created:** 2025-11-08
+**Last Updated:** 2026-03-08
+
+---
 
 **Status:** Building. Core email workflow (send/inbox/reply/close) is functional. Dispatch system is working.
 
-## Usage
-
-### CLI (via drone)
+## Commands / Usage
 
 ```bash
-# Send a message
-drone @ai_mail send @flow "Bug Report" "Found an issue in plan closing"
-
-# Check inbox
-drone @ai_mail inbox
-
-# View a message (marks as opened)
-drone @ai_mail view <message_id>
-
-# Reply (auto-closes original)
-drone @ai_mail reply <message_id> "Fixed in v2.1"
-
-# Close without reply
-drone @ai_mail close <message_id>
-
-# Send with dispatch flag (recipient auto-executes the task)
-drone @ai_mail send @flow "Task" "Details here" --dispatch
-```
-
-### Python
-
-```python
-from aipass.ai_mail.apps.modules.email import handle_command
-
-# Module interface — all commands go through handle_command
-handle_command(["send", "@flow", "Subject", "Message body"])
-handle_command(["inbox"])
+drone @ai_mail send @target "Subject" "Body"   # Send inter-branch email
+drone @ai_mail send @target "Subject" "Body" --dispatch  # Send task dispatch email
+drone @ai_mail dispatch wake @target            # Wake a branch
+drone @ai_mail dispatch wake --fresh @target    # Fresh wake (no context)
+drone @ai_mail inbox                            # Check inbox
+drone @ai_mail --help                           # Full help
 ```
 
 ## Email Lifecycle
@@ -78,8 +60,19 @@ ai_mail/
 │       └── users/           # Branch detection, config generation
 ```
 
-## Dependencies
+## Integration Points
 
-- `prax` — Logging
-- `cli` — Display formatting
-- `drone` — Command routing and `@branch` resolution
+### Depends On
+- `aipass.prax` — Logging via `system_logger`
+- `aipass.cli` — Console output and display formatting
+- `aipass.drone` — Command routing and `@branch` resolution
+- Python stdlib (`pathlib`, `json`, `argparse`, `importlib`)
+
+### Provides To
+- All modules — inter-branch messaging (send/receive/reply/close)
+- Dispatch system — autonomous task execution via `--dispatch` flag
+- Branch contacts — address book for `@branch` routing
+
+---
+
+*Last Updated: 2026-03-08*

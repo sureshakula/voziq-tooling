@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: backup_info_handler.py - Backup state and statistics
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: backup_info_handler.py
+# Description: Backup state and statistics
 # Version: 1.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-16): Initial extraction from backup_core.py
-#     * load_backup_info() - Load mode-specific state
-#     * save_backup_info() - Persist backup state
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-16
+# Modified: 2026-03-09
 # =============================================
 
 """

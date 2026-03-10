@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: daemon_wakeup.py - DAEMON Wake-Up Cron Trigger
-# Date: 2026-02-15
+# =================== AIPass ====================
+# Name: daemon_wakeup.py
+# Description: DAEMON Wake-Up Cron Trigger
 # Version: 1.0.0
-# Category: daemon/apps
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-15): Initial implementation - cron-triggered wake-up checker
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
-#   - No Rich console (headless cron execution)
-#   - Stdout logging (cron redirects to logs/daemon_wakeup.log)
-#   - stdlib only + optional imports
+# Created: 2026-02-15
+# Modified: 2026-02-15
 # =============================================
 
 """
@@ -40,21 +30,23 @@ import time
 from pathlib import Path
 from datetime import datetime
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+# logger imported from aipass.prax
+
+from aipass.cli.apps.modules import console
 
 # =============================================
-# OPTIONAL IMPORTS
+# OPTIONAL IMPORTS (via module layer)
 # =============================================
 
-# Telegram notifications (optional) — use absolute imports for standalone script
+# Telegram notifications (optional) — route through modules, not handlers directly
 try:
-    from aipass.daemon.apps.handlers.schedule.assistant_notifier import (
+    from aipass.daemon.apps.modules.wakeup_ops import (
         notify_wakeup,
         notify_report,
         notify_error,
+        TELEGRAM_AVAILABLE,
     )
-    TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
     notify_wakeup = None
@@ -76,10 +68,34 @@ INBOX_PATH = _DAEMON_ROOT / "ai_mail.local" / "inbox.json"
 # LOGGING
 # =============================================
 
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("daemon_wakeup Module")
+    console.print("Cron trigger for daemon wake-up inbox checking and reporting")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  modules/")
+    console.print("    - wakeup_ops.py (notify_wakeup, notify_report, notify_error — daemon bot Telegram notifications)")
+    console.print()
+
+
+def print_help() -> None:
+    """Display usage information for daemon_wakeup."""
+    console.print("\n[bold cyan]daemon_wakeup.py - DAEMON Wake-Up Cron Trigger[/bold cyan]")
+    console.print("\n[yellow]USAGE:[/yellow]")
+    console.print("  python daemon_wakeup.py          Run the wake-up checker")
+    console.print("  python daemon_wakeup.py --help   Show this help message")
+    console.print("\n[yellow]DESCRIPTION:[/yellow]")
+    console.print("  Checks daemon's email inbox and sends summary reports.")
+    console.print("  Intended to be called periodically by cron.")
+    console.print()
+
+
 def log(message: str) -> None:
     """Print timestamped log line to stdout (captured by cron redirect)."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}", flush=True)
+    console.print(f"[{timestamp}] {message}")
 
 
 # =============================================
@@ -211,6 +227,16 @@ def main() -> int:
     Returns:
         0 on success, 1 on error
     """
+    args = sys.argv[1:]
+
+    if not args:
+        print_introspection()
+        return 0
+
+    if args[0] in ['--help', '-h']:
+        print_help()
+        sys.exit(0)
+
     log("=" * 60)
     log("Daemon wake-up triggered")
 
@@ -287,7 +313,7 @@ if __name__ == "__main__":
     except Exception as e:
         # Last-resort catch -- never crash silently
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{timestamp}] FATAL: Unhandled exception: {e}", flush=True)
+        console.print(f"[{timestamp}] FATAL: Unhandled exception: {e}")
         if TELEGRAM_AVAILABLE:
             try:
                 notify_error(f"FATAL: {e}")

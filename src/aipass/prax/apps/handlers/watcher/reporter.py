@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reporter.py - File Change Reporter Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: reporter.py
+# Description: File Change Reporter Handler
 # Version: 0.2.0
-# Category: aipass/handlers/watcher
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-15): Updated to use CLI service provider for Rich formatting
-#   - v0.1.0 (2025-11-15): Initial version - format and display file changes
-#
-# CODE STANDARDS:
-#   - Error handling: Return None on errors, log failures
-#   - Logging: Use Prax logger
-#   - CLI: Use CLI service provider for all display
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """

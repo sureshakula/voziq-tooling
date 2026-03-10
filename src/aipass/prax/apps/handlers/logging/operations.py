@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: operations.py - Logging Operations
-# Date: 2025-11-10
+# =================== AIPass ====================
+# Name: operations.py
+# Description: Logging Operations
 # Version: 1.0.0
-# Category: prax/handlers/logging
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_logger.py
+# Created: 2025-11-10
+# Modified: 2026-03-09
 # =============================================
 
 """

@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: community_rotation.py - Rotating Community Engagement Plugin
-# Date: 2026-02-22
+# =================== AIPass ====================
+# Name: community_rotation.py
+# Description: Rotating Community Engagement Plugin
 # Version: 1.1.0
-# Category: daemon/apps/plugins
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-22): Dashboard pre-check, activity tracking, inactivity alerting
-#   - v1.0.0 (2026-02-21): Initial creation - hourly branch rotation for Commons engagement
-#
-# CODE STANDARDS:
-#   - Plugin interface: PLUGIN_CONFIG + run()
-#   - Named by action (community_rotation), not target
-#   - Self-dispatching: handles branch selection and wake internally
+# Created: 2026-02-21
+# Modified: 2026-02-22
 # =============================================
 
 """
@@ -39,8 +29,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+# logger imported from aipass.prax
 
 # Paths
 REGISTRY_PATH = Path(os.environ.get('AIPASS_REGISTRY', Path.home() / '.aipass' / 'AIPASS_REGISTRY.json'))

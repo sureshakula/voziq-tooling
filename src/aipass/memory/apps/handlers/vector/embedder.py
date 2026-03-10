@@ -1,19 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: embedder.py - Vector Embedding Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: embedder.py
+# Description: Vector Embedding Handler
 # Version: 0.2.0
-# Category: memory/handlers/vector
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - optional deps, no hardcoded paths
-#   - v0.1.0 (2025-11-16): Initial version - sentence-transformers integration
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <300 lines target
-#   - Best practices: Sorting, normalization, GPU cleanup
+# Created: 2025-11-16
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -42,7 +32,9 @@ import logging
 from typing import List, Dict, Any
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # No service imports - handlers are pure workers (3-tier architecture)
 # No module imports (handler independence)

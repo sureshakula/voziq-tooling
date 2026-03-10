@@ -1,3 +1,10 @@
+# =================== AIPass ====================
+# Name: MONITOR_MODULE_INTEGRATION.py
+# Description: EXAMPLE: How to integrate log_watcher into monitor_module.py
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
 
 """
 EXAMPLE: How to integrate log_watcher into monitor_module.py
@@ -9,11 +16,9 @@ Copy the relevant sections into monitor_module.py as needed.
 """
 
 import sys
-from pathlib import Path
 from typing import List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, header, success, error, warning
 
 # Import monitoring components
 from aipass.prax.apps.handlers.monitoring import (
@@ -45,29 +50,22 @@ def handle_command(command: str, args: List[str]) -> bool:
     global _log_observer, _event_queue
 
     logger.info(f"Starting unified monitoring (args: {args})")
-
-    # Display header
-    console.print()
-    header("PRAX Mission Control - Unified Monitoring")
-    console.print()
+    logger.info("PRAX Mission Control - Unified Monitoring")
 
     # Initialize event queue
     _event_queue = MonitoringQueue()
-    console.print("[green]✓ Event queue initialized[/green]")
+    logger.info("Event queue initialized")
 
     # Start log watcher - NEW INTEGRATION
     try:
         _log_observer = start_log_watcher(_event_queue)
-        console.print("[green]✓ Log watcher started[/green]")
-        console.print(f"[dim]  Monitoring: system_logs/*.log[/dim]")
+        logger.info("Log watcher started")
+        logger.info("Monitoring: system_logs/*.log")
     except Exception as e:
-        error(f"Failed to start log watcher: {e}")
-        logger.error(f"Log watcher startup failed: {e}")
+        logger.error(f"Failed to start log watcher: {e}")
         return False
 
-    console.print()
-    console.print("[yellow]Monitoring active - type 'quit' to exit[/yellow]")
-    console.print()
+    logger.info("Monitoring active - type 'quit' to exit")
 
     # Initialize filter state
     filter_state = FilterState()
@@ -77,8 +75,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         branches = args[0].split(',') if args[0] != 'all' else []
         if branches:
             filter_state.watched_branches = {b.strip().upper() for b in branches}
-            console.print(f"[cyan]Filtering branches: {', '.join(filter_state.watched_branches)}[/cyan]")
-            console.print()
+            logger.info(f"Filtering branches: {', '.join(filter_state.watched_branches)}")
 
     try:
         # Main event loop
@@ -92,7 +89,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 
                     # Handle command separator events
                     if event.event_type == 'command':
-                        console.print(f"\n[bold green]{event.message}[/bold green]\n")
+                        logger.info(f"Command: {event.message}")
 
                     # Handle log events
                     elif event.event_type == 'log':
@@ -102,40 +99,26 @@ def handle_command(command: str, args: List[str]) -> bool:
                         # Branch column (right-aligned, fixed width)
                         branch_col = f"[{event.branch:>8}]"
 
-                        # Color by level
-                        level_colors = {
-                            'error': 'red',
-                            'warning': 'yellow',
-                            'info': 'white',
-                            'debug': 'dim',
-                        }
-                        color = level_colors.get(event.level, 'white')
-
-                        # Display event
-                        console.print(
-                            f"[dim]{timestamp}[/dim] "
-                            f"[cyan]{branch_col}[/cyan] "
-                            f"[{color}]{event.message}[/{color}]"
-                        )
+                        # Display event via logger
+                        logger.info(f"{timestamp} {branch_col} {event.message}")
 
             # Check for keyboard input (simplified - use proper input handling)
             # TODO: Add interactive command handling here
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]Stopping monitoring...[/yellow]")
+        logger.info("Stopping monitoring...")
 
     finally:
         # Cleanup
         if _log_observer:
             stop_log_watcher()
-            console.print("[green]✓ Log watcher stopped[/green]")
+            logger.info("Log watcher stopped")
 
         if _event_queue:
             _event_queue.stop()
-            console.print("[green]✓ Event queue stopped[/green]")
+            logger.info("Event queue stopped")
 
-    console.print()
-    success("Monitoring stopped")
+    logger.info("Monitoring stopped")
 
     return True
 
@@ -161,14 +144,10 @@ def example_with_interactive_commands():
                     if user_input in ['quit', 'exit']:
                         running_flag[0] = False
                     elif user_input == 'help':
-                        console.print("\n[bold]Commands:[/bold]")
-                        console.print("  help   - Show this help")
-                        console.print("  status - Show monitoring status")
-                        console.print("  quit   - Exit monitoring\n")
+                        logger.info("Commands: help, status, quit")
                     elif user_input == 'status':
-                        console.print(f"\n[bold]Status:[/bold]")
-                        console.print(f"  Log watcher: {'active' if is_log_watcher_active() else 'inactive'}")
-                        console.print(f"  Queue size: {_event_queue.size() if _event_queue else 0}\n")
+                        logger.info(f"Log watcher: {'active' if is_log_watcher_active() else 'inactive'}")
+                        logger.info(f"Queue size: {_event_queue.size() if _event_queue else 0}")
 
                 except Exception:
                     pass
@@ -208,21 +187,17 @@ def example_filter_adjustment():
     )
 
     if should_display_event(event.event_type, event.branch, event.level, filter_state):
-        print("Event passed filters")
+        logger.info("Event passed filters")
 
 
 if __name__ == '__main__':
-    console.print("[bold cyan]Monitor Module Integration Examples[/bold cyan]")
-    console.print()
-    console.print("This file shows examples of integrating log_watcher.py")
-    console.print("into monitor_module.py's handle_command() function.")
-    console.print()
-    console.print("[yellow]Key changes:[/yellow]")
-    console.print("  1. Import start_log_watcher, stop_log_watcher")
-    console.print("  2. Initialize MonitoringQueue")
-    console.print("  3. Start log watcher with queue")
-    console.print("  4. Main loop dequeues and displays events")
-    console.print("  5. Cleanup on exit")
-    console.print()
-    console.print("[dim]See code above for full implementation details.[/dim]")
-    console.print()
+    logger.info("Monitor Module Integration Examples")
+    logger.info("This file shows examples of integrating log_watcher.py")
+    logger.info("into monitor_module.py's handle_command() function.")
+    logger.info("Key changes:")
+    logger.info("  1. Import start_log_watcher, stop_log_watcher")
+    logger.info("  2. Initialize MonitoringQueue")
+    logger.info("  3. Start log watcher with queue")
+    logger.info("  4. Main loop dequeues and displays events")
+    logger.info("  5. Cleanup on exit")
+    logger.info("See code above for full implementation details.")

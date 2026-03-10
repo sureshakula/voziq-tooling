@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: load.py - Registry Loading Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: load.py
+# Description: Registry Loading Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/registry
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial handler - extracted from local_memory_monitor module
-#
-# CODE STANDARDS:
-#   - Business logic implementation
-#   - Pure functions where possible
-#   - Clear error handling
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

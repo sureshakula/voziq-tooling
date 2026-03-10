@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_events.py - Log Events Module
-# Date: 2026-01-31
+# =================== AIPass ====================
+# Name: log_events.py
+# Description: Log events module for centralized log watcher public API
 # Version: 1.0.0
-# Category: trigger/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-31): Created - Phase 2 migration (FPLAN-0279)
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Module orchestrates, handlers contain logic
-#   - Public API for log event watching
+# Created: 2026-01-31
+# Modified: 2026-01-31
 # =============================================
 
 """
@@ -38,6 +29,27 @@ from aipass.trigger.apps.handlers.watchers.log_watcher import (
     is_log_watcher_active,
     SYSTEM_LOGS_DIR
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("log_events Module")
+    console.print("Centralized log watcher — watches system_logs/ for error and warning events")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/watchers/")
+    console.print("    - log_watcher.py (start_log_watcher — start centralized log watcher)")
+    console.print("    - log_watcher.py (stop_log_watcher — stop centralized log watcher)")
+    console.print("    - log_watcher.py (is_log_watcher_active — check if watcher is running)")
+    console.print("    - log_watcher.py (SYSTEM_LOGS_DIR — monitored log directory path)")
+    console.print()
 
 
 def start() -> bool:

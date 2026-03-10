@@ -1,36 +1,35 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: skills.py - Skills system entry point
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: skills.py
+# Description: Entry point CLI for drone @skills
 # Version: 1.0.0
-# Category: skills/apps
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Initial implementation
-#
-# CODE STANDARDS:
-#   - Entry point with handle_command() for drone routing
-#   - Imports from modules layer only
-#   - Formats and prints output
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
-import sys
-from pathlib import Path
-# Ensure src/ is on sys.path so 'skills' package is resolvable.
-# Also remove the script's own directory (apps/) from sys.path to prevent
-# this file (skills.py) from shadowing the 'skills' package.
-_script_dir = str(Path(__file__).resolve().parent)
-if _script_dir in sys.path:
-    sys.path.remove(_script_dir)
-_src_dir = str(Path(__file__).resolve().parents[2])  # skills/apps/skills.py -> src/
-if _src_dir not in sys.path:
-    sys.path.insert(0, _src_dir)
+from aipass.prax import logger
+from aipass.cli.apps.modules import console
 
 """Skills system entry point.
 
 Provides handle_command(command, args) for drone routing.
 Commands: list, info, run, create, validate, --help.
 """
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("skills Entry Point")
+    console.print("Capability framework for AI agents — discover, run, create, and validate skills")
+    console.print()
+    console.print("Connected Modules:")
+    console.print("  modules/")
+    console.print("    - discovery.py (discover_all — scan search paths for skills)")
+    console.print("    - loader.py (load_skill — load SKILL.md metadata, body, and handler)")
+    console.print("    - runner.py (run_skill — execute handler-based or markdown-only skills)")
+    console.print("    - creator.py (create_skill — scaffold new skills from templates)")
+    console.print("    - validator.py (validate_skill — check skill requirements)")
+    console.print()
 
 
 def handle_command(command, args=None):
@@ -45,8 +44,16 @@ def handle_command(command, args=None):
     """
     args = args or []
 
-    if command in ("--help", "help", None):
-        _print_help()
+    if command is None:
+        print_introspection()
+        return True
+
+    if command in ("--help", "-h", "help"):
+        print_help()
+        return True
+
+    if command in ("--version", "-V"):
+        console.print("SKILLS v1.0.0")
         return True
 
     if command == "list":
@@ -54,13 +61,13 @@ def handle_command(command, args=None):
 
     if command == "info":
         if not args:
-            print("  Error: skill name required. Usage: skills info <name>")
+            console.print("  Error: skill name required. Usage: skills info <name>")
             return False
         return _cmd_info(args[0])
 
     if command == "run":
         if not args:
-            print("  Error: skill name required. Usage: skills run <name> [action] [args...]")
+            console.print("  Error: skill name required. Usage: skills run <name> [action] [args...]")
             return False
         name = args[0]
         action = args[1] if len(args) > 1 else None
@@ -69,42 +76,43 @@ def handle_command(command, args=None):
 
     if command == "create":
         if not args:
-            print("  Error: skill name required. Usage: skills create <name> [--with-handler|--full]")
+            console.print("  Error: skill name required. Usage: skills create <name> [--with-handler|--full]")
             return False
         return _cmd_create(args)
 
     if command == "validate":
         if not args:
-            print("  Error: skill name required. Usage: skills validate <name>")
+            console.print("  Error: skill name required. Usage: skills validate <name>")
             return False
         return _cmd_validate(args[0])
 
-    print(f"  Unknown command: {command}")
-    print("  Run 'skills --help' for available commands.")
+    console.print(f"  Unknown command: {command}")
+    console.print("  Run 'skills --help' for available commands.")
     return False
 
 
-def _print_help():
+def print_help():
     """Print skills help text."""
-    print("Skills - Capability framework for AI agents")
-    print()
-    print("Usage:")
-    print("  drone @skills <command> [args]")
-    print()
-    print("Commands:")
-    print("  list                         Show all discovered skills")
-    print("  info <name>                  Display SKILL.md contents")
-    print("  run <name> [action] [args]   Execute a skill's handler")
-    print("  create <name>                Scaffold new skill (markdown only)")
-    print("  create <name> --with-handler Scaffold with handler.py")
-    print("  create <name> --full         Scaffold with full 3-layer structure")
-    print("  validate <name>              Check if skill requirements are met")
-    print("  --help                       Show this help")
-    print()
-    print("Search paths (first match wins):")
-    print("  1. .aipass/skills/           Project-local skills")
-    print("  2. ~/.aipass/skills/         Global user skills")
-    print("  3. src/skills/catalog/       Built-in skills")
+    console.print("Skills - Capability framework for AI agents")
+    console.print()
+    console.print("Usage:")
+    console.print("  drone @skills <command> [args]")
+    console.print()
+    console.print("Commands:")
+    console.print("  list                         Show all discovered skills")
+    console.print("  info <name>                  Display SKILL.md contents")
+    console.print("  run <name> [action] [args]   Execute a skill's handler")
+    console.print("  create <name>                Scaffold new skill (markdown only)")
+    console.print("  create <name> --with-handler Scaffold with handler.py")
+    console.print("  create <name> --full         Scaffold with full 3-layer structure")
+    console.print("  validate <name>              Check if skill requirements are met")
+    console.print("  --help                       Show this help")
+    console.print("  --version, -V                Show version")
+    console.print()
+    console.print("Search paths (first match wins):")
+    console.print("  1. .aipass/skills/           Project-local skills")
+    console.print("  2. ~/.aipass/skills/         Global user skills")
+    console.print("  3. src/skills/catalog/       Built-in skills")
 
 
 def _cmd_list():
@@ -114,12 +122,12 @@ def _cmd_list():
     skills = discover_all()
 
     if not skills:
-        print("  No skills found.")
-        print("  Create one with: drone @skills create <name>")
+        console.print("  No skills found.")
+        console.print("  Create one with: drone @skills create <name>")
         return True
 
-    print(f"  Found {len(skills)} skill(s):")
-    print()
+    console.print(f"  Found {len(skills)} skill(s):")
+    console.print()
 
     # Group by source
     sources = {}
@@ -133,14 +141,14 @@ def _cmd_list():
 
     for source, source_skills in sources.items():
         label = source_labels.get(source, source)
-        print(f"  [{label}]")
+        console.print(f"  \\[{label}]")
         for skill in source_skills:
-            handler_tag = " [handler]" if skill["has_handler"] else ""
+            handler_tag = " \\[handler]" if skill["has_handler"] else ""
             tags = ""
             if skill.get("tags"):
                 tags = f" ({', '.join(skill['tags'])})"
-            print(f"    {skill['name']:<25} {skill['description']}{handler_tag}{tags}")
-        print()
+            console.print(f"    {skill['name']:<25} {skill['description']}{handler_tag}{tags}")
+        console.print()
 
     return True
 
@@ -151,22 +159,22 @@ def _cmd_info(name):
 
     loaded = load_skill(name)
     if not loaded["success"]:
-        print(f"  Error: {loaded['error']}")
+        console.print(f"  Error: {loaded['error']}")
         return False
 
     metadata = loaded["metadata"]
     body = loaded["body"]
     path = loaded["path"]
 
-    print(f"  Skill: {metadata.get('name', name)}")
-    print(f"  Version: {metadata.get('version', 'unknown')}")
-    print(f"  Description: {metadata.get('description', 'No description')}")
-    print(f"  Path: {path}")
-    print(f"  Has Handler: {metadata.get('has_handler', False)}")
+    console.print(f"  Skill: {metadata.get('name', name)}")
+    console.print(f"  Version: {metadata.get('version', 'unknown')}")
+    console.print(f"  Description: {metadata.get('description', 'No description')}")
+    console.print(f"  Path: {path}")
+    console.print(f"  Has Handler: {metadata.get('has_handler', False)}")
 
     tags = metadata.get("tags", [])
     if tags:
-        print(f"  Tags: {', '.join(tags)}")
+        console.print(f"  Tags: {', '.join(tags)}")
 
     requires = metadata.get("requires", {})
     if requires:
@@ -174,17 +182,17 @@ def _cmd_info(name):
         bins = requires.get("bins", [])
         config = requires.get("config", [])
         if pip_pkgs:
-            print(f"  Requires pip: {', '.join(pip_pkgs)}")
+            console.print(f"  Requires pip: {', '.join(pip_pkgs)}")
         if bins:
-            print(f"  Requires bins: {', '.join(bins)}")
+            console.print(f"  Requires bins: {', '.join(bins)}")
         if config:
-            print(f"  Requires config: {', '.join(config)}")
+            console.print(f"  Requires config: {', '.join(config)}")
 
     if body:
-        print()
-        print("  --- SKILL.md Body ---")
+        console.print()
+        console.print("  --- SKILL.md Body ---")
         for line in body.splitlines():
-            print(f"  {line}")
+            console.print(f"  {line}")
 
     return True
 
@@ -198,10 +206,10 @@ def _cmd_run(name, action, extra_args):
     if result["success"]:
         if result["output"]:
             for line in result["output"].splitlines():
-                print(f"  {line}")
+                console.print(f"  {line}")
     else:
-        error = result.get("error", "Unknown error")
-        print(f"  Error: {error}")
+        err = result.get("error", "Unknown error")
+        console.print(f"  Error: {err}")
 
     return result["success"]
 
@@ -222,7 +230,7 @@ def _cmd_create(args):
     result = create_skill(name, template_type=template_type)
 
     if not result["success"]:
-        print(f"  Error: {result['error']}")
+        console.print(f"  Error: {result['error']}")
         return False
 
     return True
@@ -231,25 +239,25 @@ def _cmd_create(args):
 def _cmd_validate(name):
     """Validate a skill's requirements."""
     from skills.apps.modules.loader import load_skill
-    from skills.apps.handlers.validator import validate_skill
+    from skills.apps.modules.validator import validate_skill
 
     loaded = load_skill(name)
     if not loaded["success"]:
-        print(f"  Error: {loaded['error']}")
+        console.print(f"  Error: {loaded['error']}")
         return False
 
     result = validate_skill(loaded["metadata"])
 
     if result["valid"]:
-        print(f"  Skill '{name}' - all requirements met.")
+        console.print(f"  Skill '{name}' - all requirements met.")
     else:
-        print(f"  Skill '{name}' - requirements NOT met:")
+        console.print(f"  Skill '{name}' - requirements NOT met:")
         if result["missing_pip"]:
-            print(f"    Missing pip packages: {', '.join(result['missing_pip'])}")
+            console.print(f"    Missing pip packages: {', '.join(result['missing_pip'])}")
         if result["missing_bins"]:
-            print(f"    Missing CLI tools: {', '.join(result['missing_bins'])}")
+            console.print(f"    Missing CLI tools: {', '.join(result['missing_bins'])}")
         if result["missing_config"]:
-            print(f"    Missing config/env: {', '.join(result['missing_config'])}")
+            console.print(f"    Missing config/env: {', '.join(result['missing_config'])}")
 
     return result["valid"]
 

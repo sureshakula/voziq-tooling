@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dispatch_monitor.py - Agent Lifecycle Monitor
-# Date: 2026-03-02
+# =================== AIPass ====================
+# Name: dispatch_monitor.py
+# Description: Agent Lifecycle Monitor
 # Version: 1.0.0
-# Category: ai_mail/handlers/dispatch
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-02): Initial — wraps claude spawn, handles cleanup + bounce on failure
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-handler or module imports
-#   - Runs as a detached background process
-#   - Uses subprocess to send bounce emails (avoids imports)
+# Created: 2026-03-02
+# Modified: 2026-03-02
 # =============================================
 
 """
@@ -123,6 +114,12 @@ def main():
     for key in list(spawn_env.keys()):
         if key.startswith("CLAUDE") or key == "AIPASS_BOT_ID":
             spawn_env.pop(key)
+    # Strip caller identity vars to prevent dispatch context leakage.
+    spawn_env.pop("AIPASS_CALLER_BRANCH", None)
+    spawn_env.pop("AIPASS_CALLER_CWD", None)
+    # Set CWD-independent branch identity so agent knows who it is
+    # even after cd'ing away. Drone reads this as fallback for caller detection.
+    spawn_env["AIPASS_BRANCH_NAME"] = branch_email.lstrip("@")
 
     # Extract CWD from lock file path (branch_path/.ai_mail.local/.dispatch.lock)
     lock_path = Path(lock_file)
@@ -132,10 +129,15 @@ def main():
     start_time = time.time()
 
     # Run claude — BLOCKING. Monitor stays alive as long as agent is working.
+    stdout_log = str(branch_path / ".ai_mail.local" / "agent_stdout.log")
+    try:
+        stdout_fh = open(stdout_log, 'w', encoding='utf-8')
+    except OSError:
+        stdout_fh = subprocess.DEVNULL
     try:
         result = subprocess.run(
             claude_cmd,
-            stdout=subprocess.DEVNULL,
+            stdout=stdout_fh if isinstance(stdout_fh, int) else stdout_fh,
             stderr=stderr_fh,
             cwd=cwd,
             env=spawn_env,
@@ -153,10 +155,29 @@ def main():
 
     duration = int(time.time() - start_time)
 
+    # Close stdout log
+    if not isinstance(stdout_fh, int):
+        try:
+            stdout_fh.close()
+        except OSError:
+            pass
+
+    # Check for max-turns hit (Claude exits 0 but output contains stop_reason)
+    max_turns_hit = False
+    try:
+        with open(stdout_log, 'r', encoding='utf-8') as f:
+            stdout_content = f.read()
+        if '"stop_reason":"max_turns"' in stdout_content or '"stop_reason": "max_turns"' in stdout_content:
+            max_turns_hit = True
+            logger.warning("[monitor] %s HIT MAX TURNS after %ds — work may be incomplete", branch_email, duration)
+    except OSError:
+        pass
+
     # Log completion
     if not isinstance(stderr_fh, int):
         try:
-            stderr_fh.write(f"\n--- Agent exited: code={exit_code}, duration={duration}s ---\n")
+            suffix = " [MAX TURNS HIT]" if max_turns_hit else ""
+            stderr_fh.write(f"\n--- Agent exited: code={exit_code}, duration={duration}s{suffix} ---\n")
             stderr_fh.flush()
             stderr_fh.close()
         except OSError:
@@ -188,17 +209,21 @@ def main():
     except OSError:
         logger.info("[monitor] Failed to clean up lock file %s", lock_file)
 
-    # Desktop notification on completion
+    # Log completion to Prax
     status = "completed" if exit_code == 0 else f"FAILED (code {exit_code})"
+    if max_turns_hit:
+        status = f"MAX TURNS HIT ({duration}s)"
+    logger.info("[monitor] %s agent %s — %ds", branch_email, status, duration)
+
+    # Desktop notification on completion
     try:
-        subprocess.run(
-            ["notify-send", "-i",
-             "dialog-information" if exit_code == 0 else "dialog-warning",
-             f"Agent {branch_email} {status}",
-             f"Duration: {duration}s"],
-            capture_output=True, timeout=5
+        from aipass.ai_mail.apps.handlers.notify import send_notification
+        icon = "dialog-information" if exit_code == 0 else "dialog-warning"
+        send_notification(
+            f"Agent {branch_email} {status}", f"Duration: {duration}s",
+            source=branch_email.lstrip("@"), icon=icon
         )
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+    except Exception:
         logger.info("[monitor] Desktop notification unavailable")
 
     sys.exit(0 if exit_code == 0 else 1)

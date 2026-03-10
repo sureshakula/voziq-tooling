@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: load_config.py
-# Date: 2025-11-07
+# Description: Load Config Handler
 # Version: 1.1.0
-# Category: flow/handlers/config
-#
-# CHANGELOG:
-#   - v1.1.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v1.0.0 (2025-11-07): Extracted from flow_registry_monitor.py
+# Created: 2025-11-07
+# Modified: 2025-11-07
 # =============================================
 
 """

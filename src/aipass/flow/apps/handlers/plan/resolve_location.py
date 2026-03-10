@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: resolve_location.py - Plan Location Resolution Handler
-# Date: 2025-11-29
+# =================== AIPass ====================
+# Name: resolve_location.py
+# Description: Plan Location Resolution Handler
 # Version: 1.0.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2025-11-29): Removed Drone dependency - @ symbols pre-resolved by Drone before Flow receives args
-#   - v1.0.0 (2025-11-29): Refactored to use drone module services
-#   - v0.1.0 (2025-11-15): Initial handler - location resolution with @folder syntax
-#
-# CODE STANDARDS:
-#   - Handler implements business logic
-#   - No external dependencies - @ symbols pre-resolved by Drone
+# Created: 2025-11-29
+# Modified: 2025-11-29
 # =============================================
 
 """

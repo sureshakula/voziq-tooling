@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: identity_ops.py - Identity operations handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: identity_ops.py
+# Description: Identity operations handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/identity
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: implementation logic for branch identity detection
-#   - No sys.path manipulation
-#   - Uses relative imports within commons package
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -31,11 +23,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.identity")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 
 # =============================================================================

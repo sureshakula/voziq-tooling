@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: digest_ops.py - Digest Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: digest_ops.py
+# Description: Digest Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/digest
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -22,14 +15,10 @@ to produce a summary of community engagement over the last 24 hours.
 Returns dicts for module display layer.
 """
 
-import logging
 import sqlite3
 from typing import List, Dict, Any
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.digest_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: red_flag_detector.py - Branch Red Flag Detection Engine
-# Date: 2026-01-30
+# =================== AIPass ====================
+# Name: red_flag_detector.py
+# Description: Branch Red Flag Detection Engine
 # Version: 0.1.0
-# Category: daemon/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-01-30): Initial implementation - FPLAN-0266 Phase 2
-#
-# CODE STANDARDS:
-#   - Handler implements detection logic, module orchestrates
-#   - NO Prax logger in handlers (handlers don't log)
-#   - Uses pathlib for all path operations
-#   - Standard library only
+# Created: 2026-01-30
+# Modified: 2026-01-30
 # =============================================
 
 """

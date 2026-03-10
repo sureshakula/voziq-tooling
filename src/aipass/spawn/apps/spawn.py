@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: spawn.py
 # Description: Entry point CLI for drone @spawn
 # Version: 1.0.0
@@ -65,7 +65,7 @@ def print_help():
 def handle_create(args):
     """Handle the create command with optional citizen class."""
     from aipass.spawn.apps.modules.core import _spawn_agent as spawn_agent
-    from aipass.spawn.apps.handlers.class_registry import validate_class, get_default_class
+    from aipass.spawn.apps.modules.core import validate_class, get_default_class
 
     if not args:
         console.print("[red]Error: target path required[/red]")
@@ -118,11 +118,32 @@ def handle_create(args):
         return 1
 
 
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("spawn Entry Point")
+    console.print("Branch lifecycle manager — create, update, delete, and sync AIPass branches")
+    console.print()
+    console.print("Connected Modules:")
+    console.print("  modules/")
+    console.print("    - core.py (handle_command, _spawn_agent — agent creation orchestrator)")
+    console.print("    - update.py (handle_update — single/all branch updates)")
+    console.print("    - delete.py (handle_delete — archive and deregister branch)")
+    console.print("    - sync_registry.py (handle_sync_registry — registry repair)")
+    console.print("    - sync_templates.py (handle_sync_templates — template synchronization)")
+    console.print("    - passport.py (handle_passport — grant birthright citizenship)")
+    console.print()
+
+
 def main():
     """Main entry point."""
     args = sys.argv[1:]
 
-    if len(args) == 0 or args[0] in ["--help", "-h", "help"]:
+    if len(args) == 0:
+        print_introspection()
+        return 0
+
+    if args[0] in ["--help", "-h", "help"]:
         print_help()
         return 0
 

@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: activity_collector.py - Branch Activity Data Collector
-# Date: 2026-01-30
+# =================== AIPass ====================
+# Name: activity_collector.py
+# Description: Branch Activity Data Collector
 # Version: 0.1.0
-# Category: daemon/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-01-30): Initial implementation - FPLAN-0266 Phase 1
-#
-# CODE STANDARDS:
-#   - Handler implements collection logic, module orchestrates
-#   - NO Prax logger in handlers (handlers don't log)
-#   - Uses pathlib for all path operations
-#   - Standard library only
+# Created: 2026-01-30
+# Modified: 2026-01-30
 # =============================================
 
 """

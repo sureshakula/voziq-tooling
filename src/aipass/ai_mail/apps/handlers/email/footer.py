@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: footer.py - Email Footer Handler
-# Date: 2026-01-29
+# =================== AIPass ====================
+# Name: footer.py
+# Description: Email Footer Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-29): Created - auto-footer for all outgoing emails
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Pure business logic only
+# Created: 2026-01-29
+# Modified: 2026-01-29
 # =============================================
 
 """
@@ -27,10 +18,10 @@ Independent handler - no module dependencies.
 STANDARD_FOOTER = """
 ---
 ⚠️ TASK CHECKLIST (before marking complete):
-□ SEED CHECK → drone @seed audit @branch (80%+)
-□ UPDATE MEMORIES → Your .local.json records this work
+□ SEEDGO CHECK → drone @seedgo audit @branch (80%+)
+□ UPDATE MEMORIES → Your .trinity/local.json records this work
 □ CLOSE FPLAN → drone @flow close <plan_id>
-□ CONFIRM → Reply with completion summary
+□ EMAIL SENDER → drone @ai_mail send @<sender> "Subject" "Summary"
 
 Memories = Presence. No update = No learning.
 ---"""

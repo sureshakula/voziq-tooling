@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: update.py - Registry Update Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: update.py
+# Description: Registry Update Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/registry
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_branch_ping.py
-#
-# CODE STANDARDS:
-#   - Handlers are INDEPENDENT (no cross-domain imports)
-#   - Use: from prax.apps.modules.logger import system_logger as logger
-#   - Keep handlers <300 lines each
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -34,7 +25,6 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Tuple
 
-from aipass.cli.apps.modules import console
 
 # Constants
 MODULE_NAME = "registry.update"
@@ -247,6 +237,7 @@ def get_branch_context() -> Tuple[str, Path]:
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("AI_MAIL HANDLER: registry/update.py")
     console.print("="*70)

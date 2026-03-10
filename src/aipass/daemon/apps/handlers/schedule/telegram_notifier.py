@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: telegram_notifier.py - DAEMON Scheduler Telegram Notifications
-# Date: 2026-02-15
+# =================== AIPass ====================
+# Name: telegram_notifier.py
+# Description: DAEMON Scheduler Telegram Notifications
 # Version: 1.0.0
-# Category: daemon/handlers/schedule
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-15): Initial implementation - scheduler bot notifications
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
-#   - No cross-branch imports, no Prax logger
+# Created: 2026-02-15
+# Modified: 2026-02-15
 # =============================================
 
 """
@@ -29,6 +21,9 @@ from pathlib import Path
 from typing import Dict
 from urllib.request import Request, urlopen
 from urllib.error import URLError
+
+from aipass.prax import logger
+# logger imported from aipass.prax
 
 # =============================================
 # CONSTANTS
@@ -78,7 +73,7 @@ def send_notification(message: str) -> bool:
     try:
         config = load_config()
     except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
-        print(f"[telegram_notifier] Config error: {e}")
+        logger.error(f"[telegram_notifier] Config error: {e}")
         return False
 
     url = f"https://api.telegram.org/bot{config['bot_token']}/sendMessage"
@@ -95,13 +90,13 @@ def send_notification(message: str) -> bool:
             result = json.loads(resp.read())
             if result.get("ok"):
                 return True
-            print(f"[telegram_notifier] API error: {result.get('description')}")
+            logger.error(f"[telegram_notifier] API error: {result.get('description')}")
             return False
     except URLError as e:
-        print(f"[telegram_notifier] Send failed: {e}")
+        logger.error(f"[telegram_notifier] Send failed: {e}")
         return False
     except Exception as e:
-        print(f"[telegram_notifier] Unexpected error: {e}")
+        logger.error(f"[telegram_notifier] Unexpected error: {e}")
         return False
 
 

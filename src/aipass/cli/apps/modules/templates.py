@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: templates.py - CLI Templates Module
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: templates.py
+# Description: CLI Templates Module — reusable operation output patterns
 # Version: 0.3.0
-# Category: cli/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.3.0 (2025-11-15): Restructured to follow SEED module pattern
-#   - v0.2.0 (2025-11-12): Implemented Rich library formatting
-#   - v0.1.0 (2025-11-12): Public API for output templates
-#
-# CODE STANDARDS:
-#   - PUBLIC API - reusable output patterns
-#   - Follows SEED module pattern (introspection/help/command handling)
+# Created: 2025-11-12
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -32,6 +22,8 @@ from typing import Dict, Any, Optional, List
 
 # Import console from CLI display module (using our own service!)
 from aipass.cli.apps.modules.display import console as CONSOLE
+# NOTE: Cannot import prax here — circular import (prax depends on cli)
+# from aipass.prax import logger
 
 
 # ============================================================================

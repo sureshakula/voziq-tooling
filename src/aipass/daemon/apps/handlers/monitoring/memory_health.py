@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory_health.py - Branch Memory Health Checker
-# Date: 2026-01-30
+# =================== AIPass ====================
+# Name: memory_health.py
+# Description: Branch Memory Health Checker
 # Version: 0.1.0
-# Category: daemon/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-01-30): Initial implementation - FPLAN-0266 Phase 1
-#
-# CODE STANDARDS:
-#   - Handler implements checking logic, module orchestrates
-#   - NO Prax logger in handlers (handlers don't log)
-#   - Uses pathlib for all path operations
-#   - Standard library only
+# Created: 2026-01-30
+# Modified: 2026-01-30
 # =============================================
 
 """

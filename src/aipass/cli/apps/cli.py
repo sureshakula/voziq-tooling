@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: cli.py - CLI Branch Entry Point [SHOWROOM]
-# Date: 2025-11-12
-# Version: 0.2.0
-# Category: cli
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-15): Added print_introspection() - the CLI showroom
-#   - v0.1.0 (2025-11-12): Initial structure - service provider for display/output
-#
-# CODE STANDARDS:
-#   - SHOWROOM - demonstrates CLI capabilities and architecture
+# =================== AIPass ====================
+# Name: cli.py
+# Description: Entry point CLI for drone @cli — display service and Rich formatting
+# Version: 1.0.0
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """

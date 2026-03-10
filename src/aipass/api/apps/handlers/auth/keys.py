@@ -1,21 +1,10 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: keys.py - API Key Management Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: keys.py
+# Description: API Key Management Handler
 # Version: 2.0.0
-# Category: api/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2025-11-16): Extracted from api_connect.py - complete implementation
-#   - v1.0.0 (2025-11-15): Initial handler stub
-#
-# CODE STANDARDS:
-#   - Handler layer (standalone functions)
-#   - Uses CLI service for output
-#   - Uses prax logger for system logs
-#   - Under 300 lines
-# ==============================================
+# Created: 2025-11-16
+# Modified: 2025-11-16
+# =============================================
 
 """
 API Key Management Handler

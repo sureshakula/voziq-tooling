@@ -1,20 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: backup_models.py - Backup system data models and structures
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: backup_models.py
+# Description: Backup system data models and structures
 # Version: 2.0.1
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.1 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang and sys.path manipulation
-#   - v2.0.0 (2025-11-16): Migrated to seed 3-layer architecture
-#   - v1.0.0 (2025-10-14): Initial extraction from backup.py
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-16
+# Modified: 2026-03-09
 # =============================================
 
 """

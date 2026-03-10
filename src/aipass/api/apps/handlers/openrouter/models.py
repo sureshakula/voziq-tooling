@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: models.py - OpenRouter Model Management
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: models.py
+# Description: OpenRouter Model Management
 # Version: 1.0.0
-# Category: api/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-16): Complete handler - model fetching, filtering, pricing
+# Created: 2025-11-16
+# Modified: 2025-11-16
 # =============================================
 
 """
@@ -29,8 +25,8 @@ from pathlib import Path
 # Standard library imports
 from typing import Dict, List, Optional
 
-# Console import (NO print())
-from aipass.cli.apps.modules import console
+# Logging
+from aipass.prax import logger
 
 # Third-party imports
 import requests
@@ -67,7 +63,7 @@ def get_available_models(api_key: Optional[str] = None) -> List[Dict]:
 
     Example:
         >>> models = get_available_models()
-        >>> console.print(f"Found {len(models)} models")
+        >>> logger.info(f"Found {len(models)} models")
     """
     try:
         # Get API key if not provided
@@ -76,7 +72,7 @@ def get_available_models(api_key: Optional[str] = None) -> List[Dict]:
 
         if not api_key:
             # logger.info(f"[{MODULE_NAME}] No API key available for OpenRouter")
-            console.print("[yellow]No OpenRouter API key found[/yellow]")
+            logger.warning("No OpenRouter API key found")
             return []
 
         # Fetch models from API
@@ -91,7 +87,7 @@ def get_available_models(api_key: Optional[str] = None) -> List[Dict]:
 
     except Exception as e:
         # logger.info(f"[{MODULE_NAME}] Failed to get available models: {e}")
-        console.print(f"[red]Error fetching models: {e}[/red]")
+        logger.error(f"Error fetching models: {e}")
         return []
 
 
@@ -111,7 +107,7 @@ def get_free_models(api_key: Optional[str] = None) -> List[Dict]:
     Example:
         >>> free_models = get_free_models()
         >>> for model in free_models:
-        ...     console.print(f"Free: {model['id']}")
+        ...     logger.info(f"Free: {model['id']}")
     """
     try:
         # Get all models first
@@ -128,7 +124,7 @@ def get_free_models(api_key: Optional[str] = None) -> List[Dict]:
 
     except Exception as e:
         # logger.info(f"[{MODULE_NAME}] Failed to get free models: {e}")
-        console.print(f"[red]Error fetching free models: {e}[/red]")
+        logger.error(f"Error fetching free models: {e}")
         return []
 
 
@@ -166,7 +162,7 @@ def fetch_models_from_api(api_key: str) -> List[Dict]:
         # Check response status
         if response.status_code != 200:
             # logger.info(f"[{MODULE_NAME}] API request failed with status {response.status_code}")
-            console.print(f"[red]OpenRouter API error: {response.status_code}[/red]")
+            logger.error(f"OpenRouter API error: {response.status_code}")
             return []
 
         # Parse JSON response
@@ -183,22 +179,22 @@ def fetch_models_from_api(api_key: str) -> List[Dict]:
 
     except requests.exceptions.Timeout:
         # logger.info(f"[{MODULE_NAME}] API request timeout after {DEFAULT_TIMEOUT}s")
-        console.print(f"[red]Request timeout - OpenRouter API not responding[/red]")
+        logger.error("Request timeout - OpenRouter API not responding")
         return []
 
     except requests.exceptions.RequestException as e:
         # logger.info(f"[{MODULE_NAME}] Network error: {e}")
-        console.print(f"[red]Network error: {e}[/red]")
+        logger.error(f"Network error: {e}")
         return []
 
     except ValueError as e:
         # logger.info(f"[{MODULE_NAME}] JSON parse error: {e}")
-        console.print(f"[red]Invalid JSON response from API[/red]")
+        logger.error("Invalid JSON response from API")
         return []
 
     except Exception as e:
         # logger.info(f"[{MODULE_NAME}] Unexpected error fetching models: {e}")
-        console.print(f"[red]Error: {e}[/red]")
+        logger.error(f"Error: {e}")
         return []
 
 
@@ -291,7 +287,7 @@ def extract_model_metadata(model: Dict) -> Dict:
     Example:
         >>> model = get_model_by_id("meta-llama/llama-3.3-70b-instruct:free")
         >>> meta = extract_model_metadata(model)
-        >>> console.print(f"Context: {meta['context_length']}")
+        >>> logger.info(f"Context: {meta['context_length']}")
     """
     try:
         pricing = model.get("pricing", {})
@@ -341,27 +337,27 @@ def list_model_ids(models: List[Dict]) -> List[str]:
 
 def display_models(models: List[Dict], show_pricing: bool = True) -> None:
     """
-    Display models in formatted output using console
+    Display models in formatted output using logger
 
     Args:
         models: List of model dictionaries to display
         show_pricing: Whether to show pricing information
     """
     if not models:
-        console.print("[yellow]No models to display[/yellow]")
+        logger.info("No models to display")
         return
 
-    console.print(f"\n[bold]Found {len(models)} models:[/bold]\n")
+    logger.info(f"Found {len(models)} models:")
 
     for i, model in enumerate(models, 1):
         model_id = model.get("id", "unknown")
         name = model.get("name", "")
         context = model.get("context_length", 0)
 
-        console.print(f"[cyan]{i}. {model_id}[/cyan]")
+        logger.info(f"{i}. {model_id}")
         if name:
-            console.print(f"   Name: {name}")
-        console.print(f"   Context: {context:,} tokens")
+            logger.info(f"   Name: {name}")
+        logger.info(f"   Context: {context:,} tokens")
 
         if show_pricing:
             pricing = model.get("pricing", {})
@@ -369,11 +365,9 @@ def display_models(models: List[Dict], show_pricing: bool = True) -> None:
             completion_cost = pricing.get("completion", "0")
 
             if prompt_cost == "0" and completion_cost == "0":
-                console.print("   [green]FREE[/green]")
+                logger.info("   FREE")
             else:
-                console.print(f"   Prompt: ${prompt_cost} / Completion: ${completion_cost}")
-
-        console.print()
+                logger.info(f"   Prompt: ${prompt_cost} / Completion: ${completion_cost}")
 
 
 def display_free_models_summary(api_key: Optional[str] = None) -> None:
@@ -386,20 +380,20 @@ def display_free_models_summary(api_key: Optional[str] = None) -> None:
     Args:
         api_key: Optional OpenRouter API key
     """
-    console.print("[bold]Searching for FREE models on OpenRouter...[/bold]")
-    console.print("=" * 60)
+    logger.info("Searching for FREE models on OpenRouter...")
+    logger.info("=" * 60)
 
     free_models = get_free_models(api_key)
 
     if not free_models:
-        console.print("[yellow]No free models found[/yellow]")
-        console.print("OpenRouter may have changed pricing.")
-        console.print("Alternative: Use very cheap models like openai/gpt-4o-mini")
+        logger.info("No free models found")
+        logger.info("OpenRouter may have changed pricing.")
+        logger.info("Alternative: Use very cheap models like openai/gpt-4o-mini")
         return
 
     display_models(free_models, show_pricing=False)
 
-    console.print("\n[bold]RECOMMENDED FREE MODELS TO TRY:[/bold]")
-    console.print("-" * 60)
+    logger.info("RECOMMENDED FREE MODELS TO TRY:")
+    logger.info("-" * 60)
     for model in free_models[:5]:  # Top 5
-        console.print(f"  - {model.get('id', '')}")
+        logger.info(f"  - {model.get('id', '')}")

@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: provider.py - Provider Configuration Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: provider.py
+# Description: Provider Configuration Handler
 # Version: 2.0.0
-# Category: api/handlers/config
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2025-11-16): Complete extraction from api_connect.py
-#   - v1.0.0 (2025-11-15): Initial handler stub
+# Created: 2025-11-16
+# Modified: 2025-11-16
 # =============================================
 
 """
@@ -36,16 +31,8 @@ from typing import Dict, Any, Optional
 # Internal handlers
 from aipass.api.apps.handlers.json.json_handler import load_json, save_json
 
-# Console for user feedback
-try:
-    from rich.console import Console
-    console = Console()
-except ImportError:
-    # Fallback console if rich not available
-    class SimpleConsole:
-        def print(self, *args, **kwargs):
-            print(*args)
-    console = SimpleConsole()
+# Logging
+from aipass.prax import logger
 
 # =============================================
 # CONSTANTS
@@ -223,12 +210,12 @@ def update_provider_config(provider: str, updates: Dict[str, Any]) -> bool:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
         # Updated config for provider
-        console.print(f"[green]✓[/green] Provider config updated: {provider}")
+        logger.info(f"Provider config updated: {provider}")
         return True
 
     except Exception as e:
         # Failed to update provider config
-        console.print(f"[red]✗[/red] Failed to update provider config: {e}")
+        logger.error(f"Failed to update provider config: {e}")
         return False
 
 
@@ -345,7 +332,7 @@ def _create_default_config() -> bool:
             json.dump(default_config, f, indent=2, ensure_ascii=False)
 
         # Created default config
-        console.print(f"[green]✓[/green] Created default config: {config_path}")
+        logger.info(f"Created default config: {config_path}")
         return True
 
     except Exception as e:

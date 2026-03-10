@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: core.py - Trigger Event Bus
-# Date: 2026-02-03
+# =================== AIPass ====================
+# Name: core.py
+# Description: Trigger event bus for AIPass system-wide event handling
 # Version: 1.2.0
-# Category: trigger/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2026-02-03): Add deferred queue for nested event firing (fixes catch-up blocking)
-#   - v1.1.4 (2026-02-03): Pass fire_event callback to handlers (enables error catch-up)
-#   - v1.1.3 (2026-02-03): Disable lazy-start watchers entirely (inotify exhaustion - use prax monitor)
-#   - v1.1.2 (2026-02-03): Also start system log watcher (fixes missing system_logs monitoring)
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Event bus pattern for system-wide events
-#   - Lazy-start pattern from Prax logger
+# Created: 2026-02-03
+# Modified: 2026-02-03
 # =============================================
 
 """
@@ -32,6 +20,24 @@ from pathlib import Path
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 from typing import Callable
+
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("core Module")
+    console.print("Trigger event bus — fire events, register handlers, deferred queue processing")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/events/")
+    console.print("    - registry.py (setup_handlers — auto-register all event handlers on first use)")
+    console.print()
 
 
 def _get_caller() -> str:
@@ -123,9 +129,6 @@ class Trigger:
             cls._ensure_initialized()
             cls._ensure_log_watcher()
             handlers = cls._handlers.get(event, [])
-            caller = _get_caller()
-            logger.info(f"[TRIGGER] {caller} fired: {event}")
-            logger.info(f"[TRIGGER] {len(handlers)} handlers responding")
 
             # Provide fire_event callback so handlers can fire events without importing
             data['fire_event'] = cls.fire
@@ -164,6 +167,83 @@ class Trigger:
     def status(cls) -> dict:
         """Show registered handlers"""
         return {event: len(handlers) for event, handlers in cls._handlers.items()}
+
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Commands:
+        fire <event> [key=value ...]  - Fire an event with optional data
+        status                        - Show registered event handlers
+        list                          - Alias for status
+
+    Args:
+        command: Command to execute (fire, status, list)
+        args: Additional arguments
+
+    Returns:
+        True if command was handled, False otherwise
+    """
+    from aipass.cli.apps.modules import console
+
+    if command not in ["fire", "status", "list"]:
+        return False
+
+    if args and args[0] in ['--help', '-h', 'help']:
+        _print_help(console)
+        return True
+
+    if command == "fire":
+        if not args:
+            console.print("[red]Usage: drone @trigger fire <event> [key=value ...][/red]")
+            return True
+        event_name = args[0]
+        # Parse key=value pairs from remaining args
+        data = {}
+        for arg in args[1:]:
+            if "=" in arg:
+                key, value = arg.split("=", 1)
+                data[key] = value
+            else:
+                logger.warning(f"[TRIGGER] Ignoring unparseable arg: {arg}")
+        Trigger.fire(event_name, **data)
+        console.print(f"[green]Fired event:[/green] {event_name}")
+        if data:
+            for k, v in data.items():
+                console.print(f"  [dim]{k}={v}[/dim]")
+        return True
+
+    elif command in ["status", "list"]:
+        handler_map = Trigger.status()
+        if not handler_map:
+            console.print("[dim]No event handlers registered[/dim]")
+            return True
+        console.print("[bold cyan]Registered Event Handlers[/bold cyan]")
+        console.print()
+        for event, count in sorted(handler_map.items()):
+            console.print(f"  [green]{event:30}[/green] {count} handler(s)")
+        console.print()
+        console.print(f"[dim]Total: {len(handler_map)} events, "
+                       f"{sum(handler_map.values())} handlers[/dim]")
+        return True
+
+    return False
+
+
+def _print_help(console):
+    """Display help for core trigger commands."""
+    console.print()
+    console.print("[bold cyan]TRIGGER CORE - Event Bus[/bold cyan]")
+    console.print()
+    console.print("[bold]COMMANDS:[/bold]")
+    console.print("  fire <event> [key=value ...]  Fire an event with optional data")
+    console.print("  status                        Show registered event handlers")
+    console.print("  list                          Alias for status")
+    console.print()
+    console.print("[bold]EXAMPLES:[/bold]")
+    console.print("  drone @trigger fire deploy_complete branch=main")
+    console.print("  drone @trigger status")
+    console.print()
 
 
 # Create instance for import

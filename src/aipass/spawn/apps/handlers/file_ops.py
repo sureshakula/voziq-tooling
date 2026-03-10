@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: file_ops.py
 # Description: Template copy and file operations
 # Version: 1.0.0

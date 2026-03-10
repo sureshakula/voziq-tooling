@@ -1,15 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: load.py
-# Date: 2025-11-07
+# Description: Load Logging Configuration Handler
 # Version: 1.0.1
-# Category: prax/handlers/config
-# CODE STANDARDS: Seed v1.1
-#
-# CHANGELOG:
-#   - v1.0.1 (2026-02-02): Added self-healing SYSTEM_LOGS_DIR auto-creation
-#   - v1.0.0 (2025-11-07): Extracted from prax_config.py - logging configuration loading
+# Created: 2025-11-07
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -76,20 +70,58 @@ def get_system_logs_dir() -> Path:
 
 
 def get_module_logs_dir(module_name: str) -> Path:
-    """Get the logs directory for a specific module.
+    """Get the branch-root logs directory for a module.
 
     Returns ECOSYSTEM_ROOT / module_name / "logs", creating it if needed.
-    Each module logs to its own directory instead of a centralized system_logs/.
+    For hierarchical placement (logs at the caller's level), use
+    get_hierarchical_logs_dir() instead.
 
     Args:
         module_name: Module name (e.g., "flow", "prax", "trigger")
 
     Returns:
-        Path to the module's logs directory
+        Path to the module's branch-root logs directory
     """
     logs_dir = ECOSYSTEM_ROOT / module_name / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     return logs_dir
+
+
+def get_hierarchical_logs_dir(caller_path: str) -> Path:
+    """Get the logs directory at the caller's level in the code hierarchy.
+
+    Resolves a logs/ directory as a sibling of the caller's parent directory.
+    Logs live where the code lives:
+        handlers/dispatch/wake.py  → handlers/dispatch/logs/
+        modules/email.py           → modules/logs/
+        apps/branch.py             → apps/logs/
+
+    Falls back to branch-root logs/ if the caller is outside the
+    ecosystem or path resolution fails.
+
+    Args:
+        caller_path: Absolute path to the calling Python file
+
+    Returns:
+        Path to the logs directory (created if it doesn't exist)
+    """
+    try:
+        caller = Path(caller_path).resolve()
+        caller_dir = caller.parent
+
+        # Verify caller is inside the ecosystem
+        try:
+            caller.relative_to(ECOSYSTEM_ROOT)
+        except ValueError:
+            # Outside ecosystem — fall back to branch root
+            return get_module_logs_dir("prax")
+
+        logs_dir = caller_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        return logs_dir
+
+    except Exception:
+        return get_module_logs_dir("prax")
 
 # Config file
 PRAX_LOGGER_CONFIG_FILE = PRAX_JSON_DIR / "prax_logger_config.json"

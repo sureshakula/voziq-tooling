@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: botfather_reminder.py - Hourly reminder to create PATRICK_PRIVATE Telegram bot
-# Date: 2026-02-26
+# =================== AIPass ====================
+# Name: botfather_reminder.py
+# Description: Hourly reminder to create PATRICK_PRIVATE Telegram bot
 # Version: 1.0.0
-# Category: plugins/scheduler
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-26): Initial - self-resolving BotFather reminder
-#
-# CODE STANDARDS:
-#   - Self-resolving: stops when token is set in config
-#   - Starts after 2026-02-27T09:00 (BotFather cooldown ~11hrs)
-#   - Sends email to @dev_central inbox, no agent spawn needed
+# Created: 2026-02-26
+# Modified: 2026-02-26
 # =============================================
 
 """

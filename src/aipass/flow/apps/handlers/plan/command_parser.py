@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: command_parser.py - Command Argument Parser
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: command_parser.py
+# Description: Command Argument Parser
 # Version: 0.2.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-02-14): Auto-confirm by default, add --confirm/--interactive flags
-#   - v0.1.0 (2025-11-15): Initial handler - command argument parsing
-#
-# CODE STANDARDS:
-#   - Pure argument parsing logic
-#   - Returns tuples with parsed values
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

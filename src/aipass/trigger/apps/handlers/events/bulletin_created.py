@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: bulletin_created.py - Bulletin Created Event Handler
-# Date: 2026-01-31
+# =================== AIPass ====================
+# Name: bulletin_created.py
+# Description: Bulletin created event handler for dashboard propagation
 # Version: 1.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-31): Created - Phase 3 migration (FPLAN-0280)
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO logger imports (causes infinite recursion in event handlers)
-#   - NO print statements (handlers must be silent)
-#   - Silent failure - catch all exceptions, pass
+# Created: 2026-01-31
+# Modified: 2026-01-31
 # =============================================
 
 """

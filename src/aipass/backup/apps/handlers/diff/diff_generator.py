@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: diff_generator.py - Unified diff generation with binary detection
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: diff_generator.py
+# Description: Unified diff generation with binary detection
 # Version: 2.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2025-11-16): Extracted from backup_diff.py
-#     * Diff generation functionality
-#     * Binary file detection
-#     * Unified diff content generation
-#     * Updated imports to new handler locations
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-16
+# Modified: 2026-03-09
 # =============================================
 
 """

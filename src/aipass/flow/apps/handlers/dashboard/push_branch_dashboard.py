@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: push_branch_dashboard.py - Push flow section to branch dashboards
-# Date: 2026-03-01
+# =================== AIPass ====================
+# Name: push_branch_dashboard.py
+# Description: Push flow section to branch dashboards
 # Version: 1.1.0
-# Category: flow/handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-03-01): Fix cross-branch import guard — inline dashboard write
-#       instead of importing write_section from devpulse (blocked by handler guard)
-#   - v1.0.0 (2026-02-25): FPLAN-0373 Phase 2 - write-through flow section to branch dashboards
-#
-# CODE STANDARDS:
-#   - Pure handler - no CLI imports, no Prax imports
-#   - Silent failures (logged via return value, never raised)
-#   - Direct DASHBOARD.local.json write (no cross-branch imports)
+# Created: 2026-03-01
+# Modified: 2026-03-01
 # =============================================
 
 """

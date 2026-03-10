@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: setup.py - Logger Setup & Management
-# Date: 2025-11-10
+# =================== AIPass ====================
+# Name: setup.py
+# Description: Logger Setup & Management
 # Version: 1.0.0
-# Category: prax/handlers/logging
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_handlers.py
+# Created: 2025-11-10
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -26,6 +22,7 @@ from logging.handlers import RotatingFileHandler
 from aipass.prax.apps.handlers.config.load import (
     get_system_logs_dir,
     get_module_logs_dir,
+    get_hierarchical_logs_dir,
     DEFAULT_LOG_LEVEL,
     load_log_config,
     lines_to_bytes
@@ -36,9 +33,6 @@ from aipass.prax.apps.handlers.logging.introspection import (
     get_calling_module_path,
     detect_branch_from_path
 )
-
-# CLI import
-from aipass.cli.apps.modules import console
 
 # Global state for logging system
 _system_logger: Optional[logging.Logger] = None
@@ -53,6 +47,21 @@ try:
     _terminal_module_available = True
 except ImportError:
     pass  # Terminal module not available yet
+
+def _safe_rotating_handler(log_file: Path, max_bytes: int, backup_count: int) -> logging.Handler:
+    """Create RotatingFileHandler — self-heals missing directories, never crashes."""
+    try:
+        parent = log_file.parent
+        if not parent.exists():
+            parent.mkdir(parents=True, exist_ok=True)
+            if _system_logger:
+                _system_logger.warning(f"Self-healed missing log directory: {parent}")
+        return RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
+    except OSError as e:
+        if _system_logger:
+            _system_logger.error(f"Log handler failed for {log_file}: {e}")
+        return logging.NullHandler()
+
 
 def setup_individual_logger(module_name: str) -> logging.Logger:
     """Setup individual logger for a specific module with dual logging support
@@ -105,26 +114,31 @@ def setup_individual_logger(module_name: str) -> logging.Logger:
     system_log_file = get_system_logs_dir() / f"{branch_name}_{module_name}.log"
     system_limits = log_config['system_logs']
     system_max_bytes = lines_to_bytes(system_limits['max_lines'])
-    system_handler = RotatingFileHandler(
-        system_log_file,
-        maxBytes=system_max_bytes,
-        backupCount=system_limits['backup_count'],
-        encoding='utf-8'
-    )
+    system_handler = _safe_rotating_handler(system_log_file, system_max_bytes, system_limits['backup_count'])
     system_handler.setFormatter(formatter)
     logger.addHandler(system_handler)
 
-    # HANDLER 2: Module-local log (local debugging)
-    module_logs_dir = get_module_logs_dir(branch_name)
-    module_log_file = module_logs_dir / f"{module_name}.log"
+    # HANDLER 2: Hierarchical local log (logs live where the code lives)
+    if module_path:
+        hierarchical_logs_dir = get_hierarchical_logs_dir(module_path)
+        # Detect fallback: caller was in ecosystem but resolution fell back
+        expected_logs = Path(module_path).resolve().parent / "logs"
+        if hierarchical_logs_dir.resolve() != expected_logs.resolve() and _system_logger:
+            _system_logger.warning(
+                f"Log placement fallback for {module_name}: "
+                f"caller outside ecosystem, logs redirected to {hierarchical_logs_dir}"
+            )
+    else:
+        hierarchical_logs_dir = get_module_logs_dir(branch_name)
+        if _system_logger:
+            _system_logger.warning(
+                f"Log placement fallback for {module_name}: "
+                f"stack introspection failed, using branch root {hierarchical_logs_dir}"
+            )
+    module_log_file = hierarchical_logs_dir / f"{module_name}.log"
     local_limits = log_config['local_logs']
     local_max_bytes = lines_to_bytes(local_limits['max_lines'])
-    local_handler = RotatingFileHandler(
-        module_log_file,
-        maxBytes=local_max_bytes,
-        backupCount=local_limits['backup_count'],
-        encoding='utf-8'
-    )
+    local_handler = _safe_rotating_handler(module_log_file, local_max_bytes, local_limits['backup_count'])
     local_handler.setFormatter(formatter)
     logger.addHandler(local_handler)
 
@@ -173,12 +187,7 @@ def setup_system_logger() -> logging.Logger:
     system_log_file = get_system_logs_dir() / "prax_logger.log"
     system_limits = log_config['system_logs']
     system_max_bytes = lines_to_bytes(system_limits['max_lines'])
-    system_handler = RotatingFileHandler(
-        system_log_file,
-        maxBytes=system_max_bytes,
-        backupCount=system_limits['backup_count'],
-        encoding='utf-8'
-    )
+    system_handler = _safe_rotating_handler(system_log_file, system_max_bytes, system_limits['backup_count'])
     system_handler.setFormatter(log_config_fmt)
     _system_logger.addHandler(system_handler)
 
@@ -186,12 +195,7 @@ def setup_system_logger() -> logging.Logger:
     local_log_file = get_module_logs_dir("prax") / "prax_logger.log"
     local_limits = log_config['local_logs']
     local_max_bytes = lines_to_bytes(local_limits['max_lines'])
-    local_handler = RotatingFileHandler(
-        local_log_file,
-        maxBytes=local_max_bytes,
-        backupCount=local_limits['backup_count'],
-        encoding='utf-8'
-    )
+    local_handler = _safe_rotating_handler(local_log_file, local_max_bytes, local_limits['backup_count'])
     local_handler.setFormatter(log_config_fmt)
     _system_logger.addHandler(local_handler)
 
@@ -221,13 +225,15 @@ def enable_terminal_output():
     """Enable terminal output for all future loggers"""
     global _terminal_output_enabled
     _terminal_output_enabled = True
-    console.print("[prax] Terminal output enabled")
+    if _system_logger:
+        _system_logger.info("Terminal output enabled")
 
 def disable_terminal_output():
     """Disable terminal output"""
     global _terminal_output_enabled
     _terminal_output_enabled = False
-    console.print("[prax] Terminal output disabled")
+    if _system_logger:
+        _system_logger.info("Terminal output disabled")
 
 def is_terminal_output_enabled() -> bool:
     """Check if terminal output is enabled

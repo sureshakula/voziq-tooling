@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: post_module.py - Post orchestration module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: post_module.py
+# Description: Post orchestration module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/posts/post_ops.py and renders the results.
 Handles: post, thread, delete commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.post_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -43,6 +30,22 @@ from rich.text import Text
 
 from commons.apps.handlers.posts.post_ops import create_post, view_thread, delete_post
 from commons.apps.handlers.identity.identity_ops import resolve_display_name
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("post_module Module")
+    console.print("Thin router for post workflows. Handles creating posts, viewing threads, and deleting posts.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/posts/")
+    console.print("    - post_ops.py (create_post — create a new post in a room)")
+    console.print("    - post_ops.py (view_thread — view a post with its threaded comments)")
+    console.print("    - post_ops.py (delete_post — delete a post by ID)")
+    console.print("  handlers/identity/")
+    console.print("    - identity_ops.py (resolve_display_name — resolve branch agent to display name)")
+    console.print()
 
 
 # =============================================================================

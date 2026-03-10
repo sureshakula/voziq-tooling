@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: process.py - Memory Bank Processing Handler
-# Date: 2025-11-25
+# =================== AIPass ====================
+# Name: process.py
+# Description: Memory Bank Processing Handler
 # Version: 1.5.0
-# Category: flow/handlers/mbank
-#
-# CHANGELOG:
-#   - v1.5.0 (2026-02-15): Fixed template detection - markers matched old template (pre-Dec 2025), all 3 template types covered
-#   - v1.4.0 (2026-02-14): Sequential processing with backoff - stop on 429, delay between API calls
-#   - v1.3.0 (2025-11-25): Restructured config - separated TRL mapping to flow_mbank_registry.json
-#                          Updated get_ai_model() to use custom api_config.json
-#   - v1.2.0 (2025-11-25): Added auto-cleanup for -TEMP files in MEMORY_BANK after processing
-#   - v1.1.0 (2025-11-22): Improved JSON parsing - more robust to AI responses with extra content
-#   - v1.0.0 (2025-11-21): Extracted from archive_temp/flow_mbank.py
-#
-# CODE STANDARDS:
-#   - 3-tier compliant: NO Prax imports, NO logging
-#   - Raises exceptions for errors (module logs them)
+# Created: 2025-11-25
+# Modified: 2025-11-25
 # =============================================
 
 """

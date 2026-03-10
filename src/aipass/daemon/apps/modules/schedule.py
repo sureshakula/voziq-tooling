@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: schedule.py - DAEMON Scheduled Follow-ups Module
-# Date: 2026-02-04
+# =================== AIPass ====================
+# Name: schedule.py
+# Description: DAEMON Scheduled Follow-ups Module
 # Version: 1.0.0
-# Category: daemon/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-04): Initial implementation - fire-and-forget scheduled tasks
-#
-# CODE STANDARDS:
-#   - Seed pattern compliance - console.print() for all output
-#   - Thin orchestration - handlers implement logic
-#   - Type hints on all functions
+# Created: 2026-02-04
+# Modified: 2026-02-04
 # =============================================
 
 """
@@ -28,11 +19,9 @@ import argparse
 from pathlib import Path
 from typing import List
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
 
-from rich.console import Console
-console = Console()
+from aipass.cli.apps.modules import console
 
 def _header(text):
     console.print(f"\n[bold cyan]{'='*70}[/bold cyan]")
@@ -48,7 +37,8 @@ def _error(text):
 # Handler imports
 from aipass.daemon.apps.handlers.schedule.task_registry import (
     load_tasks, create_task, delete_task, get_due_tasks, mark_completed, parse_due_date,
-    mark_dispatching, mark_pending, recover_stale_dispatches
+    mark_dispatching, mark_pending, recover_stale_dispatches, process_due_tasks_batch,
+    ensure_lock_dir,
 )
 
 # File lock for single-instance execution
@@ -71,6 +61,22 @@ except ImportError:
 # =============================================
 
 MODULE_NAME = "schedule"
+
+
+# =============================================
+# INTROSPECTION
+# =============================================
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("schedule Module")
+    console.print("CLI interface for fire-and-forget scheduled follow-ups")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/schedule/")
+    console.print("    - task_registry.py (load_tasks, create_task, delete_task, get_due_tasks, mark_completed, parse_due_date, mark_dispatching, mark_pending, recover_stale_dispatches, process_due_tasks_batch, ensure_lock_dir — task CRUD and processing)")
+    console.print()
 
 _DAEMON_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/daemon/
 JSON_DIR = _DAEMON_ROOT / "daemon_json"
@@ -247,7 +253,7 @@ def _handle_run_due(_args: List[str]) -> bool:
         return _process_due_tasks()
 
     lock_file = JSON_DIR / "schedule.lock"
-    lock_file.parent.mkdir(parents=True, exist_ok=True)
+    ensure_lock_dir()
 
     # Try to acquire lock (non-blocking)
     lock = FileLock(lock_file, timeout=0)
@@ -260,86 +266,47 @@ def _handle_run_due(_args: List[str]) -> bool:
 
 
 def _process_due_tasks() -> bool:
-    """Process due tasks sequentially with status tracking."""
-    import time
-
+    """Process due tasks -- delegates to handler, formats output."""
     try:
-        # Recover any stale dispatches (stuck > 5 minutes)
-        recovered = recover_stale_dispatches(max_age_minutes=5)
-        if recovered:
-            console.print(f"[dim]Recovered {recovered} stale dispatch(es)[/dim]")
+        # Delegate to handler for all implementation logic
+        email_fn = send_email_direct if AI_MAIL_AVAILABLE else None
+        results = process_due_tasks_batch(send_email_fn=email_fn, stale_max_age=5)
 
-        due_tasks = get_due_tasks()
+        # Display results (module responsibility)
+        if results["recovered"]:
+            console.print(f"[dim]Recovered {results['recovered']} stale dispatch(es)[/dim]")
 
-        if not due_tasks:
+        if results["due"] == 0:
             console.print("[dim]No tasks due at this time.[/dim]")
             return True
 
         console.print()
-        _header(f"Running {len(due_tasks)} Due Task(s)")
+        _header(f"Running {results['due']} Due Task(s)")
         console.print()
 
-        success_count = 0
-        fail_count = 0
+        for task_result in results.get("processed_tasks", []):
+            task_id = task_result.get("id", "")[:8]
+            recipient = task_result.get("recipient", "")
+            task_desc = task_result.get("task", "")[:40]
+            status = task_result.get("status", "")
 
-        for task in due_tasks:
-            task_id = task.get("id", "")
-            recipient = task.get("recipient", "")
-            task_desc = task.get("task", "")
-            message = task.get("message", "")
-
-            # Mark as dispatching (prevents re-dispatch)
-            mark_dispatching(task_id)
-
-            # Build email body
-            email_body = f"{task_desc}"
-            if message:
-                email_body += f"\n\nDetails:\n{message}"
-
-            # Send the email
-            if not AI_MAIL_AVAILABLE:
-                mark_pending(task_id)
+            if status == "sent":
+                _success(f"Sent to {recipient}: {task_desc}")
+                logger.info(f"[DAEMON] Scheduled email sent: {task_id} -> {recipient}")
+            elif status == "skipped":
                 _error(f"ai_mail not available, cannot send to {recipient}")
-                fail_count += 1
-                continue
-
-            try:
-                email_sent = send_email_direct(
-                    to_branch=recipient,
-                    subject=f"[SCHEDULED] {task_desc}",
-                    message=email_body,
-                    from_branch='@daemon',
-                    auto_execute=True,
-                    reply_to='@dev_central'
-                )
-
-                if email_sent:
-                    mark_completed(task_id)
-                    _success(f"Sent to {recipient}: {task_desc[:40]}")
-                    success_count += 1
-                    logger.info(f"[DAEMON] Scheduled email sent: {task_id[:8]} -> {recipient}")
-                else:
-                    # Reset to pending for retry
-                    mark_pending(task_id)
-                    _error(f"Failed to send to {recipient}: {task_desc[:40]}")
-                    fail_count += 1
-                    logger.error(f"[DAEMON] Scheduled email failed: {task_id[:8]} -> {recipient}")
-
-            except Exception as e:
-                # Reset to pending for retry
-                mark_pending(task_id)
-                _error(f"Error sending to {recipient}: {e}")
-                fail_count += 1
-                logger.error(f"[DAEMON] Scheduled email error: {task_id[:8]} -> {recipient}: {e}")
-
-            # Small delay between dispatches (prevents thundering herd)
-            time.sleep(1.0)
+            elif status == "failed":
+                _error(f"Failed to send to {recipient}: {task_desc}")
+                logger.error(f"[DAEMON] Scheduled email failed: {task_id} -> {recipient}")
+            elif status == "error":
+                _error(f"Error sending to {recipient}: {task_result.get('error', '')}")
+                logger.error(f"[DAEMON] Scheduled email error: {task_id} -> {recipient}: {task_result.get('error', '')}")
 
         console.print()
-        console.print(f"[bold]Results:[/bold] {success_count} sent, {fail_count} failed")
+        console.print(f"[bold]Results:[/bold] {results['success']} sent, {results['failed']} failed")
         console.print()
 
-        return fail_count == 0
+        return results["failed"] == 0
 
     except Exception as e:
         _error(f"Failed to run due tasks: {e}")

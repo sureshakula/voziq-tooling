@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: data_ops.py - Error Monitor Data Operations Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: data_ops.py
+# Description: Error Monitor Data Operations Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted from error_monitor.py
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

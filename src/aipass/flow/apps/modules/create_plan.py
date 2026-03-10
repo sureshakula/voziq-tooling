@@ -1,17 +1,10 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: create_plan.py - PLAN creation module with location awareness
-# Date: 2025-11-16
-# Version: 1.0.0
-# Category: flow/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-16): Refactored from archive_temp, handler-based architecture
-#
-# CODE STANDARDS:
-#   - Seedgo v3.0 compliant (imports, architecture, error handling)
-# ==============================================
+# =================== AIPass ====================
+# Name: create_plan.py
+# Description: PLAN creation module with location awareness
+# Version: 1.2.0
+# Created: 2025-11-16
+# Modified: 2025-11-16
+# =============================================
 
 """
 Create PLAN Module - Thin Orchestrator
@@ -20,30 +13,28 @@ Orchestrates plan creation workflow by delegating to handlers.
 Module contains NO business logic - only workflow coordination.
 
 Workflow:
-    1. Parse arguments → command_parser handler
-    2. Load registry → registry handlers
-    3. Auto-cleanup → plan handlers
-    4. Validate location → plan handlers
-    5. Calculate paths → plan handlers
-    6. Get template → template handlers
-    7. Create file → plan handlers
-    8. Update registry → plan handlers
-    9. Update dashboards → dashboard handlers
-    10. Display results → display handlers
+    1. Parse arguments -> command_parser handler
+    2. Load registry -> registry handlers
+    3. Auto-cleanup -> plan handlers
+    4. Validate location -> plan handlers
+    5. Calculate paths -> plan handlers
+    6. Get template -> template handlers
+    7. Create file -> plan handlers
+    8. Update registry -> plan handlers
+    9. Update dashboards -> dashboard handlers
+    10. Display results -> display handlers
 
 Usage:
     From flow.py: flow plan create [location] [subject] [template]
     Standalone: python3 create_plan.py [location] [subject] [template]
 """
 
-import re
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Tuple, List
 
 # INFRASTRUCTURE IMPORT PATTERN
-_PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py → modules/ → apps/ → flow/ → aipass/
+_PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py -> modules/ -> apps/ -> flow/ -> aipass/
 FLOW_ROOT = _PKG_ROOT / "flow"
 
 # External: Prax logger
@@ -76,6 +67,9 @@ from aipass.flow.apps.handlers.dashboard.update_local import update_dashboard_lo
 from aipass.flow.apps.handlers.dashboard.push_central import push_to_plans_central
 from aipass.flow.apps.handlers.dashboard.push_branch_dashboard import push_flow_to_branch_dashboard
 
+# Implementation handler
+from aipass.flow.apps.handlers.plan.create_ops import create_plan_impl
+
 
 # =============================================
 # CONFIGURATION
@@ -98,6 +92,7 @@ def print_introspection():
     console.print()
 
     console.print("  [cyan]handlers/plan/[/cyan]")
+    console.print("    [dim]- create_ops.py (implementation)[/dim]")
     console.print("    [dim]- command_parser.py[/dim]")
     console.print("    [dim]- auto_cleanup.py[/dim]")
     console.print("    [dim]- resolve_location.py[/dim]")
@@ -147,19 +142,9 @@ def print_help():
     console.print("  python3 create_plan.py create @flow \"Research task\" master")
     console.print()
 
-# =============================================
-# HELPERS
-# =============================================
-
-def _slugify_subject(subject: str) -> str:
-    """Sanitize subject for filename: lowercase, underscores, max 40 chars."""
-    slug = re.sub(r'[^\w\s-]', '', subject.lower())
-    slug = re.sub(r'[\s-]+', '_', slug)
-    return slug.strip('_')[:40]
-
 
 # =============================================
-# ORCHESTRATION WORKFLOWS (No business logic)
+# ORCHESTRATION WORKFLOWS (thin wrappers)
 # =============================================
 
 def create_plan(
@@ -168,22 +153,10 @@ def create_plan(
     template_type: str = "default"
 ) -> Tuple[bool, int, str, str, str]:
     """
-    Orchestrate plan creation workflow
+    Orchestrate plan creation workflow (thin orchestrator)
 
-    THIN ORCHESTRATOR - delegates all business logic to handlers.
-    This function only coordinates the workflow and passes data between handlers.
-
-    Workflow Steps:
-        1. Load registry → registry handler
-        2. Auto-cleanup → plan handler
-        3. Resolve location → plan handler
-        4. Calculate relative path → plan handler
-        5. Get template → template handler
-        6. Create file → plan handler
-        7. Build registry entry → plan handler
-        8. Update registry → registry handler
-        9. Update dashboards → dashboard handlers
-        10. Log and return results
+    Delegates all business logic to create_ops handler.
+    Module handles all display output from handler messages.
 
     Args:
         location: Target directory for plan (@folder syntax supported)
@@ -193,103 +166,42 @@ def create_plan(
     Returns:
         (success, plan_number, location_description, template_type, error_message)
     """
-    try:
-        # STEP 1: Load registry
-        registry = load_registry()
+    result = create_plan_impl(
+        location=location,
+        subject=subject,
+        template_type=template_type,
+        # Inject dependencies
+        ecosystem_root=ECOSYSTEM_ROOT,
+        load_registry=load_registry,
+        save_registry=save_registry,
+        auto_close_orphaned_plans=auto_close_orphaned_plans,
+        resolve_plan_location=resolve_plan_location,
+        calculate_relative_location=calculate_relative_location,
+        get_template=get_template,
+        create_plan_file=create_plan_file,
+        build_plan_registry_entry=build_plan_registry_entry,
+        display_plan_created=display_plan_created,
+        update_dashboard_local=update_dashboard_local,
+        push_to_plans_central=push_to_plans_central,
+        push_flow_to_branch_dashboard=push_flow_to_branch_dashboard,
+    )
 
-        # STEP 2: Auto-cleanup orphaned plans
-        registry, auto_closed_count = auto_close_orphaned_plans(registry)
-        if auto_closed_count > 0:
-            save_registry(registry)
-            console.print(f"[dim][AUTO-CLEANUP] Closed {auto_closed_count} orphaned plan(s)[/dim]")
+    # Handler returns 6-tuple: (success, num, loc, tmpl, error, messages)
+    if len(result) == 6:
+        ok, num, loc, tmpl, error, messages = result
+        # Module handles display
+        for msg in messages:
+            msg_type = msg.get("type", "")
+            if msg_type == "dim":
+                console.print(f"[dim]{msg['text']}[/dim]")
+            elif msg_type == "warning":
+                console.print(f"[yellow]{msg['text']}[/yellow]")
+            elif msg_type == "display":
+                console.print(msg["text"])
+        return ok, num, loc, tmpl, error
 
-        # STEP 3: Get next plan number
-        NEXT_NUM = registry["next_number"]
-
-        # STEP 4: Resolve location (@folder syntax support)
-        success, target_dir, error_msg = resolve_plan_location(location, ECOSYSTEM_ROOT)
-        if not success:
-            return False, 0, "", "", error_msg
-
-        # STEP 5: Calculate relative path for display
-        RELATIVE_LOCATION = calculate_relative_location(target_dir, ECOSYSTEM_ROOT)
-
-        # STEP 6: Build plan file path (FPLAN-XXXX_topic_slug_YYYY-MM-DD.md)
-        topic_slug = _slugify_subject(subject)
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        if topic_slug:
-            PLAN_FILE = target_dir / f"FPLAN-{NEXT_NUM:04d}_{topic_slug}_{date_str}.md"
-        else:
-            PLAN_FILE = target_dir / f"FPLAN-{NEXT_NUM:04d}_{date_str}.md"
-
-        # STEP 7: Get template content
-        try:
-            CONTENT = get_template(
-                template_type,
-                number=NEXT_NUM,
-                location=RELATIVE_LOCATION,
-                subject=subject
-            )
-        except Exception as e:
-            error_msg = f"Failed to load template '{template_type}': {e}"
-            logger.error(f"[{MODULE_NAME}] {error_msg}")
-            return False, 0, "", "", error_msg
-
-        # STEP 8: Create plan file
-        success, error_msg = create_plan_file(PLAN_FILE, CONTENT)
-        if not success:
-            return False, 0, "", "", error_msg
-
-        # STEP 9: Build registry entry
-        if "plans" not in registry:
-            registry["plans"] = {}
-
-        registry["plans"][f"{NEXT_NUM:04d}"] = build_plan_registry_entry(
-            NEXT_NUM, target_dir, RELATIVE_LOCATION, subject, PLAN_FILE, template_type
-        )
-        registry["next_number"] = NEXT_NUM + 1
-
-        # STEP 10: Save updated registry
-        if not save_registry(registry):
-            error_msg = "Failed to save registry after plan creation"
-            logger.error(f"[{MODULE_NAME}] {error_msg}")
-            console.print(f"[yellow][WARNING] {error_msg}[/yellow]")
-
-        # STEP 11: Update dashboards (3-tier: modules log, handlers don't)
-        dashboard_success = update_dashboard_local()
-        central_success = push_to_plans_central()
-
-        # Log dashboard update results
-        if not dashboard_success:
-            logger.warning(f"[{MODULE_NAME}] Failed to update DASHBOARD.local.json")
-        if not central_success:
-            logger.warning(f"[{MODULE_NAME}] Failed to update PLANS.central.json")
-
-        # STEP 11b: Push flow section to branch's dashboard via write-through
-        branch_dashboard_success = push_flow_to_branch_dashboard(target_dir)
-        if not branch_dashboard_success:
-            console.print(f"[dim]⚠ No branch dashboard at {target_dir} — no branch is tracking this plan[/dim]")
-
-        # STEP 12: Log success
-        logger.info(f"[{MODULE_NAME}] Created FPLAN-{NEXT_NUM:04d} in {RELATIVE_LOCATION}")
-
-        # Display success messages
-        display_msg = display_plan_created(NEXT_NUM, RELATIVE_LOCATION, subject, template_type)
-        console.print(display_msg)
-
-        # Fire trigger event for plan creation
-        try:
-            from aipass.trigger.apps.modules.core import trigger
-            trigger.fire('plan_created', plan_number=NEXT_NUM, location=RELATIVE_LOCATION, subject=subject)
-        except ImportError:
-            pass  # Trigger not available, silent fallback
-
-        return True, NEXT_NUM, RELATIVE_LOCATION, template_type, ""
-
-    except Exception as e:
-        error_msg = f"Error creating plan: {e}"
-        logger.error(f"[{MODULE_NAME}] {error_msg}")
-        return False, 0, "", "", error_msg
+    # Fallback for 5-tuple (backward compatibility)
+    return result
 
 
 def handle_command(command: str, args: List[str]) -> bool:
@@ -299,9 +211,9 @@ def handle_command(command: str, args: List[str]) -> bool:
     THIN ORCHESTRATOR - delegates to handlers for all operations.
 
     Workflow:
-        1. Parse arguments → command_parser handler
+        1. Parse arguments -> command_parser handler
         2. Execute create_plan workflow
-        3. Display results → display handler
+        3. Display results -> display handler
 
     Args:
         command: Command name

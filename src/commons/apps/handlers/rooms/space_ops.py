@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: space_ops.py - Spatial Navigation Data Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: space_ops.py
+# Description: Spatial Navigation Data Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/rooms
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -20,14 +13,10 @@ Data retrieval and mutation for spatial room commands: enter, look, decorate, vi
 Returns structured dicts for module-layer rendering.
 """
 
-import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.space_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 from commons.apps.handlers.rooms.room_state_ops import get_all_room_state, set_room_state

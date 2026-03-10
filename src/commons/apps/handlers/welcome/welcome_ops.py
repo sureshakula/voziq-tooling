@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: welcome_ops.py - Welcome Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: welcome_ops.py
+# Description: Welcome Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/welcome
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -20,13 +13,9 @@ Implementation logic for the welcome command: scanning for unwelcomed
 branches and creating welcome posts. Returns dicts for module display layer.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.welcome_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 from commons.apps.handlers.welcome.welcome_handler import (

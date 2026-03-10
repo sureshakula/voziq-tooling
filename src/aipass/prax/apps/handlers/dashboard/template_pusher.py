@@ -1,33 +1,9 @@
-# =============================================================================
-# EXTRACTED FROM Dev-Pass devpulse on 2026-03-08
-# Original location: aipass_os/dev_central/devpulse/apps/handlers/dashboard/template_pusher.py
-# These files need adaptation for AIPass before use
-# Original imports use aipass_os.dev_central.devpulse — must be converted to aipass.prax
-# PURPOSE: Pushes dashboard template updates to all registered branch dashboards
-# =============================================================================
-
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: template_pusher.py - Dashboard Template Push Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: template_pusher.py
+# Description: Dashboard Template Push Handler
 # Version: 1.0.0
-# Category: devpulse/handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-25): Initial version
-#     * Push v3 dashboard template to all registered branches
-#     * Remove deprecated sections (bulletin_board, pending_bulletins)
-#     * Add missing sections (commons_activity)
-#     * Preserve existing section data (ai_mail counts, flow plans, etc.)
-#     * Dry-run mode for safe preview
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports, no Prax logging
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - Atomic writes: write to .tmp, rename
-#   - File size: <600 lines target
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """

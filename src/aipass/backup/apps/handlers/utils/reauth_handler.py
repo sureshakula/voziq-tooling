@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reauth_handler.py - Google Drive Re-Authentication Handler
-# Date: 2026-02-20
+# =================== AIPass ====================
+# Name: reauth_handler.py
+# Description: Google Drive Re-Authentication Handler
 # Version: 1.0.0
-# Category: backup_system/handlers/utils
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-20): Extracted from reauth_drive.py module
-#     * Moved reauth() implementation to handler layer
-#     * Follows seed 3-layer architecture standards
-#
-# CODE STANDARDS:
-#   - Handlers must be independent and transportable
-#   - No prax imports (handler tier)
-#   - No cross-handler imports except within same domain
+# Created: 2026-02-20
+# Modified: 2026-03-09
 # =============================================
 
 """

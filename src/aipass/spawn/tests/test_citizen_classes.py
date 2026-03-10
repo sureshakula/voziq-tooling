@@ -86,7 +86,7 @@ class TestPassportCommand:
         result = grant_passport(str(target), role="tester")
 
         assert result["success"] is True
-        assert (target / ".aipass" / "branch_system_prompt.md").exists()
+        assert (target / ".aipass" / "aipass_local_prompt.md").exists()
 
     def test_grant_passport_creates_readme(self, tmp_path):
         from aipass.spawn.apps.handlers.passport_ops import grant_passport

@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: update.py - DAEMON Status Digest Module
-# Date: 2026-01-29
+# =================== AIPass ====================
+# Name: update.py
+# Description: DAEMON Status Digest Module
 # Version: 1.0.0
-# Category: daemon/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-29): Initial implementation - digest of DAEMON activity
-#
-# CODE STANDARDS:
-#   - Seed pattern compliance - console.print() for all output
-#   - Thin orchestration - handlers implement logic
-#   - Type hints on all functions
+# Created: 2026-01-29
+# Modified: 2026-01-29
 # =============================================
 
 """
@@ -26,11 +17,9 @@ Returns digest of DAEMON activity for check-ins.
 import sys
 from typing import Dict, Any, List
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
 
-from rich.console import Console
-console = Console()
+from aipass.cli.apps.modules import console
 
 def _header(text):
     console.print(f"\n[bold cyan]{'='*70}[/bold cyan]")
@@ -51,6 +40,22 @@ from aipass.daemon.apps.handlers.update.data_loader import (
 # =============================================
 
 MODULE_NAME = "update"
+
+
+# =============================================
+# INTROSPECTION
+# =============================================
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("update Module")
+    console.print("Returns digest of DAEMON activity for check-ins")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/update/")
+    console.print("    - data_loader.py (load_inbox, load_local, categorize_messages, get_session_summary, get_escalations — inbox and session data)")
+    console.print()
 
 # =============================================
 # OUTPUT FORMATTING
@@ -104,7 +109,7 @@ def _print_digest(inbox_data: Dict[str, Any], local_data: Dict[str, Any]) -> Non
     console.print()
 
 
-def _print_help() -> None:
+def print_help() -> None:
     """Display help using Rich formatted output."""
     console.print()
     _header("Update Module - DAEMON Status Digest")
@@ -146,7 +151,7 @@ def handle_command(command: str, args: list) -> bool:
 
     try:
         if args and args[0] in ['--help', '-h', 'help']:
-            _print_help()
+            print_help()
             return True
 
         inbox_data = load_inbox()
@@ -171,7 +176,7 @@ def main() -> None:
     args = sys.argv[1:]
 
     if len(args) == 0 or args[0] in ['--help', '-h', 'help']:
-        _print_help()
+        print_help()
         return
 
     handle_command('update', args)

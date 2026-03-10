@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: feed_ops.py - Feed display and query operations
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: feed_ops.py
+# Description: Feed display and query operations
 # Version: 1.0.0
-# Category: commons/apps/handlers/feed
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console.print
-#   - No sys.path manipulation
-#   - Cross-branch imports use try/except fallback
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,11 +16,7 @@ and pagination via limit/offset.
 
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.feed")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

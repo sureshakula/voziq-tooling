@@ -1,10 +1,10 @@
-
-# META DATA HEADER
-# Name: file_watcher_integration.py - File Watcher Integration
+# =================== AIPass ====================
+# Name: file_watcher_integration.py
+# Description: File Watcher Integration
 # Version: 0.1.0
-# Purpose: Connect file watcher to monitoring event queue
 # Created: 2025-11-23
-# Location: src/aipass/prax/apps/handlers/monitoring/file_watcher_integration.py
+# Modified: 2026-03-09
+# =============================================
 
 """
 File Watcher Integration Handler
@@ -37,7 +37,9 @@ from pathlib import Path
 from typing import List, Tuple, Optional, TYPE_CHECKING, Any
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+
+# logger imported from aipass.prax
 
 # =============================================================================
 # IMPORTS - File watcher and event queue
@@ -92,7 +94,7 @@ def load_branch_paths(branch_filter: Optional[List[str]] = None) -> List[Tuple[s
             logger.warning(f"BRANCH_REGISTRY.json not found at {registry_path}")
             return []
 
-        with open(registry_path) as f:
+        with open(registry_path, encoding='utf-8') as f:
             data = json.load(f)
 
         branches = data.get('branches', [])
@@ -186,7 +188,7 @@ def file_event_callback(branch_name: str, event_type: str, file_path: str):
         success = global_queue.enqueue(event)
 
         if not success:
-            logger.debug(f"Failed to enqueue file event: {branch_name} {action} {file_path}")
+            logger.info(f"Failed to enqueue file event: {branch_name} {action} {file_path}")
 
     except Exception as e:
         logger.error(f"Error in file_event_callback: {e}")

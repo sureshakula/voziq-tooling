@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: inbox_ops.py - Inbox Operations Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: inbox_ops.py
+# Description: Inbox Operations Handler
 # Version: 1.1.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-08): Add auto-migration for old inbox format {"inbox": []} → v2 schema
-#   - v1.0.0 (2025-11-15): Extracted from email.py - inbox file I/O operations
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -26,8 +16,6 @@ Independent handler - no module dependencies.
 import json
 from pathlib import Path
 from typing import Dict
-
-from aipass.cli.apps.modules import console
 
 
 
@@ -98,6 +86,7 @@ def load_inbox(inbox_file: Path) -> Dict:
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("INBOX OPERATIONS HANDLER")
     console.print("="*70)

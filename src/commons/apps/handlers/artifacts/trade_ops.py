@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: trade_ops.py - Trading & Ephemeral Item Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: trade_ops.py
+# Description: Trading & Ephemeral Item Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/artifacts
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -22,15 +15,11 @@ Returns dicts for module display layer.
 """
 
 import json
-import logging
 import os
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.trade_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

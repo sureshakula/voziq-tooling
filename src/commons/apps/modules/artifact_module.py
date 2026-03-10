@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: artifact_module.py - Artifact Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: artifact_module.py
+# Description: Artifact Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/artifacts/artifact_ops.py and renders results with Rich.
 Handles: craft, artifacts, inspect, collab, sign commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.artifact_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -45,6 +32,23 @@ from commons.apps.handlers.artifacts.artifact_ops import (
     craft_artifact, list_artifacts, inspect_artifact, collab_artifact, sign_artifact,
     RARITY_COLORS,
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("artifact_module Module")
+    console.print("Router and display layer for artifact workflows — crafting, listing, inspecting, collaborating, and signing.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/artifacts/")
+    console.print("    - artifact_ops.py (craft_artifact — create a new artifact)")
+    console.print("    - artifact_ops.py (list_artifacts — list artifacts in collection or system)")
+    console.print("    - artifact_ops.py (inspect_artifact — show artifact details and provenance)")
+    console.print("    - artifact_ops.py (collab_artifact — initiate a joint artifact requiring multiple signers)")
+    console.print("    - artifact_ops.py (sign_artifact — add signature to a pending joint artifact)")
+    console.print("    - artifact_ops.py (RARITY_COLORS — color mapping for artifact rarity tiers)")
+    console.print()
 
 
 # =============================================================================

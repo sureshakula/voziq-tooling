@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: validate.py - Registry Validation Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: validate.py
+# Description: Registry Validation Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/registry
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_cli.py
-#
-# CODE STANDARDS:
-#   - Handlers are INDEPENDENT (no cross-domain imports)
-#   - Use: from prax.apps.modules.logger import system_logger as logger
-#   - Keep handlers <300 lines each
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -32,7 +23,6 @@ Handler Independence:
 from pathlib import Path
 from typing import List, Dict, Tuple
 
-from aipass.cli.apps.modules import console
 
 # Constants
 MODULE_NAME = "registry.validate"
@@ -216,6 +206,7 @@ def get_duplicate_paths(branches: List[Dict]) -> List[str]:
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("AI_MAIL HANDLER: registry/validate.py")
     console.print("="*70)

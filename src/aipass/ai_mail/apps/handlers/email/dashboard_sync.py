@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dashboard_sync.py - Dashboard Write-Through Helper
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: dashboard_sync.py
+# Description: Dashboard Write-Through Helper
 # Version: 1.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-25): FPLAN-0373 Phase 2 - dashboard write-through for ai_mail
-#       Reads inbox.json, calculates section data, calls write_section()
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-handler or module imports
-#   - Can import AIPASS central services (devpulse write_section)
-#   - No logger calls (module logs for handler)
-#   - Pure business logic only
-#   - BYPASS: Direct json.load required for reading inbox.json data files
-#   - Dashboard failures never raised to caller
+# Created: 2026-02-25
+# Modified: 2026-02-25
 # =============================================
 
 """

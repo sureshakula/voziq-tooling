@@ -1,15 +1,9 @@
-
-# =============================================
-# META DATA HEADER
-# Name: user.py - User Info Handler
-# Date: 2025-11-30
+# =================== AIPass ====================
+# Name: user.py
+# Description: User Info Handler
 # Version: 2.0.0
-# Category: ai_mail/handlers/users
-#
-# CHANGELOG:
-#   - v2.0.0 (2025-11-30): Removed all fallbacks - fail hard if branch detection fails
-#   - v1.1.0 (2025-11-15): Renamed domain config -> users for business purpose naming
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_cli.py
+# Created: 2025-11-30
+# Modified: 2025-11-30
 # =============================================
 
 """

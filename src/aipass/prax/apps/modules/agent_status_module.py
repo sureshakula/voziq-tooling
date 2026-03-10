@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: agent_status_module.py - PRAX Agent Status Push Command
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: agent_status_module.py
+# Description: PRAX Agent Status Push Command
 # Version: 0.1.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-02-25): FPLAN-0374 Phase 3 - agent-status-push command
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """

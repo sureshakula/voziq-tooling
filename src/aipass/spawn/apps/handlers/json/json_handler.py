@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: json_handler.py
 # Description: JSON file read/write operations for spawn
 # Version: 1.0.0

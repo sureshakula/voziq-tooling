@@ -1,22 +1,12 @@
+# =================== AIPass ====================
+# Name: header.py
+# Description: Email Header Handler
+# Version: 1.0.0
+# Created: 2026-02-04
+# Modified: 2026-02-04
+# =============================================
 
 from pathlib import Path
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: header.py - Email Header Handler
-# Date: 2026-02-04
-# Version: 1.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-25): Add --no-memory-save conditional header for private branch dispatch
-#   - v1.0.0 (2026-02-04): Created - dispatch header for critical reminders
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Pure business logic only
-# =============================================
 
 """
 Email Header Handler

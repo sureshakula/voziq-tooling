@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: medic_state.py - Medic State Handler
-# Date: 2026-02-12
+# =================== AIPass ====================
+# Name: medic_state.py
+# Description: Medic state persistence and status collection handler
 # Version: 1.1.0
-# Category: trigger/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-12): Added mute/unmute per-branch support (Phase 2)
-#   - v1.0.0 (2026-02-12): Created - Medic state persistence and status collection
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO console.print() - handlers return data to modules
-#   - Handles file I/O for medic config and status
+# Created: 2026-02-12
+# Modified: 2026-02-12
 # =============================================
 
 """

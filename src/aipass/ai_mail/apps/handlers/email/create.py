@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: create.py - Email File Creation Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: create.py
+# Description: Email File Creation Handler
 # Version: 1.2.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.4.0 (2026-02-04): Add auto-purge trigger after email creation
-#   - v1.3.0 (2026-01-31): Add dispatched_to field for reply chain validation
-#   - v1.2.0 (2026-01-29): Add auto-footer to all outgoing emails
-#   - v1.1.0 (2026-01-29): Add reply_to parameter for redirecting replies
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Uses Prax system_logger (FPLAN-0382)
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -33,17 +21,7 @@ from typing import Dict
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 # Lazy imports
-_console = None
 _append_footer = None
-
-
-def _get_console():
-    """Lazy import console."""
-    global _console
-    if _console is None:
-        from aipass.cli.apps.modules import console
-        _console = console
-    return _console
 
 
 def _get_append_footer():
@@ -169,7 +147,8 @@ def sanitize_subject(subject: str, max_length: int = 50) -> str:
 
 
 if __name__ == "__main__":
-    c = _get_console()
+    from rich.console import Console
+    c = Console()
     c.print("\n" + "="*70)
     c.print("EMAIL FILE CREATION HANDLER")
     c.print("="*70)

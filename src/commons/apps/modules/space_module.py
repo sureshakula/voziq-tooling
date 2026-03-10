@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: space_module.py - Spatial Navigation Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: space_module.py
+# Description: Spatial Navigation Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration and rendering
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ Delegates data retrieval to handlers/rooms/space_ops.py.
 Handles: enter, look, decorate, visitors commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.space_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -47,6 +34,25 @@ from commons.apps.handlers.rooms.space_ops import (
     get_visitors_data,
 )
 from commons.apps.modules.commons_identity import get_caller_branch
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("space_module Module")
+    console.print("Spatial navigation — entering rooms, looking around, decorating, and visitor tracking")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/rooms/")
+    console.print("    - space_ops.py (get_room_enter_data — retrieve room data for entering)")
+    console.print("    - space_ops.py (get_room_look_data — retrieve room data for looking around)")
+    console.print("    - space_ops.py (place_decoration — place a decoration in a room)")
+    console.print("    - space_ops.py (get_visitors_data — get recent visitors for a room)")
+    console.print()
+    console.print("Connected Modules:")
+    console.print("  modules/")
+    console.print("    - commons_identity.py (get_caller_branch — detect calling branch for decorate)")
+    console.print()
 
 
 # =============================================================================

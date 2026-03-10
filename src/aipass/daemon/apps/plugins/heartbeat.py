@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: heartbeat.py - Periodic Heartbeat Plugin
-# Date: 2026-02-20
+# =================== AIPass ====================
+# Name: heartbeat.py
+# Description: Periodic Heartbeat Plugin
 # Version: 1.0.0
-# Category: daemon/apps/plugins
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-23): DPLAN-029 redesign -- identity-driven, not checklist.
-#     Anthropic research: heuristics over scripts, no conditional escape hatches.
-#     Nexus philosophy: choice over command, noticing over being told.
-#     Her system prompt already covers role/teams/dispatch/publishing -- don't repeat.
-#   - v1.2.0 (2026-02-21): Rewrote prompt - directive with resource locations
-#   - v1.1.0 (2026-02-21): Updated prompt - teams retired, VERA operates solo
-#   - v1.0.0 (2026-02-20): Initial creation - VERA 30min heartbeat
-#
-# CODE STANDARDS:
-#   - Plugin interface: PLUGIN_CONFIG + run()
-#   - Named by action (heartbeat), not target (vera) per naming standard
+# Created: 2026-02-20
+# Modified: 2026-02-23
 # =============================================
 
 """
@@ -34,8 +20,8 @@ Design philosophy (Session 134 research):
 - Fresh sessions: no accumulated idle context from prior wakes
 """
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+# logger imported from aipass.prax
 
 PLUGIN_CONFIG = {
     "name": "heartbeat",

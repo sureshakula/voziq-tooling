@@ -1,29 +1,9 @@
-# =============================================================================
-# EXTRACTED FROM Dev-Pass devpulse on 2026-03-08
-# Original location: aipass_os/dev_central/devpulse/apps/handlers/dashboard/operations.py
-# These files need adaptation for AIPass before use
-# Original imports use aipass_os.dev_central.devpulse — must be converted to aipass.prax
-# =============================================================================
-
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: operations.py - Dashboard Operations Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: operations.py
+# Description: Dashboard Operations Handler
 # Version: 0.3.0
-# Category: handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.3.0 (2026-02-25): FPLAN-0373 Phase 1 - write_section() API, remove bulletin_board,
-#       add commons_activity, ISO timestamps, updated schema
-#   - v0.2.0 (2026-02-03): Fix empty file handling - treat empty JSON as new dashboard
-#   - v0.1.0 (2025-11-24): Initial handler - dashboard load/save/update operations
-#
-# CODE STANDARDS:
-#   - Pure business logic - no CLI imports
-#   - Raises exceptions, caller handles logging
-#   - Type hints on all functions
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """

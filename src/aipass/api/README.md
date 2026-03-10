@@ -2,6 +2,7 @@
 
 **Purpose:** LLM API access layer with provider abstraction, key management, model routing, and usage tracking.
 **Module:** `aipass.api`
+**Last Updated:** 2026-03-08
 
 ---
 
@@ -20,7 +21,7 @@
 
 ---
 
-## CLI
+## Commands / Usage
 
 ```bash
 drone @api get-key           # Retrieve API key for provider
@@ -30,7 +31,10 @@ drone @api models            # List available models from provider
 drone @api track             # Track API usage metrics
 drone @api stats             # Display API usage statistics
 drone @api --help            # Full help output
+drone @api --version         # Show version
 ```
+
+Running `drone @api` with no arguments displays module introspection (discovered modules and status).
 
 ---
 
@@ -76,3 +80,7 @@ api/
 ### Provides To
 - All modules -- LLM API access for any branch that needs model inference
 - System-wide API key management and credential validation
+
+---
+
+*Last Updated: 2026-03-08*

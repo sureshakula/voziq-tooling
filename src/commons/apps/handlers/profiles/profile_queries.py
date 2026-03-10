@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: profile_queries.py - Social Profile Query Handlers
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: profile_queries.py
+# Description: Social Profile Query Handlers
 # Version: 1.0.0
-# Category: commons/apps/handlers/profiles
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: pure database queries
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """

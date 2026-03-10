@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: search.py - Search Orchestration Module
-# Date: 2025-11-27
-# Version: 0.2.0
-# Category: memory/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed internal deps
-#   - v0.1.0 (2025-11-27): Initial version - orchestrate semantic search
-#
-# CODE STANDARDS:
-#   - Thin orchestration: Delegate all logic to handlers
-#   - No business logic: Only coordinate workflow
-#   - handle_command() pattern
+# =================== AIPass ====================
+# Name: search.py
+# Description: Search Orchestration Module
+# Version: 0.4.0
+# Created: 2025-11-27
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -30,75 +20,22 @@ Purpose:
 """
 
 import sys
-import os
-import logging
-import subprocess
-import json
-from pathlib import Path
 from typing import List
 
-from rich.console import Console
 from rich.panel import Panel
 from rich import box
+
+from aipass.prax import logger
+from aipass.cli.apps.modules import console
 
 # =============================================================================
 # INFRASTRUCTURE SETUP
 # =============================================================================
 
-logger = logging.getLogger(__name__)
-console = Console()
-
-# Handler imports (relative within the memory package)
-from ..handlers.vector import embedder
-
-# ChromaDB search via subprocess
-_HANDLERS_DIR = Path(__file__).resolve().parent.parent / "handlers"
-CHROMA_SUBPROCESS_SCRIPT = _HANDLERS_DIR / "storage" / "chroma_subprocess.py"
-
-# Use system python by default; can be overridden via environment variable
-MEMORY_PYTHON = os.environ.get("AIPASS_MEMORY_PYTHON", sys.executable)
-
-
-def _search_vectors_subprocess(
-    query_embedding: list,
-    branch: str | None = None,
-    memory_type: str | None = None,
-    n_results: int = 5,
-    db_path: str | Path | None = None
-) -> dict:
-    """
-    Search vectors via subprocess.
-
-    This ensures ChromaDB compatibility regardless of calling Python version.
-    """
-    input_data = {
-        'operation': 'search_vectors',
-        'query_embedding': query_embedding,
-        'branch': branch,
-        'memory_type': memory_type,
-        'n_results': n_results,
-        'db_path': str(db_path) if db_path else None
-    }
-
-    try:
-        result = subprocess.run(
-            [str(MEMORY_PYTHON), str(CHROMA_SUBPROCESS_SCRIPT)],
-            input=json.dumps(input_data),
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-
-        if result.returncode != 0:
-            return {'success': False, 'error': result.stderr or 'Subprocess failed'}
-
-        return json.loads(result.stdout)
-    except subprocess.TimeoutExpired:
-        return {'success': False, 'error': 'Search operation timed out'}
-    except json.JSONDecodeError as e:
-        return {'success': False, 'error': f'Invalid JSON response: {e}'}
-    except Exception as e:
-        return {'success': False, 'error': str(e)}
+# Handler imports
+from aipass.memory.apps.handlers.search.query_executor import (
+    execute_search as _handler_execute_search,
+)
 
 
 # =============================================================================
@@ -160,7 +97,7 @@ def handle_command(command: str, args: List[str]) -> bool:
             console.print("[red]Error:[/red] Search query required")
             return True
 
-        execute_search(query, branch=branch, memory_type=memory_type, n_results=n_results)
+        show_search_results(query, branch=branch, memory_type=memory_type, n_results=n_results)
         return True
 
     return False
@@ -205,17 +142,17 @@ def print_help() -> None:
 
 
 # =============================================================================
-# SEARCH ORCHESTRATION
+# SEARCH RESULTS DISPLAY
 # =============================================================================
 
-def execute_search(query: str, branch: str | None = None, memory_type: str | None = None, n_results: int = 5) -> bool:
+def show_search_results(
+    query: str,
+    branch: str | None = None,
+    memory_type: str | None = None,
+    n_results: int = 5
+) -> bool:
     """
-    Execute semantic search and display results
-
-    Workflow:
-    1. Encode query to embedding vector
-    2. Search ChromaDB via subprocess
-    3. Format and display results with Rich
+    Execute semantic search via handler and display results with Rich.
 
     Args:
         query: Search query text
@@ -234,7 +171,7 @@ def execute_search(query: str, branch: str | None = None, memory_type: str | Non
     ))
     console.print()
 
-    # Step 1: Encode query
+    # Display query info
     console.print(f"[cyan]Query:[/cyan] {query}")
     if branch:
         console.print(f"[cyan]Branch:[/cyan] {branch}")
@@ -243,52 +180,29 @@ def execute_search(query: str, branch: str | None = None, memory_type: str | Non
     console.print()
 
     console.print("[dim]Encoding query...[/dim]")
-    embed_result = embedder.encode_batch([query])
-
-    if not embed_result['success']:
-        error_msg = embed_result.get('error', 'Unknown error')
-        logger.error(f"[search] Failed to encode query: {error_msg}")
-        console.print(f"[red]x[/red] Failed to encode query: {error_msg}")
-        return False
-
-    embeddings = embed_result.get('embeddings', [])
-    if not embeddings:
-        console.print("[red]x[/red] No embedding generated")
-        return False
-
-    query_embedding = embeddings[0]
-    # Convert numpy array to list for JSON serialization
-    if hasattr(query_embedding, 'tolist'):
-        query_embedding = query_embedding.tolist()
-
-    logger.info(f"[search] Encoded query to {len(query_embedding)}-dim vector")
-
-    # Step 2: Search via subprocess
     console.print("[dim]Searching collections...[/dim]")
-    search_result = _search_vectors_subprocess(
-        query_embedding=query_embedding,
+
+    # Delegate to handler
+    result = _handler_execute_search(
+        query=query,
         branch=branch,
         memory_type=memory_type,
         n_results=n_results
     )
 
-    if not search_result['success']:
-        error_msg = search_result.get('error', 'Unknown error')
-        logger.error(f"[search] Search failed: {error_msg}")
-        console.print(f"[red]x[/red] Search failed: {error_msg}")
+    if not result['success']:
+        console.print(f"[red]x[/red] {result.get('error', 'Unknown error')}")
         return False
 
-    results = search_result.get('results', [])
-    collections_searched = search_result.get('collections_searched', 0)
-    total_results = search_result.get('total_results', 0)
+    collections_searched = result.get('collections_searched', 0)
+    total_results = result.get('total_results', 0)
+    filtered_results = result.get('results', [])
 
-    logger.info(f"[search] Found {total_results} results across {collections_searched} collections")
-
-    # Step 3: Display results
+    # Display summary
     console.print(f"[green]>[/green] Found {total_results} results in {collections_searched} collections")
     console.print()
 
-    if not results:
+    if not filtered_results and total_results == 0:
         console.print("[yellow]No matching memories found[/yellow]")
         console.print()
         console.print("[dim]Try:[/dim]")
@@ -297,27 +211,6 @@ def execute_search(query: str, branch: str | None = None, memory_type: str | Non
         console.print("  * Check if memories have been rolled over (drone @memory status)")
         return True
 
-    # Minimum similarity threshold - filter out irrelevant results
-    MIN_SIMILARITY_THRESHOLD = 0.40  # 40% minimum relevance
-
-    # Filter and process results
-    filtered_results = []
-    for result in results[:n_results]:
-        document = result.get('document', '')
-        distance = result.get('distance', 0)
-
-        # Calculate similarity (ChromaDB L2 distance: 0=identical, ~2=very different)
-        similarity = max(0, 1 - (distance / 2))
-
-        # Skip empty documents and low-relevance results
-        if not document or not document.strip():
-            continue
-        if similarity < MIN_SIMILARITY_THRESHOLD:
-            continue
-
-        result['similarity'] = similarity
-        filtered_results.append(result)
-
     if not filtered_results:
         console.print("[yellow]No relevant memories found[/yellow]")
         console.print()
@@ -325,11 +218,11 @@ def execute_search(query: str, branch: str | None = None, memory_type: str | Non
         console.print("[dim]Try more specific search terms related to your AIPass work.[/dim]")
         return True
 
-    for i, result in enumerate(filtered_results, 1):
-        collection = result.get('collection', 'unknown')
-        document = result.get('document', '')
-        metadata = result.get('metadata', {})
-        similarity = result.get('similarity', 0)
+    for i, item in enumerate(filtered_results, 1):
+        collection = item.get('collection', 'unknown')
+        document = item.get('document', '')
+        metadata = item.get('metadata', {})
+        similarity = item.get('similarity', 0)
 
         # Parse collection name
         parts = collection.split('_')
@@ -360,9 +253,23 @@ def execute_search(query: str, branch: str | None = None, memory_type: str | Non
         ))
 
     console.print()
-    logger.info(f"[search] Displayed {len(filtered_results)} results")
-
     return True
+
+
+# =============================================================================
+# INTROSPECTION
+# =============================================================================
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("search Module")
+    console.print("Orchestrates semantic search across memory collections via vector embeddings and ChromaDB")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/search/")
+    console.print("    - query_executor.py (execute_search — encode query, search collections, filter results by similarity)")
+    console.print()
 
 
 # =============================================================================

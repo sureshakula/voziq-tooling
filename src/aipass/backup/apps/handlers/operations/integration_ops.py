@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: integration_ops.py - Backup Integration Operations Handler
-# Date: 2026-02-20
+# =================== AIPass ====================
+# Name: integration_ops.py
+# Description: Backup Integration Operations Handler
 # Version: 1.0.0
-# Category: backup_system/handlers/operations
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-20): Extracted from integrations module
-#     * Moved sync_to_drive() and set_backup_readonly() to handler layer
-#     * Follows seed 3-layer architecture standards
-#
-# CODE STANDARDS:
-#   - Handlers must be independent and transportable
-#   - No prax imports (handler tier)
-#   - No cross-handler imports except within same domain
+# Created: 2026-02-20
+# Modified: 2026-03-09
 # =============================================
 
 """

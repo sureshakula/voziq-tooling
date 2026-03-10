@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: post_ops.py - Post operations handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: post_ops.py
+# Description: Post operations handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/posts
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console.print
-#   - No sys.path manipulation
-#   - Cross-branch imports use try/except fallback
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -25,11 +17,7 @@ All functions return dicts - no direct console output.
 
 from typing import List, Dict, Any
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.post_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 from commons.apps.modules.commons_identity import get_caller_branch, extract_mentions

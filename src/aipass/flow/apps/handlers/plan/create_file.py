@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: create_file.py - Plan File Creation Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: create_file.py
+# Description: Plan File Creation Handler
 # Version: 0.1.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-15): Initial handler - plan file creation
-#
-# CODE STANDARDS:
-#   - Validates before writing
-#   - UTF-8 encoding
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

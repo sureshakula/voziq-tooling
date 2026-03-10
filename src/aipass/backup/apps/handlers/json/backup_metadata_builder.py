@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: backup_metadata_builder.py - Backup metadata construction
-# Date: 2025-11-18
+# =================== AIPass ====================
+# Name: backup_metadata_builder.py
+# Description: Backup metadata construction
 # Version: 1.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-18): Extracted from backup_core.py
-#     * Extracted backup_info creation logic
-#     * Handles mode-specific metadata formatting
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-18
+# Modified: 2026-03-09
 # =============================================
 
 """

@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: template.py - Skill template management
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: template.py
+# Description: Skill template management
 # Version: 1.0.0
-# Category: skills/apps/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Initial implementation
-#
-# CODE STANDARDS:
-#   - Handler layer: returns dicts, NEVER prints
-#   - Resolves template paths and copies template content
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 import shutil

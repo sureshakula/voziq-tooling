@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dev_central_monitor.py - Hourly System Monitor Plugin
-# Date: 2026-02-23
+# =================== AIPass ====================
+# Name: dev_central_monitor.py
+# Description: Hourly System Monitor Plugin
 # Version: 1.0.0
-# Category: daemon/apps/plugins
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-23): Initial creation - hourly system health check
-#     * Monitors VERA autonomous performance
-#     * Checks daemon health, inbox status, PR queue
-#     * Records metrics in VERA_AUTONOMOUS_TRACKER.md
-#     * Reports blockers and suggests unblocking strategies
-#
-# CODE STANDARDS:
-#   - Plugin interface: PLUGIN_CONFIG + run()
-#   - Named by action (dev_central_monitor), not target
+# Created: 2026-02-23
+# Modified: 2026-02-23
 # =============================================
 
 """
@@ -32,8 +20,8 @@ Patrick's directive (Session 124): DEV_CENTRAL should be the best
 at overcoming blockers. Learn, then teach VERA.
 """
 
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+# logger imported from aipass.prax
 
 PLUGIN_CONFIG = {
     "name": "dev_central_monitor",

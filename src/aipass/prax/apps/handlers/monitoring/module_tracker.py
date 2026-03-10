@@ -1,7 +1,10 @@
-
-# META DATA HEADER
-# Name: module_tracker.py - Module Execution Tracker
+# =================== AIPass ====================
+# Name: module_tracker.py
+# Description: Module Execution Tracker
 # Version: 0.1.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
 
 """Track module execution and drone commands"""
 

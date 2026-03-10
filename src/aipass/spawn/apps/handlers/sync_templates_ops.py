@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: sync_templates_ops.py
 # Description: Template sync handler — implementation logic for template sync
 # Version: 1.0.0

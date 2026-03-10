@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: assistant_chat.py - Daemon Bot Telegram Launcher
-# Date: 2026-02-15
+# =================== AIPass ====================
+# Name: assistant_chat.py
+# Description: Daemon Bot Telegram Launcher
 # Version: 2.0.0
-# Category: daemon/handlers/telegram
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-15): Thin launcher - delegates to shared direct_chat.py
-#   - v1.1.0 (2026-02-15): Photo/document support (archived)
-#   - v1.0.0 (2026-02-15): Initial long-polling + tmux bridge (archived)
-#
-# CODE STANDARDS:
-#   - Thin launcher only - all logic lives in direct_chat.py
-#   - External AI imports made optional
+# Created: 2026-02-15
+# Modified: 2026-02-15
 # =============================================
 
 """
@@ -27,6 +17,9 @@ This file only provides the daemon-specific configuration.
 import sys
 from pathlib import Path
 
+from aipass.prax import logger
+# logger imported from aipass.prax
+
 try:
     from api.apps.modules.telegram_chat import run_direct_chat
     TELEGRAM_CHAT_AVAILABLE = True
@@ -37,7 +30,7 @@ except ImportError:
 _DAEMON_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/daemon/
 
 if not TELEGRAM_CHAT_AVAILABLE:
-    print("[assistant_chat] telegram_chat module not available, exiting")
+    logger.error("[assistant_chat] telegram_chat module not available, exiting")
     sys.exit(1)
 
 sys.exit(run_direct_chat(

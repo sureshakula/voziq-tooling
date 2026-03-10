@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_watchdog.py - System Log Size Watchdog
-# Date: 2026-02-26
+# =================== AIPass ====================
+# Name: log_watchdog.py
+# Description: System Log Size Watchdog
 # Version: 0.1.0
-# Category: prax/handlers/logging
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-02-26): DPLAN-037 Phase 4 - log size monitoring and enforcement
-#
-# CODE STANDARDS:
-#   - Handler tier 3: Pure functions, no CLI imports
-#   - Returns data, does not print — callers handle display
-#   - BYPASS: Direct Path operations on system_logs (not cross-branch)
+# Created: 2026-02-26
+# Modified: 2026-03-09
 # =============================================
 
 """

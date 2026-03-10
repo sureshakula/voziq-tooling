@@ -1,26 +1,10 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: registry.py - DPLAN Registry Handler
-# Date: 2026-02-18
+# =================== AIPass ====================
+# Name: registry.py
+# Description: DPLAN Registry Handler
 # Version: 1.0.0
-# Category: devpulse/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-18): Initial version - registry + summaries per FPLAN-0355
-#
-# CONNECTS:
-#   - create.py (registers on plan creation)
-#   - close.py (updates status on close)
-#   - list.py (reads registry for enhanced list)
-#   - dashboard.py (reads registry for counts)
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - NO Prax logging (per 3-tier: modules log, handlers don't)
-#   - Pure business logic only
-# ==============================================
+# Created: 2026-02-18
+# Modified: 2026-02-18
+# =============================================
 
 """
 Registry Handler - DPLAN Registry and Summaries

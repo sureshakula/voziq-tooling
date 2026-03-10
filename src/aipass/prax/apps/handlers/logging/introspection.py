@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: introspection.py - Stack Introspection
-# Date: 2025-11-10
+# =================== AIPass ====================
+# Name: introspection.py
+# Description: Stack Introspection
 # Version: 1.0.0
-# Category: prax/handlers/logging
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_handlers.py
+# Created: 2025-11-10
+# Modified: 2026-03-09
 # =============================================
 
 """

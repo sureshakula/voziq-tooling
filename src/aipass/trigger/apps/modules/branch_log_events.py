@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: branch_log_events.py - Branch Log Events Module
-# Date: 2026-02-02
+# =================== AIPass ====================
+# Name: branch_log_events.py
+# Description: Branch log events module for log watcher public API
 # Version: 1.0.0
-# Category: trigger/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-02): Created - FPLAN-0284 Phase 4
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Module orchestrates, handlers contain logic
-#   - Public API for branch log event watching
+# Created: 2026-02-02
+# Modified: 2026-02-02
 # =============================================
 
 """
@@ -42,6 +33,29 @@ from aipass.trigger.apps.handlers.log_watcher import (
     clear_seen_hashes
 )
 from aipass.trigger.apps.config import AIPASS_PKG_ROOT
+
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("branch_log_events Module")
+    console.print("Branch log watcher — watches branch logs for ERROR entries and fires events")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - log_watcher.py (set_event_callback — set callback for detected events)")
+    console.print("    - log_watcher.py (start_branch_log_watcher — start filesystem watcher)")
+    console.print("    - log_watcher.py (stop_branch_log_watcher — stop filesystem watcher)")
+    console.print("    - log_watcher.py (is_branch_log_watcher_active — check watcher state)")
+    console.print("    - log_watcher.py (get_watcher_status — get full status dict)")
+    console.print("    - log_watcher.py (clear_seen_hashes — reset error deduplication)")
+    console.print()
 
 
 def start() -> bool:

@@ -1,16 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: daemon.py - DAEMON Branch Entry Point
-# Date: 2026-01-21
+# =================== AIPass ====================
+# Name: daemon.py
+# Description: Entry point CLI for drone @daemon
 # Version: 1.0.0
-# Category: daemon
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-21): Initial branch creation
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -26,12 +19,10 @@ import sys
 from typing import List, Any
 
 # Logger
-import logging
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 # Console
-from rich.console import Console
-console = Console()
+from aipass.cli.apps.modules import console
 
 def _header(text):
     console.print(f"\n[bold cyan]{'='*70}[/bold cyan]")

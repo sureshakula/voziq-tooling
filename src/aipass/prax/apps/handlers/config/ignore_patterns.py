@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: ignore_patterns.py
-# Date: 2025-11-07
+# Description: Load Ignore Patterns Handler
 # Version: 1.0.0
-# Category: prax/handlers/config
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-07): Extracted from prax_config.py - ignore patterns loading
+# Created: 2025-11-07
+# Modified: 2026-03-09
 # =============================================
 
 """

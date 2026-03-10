@@ -50,7 +50,6 @@ dev = [
 
 [project.scripts]
 drone = "aipass.drone.cli:main"
-seedgo = "aipass.seedgo.apps.seedgo:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aipass"]

@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory_template_updated.py - Memory Template Updated Event Handler
-# Date: 2026-02-14
+# =================== AIPass ====================
+# Name: memory_template_updated.py
+# Description: Memory template updated event handler for branch push
 # Version: 1.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-14): Created - Phase 3 of FPLAN-0340
-#     * Handles memory_template_updated event
-#     * Pushes living template updates to all branches
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO logger imports (causes infinite recursion in event handlers)
-#   - NO print statements (handlers must be silent)
-#   - Silent failure - catch all exceptions, pass
+# Created: 2026-02-14
+# Modified: 2026-02-14
 # =============================================
 
 """

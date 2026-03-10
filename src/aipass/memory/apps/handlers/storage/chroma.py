@@ -1,21 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: chroma.py - Chroma Vector Storage Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: chroma.py
+# Description: Chroma Vector Storage Handler
 # Version: 0.3.0
-# Category: memory/handlers/storage
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.3.0 (2026-03-06): Adapted for AIPass public repo - optional chromadb
-#   - v0.2.0 (2026-02-15): Use shared singleton client, cosine distance,
-#     embedding_function=None on all collection access
-#   - v0.1.0 (2025-11-16): Initial version - Chroma collection management
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <300 lines target
-#   - Best practices: Collection-per-branch, batch inserts
+# Created: 2025-11-16
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -44,7 +32,9 @@ from typing import List, Dict, Any
 from pathlib import Path
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # Resolve paths relative to handler location
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]

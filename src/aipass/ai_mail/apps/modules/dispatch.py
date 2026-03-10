@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dispatch.py - Dispatch Module
-# Date: 2026-02-02
+# =================== AIPass ====================
+# Name: dispatch.py
+# Description: Dispatch Module
 # Version: 3.0.0
-# Category: ai_mail/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v3.0.0 (2026-02-20): Add wake subcommand - manual branch spawn without daemon
-#   - v2.0.0 (2026-02-17): Add daemon subcommand, move status logic to handler
-#   - v1.0.0 (2026-02-02): Initial version - dispatch status tracking
-#
-# CODE STANDARDS:
-#   - Orchestration only - delegates to handlers
-#   - Uses json_handler.log_operation()
+# Created: 2026-02-02
+# Modified: 2026-02-02
 # =============================================
 
 """
@@ -213,6 +203,22 @@ def _orchestrate_daemon() -> bool:
     from aipass.ai_mail.apps.handlers.dispatch.daemon import run_daemon
     run_daemon()
     return True
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("dispatch Module")
+    console.print("Orchestrates dispatch commands: status tracking, daemon management, and manual branch wake.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/dispatch/")
+    console.print("    - status.py (load_dispatch_log — load dispatch log entries)")
+    console.print("    - status.py (check_pid_status — check if a spawned process is still running)")
+    console.print("    - status.py (calculate_age — calculate age string from timestamp)")
+    console.print("    - wake.py (wake_branch — manually wake a branch by spawning an agent)")
+    console.print("    - daemon.py (run_daemon — start the continuous dispatch daemon)")
+    console.print()
 
 
 if __name__ == "__main__":

@@ -1,13 +1,100 @@
+# =================== AIPass ====================
+# Name: resolver.py
+# Description: Branch resolution logic for symbolic @branch names
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Branch resolution logic.
 
-Resolves symbolic @branch names to absolute paths and metadata.
+Thin orchestrator for resolving symbolic @branch names to paths and metadata.
+Delegates registry access to the handler layer.
 """
 
 from typing import Any, Dict, List, Optional
 
+from aipass.prax import logger
 from aipass.drone.apps.handlers.exceptions import BranchNotFoundError
-from .registry import get_all_branches, get_branch_by_name, load_registry
+from aipass.drone.apps.handlers.registry_handler import (
+    load_registry,
+    get_all_branches,
+    get_branch_by_name,
+)
+
+
+def handle_command(command: str, args: List[str]) -> bool:
+    """Route resolver commands to handler functions.
+
+    Args:
+        command: The command string (e.g. "resolve", "exists", "info", "list")
+        args: List of arguments for the command
+
+    Returns:
+        True if command succeeded, False otherwise
+    """
+    if command == "resolve":
+        if not args:
+            logger.warning("resolver resolve requires a branch name")
+            return False
+        path = resolve_branch(args[0])
+        logger.info("%s -> %s", args[0], path)
+        return True
+    if command == "exists":
+        if not args:
+            logger.warning("resolver exists requires a branch name")
+            return False
+        logger.info("%s exists: %s", args[0], branch_exists(args[0]))
+        return True
+    if command == "info":
+        if not args:
+            logger.warning("resolver info requires a branch name")
+            return False
+        info = get_branch_info(args[0])
+        logger.info("Branch info: %s", info)
+        return True
+    if command == "list":
+        branches = list_branches()
+        for name in branches:
+            logger.info("  %s", name)
+        return True
+    logger.warning("resolver: unknown command '%s'", command)
+    return False
+
+
+def print_help() -> None:
+    """Print help for the resolver module."""
+    from aipass.cli.apps.modules import console
+
+    console.print("resolver — Branch resolution logic")
+    console.print()
+    console.print("Commands:")
+    console.print("  resolve <branch>    Resolve branch name to path")
+    console.print("  exists <branch>     Check if branch exists")
+    console.print("  info <branch>       Get branch metadata")
+    console.print("  list                List all branches")
+
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("resolver Module")
+    console.print("Branch resolution logic — resolves symbolic @branch names to paths and metadata.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - registry_handler.py (load_registry — load and parse AIPASS_REGISTRY.json)")
+    console.print("    - registry_handler.py (get_all_branches — list branches with optional filters)")
+    console.print("    - registry_handler.py (get_branch_by_name — look up a single branch)")
+    console.print("    - exceptions.py (BranchNotFoundError — raised when branch not in registry)")
+    console.print()
 
 
 def normalize_branch_name(symbolic_name: str) -> str:

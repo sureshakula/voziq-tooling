@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: monitor.py - File System Monitor Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: monitor.py
+# Description: File System Monitor Handler
 # Version: 0.1.0
-# Category: aipass/handlers/watcher
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-15): Initial version - file system monitoring
-#
-# CODE STANDARDS:
-#   - Error handling: Return None on errors, log failures
-#   - Logging: Use Prax logger
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """

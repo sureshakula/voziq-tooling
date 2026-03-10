@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: display.py - CLI Display Module
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: display.py
+# Description: CLI Display Module — public API for Rich terminal output formatting
 # Version: 0.4.0
-# Category: cli/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.4.0 (2025-11-15): Replaced argparse help with Rich formatted help (SEED pattern)
-#   - v0.3.0 (2025-11-15): Restructured to follow SEED module pattern
-#   - v0.2.0 (2025-11-12): Implemented Rich library formatting
-#   - v0.1.0 (2025-11-12): Public API for display functions
-#
-# CODE STANDARDS:
-#   - PUBLIC API - thin wrapper over handler implementation
-#   - Follows SEED module pattern (introspection/help/command handling)
+# Created: 2025-11-12
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -39,6 +28,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.columns import Columns
+
+# NOTE: Cannot import prax here — circular import (prax depends on cli)
+# from aipass.prax import logger
 
 # Initialize Rich console (lowercase follows service instance pattern)
 CONSOLE = Console()  # Internal constant

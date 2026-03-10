@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: append_closed_plan.py - Closed Plans Local Registry Handler
-# Date: 2026-03-03
+# =================== AIPass ====================
+# Name: append_closed_plan.py
+# Description: Closed Plans Local Registry Handler
 # Version: 0.1.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-03-03): Initial handler - append closed plan to CLOSED_PLANS.local.json
-#
-# CODE STANDARDS:
-#   - Reads, appends, writes CLOSED_PLANS.local.json
-#   - Duplicate-safe (skips if plan_id already exists)
-#   - UTF-8 encoding
+# Created: 2026-03-03
+# Modified: 2026-03-03
 # =============================================
 
 """

@@ -1,19 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: the_commons.py - The Commons branch orchestrator
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: commons.py
+# Description: Entry point CLI for drone @commons
 # Version: 1.0.0
-# Category: commons/apps/orchestrator
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Entry point orchestrator pattern
-#   - Auto-discovers modules from modules/
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
-#   - Cross-branch imports use try/except fallback
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -29,7 +19,6 @@ Auto-discovery architecture:
 """
 
 import importlib
-import logging
 import signal
 import sys
 from pathlib import Path
@@ -38,21 +27,9 @@ from typing import List, Any
 # Handle broken pipe gracefully (e.g. output piped to head)
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
-# Cross-branch imports with graceful fallback
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons")
-
-try:
-    from aipass.cli.apps.modules import console, header
-except ImportError:
-    from rich.console import Console
-    console = Console()
-
-    def header(text: str) -> None:
-        """Fallback header display."""
-        console.print(f"[bold cyan]{text}[/bold cyan]")
+# Cross-branch imports
+from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.cli.apps.modules import console, header
 
 
 # =============================================================================
@@ -79,7 +56,7 @@ def ensure_database() -> bool:
         True if database is ready, False on error.
     """
     try:
-        from commons.apps.handlers.database import init_db, close_db
+        from commons.apps.modules.database_module import init_db, close_db
         conn = init_db()
         close_db(conn)
         return True

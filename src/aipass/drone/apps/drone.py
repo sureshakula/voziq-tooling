@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: drone.py
+# Description: Drone - Command Router & Discovery
+# Version: 1.0.0
+# Created: 2026-03-05
+# Modified: 2026-03-08
+# =============================================
+
 """
 Drone - Command Router & Discovery for AIPass
 
@@ -5,21 +13,12 @@ Routes commands to registered branches and internal modules.
 Standard branch entry point (apps/drone.py pattern).
 """
 
-# =================== META ====================
-# Name: drone.py
-# Description: Drone - Command Router & Discovery
-# Version: 1.0.0
-# Created: 2026-03-05
-# Modified: 2026-03-05
-# =============================================
-
 import sys
 from typing import List
 
-from aipass.drone.apps.handlers.exceptions import (
-    BranchNotFoundError,
-    CommandExecutionError,
-)
+from aipass.prax import logger
+from aipass.cli.apps.modules import console
+from aipass.drone.apps.modules import BranchNotFoundError, CommandExecutionError
 from aipass.drone.apps.modules.discovery import get_help
 from aipass.drone.apps.modules.resolver import list_branches
 from aipass.drone.apps.modules.router import route_command
@@ -41,57 +40,67 @@ VERSION = "1.0.0"
 
 def show_help() -> None:
     """Display drone help."""
-    print()
-    print("Drone - Command Router & Discovery")
-    print()
-    print("Routes commands to AIPass branches and internal modules.")
-    print()
-    print("Usage:")
-    print("  drone @target command [args]   Route command to branch or module")
-    print("  drone @target --help           Show help for branch or module")
-    print("  drone systems                  List registered branches and modules")
-    print("  drone --help                   Show this help")
-    print("  drone --version                Show version")
-    print()
-    print("Examples:")
-    print("  drone @seedgo audit aipass")
-    print("  drone @seedgo list")
-    print("  drone @flow status")
-    print("  drone systems")
-    print()
+    console.print()
+    console.print("Drone - Command Router & Discovery")
+    console.print()
+    console.print("Routes commands to AIPass branches and internal modules.")
+    console.print()
+    console.print("Usage:")
+    console.print("  drone @target command \\[args]   Route command to branch or module")
+    console.print("  drone @target --help           Show help for branch or module")
+    console.print("  drone systems                  List registered branches and modules")
+    console.print("  drone --help                   Show this help")
+    console.print("  drone --version                Show version")
+    console.print()
+    console.print("Examples:")
+    console.print("  drone @seedgo audit aipass")
+    console.print("  drone @seedgo list")
+    console.print("  drone @flow status")
+    console.print("  drone systems")
+    console.print()
+
+
+def print_help() -> None:
+    """Alias for seedgo standard compliance (audit expects print_help)."""
+    show_help()
+
+
+def print_introspection() -> None:
+    """Alias for seedgo standard compliance (audit expects print_introspection)."""
+    show_introspection()
 
 
 def show_introspection() -> None:
     """Show discovery view (no args)."""
-    print()
-    print("Drone - Command Router & Discovery")
-    print()
+    console.print()
+    console.print("Drone - Command Router & Discovery")
+    console.print()
 
     modules = list_modules()
     branches = list_branches()
 
     if modules:
-        print(f"Internal Modules ({len(modules)}):")
+        console.print(f"Internal Modules ({len(modules)}):")
         for name in modules:
             info = get_module_info(name)
             if info:
-                print(f"  @{name:<18} {info.description}")
+                console.print(f"  @{name:<18} {info.description}")
             else:
-                print(f"  @{name:<18} (not available)")
+                console.print(f"  @{name:<18} (not available)")
         if branches:
-            print()
+            console.print()
 
     if branches:
-        print(f"Registered Branches ({len(branches)}):")
+        console.print(f"Registered Branches ({len(branches)}):")
         for name in sorted(branches):
-            print(f"  {name}")
+            console.print(f"  {name}")
 
     if not modules and not branches:
-        print("No branches or modules registered.")
+        console.print("No branches or modules registered.")
 
-    print()
-    print("Run 'drone --help' for usage information")
-    print()
+    console.print()
+    console.print("Run 'drone --help' for usage information")
+    console.print()
 
 
 # =============================================================================
@@ -104,24 +113,24 @@ def _handle_systems() -> int:
     modules = list_modules()
 
     if not branches and not modules:
-        print("No branches or modules registered.")
+        console.print("No branches or modules registered.")
         return 0
 
     if modules:
-        print(f"Modules ({len(modules)}):")
+        console.print(f"Modules ({len(modules)}):")
         for name in modules:
             info = get_module_info(name)
             if info:
-                print(f"  @{name:<18} {info.description}")
+                console.print(f"  @{name:<18} {info.description}")
             else:
-                print(f"  @{name:<18} (not available)")
+                console.print(f"  @{name:<18} (not available)")
         if branches:
-            print()
+            console.print()
 
     if branches:
-        print(f"Branches ({len(branches)}):")
+        console.print(f"Branches ({len(branches)}):")
         for name in sorted(branches):
-            print(f"  {name}")
+            console.print(f"  {name}")
 
     return 0
 
@@ -131,17 +140,17 @@ def _handle_module(name: str, args: List[str]) -> int:
     if not args:
         intro_text = get_module_introspective(name)
         if intro_text:
-            print(intro_text, end="")
+            console.print(intro_text, end="")
         else:
-            print(f"No information available for @{name}.")
+            console.print(f"No information available for @{name}.")
         return 0
 
     if args == ["--help"]:
         help_text = get_module_help(name)
         if help_text:
-            print(help_text, end="")
+            console.print(help_text, end="")
         else:
-            print(f"No help available for @{name}.")
+            console.print(f"No help available for @{name}.")
         return 0
 
     command = args[0]
@@ -150,7 +159,7 @@ def _handle_module(name: str, args: List[str]) -> int:
     try:
         result = route_module_command(name, command, cmd_args)
     except (ImportError, AttributeError) as exc:
-        print(f"drone: module @{name} is registered but not available: {exc}", file=sys.stderr)
+        console.print(f"drone: module @{name} is registered but not available: {exc}", stderr=True)
         return 1
 
     if result.get("stdout"):
@@ -170,19 +179,35 @@ def _handle_target(args: List[str]) -> int:
     if is_module(module_name):
         return _handle_module(module_name, rest)
 
-    # Fall through to branch routing
-    if not rest or rest == ["--help"]:
+    # No args = pass through to branch (introspection)
+    if not rest:
+        try:
+            result = route_command(target)
+        except BranchNotFoundError as exc:
+            console.print(f"drone: {exc}", stderr=True)
+            return 1
+        except CommandExecutionError as exc:
+            console.print(f"drone: {exc}", stderr=True)
+            return 1
+        if result.stdout:
+            console.print(result.stdout, end="", highlight=False)
+        if result.stderr:
+            console.print(result.stderr, end="", highlight=False, stderr=True)
+        return result.exit_code
+
+    # --help = show help
+    if rest == ["--help"]:
         try:
             result = get_help(target)
             if result.text:
-                print(result.text, end="")
+                console.print(result.text, end="", highlight=False)
             else:
-                print(f"No help available for {target}.")
+                console.print(f"No help available for {target}.")
         except BranchNotFoundError as exc:
-            print(f"drone: {exc}", file=sys.stderr)
+            console.print(f"drone: {exc}", stderr=True)
             return 1
         except CommandExecutionError as exc:
-            print(f"drone: {exc}", file=sys.stderr)
+            console.print(f"drone: {exc}", stderr=True)
             return 1
         return 0
 
@@ -200,16 +225,16 @@ def _handle_target(args: List[str]) -> int:
             interactive=interactive,
         )
     except BranchNotFoundError as exc:
-        print(f"drone: {exc}", file=sys.stderr)
+        console.print(f"drone: {exc}", stderr=True)
         return 1
     except CommandExecutionError as exc:
-        print(f"drone: {exc}", file=sys.stderr)
+        console.print(f"drone: {exc}", stderr=True)
         return 1
 
     if result.stdout:
-        print(result.stdout, end="")
+        console.print(result.stdout, end="", highlight=False)
     if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
+        console.print(result.stderr, end="", highlight=False, stderr=True)
     return result.exit_code
 
 
@@ -228,7 +253,7 @@ def main() -> int:
 
     # --version
     if args[0] in ["--version", "-V"]:
-        print(f"drone v{VERSION}")
+        console.print(f"drone v{VERSION}")
         return 0
 
     # --help
@@ -247,8 +272,8 @@ def main() -> int:
         return _handle_target(args)
 
     # Unknown command
-    print(f"drone: unknown command '{command}'", file=sys.stderr)
-    print("Run 'drone --help' for usage.", file=sys.stderr)
+    console.print(f"drone: unknown command '{command}'", stderr=True)
+    console.print("Run 'drone --help' for usage.", stderr=True)
     return 1
 
 

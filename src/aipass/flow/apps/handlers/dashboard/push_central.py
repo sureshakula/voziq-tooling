@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: push_central.py
-# Date: 2025-11-21
+# Description: Push to Plans Central Handler
 # Version: 1.1.0
-# Category: flow/handlers/dashboard
-#
-# CHANGELOG:
-#   - v1.1.0 (2025-11-21): Integrated aggregate_central for self-healing
-#   - v1.0.0 (2025-11-21): Initial creation - push Flow's plans to central aggregation
+# Created: 2025-11-21
+# Modified: 2025-11-21
 # =============================================
 
 """

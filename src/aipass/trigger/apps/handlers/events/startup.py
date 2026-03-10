@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: startup.py - Startup Event Handler
-# Date: 2026-02-03
+# =================== AIPass ====================
+# Name: startup.py
+# Description: Startup event handler with error catch-up scanning
 # Version: 1.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-26): DPLAN-037 - Add MAX_ERRORS, MAX_FILE_SIZE, time budget to error catchup
-#   - v0.2.0 (2026-02-03): Added error catch-up on startup
-#   - v0.1.0 (2025-12-04): Created startup event handler
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Replaces Prax logger's hardcoded calls with event-based approach
-#   - Handlers must not import Prax logger
-#   - Handlers receive fire_event callback via kwargs (no module imports)
+# Created: 2025-12-04
+# Modified: 2026-02-26
 # =============================================
 
 """Startup Event Handler - Run startup checks

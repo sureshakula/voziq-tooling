@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: provision.py - Caller Auto-Provisioning Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: provision.py
+# Description: Caller Auto-Provisioning Handler
 # Version: 1.0.0
-# Category: api/handlers/openrouter
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-16): Initial handler - auto-provision caller configs
+# Created: 2025-11-16
+# Modified: 2025-11-16
 # =============================================
 
 """
@@ -21,7 +17,7 @@ Business logic for provisioning OpenRouter API configs:
 - Ensure caller has complete 3-file JSON structure
 
 COMPLIANT STANDARDS:
-- Uses console.print() for output (NO print())
+- Uses prax logger for output (NO print() or console.print())
 - Uses prax logger for operations
 - Standalone functions (no class dependencies)
 - Imports from caller handler for detection logic
@@ -36,7 +32,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 
-from aipass.cli.apps.modules import console
+from aipass.prax import logger
 
 from aipass.api.apps.handlers.openrouter.caller import detect_caller_from_stack
 
@@ -168,12 +164,12 @@ def provision_json_folder(json_folder: Path) -> bool:
 
         json_folder.mkdir(parents=True, exist_ok=True)
         # logger.info(f"Created JSON folder: {json_folder}")
-        console.print(f"[green]Created JSON folder:[/green] {json_folder}")
+        logger.info(f"Created JSON folder: {json_folder}")
 
         return True
     except Exception as e:
         # logger.error(f"Failed to create JSON folder {json_folder}: {e}")
-        console.print(f"[red]Error:[/red] Failed to create JSON folder: {e}")
+        logger.error(f"Failed to create JSON folder: {e}")
         return False
 
 
@@ -207,7 +203,7 @@ def create_caller_config(caller: str, json_folder: Path) -> Dict[str, Any]:
             return {}
 
         # logger.info(f"Created API config for {caller}: {config_file}")
-        console.print(f"[green]Created config:[/green] {config_file.name}")
+        logger.info(f"Created config: {config_file.name}")
 
         # Create data file
         data_file = json_folder / "openrouter_skill_data.json"
@@ -215,7 +211,7 @@ def create_caller_config(caller: str, json_folder: Path) -> Dict[str, Any]:
 
         if write_json(data_file, data):
             # logger.info(f"Created data file for {caller}: {data_file}")
-            console.print(f"[green]Created data:[/green] {data_file.name}")
+            logger.info(f"Created data: {data_file.name}")
 
         # Create log file
         log_file = json_folder / "openrouter_skill_log.json"
@@ -223,16 +219,16 @@ def create_caller_config(caller: str, json_folder: Path) -> Dict[str, Any]:
 
         if write_json(log_file, log_data):
             # logger.info(f"Created log file for {caller}: {log_file}")
-            console.print(f"[green]Created log:[/green] {log_file.name}")
+            logger.info(f"Created log: {log_file.name}")
 
-        console.print(f"[cyan]Info:[/cyan] Auto-provisioned OpenRouter config for '{caller}'")
-        console.print(f"[yellow]Note:[/yellow] Reload config and retry request")
+        logger.info(f"Auto-provisioned OpenRouter config for '{caller}'")
+        logger.warning("Reload config and retry request")
 
         return config
 
     except Exception as e:
         # logger.error(f"Failed to create config for {caller}: {e}")
-        console.print(f"[red]Error:[/red] Config creation failed: {e}")
+        logger.error(f"Config creation failed: {e}")
         return {}
 
 
@@ -259,7 +255,7 @@ def ensure_caller_config(caller: str | None = None) -> Dict[str, Any]:
                 # logger.info(f"Auto-detected caller: {caller}")
             else:
                 # logger.warning("Could not detect caller from stack")
-                console.print("[yellow]Warning:[/yellow] Could not detect caller module")
+                logger.warning("Could not detect caller module")
                 return {}
 
         # Get JSON folder path if not already detected
@@ -267,7 +263,7 @@ def ensure_caller_config(caller: str | None = None) -> Dict[str, Any]:
             _, json_folder = detect_caller_from_stack()
             if not json_folder:
                 # logger.error(f"Could not determine JSON folder for {caller}")
-                console.print(f"[red]Error:[/red] Could not find JSON folder for '{caller}'")
+                logger.error(f"Could not find JSON folder for '{caller}'")
                 return {}
 
         # Check if config already exists
@@ -280,14 +276,14 @@ def ensure_caller_config(caller: str | None = None) -> Dict[str, Any]:
                 return config
             else:
                 # logger.warning(f"Config file corrupted for {caller}, regenerating")
-                console.print(f"[yellow]Warning:[/yellow] Corrupted config, regenerating...")
+                logger.warning("Corrupted config, regenerating...")
 
         # Create new config
         return create_caller_config(caller, json_folder)
 
     except Exception as e:
         # logger.error(f"Failed to ensure config for {caller}: {e}")
-        console.print(f"[red]Error:[/red] Config provisioning failed: {e}")
+        logger.error(f"Config provisioning failed: {e}")
         return {}
 
 

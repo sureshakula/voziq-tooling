@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: purge.py - Sent/Deleted Auto-Purge Handler
-# Date: 2026-02-04
+# =================== AIPass ====================
+# Name: purge.py
+# Description: Sent/Deleted Auto-Purge Handler
 # Version: 2.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-04): Update deleted purge for deleted/ directory structure
-#   - v1.0.0 (2026-02-04): Initial version - auto-purge sent/deleted folders
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Vectorization via subprocess (no direct Memory Bank imports)
-#   - Uses Prax system_logger (FPLAN-0382)
+# Created: 2026-02-04
+# Modified: 2026-02-04
 # =============================================
 
 """

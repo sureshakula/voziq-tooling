@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: filtering.py - Terminal Output Filtering
-# Date: 2025-11-10
+# =================== AIPass ====================
+# Name: filtering.py
+# Description: Terminal Output Filtering
 # Version: 1.0.0
-# Category: prax/handlers/logging/terminal
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_terminal.py
+# Created: 2025-11-10
+# Modified: 2026-03-09
 # =============================================
 
 """

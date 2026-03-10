@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: comment_module.py - Comment orchestration module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: comment_module.py
+# Description: Comment orchestration module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/comments/comment_ops.py and renders the results.
 Handles: comment, vote commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.comment_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -40,6 +27,21 @@ except ImportError:
 
 from commons.apps.handlers.comments.comment_ops import add_comment, vote_on_content
 from commons.apps.handlers.identity.identity_ops import resolve_display_name
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("comment_module Module")
+    console.print("Comment and vote orchestration — adding comments and voting on content")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/comments/")
+    console.print("    - comment_ops.py (add_comment — add a comment to a post)")
+    console.print("    - comment_ops.py (vote_on_content — upvote or downvote content)")
+    console.print("  handlers/identity/")
+    console.print("    - identity_ops.py (resolve_display_name — map branch name to display name)")
+    console.print()
 
 
 # =============================================================================

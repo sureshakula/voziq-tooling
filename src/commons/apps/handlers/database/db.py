@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: db.py - The Commons SQLite connection manager
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: db.py
+# Description: The Commons SQLite connection manager
 # Version: 1.0.0
-# Category: commons/apps/handlers/database
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system with flattened schema
-#
-# CODE STANDARDS:
-#   - Pure sqlite3 stdlib - no external dependencies
-#   - WAL journal mode for concurrent access
-#   - Exponential backoff retry on database locked
-#   - Foreign keys enforced
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -34,11 +25,7 @@ import time
 from pathlib import Path
 from typing import Optional, TypeVar, Callable
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.db")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 # =============================================================================
 # DATABASE PATHS

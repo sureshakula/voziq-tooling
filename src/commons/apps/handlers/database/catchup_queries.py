@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: catchup_queries.py - Catchup Database Queries Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: catchup_queries.py
+# Description: Catchup Database Queries Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/database
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: pure database queries
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """

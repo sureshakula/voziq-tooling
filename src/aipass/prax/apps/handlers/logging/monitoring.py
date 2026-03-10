@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: monitoring.py - PRAX Logging Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: monitoring.py
+# Description: PRAX Logging Handler
 # Version: 1.0.0
-# Category: prax/handlers/logging
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted monitoring loop from modules/logger.py
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Uses Prax logger for system-wide logging
-#   - Implements graceful shutdown with KeyboardInterrupt handling
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """

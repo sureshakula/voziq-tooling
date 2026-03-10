@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: drive_sync_ops.py - Google Drive Sync Business Operations Handler
-# Date: 2026-02-20
+# =================== AIPass ====================
+# Name: drive_sync_ops.py
+# Description: Google Drive Sync Business Operations Handler
 # Version: 1.0.0
-# Category: backup_system/handlers/operations
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-20): Extracted from google_drive_sync module
-#     * Moved get_status, clear_file_tracker, show_file_tracker_stats,
-#       test_drive_sync to handler layer
-#     * Follows seed 3-layer architecture standards
-#
-# CODE STANDARDS:
-#   - Handlers must be independent and transportable
-#   - No prax imports (handler tier)
-#   - Delegates to json handler for file operations
+# Created: 2026-02-20
+# Modified: 2026-03-09
 # =============================================
 
 """

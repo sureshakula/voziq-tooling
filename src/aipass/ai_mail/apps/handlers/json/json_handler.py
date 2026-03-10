@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - JSON Handler (Canonical Path)
-# Date: 2026-02-28
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: JSON Handler (Canonical Path)
 # Version: 1.0.0
-# Category: ai_mail/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-28): Re-export from json_utils for Seed architecture compliance
-#
-# CODE STANDARDS:
-#   - Re-exports json_handler from json_utils/ (canonical implementation)
-#   - Satisfies Seed architecture standard for apps/handlers/json/ path
+# Created: 2026-02-28
+# Modified: 2026-02-28
 # =============================================
 
 """

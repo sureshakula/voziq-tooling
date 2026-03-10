@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reaction_module.py - Curation Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: reaction_module.py
+# Description: Curation Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -25,13 +16,9 @@ and renders results with Rich.
 Handles: react, unreact, reactions, pin, unpin, pinned, trending commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.reaction_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -52,6 +39,26 @@ from commons.apps.handlers.curation.reaction_queries import (
     REACTION_EMOJI,
     VALID_REACTIONS,
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("reaction_module Module")
+    console.print("Thin router for thread curation and engagement workflows — reactions, pins, and trending.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/curation/")
+    console.print("    - curation_ops.py (add_react — add a reaction to a target)")
+    console.print("    - curation_ops.py (remove_react — remove a reaction from a target)")
+    console.print("    - curation_ops.py (show_reactions — list reactions on a target)")
+    console.print("    - curation_ops.py (pin_post_cmd — pin a post)")
+    console.print("    - curation_ops.py (unpin_post_cmd — unpin a post)")
+    console.print("    - curation_ops.py (show_pinned — list pinned posts)")
+    console.print("    - curation_ops.py (show_trending — list trending posts)")
+    console.print("    - reaction_queries.py (REACTION_EMOJI — emoji mapping for reaction types)")
+    console.print("    - reaction_queries.py (VALID_REACTIONS — set of valid reaction names)")
+    console.print()
 
 
 # =============================================================================

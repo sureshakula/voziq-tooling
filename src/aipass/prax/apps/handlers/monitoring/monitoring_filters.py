@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: monitoring_filters.py - Monitoring Filter Patterns
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: monitoring_filters.py
+# Description: Monitoring Filter Patterns
 # Version: 1.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-23): Initial creation based on backup_system config_handler.py
-#     * Adapted backup system's pattern organization for monitoring
-#     * Created MONITOR_IGNORE_PATTERNS from GLOBAL_IGNORE_PATTERNS
-#     * Created MONITOR_ALWAYS_PATTERNS from IGNORE_EXCEPTIONS
-#     * Added new CONTENT_FILTER_PATTERNS for log filtering
-#     * Added new HIGHLIGHT_PATTERNS for priority-based event highlighting
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -347,8 +333,10 @@ def should_monitor(path: Path) -> bool:
 
     # Check IGNORE patterns
     for pattern in MONITOR_IGNORE_PATTERNS:
-        # Directory name matching (must be in path parts)
-        if pattern in ["backups", ".cache", ".git", "node_modules"]:
+        # Directory name matching (must be exact path part, not substring)
+        # e.g. ".local" should match ~/.local/ but NOT .ai_mail.local/
+        if pattern in ["backups", ".cache", ".git", "node_modules",
+                        ".local", ".config", ".var", ".backup"]:
             if pattern in parts:
                 return False
         # Exact name match

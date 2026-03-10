@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: central_writer.py - AI_MAIL Central File Writer
-# Date: 2025-11-27
+# =================== AIPass ====================
+# Name: central_writer.py
+# Description: AI_MAIL Central File Writer
 # Version: 1.0.0
-# Category: ai_mail/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-27): Initial implementation - central file writer
-#
-# CODE STANDARDS:
-#   - Handler tier 3: pure functions, raises exceptions
-#   - No CLI imports (Prax, Rich, etc.)
-#   - Follows Seed handler patterns
+# Created: 2025-11-27
+# Modified: 2025-11-27
 # =============================================
 
 """

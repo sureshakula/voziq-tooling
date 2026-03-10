@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: sync_registry_ops.py
 # Description: Registry sync handler — implementation logic for registry repair
 # Version: 1.0.0
@@ -25,6 +25,13 @@ from aipass.spawn.apps.handlers.registry import (
     save_registry,
     _branches_as_list,
 )
+from aipass.spawn.apps.handlers.meta_ops import (
+    load_template_registry,
+    generate_branch_meta,
+    save_branch_meta,
+)
+from aipass.spawn.apps.handlers.file_ops import regenerate_template_registry
+from aipass.spawn.apps.handlers.class_registry import get_template_dir
 
 # Repo root — resolved from spawn package location
 _REPO_ROOT = Path(__file__).parents[5]  # handlers/apps/spawn/aipass/src/AIPass
@@ -158,9 +165,51 @@ def sync_registry(fix: bool = False) -> dict:
         else:
             logger.error("[sync-registry] Failed to save updated registry")
 
+    # Rebuild .spawn/ tracking for branches missing metadata
+    spawn_rebuilt = []
+    if fix:
+        for name in healthy + unregistered_list:
+            branch_path = filesystem_branches.get(name)
+            if not branch_path:
+                continue
+
+            # Check/rebuild .spawn/.template_registry.json
+            spawn_dir = branch_path / ".spawn"
+            spawn_dir.mkdir(exist_ok=True)
+            template_reg_path = spawn_dir / ".template_registry.json"
+            if not template_reg_path.exists():
+                regenerate_template_registry(branch_path)
+
+            # Check/rebuild .spawn/.branch_meta.json
+            branch_meta_path = spawn_dir / ".branch_meta.json"
+            if not branch_meta_path.exists():
+                # Determine citizen class from passport
+                passport_path = branch_path / ".trinity" / "passport.json"
+                citizen_class = "builder"  # default
+                if passport_path.exists():
+                    try:
+                        passport = json.loads(passport_path.read_text(encoding="utf-8"))
+                        citizen_class = passport.get("identity", {}).get("citizen_class", "builder")
+                    except (json.JSONDecodeError, IOError):
+                        pass
+
+                # Load template registry for that class (fall back to builder if unknown)
+                try:
+                    template_dir = get_template_dir(citizen_class)
+                except ValueError:
+                    logger.warning(f"[sync-registry] Unknown class '{citizen_class}' for {name}, falling back to builder")
+                    template_dir = get_template_dir("builder")
+                template_registry = load_template_registry(template_dir)
+                if template_registry:
+                    branch_meta = generate_branch_meta(branch_path, template_registry)
+                    save_branch_meta(branch_path, branch_meta)
+                    spawn_rebuilt.append(name)
+                    logger.info(f"[sync-registry] Rebuilt .spawn/ for: {name}")
+
     return {
         "stale": stale,
         "unregistered": unregistered_list,
         "healthy": healthy,
         "fixed": fixed,
+        "spawn_rebuilt": spawn_rebuilt,
     }

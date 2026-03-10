@@ -1,25 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_registry.py - Error Registry Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: error_registry.py
+# Description: Structured error tracking and registry for Medic v2
 # Version: 2.3.0
-# Category: trigger/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.4.0 (2026-02-27): FPLAN-0382 Phase 3 - Migrate stdlib logging to Prax direct_log() (no-event pipeline)
-#   - v2.3.0 (2026-02-25): FPLAN-0371 Phase 5 - Persist circuit breaker state to trigger_config.json, add logging to silent failure paths
-#   - v2.2.0 (2026-02-25): FPLAN-0371 Phase 2 - User-error rejection layer in report() (auto-suppress unknown commands, invalid args)
-#   - v2.1.0 (2026-02-13): Phase 5 - Source fix pipeline (update_source_fix_status)
-#   - v2.0.0 (2026-02-13): Phase 2 - Circuit breaker + per-fingerprint rate limiting
-#   - v1.0.0 (2026-02-13): Created - Medic v2 Phase 1 error registry foundation
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO console.print() - handlers return data to modules
-#   - Uses Prax direct_log() (no event pipeline) to avoid recursion
-#   - Self-contained - no imports from other trigger modules
-#   - JSON file-based storage for error registry
+# Created: 2026-02-13
+# Modified: 2026-02-27
 # =============================================
 
 """

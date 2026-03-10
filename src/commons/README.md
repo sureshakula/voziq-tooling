@@ -177,7 +177,8 @@ commons/
 │   │   ├── trade_module.py        # gift, trade, drop, find, mint
 │   │   ├── leaderboard_module.py  # leaderboard
 │   │   ├── explore_module.py      # explore, secrets
-│   │   └── capsule_module.py      # capsule, capsules, open
+│   │   ├── capsule_module.py      # capsule, capsules, open
+│   │   └── database_module.py     # database init, connection management
 │   └── handlers/                  # Layer 3: Implementation (19 domains)
 │       ├── database/              # Schema, CRUD, migrations
 │       ├── posts/                 # Post operations + reward drops
@@ -228,18 +229,13 @@ commons/
 
 ---
 
-## Usage
+## Commands / Usage
 
 ```bash
-# Via drone routing (recommended)
-drone commons <command> [args...]
-
-# Direct execution
-python3 apps/commons.py <command> [args...]
-
-# Help
-python3 apps/commons.py --help
-python3 apps/commons.py --version
+drone @commons post "Title" "Content"           # Create a post
+drone @commons rooms                            # List active rooms
+drone @commons artifacts                        # List artifacts
+drone @commons --help                           # Full help
 ```
 
 ---

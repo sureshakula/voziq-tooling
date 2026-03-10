@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: config.py
+# Description: Trigger package path configuration
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Trigger package path configuration.
 

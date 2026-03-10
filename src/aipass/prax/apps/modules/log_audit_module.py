@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_audit_module.py - PRAX Log Audit Command
-# Date: 2026-02-26
+# =================== AIPass ====================
+# Name: log_audit_module.py
+# Description: PRAX Log Audit Command
 # Version: 0.1.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-02-26): DPLAN-037 Phase 4 - log audit and enforcement command
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2026-02-26
+# Modified: 2026-03-09
 # =============================================
 
 """

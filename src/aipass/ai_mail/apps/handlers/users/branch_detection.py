@@ -1,18 +1,9 @@
-
-# =============================================
-# META DATA HEADER
-# Name: branch_detection.py - Branch Auto-Detection Handler
-# Date: 2025-11-18
+# =================== AIPass ====================
+# Name: branch_detection.py
+# Description: Branch Auto-Detection Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/users
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-18): Initial creation - PWD/CWD branch detection
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Pure business logic only
+# Created: 2025-11-18
+# Modified: 2025-11-18
 # =============================================
 
 """

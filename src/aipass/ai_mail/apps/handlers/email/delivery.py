@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: delivery.py - Email Delivery Handler
-# Date: 2025-12-02
+# =================== AIPass ====================
+# Name: delivery.py
+# Description: Email Delivery Handler
 # Version: 3.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v3.1.0 (2026-02-25): Private branch inbound email blocking (DPLAN-035 email isolation)
-#   - v3.0.0 (2026-02-17): Remove spawn logic — delivery is write-only, daemon handles all spawning
-#   - v2.4.0 (2026-02-10): Seed compliance - remove logger calls, cross-handler imports, fix naming, add json_handler
-#   - v2.3.0 (2026-02-10): Phase 3 polish - concise bounce messages, dispatch chain logging, hardened loop detection
-#   - v2.2.0 (2026-02-10): DEV_CENTRAL dispatch protection, notification throttling, self-reply loop detection
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-handler or module imports
-#   - No logger calls (module logs for handler)
-#   - Pure business logic only
-#   - Uses json_handler for JSON operations
+# Created: 2025-12-02
+# Modified: 2025-12-02
 # =============================================
 
 """
@@ -62,11 +48,11 @@ def _get_inbox_lock():
 
 
 def _get_console():
-    """Lazy import console."""
+    """Lazy import console - only for __main__ block."""
     global _CONSOLE
     if _CONSOLE is None:
-        from aipass.cli.apps.modules import console
-        _CONSOLE = console
+        from rich.console import Console
+        _CONSOLE = Console()
     return _CONSOLE
 
 
@@ -495,13 +481,10 @@ def _send_desktop_notification(sender: str, recipient: str, subject: str, messag
             body = f"{subject}\n{preview}"
 
     try:
-        subprocess.run(
-            ['notify-send', title, body],
-            capture_output=True,
-            timeout=5
-        )
+        from aipass.ai_mail.apps.handlers.notify import send_notification
+        send_notification(title, body, source=sender_name)
         _NOTIFICATION_TIMESTAMPS[recipient].append(now)
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+    except Exception:
         return
 
 

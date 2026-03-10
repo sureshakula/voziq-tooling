@@ -1,30 +1,9 @@
-# =============================================================================
-# EXTRACTED FROM Dev-Pass devpulse on 2026-03-08
-# Original location: aipass_os/dev_central/devpulse/apps/handlers/dashboard/template_differ.py
-# These files need adaptation for AIPass before use
-# Original imports use aipass_os.dev_central.devpulse — must be converted to aipass.prax
-# PURPOSE: Compares dashboard template against branch dashboards to report diffs
-# =============================================================================
-
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: template_differ.py - Dashboard Template Diff Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: template_differ.py
+# Description: Dashboard Template Diff Handler
 # Version: 1.0.0
-# Category: devpulse/handlers/dashboard
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-25): Initial version
-#     * Compare dashboard template against branch dashboards
-#     * Report additions, removals, and modifications per branch
-#     * Support single-branch and all-branch diffing
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports, no Prax logging
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <300 lines target
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """

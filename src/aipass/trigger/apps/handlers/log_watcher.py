@@ -1,28 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_watcher.py - Branch Log Watcher Event Producer
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: log_watcher.py
+# Description: Branch log watcher event producer for error detection
 # Version: 2.3.0
-# Category: trigger/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.4.0 (2026-02-27): FPLAN-0382 Phase 3 - Migrate stdlib logging to Prax direct_log() (no-event pipeline)
-#   - v2.3.0 (2026-02-25): FPLAN-0371 Phase 5 - Add logging when _fire_event callback is None (silent failure path)
-#   - v2.2.0 (2026-02-25): FPLAN-0371 Phase 2 - False positive elimination: strict parser, semantic exclusion, case-insensitive excludes, stale default
-#   - v2.1.0 (2026-02-23): Fix false positives - persist positions, exclude self-referential logs, timestamp guard
-#   - v2.0.0 (2026-02-13): Medic v2 Phase 3 - Registry-based dedup via error_registry.report()
-#   - v1.0.1 (2026-02-10): FPLAN-0310 Phase 2 - Persist dedup hashes to trigger_data.json, increase max to 2000
-#   - v1.0.0 (2026-02-02): Created - FPLAN-0284 Phase 1
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO console.print() - handlers return data to modules
-#   - Uses Prax direct_log() (no event pipeline) to avoid recursion
-#   - Fires error_detected events when ERROR entries found in branch logs
-#   - Primary dedup path: error_registry.report() (Medic v2)
-#   - Fallback dedup: MD5 hash-based (Medic v1, kept for backward compat)
-#   - Dispatch threshold: fires event on count==1 (register) AND count==2 (dispatch)
+# Created: 2026-02-02
+# Modified: 2026-02-27
 # =============================================
 
 """

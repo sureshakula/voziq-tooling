@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: exceptions.py
+# Description: Custom exceptions for routing and branch resolution
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Drone module custom exceptions.
 

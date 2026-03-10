@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: notification_module.py - Notification Preferences Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: notification_module.py
+# Description: Notification Preferences Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -25,13 +16,9 @@ and renders results with Rich.
 Handles: watch, mute, track, preferences commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.notification_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -45,6 +32,21 @@ from commons.apps.handlers.notifications.notification_ops import (
     set_track,
     show_preferences,
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("notification_module Module")
+    console.print("Thin router for notification preference commands — watch, mute, track, and preferences display.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/notifications/")
+    console.print("    - notification_ops.py (set_watch — set watch level for all activity notifications)")
+    console.print("    - notification_ops.py (set_mute — mute notifications for a target)")
+    console.print("    - notification_ops.py (set_track — set track level for mentions and replies only)")
+    console.print("    - notification_ops.py (show_preferences — display all notification preferences)")
+    console.print()
 
 
 # =============================================================================

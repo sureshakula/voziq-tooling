@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - JSON Auto-Creating Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: JSON Auto-Creating Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system for AIPass public framework
-#
-# CODE STANDARDS:
-#   - Pure functions with proper error raising
-#   - No sys.path manipulation
-#   - Handler: no console.print
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -25,22 +17,17 @@ import json
 import os
 import inspect
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, Optional
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.json_handler")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
-# Constants
-AIPASS_ROOT = os.environ.get("AIPASS_ROOT", os.path.expanduser("~"))
-COMMONS_DIR = os.path.join(AIPASS_ROOT, "The_Commons")
-BRANCH_JSON_DIR = os.path.join(COMMONS_DIR, "the_commons_json")
-JSON_TEMPLATES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "json_templates"
-)
+# Constants - relative path resolution (pip-safe, no hardcoded absolutes)
+_HANDLER_DIR = Path(__file__).resolve().parent          # .../commons/apps/handlers/json/
+_APPS_DIR = _HANDLER_DIR.parent.parent                  # .../commons/apps/
+_COMMONS_ROOT = _APPS_DIR.parent                        # .../commons/
+BRANCH_JSON_DIR = str(_COMMONS_ROOT / "commons_json")
+JSON_TEMPLATES_DIR = str(_APPS_DIR / "json_templates")
 
 
 def _get_caller_module_name() -> str:

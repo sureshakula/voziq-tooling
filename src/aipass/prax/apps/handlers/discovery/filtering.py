@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: filtering.py - Path Filtering
-# Date: 2025-11-10
+# =================== AIPass ====================
+# Name: filtering.py
+# Description: Path Filtering
 # Version: 1.0.0
-# Category: prax/handlers/discovery
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_discovery.py
+# Created: 2025-11-10
+# Modified: 2026-03-09
 # =============================================
 
 """

@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dashboard_pipeline.py - Dashboard Notification Pipeline Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: dashboard_pipeline.py
+# Description: Dashboard Notification Pipeline Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/notifications
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system for AIPass public framework
-#
-# CODE STANDARDS:
-#   - Handler: pure business logic, no console.print
-#   - No sys.path manipulation
-#   - Updates branch dashboards when Commons events occur
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -41,11 +33,7 @@ Usage:
 import sqlite3
 from typing import Dict, Any, List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.dashboard_pipeline")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 from commons.apps.handlers.notifications.preferences import get_preference

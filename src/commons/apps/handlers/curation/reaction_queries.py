@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reaction_queries.py - Reaction Query Handlers
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: reaction_queries.py
+# Description: Reaction Query Handlers
 # Version: 1.0.0
-# Category: commons/apps/handlers/curation
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler layer - database operations only
-#   - Pure sqlite3 stdlib, no external dependencies
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """

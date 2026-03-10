@@ -1,18 +1,9 @@
-
-# =============================================
-# META DATA HEADER
-# Name: config_generator.py - Local Config Auto-Generation Handler
-# Date: 2025-11-18
+# =================== AIPass ====================
+# Name: config_generator.py
+# Description: Local Config Auto-Generation Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/users
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-18): Initial creation - auto-generate branch configs
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Pure business logic only
+# Created: 2025-11-18
+# Modified: 2025-11-18
 # =============================================
 
 """

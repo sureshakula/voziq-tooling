@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - Auto-Creating & Self-Healing JSON System
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: Auto-Creating & Self-Healing JSON System
 # Version: 1.0.0
-# Category: prax/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial implementation - JSON auto-creation and validation
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Auto-creates JSON files from templates if missing
-#   - Validates JSON structure before use
-#   - Implements config-controlled log rotation (FIFO)
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -29,9 +19,12 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import inspect
 
-from aipass.prax.apps.handlers.config.load import PRAX_ROOT
-PRAX_JSON_DIR = PRAX_ROOT / "prax_json"
-JSON_TEMPLATES_DIR = PRAX_ROOT / "apps" / "json_templates"
+# Resolve paths relative to this file (no hardcoded paths)
+_HANDLER_DIR = Path(__file__).resolve().parent          # .../handlers/json/
+_HANDLERS_DIR = _HANDLER_DIR.parent                     # .../handlers/
+_PRAX_ROOT = _HANDLERS_DIR.parent.parent                # .../prax/
+PRAX_JSON_DIR = _PRAX_ROOT / "prax_json"
+JSON_TEMPLATES_DIR = _HANDLERS_DIR / "json_templates"
 
 
 def _get_caller_module_name() -> str:

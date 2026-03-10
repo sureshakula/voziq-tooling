@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: file_scanner.py - File system scanning operations
-# Date: 2025-11-18
+# =================== AIPass ====================
+# Name: file_scanner.py
+# Description: File system scanning operations
 # Version: 1.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-18): Extracted from backup_core.py
-#     * Extracted file scanning logic (os.walk loops)
-#     * Handles file discovery with ignore patterns
-#     * Returns file list with metadata
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-18
+# Modified: 2026-03-09
 # =============================================
 
 """

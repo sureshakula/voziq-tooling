@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: chroma_subprocess.py - ChromaDB Subprocess Handler
-# Date: 2025-11-27
+# =================== AIPass ====================
+# Name: chroma_subprocess.py
+# Description: ChromaDB Subprocess Handler
 # Version: 1.1.0
-# Category: memory/handlers/storage
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v1.0.0 (2025-11-27): Initial version - subprocess wrapper for ChromaDB
-#
-# CODE STANDARDS:
-#   - Accepts JSON input via stdin, outputs JSON to stdout
-#   - Handler pattern - pure worker, no logging
+# Created: 2025-11-27
+# Modified: 2026-03-06
 # =============================================
 
 """

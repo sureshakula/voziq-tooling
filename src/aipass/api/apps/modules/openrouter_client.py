@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: openrouter_client.py - OpenRouter Client Module
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: openrouter_client.py
+# Description: OpenRouter Client Module
 # Version: 1.0.0
-# Category: api/modules
-# CODE STANDARDS: Seed v1.0.0
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial module - orchestrates OpenRouter operations
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -237,7 +232,7 @@ def get_response(prompt: str, caller: str | None = None, model: str | None = Non
         >>> from aipass.api.apps.modules.openrouter_client import get_response
         >>> response = get_response("Hello", caller="flow", model="anthropic/claude-3.5-sonnet")
         >>> if response:
-        ...     print(response['content'])
+        ...     console.print(response['content'])
     """
     return client.get_response(prompt, caller, model, **kwargs)
 

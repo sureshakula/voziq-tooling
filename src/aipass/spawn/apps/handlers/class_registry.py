@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: class_registry.py
 # Description: Citizen class registry — maps class names to template directories
 # Version: 1.0.0

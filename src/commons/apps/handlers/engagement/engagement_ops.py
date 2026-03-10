@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: engagement_ops.py - Engagement Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: engagement_ops.py
+# Description: Engagement Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/engagement
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,14 +17,10 @@ Events are announcement posts with a special format.
 Returns dicts for module display layer.
 """
 
-import logging
 from typing import List
 from datetime import datetime
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.engagement_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

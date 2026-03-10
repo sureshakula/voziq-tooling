@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: json_ops.py
 # Description: JSON operations — deep merge, migrations, backups
 # Version: 1.0.0

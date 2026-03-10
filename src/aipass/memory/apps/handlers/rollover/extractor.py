@@ -1,20 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: extractor.py - Memory Extraction Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: extractor.py
+# Description: Memory Extraction Handler
 # Version: 0.4.0
-# Category: memory/handlers/rollover
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.4.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.3.0 (2025-11-16): Refactored to use json_handler instead of direct json ops
-#   - v0.2.0 (2025-11-16): Complete redesign - work with real memory file structure
-#   - v0.1.0 (2025-11-16): Initial version (broken - assumed 'entries' array)
-#
-# CODE STANDARDS:
-#   - Handler independence: Uses json_handler only
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <400 lines target
+# Created: 2025-11-16
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -42,8 +31,9 @@ from datetime import datetime
 
 # Handler imports (relative within package)
 from aipass.memory.apps.handlers.json.json_handler import read_memory_file_data, write_memory_file_simple
+from aipass.prax.apps.modules.logger import get_system_logger
 
-logger = logging.getLogger(__name__)
+logger = get_system_logger()
 
 # No module imports (handler independence)
 

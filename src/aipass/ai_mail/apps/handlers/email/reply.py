@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reply.py - Email Reply Handler
-# Date: 2025-11-30
+# =================== AIPass ====================
+# Name: reply.py
+# Description: Email Reply Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2026-01-31): Add reply chain validation - fail loud on identity mismatch
-#   - v1.1.0 (2026-01-29): Add reply_to field support - replies go to reply_to address if set
-#   - v1.0.0 (2025-11-30): Initial creation - reply to email + auto-close
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Can import AIPASS central services (dashboard)
-#   - Pure business logic only
+# Created: 2025-11-30
+# Modified: 2025-11-30
 # =============================================
 
 """

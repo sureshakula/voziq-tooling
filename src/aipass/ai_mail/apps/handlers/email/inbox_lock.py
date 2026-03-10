@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: inbox_lock.py - Inbox File Lock Handler
-# Date: 2026-02-09
+# =================== AIPass ====================
+# Name: inbox_lock.py
+# Description: Inbox File Lock Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-09): Initial implementation - fcntl.flock based inbox.json locking
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Uses logging module for diagnostics
-#   - Pure business logic only
+# Created: 2026-02-09
+# Modified: 2026-02-09
 # =============================================
 
 """

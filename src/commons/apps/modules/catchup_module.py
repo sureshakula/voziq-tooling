@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: catchup_module.py - Catchup Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: catchup_module.py
+# Description: Catchup Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/catchup/catchup_ops.py and renders results with Rich.
 Handles: catchup command.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.catchup_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -39,6 +26,18 @@ except ImportError:
     console = Console()
 
 from commons.apps.handlers.catchup.catchup_ops import run_catchup
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("catchup_module Module")
+    console.print("Catchup orchestration — shows what happened since your last visit")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/catchup/")
+    console.print("    - catchup_ops.py (run_catchup — gather and return catchup data)")
+    console.print()
 
 
 # =============================================================================

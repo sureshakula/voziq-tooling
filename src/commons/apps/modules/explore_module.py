@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: explore_module.py - Exploration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: explore_module.py
+# Description: Exploration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ all logic to handlers/rooms/explore_ops.py and renders results with Rich.
 Handles: explore, secrets commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.explore_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -42,6 +29,19 @@ from rich.panel import Panel
 from rich.table import Table
 
 from commons.apps.handlers.rooms.explore_ops import explore_rooms, list_secrets
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("explore_module Module")
+    console.print("Router and display layer for secret room exploration commands.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/rooms/")
+    console.print("    - explore_ops.py (explore_rooms — discover hidden rooms based on visit history)")
+    console.print("    - explore_ops.py (list_secrets — list discovered secret rooms)")
+    console.print()
 
 
 # =============================================================================

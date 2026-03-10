@@ -1,32 +1,35 @@
 # Flow
 
-Plan lifecycle management for AIPass. Creates, tracks, closes, and archives numbered work plans (FPLANs) with registry-backed state, async post-processing, and cross-branch aggregation.
+**Purpose:** Plan lifecycle management for AIPass. Creates, tracks, closes, and archives numbered work plans (FPLANs) with registry-backed state, async post-processing, and cross-branch aggregation.
+**Module:** `aipass.flow`
+**Created:** 2025-11-15
+**Last Updated:** 2026-03-08
 
-## Usage
+---
 
-### CLI (via drone)
+## Overview
+
+### What I Do
+- Create numbered FPLANs from templates (default, master, proposal)
+- Close plans with async post-processing and archival
+- List and filter plans across branches
+- Restore plans from backups
+- Monitor registry health with orphan detection and auto-healing
+- Aggregate plans across branches
+- Background post-close processing via `dplan_post_close_runner`
+- Delegated plan management via `dplan_flow` orchestrator
+
+## Commands / Usage
 
 ```bash
-drone @flow create . "Build authentication module"    # Create plan in current dir
-drone @flow create /path/to "Migration task" master   # Master plan (multi-phase)
-drone @flow close 42                                  # Close plan
-drone @flow close --all                               # Close all open plans
-drone @flow list                                      # List plans
-drone @flow aggregate                                 # Aggregate plans across branches
-drone @flow registry                                  # Registry health monitor
+drone @flow create . "Subject"                  # Create FPLAN in current dir
+drone @flow create . "Subject" master           # Create master plan
+drone @flow close FPLAN-XXXX                    # Close a plan
+drone @flow list                                # List active plans
+drone @flow --help                              # Full help
 ```
 
-### Python
-
-```python
-from aipass.flow.apps.modules.create_plan import create_plan
-from aipass.flow.apps.modules.close_plan import close_plan
-from aipass.flow.apps.modules.list_plans import list_plans
-from aipass.flow.apps.handlers.registry.load_registry import load_registry
-
-# Load the plan registry
-registry = load_registry()
-```
+---
 
 ## Architecture
 
@@ -41,27 +44,44 @@ flow/
 │   │   ├── restore_plan.py      # Plan recovery from backups
 │   │   ├── registry_monitor.py  # Orphan detection, auto-healing
 │   │   ├── aggregate_central.py # Cross-branch plan aggregation
-│   │   └── post_close_runner.py # Background post-processing
+│   │   ├── post_close_runner.py # Background post-processing
+│   │   ├── dplan_flow.py        # Delegated plan management orchestrator
+│   │   └── dplan_post_close_runner.py # DPLAN-specific post-close runner
 │   └── handlers/                # Implementation details
 │       ├── plan/                # Lifecycle, file ops, validation
 │       ├── registry/            # Load, save, auto-heal
 │       ├── template/            # Plan templates (default, master, proposal)
 │       ├── dashboard/           # Status aggregation
+│       ├── dplan/               # DPLAN handlers (list, create, close, display, etc.)
 │       ├── mbank/               # Memory bank archival
 │       └── summary/             # AI-generated plan summaries
 ├── templates/                   # Plan template files
+├── docs/                        # Documentation
 ├── flow_json/                   # Configuration and registry data
 └── tests/
 ```
+
+---
 
 ## Plan Naming
 
 Plans follow the convention `FPLAN-XXXX_topic_slug_YYYY-MM-DD.md` where XXXX is an auto-incrementing number.
 
-## Dependencies
+---
 
-- `aipass.cli` — terminal formatting
-- `aipass.prax` — structured logging
-- `aipass.trigger` — error reporting (optional)
+## Integration Points
 
-Last Updated: 2026-03-06
+### Depends On
+- `aipass.cli` — Terminal formatting (console, header, success, error)
+- `aipass.prax` — Structured logging via `system_logger`
+- `aipass.trigger` — Error reporting (optional)
+- Python stdlib (`pathlib`, `json`, `importlib`, `sys`, `signal`)
+
+### Provides To
+- All modules — Plan creation, tracking, closure, and archival
+- `aipass.devpulse` — Plan status aggregation for system dashboards
+- Registry: Reads/writes plan registry in `flow_json/`
+
+---
+
+*Last Updated: 2026-03-08*

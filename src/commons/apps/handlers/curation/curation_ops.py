@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: curation_ops.py - Curation Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: curation_ops.py
+# Description: Curation Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/curation
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -20,13 +13,9 @@ Implementation logic for reactions, pins, and trending commands.
 Returns dicts for module display layer.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.curation_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 from commons.apps.modules.commons_identity import get_caller_branch

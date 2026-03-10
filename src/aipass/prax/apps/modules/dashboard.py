@@ -1,28 +1,9 @@
-# =============================================================================
-# EXTRACTED FROM Dev-Pass devpulse on 2026-03-08
-# Original location: aipass_os/dev_central/devpulse/apps/modules/dashboard.py
-# These files need adaptation for AIPass before use
-# Original imports use aipass_os.dev_central.devpulse — must be converted to aipass.prax
-# =============================================================================
-
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dashboard.py - Dashboard Section Utilities
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: dashboard.py
+# Description: Dashboard Section Utilities
 # Version: 0.2.0
-# Category: aipass/central
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-02-25): FPLAN-0373 Phase 1 - write_section API, dashboard refresh
-#       command, remove bulletin_board, add commons_activity, updated schema
-#   - v0.1.1 (2025-11-24): Standards fixes - logger, CLI service, handle_command
-#   - v0.1.0 (2025-11-24): Initial structure - dashboard utilities
-#
-# CODE STANDARDS:
-#   - Provides dashboard section update utilities
-#   - Used by services to update their dashboard sections
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -39,36 +20,35 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
-from prax.apps.modules.logger import system_logger as logger
-from cli.apps.modules import console
+from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.cli.apps.modules import console
 
 # Import handlers
-from aipass_os.dev_central.devpulse.apps.handlers.dashboard import (
+from aipass.prax.apps.handlers.dashboard.operations import (
     load_dashboard,
     save_dashboard,
     update_section as handler_update_section,
     write_section,
     get_dashboard_path,
+)
+from aipass.prax.apps.handlers.dashboard.status import (
     calculate_quick_status,
-    get_branch_paths
+    get_branch_paths,
+    resolve_branch_path,
 )
 
 # Import refresh handler - exposed as public API
-from aipass_os.dev_central.devpulse.apps.handlers.dashboard.refresh import (
+from aipass.prax.apps.handlers.dashboard.refresh import (
     refresh_all_dashboards,
     refresh_single_dashboard
 )
 
 # Import template handlers
-from aipass_os.dev_central.devpulse.apps.handlers.dashboard.template_pusher import (
+from aipass.prax.apps.handlers.dashboard.template_pusher import (
     push_dashboard_template,
     get_template_status
 )
-from aipass_os.dev_central.devpulse.apps.handlers.dashboard.template_differ import (
+from aipass.prax.apps.handlers.dashboard.template_differ import (
     diff_dashboard_template
 )
 
@@ -241,6 +221,8 @@ def _resolve_branch_path(branch_ref: str) -> Path:
     """
     Resolve @branch reference to filesystem path via BRANCH_REGISTRY.json.
 
+    Delegates to handler for file I/O (seedgo modules standard).
+
     Args:
         branch_ref: Branch reference like "@flow" or "@vera"
 
@@ -250,21 +232,7 @@ def _resolve_branch_path(branch_ref: str) -> Path:
     Raises:
         FileNotFoundError: If registry missing or branch not found
     """
-    name = branch_ref.lstrip("@").upper()
-    registry_path = Path.home() / "BRANCH_REGISTRY.json"
-
-    if not registry_path.exists():
-        raise FileNotFoundError("BRANCH_REGISTRY.json not found")
-
-    data = json.loads(registry_path.read_text())
-    for branch in data.get("branches", []):
-        if branch.get("name", "").upper() == name:
-            path = Path(branch["path"])
-            if path.exists():
-                return path
-            raise FileNotFoundError(f"Branch path does not exist: {path}")
-
-    raise FileNotFoundError(f"Branch '{name}' not found in registry")
+    return resolve_branch_path(branch_ref)
 
 
 def _handle_refresh(args: List[str]) -> None:

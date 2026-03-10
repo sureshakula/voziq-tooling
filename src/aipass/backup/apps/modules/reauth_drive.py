@@ -1,20 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: reauth_drive.py - Google Drive Re-Authentication Module
-# Date: 2026-02-21
+# =================== AIPass ====================
+# Name: reauth_drive.py
+# Description: Google Drive Re-Authentication Module
 # Version: 1.2.0
-# Category: backup_system
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang, sys.path manipulation, prax/cli imports
-#     * Uses standard logging and rich console
-#     * Relative handler imports, Google API deps wrapped in try/except
-#   - v1.1.0 (2026-02-21): Fixed handle_command() signature (command, args) → (args)
-#   - v1.0.0 (2026-02-20): Initial version - standalone reauth utility
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
+# Created: 2026-02-21
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -26,13 +15,10 @@ Delegates implementation to reauth_handler.
 """
 
 import sys
-import logging
 from pathlib import Path
 
-from rich.console import Console
-
-logger = logging.getLogger(__name__)
-console = Console()
+from aipass.cli.apps.modules import console
+from aipass.prax import logger
 
 # Handler imports
 from aipass.backup.apps.handlers.utils.reauth_handler import reauth as _run_reauth
@@ -137,6 +123,18 @@ def _execute_reauth() -> bool:
         logger.error("Drive re-authentication failed")
 
     return success
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("reauth_drive Module")
+    console.print("Google Drive re-authentication via console OAuth flow")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/utils/")
+    console.print("    - reauth_handler.py (reauth — OAuth credential refresh and re-auth)")
+    console.print()
 
 
 if __name__ == "__main__":

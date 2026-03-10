@@ -1,29 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: file_cleanup.py - File deletion operations
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: file_cleanup.py
+# Description: File deletion operations
 # Version: 1.0.2
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.2 (2025-11-23): Added dry-run support for cleanup operations
-#     * Added dry_run parameter to cleanup_deleted_files()
-#     * Shows "Would delete" messages instead of actually deleting in dry-run
-#     * All three passes (directories, files, empty dirs) respect dry-run mode
-#   - v1.0.1 (2025-11-23): CRITICAL BUG FIX - respect exceptions in empty dir cleanup
-#     * Third pass now checks should_ignore() before removing empty directories
-#     * Prevents deletion of empty template directories
-#     * Added source_dir mapping to check exceptions properly
-#     * Only removes empty dirs if source doesn't exist OR should be ignored
-#   - v1.0.0 (2025-11-18): Extracted from backup_core.py
-#     * Extracted file deletion logic for dynamic mode
-#     * Handles cleanup of deleted source files
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -36,11 +16,11 @@ Handles cleanup of backup files when source files are deleted.
 # IMPORTS
 # =============================================
 
-import logging
+from aipass.prax import logger
 from pathlib import Path
 from typing import Callable
 
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 from aipass.backup.apps.handlers.utils.system_utils import temporarily_writable, safe_print
 from aipass.backup.apps.handlers.models.backup_models import BackupResult

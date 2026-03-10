@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: data_loader.py - DAEMON Data Loading Handler
-# Date: 2026-01-29
+# =================== AIPass ====================
+# Name: data_loader.py
+# Description: DAEMON Data Loading Handler
 # Version: 1.0.0
-# Category: daemon/handlers/update
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-29): Initial implementation - data loading for update digest
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
-#   - No cross-branch imports, no Prax logger
+# Created: 2026-01-29
+# Modified: 2026-01-29
 # =============================================
 
 """

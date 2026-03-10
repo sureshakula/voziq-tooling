@@ -49,3 +49,4 @@ tools/
 
 # Test artifacts
 test/
+src/aipass/seedgo/apps/standards/aipass/pack.json

@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: inbox_cleanup.py - Inbox Cleanup Handler
-# Date: 2025-11-27
+# =================== AIPass ====================
+# Name: inbox_cleanup.py
+# Description: Inbox Cleanup Handler
 # Version: 3.3.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v3.3.0 (2026-02-25): FPLAN-0373 Phase 2 - use enriched push_dashboard_update from dashboard_sync
-#   - v3.2.0 (2026-02-14): Add skip_post_ops param to mark_as_closed_and_archive for batch close perf
-#   - v3.1.0 (2026-02-09): Add fcntl.flock inbox.json locking to prevent concurrent write corruption
-#   - v3.0.0 (2026-02-04): Migrate to deleted/ directory (individual files like sent/)
-#   - v2.1.0 (2026-02-04): Add auto-purge trigger after archiving to deleted
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Can import Prax modules (service providers)
-#   - Can import AIPASS central services (dashboard)
-#   - Pure business logic only
+# Created: 2025-11-27
+# Modified: 2025-11-27
 # =============================================
 
 """
@@ -49,9 +35,9 @@ def _get_inbox_lock():
 
 
 def _get_console() -> Any:
-    """Lazy import console."""
-    from aipass.cli.apps.modules import console
-    return console
+    """Lazy import console - only for __main__ block."""
+    from rich.console import Console
+    return Console()
 
 
 def _get_update_section() -> Any:

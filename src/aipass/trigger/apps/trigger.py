@@ -1,16 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: trigger.py - TRIGGER Branch Entry Point
-# Date: 2025-11-30
+# =================== AIPass ====================
+# Name: trigger.py
+# Description: Entry point CLI for drone @trigger — event bus and error registry
 # Version: 1.0.0
-# Category: trigger
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-30): Initial branch creation
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -70,9 +63,9 @@ def discover_modules() -> List[Any]:
             # Check if module has handle_command function
             if hasattr(module, 'handle_command'):
                 modules.append(module)
-                logger.info(f"[TRIGGER] Loaded module: {file_path.stem}")
+                pass  # Module loaded successfully
             else:
-                logger.info(f"[TRIGGER] Skipped {file_path.stem} - no handle_command()")
+                pass  # No handle_command() - skip silently
 
         except Exception as e:
             logger.error(f"[TRIGGER] Failed to load module {module_name}: {e}")

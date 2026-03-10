@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: placeholders.py
 # Description: Placeholder replacement engine
 # Version: 1.0.0

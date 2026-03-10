@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: flow.py - FLOW Branch Orchestrator
-# Date: 2025-11-30
-# Version: 2.2.1
-# Category: core/planning
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.2.1 (2025-11-30): Fixed help UX - removed @ syntax from examples (@ resolution is drone's job)
-#   - v2.2.0 (2025-11-22): Fixed META header - added category and CODE STANDARDS
-#   - v2.1.0 (2025-11-15): Added CLI services integration (console, header, success, error)
-#   - v2.0.0 (2025-11-15): Refactored to auto-discovery pattern, removed manual routing
-#
-# CODE STANDARDS:
-#   - Handlers implement logic, modules orchestrate
+# =================== AIPass ====================
+# Name: flow.py
+# Description: Entry point CLI for drone @flow — plan lifecycle management
+# Version: 1.0.0
+# Created: 2026-03-08
+# Modified: 2026-03-08
 # =============================================
 
 """

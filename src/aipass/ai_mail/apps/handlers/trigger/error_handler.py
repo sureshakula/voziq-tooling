@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_handler.py - Error Detected Event Consumer
-# Date: 2026-02-02
+# =================== AIPass ====================
+# Name: error_handler.py
+# Description: Error Detected Event Consumer
 # Version: 1.0.0
-# Category: ai_mail/handlers/trigger
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-02): Created - FPLAN-0284 Phase 2
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO console.print() - handlers return data to modules
-#   - NO logger calls in handler (causes recursion with trigger)
-#   - Silent failure pattern - catch all exceptions
-#   - Responds to error_detected events from Trigger's log_watcher
+# Created: 2026-02-02
+# Modified: 2026-02-02
 # =============================================
 
 """

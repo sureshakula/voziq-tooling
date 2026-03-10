@@ -1,20 +1,10 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: close.py - D-PLAN close handler
-# Date: 2026-02-18
+# =================== AIPass ====================
+# Name: close.py
+# Description: D-PLAN close handler
 # Version: 1.0.0
-# Category: devpulse/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-18): Initial version - close/archive DPLAN files
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - NO Prax logging (per 3-tier: modules log, handlers don't)
-#   - Pure business logic only
-# ==============================================
+# Created: 2026-02-18
+# Modified: 2026-02-18
+# =============================================
 
 """
 Close Handler - D-PLAN Close Operations

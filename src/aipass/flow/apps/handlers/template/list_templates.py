@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: list_templates.py
-# Date: 2025-11-07
+# Description: List Templates Handler
 # Version: 1.1.0
-# Category: flow/handlers/template
-#
-# CHANGELOG:
-#   - v1.1.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v1.0.0 (2025-11-07): Extracted from flow_template_handler.py
+# Created: 2025-11-07
+# Modified: 2025-11-07
 # =============================================
 
 """

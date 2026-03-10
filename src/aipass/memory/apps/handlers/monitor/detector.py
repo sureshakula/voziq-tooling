@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: detector.py - Rollover Trigger Detection Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: detector.py
+# Description: Rollover Trigger Detection Handler
 # Version: 0.2.0
-# Category: memory/handlers/monitor
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2025-11-16): Initial version - detect 600-line rollover triggers
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports
-#   - Error handling: Returns status dicts (3-tier architecture)
-#   - File size: <200 lines target
+# Created: 2025-11-16
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -35,7 +26,9 @@ from pathlib import Path
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # No service imports - handlers are pure workers (3-tier architecture)
 # No module imports (handler independence)

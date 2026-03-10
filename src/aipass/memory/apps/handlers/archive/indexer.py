@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: indexer.py - Code Archive Indexer
-# Date: 2025-11-27
+# =================== AIPass ====================
+# Name: indexer.py
+# Description: Code Archive Indexer
 # Version: 0.2.0
-# Category: memory/handlers/archive
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2025-11-27): Initial version - auto-index code archive files
-#
-# CODE STANDARDS:
-#   - Pure handler: No orchestration, just indexing logic
-#   - Stateless functions
-#   - Returns dict with success/error
+# Created: 2025-11-27
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -33,7 +24,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # Paths resolved relative to handler location
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]

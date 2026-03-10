@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: actions_registry.py - Numbered Action Registry
-# Date: 2026-03-02
+# =================== AIPass ====================
+# Name: actions_registry.py
+# Description: Numbered Action Registry
 # Version: 1.0.0
-# Category: daemon/handlers/actions
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-02): Initial creation - DPLAN-043
-#     * Sequential 4-digit IDs (0001-9999)
-#     * JSON storage with CRUD operations
-#     * Plugin auto-migration from PLUGIN_CONFIG
-#     * Due-checking logic for all schedule types
-#     * Supports: plugin, schedule, reminder action types
-#
-# CODE STANDARDS:
-#   - Handler independence: pure business logic
-#   - No Rich console (headless compatible)
+# Created: 2026-03-02
+# Modified: 2026-03-02
 # =============================================
 
 """
@@ -35,12 +22,12 @@ Action types:
 """
 
 import json
-import logging
+from aipass.prax import logger
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 # Paths
 _DAEMON_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/daemon/

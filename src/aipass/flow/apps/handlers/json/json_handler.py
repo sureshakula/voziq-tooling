@@ -1,16 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - Auto-Creating JSON Handler
-# Date: 2025-11-21
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: Auto-Creating JSON Handler
 # Version: 2.1.0
-# Category: flow/handlers/json
-# Code Standards: Seedgo-compliant (3-tier architecture, no logger in handlers)
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.1.0 (2025-11-29): Removed Prax logger - handlers must not log (tier 3 standard)
-#   - v2.0.0 (2025-11-21): Updated to Flow paths, auto-detect module
-#   - v1.0.0 (2025-11-04): Self-healing JSON system with default templates
+# Created: 2025-11-21
+# Modified: 2025-11-21
 # =============================================
 
 """

@@ -1,10 +1,10 @@
-
-# META DATA HEADER
-# Name: branch_detector.py - Branch Attribution Handler
+# =================== AIPass ====================
+# Name: branch_detector.py
+# Description: Branch Attribution Handler
 # Version: 0.1.0
-# Purpose: Detect which branch owns a file/log/module
 # Created: 2025-11-23
-# Location: src/aipass/prax/apps/handlers/monitoring/branch_detector.py
+# Modified: 2026-03-09
+# =============================================
 
 """
 Branch Detection Handler
@@ -23,7 +23,9 @@ import json
 import logging
 from functools import lru_cache
 
-logger = logging.getLogger(__name__)
+from aipass.prax import logger
+
+# logger imported from aipass.prax
 
 
 class BranchDetector:

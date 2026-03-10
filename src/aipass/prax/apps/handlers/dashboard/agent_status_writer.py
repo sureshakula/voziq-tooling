@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: agent_status_writer.py - Agent Status Dashboard Write-Through
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: agent_status_writer.py
+# Description: Agent Status Dashboard Write-Through
 # Version: 0.1.0
-# Category: prax/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2026-02-25): FPLAN-0374 Phase 3 - agent_status dashboard section
-#
-# CODE STANDARDS:
-#   - Handler tier 3: Pure functions, no CLI/Prax imports
-#   - Dashboard write failures are silent (return False, never raise)
-#   - Uses subprocess for cross-branch dashboard writes (no cross-package imports)
-#   - BYPASS: Direct json/Path reads required for lock files, registry, /proc
+# Created: 2026-02-25
+# Modified: 2026-03-09
 # =============================================
 
 """

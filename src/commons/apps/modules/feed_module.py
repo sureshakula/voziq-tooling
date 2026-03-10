@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: feed_module.py - Feed orchestration module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: feed_module.py
+# Description: Feed orchestration module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ handlers/feed/feed_ops.py and renders the results as a Rich table.
 Handles: feed command with hot/new/top/activity sorting.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.feed_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -42,6 +29,21 @@ from rich.table import Table
 
 from commons.apps.handlers.feed.feed_ops import display_feed, format_time_ago
 from commons.apps.handlers.identity.identity_ops import resolve_display_name
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("feed_module Module")
+    console.print("Thin router for feed display — queries and renders posts with hot/new/top/activity sorting.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/feed/")
+    console.print("    - feed_ops.py (display_feed — query feed posts with sorting and pagination)")
+    console.print("    - feed_ops.py (format_time_ago — format timestamps as relative time strings)")
+    console.print("  handlers/identity/")
+    console.print("    - identity_ops.py (resolve_display_name — resolve branch name to display name)")
+    console.print()
 
 
 # =============================================================================

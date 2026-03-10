@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: activity_ops.py - Activity Feed Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: activity_ops.py
+# Description: Activity Feed Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/activity
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -21,14 +14,10 @@ across ALL threads in The Commons, with optional room filtering.
 Returns dicts for module display layer.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.activity_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

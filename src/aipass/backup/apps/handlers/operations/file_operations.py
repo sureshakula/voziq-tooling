@@ -1,40 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: file_operations.py - Core backup file operations
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: file_operations.py
+# Description: Core backup file operations
 # Version: 2.0.4
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.4 (2025-11-23): Fix baseline snapshot messages for VS Code clickability
-#     * Changed baseline snapshot message from {baseline_name} to {baseline_path}
-#     * Users can now Ctrl+click on baseline paths to jump directly to files
-#     * Shows full path (e.g., /home/aipass/backups/project/README-baseline-2025-11-23.md)
-#   - v2.0.3 (2025-11-23): CRITICAL performance fix for versioned backup
-#     * Skip copying unchanged files (only copy if mtime differs)
-#     * Fixes 5s -> <1s regression (was copying all 5000+ files every time)
-#     * Added file_changed flag to track copy necessity
-#     * Only copy if is_new_file or file_changed
-#   - v2.0.2 (2025-11-23): Added per-file output to snapshot mode
-#     * Snapshot backup now shows each file as it's copied
-#     * Displays "Copied (new)" or "Copied (updated)" for each file
-#     * Matches the verbosity of versioned backup mode
-#   - v2.0.1 (2025-11-23): Fixed automatic VS Code diff opening
-#     * Removed automatic VS Code integration from copy_versioned_file()
-#     * Diffs are now created silently without opening in editor
-#     * VS Code integration still available via separate command
-#   - v2.0.0 (2025-11-16): Extraction from backup_operations.py
-#     * Extracted core file operations (lines 49-271)
-#     * copy_file_with_structure for snapshot mode
-#     * copy_versioned_file with baseline snapshots and diff generation
-#     * Extensive Linux permission handling with temporarily_writable()
-#     * Retry logic for filesystem errors
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -52,12 +21,12 @@ Functions:
 # IMPORTS
 # =============================================
 
-import logging
+from aipass.prax import logger
 import shutil
 import datetime
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 # Import from handlers modules
 from aipass.backup.apps.handlers.utils.system_utils import temporarily_writable, safe_print

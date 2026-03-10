@@ -1,109 +1,121 @@
+# =================== AIPass ====================
+# Name: router.py
+# Description: Command routing logic for the drone module
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Command routing logic for the AIPass drone module.
 
-Routes commands to branch entry points by resolving symbolic @branch names,
-locating the branch's apps/{name}.py entry point, and executing via subprocess.
+Thin orchestrator that resolves targets and delegates execution
+to the handler layer.
 """
 
-import json
-import logging
-import sys
-from pathlib import Path
 from typing import Dict, List, Optional
 
-from aipass.drone.apps.handlers.exceptions import CommandExecutionError
-from aipass.drone.apps.handlers.executor import CommandResult, execute_command
+from aipass.prax import logger
+from aipass.prax.apps.modules.logger import system_logger
+from aipass.drone.apps.handlers.executor import CommandResult
+from aipass.drone.apps.handlers.router_handler import execute_branch_command
 from .resolver import list_branches, resolve_branch
 
-logger = logging.getLogger(__name__)
+logger = system_logger
 
 
-def _find_entry_point(branch_path: str, branch_name: str) -> Path:
-    """Locate the apps/{branch_name}.py entry point for a branch."""
-    entry_point = Path(branch_path) / "apps" / f"{branch_name}.py"
-    if not entry_point.exists():
-        raise CommandExecutionError(
-            f"Entry point not found for branch '{branch_name}': {entry_point}"
-        )
-    return entry_point
+def handle_command(command: str, args: List[str]) -> bool:
+    """Route router commands to handler functions.
+
+    Args:
+        command: The command string (e.g. "route", "route_all")
+        args: List of arguments for the command
+
+    Returns:
+        True if command succeeded, False otherwise
+    """
+    if command == "route":
+        if len(args) < 2:
+            logger.warning("router route requires <target> <command> [args...]")
+            return False
+        target = args[0]
+        cmd = args[1]
+        cmd_args = args[2:] if len(args) > 2 else None
+        result = route_command(target, cmd, args=cmd_args)
+        if result.stdout:
+            logger.info("%s", result.stdout)
+        return result.exit_code == 0
+    if command == "route_all":
+        if not args:
+            logger.warning("router route_all requires a command argument")
+            return False
+        cmd = args[0]
+        cmd_args = args[1:] if len(args) > 1 else None
+        results = route_all(cmd, args=cmd_args)
+        for name, result in results.items():
+            logger.info("%s: exit_code=%d", name, result.exit_code)
+        return all(r.exit_code == 0 for r in results.values())
+    logger.warning("router: unknown command '%s'", command)
+    return False
 
 
-def _detect_caller_branch_name(cwd: Path) -> str | None:
-    """Walk up from cwd to find .trinity/passport.json and extract branch name."""
-    current = cwd.resolve()
-    for _ in range(10):
-        passport = current / ".trinity" / "passport.json"
-        if passport.exists():
-            try:
-                with open(passport, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                # Handle both passport formats:
-                # v1: branch_info.branch_name (local/full passport)
-                # v2: identity.name (Docker/minimal passport)
-                name = data.get("branch_info", {}).get("branch_name")
-                if not name:
-                    name = data.get("identity", {}).get("name")
-                return name
-            except Exception:
-                return None
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-    return None
+def print_help() -> None:
+    """Print help for the router module."""
+    from aipass.cli.apps.modules import console
+
+    console.print("router — Command routing logic")
+    console.print()
+    console.print("Commands:")
+    console.print("  route <target> <cmd> [args]   Route command to a branch")
+    console.print("  route_all <cmd> [args]        Route command to all branches")
 
 
 def route_command(
     target: str,
-    command: str,
+    command: Optional[str] = None,
     args: Optional[List[str]] = None,
     timeout: int = 30,
     interactive: bool = False,
 ) -> CommandResult:
     """Route a command to a branch's entry point.
 
-    Resolves @target to an absolute path, locates the branch entry point at
-    {path}/apps/{branch_name}.py, then executes:
-        python3 apps/{name}.py {command} [args...]
-
-    Args:
-        interactive: If True, inherit stdio for long-running/interactive commands.
+    Resolves @target to a path, then delegates to the handler for execution.
+    When command is None, runs the branch with no args (introspection).
     """
-    if args is None:
-        args = []
-
     branch_path = resolve_branch(target)
     branch_name = target.lstrip("@").lower()
 
-    entry_point = _find_entry_point(branch_path, branch_name)
-
-    relative_entry = str(entry_point.relative_to(branch_path))
-    cmd_args = [relative_entry, command] + list(args)
-
-    # Pass caller's CWD so target branches can detect who invoked them
-    caller_env = {"AIPASS_CALLER_CWD": str(Path.cwd())}
-
-    # Detect caller branch name from passport.json and pass it explicitly
-    caller_branch = _detect_caller_branch_name(Path.cwd())
-    if caller_branch:
-        caller_env["AIPASS_CALLER_BRANCH"] = caller_branch
-
-    result = execute_command(
-        executable=sys.executable,
-        args=cmd_args,
-        cwd=branch_path,
+    return execute_branch_command(
+        branch_path=branch_path,
+        branch_name=branch_name,
+        command=command,
+        args=args,
         timeout=timeout,
-        env=caller_env,
         interactive=interactive,
     )
 
-    return CommandResult(
-        stdout=result.stdout,
-        stderr=result.stderr,
-        exit_code=result.exit_code,
-        branch=branch_name,
-        command=command,
-    )
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("router Module")
+    console.print("Command routing logic for the AIPass drone module.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - router_handler.py (execute_branch_command — resolves and executes branch commands)")
+    console.print("    - executor.py (CommandResult — subprocess execution result dataclass)")
+    console.print()
+    console.print("Connected Modules:")
+    console.print("  modules/")
+    console.print("    - resolver.py (resolve_branch, list_branches — branch name resolution)")
+    console.print()
 
 
 def route_all(

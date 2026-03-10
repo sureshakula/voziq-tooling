@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: logger.py - PRAX Public API
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: logger.py
+# Description: PRAX Public API
 # Version: 1.0.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-27): Added direct logger exports (FPLAN-0382 Phase 2)
-#   - v1.0.0 (2025-11-15): Updated logger module with complete public API
-#   - v0.1.0 (2025-11-10): Created modular public API from archive.temp
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Public API for system-wide logging
-#   - Auto-routing logger for all modules in ecosystem
-#   - Provides lifecycle functions: initialize, shutdown, status
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -35,35 +23,25 @@ Provides:
 import sys
 from typing import Dict, Any
 
-# NOTE: Cannot import CLI here - creates circular dependency
-# CLI imports prax logger, so prax logger must not import CLI
+# NOTE: CLI imports are done lazily inside functions to avoid circular dependency.
+# CLI imports prax logger, so prax logger must not import CLI at module level.
 
 # Import from handlers - internal implementation
 from aipass.prax.apps.handlers.logging.setup import (
-    setup_system_logger,
     setup_individual_logger,
     get_captured_loggers_count,
     enable_terminal_output as _enable_terminal,
     disable_terminal_output as _disable_terminal,
-    is_terminal_output_enabled
 )
 from aipass.prax.apps.handlers.logging.introspection import get_calling_module
 from aipass.prax.apps.handlers.logging.override import (
-    install_logger_override,
-    restore_original_logger,
     is_override_active
 )
-from aipass.prax.apps.handlers.logging.operations import (
-    log_operation,
-    create_config_file
-)
-from aipass.prax.apps.handlers.discovery.scanner import discover_python_modules
 from aipass.prax.apps.handlers.discovery.watcher import (
     start_file_watcher,
     stop_file_watcher,
     is_file_watcher_active
 )
-from aipass.prax.apps.handlers.registry.save import save_module_registry
 from aipass.prax.apps.handlers.registry.load import load_module_registry
 from aipass.prax.apps.handlers.config.load import get_system_logs_dir, get_module_logs_dir, PRAX_JSON_DIR
 from aipass.prax.apps.handlers.logging.direct import (
@@ -145,39 +123,20 @@ def initialize_logging_system():
     4. Setup system logger
     5. Install logger override
     6. Start file watcher
+
+    MODULE orchestration pattern: Thin wrapper that delegates to handler.
     """
-    print(f"[{MODULE_NAME}] Initializing system-wide logging...")
+    from aipass.cli.apps.modules import console
+    from aipass.prax.apps.handlers.logging.lifecycle import run_initialize
 
-    # Create config file if missing
-    create_config_file()
+    console.print(f"[{MODULE_NAME}] Initializing system-wide logging...")
 
-    # Discover all modules
-    modules = discover_python_modules()
+    result = run_initialize(MODULE_NAME)
 
-    # Save registry
-    save_module_registry(modules)
-
-    # Setup prax_logger's own logging
-    system_logger_instance = setup_system_logger()
-
-    # Log system startup
-    system_logger_instance.info("Prax logging system initialized")
-    system_logger_instance.info(f"System logs: {get_system_logs_dir()}, Module logs: {get_module_logs_dir('prax')}")
-    system_logger_instance.info(f"Found {len(modules)} modules for logging setup")
-
-    # Install logger override
-    install_logger_override()
-    system_logger_instance.info("Logger override system installed")
-
-    # Start file watcher
-    start_file_watcher()
-
-    log_operation("Logging system initialized", {
-        "modules_discovered": len(modules),
-        "consolidated_logger": True
-    })
-
-    print(f"[{MODULE_NAME}] System initialized - {len(modules)} modules, individual logging")
+    console.print(
+        f"[{MODULE_NAME}] System initialized - "
+        f"{result['modules_count']} modules, individual logging"
+    )
 
 def shutdown_logging_system():
     """Shutdown logging system cleanly
@@ -186,17 +145,17 @@ def shutdown_logging_system():
     1. Stop file watcher
     2. Restore original logger
     3. Log shutdown operation
+
+    MODULE orchestration pattern: Thin wrapper that delegates to handler.
     """
-    print(f"[{MODULE_NAME}] Shutting down logging system...")
+    from aipass.cli.apps.modules import console
+    from aipass.prax.apps.handlers.logging.lifecycle import run_shutdown
 
-    # Stop file watcher
-    stop_file_watcher()
+    console.print(f"[{MODULE_NAME}] Shutting down logging system...")
 
-    # Restore original logger
-    restore_original_logger()
+    run_shutdown(MODULE_NAME)
 
-    log_operation("Logging system shutdown", {})
-    print(f"[{MODULE_NAME}] Shutdown complete")
+    console.print(f"[{MODULE_NAME}] Shutdown complete")
 
 def start_continuous_logging():
     """Start continuous logging in background mode with live terminal output
@@ -208,7 +167,8 @@ def start_continuous_logging():
     """
     from aipass.prax.apps.handlers.logging.monitoring import run_monitoring_loop
 
-    print(f"[{MODULE_NAME}] Starting continuous logging mode with terminal output...")
+    from aipass.cli.apps.modules import console
+    console.print(f"[{MODULE_NAME}] Starting continuous logging mode with terminal output...")
     sys.stdout.flush()
 
     # Enable terminal output for live debugging
@@ -228,7 +188,7 @@ def start_continuous_logging():
         # Handler re-raises KeyboardInterrupt, we handle cleanup here
         disable_terminal_output()
         shutdown_logging_system()
-        print(f"[{MODULE_NAME}] Logger capture stopped.")
+        console.print(f"[{MODULE_NAME}] Logger capture stopped.")
         sys.stdout.flush()
 
 # =============================================
@@ -266,3 +226,48 @@ def enable_terminal_output():
 def disable_terminal_output():
     """Disable terminal output"""
     _disable_terminal()
+
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("logger Module")
+    console.print("Public API for PRAX system-wide logging with auto-routing and lifecycle management")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/logging/")
+    console.print("    - setup.py (setup_individual_logger — creates per-module log files)")
+    console.print("    - setup.py (get_captured_loggers_count — returns active logger count)")
+    console.print("    - setup.py (enable_terminal_output — enables live terminal log output)")
+    console.print("    - setup.py (disable_terminal_output — disables terminal log output)")
+    console.print("    - introspection.py (get_calling_module — resolves caller module name)")
+    console.print("    - override.py (is_override_active — checks logger override status)")
+    console.print("    - direct.py (get_direct_logger — bypasses event pipeline for infrastructure logging)")
+    console.print("    - direct.py (direct_log — shorthand for direct logging calls)")
+    console.print("    - direct.py (DirectLogger — direct logger class)")
+    console.print("  handlers/discovery/")
+    console.print("    - watcher.py (start_file_watcher — starts filesystem watcher for module discovery)")
+    console.print("    - watcher.py (stop_file_watcher — stops the filesystem watcher)")
+    console.print("    - watcher.py (is_file_watcher_active — checks watcher status)")
+    console.print("  handlers/registry/")
+    console.print("    - load.py (load_module_registry — loads discovered module registry)")
+    console.print("  handlers/config/")
+    console.print("    - load.py (get_system_logs_dir — returns system logs directory path)")
+    console.print("    - load.py (get_module_logs_dir — returns per-module logs directory path)")
+    console.print("    - load.py (PRAX_JSON_DIR — base path for prax JSON data files)")
+    console.print()
+
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Logger is a service module with no user-facing commands.
+    All interaction happens through the system_logger API.
+    """
+    return False

@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: line_counter.py - Memory File Line Counter Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: line_counter.py
+# Description: Memory File Line Counter Handler
 # Version: 0.2.0
-# Category: memory/handlers/tracking
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2025-11-16): Initial version - count lines and update metadata
-#
-# CODE STANDARDS:
-#   - Handler independence: Uses json_handler for safe operations
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <200 lines target
+# Created: 2025-11-16
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -36,8 +27,9 @@ from datetime import datetime
 
 # Handler imports (relative within package)
 from aipass.memory.apps.handlers.json.json_handler import update_metadata
+from aipass.prax.apps.modules.logger import get_system_logger
 
-logger = logging.getLogger(__name__)
+logger = get_system_logger()
 
 
 # =============================================================================

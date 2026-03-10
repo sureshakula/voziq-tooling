@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: capsule_module.py - Time Capsule Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: capsule_module.py
+# Description: Time Capsule Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/artifacts/capsule_ops.py and renders results with Rich.
 Handles: capsule, capsules, open commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.capsule_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -44,6 +31,20 @@ from rich.table import Table
 from commons.apps.handlers.artifacts.capsule_ops import (
     seal_capsule, list_capsules, open_capsule,
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("capsule_module Module")
+    console.print("Time capsule orchestration — sealing, listing, and opening time capsules")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/artifacts/")
+    console.print("    - capsule_ops.py (seal_capsule — seal a new time capsule)")
+    console.print("    - capsule_ops.py (list_capsules — list all time capsules)")
+    console.print("    - capsule_ops.py (open_capsule — open a ready time capsule)")
+    console.print()
 
 
 # =============================================================================

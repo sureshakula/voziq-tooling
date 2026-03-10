@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: welcome_handler.py - Welcome & Onboarding Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: welcome_handler.py
+# Description: Welcome & Onboarding Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/welcome
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: pure business logic
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -20,14 +13,10 @@ Provides database query functions for welcoming new branches
 and nudging inactive members to engage with The Commons.
 """
 
-import logging
 import sqlite3
 from typing import Optional, List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.welcome_handler")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 
 def create_welcome_post(conn: sqlite3.Connection, branch_name: str) -> Optional[int]:

@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: event_queue.py - Thread-Safe Event Queue
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: event_queue.py
+# Description: Thread-Safe Event Queue
 # Version: 0.1.1
-# Category: prax/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.1 (2026-02-27): Added pid field to MonitoringEvent
-#   - v0.1.0 (2025-11-23): Created - thread-safe event queue with deduplication
-#
-# DESCRIPTION:
-#   Thread-safe event coordination for monitoring system.
-#   Provides MonitoringEvent dataclass and MonitoringQueue with deduplication.
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """Thread-safe event coordination for monitoring system"""

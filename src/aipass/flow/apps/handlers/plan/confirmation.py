@@ -1,21 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: confirmation.py - Plan Confirmation Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: confirmation.py
+# Description: Plan Confirmation Handler
 # Version: 0.4.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.4.0 (2026-01-22): Auto-confirm in non-TTY environments for autonomous workflows
-#   - v0.3.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v0.2.0 (2025-11-21): Added Prax logging for EOFError
-#   - v0.1.0 (2025-11-15): Initial handler - user confirmation prompts
-#
-# CODE STANDARDS:
-#   - Interactive user prompts
-#   - Simple boolean returns
-#   - No logging (3-tier architecture)
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

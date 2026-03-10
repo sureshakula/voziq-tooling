@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: save.py
-# Date: 2025-11-07
+# Description: Save Module Registry Handler
 # Version: 1.0.0
-# Category: prax/handlers/registry
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-07): Extracted from prax_registry.py - module registry saving
+# Created: 2025-11-07
+# Modified: 2026-03-09
 # =============================================
 
 """

@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory.py - Memory Event Handler
-# Date: 2025-12-04
+# =================== AIPass ====================
+# Name: memory.py
+# Description: Memory event handler placeholder for future rollover triggers
 # Version: 0.1.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-12-04): Created memory event handler placeholder
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Placeholder for future memory event handling
-#   - Handlers must not import Prax logger
+# Created: 2025-12-04
+# Modified: 2025-12-04
 # =============================================
 
 """Memory Event Handler - Handle memory-related events

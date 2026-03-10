@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - Memory File Safe Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: Memory File Safe Handler
 # Version: 0.2.0
-# Category: memory/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2025-11-16): Initial version - safe memory file operations
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <300 lines target
+# Created: 2025-11-16
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -42,7 +33,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # Resolve paths relative to handler location
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]

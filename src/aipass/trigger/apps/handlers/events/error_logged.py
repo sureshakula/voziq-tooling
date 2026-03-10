@@ -1,24 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: error_logged.py - Error Logged Event Handler (DEPRECATED)
-# Date: 2026-01-31
+# =================== AIPass ====================
+# Name: error_logged.py
+# Description: Legacy error logged event handler with medic gating (deprecated)
 # Version: 2.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-25): FPLAN-0371 Phase 1 - Add medic gating, DEV_CENTRAL protection, rate limiting
-#   - v1.0.2 (2026-02-06): Validate target branch exists before delivery (fixes @telegram spam)
-#   - v1.0.1 (2026-02-03): Fixed cross-branch import - uses module API instead of handler
-#   - v1.0.0 (2026-01-31): Created - Phase 2 migration (FPLAN-0279)
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO logger imports (causes infinite recursion in event handlers)
-#   - NO print statements (handlers must be silent)
-#   - Silent failure - catch all exceptions, pass
-#   - DEPRECATED: error_detected.py (Medic v2) is the primary error dispatch handler
-#   - This handler remains for backward compat with code that fires error_logged events
+# Created: 2026-01-31
+# Modified: 2026-02-25
 # =============================================
 
 """

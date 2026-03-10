@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: version_manager.py - Version discovery and management
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: version_manager.py
+# Description: Version discovery and management
 # Version: 2.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2025-11-16): Extracted from backup_diff.py
-#     * Version file discovery functionality
-#     * Versioned file listing
-#     * Support for file-organized structure
-#     * Updated imports to new handler locations
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-16
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -30,11 +17,11 @@ Supports version listing and filtering.
 # IMPORTS
 # =============================================
 
-import logging
+from aipass.prax import logger
 from pathlib import Path
 from typing import Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 # Import from handlers
 from aipass.backup.apps.handlers.utils.system_utils import safe_print

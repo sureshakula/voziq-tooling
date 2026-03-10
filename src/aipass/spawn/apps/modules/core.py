@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: core.py
 # Description: Main orchestrator for agent spawning
 # Version: 1.0.0
@@ -23,13 +23,44 @@ from pathlib import Path
 from typing import List
 
 from aipass.prax import logger
+
+try:
+    from aipass.cli.apps.modules.display import console
+except ImportError:
+    from rich.console import Console
+    console = Console()
+
 from aipass.spawn.apps.handlers.metadata import get_branch_name, normalize_branch_name, detect_profile
 from aipass.spawn.apps.handlers.placeholders import build_replacements_dict, validate_no_placeholders
 from aipass.spawn.apps.handlers.file_ops import copy_template, rename_placeholder_paths, regenerate_template_registry, ensure_directory
+from aipass.spawn.apps.handlers.meta_ops import load_template_registry, generate_branch_meta, save_branch_meta
 from aipass.spawn.apps.handlers.registry import find_registry, add_to_registry, get_next_citizen_number
+from aipass.spawn.apps.handlers.class_registry import (
+    validate_class,
+    get_default_class,
+    get_available_classes,
+    get_template_dir as _get_template_dir,
+)
 
 # Default template location (relative to spawn package root)
 DEFAULT_TEMPLATE = Path(__file__).parents[2] / "templates" / "builder"
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("core Module")
+    console.print("Agent creation orchestrator — full spawn workflow from template to registry")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - metadata.py (get_branch_name, normalize_branch_name, detect_profile — branch identity)")
+    console.print("    - placeholders.py (build_replacements_dict, validate_no_placeholders — template substitution)")
+    console.print("    - file_ops.py (copy_template, rename_placeholder_paths, regenerate_template_registry, ensure_directory — filesystem ops)")
+    console.print("    - meta_ops.py (load_template_registry, generate_branch_meta, save_branch_meta — branch metadata)")
+    console.print("    - registry.py (find_registry, add_to_registry, get_next_citizen_number — AIPASS_REGISTRY management)")
+    console.print("    - class_registry.py (validate_class, get_default_class, get_available_classes, get_template_dir — citizen class lookup)")
+    console.print()
 
 
 def handle_command(command: str, args: List[str]) -> bool:
@@ -104,8 +135,7 @@ def _spawn_agent(target_path, role="", traits="", purpose="", profile=None,
     if template_dir:
         template = Path(template_dir)
     else:
-        from aipass.spawn.apps.handlers.class_registry import get_template_dir as _class_get_template_dir
-        template = _class_get_template_dir(citizen_class)
+        template = _get_template_dir(citizen_class)
 
     # Validate
     if target.exists():
@@ -139,6 +169,12 @@ def _spawn_agent(target_path, role="", traits="", purpose="", profile=None,
 
     # Step 3: Regenerate .template_registry.json with fresh hashes
     regenerate_template_registry(target)
+
+    # Step 3b: Generate branch metadata for tracking
+    template_registry = load_template_registry(target)
+    if template_registry:
+        branch_meta = generate_branch_meta(target, template_registry)
+        save_branch_meta(target, branch_meta)
 
     # Step 4: Register in AIPASS_REGISTRY.json
     registry_updated = add_to_registry(

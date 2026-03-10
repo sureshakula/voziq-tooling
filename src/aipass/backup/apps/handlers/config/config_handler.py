@@ -1,29 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: config_handler.py - Backup system configuration and patterns
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: config_handler.py
+# Description: Backup system configuration and patterns
 # Version: 2.0.2
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.2 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang and sys.path manipulation
-#     * Cleared CLI_TRACKING_PATTERNS (hardcoded internal paths removed)
-#   - v2.0.1 (2025-11-23): Added ignore patterns for log/data JSON files
-#     * Enabled *_data.json pattern to ignore backup_core_data.json
-#     * Enabled *_log.json pattern to ignore backup_core_log.json, drone_log.json
-#     * Enabled snapshot_backup.json pattern
-#     * Prevents frequent-change files from being backed up every run
-#   - v2.0.0 (2025-11-16): Seed standard extraction from archive
-#     * All configuration constants and patterns
-#     * Helper functions for pattern matching and filtering
-#     * Pure configuration - no complex logic
-#   - v1.0.0 (2025-10-14): Initial extraction from backup.py
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """

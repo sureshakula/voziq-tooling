@@ -1,15 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: watcher.py - File System Watching
-# Date: 2025-11-26
+# =================== AIPass ====================
+# Name: watcher.py
+# Description: File System Watching
 # Version: 1.2.0
-# Category: prax/handlers/discovery
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2025-11-26): Removed MEMORY_BANK coupling - prax only watches Python files
-#   - v1.1.0 (2025-11-26): Refactored as pure handler (no console output)
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_discovery.py
+# Created: 2025-11-26
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -42,6 +36,13 @@ from aipass.prax.apps.handlers.registry.save import save_module_registry
 
 # Import filtering
 from aipass.prax.apps.handlers.discovery.filtering import should_ignore_path
+
+# Trigger integration - graceful fallback if trigger not available
+try:
+    from aipass.trigger.apps.modules.core import trigger
+    _HAS_TRIGGER = True
+except ImportError:
+    _HAS_TRIGGER = False
 
 # Global observer instance
 _observer: Any = None
@@ -86,6 +87,17 @@ class PythonFileWatcher(FileSystemEventHandler):
 
             # Save updated registry
             save_module_registry(modules)
+
+            # Fire trigger event for module discovery
+            if _HAS_TRIGGER:
+                try:
+                    trigger.fire('module_discovered',
+                        module_name=module_name,
+                        file_path=str(py_file),
+                        relative_path=str(relative_path)
+                    )
+                except (OSError, Exception):
+                    pass  # Trigger fire failed, continue silently
 
 
 def start_file_watcher():

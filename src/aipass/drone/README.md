@@ -1,8 +1,22 @@
 # Drone
 
-Command router and symbolic addressing for AIPass. Resolves `@branch` names to paths at runtime via `AIPASS_REGISTRY.json`, routes commands to module entry points, and discovers available commands across the system.
+**Purpose:** Command router and symbolic addressing for AIPass. Resolves `@branch` names to paths at runtime via `AIPASS_REGISTRY.json`, routes commands to module entry points, and discovers available commands across the system.
+**Module:** `aipass.drone`
+**Created:** 2026-03-05
 
-## CLI
+---
+
+## Overview
+
+### What I Do
+- Resolve `@branch` symbolic names to absolute paths via `AIPASS_REGISTRY.json`
+- Route commands to registered branches and internal modules
+- Discover available commands across the system
+- Provide `drone systems` introspection of all registered components
+
+## Commands / Usage
+
+### CLI
 
 ```bash
 drone systems                    # List all registered modules and branches
@@ -10,9 +24,10 @@ drone @seedgo verify             # Route "verify" to the seedgo module
 drone @seedgo audit aipass       # Route "audit aipass" to seedgo
 drone @module --help             # Show help for any module
 drone --version                  # Show version
+drone --help                     # Show usage information
 ```
 
-## Python API
+### Python API
 
 ```python
 from aipass.drone import resolve_branch, list_branches, route_command
@@ -58,6 +73,8 @@ except CommandExecutionError as e:
     print(f"Command failed: {e}")
 ```
 
+---
+
 ## Architecture
 
 ```
@@ -76,5 +93,24 @@ drone/
 │   └── handlers/          # Implementation
 │       ├── executor.py    # Safe subprocess execution
 │       └── exceptions.py  # Exception hierarchy
+├── docs/                  # Documentation
 └── tests/
 ```
+
+---
+
+## Integration Points
+
+### Depends On
+- `AIPASS_REGISTRY.json` — Branch registry at repo root (read for resolution)
+- Python stdlib (`pathlib`, `sys`, `subprocess`, `json`)
+
+### Provides To
+- All modules — command routing via `drone @target command`
+- All modules — branch/module discovery via `drone systems`
+- `aipass.seedgo` — routed via `drone @seedgo`
+- `aipass.spawn` — routed via `drone @spawn`
+
+---
+
+**Last Updated:** 2026-03-08

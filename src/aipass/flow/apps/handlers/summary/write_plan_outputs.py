@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: write_plan_outputs.py
-# Date: 2025-11-07
+# Description: Write Plan Outputs Handler
 # Version: 1.1.0
-# Category: flow/handlers/summary
-#
-# CHANGELOG:
-#   - v1.1.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v1.0.0 (2025-11-07): Extracted from flow_plan_summarizer.py
+# Created: 2025-11-07
+# Modified: 2025-11-07
 # =============================================
 
 """

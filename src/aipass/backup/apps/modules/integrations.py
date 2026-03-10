@@ -1,24 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: integrations.py - External integrations and backup protection
-# Date: 2025-11-29
+# =================== AIPass ====================
+# Name: integrations.py
+# Description: External integrations and backup protection
 # Version: 2.1.0
-# Category: backup_system
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.1.0 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang, sys.path manipulation, prax/cli imports
-#     * Uses standard logging and rich console
-#     * Relative handler imports, GoogleDriveSync via sibling module
-#   - v2.0.1 (2025-11-29): UX FIX - Import error and missing help output
-#   - v2.0.0 (2025-11-16): Created seed-compliant layout module
-#   - v1.1.0 (2025-10-30): Original backup_integrations features
-#   - v1.0.0 (2025-10-14): Initial extraction
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Orchestrate workflows, delegate to handlers
-#   - Import handlers, never implement business logic
+# Created: 2025-11-29
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -45,13 +30,10 @@ Architecture Pattern:
 import sys
 import os
 import stat
-import logging
 from pathlib import Path
 
-from rich.console import Console
-
-logger = logging.getLogger(__name__)
-console = Console()
+from aipass.cli.apps.modules import console
+from aipass.prax import logger
 
 
 def _header(text):
@@ -277,6 +259,21 @@ def print_help():
     safe_print("\033[1mCommands:\033[0m sync-to-drive, set-readonly")
     safe_print("="*70)
     safe_print("")
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("integrations Module")
+    console.print("External integrations and backup protection (Drive sync, read-only)")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/utils/")
+    console.print("    - system_utils.py (safe_print — terminal-safe output wrapper)")
+    console.print("  handlers/operations/")
+    console.print("    - integration_ops.py (sync_to_drive — Drive upload orchestration)")
+    console.print("    - integration_ops.py (set_backup_readonly — read-only permission setter)")
+    console.print()
+
 
 if __name__ == "__main__":
     """Display help when module is run directly."""

@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: scanner.py - Directory Scanning
-# Date: 2025-11-10
+# =================== AIPass ====================
+# Name: scanner.py
+# Description: Directory Scanning
 # Version: 1.1.0
-# Category: prax/handlers/discovery
-#
-# CODE STANDARDS:
-#   - HANDLERS: Pure handler - no console output, returns data only
-#   - IMPORTS: Uses package imports (aipass.prax...)
-#   - ERROR_HANDLING: Silent operation, no logger imports
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2025-11-29): Removed console output - pure handler pattern
-#   - v1.0.0 (2025-11-10): Extracted from archive.temp/prax_discovery.py
+# Created: 2025-11-10
+# Modified: 2026-03-09
 # =============================================
 
 """

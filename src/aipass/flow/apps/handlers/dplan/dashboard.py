@@ -1,27 +1,10 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: dashboard.py - DPLAN Dashboard Push Handler
-# Date: 2026-02-25
+# =================== AIPass ====================
+# Name: dashboard.py
+# Description: DPLAN Dashboard Push Handler
 # Version: 2.0.0
-# Category: devpulse/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-25): FPLAN-0373 Phase 4 - enriched section data with
-#       dplan_counts and recent_activity, write_fn injection from module layer
-#   - v1.0.0 (2026-02-18): Initial version - dashboard + central push per FPLAN-0355
-#
-# CONNECTS:
-#   - registry.py (reads registry for DPLAN counts)
-#   - DEVPULSE.central.json at AI_CENTRAL (writes dplan_summary)
-#   - Module layer injects write_fn for dashboard writes (handler independence)
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - NO Prax logging (per 3-tier: modules log, handlers don't)
-#   - Pure business logic only
-# ==============================================
+# Created: 2026-02-25
+# Modified: 2026-02-25
+# =============================================
 
 """
 Dashboard Handler - DPLAN Dashboard Integration

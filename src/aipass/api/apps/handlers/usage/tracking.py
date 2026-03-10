@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: tracking.py - Usage Tracking Handler
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: tracking.py
+# Description: Usage Tracking Handler
 # Version: 1.0.0
-# Category: api/handlers/usage
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-16): Extracted tracking logic from archive
+# Created: 2025-11-16
+# Modified: 2025-11-16
 # =============================================
 
 """

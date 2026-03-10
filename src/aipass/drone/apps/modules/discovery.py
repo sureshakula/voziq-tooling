@@ -1,170 +1,134 @@
+# =================== AIPass ====================
+# Name: discovery.py
+# Description: Module and command discovery for branch introspection
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Module and command discovery for AIPass branch introspection.
 
-Introspects branch capabilities by querying entry points for help text
-and scanning module directories as a fallback.
+Thin orchestrator that delegates all discovery logic to the handler layer.
 """
 
-import logging
-import subprocess
-import sys
-from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Dict, List, Optional
 
-from aipass.drone.apps.handlers.exceptions import CommandExecutionError
+from aipass.prax import logger
+from aipass.drone.apps.handlers.discovery_handler import HelpResult
 from .resolver import list_branches, resolve_branch
 
-logger = logging.getLogger(__name__)
+
+def handle_command(command: str, args: List[str]) -> bool:
+    """Route discovery commands to handler functions.
+
+    Args:
+        command: The command string (e.g. "modules", "help", "system")
+        args: List of arguments for the command
+
+    Returns:
+        True if command succeeded, False otherwise
+    """
+    if command == "modules":
+        if not args:
+            logger.warning("discovery modules requires a target argument")
+            return False
+        modules = discover_modules(args[0])
+        for mod in modules:
+            logger.info("  %s", mod)
+        return True
+    if command == "help":
+        if not args:
+            logger.warning("discovery help requires a target argument")
+            return False
+        target = args[0]
+        cmd = args[1] if len(args) > 1 else None
+        result = get_help(target, cmd)
+        logger.info("%s", result.text)
+        return True
+    if command == "system":
+        results = get_system_help()
+        for name, result in results.items():
+            logger.info("%s: %s", name, result.text[:80])
+        return True
+    logger.warning("discovery: unknown command '%s'", command)
+    return False
 
 
-@dataclass
-class HelpResult:
-    """Structured result from a help query."""
+def print_help() -> None:
+    """Print help for the discovery module."""
+    from aipass.cli.apps.modules import console
 
-    branch: str
-    command: Optional[str]
-    text: str
-    commands_found: List[str] = field(default_factory=list)
-
-
-def _get_entry_point(branch_path: str, branch_name: str) -> Optional[Path]:
-    """Return the apps/{branch_name}.py entry point path if it exists."""
-    entry_point = Path(branch_path) / "apps" / f"{branch_name}.py"
-    return entry_point if entry_point.exists() else None
-
-
-def _scan_modules_directory(branch_path: str) -> List[str]:
-    """Scan apps/modules/ for .py files and return their stems as command names."""
-    modules_dir = Path(branch_path) / "apps" / "modules"
-    if not modules_dir.is_dir():
-        return []
-
-    excluded = {"__init__", "__main__"}
-    return sorted(
-        f.stem
-        for f in modules_dir.glob("*.py")
-        if f.stem not in excluded
-    )
+    console.print("discovery — Module and command discovery")
+    console.print()
+    console.print("Functions:")
+    console.print("  discover_modules(target)           List available commands for a branch")
+    console.print("  get_help(target, command=None)      Get structured help for a branch/command")
+    console.print("  get_system_help()                   Aggregate help across all active branches")
+    console.print()
+    console.print("Usage via drone:")
+    console.print("  drone @branch --help               Show help for a branch")
+    console.print("  drone systems                      List all registered branches")
 
 
-def _parse_help_for_commands(help_text: str) -> List[str]:
-    """Parse --help output to extract a list of available commands."""
-    commands: List[str] = []
-    in_commands_section = False
-    section_markers = {"commands", "subcommands", "available commands"}
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
 
-    for line in help_text.splitlines():
-        stripped = line.strip()
-
-        if any(marker in stripped.lower() for marker in section_markers):
-            in_commands_section = True
-            continue
-
-        if in_commands_section and not stripped:
-            in_commands_section = False
-            continue
-
-        if in_commands_section:
-            if line.startswith((" ", "\t")) and stripped:
-                token = stripped.split()[0]
-                if not token.startswith("-"):
-                    commands.append(token)
-
-    return commands
+    console.print()
+    console.print("discovery Module")
+    console.print("Module and command discovery for AIPass branch introspection.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - discovery_handler.py (HelpResult — structured help query result)")
+    console.print("    - discovery_handler.py (discover_modules — list available commands for a branch)")
+    console.print("    - discovery_handler.py (get_help — get structured help for a branch/command)")
+    console.print("    - discovery_handler.py (get_system_help — aggregate help across all branches)")
+    console.print()
+    console.print("Connected Modules:")
+    console.print("  modules/")
+    console.print("    - resolver.py (resolve_branch, list_branches — branch name resolution)")
+    console.print()
 
 
 def discover_modules(target: str) -> List[str]:
-    """Discover available commands for a branch."""
+    """Discover available commands for a branch.
+
+    Resolves target to path and delegates to handler.
+    """
+    from aipass.drone.apps.handlers.discovery_handler import (
+        discover_modules as _discover,
+    )
+
     branch_path = resolve_branch(target)
     branch_name = target.lstrip("@").lower()
-
-    entry_point = _get_entry_point(branch_path, branch_name)
-    if entry_point is not None:
-        try:
-            result = subprocess.run(
-                [sys.executable, str(entry_point.relative_to(branch_path)), "--help"],
-                cwd=branch_path,
-                capture_output=True,
-                timeout=10,
-                shell=False,
-            )
-            help_text = result.stdout.decode("utf-8", errors="replace")
-            if not help_text:
-                help_text = result.stderr.decode("utf-8", errors="replace")
-
-            commands = _parse_help_for_commands(help_text)
-            if commands:
-                return commands
-        except (subprocess.TimeoutExpired, OSError):
-            pass
-
-    return _scan_modules_directory(branch_path)
+    return _discover(branch_path, branch_name)
 
 
 def get_help(target: str, command: Optional[str] = None) -> HelpResult:
-    """Get structured help for a branch or a specific command."""
+    """Get structured help for a branch or a specific command.
+
+    Resolves target to path and delegates to handler.
+    """
+    from aipass.drone.apps.handlers.discovery_handler import (
+        get_help as _get_help,
+    )
+
     branch_path = resolve_branch(target)
     branch_name = target.lstrip("@").lower()
-
-    entry_point = _get_entry_point(branch_path, branch_name)
-    if entry_point is None:
-        raise CommandExecutionError(
-            f"Entry point not found for branch '{branch_name}': "
-            f"{Path(branch_path) / 'apps' / (branch_name + '.py')}"
-        )
-
-    relative_entry = str(entry_point.relative_to(branch_path))
-    if command is None:
-        cmd_args = [relative_entry, "--help"]
-    else:
-        cmd_args = [relative_entry, command, "--help"]
-
-    try:
-        result = subprocess.run(
-            [sys.executable] + cmd_args,
-            cwd=branch_path,
-            capture_output=True,
-            timeout=10,
-            shell=False,
-        )
-    except subprocess.TimeoutExpired as e:
-        raise CommandExecutionError(
-            f"Help command timed out for branch '{branch_name}'"
-        ) from e
-    except OSError as e:
-        raise CommandExecutionError(
-            f"OS error getting help for branch '{branch_name}': {e}"
-        ) from e
-
-    stdout = result.stdout.decode("utf-8", errors="replace")
-    stderr = result.stderr.decode("utf-8", errors="replace")
-
-    text = stdout if stdout.strip() else stderr
-    commands_found = _parse_help_for_commands(text)
-
-    return HelpResult(
-        branch=branch_name,
-        command=command,
-        text=text,
-        commands_found=commands_found,
-    )
+    return _get_help(branch_path, branch_name, command)
 
 
 def get_system_help() -> Dict[str, HelpResult]:
     """Aggregate help across all active branches in the registry."""
-    results: Dict[str, HelpResult] = {}
+    from aipass.drone.apps.handlers.discovery_handler import (
+        get_system_help as _get_system_help,
+    )
+
     active_branches = list_branches(status="active")
-
-    for symbolic_name in active_branches:
-        branch_name = symbolic_name.lstrip("@")
-        try:
-            help_result = get_help(symbolic_name)
-            results[branch_name] = help_result
-        except Exception as exc:
-            logger.debug(
-                "get_system_help: skipping branch '%s': %s",
-                branch_name, exc,
-            )
-
-    return results
+    return _get_system_help(active_branches)

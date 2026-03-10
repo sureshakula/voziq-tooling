@@ -1,110 +1,93 @@
+# =================== AIPass ====================
+# Name: registry.py
+# Description: Registry operations for branch management
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Registry operations for branch management.
 
-Handles loading and querying AIPASS_REGISTRY.json.
-Supports both list-format (pip) and dict-format (legacy) registries.
+Thin orchestrator that delegates to registry_handler for all
+registry loading and querying operations.
 """
 
-import json
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .config import get_registry_path
-from aipass.drone.apps.handlers.exceptions import (
-    RegistryCorruptError,
-    RegistryNotFoundError,
-    RegistryPermissionError,
+from aipass.prax import logger
+from aipass.drone.apps.handlers.registry_handler import (
+    load_registry,
+    get_all_branches,
+    get_branch_by_name,
 )
 
+__all__ = ["load_registry", "get_all_branches", "get_branch_by_name"]
 
-def load_registry() -> Dict[str, Any]:
-    """Load the branch registry from disk.
+
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("registry Module")
+    console.print("Registry operations for branch management — loading and querying AIPASS_REGISTRY.json.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - registry_handler.py (load_registry — load and parse the registry file)")
+    console.print("    - registry_handler.py (get_all_branches — list branches with type/status filters)")
+    console.print("    - registry_handler.py (get_branch_by_name — look up a single branch by name)")
+    console.print()
+
+
+def handle_command(command: str, args: List[str]) -> bool:
+    """Route registry commands to handler functions.
+
+    Args:
+        command: The command string (e.g. "load", "branches", "lookup")
+        args: List of arguments for the command
 
     Returns:
-        Registry dictionary with branches (normalized to dict format)
-
-    Raises:
-        RegistryNotFoundError: If registry file doesn't exist
-        RegistryCorruptError: If registry file is invalid JSON
-        RegistryPermissionError: If registry file cannot be read
+        True if command succeeded, False otherwise
     """
-    registry_path = get_registry_path()
-
-    if not registry_path.exists():
-        raise RegistryNotFoundError(
-            f"Registry not found at {registry_path}. "
-            "Create an AIPASS_REGISTRY.json in your project root."
-        )
-
-    try:
-        with open(registry_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except PermissionError as e:
-        raise RegistryPermissionError(f"Permission denied reading registry: {e}")
-    except json.JSONDecodeError as e:
-        raise RegistryCorruptError(f"Registry file is corrupted: {e}")
-    except Exception as e:
-        raise RegistryCorruptError(f"Failed to read registry: {e}")
-
-    if not isinstance(data, dict):
-        raise RegistryCorruptError("Registry must be a JSON object")
-
-    if "branches" not in data:
-        raise RegistryCorruptError("Registry missing 'branches' field")
-
-    # Normalize: AIPASS_REGISTRY uses list format, convert to dict keyed by name
-    branches_raw = data["branches"]
-    if isinstance(branches_raw, list):
-        branches_dict = {}
-        registry_dir = registry_path.parent
-        for branch in branches_raw:
-            name = branch.get("name", "").lower()
-            if not name:
-                continue
-            # Resolve relative paths against registry location
-            raw_path = branch.get("path", "")
-            branch_path = Path(raw_path)
-            if not branch_path.is_absolute():
-                branch_path = (registry_dir / branch_path).resolve()
-            entry = dict(branch)
-            entry["name"] = name
-            entry["path"] = str(branch_path)
-            branches_dict[name] = entry
-        data["branches"] = branches_dict
-    elif not isinstance(branches_raw, dict):
-        raise RegistryCorruptError("Registry 'branches' must be a list or dict")
-
-    return data
-
-
-def get_all_branches(
-    branch_type: Optional[str] = None,
-    status: str = "active",
-) -> List[Dict[str, Any]]:
-    """Get all branches from the registry, optionally filtered."""
-    try:
+    if command == "load":
         registry = load_registry()
-    except RegistryNotFoundError:
-        return []
+        branch_count = len(registry.get("branches", {}))
+        logger.info("Registry loaded: %d branches", branch_count)
+        return True
+    if command == "branches":
+        branch_type = args[0] if args else None
+        branches = get_all_branches(branch_type=branch_type)
+        for branch in branches:
+            logger.info("  %s", branch.get("name", "unknown"))
+        return True
+    if command == "lookup":
+        if not args:
+            logger.warning("registry lookup requires a branch name")
+            return False
+        branch = get_branch_by_name(args[0])
+        if branch:
+            logger.info("Branch: %s", branch)
+        else:
+            logger.warning("Branch '%s' not found", args[0])
+            return False
+        return True
+    logger.warning("registry: unknown command '%s'", command)
+    return False
 
-    branches = registry.get("branches", {}).values()
 
-    filtered = []
-    for branch in branches:
-        if status and branch.get("status") != status:
-            continue
-        if branch_type and branch.get("type") != branch_type:
-            continue
-        filtered.append(branch)
+def print_help() -> None:
+    """Print help for the registry module."""
+    from aipass.cli.apps.modules import console
 
-    return filtered
-
-
-def get_branch_by_name(name: str) -> Optional[Dict[str, Any]]:
-    """Get a single branch by name (case-insensitive)."""
-    try:
-        registry = load_registry()
-    except RegistryNotFoundError:
-        return None
-
-    return registry.get("branches", {}).get(name.lower())
+    console.print("registry — Registry operations for branch management")
+    console.print()
+    console.print("Commands:")
+    console.print("  load                Load and show registry stats")
+    console.print("  branches [type]     List branches, optionally by type")
+    console.print("  lookup <name>       Look up a specific branch")

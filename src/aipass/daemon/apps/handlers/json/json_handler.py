@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: json_handler.py - JSON Auto-Creating Handler
-# Date: 2025-11-21
+# =================== AIPass ====================
+# Name: json_handler.py
+# Description: JSON Auto-Creating Handler
 # Version: 1.2.0
-# Category: daemon/handlers/json
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2026-01-29): Fixed paths to point to DAEMON branch
-#   - v1.1.0 (2025-11-21): Refactored to comply with error handling
-#   - v1.0.0 (2025-11-13): Initial JSON auto-creation system
-#
-# CODE STANDARDS:
-#   - Pure functions with proper error raising
-#   - No Prax imports (handler tier 3)
+# Created: 2025-11-21
+# Modified: 2026-01-29
 # =============================================
 
 """

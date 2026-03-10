@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: passport.py
 # Description: Passport command — thin CLI layer for granting birthright citizenship
 # Version: 1.0.0
@@ -18,6 +18,33 @@ from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
 from aipass.spawn.apps.handlers.passport_ops import grant_passport
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("passport Module")
+    console.print("Grant birthright citizenship — minimal identity (.trinity/, .aipass/, README.md)")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - passport_ops.py (grant_passport — create minimal citizen identity and register)")
+    console.print()
+
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Args:
+        command: The command string (e.g. "passport")
+        args: List of arguments for the command
+
+    Returns:
+        True if command was handled, False otherwise.
+    """
+    if command == "passport":
+        return handle_passport(args) == 0
+    return False
 
 
 def handle_passport(args: list[str]) -> int:

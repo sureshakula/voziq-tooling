@@ -1,13 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: update_local.py
-# Date: 2025-11-21
+# Description: Update Dashboard Local Handler
 # Version: 1.0.0
-# Category: flow/handlers/dashboard
-#
-# CHANGELOG:
-#   - v1.0.0 (2025-11-21): Initial creation - updates DASHBOARD.local.json
+# Created: 2025-11-21
+# Modified: 2025-11-21
 # =============================================
 
 """

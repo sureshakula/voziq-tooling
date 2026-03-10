@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: normalize.py - Memory File Schema Normalizer
-# Date: 2026-01-22
+# =================== AIPass ====================
+# Name: normalize.py
+# Description: Memory File Schema Normalizer
 # Version: 0.2.0
-# Category: memory/handlers/schema
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v0.1.0 (2026-01-22): Initial version - normalize metadata schema
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports
-#   - Error handling: Returns status dicts (3-tier architecture)
-#   - File size: <200 lines target
+# Created: 2026-01-22
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -40,7 +31,9 @@ from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 
 def normalize_memory_file(file_path: Path, dry_run: bool = False) -> Dict[str, Any]:

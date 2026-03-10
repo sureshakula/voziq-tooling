@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: memory.py - Memory Health Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: memory.py
+# Description: Memory Health Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_local_memory_monitor.py
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -31,7 +23,6 @@ Architecture:
 # =============================================
 from pathlib import Path
 
-from aipass.cli.apps.modules import console
 
 # =============================================
 # CONSTANTS
@@ -189,6 +180,7 @@ def validate_thresholds(green_max: int, yellow_min: int, yellow_max: int, red_mi
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("MEMORY HEALTH HANDLER")
     console.print("="*70)

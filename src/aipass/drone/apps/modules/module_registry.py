@@ -1,112 +1,116 @@
-"""Internal module registry for drone.
+# =================== AIPass ====================
+# Name: module_registry.py
+# Description: Internal module registry for drone
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
 
-Routes @module commands to Python packages installed alongside drone,
-as opposed to external branches in AIPASS_REGISTRY.json.
+"""
+Internal module registry for drone.
 
-Modules register by providing a drone_adapter module with:
-- DRONE_MODULE dict (name, version, description)
-- handle_command(command, args) -> dict with stdout/stderr/exit_code
-- get_help(command=None) -> str
+Thin orchestrator that delegates all module registry operations
+to the handler layer.
 """
 
 from __future__ import annotations
 
-import importlib
-from dataclasses import dataclass
+from aipass.prax import logger
+from aipass.drone.apps.handlers.module_registry_handler import (
+    ModuleInfo,
+    list_modules,
+    is_module,
+    get_module_info,
+    route_module_command,
+    get_module_help,
+    get_module_introspective,
+    register_module,
+)
 
-# Maps module name -> import path for its drone_adapter
-_MODULE_REGISTRY: dict[str, str] = {
-    "drone": "aipass.drone.drone_adapter",
-    "seedgo": "aipass.seedgo.drone_adapter",
-}
+__all__ = [
+    "ModuleInfo",
+    "list_modules",
+    "is_module",
+    "get_module_info",
+    "route_module_command",
+    "get_module_help",
+    "get_module_introspective",
+    "register_module",
+]
 
 
-@dataclass
-class ModuleInfo:
-    """Metadata about a registered module."""
-
-    name: str
-    version: str
-    description: str
-    adapter_path: str
-
-
-def list_modules() -> list[str]:
-    """Return sorted list of registered module names."""
-    return sorted(_MODULE_REGISTRY.keys())
-
-
-def get_module_info(name: str) -> ModuleInfo | None:
-    """Get module metadata without executing anything."""
-    adapter_path = _MODULE_REGISTRY.get(name)
-    if adapter_path is None:
-        return None
+def print_introspection():
+    """Display module introspection info."""
     try:
-        mod = importlib.import_module(adapter_path)
-        meta = getattr(mod, "DRONE_MODULE", {})
-        return ModuleInfo(
-            name=meta.get("name", name),
-            version=meta.get("version", "unknown"),
-            description=meta.get("description", ""),
-            adapter_path=adapter_path,
-        )
+        from aipass.cli.apps.modules.display import console
     except ImportError:
-        return None
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("module_registry Module")
+    console.print("Internal module registry for drone — dynamic module loading and command delegation.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - module_registry_handler.py (ModuleInfo — module metadata dataclass)")
+    console.print("    - module_registry_handler.py (list_modules — list registered module names)")
+    console.print("    - module_registry_handler.py (is_module — check if a module is registered)")
+    console.print("    - module_registry_handler.py (get_module_info — retrieve module metadata)")
+    console.print("    - module_registry_handler.py (route_module_command — delegate command to module)")
+    console.print("    - module_registry_handler.py (get_module_help — get help text for a module)")
+    console.print("    - module_registry_handler.py (get_module_introspective — introspect module adapter)")
+    console.print("    - module_registry_handler.py (register_module — register a new module adapter)")
+    console.print()
 
 
-def is_module(name: str) -> bool:
-    """Check if name is a registered module."""
-    return name in _MODULE_REGISTRY
+def handle_command(command: str, args: list[str]) -> bool:
+    """Route module registry commands to handler functions.
 
+    Args:
+        command: The command string (e.g. "list", "info", "register")
+        args: List of arguments for the command
 
-def route_module_command(name: str, command: str, args: list[str] | None = None) -> dict:
-    """Route a command to a module's drone adapter.
-
-    Returns dict with keys: stdout, stderr, exit_code.
+    Returns:
+        True if command succeeded, False otherwise
     """
-    adapter_path = _MODULE_REGISTRY[name]
-    mod = importlib.import_module(adapter_path)
-    handler = getattr(mod, "handle_command")
-    return handler(command, args)
+    if command == "list":
+        modules = list_modules()
+        for name in modules:
+            info = get_module_info(name)
+            if info:
+                logger.info("  @%-18s %s", name, info.description)
+            else:
+                logger.info("  @%-18s (not available)", name)
+        return True
+    if command == "info":
+        if not args:
+            logger.warning("module_registry info requires a module name")
+            return False
+        info = get_module_info(args[0])
+        if info:
+            logger.info("Module: %s v%s — %s", info.name, info.version, info.description)
+        else:
+            logger.warning("Module '%s' not found", args[0])
+            return False
+        return True
+    if command == "check":
+        if not args:
+            logger.warning("module_registry check requires a module name")
+            return False
+        logger.info("Module '%s' registered: %s", args[0], is_module(args[0]))
+        return True
+    logger.warning("module_registry: unknown command '%s'", command)
+    return False
 
 
-def get_module_help(name: str, command: str | None = None) -> str:
-    """Get help text from a module's drone adapter."""
-    adapter_path = _MODULE_REGISTRY.get(name)
-    if adapter_path is None:
-        return ""
-    try:
-        mod = importlib.import_module(adapter_path)
-        help_fn = getattr(mod, "get_help", None)
-        if help_fn is None:
-            return ""
-        return help_fn(command)
-    except (ImportError, AttributeError):
-        return ""
+def print_help() -> None:
+    """Print help for the module_registry module."""
+    from aipass.cli.apps.modules import console
 
-
-def get_module_introspective(name: str) -> str:
-    """Get introspective view from a module's drone adapter.
-
-    Introspective = discovery mode (no args): shows what's connected.
-    Falls back to help text if not implemented.
-    """
-    adapter_path = _MODULE_REGISTRY.get(name)
-    if adapter_path is None:
-        return ""
-    try:
-        mod = importlib.import_module(adapter_path)
-        intro_fn = getattr(mod, "get_introspective", None)
-        if intro_fn is not None:
-            return intro_fn()
-        help_fn = getattr(mod, "get_help", None)
-        if help_fn is not None:
-            return help_fn(None)
-        return ""
-    except (ImportError, AttributeError):
-        return ""
-
-
-def register_module(name: str, adapter_path: str) -> None:
-    """Register a new module dynamically."""
-    _MODULE_REGISTRY[name] = adapter_path
+    console.print("module_registry — Internal module registry for drone")
+    console.print()
+    console.print("Commands:")
+    console.print("  list                List registered modules")
+    console.print("  info <name>         Show module metadata")
+    console.print("  check <name>        Check if module is registered")

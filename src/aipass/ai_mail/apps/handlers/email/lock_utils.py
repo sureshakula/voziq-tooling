@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: lock_utils.py - Dispatch Lock Handler
-# Date: 2026-02-09
+# =================== AIPass ====================
+# Name: lock_utils.py
+# Description: Dispatch Lock Handler
 # Version: 1.1.0
-# Category: ai_mail/handlers/email
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2026-02-10): Reduce stale lock timeout from 1800s to 600s (10 min)
-#   - v1.0.0 (2026-02-09): Initial implementation - PID-based single instance lock per branch
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Uses logging module for diagnostics
-#   - Pure business logic only
+# Created: 2026-02-09
+# Modified: 2026-02-09
 # =============================================
 
 """

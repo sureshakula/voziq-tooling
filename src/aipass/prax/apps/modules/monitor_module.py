@@ -1,25 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: monitor_module.py - Unified Monitoring Module
-# Date: 2025-11-23
-# Version: 0.2.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-23): Implemented threading-based monitoring loop
-#     * Added display thread (pulls from event queue)
-#     * Added file watcher thread (monitors filesystem changes)
-#     * Added log watcher thread (monitors log files)
-#     * Implemented interactive command handling (watch, filter, status, help, quit)
-#     * Starts in quiet mode - no output until user specifies what to watch
-#   - v0.1.0 (2025-11-23): Initial version - Mission Control orchestrator
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
-#   - Orchestration only - delegates to handlers
+# =================== AIPass ====================
+# Name: monitor_module.py
+# Description: Unified Monitoring Module
+# Version: 0.3.0
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -58,8 +42,8 @@ Architecture:
     - monitoring_filters.py   → Event filtering logic (TODO)
     - event_queue.py          → Event buffering and deduplication
     - module_tracker.py       → Module execution tracking
-    - (file watcher)          → Real-time file change detection (TODO)
-    - (log monitor)           → Log stream processing (TODO)
+    - filesystem_handler.py   → Real-time file change detection (FileSystemEventHandler)
+    - log_watcher.py          → Log stream processing
 """
 
 import sys
@@ -79,24 +63,14 @@ from aipass.cli.apps.modules import console, header, success, error, warning
 from aipass.prax.apps.handlers.monitoring import (
     print_event,              # unified_stream.py
     print_command_separator,  # unified_stream.py - command headers
-    detect_branch_from_path,  # branch_detector.py
-    FilterState,              # interactive_filter.py
     parse_command,            # interactive_filter.py
-    should_monitor,           # monitoring_filters.py
-    get_priority,             # monitoring_filters.py
-    MonitoringEvent,          # event_queue.py
     MonitoringQueue,          # event_queue.py
     ModuleTracker,            # module_tracker.py
 )
+# NOTE: FileSystemEventHandler implementation lives in:
+#   aipass.prax.apps.handlers.monitoring.filesystem_handler.MonitoringFileHandler
+# It handles trigger events for file_created/file_deleted/file_modified/file_moved
 
-# Telegram relay (optional - graceful if unavailable)
-try:
-    from aipass.prax.apps.handlers.monitoring.telegram_relay import (
-        telegram_start, telegram_stop, telegram_queue_event
-    )
-    _telegram_available = True
-except ImportError:
-    _telegram_available = False
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -201,7 +175,6 @@ def _get_pid_for_branch(branch: str) -> Optional[int]:
 
 # Global monitoring state
 _monitoring_active = False
-_filter_state: Optional[FilterState] = None
 _event_queue: Optional[MonitoringQueue] = None
 _module_tracker: Optional[ModuleTracker] = None
 _display_thread: Optional[threading.Thread] = None
@@ -228,56 +201,36 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'monitor':
         return False
 
-    global _monitoring_active, _filter_state, _event_queue, _module_tracker
+    global _monitoring_active, _event_queue, _module_tracker
     global _display_thread, _file_watcher_thread, _log_watcher_thread
 
     logger.info(f"Starting unified monitoring (args: {args})")
 
     # Initialize monitoring subsystems
-    _filter_state = FilterState()
     _event_queue = MonitoringQueue()
     _module_tracker = ModuleTracker()
     _monitoring_active = True
 
-    # Parse args for initial branch filters
     _is_tty = sys.stdin.isatty()
-    if args:
-        if args[0] == 'all':
-            # Watch all branches
-            _filter_state.show_all = True
-            _filter_state.show_info = True
-        else:
-            # Watch specific branches
-            initial_branches = args[0].split(',')
-            _filter_state.watched_branches = set(normalize_branch_arg(b.strip()) for b in initial_branches)
-            _filter_state.show_info = True
-    elif not _is_tty:
-        # No TTY and no args — default to watching all (can't type 'watch all')
-        _filter_state.show_all = True
-        _filter_state.show_info = True
 
     # Display header
     console.print()
     header("PRAX Mission Control - Unified Monitoring")
     console.print()
-    console.print("[green]Monitoring system starting...[/green]")
+    console.print("[green]Live — all branches, all levels, no filters[/green]")
     if _is_tty:
-        console.print("[yellow]Quiet mode active - type 'help' for commands[/yellow]")
+        console.print("[dim]Type 'help' for commands[/dim]")
     else:
-        console.print("[yellow]Passive mode - no TTY detected, watching all (Ctrl+C to stop)[/yellow]")
+        console.print("[dim]Ctrl+C to stop[/dim]")
     console.print()
 
-    # Start monitoring threads + Telegram relay
+    # Start monitoring threads
     _start_threads()
-    if _telegram_available:
-        telegram_start()
 
     # Enter interactive mode
     _interactive_loop()
 
     # Cleanup on exit
-    if _telegram_available:
-        telegram_stop()
     _stop_threads()
 
     return True
@@ -318,55 +271,39 @@ def _stop_threads():
 
 
 def _display_worker():
-    """Display thread - pulls events from queue and displays them"""
-    global _monitoring_active, _event_queue, _filter_state
+    """Display thread - pulls events from queue and displays them. No filtering."""
+    global _monitoring_active, _event_queue
 
     while _monitoring_active:
         if not _event_queue:
             time.sleep(0.1)
             continue
 
-        # Get next event from queue
         event = _event_queue.dequeue(timeout=0.1)
 
         if event:
-            # Check if event should be displayed based on filters
-            from aipass.prax.apps.handlers.monitoring.interactive_filter import should_display_event
+            # Resolve PID for this branch
+            branch_pid = _get_pid_for_branch(event.branch)
 
-            if _filter_state and should_display_event(event.event_type, event.branch, event.level, _filter_state, event.message):
-                # Resolve PID for this branch
-                branch_pid = _get_pid_for_branch(event.branch)
-
-                # Display the event - use separator for commands, regular format for others
-                if event.event_type == 'command':
-                    # Pass caller and target for attribution
-                    caller = getattr(event, 'caller', None)
-                    # Target encoded in action field as "executed:TARGET"
-                    target = None
-                    if hasattr(event, 'action') and event.action and ':' in event.action:
-                        parts = event.action.split(':', 1)
-                        if len(parts) == 2 and parts[1]:
-                            target = parts[1]
-                    print_command_separator(event.branch, event.message, caller, target)
-                    # Telegram relay
-                    if _telegram_available:
-                        telegram_queue_event('command', event.branch, event.message, caller, target)
-                else:
-                    print_event(event.event_type, event.branch, event.message, event.level, pid=branch_pid)
-                    # Telegram relay
-                    if _telegram_available:
-                        telegram_queue_event(event.event_type, event.branch, event.message)
+            # Display the event
+            if event.event_type == 'command':
+                caller = getattr(event, 'caller', None)
+                target = None
+                if hasattr(event, 'action') and event.action and ':' in event.action:
+                    parts = event.action.split(':', 1)
+                    if len(parts) == 2 and parts[1]:
+                        target = parts[1]
+                print_command_separator(event.branch, event.message, caller, target)
+            else:
+                print_event(event.event_type, event.branch, event.message, event.level, pid=branch_pid)
 
 
 def _file_watcher_worker():
     """File watcher thread - watches filesystem changes and pushes to queue"""
     global _monitoring_active, _event_queue
 
-    # Use the existing file watcher from discovery
-    from aipass.prax.apps.handlers.discovery.watcher import start_file_watcher, stop_file_watcher
     from watchdog.observers import Observer
-    from watchdog.events import FileSystemEventHandler
-    from aipass.prax.apps.handlers.config.load import ECOSYSTEM_ROOT
+    from aipass.prax.apps.handlers.monitoring.filesystem_handler import MonitoringFileHandler
 
     # Files whose modification indicates a command is running (python3 direct calls)
     # Maps filename -> command description. Used to emit command separators from file events.
@@ -374,236 +311,15 @@ def _file_watcher_worker():
         'standards_audit_log.json': 'seed audit',
         'standards_checklist_log.json': 'seed checklist',
     }
-    # Track last command emitted per file to avoid duplicate separators
-    last_file_command = {}
-    # Track JSONL file positions for incremental reading
-    jsonl_positions = {}
-    # Track last agent action per session to avoid duplicate displays
-    last_agent_action = {}
-
-    class MonitoringFileHandler(FileSystemEventHandler):
-        """File system event handler that pushes to event queue"""
-
-        def on_created(self, event):
-            if not event.is_directory:
-                self._handle_event('created', event.src_path)
-
-        def on_modified(self, event):
-            if not event.is_directory:
-                self._handle_event('modified', event.src_path)
-
-        def on_deleted(self, event):
-            if not event.is_directory:
-                self._handle_event('deleted', event.src_path)
-
-        def on_moved(self, event):
-            if not event.is_directory:
-                # dest_path can be bytes or str, normalize to str for comparison
-                dest_path_str = event.dest_path.decode() if isinstance(event.dest_path, bytes) else event.dest_path
-                src_path_str = event.src_path.decode() if isinstance(event.src_path, bytes) else event.src_path
-                if 'Trash' in dest_path_str or '.local/share/Trash' in dest_path_str:
-                    # Moved to Trash = deletion
-                    self._handle_event('deleted', src_path_str)
-                elif '.tmp.' in src_path_str or src_path_str.endswith('.tmp'):
-                    # Atomic write: tmp file moved to real file = modification
-                    self._handle_event('modified', dest_path_str)
-                else:
-                    self._handle_event('moved', dest_path_str)
-
-        def _parse_agent_activity(self, file_path, branch):
-            """Parse Claude Code session JSONL to show agent actions.
-
-            Returns True if an event was emitted (or deduped), False on failure.
-            """
-            import json as _json
-            try:
-                path_key = str(file_path)
-                current_size = file_path.stat().st_size
-                last_pos = jsonl_positions.get(path_key, 0)
-
-                # File shrunk or new - reset
-                if current_size < last_pos:
-                    last_pos = 0
-
-                if current_size <= last_pos:
-                    return True  # No new data, but not an error
-
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    f.seek(last_pos)
-                    new_data = f.read()
-                    jsonl_positions[path_key] = f.tell()
-
-                # Parse last meaningful line
-                lines = [l for l in new_data.strip().split('\n') if l.strip()]
-                if not lines:
-                    return True  # Empty, not an error
-
-                for line in reversed(lines):
-                    try:
-                        entry = _json.loads(line)
-                    except _json.JSONDecodeError:
-                        continue
-
-                    entry_type = entry.get('type', '')
-                    msg = entry.get('message', {}) if isinstance(entry.get('message'), dict) else {}
-                    content = msg.get('content', [])
-
-                    # Skip noise entries - look for next meaningful one
-                    if entry_type in ('progress', 'system', 'file-history-snapshot', 'queue-operation'):
-                        continue
-
-                    action_text = None
-
-                    if entry_type == 'assistant' and isinstance(content, list):
-                        for item in content:
-                            if not isinstance(item, dict):
-                                continue
-                            item_type = item.get('type', '')
-
-                            if item_type == 'thinking':
-                                action_text = '💭 Thinking'
-                                break
-                            elif item_type == 'tool_use':
-                                tool_name = item.get('name', '')
-                                inp = item.get('input', {})
-                                if tool_name in ('Read', 'Edit', 'Write'):
-                                    fp = inp.get('file_path', '')
-                                    short = fp.split('/')[-1] if '/' in fp else fp
-                                    action_text = f"🔧 {tool_name}: {short}"
-                                elif tool_name == 'Bash':
-                                    desc = inp.get('description', '')
-                                    if not desc:
-                                        cmd = inp.get('command', '')[:120]
-                                        desc = cmd
-                                    action_text = f"⚡ Bash: {desc[:120]}"
-                                elif tool_name in ('Grep', 'Glob'):
-                                    pat = inp.get('pattern', '')[:80]
-                                    action_text = f"🔍 {tool_name}: {pat}"
-                                elif tool_name == 'Task':
-                                    desc = inp.get('description', '')[:80]
-                                    action_text = f"🚀 Agent: {desc}"
-                                else:
-                                    action_text = f"🔧 {tool_name}"
-                                break
-                            elif item_type == 'text':
-                                text = item.get('text', '').strip()[:200]
-                                if text:
-                                    action_text = f"💬 {text}"
-                                break
-
-                    elif entry_type == 'user':
-                        # Skip tool_result entries (noise - every tool call produces one)
-                        # Only show actual user messages (new prompts)
-                        is_tool_result = False
-                        if isinstance(content, list):
-                            for item in content:
-                                if isinstance(item, dict) and item.get('type') == 'tool_result':
-                                    is_tool_result = True
-                                    break
-                        if not is_tool_result:
-                            action_text = '📩 User message'
-
-                    if action_text:
-                        # Dedup: skip if same action for same session
-                        if last_agent_action.get(path_key) == action_text:
-                            return True  # Deduped, not an error
-                        last_agent_action[path_key] = action_text
-
-                        event = MonitoringEvent(
-                            priority=1,
-                            event_type='agent',
-                            branch=branch,
-                            action='activity',
-                            message=action_text,
-                            level='info'
-                        )
-                        if _event_queue:
-                            _event_queue.enqueue(event)
-                        return True
-
-                # All lines were progress/system - that's fine
-                return True
-
-            except Exception as e:
-                logger.info(f"[monitor] JSONL parse error for {file_path.name}: {e}")
-                return False
-
-        def _handle_event(self, action, path_str):
-            """Process file event and push to queue."""
-            try:
-                file_path = Path(path_str)
-
-                # Check if should monitor this path
-                if not should_monitor(file_path):
-                    return
-
-                # Detect branch from path
-                branch = detect_branch_from_path(str(file_path))
-
-                # Claude Code JSONL files: parse agent activity instead of raw modification
-                if file_path.suffix == '.jsonl' and '.claude/projects/' in path_str:
-                    # Distinguish subagents from main sessions
-                    # Main: ~/.claude/projects/{hash}/{uuid}.jsonl
-                    # Sub:  ~/.claude/projects/{hash}/{uuid}/subagents/agent-{id}.jsonl
-                    if '/subagents/' in path_str:
-                        branch = branch + ' agent'
-                    if self._parse_agent_activity(file_path, branch):
-                        return  # Parsed successfully, don't show raw event
-                    # Parsing failed - fall through to show raw file event
-
-                # Check if this file indicates a command (python3 direct calls)
-                if action == 'modified' and file_path.name in COMMAND_INDICATOR_FILES:
-                    cmd = COMMAND_INDICATOR_FILES[file_path.name]
-                    dedup_key = f"{branch}:{cmd}"
-                    if last_file_command.get(file_path.name) != dedup_key:
-                        last_file_command[file_path.name] = dedup_key
-                        cmd_event = MonitoringEvent(
-                            priority=2,
-                            event_type='command',
-                            branch=branch,
-                            action='executed',
-                            message=cmd,
-                            level='info'
-                        )
-                        if _event_queue:
-                            _event_queue.enqueue(cmd_event)
-                    # Still show the file event too (don't return)
-
-                # Get priority
-                priority_level = get_priority(file_path, action)
-
-                # Build display name with context (branch-relative path or short path)
-                display_name = file_path.name
-                # Show parent dir for context when file is deep in a branch
-                parts = file_path.parts
-                # Find branch root and show relative path from there
-                for i, part in enumerate(parts):
-                    if part in ('apps', 'handlers', 'modules', 'docs', 'templates'):
-                        display_name = '/'.join(parts[i:])
-                        break
-
-                # Create event
-                event = MonitoringEvent(
-                    priority=0,  # Will be set based on level
-                    event_type='file',
-                    branch=branch,
-                    action=action,
-                    message=f"{action.upper()}: {display_name}",
-                    level=priority_level if priority_level in ['error', 'warning', 'info'] else 'info'
-                )
-
-                # Push to queue
-                if _event_queue:
-                    _event_queue.enqueue(event)
-            except Exception as e:
-                # Log error but don't crash the watcher
-                logger.error(f"[monitor] Error handling {action} event for {path_str}: {e}")
 
     # Create observer and start watching
     # Watch from repo root (covers all modules)
     from aipass.prax.apps.handlers.config.load import _find_repo_root
     observer = Observer()
-    handler = MonitoringFileHandler()
+    handler = MonitoringFileHandler(
+        event_queue=_event_queue,
+        command_indicator_files=COMMAND_INDICATOR_FILES,
+    )
     watch_dir = _find_repo_root()
     observer.schedule(handler, str(watch_dir), recursive=True)
     observer.start()
@@ -638,11 +354,11 @@ def _log_watcher_worker():
 
 def _interactive_loop():
     """Interactive command loop - handles user input, or passive loop if no TTY"""
-    global _monitoring_active, _filter_state, _event_queue
+    global _monitoring_active
 
-    # Non-TTY mode: no interactive input available, just keep alive
+    # Non-TTY mode: just keep alive
     if not sys.stdin.isatty():
-        logger.info("[monitor] No TTY detected - running in passive mode (Ctrl+C to stop)")
+        logger.info("[monitor] No TTY detected - passive mode (Ctrl+C to stop)")
         try:
             while _monitoring_active:
                 time.sleep(0.5)
@@ -652,41 +368,26 @@ def _interactive_loop():
 
     from aipass.prax.apps.handlers.monitoring.interactive_filter import (
         parse_command,
-        apply_filter,
         get_help_text
     )
 
     while _monitoring_active:
         try:
-            # Get user input
             user_input = input().strip()
-
             if not user_input:
                 continue
 
-            # Parse command
             cmd, cmd_args = parse_command(user_input)
-
             if not cmd:
                 continue
 
-            # Handle commands
             if cmd in ['quit', 'exit', 'q']:
                 console.print("[yellow]Stopping monitoring...[/yellow]")
                 break
-
             elif cmd == 'help':
                 console.print(get_help_text())
-
             elif cmd == 'status':
                 _print_status()
-
-            elif cmd in ['watch', 'monitor', 'filter', 'verbosity', 'clear']:
-                # Update filter state
-                if _filter_state:
-                    apply_filter(_filter_state, cmd, cmd_args)
-                    console.print(f"[green]Filter updated: {cmd} {' '.join(cmd_args)}[/green]")
-
             else:
                 console.print(f"[red]Unknown command: {cmd}[/red]")
                 console.print("[dim]Type 'help' for available commands[/dim]")
@@ -700,28 +401,13 @@ def _interactive_loop():
 
 def _print_status():
     """Display current monitoring status"""
-    global _filter_state, _event_queue
+    global _event_queue
 
     console.print()
     console.print("[bold cyan]Monitoring Status:[/bold cyan]")
-    console.print()
-
-    if _filter_state:
-        if _filter_state.show_all:
-            console.print("  [yellow]Watching:[/yellow] All branches")
-        elif _filter_state.watched_branches:
-            console.print(f"  [yellow]Watching:[/yellow] {', '.join(sorted(_filter_state.watched_branches))}")
-        else:
-            console.print("  [yellow]Watching:[/yellow] None (quiet mode)")
-
-        console.print(f"  [yellow]Show errors:[/yellow] {_filter_state.show_errors}")
-        console.print(f"  [yellow]Show warnings:[/yellow] {_filter_state.show_warnings}")
-        console.print(f"  [yellow]Show info:[/yellow] {_filter_state.show_info}")
-        console.print(f"  [yellow]Verbosity:[/yellow] {_filter_state.verbosity}")
-
+    console.print("  [green]Mode:[/green] Live — all branches, all levels, no filters")
     if _event_queue:
         console.print(f"  [yellow]Queue size:[/yellow] {_event_queue.size()}")
-
     console.print()
 
 

@@ -1,20 +1,10 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: env.py - .env file operations
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: env.py
+# Description: .env file operations
 # Version: 0.2.0
-# Category: api/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.2.0 (2025-11-16): Extracted from api_connect.py - complete implementation
-#   - v0.1.0 (2025-11-15): Initial handler stub
-#
-# CODE STANDARDS:
-#   - Handler layer (standalone functions)
-#   - Uses CLI service for output
-#   - Under 300 lines
-# ==============================================
+# Created: 2025-11-16
+# Modified: 2025-11-16
+# =============================================
 
 """
 .env File Handler
@@ -36,8 +26,8 @@ import sys
 # Standard library
 from typing import Optional, Dict, List
 
-# CLI services
-from aipass.cli.apps.modules import console
+# Logging
+from aipass.prax import logger
 
 
 # ==============================================
@@ -172,7 +162,7 @@ def create_env_template(provider: str = "openrouter", target_path: Optional[Path
     # Don't overwrite existing file
     if env_path.exists():
         # .env file already exists
-        console.print(f"[yellow]ℹ[/yellow] .env file already exists at {env_path}")
+        logger.info(f".env file already exists at {env_path}")
         return True
 
     # Template content based on provider
@@ -208,12 +198,12 @@ OPENAI_API_KEY=sk-your-openai-key-here
             f.write(env_template)
 
         # Created .env template
-        console.print(f"[green]✓[/green] Created .env template at {env_path}")
+        logger.info(f"Created .env template at {env_path}")
         return True
 
     except Exception as e:
         # Failed to create .env template
-        console.print(f"[red]✗[/red] Failed to create .env template: {e}")
+        logger.error(f"Failed to create .env template: {e}")
         return False
 
 
@@ -267,12 +257,12 @@ def create_custom_env_template(variables: Dict[str, str], target_path: Path,
             f.write(content)
 
         # Created custom .env template
-        console.print(f"[green]✓[/green] Created custom .env template at {target_path}")
+        logger.info(f"Created custom .env template at {target_path}")
         return True
 
     except Exception as e:
         # Failed to create custom .env template
-        console.print(f"[red]✗[/red] Failed to create custom .env template: {e}")
+        logger.error(f"Failed to create custom .env template: {e}")
         return False
 
 

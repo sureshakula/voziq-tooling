@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: errors.py - Error Detection Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: errors.py
+# Description: Error Detection Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_error_monitor.py
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Pure business logic only
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -33,8 +25,6 @@ import hashlib
 import re
 from pathlib import Path
 from typing import Optional, Dict, Tuple
-
-from aipass.cli.apps.modules import console
 
 
 def _find_repo_root() -> Path:
@@ -251,6 +241,7 @@ def validate_error_data_entry(error_info: Dict) -> bool:
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("ERROR DETECTION HANDLER")
     console.print("="*70)

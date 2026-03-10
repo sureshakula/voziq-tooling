@@ -1,19 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: manager.py - Memory Sections Management Handler
-# Date: 2026-02-04
+# =================== AIPass ====================
+# Name: manager.py
+# Description: Memory Sections Management Handler
 # Version: 1.2.0
-# Category: memory/handlers/learnings
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2026-03-06): Adapted for AIPass public repo - removed hardcoded paths
-#   - v1.1.0 (2026-02-04): Added recently_completed management + status count updates
-#   - v1.0.0 (2026-02-04): Initial version - timestamp tracking, max_entries, vectorization
-#
-# CODE STANDARDS:
-#   - Handler independence: No module imports
-#   - Error handling: Return status dicts (3-tier architecture)
-#   - File size: <600 lines target
+# Created: 2026-02-04
+# Modified: 2026-03-06
 # =============================================
 
 """
@@ -43,7 +33,9 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from aipass.prax.apps.modules.logger import get_system_logger
+
+logger = get_system_logger()
 
 # Handler imports (relative within package)
 from aipass.memory.apps.handlers.json.json_handler import (

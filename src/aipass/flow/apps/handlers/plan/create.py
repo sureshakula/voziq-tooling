@@ -1,18 +1,10 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: create.py - Plan creation handler with registry integration
-# Date: 2025-11-16
+# =================== AIPass ====================
+# Name: create.py
+# Description: Plan creation handler with registry integration
 # Version: 1.1.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v1.0.0 (2025-11-16): Handler extraction from archive_temp
-#
-# CODE STANDARDS:
-#   - Seedgo v3.0 compliant (handler independence, imports, architecture)
-# ==============================================
+# Created: 2025-11-16
+# Modified: 2025-11-16
+# =============================================
 
 """
 Plan Creation Handler

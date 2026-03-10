@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: usage_tracker.py - Usage Tracking Module
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: usage_tracker.py
+# Description: Usage Tracking Module
 # Version: 1.0.0
-# Category: api/modules
-# CODE STANDARDS: Seed v1.0.0
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial module - orchestrates usage tracking
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: sync_registry.py
 # Description: Registry repair — thin CLI layer for registry synchronization
 # Version: 1.1.0
@@ -17,6 +17,37 @@ from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
 from aipass.spawn.apps.handlers.sync_registry_ops import sync_registry
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("sync_registry Module")
+    console.print("Registry repair — detect and fix mismatches between AIPASS_REGISTRY and filesystem")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - sync_registry_ops.py (sync_registry — scan filesystem, detect stale/unregistered, auto-repair)")
+    console.print()
+
+
+# =============================================================================
+# DRONE ROUTING
+# =============================================================================
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Args:
+        command: The command string (e.g. "sync-registry")
+        args: List of arguments for the command
+
+    Returns:
+        True if command was handled, False otherwise.
+    """
+    if command == "sync-registry":
+        return handle_sync_registry(args) == 0
+    return False
 
 
 # =============================================================================

@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: statistics_handler.py - Backup statistics tracking
-# Date: 2025-11-18
+# =================== AIPass ====================
+# Name: statistics_handler.py
+# Description: Backup statistics tracking
 # Version: 1.0.0
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-18): Extracted from backup_core.py
-#     * Extracted update_data_file() statistics tracking
-#     * Handles runtime state and statistics updates
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-18
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -27,11 +16,11 @@ Manages backup operation statistics and runtime state persistence.
 # IMPORTS
 # =============================================
 
-import logging
+from aipass.prax import logger
 import datetime
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 # Import handlers
 from aipass.backup.apps.handlers.json.json_handler import load_json, save_json

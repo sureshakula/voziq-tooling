@@ -1,6 +1,13 @@
 # Skills
 
-Capability framework for AI agents in AIPass. Skills are discoverable, validatable, and executable units of capability that any AI agent can use.
+**Purpose:** Capability framework for AI agents in AIPass. Skills are discoverable, validatable, and executable units of capability that any AI agent can use.
+**Module:** `skills`
+**Created:** 2026-03-07
+**Last Updated:** 2026-03-08
+
+---
+
+## Overview
 
 ## Three Tiers
 
@@ -97,6 +104,21 @@ Skills are discovered in this order (first match wins for same name):
 2. **Global**: `~/.aipass/skills/` in the user's home directory
 3. **Built-in**: `src/skills/catalog/` in the AIPass codebase
 
+## Commands / Usage
+
+```bash
+drone @skills list                         # Show all discovered skills
+drone @skills info <name>                  # Display SKILL.md contents
+drone @skills run <name> [action] [args]   # Execute a skill's handler
+drone @skills create <name>                # Scaffold new skill (markdown only)
+drone @skills create <name> --with-handler # Scaffold with handler.py
+drone @skills create <name> --full         # Scaffold with full 3-layer structure
+drone @skills validate <name>              # Check if skill requirements are met
+drone @skills --help                       # Show help
+```
+
+---
+
 ## Directory Structure
 
 ```
@@ -112,8 +134,27 @@ src/skills/
       registry.py          # Skill registry management
       validator.py         # Check requirements
       template.py          # Skill templates
+    plugins/               # Plugin extensions
   catalog/                 # Built-in skills
   templates/               # Skill creation templates
+  skills_json/             # JSON tracking directory
   .trinity/                # Branch identity and memory
   tests/                   # Test suite
 ```
+
+---
+
+## Integration Points
+
+### Depends On
+- Python stdlib (`pathlib`, `json`, `shutil`, `importlib`, `re`, `yaml`)
+- Filesystem: reads SKILL.md files from project, global, and built-in search paths
+
+### Provides To
+- All modules — skill discovery, loading, validation, and execution
+- AI agents — discoverable capability units via `drone @skills`
+- Projects — local skill scaffolding via `drone @skills create`
+
+---
+
+*Last Updated: 2026-03-08*

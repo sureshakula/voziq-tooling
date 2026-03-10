@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: warning_logged.py - Warning Logged Event Handler
-# Date: 2026-01-31
+# =================== AIPass ====================
+# Name: warning_logged.py
+# Description: Warning logged event handler for monitoring hooks
 # Version: 1.0.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-31): Created - Phase 2 migration (FPLAN-0279)
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - NO logger imports (causes infinite recursion in event handlers)
-#   - NO print statements (handlers must be silent)
-#   - Silent failure - catch all exceptions, pass
+# Created: 2026-01-31
+# Modified: 2026-01-31
 # =============================================
 
 """

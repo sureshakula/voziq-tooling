@@ -1,16 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: get_template.py
-# Date: 2025-11-30
+# Description: Get Template Handler
 # Version: 1.2.0
-# Category: flow/handlers/template
-# CODE STANDARDS: Seedgo v3.0
-#
-# CHANGELOG:
-#   - v1.2.0 (2025-11-30): Changed TEMPLATES_DIR from .cached_templates to templates (Flow owns templates now)
-#   - v1.1.0 (2025-11-21): Removed Prax logging per 3-tier standard
-#   - v1.0.0 (2025-11-07): Extracted from flow_template_handler.py
+# Created: 2025-11-30
+# Modified: 2025-11-30
 # =============================================
 
 """

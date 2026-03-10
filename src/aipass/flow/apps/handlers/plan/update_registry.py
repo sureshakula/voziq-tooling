@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: update_registry.py - Registry Update Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: update_registry.py
+# Description: Registry Update Handler
 # Version: 0.1.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-15): Initial handler - registry add/remove operations
-#
-# CODE STANDARDS:
-#   - Pure data manipulation
-#   - Defensive programming (ensure keys exist)
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: build_registry_entry.py - Registry Entry Builder
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: build_registry_entry.py
+# Description: Registry Entry Builder
 # Version: 0.1.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-15): Initial handler - build plan registry entries
-#
-# CODE STANDARDS:
-#   - Pure data structure construction
-#   - UTC timestamps
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

@@ -1,6 +1,23 @@
-# Prax
+# PRAX
 
-System-wide logging and real-time monitoring for AIPass. Prax auto-routes log output from any module to per-module log files and provides a live monitoring console (Mission Control) that shows file changes, log events, and command execution across all branches.
+**Purpose:** System-wide logging, real-time monitoring, and dashboard for AIPass.
+**Module:** `aipass.prax`
+**Last Updated:** 2026-03-08
+
+---
+
+## Overview
+
+Prax auto-routes log output from any module to per-module log files and provides a live monitoring console (Mission Control) that shows file changes, log events, and command execution across all branches.
+
+## Commands / Usage
+
+```bash
+drone @prax status                              # System health status
+drone @prax dashboard                           # Show dashboard
+drone @prax monitor                             # Start log monitoring
+drone @prax --help                              # Full help
+```
 
 ## Usage
 
@@ -54,23 +71,36 @@ quit                # Exit
 | `drone @prax shutdown` | Shutdown logging system |
 | `drone @prax discover` | Discover Python modules in ecosystem |
 | `drone @prax log-audit` | Audit log file sizes and health |
+| `drone @prax terminal enable\|disable` | Enable or disable terminal output |
+| `drone @prax dashboard` | Show system dashboard |
+| `drone @prax agent-status` | Show agent status overview |
 
 ## Architecture
 
 ```
 prax/
 ├── apps/
-│   ├── prax.py              # Entry point
+│   ├── prax.py                    # Entry point (CLI)
 │   ├── modules/
-│   │   ├── logger.py        # SystemLogger (public API)
-│   │   └── monitor_module.py # Mission Control
+│   │   ├── logger.py              # SystemLogger (public API)
+│   │   ├── monitor_module.py      # Mission Control
+│   │   ├── agent_status_module.py # Agent status overview
+│   │   ├── dashboard.py           # System dashboard
+│   │   ├── discover_module.py     # Module discovery
+│   │   ├── init_module.py         # Logging system initialization
+│   │   ├── log_audit_module.py    # Log file audit
+│   │   ├── run_module.py          # Continuous logging mode
+│   │   ├── shutdown_module.py     # Logging system shutdown
+│   │   ├── status_module.py       # System status display
+│   │   └── terminal_module.py     # Terminal output toggle
 │   └── handlers/
-│       ├── logging/         # Log setup, rotation, introspection
-│       ├── monitoring/      # Event queue, branch detection, stream output
-│       ├── discovery/       # Module scanning and filtering
-│       ├── config/          # Configuration loading
-│       └── registry/        # Module registry management
-└── tests/
+│       ├── logging/               # Log setup, rotation, introspection
+│       ├── monitoring/            # Event queue, branch detection, stream output
+│       ├── discovery/             # Module scanning and filtering
+│       ├── config/                # Configuration loading
+│       └── registry/              # Module registry management
+├── docs/                          # Documentation
+└── tests/                         # Test suite
 ```
 
 ## How It Works
@@ -78,3 +108,20 @@ prax/
 1. **Auto-routing** — When any module calls `logger.info()`, prax inspects the call stack to identify the caller and routes the log entry to the appropriate file.
 2. **Dual output** — Each log entry goes to both a system-wide log (`system_logs/`) and a branch-local log (`{branch}/logs/`), both with rotation.
 3. **Mission Control** — A multi-threaded monitoring console that watches file changes (via inotify), log events, and agent activity across all branches simultaneously.
+
+---
+
+## Integration Points
+
+### Depends On
+- `aipass.cli` — Console output, headers, success/error formatting
+- Python stdlib (`pathlib`, `importlib`, `argparse`, `logging`)
+
+### Provides To
+- All modules — Unified logging via `system_logger` and `get_direct_logger`
+- All modules — Real-time monitoring via Mission Control
+- `aipass.spawn`, `aipass.drone`, `aipass.seedgo`, and others — Log infrastructure
+
+---
+
+*Last Updated: 2026-03-08*

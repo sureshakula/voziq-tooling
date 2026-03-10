@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: validator.py - Plan Validation Handler
-# Date: 2025-11-30
+# =================== AIPass ====================
+# Name: validator.py
+# Description: Plan Validation Handler
 # Version: 0.3.0
-# Category: flow/handlers/plan
-# CODE STANDARDS: Seedgo v3.0
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.3.0 (2026-01-30): Accept PLAN-XXXX and PLANXXXX prefixes (not just FPLAN-)
-#   - v0.2.0 (2025-11-30): Strip FPLAN- prefix for copy-paste UX (FPLAN-0240 → 0240)
-#   - v0.1.0 (2025-11-15): Initial handler - plan number validation
-#
-# CODE STANDARDS:
-#   - Handler implements validation logic
-#   - No module imports (handler independence)
+# Created: 2025-11-30
+# Modified: 2025-11-30
 # =============================================
 
 """

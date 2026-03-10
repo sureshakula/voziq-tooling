@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: wake.py - Manual Branch Wake Handler
-# Date: 2026-03-02
+# =================== AIPass ====================
+# Name: wake.py
+# Description: Manual Branch Wake Handler
 # Version: 2.0.0
-# Category: ai_mail/handlers/dispatch
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-03-02): Step-by-step status, dispatch_monitor wrapper,
-#     zombie cleanup, return-to-sender bounce, liveness check
-#   - v1.7.0 (2026-03-02): Redirect stderr to log file instead of DEVNULL (debug silent deaths)
-#   - v1.6.0 (2026-03-02): Manual wake returns success on active lock (agent will process inbox)
-#   - v1.5.0 (2026-03-02): Manual wake bypasses autonomous_pause; add auto param for daemon use
-#   - v1.4.0 (2026-03-01): Add AIPASS_SESSION_TYPE env var + session rename for /resume picker
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-handler or module imports
-#   - Pure business logic only
-#   - Uses Prax system_logger (FPLAN-0382)
+# Created: 2026-03-02
+# Modified: 2026-03-02
 # =============================================
 
 """
@@ -178,7 +164,7 @@ def _acquire_lock(branch_path: Path, pid: int) -> Tuple[bool, str]:
 
 def _load_config() -> dict:
     """Load safety config for max_turns."""
-    defaults = {"max_turns_per_wake": 50}
+    defaults = {"max_turns_per_wake": 100}
     config = _read_json(CONFIG_FILE)
     if config is None:
         return defaults
@@ -381,7 +367,7 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
 
     # Step 6: Build spawn command
     config = _load_config()
-    max_turns = config.get("max_turns_per_wake", 50)
+    max_turns = config.get("max_turns_per_wake", 100)
 
     lock_file_path = str(branch_path / ".ai_mail.local" / ".dispatch.lock")
     if custom_message:
@@ -473,11 +459,9 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
     # Desktop notification
     notif_body = custom_message[:80] if custom_message else "Manual wake: check inbox"
     try:
-        subprocess.run(
-            ["notify-send", "-i", "dialog-information", f"Wake → {email}", notif_body],
-            capture_output=True, timeout=5
-        )
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
+        from aipass.ai_mail.apps.handlers.notify import send_notification
+        send_notification(f"Wake → {email}", notif_body, source=email.lstrip("@"))
+    except Exception:
         logger.info("[wake] Desktop notification unavailable")
 
     return status, True

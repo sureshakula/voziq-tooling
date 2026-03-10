@@ -1,31 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: system_utils.py - Platform-aware file and console utilities
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: system_utils.py
+# Description: Platform-aware file and console utilities
 # Version: 2.1.1
-# Category: handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.1.1 (2025-11-23): CRITICAL FIX - Switch to plain print() for clickability
-#     * Replaced console.print() with plain print() in safe_print()
-#     * Rich console truncates at 80 chars breaking long paths
-#     * Plain print() preserves full paths for terminal Ctrl+click
-#   - v2.1.0 (2025-11-23): Attempted fix with no_wrap parameter (insufficient)
-#     * Added no_wrap=True to console.print() but Rich still truncates
-#     * Identified Rich console 80-char limit as root cause
-#   - v2.0.0 (2025-11-16): Extracted to seed standards
-#     * Applied seed standards formatting and meta header
-#     * Preserved all logic from backup_utils v1.0.0
-#   - v1.1.0 (2025-11-22): Updated to seed Rich formatting standards
-#   - v1.0.0 (2025-11-18): Extracted from backup_core.py
-#     * Extracted system utilities
-#     * Cross-platform file operations
-#
-# CODE STANDARDS:
-#   - Follow seed 3-layer architecture
-#   - Handlers must be independent and transportable
-#   - No cross-handler imports except within same domain
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -48,11 +26,11 @@ Key Functions:
 import sys
 import os
 import stat
-import logging
+from aipass.prax import logger
 from pathlib import Path
 from contextlib import contextmanager
 
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 # =============================================
 # CONSTANTS

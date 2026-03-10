@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: shutdown_module.py - PRAX Shutdown Command
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: shutdown_module.py
+# Description: PRAX Shutdown Command
 # Version: 1.0.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Created with handle_command interface
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -63,6 +54,19 @@ def handle_command(command: str, args: List[str]) -> bool:
     shutdown_logging_system()
     console.print("✅ PRAX logging system shutdown complete")
     return True
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("shutdown_module Module")
+    console.print("Implements the 'shutdown' command to cleanly stop PRAX logging system")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  modules/")
+    console.print("    - logger.py (shutdown_logging_system — stops watcher, restores logger, logs shutdown)")
+    console.print("    - logger.py (system_logger — auto-routing logger for module log files)")
+    console.print()
 
 
 if __name__ == "__main__":

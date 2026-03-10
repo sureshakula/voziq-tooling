@@ -1,23 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: terminal_module.py - PRAX Terminal Command
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: terminal_module.py
+# Description: PRAX Terminal Command
 # Version: 1.1.0
-# Category: prax/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.1.0 (2025-11-29): UX improvements - added help output for invalid/missing args
-#     * Added print_help() function with drone-compliant format
-#     * Updated handle_command() to show help instead of bare error message
-#     * Added --help and --introspect flag support in main block
-#     * Added error handling with try/except and logger.error
-#   - v1.0.0 (2025-11-15): Created with handle_command interface
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Implements handle_command(command: str, args: List[str]) -> bool interface
-#   - Uses Prax logger for system-wide logging
+# Created: 2025-11-15
+# Modified: 2026-03-09
 # =============================================
 
 """

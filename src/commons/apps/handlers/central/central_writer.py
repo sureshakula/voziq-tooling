@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: central_writer.py - COMMONS Central File Writer
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: central_writer.py
+# Description: COMMONS Central File Writer
 # Version: 1.0.0
-# Category: commons/apps/handlers/central
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system for AIPass public framework
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console.print
-#   - No sys.path manipulation
-#   - Uses os for paths (handler convention)
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -36,11 +28,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.central_writer")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

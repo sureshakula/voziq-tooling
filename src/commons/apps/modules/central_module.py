@@ -1,17 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: central_module.py - Central File Push Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: central_module.py
+# Description: Central File Push Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system for AIPass public framework
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -26,11 +18,7 @@ Handles: push-central command.
 
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    import logging
-    logger = logging.getLogger("commons.central_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -39,6 +27,18 @@ except ImportError:
     console = Console()
 
 from commons.apps.handlers.central.central_writer import update_central
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("central_module Module")
+    console.print("Thin router for the push-central command — aggregates commons stats and writes COMMONS.central.json.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/central/")
+    console.print("    - central_writer.py (update_central — aggregate stats and write central file)")
+    console.print()
 
 
 # =============================================================================

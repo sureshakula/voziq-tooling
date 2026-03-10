@@ -1,73 +1,85 @@
+# =================== AIPass ====================
+# Name: config.py
+# Description: Registry configuration management
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
+
 """
 Registry configuration management.
 
-Locates AIPASS_REGISTRY.json using walk-up finder pattern.
-Works in both pip-installed and development environments.
+Thin orchestrator that delegates to registry_handler for path resolution.
 """
 
-import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
+
+from aipass.prax import logger
+from aipass.drone.apps.handlers.registry_handler import (
+    get_registry_path,
+    set_registry_path,
+    reset_registry_path,
+)
+
+__all__ = ["get_registry_path", "set_registry_path", "reset_registry_path"]
 
 
-_registry_path: Optional[Path] = None
+def print_introspection():
+    """Display module introspection info."""
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
+
+    console.print()
+    console.print("config Module")
+    console.print("Registry configuration management — path resolution and overrides.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - registry_handler.py (get_registry_path — return current registry file path)")
+    console.print("    - registry_handler.py (set_registry_path — override registry file location)")
+    console.print("    - registry_handler.py (reset_registry_path — restore default registry path)")
+    console.print()
 
 
-def _find_registry() -> Path:
-    """Find AIPASS_REGISTRY.json by walking up from this file's location.
+def handle_command(command: str, args: List[str]) -> bool:
+    """Route config commands to handler functions.
 
-    Search order:
-    1. Explicitly set path via set_registry_path()
-    2. AIPASS_REGISTRY environment variable
-    3. Walk up from drone package location
-    4. Walk up from cwd
-    5. Default: ~/.aipass/AIPASS_REGISTRY.json
+    Args:
+        command: The command string (e.g. "path", "set", "reset")
+        args: List of arguments for the command
+
+    Returns:
+        True if command succeeded, False otherwise
     """
-    # Walk up from this file (works for pip editable installs)
-    current = Path(__file__).resolve().parent
-    for parent in [current] + list(current.parents):
-        candidate = parent / "AIPASS_REGISTRY.json"
-        if candidate.exists():
-            return candidate
-
-    # Walk up from cwd (works for regular installs)
-    cwd = Path.cwd()
-    for parent in [cwd] + list(cwd.parents):
-        candidate = parent / "AIPASS_REGISTRY.json"
-        if candidate.exists():
-            return candidate
-
-    # Fallback — use package-relative path (no filesystem assumptions)
-    return Path(__file__).resolve().parents[4] / "AIPASS_REGISTRY.json"
-
-
-def get_registry_path() -> Path:
-    """Get the current registry path.
-
-    Priority:
-    1. Explicitly set path via set_registry_path()
-    2. AIPASS_REGISTRY environment variable
-    3. Walk-up finder from package location
-    """
-    global _registry_path
-
-    if _registry_path is not None:
-        return _registry_path
-
-    env_path = os.environ.get("AIPASS_REGISTRY")
-    if env_path:
-        return Path(env_path)
-
-    return _find_registry()
+    if command == "path":
+        logger.info("Registry path: %s", get_registry_path())
+        return True
+    if command == "set":
+        if not args:
+            logger.warning("config set requires a path argument")
+            return False
+        set_registry_path(args[0])
+        logger.info("Registry path set to: %s", args[0])
+        return True
+    if command == "reset":
+        reset_registry_path()
+        logger.info("Registry path reset to default")
+        return True
+    logger.warning("config: unknown command '%s'", command)
+    return False
 
 
-def set_registry_path(path: str | Path) -> None:
-    """Set a custom registry path."""
-    global _registry_path
-    _registry_path = Path(path)
+def print_help() -> None:
+    """Print help for the config module."""
+    from aipass.cli.apps.modules import console
 
-
-def reset_registry_path() -> None:
-    """Reset registry path to default (useful for testing)."""
-    global _registry_path
-    _registry_path = None
+    console.print("config — Registry configuration management")
+    console.print()
+    console.print("Commands:")
+    console.print("  path                Show current registry path")
+    console.print("  set <path>          Set custom registry path")
+    console.print("  reset               Reset registry path to default")

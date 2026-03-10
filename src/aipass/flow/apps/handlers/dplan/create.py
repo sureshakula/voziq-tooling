@@ -1,21 +1,10 @@
-#!/home/aipass/.venv/bin/python3
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: create.py - Plan creation handler
-# Date: 2025-12-02
+# =================== AIPass ====================
+# Name: create.py
+# Description: Plan creation handler
 # Version: 2.0.0
-# Category: devpulse/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v2.0.0 (2026-02-19): Multi-type (DPLAN/BPLAN) + target_path for @ resolution
-#   - v1.0.0 (2025-12-02): Extracted from dev_flow.py module
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - NO Prax logging (per 3-tier: modules log, handlers don't)
-#   - Pure business logic only
-# ==============================================
+# Created: 2025-12-02
+# Modified: 2025-12-02
+# =============================================
 
 """
 Create Handler - Plan File Creation

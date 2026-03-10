@@ -1,20 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: errors.py - Error Registry Management Module
-# Date: 2026-02-13
-# Version: 1.2.0
-# Category: trigger/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.2.0 (2026-02-14): Public API report_error() for cross-branch push reporting
-#   - v1.1.0 (2026-02-13): Phase 5 - Source fix pipeline (email + fix status tracking)
-#   - v1.0.0 (2026-02-13): Created - Phase 4 Medic v2 management commands
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Module orchestrates, handler (error_registry.py) contains data logic
-#   - No direct file operations - delegates to handler
+# =================== AIPass ====================
+# Name: errors.py
+# Description: Error registry management module for Medic v2 commands
+# Version: 1.3.0
+# Created: 2026-02-13
+# Modified: 2026-03-08
 # =============================================
 
 """
@@ -41,74 +30,38 @@ from aipass.trigger.apps.handlers.error_registry import (
     query, get_entry, update_status, clear_resolved, get_stats,
     get_circuit_breaker_status, circuit_breaker_reset,
     update_source_fix_status,
-    report as _registry_report,
+)
+from aipass.trigger.apps.handlers.error_reporter import (
+    report_error,
+    send_source_fix_email as _send_source_fix_email,
 )
 
-def report_error(
-    error_type: str,
-    message: str,
-    component: str,
-    log_path: str = "",
-    severity: str = "medium",
-    fire_event: bool = True
-) -> dict:
-    """Report an error to the registry and optionally fire error_detected event.
 
-    Public API for cross-branch push reporting. Drone and other branches
-    call this instead of importing from handlers directly.
-
-    Pipeline: report() -> registry stores -> fire event -> handler checks
-    circuit breaker + rate limiting -> dispatch email if allowed.
-
-    Args:
-        error_type: Error class name (e.g., 'ImportError', 'TimeoutError')
-        message: Original error message text
-        component: Branch that generated the error (e.g., 'FLOW', 'API')
-        log_path: Path to source log file (optional)
-        severity: Error severity - low, medium, high, critical (default: medium)
-        fire_event: Whether to fire error_detected event (default: True).
-            Set False for silent registration without dispatch.
-
-    Returns:
-        Dict with error entry data + 'is_new' bool + 'dispatched' bool.
-    """
-    result = _registry_report(
-        error_type=error_type,
-        message=message,
-        component=component,
-        log_path=log_path,
-        severity=severity,
-    )
-    result["dispatched"] = False
-
-    # Fire event on first occurrence (count==1) for registration and on
-    # second occurrence (count==2) so the handler can apply the dispatch
-    # threshold.  Skip all other counts (backoff handles later dispatches).
-    error_count = result.get("count", 1)
-    if not fire_event or (not result.get("is_new", False) and error_count != 2):
-        return result
-
+def print_introspection():
+    """Display module introspection info."""
     try:
-        from aipass.trigger.apps.modules.core import trigger as _trigger_bus
-        _trigger_bus.fire(
-            "error_detected",
-            branch=component,
-            module=error_type,
-            message=message,
-            log_path=log_path,
-            error_hash=result.get("id", ""),
-            timestamp=result.get("last_seen", ""),
-            fingerprint=result.get("fingerprint", ""),
-            registry_id=result.get("id", ""),
-            first_seen=result.get("first_seen", ""),
-            last_seen=result.get("last_seen", ""),
-            count=error_count,
-        )
-        result["dispatched"] = True
-    except Exception:
-        pass
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        from rich.console import Console
+        console = Console()
 
-    return result
+    console.print()
+    console.print("errors Module")
+    console.print("Error registry management — view, filter, suppress, and resolve tracked errors")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - error_registry.py (query — search/filter error entries)")
+    console.print("    - error_registry.py (get_entry — get single error by fingerprint)")
+    console.print("    - error_registry.py (update_status — change error status)")
+    console.print("    - error_registry.py (clear_resolved — purge old resolved entries)")
+    console.print("    - error_registry.py (get_stats — summary statistics)")
+    console.print("    - error_registry.py (get_circuit_breaker_status — circuit breaker state)")
+    console.print("    - error_registry.py (circuit_breaker_reset — reset circuit breaker)")
+    console.print("    - error_registry.py (update_source_fix_status — update fix tracking)")
+    console.print("    - error_reporter.py (report_error — cross-branch push error reporting)")
+    console.print("    - error_reporter.py (send_source_fix_email — notify branch to fix error)")
+    console.print()
 
 
 _STATUS_COLORS = {"new": "yellow", "investigating": "cyan", "suppressed": "dim", "resolved": "green"}
@@ -220,83 +173,6 @@ def handle_command(command: str, args: list) -> bool:
     console.print(f"[red]Unknown subcommand: {sub}[/red]")
     console.print("Run [dim]drone @trigger errors help[/dim] for available commands")
     return True
-
-
-# ---------------------------------------------------------------------------
-# Source Fix Pipeline
-# ---------------------------------------------------------------------------
-
-def _send_source_fix_email(entry: dict) -> bool:
-    """Send recommendation email to source branch about fixing log level.
-
-    When an error is suppressed, the source branch gets notified that
-    their log level may be wrong. This closes the loop:
-    error -> investigate -> suppress -> fix source -> error stops
-
-    Args:
-        entry: Error registry entry dict
-
-    Returns:
-        True if email sent successfully
-    """
-    try:
-        from aipass.ai_mail.apps.modules.email import send_email_direct
-    except ImportError:
-        logger.info("[ERRORS] Could not import send_email_direct - ai_mail not available")
-        return False
-
-    try:
-        component = entry.get("component", "").lower()
-        if not component or component == "unknown":
-            return False
-
-        recipient = f"@{component}"
-        fingerprint = entry.get("fingerprint", "")[:12]
-        error_type = entry.get("error_type", "?")
-        message = entry.get("message", "?")[:200]
-        suppress_reason = entry.get("suppress_reason", "No reason")
-        log_path = entry.get("log_path", "unknown")
-        count = entry.get("count", 0)
-
-        subject = f"[LOG FIX] {error_type} classified as non-critical"
-
-        body = f"""Your code is generating an error that has been classified as non-critical.
-
-Error fingerprint: {fingerprint}
-Error type: {error_type}
-Occurrences: {count}
-Log file: {log_path}
-Suppress reason: {suppress_reason}
-
-Error message:
-{message}
-
-RECOMMENDATION:
-This error is currently logged as ERROR but appears to be non-critical based on
-investigation. Consider one of:
-1. Change the log level from ERROR to WARNING or INFO
-2. Add proper error handling to prevent this from being logged
-3. If this is actually critical, reply to @trigger explaining why
-
-This will prevent unnecessary error dispatch for this issue.
-
----
-Automated recommendation from Medic v2 Error Registry.
-Reply to @trigger with your fix status."""
-
-        send_email_direct(
-            to_branch=recipient,
-            subject=subject,
-            message=body,
-            reply_to='@trigger',
-            from_branch='@trigger'
-        )
-
-        logger.info(f"[ERRORS] Source fix email sent to {recipient} for {fingerprint}")
-        return True
-    except Exception as exc:
-        logger.info(f"[ERRORS] Failed to send source fix email: {exc}")
-        return False
 
 
 # ---------------------------------------------------------------------------

@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_watcher.py - Log File Monitor
-# Date: 2025-11-23
+# =================== AIPass ====================
+# Name: log_watcher.py
+# Description: Log File Monitor
 # Version: 1.0.0
-# Category: prax/handlers/monitoring
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-23): Created - adapted from discovery/watcher.py
-#
-# DESCRIPTION:
-#   Real-time log file monitoring integrated with event queue.
-#   Reuses production-ready log tailing from discovery/watcher.py.
-#   Pushes events to MonitoringQueue instead of console output.
+# Created: 2025-11-23
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -37,6 +28,7 @@ from typing import Optional, Dict, Any, Union
 import re
 import logging
 
+from aipass.prax import logger
 from watchdog.observers import Observer as WatchdogObserver
 from watchdog.events import FileSystemEventHandler
 
@@ -55,7 +47,7 @@ except ImportError:
     HAS_TRIGGER = False
 
 # Logger
-logger = logging.getLogger(__name__)
+# logger imported from aipass.prax
 
 
 def _generate_error_hash(module_name: str, message: str) -> str:
@@ -168,30 +160,10 @@ class LogFileWatcher(FileSystemEventHandler):
 
         except Exception as e:
             # Log error but don't crash watcher
-            logger.debug(f"Error reading log file {file_path}: {e}")
+            logger.info(f"Error reading log file {file_path}: {e}")
 
     def _should_display_log(self, log_line: str) -> bool:
-        """
-        Filter out initialization noise - only show meaningful task logs.
-
-        Copied directly from discovery/watcher.py
-        """
-        # Common initialization patterns to skip
-        noise_patterns = [
-            "Initializing ",
-            "Module initialized",
-            "Module initialization completed",
-            "Configuration loaded",
-            "Data loaded",
-            "Registry loaded",
-            "loaded config from",
-            "Cleanup completed - Removed 0",
-        ]
-
-        for pattern in noise_patterns:
-            if pattern in log_line:
-                return False
-
+        """Check if log line should be displayed. No filtering — show everything."""
         return True
 
     def _detect_log_level(self, log_line: str) -> str:
@@ -239,17 +211,19 @@ class LogFileWatcher(FileSystemEventHandler):
                 return {'command': f"drone {args}", 'caller': None, 'target': None}
 
         # Pattern 2: Flow plan commands
-        if "FLOW_PLAN]" in log_line and ("Creating" in log_line or "Closing" in log_line or "Opening" in log_line):
+        if "[FLOW]" in log_line or "FLOW_PLAN]" in log_line:
             if "Creating" in log_line:
                 return {'command': "flow create plan", 'caller': None, 'target': None}
             elif "Closing" in log_line:
-                match = re.search(r"PLAN(\d+)", log_line)
-                if match:
-                    return {'command': f"flow close plan {match.group(1)}", 'caller': None, 'target': None}
+                match = re.search(r"(?:FPLAN|PLAN)[- ]?(\d+)", log_line)
+                plan_id = match.group(1) if match else ""
+                return {'command': f"flow close plan {plan_id}".strip(), 'caller': None, 'target': None}
             elif "Opening" in log_line:
-                match = re.search(r"PLAN(\d+)", log_line)
-                if match:
-                    return {'command': f"flow open plan {match.group(1)}", 'caller': None, 'target': None}
+                match = re.search(r"(?:FPLAN|PLAN)[- ]?(\d+)", log_line)
+                plan_id = match.group(1) if match else ""
+                return {'command': f"flow open plan {plan_id}".strip(), 'caller': None, 'target': None}
+            elif "Loaded module:" in log_line and not self.last_command_per_branch.get('FLOW', '').startswith('FLOW:flow'):
+                return {'command': "flow command", 'caller': None, 'target': None}
 
         # Pattern 3: Seed audit commands - extract target branch
         if "[seed]" in log_line.lower() and "audit" in log_line.lower():
@@ -463,7 +437,7 @@ class LogFileWatcher(FileSystemEventHandler):
         Initialize log positions to END of existing files.
 
         Only show NEW entries after watcher starts.
-        Copied from discovery/watcher.py start_file_watcher()
+        Call replay_recent() before this to show startup context.
         """
         if not get_system_logs_dir().exists():
             logger.warning(f"System logs directory not found: {get_system_logs_dir()}")
@@ -473,7 +447,48 @@ class LogFileWatcher(FileSystemEventHandler):
             try:
                 self.log_positions[str(log_file)] = log_file.stat().st_size
             except Exception as e:
-                logger.debug(f"Could not get size for {log_file}: {e}")
+                logger.info(f"Could not get size for {log_file}: {e}")
+
+    def replay_recent(self, num_lines: int = 1):
+        """
+        Replay the last N lines from each log file as startup context.
+
+        Shows recent activity so the monitor isn't blank on startup.
+        Skips command separators (stale) and noise patterns.
+
+        Args:
+            num_lines: Number of recent lines to replay per log file
+        """
+        logs_dir = get_system_logs_dir()
+        if not logs_dir.exists():
+            return
+
+        for log_file in sorted(logs_dir.glob("*.log")):
+            try:
+                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                    all_lines = f.readlines()
+
+                if not all_lines:
+                    continue
+
+                recent = all_lines[-num_lines:]
+                branch = detect_branch_from_log(str(log_file))
+
+                for line in recent:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # Skip commands in replay (they're stale)
+                    if self._extract_command_info(line):
+                        continue
+
+                    if self._should_display_log(line):
+                        level = self._detect_log_level(line)
+                        self._emit_log_event(branch, line, level, str(log_file))
+
+            except Exception as e:
+                logger.info(f"Error replaying {log_file}: {e}")
 
 
 def start_log_watcher(event_queue: MonitoringQueue) -> Any:
@@ -496,7 +511,7 @@ def start_log_watcher(event_queue: MonitoringQueue) -> Any:
     # Create watcher instance
     watcher = LogFileWatcher(event_queue)
 
-    # Initialize log positions to END of existing files
+    # Soft start: seek to end of all logs, only show NEW activity
     watcher.initialize_positions()
 
     # Create and start observer

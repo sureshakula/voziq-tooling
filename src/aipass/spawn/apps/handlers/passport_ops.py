@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: passport_ops.py
 # Description: Passport command — grants birthright citizenship to a directory
 # Version: 1.0.0

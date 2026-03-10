@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: file_ops.py - Plan File Operations Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: file_ops.py
+# Description: Plan File Operations Handler
 # Version: 0.1.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-11-15): Initial handler - file deletion operations
-#
-# CODE STANDARDS:
-#   - Check existence before operations
-#   - Return status messages for logging
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

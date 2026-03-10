@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: pending_work.py - Pending Work Handler
-# Date: 2026-02-17
+# =================== AIPass ====================
+# Name: pending_work.py
+# Description: Pending Work Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/dispatch
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-17): Initial version - per-branch pending work tracking
-#
-# CODE STANDARDS:
-#   - Handler independence: NO cross-domain imports
-#   - Pure business logic only
+# Created: 2026-02-17
+# Modified: 2026-02-17
 # =============================================
 
 """

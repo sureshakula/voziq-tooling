@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: artifact_ops.py - Artifact Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: artifact_ops.py
+# Description: Artifact Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/artifacts
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -22,15 +15,11 @@ Returns dicts for module display layer.
 """
 
 import json
-import logging
 import os
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.artifact_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 

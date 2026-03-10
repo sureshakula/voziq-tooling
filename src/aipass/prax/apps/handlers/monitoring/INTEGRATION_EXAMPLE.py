@@ -1,3 +1,10 @@
+# =================== AIPass ====================
+# Name: INTEGRATION_EXAMPLE.py
+# Description: Example: File Watcher Integration with monitor_module.py
+# Version: 1.0.0
+# Created: 2026-03-09
+# Modified: 2026-03-09
+# =============================================
 
 """
 Example: File Watcher Integration with monitor_module.py
@@ -7,7 +14,8 @@ This code would go in monitor_module.py's handle_command() function.
 """
 
 import sys
-from pathlib import Path
+
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from aipass.prax.apps.handlers.monitoring import (
     start_file_watcher,
@@ -29,33 +37,30 @@ def example_monitor_with_file_watcher(branch_filter=None):
         branch_filter: Optional list of branches to watch (e.g., ['PRAX', 'CLI'])
                       None = watch all branches (may hit inotify limits)
     """
-    print("Starting PRAX Monitor with File Watcher")
-    print("=" * 60)
-    print()
+    logger.info("Starting PRAX Monitor with File Watcher")
+    logger.info("=" * 60)
 
     # Start file watcher
     if branch_filter:
-        print(f"Starting file watcher for branches: {', '.join(branch_filter)}")
+        logger.info(f"Starting file watcher for branches: {', '.join(branch_filter)}")
         watcher = FileWatcherManager(branch_filter=branch_filter)
         success = watcher.start()
     else:
-        print("Starting file watcher for all branches")
+        logger.info("Starting file watcher for all branches")
         success = start_file_watcher()
 
     if not success:
-        print("Failed to start file watcher")
+        logger.error("Failed to start file watcher")
         return
 
     # Show stats
     stats = get_file_watcher_stats()
-    print(f"Watching {stats['branches_watched']} branches:")
+    logger.info(f"Watching {stats['branches_watched']} branches:")
     for branch in stats['branch_names']:
-        print(f"  - {branch}")
-    print()
+        logger.info(f"  - {branch}")
 
-    print("Monitoring active - press Ctrl+C to stop")
-    print("-" * 60)
-    print()
+    logger.info("Monitoring active - press Ctrl+C to stop")
+    logger.info("-" * 60)
 
     try:
         # Main monitoring loop
@@ -78,18 +83,17 @@ def example_monitor_with_file_watcher(branch_filter=None):
                     print_event(event.event_type, event.branch, event.message, event.level)
 
                 # You can also handle events directly:
-                # print(f"[{event.branch}] {event.action}: {event.message}")
+                # logger.info(f"[{event.branch}] {event.action}: {event.message}")
 
     except KeyboardInterrupt:
-        print()
-        print("-" * 60)
-        print("Stopping monitor...")
+        logger.info("-" * 60)
+        logger.info("Stopping monitor...")
 
     finally:
         # Cleanup
         stop_file_watcher()
-        print("File watcher stopped")
-        print("Monitor stopped")
+        logger.info("File watcher stopped")
+        logger.info("Monitor stopped")
 
 
 def example_filtered_monitoring():
@@ -114,17 +118,15 @@ def example_custom_event_handling():
     """
     Example: Custom event handling logic
     """
-    print("Custom Event Handling Example")
-    print("=" * 60)
-    print()
+    logger.info("Custom Event Handling Example")
+    logger.info("=" * 60)
 
     # Start watcher for specific branches
     watcher = FileWatcherManager(branch_filter=['PRAX'])
     watcher.start()
 
-    print("Watching PRAX branch for 30 seconds...")
-    print("Try modifying a file in src/aipass/prax/")
-    print()
+    logger.info("Watching PRAX branch for 30 seconds...")
+    logger.info("Try modifying a file in src/aipass/prax/")
 
     import time
     start_time = time.time()
@@ -139,29 +141,25 @@ def example_custom_event_handling():
 
                 # Custom handling based on action
                 if event.action == 'created':
-                    print(f"✨ NEW FILE: {event.message}")
-                    print(f"   Branch: {event.branch}")
-                    print(f"   Time: {event.timestamp}")
-                    print()
+                    logger.info(f"NEW FILE: {event.message}")
+                    logger.info(f"   Branch: {event.branch}")
+                    logger.info(f"   Time: {event.timestamp}")
 
                 elif event.action == 'modified':
-                    print(f"📝 MODIFIED: {event.message}")
-                    print()
+                    logger.info(f"MODIFIED: {event.message}")
 
                 elif event.action == 'deleted':
-                    print(f"🗑️  DELETED: {event.message}")
-                    print()
+                    logger.info(f"DELETED: {event.message}")
 
                 elif event.action == 'moved':
-                    print(f"📦 MOVED: {event.message}")
-                    print()
+                    logger.info(f"MOVED: {event.message}")
 
     except KeyboardInterrupt:
-        print("\nStopping...")
+        logger.info("Stopping...")
 
     finally:
         watcher.stop()
-        print(f"\nCaptured {event_count} events in total")
+        logger.info(f"Captured {event_count} events in total")
 
 
 # For integration into monitor_module.py's handle_command():
@@ -213,12 +211,10 @@ if __name__ == '__main__':
             example_monitor_with_file_watcher(branch_filter=branches)
     else:
         # Default: monitor PRAX only
-        print("Usage:")
-        print("  python3 INTEGRATION_EXAMPLE.py                 # Monitor PRAX only")
-        print("  python3 INTEGRATION_EXAMPLE.py PRAX,CLI        # Monitor specific branches")
-        print("  python3 INTEGRATION_EXAMPLE.py all             # Monitor all branches (may fail)")
-        print("  python3 INTEGRATION_EXAMPLE.py custom          # Custom event handling demo")
-        print()
-        print("Running default: PRAX only")
-        print()
+        logger.info("Usage:")
+        logger.info("  python3 INTEGRATION_EXAMPLE.py                 # Monitor PRAX only")
+        logger.info("  python3 INTEGRATION_EXAMPLE.py PRAX,CLI        # Monitor specific branches")
+        logger.info("  python3 INTEGRATION_EXAMPLE.py all             # Monitor all branches (may fail)")
+        logger.info("  python3 INTEGRATION_EXAMPLE.py custom          # Custom event handling demo")
+        logger.info("Running default: PRAX only")
         example_monitor_with_file_watcher(branch_filter=['PRAX'])

@@ -1,6 +1,8 @@
 # CLI
 
-Display and output formatting service for AIPass modules. Provides consistent terminal output — headers, success/error/warning messages, section breaks, and operation templates — so every module looks the same without duplicating Rich formatting code.
+**Purpose:** Display and output formatting service for AIPass modules. Provides consistent terminal output — headers, success/error/warning messages, section breaks, and operation templates — so every module looks the same without duplicating Rich formatting code.
+**Module:** `aipass.cli`
+**Last Updated:** 2026-03-08
 
 ## Usage
 
@@ -48,3 +50,29 @@ cli/
 
 - `apps/modules/` — Public API. Import from here.
 - `apps/handlers/` — Internal implementation. Don't import directly.
+
+## Commands / Usage
+
+```bash
+drone @cli --help       # Show services and Rich formatting showcase
+drone @cli --version    # Show version
+drone @cli help         # Same as --help
+```
+
+---
+
+## Integration Points
+
+### Depends On
+- `aipass.prax` — Logging via `system_logger`
+- `rich` — Rich library for terminal formatting (Table, Panel, Columns, Text)
+- Python stdlib (`sys`, `importlib`, `pathlib`)
+
+### Provides To
+- All modules — display formatting (headers, success/error/warning, section breaks)
+- All modules — operation templates (`operation_start`, `operation_complete`)
+- All modules — Rich console access
+
+---
+
+*Last Updated: 2026-03-08*

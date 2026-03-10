@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_watcher.py - Centralized Log File Watcher
-# Date: 2026-01-31
+# =================== AIPass ====================
+# Name: log_watcher.py
+# Description: Centralized log file watcher for system_logs directory
 # Version: 1.0.0
-# Category: trigger/handlers/watchers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-01-31): Created - Phase 2 migration from Prax/AI_Mail
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Centralized log watching for entire system
-#   - Fires events: error_logged, warning_logged, log_entry
-#   - All log watching moves to Trigger, other branches respond to events
+# Created: 2026-01-31
+# Modified: 2026-01-31
 # =============================================
 
 """
@@ -35,13 +25,13 @@ Architecture:
 
 import sys
 import hashlib
-import logging
+from aipass.prax import logger
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
-# Logger - use standard logging to avoid circular imports with Prax
-logger = logging.getLogger(__name__)
+# Logger - use prax system_logger for Error_Handling and Log_Visibility standards
+# logger imported from aipass.prax
 
 # System logs directory (package-relative via config)
 from aipass.trigger.apps.config import TRIGGER_ROOT

@@ -1,17 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: get_open_plans.py - Get Open Plans Handler
-# Date: 2025-11-21
+# =================== AIPass ====================
+# Name: get_open_plans.py
+# Description: Get Open Plans Handler
 # Version: 1.0.0
-# Category: flow/handlers/plan
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-21): Initial handler - get list of open plans
-#
-# CODE STANDARDS:
-#   - Handler: Pure logic, no logging, no Prax imports
-#   - Returns data structures for module orchestration
+# Created: 2025-11-21
+# Modified: 2025-11-21
 # =============================================
 
 """

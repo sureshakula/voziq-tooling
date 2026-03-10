@@ -1,22 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: direct.py - Direct Logger (Event Pipeline Bypass)
-# Date: 2026-02-27
+# =================== AIPass ====================
+# Name: direct.py
+# Description: Direct Logger (Event Pipeline Bypass)
 # Version: 1.0.0
-# Category: prax/handlers/logging
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-27): Initial implementation - FPLAN-0382 Phase 2
-#
-# CODE STANDARDS:
-#   - Follows AIPass Prax standards
-#   - Same format/rotation as regular system_logger
-#   - NO event pipeline involvement (no watchers, no triggers)
-#   - Used ONLY by infrastructure handlers that watch logs/events
-#   - stdlib logging.getLogger used for RotatingFileHandler management only
-#     (propagate=False, no root logger leakage - same pattern as setup.py)
-#   - Cross-handler imports: config.load + introspection (same as setup.py)
+# Created: 2026-02-27
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -56,6 +43,12 @@ from aipass.prax.apps.handlers.config.load import (
     lines_to_bytes
 )
 from aipass.prax.apps.handlers.logging.introspection import detect_branch_from_path
+
+# Use original stdlib getLogger (not the prax-overridden version).
+# This is intentional: direct.py creates raw stdlib loggers for
+# RotatingFileHandler management. Using prax logger would cause
+# recursion since direct.py IS the pipeline-bypass mechanism.
+from aipass.prax.apps.handlers.logging.override import _original_getLogger as _stdlib_getLogger
 
 # Cache for direct loggers - keyed by "branch_module"
 _direct_loggers: Dict[str, logging.Logger] = {}
@@ -114,7 +107,8 @@ def _create_direct_logger(
         Configured logger with dual file handlers and no propagation.
     """
     logger_key = f"direct_{branch_name}_{module_name}"
-    logger = logging.getLogger(logger_key)
+    # _stdlib_getLogger: raw stdlib logger for file handler management (no prax pipeline)
+    logger = _stdlib_getLogger(logger_key)
     logger.setLevel(DEFAULT_LOG_LEVEL)
     logger.handlers.clear()
     logger.propagate = False  # Critical: no root logger propagation

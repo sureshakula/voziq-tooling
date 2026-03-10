@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: catchup_ops.py - Catchup Operations Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: catchup_ops.py
+# Description: Catchup Operations Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/catchup
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: returns dicts, no console output
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -20,14 +13,10 @@ Implementation logic for the catchup command: showing branches what
 they missed since their last visit. Returns dicts for module display layer.
 """
 
-import logging
 from datetime import datetime, timezone, timedelta
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.catchup_ops")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 from commons.apps.handlers.database.db import get_db, close_db
 from commons.apps.handlers.database.catchup_queries import (

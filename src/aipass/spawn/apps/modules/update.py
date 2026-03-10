@@ -1,4 +1,4 @@
-# =================== META ====================
+# =================== AIPass ====================
 # Name: update.py
 # Description: Update orchestrator — thin CLI layer for branch updates
 # Version: 1.1.0
@@ -20,6 +20,37 @@ from aipass.spawn.apps.handlers.update_ops import (
     update_branch,
     update_all,
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("update Module")
+    console.print("Branch updates — sync single or all branches against their class templates")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/")
+    console.print("    - update_ops.py (update_branch, update_all — renames, additions, JSON merges, pruned file archival)")
+    console.print()
+
+
+# =============================================================================
+# DRONE ROUTING
+# =============================================================================
+
+def handle_command(command: str, args: list) -> bool:
+    """Handle commands routed by the entry point.
+
+    Args:
+        command: The command string (e.g. "update")
+        args: List of arguments for the command
+
+    Returns:
+        True if command was handled, False otherwise.
+    """
+    if command == "update":
+        return handle_update(args) == 0
+    return False
 
 
 # =============================================================================
@@ -50,7 +81,7 @@ def handle_update(args: list[str]) -> int:
         console.print("  [green]--trace[/green]           Enable verbose logging")
         return 1
 
-    from aipass.spawn.apps.handlers.class_registry import validate_class, get_available_classes
+    from aipass.spawn.apps.modules.core import validate_class, get_available_classes
 
     dry_run = "--dry-run" in args
     trace = "--trace" in args

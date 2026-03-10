@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: validator.py - Check skill requirements
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: validator.py
+# Description: Check skill requirements
 # Version: 1.0.0
-# Category: skills/apps/handlers
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Initial implementation
-#
-# CODE STANDARDS:
-#   - Handler layer: returns dicts, NEVER prints
-#   - Checks pip packages, CLI bins, and config/env vars
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 import importlib.util

@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: room_module.py - Room management orchestration module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: room_module.py
+# Description: Room management orchestration module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/rooms/room_ops.py and renders the results.
 Handles: room create, room list, room join commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.room_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -41,6 +28,20 @@ except ImportError:
 from rich.table import Table
 
 from commons.apps.handlers.rooms.room_ops import create_room, list_rooms, join_room
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("room_module Module")
+    console.print("Thin router for room management. Handles creating, listing, and joining community rooms.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/rooms/")
+    console.print("    - room_ops.py (create_room — create a new community room)")
+    console.print("    - room_ops.py (list_rooms — list all available rooms with member/post counts)")
+    console.print("    - room_ops.py (join_room — join an existing room as a member)")
+    console.print()
 
 
 # =============================================================================

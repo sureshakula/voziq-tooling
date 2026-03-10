@@ -1,19 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: branch_ping.py - Branch Ping Orchestration Module
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: branch_ping.py
+# Description: Branch Ping Orchestration Module
 # Version: 1.0.0
-# Category: ai_mail/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial orchestration module for branch ping
-#
-# CODE STANDARDS:
-#   - Modules ORCHESTRATE (no business logic)
-#   - Delegate to handlers for all operations
-#   - Use json_handler.log_operation()
-#   - Keep modules 110-155 lines
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -168,7 +158,7 @@ EXAMPLES:
   drone ai_mail branch_ping thresholds
         """
     )
-    parser.print_help()
+    console.print(parser.format_help())
 
 
 def handle_command(command: str, args: List[str]) -> bool:
@@ -191,6 +181,26 @@ def handle_command(command: str, args: List[str]) -> bool:
     elif command == "thresholds":
         return handle_thresholds()
     return False
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("branch_ping Module")
+    console.print("Orchestrates branch memory health monitoring: ping, status, registry, and thresholds.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/monitoring/")
+    console.print("    - memory.py (count_file_lines — count lines in a memory file)")
+    console.print("    - memory.py (get_status_from_count — derive health status from line count)")
+    console.print("  handlers/registry/")
+    console.print("    - update.py (ping_registry — update memory health registry for a branch)")
+    console.print("    - update.py (get_branch_context — resolve current branch name and directory)")
+    console.print("    - update.py (update_json_memory_health — write health metadata into memory file)")
+    console.print("    - load.py (load_registry — load the memory health registry file)")
+    console.print("  handlers/json_utils/")
+    console.print("    - json_handler.py (log_operation — log structured operation to JSON)")
+    console.print()
 
 
 if __name__ == "__main__":

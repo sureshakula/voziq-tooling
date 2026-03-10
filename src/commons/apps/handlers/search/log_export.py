@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: log_export.py - Room Log Export Handler
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: log_export.py
+# Description: Room Log Export Handler
 # Version: 1.0.0
-# Category: commons/apps/handlers/search
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Handler: pure business logic
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """

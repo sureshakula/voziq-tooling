@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: registry.py - Event Handler Registry
-# Date: 2025-12-04
+# =================== AIPass ====================
+# Name: registry.py
+# Description: Event handler registry for startup registration
 # Version: 0.1.0
-# Category: trigger/handlers/events
-#
-# CHANGELOG (Max 5 entries):
-#   - v0.1.0 (2025-12-04): Created event handler registry
-#
-# CODE STANDARDS:
-#   - Follows AIPass Seed standards
-#   - Registers all event handlers on startup
-#   - Event-based trigger system
+# Created: 2025-12-04
+# Modified: 2025-12-04
 # =============================================
 
 """Event Handler Registry - Setup all event handlers on startup"""

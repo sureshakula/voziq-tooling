@@ -1,24 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: google_drive_sync.py - Google Drive Integration for AIPass Backup System
-# Date: 2025-10-30
+# =================== AIPass ====================
+# Name: google_drive_sync.py
+# Description: Google Drive Integration for AIPass Backup System
 # Version: 2.6.0
-# Category: backup_system/modules
-#
-# CHANGELOG (Max 5 entries - remove oldest when adding new):
-#   - v2.6.0 (2026-03-06): Adapted for AIPass public repo
-#     * Removed shebang, sys.path manipulation, prax/cli imports
-#     * Uses standard logging and rich console
-#     * Relative handler imports, Google API deps wrapped in try/except
-#   - v2.5.0 (2026-02-22): Rich progress bar for drive-sync uploads, per-file progress callback
-#   - v2.4.0 (2026-02-21): Two-phase sync (prepare+upload), CLI visibility, dedup fix, --test mode
-#   - v2.3.2 (2026-02-10): Fixed deepcopy RuntimeError in _save_data during concurrent uploads
-#   - v2.2.0 (2026-02-10): Fixed SSL concurrency bug - per-thread credentials, retry with backoff, folder cache lock
-#
-# CODE STANDARDS:
-#   - Module orchestrates, handlers implement
-#   - CLI display (console.print) belongs here, not in handlers
-#   - Google API calls delegated to drive_sync_client handler
+# Created: 2025-10-30
+# Modified: 2026-03-09
 # =============================================
 
 """
@@ -33,15 +18,10 @@ drive_sync_client handler for API operations.
 # =============================================
 
 import sys
-import logging
 from pathlib import Path
-from datetime import datetime
-
-from rich.console import Console
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
-
-logger = logging.getLogger(__name__)
-console = Console()
+from aipass.cli.apps.modules import console
+from aipass.prax import logger
 
 _BACKUP_ROOT = Path(__file__).resolve().parents[2]  # src/aipass/backup/
 
@@ -103,6 +83,11 @@ except ImportError:
     get_file_tracker_stats = None  # type: ignore
     _test_drive_connection = None  # type: ignore
 
+from aipass.backup.apps.handlers.operations.sync_test_ops import (
+    create_sync_test_files,
+    cleanup_sync_test_dir,
+)
+
 
 def _show_file_tracker_stats() -> bool:
     """Display file tracker statistics."""
@@ -163,34 +148,23 @@ def _test_drive_sync() -> bool:
 
 def _run_sync_test() -> bool:
     """Run a small test sync to verify Drive integration."""
-    import shutil
-
     console.print("[bold cyan]Drive Sync Test[/bold cyan]")
     console.print()
 
-    # Create test files
-    test_dir = _BACKUP_ROOT / "backups" / "_sync_test"
-    test_dir.mkdir(parents=True, exist_ok=True)
+    # Create test files via handler
+    setup = create_sync_test_files(_BACKUP_ROOT)
+    if not setup["success"]:
+        console.print(f"[red]Failed to create test files: {setup['error']}[/red]")
+        return False
 
-    test_files = {
-        "test_file_1.txt": "Hello from AIPass backup test",
-        "test_file_2.json": '{"test": true, "timestamp": "' + datetime.now().isoformat() + '"}',
-        "subdir/nested_file.txt": "Nested directory test",
-        "subdir/deep/deeper_file.md": "# Deep nested test\nVerifying folder structure",
-    }
-
-    for name, content in test_files.items():
-        path = test_dir / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-
-    console.print(f"  Created {len(test_files)} test files in {test_dir}")
+    test_dir = setup["test_dir"]
+    console.print(f"  Created {setup['file_count']} test files in {test_dir}")
 
     # Run sync
     sync = GoogleDriveSync()
     if not sync.authenticate():
         console.print("[red]Auth failed[/red]")
-        shutil.rmtree(test_dir, ignore_errors=True)
+        cleanup_sync_test_dir(test_dir)
         return False
 
     console.print(f"\nScanning...")
@@ -205,7 +179,7 @@ def _run_sync_test() -> bool:
     if not folder_id:
         error_msg = sync.last_error or "Unknown error"
         console.print(f"[red]FAILED: {error_msg}[/red]")
-        shutil.rmtree(test_dir, ignore_errors=True)
+        cleanup_sync_test_dir(test_dir)
         return False
     console.print(f"  Drive folder ready: AIPass_Test")
 
@@ -225,7 +199,7 @@ def _run_sync_test() -> bool:
 
     if result.get("error"):
         console.print(f"\n[red]FAILED: {result['error']}[/red]")
-        shutil.rmtree(test_dir, ignore_errors=True)
+        cleanup_sync_test_dir(test_dir)
         return False
 
     console.print()
@@ -243,8 +217,8 @@ def _run_sync_test() -> bool:
     else:
         console.print(f"[red]Dedup check failed: {len(files_to_upload2)} files flagged for re-upload[/red]")
 
-    # Cleanup local test dir
-    shutil.rmtree(test_dir, ignore_errors=True)
+    # Cleanup local test dir via handler
+    cleanup_sync_test_dir(test_dir)
     console.print(f"\nCleaned up local test files")
     console.print(f"[dim]Test Drive folder 'AIPass_Test' left on Drive for inspection[/dim]")
 
@@ -422,6 +396,28 @@ def handle_command(args) -> bool:
 # =============================================
 # CLI/EXECUTION
 # =============================================
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("google_drive_sync Module")
+    console.print("Orchestrates Google Drive backup sync with two-phase upload pipeline")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/operations/")
+    console.print("    - drive_sync_client.py (GoogleDriveSync — Drive API client and upload engine)")
+    console.print("    - drive_sync_ops.py (clear_file_tracker — reset sync tracker cache)")
+    console.print("    - drive_sync_ops.py (get_file_tracker_stats — tracker statistics)")
+    console.print("    - drive_sync_ops.py (test_drive_connection — connectivity verification)")
+    console.print("    - sync_test_ops.py (create_sync_test_files — generate test fixtures)")
+    console.print("    - sync_test_ops.py (cleanup_sync_test_dir — remove test fixtures)")
+    console.print("  handlers/json/")
+    console.print("    - drive_sync_json.py (load_config — read module config JSON)")
+    console.print("    - drive_sync_json.py (load_data — read module data JSON)")
+    console.print("  handlers/utils/")
+    console.print("    - backup_timestamps.py (get_timestamps, update_timestamp, format_age — backup timing)")
+    console.print()
+
 
 if __name__ == "__main__":
     import argparse

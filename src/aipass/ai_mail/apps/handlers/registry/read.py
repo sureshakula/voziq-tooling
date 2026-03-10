@@ -1,18 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: read.py - Registry Read Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: read.py
+# Description: Registry Read Handler
 # Version: 1.0.0
-# Category: ai_mail/handlers/registry
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Extracted from ai_mail_cli.py
-#
-# CODE STANDARDS:
-#   - Handlers are INDEPENDENT (no cross-domain imports)
-#   - Use: from prax.apps.modules.logger import system_logger as logger
-#   - Keep handlers <300 lines each
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """
@@ -33,7 +24,6 @@ import json
 from pathlib import Path
 from typing import List, Dict
 
-from aipass.cli.apps.modules import console
 
 # Constants
 MODULE_NAME = "registry.read"
@@ -172,6 +162,7 @@ def get_branch_path_map() -> Dict[str, str]:
 
 
 if __name__ == "__main__":
+    from aipass.cli.apps.modules import console
     console.print("\n" + "="*70)
     console.print("AI_MAIL HANDLER: registry/read.py")
     console.print("="*70)

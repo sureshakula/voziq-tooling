@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: trade_module.py - Trade Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: trade_module.py
+# Description: Trade Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/artifacts/trade_ops.py and renders results with Rich.
 Handles: gift, trade, drop, find, mint commands.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.trade_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -44,6 +31,23 @@ from commons.apps.handlers.artifacts.trade_ops import (
     gift_artifact, trade_artifact, drop_item, find_item, mint_event_artifact,
     RARITY_COLORS,
 )
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("trade_module Module")
+    console.print("Router and display layer for trading workflows — gifting, trading, dropping, finding, and minting artifacts.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/artifacts/")
+    console.print("    - trade_ops.py (gift_artifact — gift an artifact to another branch)")
+    console.print("    - trade_ops.py (trade_artifact — swap artifacts between two branches)")
+    console.print("    - trade_ops.py (drop_item — drop an artifact in a room for others to find)")
+    console.print("    - trade_ops.py (find_item — pick up a dropped artifact)")
+    console.print("    - trade_ops.py (mint_event_artifact — mint event badge artifacts for participants)")
+    console.print("    - trade_ops.py (RARITY_COLORS — color mapping for artifact rarity tiers)")
+    console.print()
 
 
 # =============================================================================

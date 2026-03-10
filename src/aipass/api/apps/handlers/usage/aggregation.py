@@ -1,14 +1,9 @@
-
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: aggregation.py - Usage Aggregation Handler
-# Date: 2025-11-15
+# =================== AIPass ====================
+# Name: aggregation.py
+# Description: Usage Aggregation Handler
 # Version: 1.0.0
-# Category: api/handlers/usage
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-15): Initial handler - usage stats aggregation
-#   - v1.1.0 (2025-11-16): Extracted aggregation logic from archive
+# Created: 2025-11-15
+# Modified: 2025-11-15
 # =============================================
 
 """

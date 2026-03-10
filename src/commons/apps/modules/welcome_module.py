@@ -1,18 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: welcome_module.py - Welcome Orchestration Module
-# Date: 2026-03-07
+# =================== AIPass ====================
+# Name: welcome_module.py
+# Description: Welcome Orchestration Module
 # Version: 1.0.0
-# Category: commons/apps/modules
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Ported from dev system (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Orchestration only - NO business logic
-#   - Imports from handlers/ for all data operations
-#   - Module interface: handle_command(command, args) -> bool
-#   - No sys.path manipulation
+# Created: 2026-03-07
+# Modified: 2026-03-07
 # =============================================
 
 """
@@ -24,13 +15,9 @@ to handlers/welcome/welcome_ops.py and renders results with Rich.
 Handles: welcome command.
 """
 
-import logging
 from typing import List
 
-try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
-except ImportError:
-    logger = logging.getLogger("commons.welcome_module")
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
     from aipass.cli.apps.modules import console
@@ -39,6 +26,18 @@ except ImportError:
     console = Console()
 
 from commons.apps.handlers.welcome.welcome_ops import run_welcome
+
+
+def print_introspection():
+    """Display module introspection info."""
+    console.print()
+    console.print("welcome_module Module")
+    console.print("Thin router for the welcome command. Scans for new branches and creates welcome posts.")
+    console.print()
+    console.print("Connected Handlers:")
+    console.print("  handlers/welcome/")
+    console.print("    - welcome_ops.py (run_welcome — scan for new branches and post welcome messages)")
+    console.print()
 
 
 # =============================================================================
