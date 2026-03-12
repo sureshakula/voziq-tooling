@@ -84,15 +84,27 @@ class TestRunSkillReturnContract:
         assert "success" in result
         assert "output" in result
         assert "error" in result
+        # Verify values are correct, not just keys
+        assert result["success"] is True
+        assert "Disk Usage" in result["output"]
+        assert result["error"] is None
 
     def test_success_result_types(self):
         result = run_skill("system_status", action="disk")
         assert isinstance(result["success"], bool)
         assert isinstance(result["output"], str)
         assert result["error"] is None
+        # Content assertions — not just types
+        assert result["success"] is True
+        assert len(result["output"]) > 0
+        assert "Disk Usage" in result["output"]
 
     def test_failure_result_types(self):
         result = run_skill("nonexistent_skill_xyz")
         assert isinstance(result["success"], bool)
         assert isinstance(result["output"], str)
         assert isinstance(result["error"], str)
+        # Content assertions — not just types
+        assert result["success"] is False
+        assert "not found" in result["error"].lower()
+        assert result["output"] == ""

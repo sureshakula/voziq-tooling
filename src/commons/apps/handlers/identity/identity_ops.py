@@ -14,7 +14,7 @@ caller detection, and mention extraction.
 
 Detects which branch is calling The Commons based on CWD by walking
 up the directory tree to find a *.id.json file, then cross-referencing
-with BRANCH_REGISTRY.json.
+with AIPASS_REGISTRY.json.
 """
 
 import os
@@ -32,7 +32,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 
 def _find_branch_registry_path() -> Path:
     """
-    Locate BRANCH_REGISTRY.json by searching standard paths.
+    Locate AIPASS_REGISTRY.json by searching standard paths.
 
     Returns:
         Path to registry file (may not exist).
@@ -40,20 +40,31 @@ def _find_branch_registry_path() -> Path:
     # Check AIPASS_ROOT env var
     aipass_root = os.environ.get("AIPASS_ROOT", "")
     if aipass_root:
-        candidate = Path(aipass_root) / "BRANCH_REGISTRY.json"
+        candidate = Path(aipass_root) / "AIPASS_REGISTRY.json"
         if candidate.exists():
             return candidate
 
+    # Walk up from this package to find project root
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        candidate = current / "AIPASS_REGISTRY.json"
+        if candidate.exists():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+
     # Standard locations
     for candidate_path in [
-        Path.home() / ".aipass" / "BRANCH_REGISTRY.json",
-        Path.home() / "BRANCH_REGISTRY.json",
+        Path.home() / ".aipass" / "AIPASS_REGISTRY.json",
+        Path.home() / "AIPASS_REGISTRY.json",
     ]:
         if candidate_path.exists():
             return candidate_path
 
     # Return a default even if it doesn't exist
-    return Path.home() / "BRANCH_REGISTRY.json"
+    return Path.home() / "AIPASS_REGISTRY.json"
 
 
 BRANCH_REGISTRY_PATH = _find_branch_registry_path()
@@ -78,8 +89,8 @@ def find_branch_root(start_path: Path) -> Optional[Path]:
     current = start_path.resolve()
 
     for _ in range(10):
-        id_files = list(current.glob("*.id.json"))
-        if id_files:
+        # AIPass branches have .trinity/passport.json
+        if (current / ".trinity" / "passport.json").exists():
             return current
 
         parent = current.parent
@@ -92,7 +103,7 @@ def find_branch_root(start_path: Path) -> Optional[Path]:
 
 def get_branch_info_from_registry(branch_path: Path) -> Optional[Dict[str, Any]]:
     """
-    Look up branch information in BRANCH_REGISTRY.json by path.
+    Look up branch information in AIPASS_REGISTRY.json by path.
 
     Args:
         branch_path: Path to branch directory.
@@ -108,9 +119,12 @@ def get_branch_info_from_registry(branch_path: Path) -> Optional[Dict[str, Any]]
             registry = json.load(f)
 
         branch_path_str = str(branch_path.resolve())
+        registry_root = BRANCH_REGISTRY_PATH.parent
 
         for branch in registry.get("branches", []):
-            if str(Path(branch["path"]).resolve()) == branch_path_str:
+            # Registry paths are relative to the registry file's parent
+            candidate = (registry_root / branch["path"]).resolve()
+            if str(candidate) == branch_path_str:
                 return branch
 
         return None
@@ -123,7 +137,7 @@ def get_caller_branch() -> Optional[Dict[str, Any]]:
     """
     Detect which branch is calling The Commons based on PWD.
 
-    Walks up from CWD to find branch root, then looks up in BRANCH_REGISTRY.json.
+    Walks up from CWD to find branch root, then looks up in AIPASS_REGISTRY.json.
     Auto-registers the branch as a Commons agent if not already present.
 
     Returns:
@@ -131,7 +145,9 @@ def get_caller_branch() -> Optional[Dict[str, Any]]:
         or None if no branch detected.
     """
     try:
-        cwd = Path.cwd()
+        # Use caller's original CWD if routed through drone
+        caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+        cwd = Path(caller_cwd) if caller_cwd else Path.cwd()
         branch_root = find_branch_root(cwd)
 
         if not branch_root:
@@ -200,7 +216,7 @@ _alias_cache: Optional[Dict[str, str]] = None
 
 
 def _load_alias_cache() -> Dict[str, str]:
-    """Load branch alias map from BRANCH_REGISTRY.json (cached)."""
+    """Load branch alias map from AIPASS_REGISTRY.json (cached)."""
     global _alias_cache
     if _alias_cache is not None:
         return _alias_cache

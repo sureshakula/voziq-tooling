@@ -10,15 +10,18 @@
 Memory Extraction Handler
 
 Surgically extracts oldest items from memory files during rollover.
-Understands real JSON structure (sessions, observations arrays).
+Understands real JSON structure (sessions, observations arrays, key_learnings dict).
 
 Purpose:
-    When file exceeds 600 lines, extract oldest items from growing arrays
-    (sessions, observations, etc.), preserve JSON validity, update metadata.
+    v1 (schema <2.0.0): When file exceeds max_lines, extract oldest items from
+    growing arrays to get under line limit.
+    v2 (schema >=2.0.0): When entry counts exceed limits (max_sessions,
+    max_key_learnings), extract oldest entries by count.
 
 Strategy:
-    - Detect which array is growing (sessions, observations, etc.)
-    - Calculate how many items to remove to get under limit
+    - Detect schema version from document_metadata
+    - v1: line-count based extraction (legacy)
+    - v2: entry-count based extraction (sessions array + key_learnings dict)
     - Extract oldest items (FIFO)
     - Update document_metadata.status
 """
@@ -230,6 +233,100 @@ def _calculate_items_to_extract_by_lines(
 
 
 # =============================================================================
+# V2 EXTRACTION (ENTRY-COUNT BASED)
+# =============================================================================
+
+def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract items from v2 format file (entry-count based).
+
+    Handles sessions (array, oldest at end) and key_learnings (dict, oldest first).
+    Trims to max_sessions / max_key_learnings limits defined in document_metadata.
+
+    Args:
+        file_path: Path to memory JSON file
+        data: Already-parsed JSON data
+
+    Returns:
+        Dict with extracted items and metadata
+    """
+    limits = data.get('document_metadata', {}).get('limits', {})
+    old_lines = _count_file_lines(file_path)
+
+    all_extracted = []
+
+    # Extract from sessions array (newest first, oldest at end)
+    max_sessions = limits.get('max_sessions')
+    if max_sessions is not None:
+        sessions = data.get('sessions', [])
+        if isinstance(sessions, list) and len(sessions) > max_sessions:
+            excess = len(sessions) - max_sessions
+            extracted_sessions = sessions[-excess:]  # oldest from end
+            data['sessions'] = sessions[:-excess]    # keep newest
+            all_extracted.extend(extracted_sessions)
+
+    # Extract from key_learnings dict (first keys are oldest in insertion order)
+    max_key_learnings = limits.get('max_key_learnings')
+    if max_key_learnings is not None:
+        key_learnings = data.get('key_learnings', {})
+        if isinstance(key_learnings, dict) and len(key_learnings) > max_key_learnings:
+            excess = len(key_learnings) - max_key_learnings
+            keys_list = list(key_learnings.keys())
+            keys_to_extract = keys_list[:excess]  # oldest (first inserted)
+            for k in keys_to_extract:
+                all_extracted.append({'_type': 'key_learning', 'key': k, 'value': key_learnings[k]})
+                del data['key_learnings'][k]
+
+    # Extract from observations array (if v2 observations file)
+    max_observations = limits.get('max_observations')
+    if max_observations is not None:
+        observations = data.get('observations', [])
+        if isinstance(observations, list) and len(observations) > max_observations:
+            excess = len(observations) - max_observations
+            extracted_obs = observations[-excess:]
+            data['observations'] = observations[:-excess]
+            all_extracted.extend(extracted_obs)
+
+    if not all_extracted:
+        return {
+            'success': True,
+            'skipped': True,
+            'message': 'No entries exceed v2 limits'
+        }
+
+    # Update metadata
+    _update_metadata_after_extraction(data)
+
+    # Write back
+    try:
+        _write_memory_file(file_path, data)
+        new_lines = _count_file_lines(file_path)
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f"Failed to write file: {e}"
+        }
+
+    # Parse branch and type from filename
+    parts = file_path.stem.split('.')
+    branch_name = parts[0] if len(parts) > 0 else "UNKNOWN"
+    memory_type = parts[1] if len(parts) > 1 else "unknown"
+
+    return {
+        'success': True,
+        'file': str(file_path),
+        'branch': branch_name,
+        'type': memory_type,
+        'array_field': 'v2_mixed',
+        'extracted': all_extracted,
+        'extracted_count': len(all_extracted),
+        'remaining_count': 0,
+        'old_lines': old_lines,
+        'new_lines': new_lines
+    }
+
+
+# =============================================================================
 # EXTRACTION OPERATIONS
 # =============================================================================
 
@@ -266,6 +363,12 @@ def extract_items(
             'error': f"Failed to read file: {e}"
         }
 
+    # v2 schema: delegate to entry-count based extraction
+    schema_version = data.get('document_metadata', {}).get('schema_version', '1.0.0')
+    if schema_version.startswith('2'):
+        return _extract_items_v2(file_path, data)
+
+    # v1: line-count based extraction
     # Detect structure
     array_field = _detect_growing_array(data)
     if not array_field:

@@ -43,10 +43,10 @@ def _get_db_path() -> Path:
     """
     aipass_root = os.environ.get("AIPASS_ROOT", "")
     if aipass_root:
-        root = Path(aipass_root)
+        root = Path(aipass_root) / ".aipass"
     else:
         root = Path.home() / ".aipass"
-    return root / ".aipass" / "commons.db"
+    return root / "commons.db"
 
 
 DB_PATH = _get_db_path()
@@ -303,15 +303,15 @@ def _seed_secret_rooms(conn: sqlite3.Connection) -> None:
 
 def _register_branches(conn: sqlite3.Connection) -> None:
     """
-    Auto-register all branches from BRANCH_REGISTRY.json as agents.
+    Auto-register all branches from AIPASS_REGISTRY.json as agents.
 
     Reads the registry and inserts any missing branches. Existing
     branches are left untouched (INSERT OR IGNORE).
 
-    Searches for BRANCH_REGISTRY.json in standard locations:
+    Searches for AIPASS_REGISTRY.json in standard locations:
     1. AIPASS_ROOT environment variable
-    2. ~/.aipass/BRANCH_REGISTRY.json
-    3. ~/BRANCH_REGISTRY.json (legacy)
+    2. ~/.aipass/AIPASS_REGISTRY.json
+    3. ~/AIPASS_REGISTRY.json (legacy)
     """
     registry_path = _find_branch_registry()
     if not registry_path:
@@ -342,7 +342,7 @@ def _register_branches(conn: sqlite3.Connection) -> None:
 
 def _find_branch_registry() -> Optional[Path]:
     """
-    Locate BRANCH_REGISTRY.json by searching standard paths.
+    Locate AIPASS_REGISTRY.json by searching standard paths.
 
     Returns:
         Path to registry file, or None if not found.
@@ -352,12 +352,23 @@ def _find_branch_registry() -> Optional[Path]:
     # Check AIPASS_ROOT env var
     aipass_root = os.environ.get("AIPASS_ROOT", "")
     if aipass_root:
-        search_paths.append(Path(aipass_root) / "BRANCH_REGISTRY.json")
+        search_paths.append(Path(aipass_root) / "AIPASS_REGISTRY.json")
+
+    # Walk up from this package to find project root
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        candidate = current / "AIPASS_REGISTRY.json"
+        if candidate.exists():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
 
     # Standard locations
     search_paths.extend([
-        Path.home() / ".aipass" / "BRANCH_REGISTRY.json",
-        Path.home() / "BRANCH_REGISTRY.json",
+        Path.home() / ".aipass" / "AIPASS_REGISTRY.json",
+        Path.home() / "AIPASS_REGISTRY.json",
     ])
 
     for path in search_paths:

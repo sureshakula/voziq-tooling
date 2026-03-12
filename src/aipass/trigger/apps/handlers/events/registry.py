@@ -28,8 +28,25 @@ def setup_handlers():
 
     # Wire up email send callback for error_detected handler (avoids handler importing from modules)
     try:
-        from aipass.ai_mail.apps.modules.email import send_email_direct
-        set_send_email_callback(send_email_direct)
+        from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
+        from datetime import datetime
+
+        def _send_email_adapter(to_branch, subject, message, auto_execute=False, reply_to='@trigger', from_branch='@trigger', **kwargs):
+            """Adapt error_detected handler's call signature to deliver_email_to_branch."""
+            email_data = {
+                "from": from_branch,
+                "from_name": "TRIGGER",
+                "to": to_branch,
+                "subject": subject,
+                "message": message,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            if auto_execute:
+                email_data["message"] = f"⚡ DISPATCH TASK - READ THIS FIRST ⚡\n\n{message}"
+            success, _ = deliver_email_to_branch(to_branch, email_data)
+            return success
+
+        set_send_email_callback(_send_email_adapter)
     except ImportError:
         pass  # ai_mail not available - error notifications won't send
     from .warning_logged import handle_warning_logged

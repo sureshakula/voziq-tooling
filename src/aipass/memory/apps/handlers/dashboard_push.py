@@ -172,6 +172,40 @@ def _find_branches_near_rollover() -> List[Dict[str, Any]]:
                 try:
                     data = json_loads(memory_file.read_text(encoding="utf-8"))
                     doc_meta = data.get("document_metadata", {})
+                    schema_version = doc_meta.get("schema_version", "1.0.0")
+                    limits = doc_meta.get("limits", {})
+
+                    # v2: check entry counts instead of line counts
+                    if schema_version.startswith("2"):
+                        max_sessions = limits.get("max_sessions")
+                        if max_sessions is not None:
+                            sessions = data.get("sessions", [])
+                            remaining_sessions = max_sessions - len(sessions)
+                            if remaining_sessions < 3:
+                                near_rollover.append({
+                                    "branch": branch_name,
+                                    "file_type": suffix,
+                                    "lines_remaining": remaining_sessions,
+                                    "current_lines": len(sessions),
+                                    "max_lines": max_sessions,
+                                    "v2_field": "sessions",
+                                })
+                        max_kl = limits.get("max_key_learnings")
+                        if max_kl is not None:
+                            kl = data.get("key_learnings", {})
+                            remaining_kl = max_kl - len(kl)
+                            if remaining_kl < 3:
+                                near_rollover.append({
+                                    "branch": branch_name,
+                                    "file_type": suffix,
+                                    "lines_remaining": remaining_kl,
+                                    "current_lines": len(kl),
+                                    "max_lines": max_kl,
+                                    "v2_field": "key_learnings",
+                                })
+                        continue
+
+                    # v1: line-count based
                     status = doc_meta.get("status", {})
                     current_lines = status.get("current_lines")
 

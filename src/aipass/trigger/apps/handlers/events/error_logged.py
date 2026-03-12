@@ -284,7 +284,7 @@ def handle_error_logged(
         # --- Dispatch ---
 
         try:
-            from aipass.ai_mail.apps.modules.email import send_email_direct
+            from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
         except ImportError:
             return
 
@@ -301,14 +301,15 @@ def handle_error_logged(
             log_file=effective_log_file
         )
 
-        send_email_direct(
-            to_branch=recipient,
-            subject=email_subject,
-            message=notification_message,
-            auto_execute=True,
-            reply_to='@trigger',
-            from_branch='@trigger'
-        )
+        email_data = {
+            "from": "@trigger",
+            "from_name": "TRIGGER",
+            "to": recipient,
+            "subject": email_subject,
+            "message": f"⚡ DISPATCH TASK - READ THIS FIRST ⚡\n\n{notification_message}",
+            "timestamp": effective_timestamp,
+        }
+        deliver_email_to_branch(recipient, email_data)
 
         # Record dispatch for rate limiting
         _record_dispatch(recipient)

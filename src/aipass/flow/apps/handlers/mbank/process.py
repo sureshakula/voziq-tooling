@@ -9,12 +9,12 @@
 """
 Memory Bank Processing Handler
 
-Handles archival of closed PLAN files to backup_system/processed_plans/.
-AI summarization removed — plans vectorized directly from backup_system/processed_plans/.
+Handles archival of closed PLAN files to flow/processed_plans/.
+AI summarization removed — plans vectorized directly from flow/processed_plans/.
 
 Key Functions:
 - process_closed_plans() - Main entry point: archive plan → update registry
-- archive_plan() - Move to backup_system/processed_plans/
+- archive_plan() - Move to flow/processed_plans/
 - is_template_content() - Template detection
 - verify_and_heal_orphaned_plans() - Orphan healing logic
 """
@@ -48,7 +48,7 @@ def _find_repo_root() -> Path:
 
 _REPO_ROOT = _find_repo_root()
 MEMORY_BANK_PATH = _REPO_ROOT / "MEMORY_BANK" / "plans"
-PROCESSED_PLANS_DIR = _PKG_ROOT / "backup_system" / "processed_plans"
+PROCESSED_PLANS_DIR = FLOW_ROOT / "processed_plans"
 PRIVATE_BRANCH_REGISTRY = _REPO_ROOT / "PRIVATE_BRANCH_REGISTRY.json"
 REGISTRY_FILE = FLOW_JSON_DIR / "flow_registry.json"
 CONFIG_FILE = FLOW_JSON_DIR / "flow_mbank_config.json"
@@ -347,7 +347,7 @@ def is_template_content(content: str) -> bool:
 
 # =============================================
 # CONTENT ANALYSIS (DISABLED)
-# AI summarization removed — plans vectorized directly from backup_system/processed_plans/
+# AI summarization removed — plans vectorized directly from flow/processed_plans/
 # =============================================
 
 # def analyze_plan_content(plan_path: Path) -> Dict[str, str]:
@@ -457,7 +457,7 @@ def is_template_content(content: str) -> bool:
 
 # =============================================
 # MEMORY BANK CREATION (DISABLED)
-# AI summarization removed — plans vectorized directly from backup_system/processed_plans/
+# AI summarization removed — plans vectorized directly from flow/processed_plans/
 # =============================================
 
 # def create_memory_entry(plan_path: Path, analysis: Dict[str, str]) -> Optional[Path]:
@@ -535,7 +535,7 @@ def is_template_content(content: str) -> bool:
 # =============================================
 
 def archive_plan(plan_path: Path) -> bool:
-    """Move processed plan file to backup_system/processed_plans/
+    """Move processed plan file to flow/processed_plans/
 
     VERIFICATION: Returns True ONLY if file successfully moved AND verified
 
@@ -739,7 +739,7 @@ def verify_and_heal_orphaned_plans() -> Dict[str, Any]:
 def process_closed_plans() -> Dict[str, Any]:
     """Main function to process all closed plans
 
-    # AI summarization removed — plans vectorized directly from backup_system/processed_plans/
+    # AI summarization removed — plans vectorized directly from flow/processed_plans/
     # Processing is now: archive_plan() → update registry flags → done
 
     AUTO-HEAL: Cleans up old -TEMP files from MEMORY_BANK after processing
@@ -780,7 +780,7 @@ def process_closed_plans() -> Dict[str, Any]:
                 # Generate correlation ID for tracking
                 correlation_id = f"FPLAN-{plan_num}-{datetime.now().strftime('%H%M%S')}"
 
-                # Archive plan to backup_system/processed_plans/
+                # Archive plan to flow/processed_plans/
                 archive_success = archive_plan(plan_path)
 
                 # Update registry flags
@@ -807,7 +807,7 @@ def process_closed_plans() -> Dict[str, Any]:
                     results.append({
                         "plan": f"FPLAN-{plan_num}",
                         "status": "archive_failed",
-                        "error": "Failed to move plan to backup_system/processed_plans/",
+                        "error": "Failed to move plan to flow/processed_plans/",
                         "correlation_id": correlation_id
                     })
 

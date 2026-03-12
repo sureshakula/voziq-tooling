@@ -127,6 +127,13 @@ def handle_command(command: str, args: list) -> bool:
     """
     from aipass.cli.apps.modules import console
 
+    # Handle module-name routing (drone @trigger log_events <subcmd>)
+    if command == "log_events":
+        if not args or args[0] in ['--help', '-h', 'help']:
+            print_help()
+            return True
+        return handle_command(args[0], args[1:])
+
     if command not in ["start", "stop", "status"]:
         return False
 

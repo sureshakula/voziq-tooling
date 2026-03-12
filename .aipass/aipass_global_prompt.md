@@ -43,7 +43,7 @@ src/aipass/{name}/
 
 ## Commands
 
-`drone` is a global CLI — never `cd` before running it. No full paths. Drone resolves everything.
+`drone` is a global CLI available in PATH. Never `cd` before running it. Never prefix with `export PATH=...` or full venv paths. Just `drone`. It resolves everything.
 
 ```
 drone @branch command [args]      # Route command to any branch
@@ -77,6 +77,10 @@ Prax is the ONLY logging system. Every branch uses:
 from aipass.prax import logger
 ```
 
+## Context Guardrail
+
+If the conversation suddenly shifts to a topic, project, or domain that doesn't relate to your current branch — **say something.** Don't just roll with it. Patrick uses voice input and multiple terminals. He may think he's talking to a different agent. A quick "Hey, this sounds like it's for [other project] — are you in the right terminal?" saves both of you from polluting memories with cross-context noise. Your job is to be the sanity check when the human has 5 windows open.
+
 ## Hard Rules
 
 - **No cross-branch file edits.** If you find an issue in another branch → email them.
@@ -97,6 +101,23 @@ Your `.trinity/` files are your persistence. Without them you're just an instanc
 - `dev.local.md` — shared scratchpad for issues, todos, working notes (human + AI both contribute)
 
 Update `.trinity/` at natural breakpoints, after milestones, and on `/memo`. If compaction hits before you save, it's gone. `dev.local.md` is for friction notes, ideas, and quick tracking — not formal docs. Details in your branch prompt.
+
+### Save Triggers — Do This Without Being Asked
+
+Save memories **proactively**. Don't wait for `/memo` or end of session. These are your triggers:
+- **After a milestone** — task completed, bug fixed, dispatch cycle done, plan closed
+- **After a decision** — Patrick chose an approach, rejected an idea, taught you something
+- **After learning something new** — a pattern, a gotcha, a command quirk, a system behavior
+- **Every ~10 turns** — if you haven't saved recently, save now. Context can compact at any time
+- **Before switching topics** — capture what you learned before the conversation moves on
+- **When Patrick teaches** — if he corrects you or shares insight, that's a key_learning immediately
+
+What to save where:
+- `local.json` → session entry (what happened), key_learnings (facts you'd need next time)
+- `observations.json` → collaboration patterns (how Patrick works, what works well, what to avoid)
+- `STATUS.local.md` → notepad for quick friction notes, completed items, issue tracking
+
+**The cost of saving too often is zero. The cost of losing context to compaction is everything.**
 
 ## Breadcrumbs
 

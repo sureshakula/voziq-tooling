@@ -176,8 +176,14 @@ def extract_text_from_memories(memories: List[Dict]) -> List[str]:
     for memory in memories:
         # Try common text fields
         if 'activities' in memory and isinstance(memory['activities'], list):
-            # Sessions type - join activities
+            # Sessions type (v1) - join activities
             text = '\n'.join(str(a) for a in memory['activities'])
+        elif 'summary' in memory:
+            # Sessions type (v2) - summary field
+            text = str(memory['summary'])
+        elif '_type' in memory and memory['_type'] == 'key_learning':
+            # Key learnings (v2) - key:value pair
+            text = f"{memory.get('key', '')}: {memory.get('value', '')}"
         elif 'content' in memory:
             text = str(memory['content'])
         elif 'text' in memory:

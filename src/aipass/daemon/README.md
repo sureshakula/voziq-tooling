@@ -4,7 +4,7 @@
 **Module:** `aipass.daemon`
 **Created:** 2026-03-07
 **Citizen Class:** builder
-**Last Updated:** 2026-03-08
+**Last Updated:** 2026-03-10
 
 ---
 
@@ -36,7 +36,9 @@ daemon/
 │   │   ├── update.py          # Status digest module — summarizes DAEMON activity
 │   │   ├── schedule.py        # Scheduled follow-ups — fire-and-forget task management
 │   │   ├── activity_report.py # Branch activity report generator
-│   │   └── actions.py         # Action registry CLI — list, toggle, info, reminders
+│   │   ├── actions.py         # Action registry CLI — list, toggle, info, reminders
+│   │   ├── scheduler_ops.py   # Scheduler cron operations facade
+│   │   └── wakeup_ops.py      # Wake-up cron operations facade
 │   ├── handlers/
 │   │   ├── actions/
 │   │   │   └── actions_registry.py   # Action registry implementation
@@ -64,6 +66,8 @@ daemon/
 │       └── heartbeat.py               # Heartbeat / liveness plugin
 ├── daemon_json/                # JSON tracking data
 ├── docs/                       # Documentation
+├── dropbox/                    # Incoming file drops
+├── logs/                       # Prax log output
 ├── tools/                      # Branch verification utilities
 └── tests/                      # Test suite
 ```
@@ -98,6 +102,8 @@ drone @daemon <command> --help
 | `schedule` | Fire-and-forget scheduled follow-ups and task management |
 | `activity_report` | Branch activity report generator (plain text output) |
 | `actions` | Action registry CLI -- list, toggle, info, set reminder, set schedule, plugin migration |
+| `scheduler_ops` | Scheduler cron operations facade for scheduler_cron.py |
+| `wakeup_ops` | Wake-up cron operations facade for daemon_wakeup.py |
 
 ---
 
@@ -122,4 +128,4 @@ drone @daemon <command> --help
 
 ---
 
-*Last Updated: 2026-03-08*
+*Last Updated: 2026-03-10*

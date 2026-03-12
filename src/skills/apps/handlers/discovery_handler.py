@@ -22,6 +22,7 @@ from pathlib import Path
 from aipass.prax import logger
 
 # Try yaml, fall back to simple parser
+yaml = None
 try:
     import yaml
     HAS_YAML = True

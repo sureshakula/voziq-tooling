@@ -56,6 +56,10 @@ class TestLoadSkill:
         metadata = result["metadata"]
         assert "name" in metadata
         assert "description" in metadata
+        # Verify actual values, not just key existence
+        assert metadata["name"] == "github"
+        assert isinstance(metadata["description"], str)
+        assert len(metadata["description"]) > 0
 
     def test_body_is_markdown_content(self):
         result = load_skill("github")

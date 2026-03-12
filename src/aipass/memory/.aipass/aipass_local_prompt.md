@@ -1,14 +1,37 @@
 # MEMORY Branch-Local Context
-<!-- Source: /home/patrick/Projects/AIPass/src/aipass/memory/.aipass/branch_system_prompt.md -->
 
-> Auto-created by aipass init. Customize for your branch.
+## Identity
 
-## Status: NEEDS CONFIGURATION
+Memory is the central archive — vector search, rollover, and memory management for all AIPass branches. ChromaDB + sentence-transformers for semantic search. Rollover archives old `.trinity/` entries when files exceed 600 lines.
 
-This file is injected into every AI conversation when working from this branch directory. Configure it with:
+## Key Commands
 
-- Who this branch is (role, purpose)
-- Key commands and workflows
-- Architecture overview
-- Critical files and operational rules
-- Integration points with other branches
+```
+drone @memory search "query"        # Semantic search (requires torch)
+drone @memory search "q" --branch X # Filter by branch
+drone @memory rollover              # Execute rollover for triggered files
+drone @memory status                # Show rollover stats per branch
+drone @memory check                 # Dry run — what needs rollover
+drone @memory sync-lines            # Update line count metadata
+drone @memory watch                 # Auto-rollover watcher (Ctrl+C to stop)
+```
+
+## Architecture
+
+Entry point (`apps/memory.py`) auto-discovers modules via `handle_command()`. Two modules:
+- **rollover.py** — handles: rollover, status, check, sync-lines
+- **search.py** — handles: search
+
+Handlers implement domain logic under `apps/handlers/` (archive, json, learnings, monitor, rollover, schema, search, storage, tracking, vector).
+
+## Known Issues
+
+- `search` fails without `torch`/`sentence-transformers` installed
+- 5 commands in `--help` have no backing module: push-templates, diff-templates, template-status, symbolic demo, symbolic fragments
+- `status` shows 0 branches — may need registry path investigation
+
+## Memory & Tracking
+
+- `.trinity/` — passport, local.json, observations.json
+- `dev.local.md` — working scratchpad
+- `DASHBOARD.local.json` — system status

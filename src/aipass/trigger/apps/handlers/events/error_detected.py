@@ -50,7 +50,7 @@ def _find_repo_root() -> Path:
 
 _REPO_ROOT = _find_repo_root()
 
-BRANCH_REGISTRY_FILE = _REPO_ROOT / "BRANCH_REGISTRY.json"
+BRANCH_REGISTRY_FILE = _REPO_ROOT / "AIPASS_REGISTRY.json"
 TRIGGER_CONFIG_FILE = TRIGGER_ROOT / "trigger_json" / "trigger_config.json"
 
 # Email send callback (set by module layer, avoids handler importing from modules)

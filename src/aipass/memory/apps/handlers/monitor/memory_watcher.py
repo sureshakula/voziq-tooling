@@ -58,7 +58,11 @@ _startup_check_done = False
 
 def _get_rollover_threshold(branch_name: str, file_path: Path | None = None) -> int:
     """
-    Get rollover threshold for a memory file.
+    Get rollover threshold for a memory file (line-based, v1 only).
+
+    For v2 files (schema_version >= 2.0.0), returns a very large number so
+    line-based checks never trigger. v2 rollover is handled by the detector
+    using entry-count limits.
 
     Priority: file metadata > per_branch config > defaults > hardcoded 600
 
@@ -76,7 +80,14 @@ def _get_rollover_threshold(branch_name: str, file_path: Path | None = None) -> 
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                file_limit = data.get('document_metadata', {}).get('limits', {}).get('max_lines')
+                metadata = data.get('document_metadata', {})
+
+                # v2 files use entry-count limits, not line limits
+                schema_version = metadata.get('schema_version', '1.0.0')
+                if schema_version.startswith('2'):
+                    return 999999  # Never trigger line-based rollover for v2
+
+                file_limit = metadata.get('limits', {}).get('max_lines')
                 if file_limit is not None:
                     return file_limit
         except Exception:

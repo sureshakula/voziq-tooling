@@ -166,6 +166,7 @@ class Trigger:
     @classmethod
     def status(cls) -> dict:
         """Show registered handlers"""
+        cls._ensure_initialized()
         return {event: len(handlers) for event, handlers in cls._handlers.items()}
 
 
@@ -185,6 +186,13 @@ def handle_command(command: str, args: list) -> bool:
         True if command was handled, False otherwise
     """
     from aipass.cli.apps.modules import console
+
+    # Handle module-name routing (drone @trigger core <subcmd>)
+    if command == "core":
+        if not args or args[0] in ['--help', '-h', 'help']:
+            _print_help(console)
+            return True
+        return handle_command(args[0], args[1:])
 
     if command not in ["fire", "status", "list"]:
         return False

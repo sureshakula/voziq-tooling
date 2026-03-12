@@ -1,17 +1,17 @@
 # =================== AIPass ====================
 # Name: wakeup_ops.py
 # Description: Wake-Up Cron Operations Module
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-03-08
-# Modified: 2026-03-08
+# Modified: 2026-03-10
 # =============================================
 
 """
 Wake-up operations module -- facade for cron entry point.
 
 Provides a clean module-layer interface over handler functions
-used by daemon_wakeup.py. Entry-level scripts import from
-this module instead of reaching into handlers directly.
+used by daemon_wakeup.py. Telegram stripped — notification stubs
+remain for import compatibility.
 """
 
 from aipass.prax import logger
@@ -23,21 +23,14 @@ except ImportError:
     console = Console()
 
 # =============================================
-# DAEMON BOT TELEGRAM NOTIFICATIONS
+# NOTIFICATION STUBS (Telegram stripped)
 # =============================================
 
-try:
-    from aipass.daemon.apps.handlers.schedule.assistant_notifier import (
-        notify_wakeup,
-        notify_report,
-        notify_error,
-    )
-    TELEGRAM_AVAILABLE = True
-except ImportError:
-    TELEGRAM_AVAILABLE = False
-    notify_wakeup = None
-    notify_report = None
-    notify_error = None
+from aipass.daemon.apps.handlers.schedule.assistant_notifier import (
+    notify_wakeup,
+    notify_report,
+    notify_error,
+)
 
 
 # =============================================
@@ -48,11 +41,11 @@ def print_introspection():
     """Display module introspection info."""
     console.print()
     console.print("wakeup_ops Module")
-    console.print("Facade for daemon_wakeup.py — re-exports daemon bot Telegram notifications")
+    console.print("Facade for daemon_wakeup.py — notification stubs (Telegram stripped)")
     console.print()
     console.print("Connected Handlers:")
     console.print("  handlers/schedule/")
-    console.print("    - assistant_notifier.py (notify_wakeup, notify_report, notify_error — daemon bot Telegram notifications)")
+    console.print("    - assistant_notifier.py (notification stubs — Telegram stripped)")
     console.print()
 
 
@@ -61,22 +54,12 @@ def print_introspection():
 # =============================================
 
 def handle_command(command: str, args: list) -> bool:
-    """Handle commands routed by the entry point.
-
-    Args:
-        command: Command name
-        args: Additional arguments
-
-    Returns:
-        True if command was handled, False otherwise
-    """
+    """Handle commands routed by the entry point."""
     if command == "wakeup-ops":
-        from aipass.cli.apps.modules import console
-
         console.print()
         console.print("[bold cyan]Wakeup Ops[/bold cyan] - Cron wake-up facade")
         console.print()
-        console.print(f"  [dim]Telegram available:[/dim] {TELEGRAM_AVAILABLE}")
+        console.print("  [dim]Notifications:[/dim] stubs (Telegram stripped)")
         console.print()
         console.print("[dim]This module is a facade used by daemon_wakeup.py.[/dim]")
         console.print()

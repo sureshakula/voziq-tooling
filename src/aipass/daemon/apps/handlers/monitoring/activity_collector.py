@@ -21,8 +21,14 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 
-# Constants
-REGISTRY_PATH = Path(os.environ.get('AIPASS_REGISTRY', Path.home() / '.aipass' / 'AIPASS_REGISTRY.json'))
+# Constants — find registry: env var > repo root > ~/.aipass/
+_REPO_ROOT = Path(__file__).resolve().parents[6]  # src/aipass/daemon/apps/handlers/monitoring -> repo root
+_REGISTRY_CANDIDATES = [
+    Path(os.environ.get('AIPASS_REGISTRY', '')),
+    _REPO_ROOT / 'AIPASS_REGISTRY.json',
+    Path.home() / '.aipass' / 'AIPASS_REGISTRY.json',
+]
+REGISTRY_PATH = next((p for p in _REGISTRY_CANDIDATES if p.name and p.exists()), _REGISTRY_CANDIDATES[-1])
 MEMORY_FILE_PATTERNS = [".local.json", ".observations.json", "README.md"]
 CODE_FILE_EXTENSION = ".py"
 
