@@ -22,7 +22,7 @@ if str(skills_root) not in sys.path:
 from skills.apps.handlers.template import copy_template, get_template
 from skills.apps.modules.creator import create_skill
 from skills.apps.modules.discovery import discover_skills_in_path, parse_frontmatter
-from skills.apps.modules.loader import _load_handler, _parse_full_skill_md
+from skills.apps.handlers.loader_handler import import_handler, parse_full_skill_md
 from skills.apps.modules.runner import run_skill
 
 
@@ -55,7 +55,7 @@ class TestFullLifecycle:
         assert skills[0]["has_handler"] is False
 
         # Load (parse full SKILL.md)
-        metadata, body = _parse_full_skill_md(skill_path / "SKILL.md")
+        metadata, body = parse_full_skill_md(skill_path / "SKILL.md")
         assert metadata is not None
         assert metadata["name"] == "test-md"
         assert body is not None
@@ -75,7 +75,7 @@ class TestFullLifecycle:
         assert len(handler_skill) == 1
 
         # Load handler
-        handler = _load_handler(skill_path, "test-handler")
+        handler = import_handler(skill_path, "test-handler")
         assert handler is not None
         assert hasattr(handler, "run")
         assert hasattr(handler, "get_actions")
@@ -113,7 +113,7 @@ class TestCatalogSkillsLifecycle:
         assert github[0]["has_handler"] is False
 
         # Parse full SKILL.md
-        metadata, body = _parse_full_skill_md(github[0]["path"] / "SKILL.md")
+        metadata, body = parse_full_skill_md(github[0]["path"] / "SKILL.md")
         assert metadata["name"] == "github"
         assert body is not None
         assert "gh" in body.lower()

@@ -98,15 +98,19 @@ def print_help() -> None:
     console.print("  python3 -m aipass.memory.apps.modules.rollover <command>")
     console.print()
     console.print("[bold]COMMANDS:[/bold]")
-    console.print("  [cyan]rollover[/cyan]    Execute rollover for files over 600 lines")
+    console.print("  [cyan]rollover[/cyan]    Execute rollover for files exceeding limits")
     console.print("  [cyan]status[/cyan]      Show rollover statistics for all branches")
     console.print("  [cyan]check[/cyan]       Check which files need rollover (dry run)")
     console.print("  [cyan]sync-lines[/cyan]  Update line count metadata for all branches")
     console.print("  [cyan]help[/cyan]        Show this help message")
     console.print()
+    console.print("[bold]LIMITS:[/bold]")
+    console.print("  v1 (schema <2.0): Line-count based (max_lines, default 600)")
+    console.print("  v2 (schema 2.0+): Entry-count based (max_sessions, max_key_learnings)")
+    console.print()
     console.print("[bold]WORKFLOW:[/bold]")
-    console.print("  1. Detect files over 600 lines")
-    console.print("  2. Extract oldest entries (target ~500 lines)")
+    console.print("  1. Detect files exceeding limits (line count or entry count)")
+    console.print("  2. Extract oldest entries")
     console.print("  3. Generate embeddings via sentence-transformers")
     console.print("  4. Store vectors in local + global ChromaDB")
     console.print()
@@ -253,16 +257,22 @@ def show_status() -> None:
 
             for memory_type, file_stats in branch_stats.items():
                 current = file_stats['current']
-                max_lines = file_stats['max']
+                max_val = file_stats['max']
                 ready = file_stats['ready']
                 remaining = file_stats['remaining']
+                schema_ver = file_stats.get('schema_version', '1.0.0')
+                v2_reason = file_stats.get('v2_reason', '')
 
                 status_marker = "[red]![/red]" if ready else "[green]OK[/green]"
-                status_text = "READY" if ready else f"{remaining} remaining"
 
-                console.print(
-                    f"    {status_marker} {memory_type}: {current}/{max_lines} lines ({status_text})"
-                )
+                if schema_ver.startswith('2') and v2_reason:
+                    status_text = f"READY ({v2_reason})" if ready else "OK (v2)"
+                    console.print(f"    {status_marker} {memory_type}: {status_text}")
+                else:
+                    status_text = "READY" if ready else f"{remaining} remaining"
+                    console.print(
+                        f"    {status_marker} {memory_type}: {current}/{max_val} lines ({status_text})"
+                    )
 
             console.print()
 

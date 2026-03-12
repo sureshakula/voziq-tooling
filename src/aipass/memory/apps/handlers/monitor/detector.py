@@ -46,8 +46,12 @@ class RolloverTrigger:
     file_path: Path
     current_lines: int
     max_lines: int
+    schema_version: str = "1.0.0"
+    v2_reason: str = ""
 
     def __str__(self):
+        if self.schema_version.startswith("2") and self.v2_reason:
+            return f"{self.branch}.{self.memory_type} ({self.v2_reason})"
         return f"{self.branch}.{self.memory_type} ({self.current_lines}/{self.max_lines} lines)"
 
 
@@ -193,22 +197,62 @@ def _get_max_lines(file_path: Path, branch_name: str | None = None) -> int:
 # ROLLOVER DETECTION
 # =============================================================================
 
-def _should_rollover(file_path: Path) -> tuple[bool, int, int]:
+def _should_rollover(file_path: Path) -> tuple[bool, int, int, str, str]:
     """
-    Check if file should rollover
+    Check if file should rollover (supports v1 line-based and v2 entry-count based).
 
     Args:
         file_path: Path to memory JSON file
 
     Returns:
-        Tuple of (should_rollover, current_lines, max_lines)
+        Tuple of (should_rollover, current_lines, max_lines, schema_version, v2_reason)
+        For v2 files, max_lines is 0 and v2_reason describes which limits are exceeded.
     """
     current_lines = _count_file_lines(file_path)
-    max_lines = _get_max_lines(file_path)
 
-    should_trigger = current_lines >= max_lines
+    # Read file data once for schema detection + limit checks
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception:
+        # Can't parse — fall back to line-based with hardcoded default
+        return (current_lines >= 600, current_lines, 600, '1.0.0', '')
 
-    return (should_trigger, current_lines, max_lines)
+    metadata = data.get('document_metadata', {})
+    schema_version = metadata.get('schema_version', '1.0.0')
+    limits = metadata.get('limits', {})
+
+    # v2: entry-count based limits
+    if schema_version.startswith('2'):
+        reasons = []
+
+        max_sessions = limits.get('max_sessions')
+        if max_sessions is not None:
+            sessions = data.get('sessions', [])
+            if isinstance(sessions, list) and len(sessions) > max_sessions:
+                reasons.append(f"{len(sessions)}/{max_sessions} sessions")
+
+        max_key_learnings = limits.get('max_key_learnings')
+        if max_key_learnings is not None:
+            key_learnings = data.get('key_learnings', {})
+            if isinstance(key_learnings, dict) and len(key_learnings) > max_key_learnings:
+                reasons.append(f"{len(key_learnings)}/{max_key_learnings} key_learnings")
+
+        max_observations = limits.get('max_observations')
+        if max_observations is not None:
+            observations = data.get('observations', [])
+            if isinstance(observations, list) and len(observations) > max_observations:
+                reasons.append(f"{len(observations)}/{max_observations} observations")
+
+        triggered = len(reasons) > 0
+        return (triggered, current_lines, 0, schema_version, ', '.join(reasons))
+
+    # v1: line-count based
+    max_lines = limits.get('max_lines')
+    if max_lines is None:
+        max_lines = _get_max_lines(file_path)
+
+    return (current_lines >= max_lines, current_lines, max_lines, '1.0.0', '')
 
 
 def check_all_branches() -> Dict[str, Any]:
@@ -244,7 +288,7 @@ def check_all_branches() -> Dict[str, Any]:
             if file_path is None:
                 continue  # File doesn't exist, skip
 
-            should_trigger, current_lines, max_lines = _should_rollover(file_path)
+            should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
             if should_trigger:
                 trigger = RolloverTrigger(
@@ -252,7 +296,9 @@ def check_all_branches() -> Dict[str, Any]:
                     memory_type=memory_type,
                     file_path=file_path,
                     current_lines=current_lines,
-                    max_lines=max_lines
+                    max_lines=max_lines,
+                    schema_version=schema_ver,
+                    v2_reason=v2_reason,
                 )
                 triggers.append(trigger)
 
@@ -280,7 +326,7 @@ def check_single_file(file_path: Path) -> Dict[str, Any]:
             'error': f"File not found: {file_path}"
         }
 
-    should_trigger, current_lines, max_lines = _should_rollover(file_path)
+    should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
     if should_trigger:
         # Extract branch and type from filename (e.g., SEED.observations.json)
@@ -293,7 +339,9 @@ def check_single_file(file_path: Path) -> Dict[str, Any]:
             memory_type=memory_type,
             file_path=file_path,
             current_lines=current_lines,
-            max_lines=max_lines
+            max_lines=max_lines,
+            schema_version=schema_ver,
+            v2_reason=v2_reason,
         )
 
         return {
@@ -302,12 +350,14 @@ def check_single_file(file_path: Path) -> Dict[str, Any]:
             'should_rollover': True
         }
     else:
+        remaining = max_lines - current_lines if max_lines > 0 else 0
         return {
             'success': True,
             'should_rollover': False,
             'current_lines': current_lines,
             'max_lines': max_lines,
-            'remaining': max_lines - current_lines
+            'schema_version': schema_ver,
+            'remaining': remaining
         }
 
 
@@ -344,14 +394,19 @@ def get_rollover_stats() -> Dict[str, Any]:
                 continue
 
             stats['files_checked'] += 1
-            should_trigger, current_lines, max_lines = _should_rollover(file_path)
+            should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
-            branch_stats[memory_type] = {
+            stat_entry = {
                 'current': current_lines,
                 'max': max_lines,
                 'ready': should_trigger,
-                'remaining': max_lines - current_lines
+                'remaining': max_lines - current_lines if max_lines > 0 else 0,
+                'schema_version': schema_ver,
             }
+            if v2_reason:
+                stat_entry['v2_reason'] = v2_reason
+
+            branch_stats[memory_type] = stat_entry
 
             if should_trigger:
                 stats['files_ready'] += 1

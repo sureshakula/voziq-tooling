@@ -53,7 +53,7 @@ def recover_plan_from_backup(plan_key: str, load_registry=None, save_registry=No
         (success, message)
     """
     # Check processed_plans directory
-    processed_plans = _PKG_ROOT / "backup_system" / "processed_plans"
+    processed_plans = FLOW_ROOT / "processed_plans"
     plan_file = processed_plans / f"FPLAN-{plan_key}.md"
 
     # CRITICAL: If base file doesn't exist, or if timestamp variants exist, use the NEWEST backup

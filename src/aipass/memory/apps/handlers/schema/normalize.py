@@ -15,14 +15,10 @@ Fixes inconsistent schema in memory JSON files:
 3. Removes auto_compress_at (redundant with max_lines)
 4. Ensures document_metadata.status has current_lines
 
-Target schema:
-{
-  "document_metadata": {
-    "limits": { "max_lines": N, ... },
-    "status": { "current_lines": N, "last_health_check": "..." }
-  },
-  ... (other content)
-}
+Supports two schema versions:
+  v1 (schema_version <2.0.0): { "limits": { "max_lines": N } }
+  v2 (schema_version >=2.0.0): { "limits": { "max_sessions": N, "max_key_learnings": N,
+      "session_summary_max_chars": N, "learning_value_max_chars": N } }
 """
 
 import json
@@ -93,7 +89,10 @@ def normalize_memory_file(file_path: Path, dry_run: bool = False) -> Dict[str, A
         changes.append("Removed redundant 'auto_compress_at'")
 
     # 4. Remove unused limits fields (max_word_count, max_token_count - no code uses these)
+    # Preserve v2 fields: max_sessions, max_key_learnings, session_summary_max_chars, learning_value_max_chars
     if 'limits' in metadata:
+        v2_fields = {'max_sessions', 'max_key_learnings', 'session_summary_max_chars',
+                      'learning_value_max_chars', 'max_observations', 'max_lines', 'note'}
         for unused_field in ['max_word_count', 'max_token_count']:
             if unused_field in metadata['limits']:
                 del metadata['limits'][unused_field]

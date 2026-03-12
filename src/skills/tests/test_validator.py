@@ -87,3 +87,22 @@ class TestValidateSkill:
         assert "missing_pip" in result
         assert "missing_bins" in result
         assert "missing_config" in result
+        # Verify actual values, not just key existence
+        assert result["valid"] is True
+        assert result["missing_pip"] == []
+        assert result["missing_bins"] == []
+        assert result["missing_config"] == []
+
+    def test_return_structure_with_failures(self):
+        """Verify structure contains actual failure data, not just keys."""
+        result = validate_skill({
+            "requires": {
+                "pip": ["nonexistent_pkg_xyz_123"],
+                "bins": ["nonexistent_bin_xyz"],
+                "config": ["NONEXISTENT_VAR_XYZ"],
+            }
+        })
+        assert result["valid"] is False
+        assert result["missing_pip"] == ["nonexistent_pkg_xyz_123"]
+        assert result["missing_bins"] == ["nonexistent_bin_xyz"]
+        assert result["missing_config"] == ["NONEXISTENT_VAR_XYZ"]

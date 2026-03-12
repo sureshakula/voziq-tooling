@@ -1,14 +1,58 @@
-# {{BRANCHNAME}} Branch-Local Context
-<!-- Source: {{CWD}}/.aipass/branch_system_prompt.md -->
+# SKILLS — Branch Context
+<!-- File: src/skills/.aipass/aipass_local_prompt.md — Injected on every prompt when in skills directory. -->
 
-> Auto-created by aipass init. Customize for your branch.
+Capability framework for AI agents. Discoverable, validatable, executable skill units across three tiers: markdown-only, with handler, full 3-layer.
 
-## Status: NEEDS CONFIGURATION
+## Commands
 
-This file is injected into every AI conversation when working from this branch directory. Configure it with:
+```
+drone @skills list                         # Show all discovered skills
+drone @skills info <name>                  # Display SKILL.md contents
+drone @skills run <name> [action] [args]   # Execute a skill's handler
+drone @skills create <name>                # Scaffold new skill (markdown only)
+drone @skills create <name> --with-handler # Scaffold with handler.py
+drone @skills create <name> --full         # Scaffold with full 3-layer structure
+drone @skills validate <name>              # Check if skill requirements are met
+drone @skills --help                       # Show help
+```
 
-- Who this branch is (role, purpose)
-- Key commands and workflows
-- Architecture overview
-- Critical files and operational rules
-- Integration points with other branches
+## Apps Layout
+
+```
+apps/
+├── skills.py              # Entry point — command routing
+├── modules/
+│   ├── discovery.py       # Orchestration: discover_all (thin, delegates to handler)
+│   ├── loader.py          # Orchestration: load_skill (thin, delegates to handler)
+│   ├── runner.py          # Execute skills (handler-based or markdown-only)
+│   ├── creator.py         # Scaffold new skills from templates
+│   └── validator.py       # Check skill requirements
+├── handlers/
+│   ├── discovery_handler.py  # Core: search paths, SKILL.md scanning, frontmatter parsing
+│   ├── loader_handler.py     # Core: parse full SKILL.md, dynamic handler import
+│   ├── registry.py           # Build deduplicated skill registry
+│   ├── validator.py          # Requirement checking (pip, bins, config)
+│   └── template.py           # Template resolution and copying
+├── plugins/               # Extension point (empty)
+catalog/                   # Built-in skills: drone_commands, github, system_status
+templates/                 # Skill creation templates (markdown_only, with_handler, full)
+```
+
+## Search Paths (first match wins)
+
+1. `.aipass/skills/` — Project-local skills
+2. `~/.aipass/skills/` — Global user skills
+3. `src/skills/catalog/` — Built-in skills
+
+## Three Skill Tiers
+
+- **Markdown only**: SKILL.md with instructions (AI reads and follows)
+- **With handler**: SKILL.md + handler.py (programmatic execution)
+- **Full 3-layer**: SKILL.md + apps/ structure (complex skills)
+
+## Memory & Tracking
+
+- `.trinity/passport.json` — identity
+- `.trinity/local.json` — session history
+- `.trinity/observations.json` — collaboration patterns
+- `dev.local.md` — scratchpad for issues, todos, notes

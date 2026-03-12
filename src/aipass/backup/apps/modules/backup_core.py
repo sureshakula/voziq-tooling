@@ -35,14 +35,8 @@ import datetime
 from pathlib import Path
 from typing import Dict
 
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, header, success, error
 from aipass.prax import logger
-
-
-def _header(text):
-    console.print(f"\n[bold cyan]{'='*70}[/bold cyan]")
-    console.print(f"[bold cyan]  {text}[/bold cyan]")
-    console.print(f"[bold cyan]{'='*70}[/bold cyan]")
 
 
 # Import handlers (core dependencies) - relative imports
@@ -147,11 +141,6 @@ def handle_command(args) -> bool:
 
     Returns:
         bool: True if command was handled, False if not a backup command
-
-    Example:
-        result = handle_command(args)
-        if result:
-            console.print(f"Backup completed")
     """
     # Check if args has backup-related command
     if not hasattr(args, 'command'):
@@ -174,16 +163,41 @@ def handle_command(args) -> bool:
     # Get backup note if provided
     backup_note = getattr(args, 'note', 'No note provided')
 
+    # Rich header
+    header(f"Backup — {mode.title()}", {
+        'Mode': mode,
+        'Dry run': 'yes' if dry_run else 'no',
+    })
+
     try:
         # Create engine and run backup
         engine = BackupEngine(mode, dry_run=dry_run)
         result = engine.run_backup(backup_note)
 
-        # Return True to indicate command was handled
+        # Rich summary
+        duration = (datetime.datetime.now() - result.start_time).total_seconds()
+        console.print()
+        if result.critical_errors:
+            error(f"{mode.title()} backup FAILED")
+        elif result.errors > 0:
+            console.print(f"[yellow]{mode.title()} completed with {result.errors} errors[/yellow]")
+            console.print(f"  [dim]Files: {result.files_copied} copied, {result.files_skipped} skipped[/dim]")
+        else:
+            if dry_run:
+                success(f"{mode.title()} dry-run complete",
+                        files_scanned=result.files_checked,
+                        would_copy=result.files_copied,
+                        unchanged=result.files_skipped)
+            else:
+                success(f"{mode.title()} backup complete",
+                        files_copied=result.files_copied,
+                        files_skipped=result.files_skipped)
+        console.print(f"  [dim]Duration: {duration:.1f}s | Location: {result.backup_path}[/dim]")
+
         return True
     except Exception as e:
         logger.error(f"[backup_core] Backup command failed: {e}")
-        console.print(f"[ERROR] Backup failed: {e}")
+        error(f"Backup failed: {e}")
         return True  # Still handled, just failed
 
 
@@ -362,8 +376,7 @@ class BackupEngine:
             console.print("╰" + "─" * 68 + "╯", style="yellow")
             console.print()
 
-        _header(f"AIPass {self.mode_config['name']} - {self.mode_config['description']}")
-        console.print()
+        header(f"AIPass {self.mode_config['name']} - {self.mode_config['description']}")
         # Ensure backup directory exists
         if not self.ensure_backup_directory(result):
             console.print(f"\nBACKUP FAILED: Could not create backup directory")

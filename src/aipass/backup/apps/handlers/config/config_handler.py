@@ -114,6 +114,16 @@ GLOBAL_IGNORE_PATTERNS = [
     ".gemini",  # AI assistant cache
     "snap",  # Snap package directories (broken symlinks, system-managed)
 
+    # AIPass internal state (runtime, not user data)
+    ".trinity",  # Branch identity/memory files (passport, local, observations)
+    ".ai_mail.local",  # Branch mailbox directories
+    ".archive",  # Branch archive directories
+    "backup_data",  # Backup runtime state
+    "backup_json",  # Backup metadata tracking
+    "DASHBOARD.local.json",  # Branch dashboard state
+    "CLOSED_PLANS.local.json",  # Flow plan close records
+    "STATUS.local.md",  # Branch status boards
+
     # Version control (huge number of files!)
     ".git",  # Git repositories are version controlled elsewhere
 
@@ -293,7 +303,6 @@ IGNORE_EXCEPTIONS = [
     # === MARKERS ===
     ".gitkeep",  # Include all .gitkeep marker files (especially in templates)
     ".gitattributes",  # Git attributes files
-    ".local.json"
 ]
 
 # Files that SHOULD have diffs created (exceptions to ignore patterns)

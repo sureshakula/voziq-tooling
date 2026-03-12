@@ -3,7 +3,7 @@
 # Description: DAEMON Wake-Up Cron Trigger
 # Version: 1.0.0
 # Created: 2026-02-15
-# Modified: 2026-02-15
+# Modified: 2026-03-10
 # =============================================
 
 """
@@ -13,10 +13,9 @@ Called periodically by cron. Standalone script -- not imported as a module.
 
 Flow:
   1. Acquire single-instance lock
-  2. Send Telegram "waking up" notification via daemon bot (optional)
-  3. Check daemon's email inbox (new/opened counts)
-  4. Build summary report with sender/subject listings
-  5. Send report notification via daemon bot (optional)
+  2. Check daemon's email inbox (new/opened counts)
+  3. Build summary report with sender/subject listings
+  4. Log report
 """
 
 # =============================================
@@ -26,32 +25,12 @@ Flow:
 import sys
 import json
 import fcntl
-import time
 from pathlib import Path
 from datetime import datetime
 
 from aipass.prax import logger
-# logger imported from aipass.prax
 
 from aipass.cli.apps.modules import console
-
-# =============================================
-# OPTIONAL IMPORTS (via module layer)
-# =============================================
-
-# Telegram notifications (optional) — route through modules, not handlers directly
-try:
-    from aipass.daemon.apps.modules.wakeup_ops import (
-        notify_wakeup,
-        notify_report,
-        notify_error,
-        TELEGRAM_AVAILABLE,
-    )
-except ImportError:
-    TELEGRAM_AVAILABLE = False
-    notify_wakeup = None
-    notify_report = None
-    notify_error = None
 
 # =============================================
 # CONSTANTS
@@ -61,7 +40,6 @@ _DAEMON_ROOT = Path(__file__).resolve().parents[2]  # src/aipass/daemon/
 JSON_DIR = _DAEMON_ROOT / "daemon_json"
 
 LOCK_FILE = JSON_DIR / "wakeup.lock"
-CHAT_LOCK_FILE = JSON_DIR / "chat.lock"
 INBOX_PATH = _DAEMON_ROOT / "ai_mail.local" / "inbox.json"
 
 # =============================================
@@ -76,7 +54,7 @@ def print_introspection():
     console.print()
     console.print("Connected Handlers:")
     console.print("  modules/")
-    console.print("    - wakeup_ops.py (notify_wakeup, notify_report, notify_error — daemon bot Telegram notifications)")
+    console.print("    - wakeup_ops.py (notification stubs — Telegram stripped)")
     console.print()
 
 
@@ -96,32 +74,6 @@ def log(message: str) -> None:
     """Print timestamped log line to stdout (captured by cron redirect)."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     console.print(f"[{timestamp}] {message}")
-
-
-# =============================================
-# CHAT LOCK CHECK
-# =============================================
-
-def is_chat_active() -> bool:
-    """
-    Check if daemon is in an active Telegram chat session.
-
-    The chat listener creates a lock file while running.
-    If the lock exists and is fresh (<60 minutes), skip the wake-up cycle
-    to avoid interfering with the live conversation.
-
-    Returns:
-        True if chat session is active, False otherwise
-    """
-    if not CHAT_LOCK_FILE.exists():
-        return False
-    try:
-        age = time.time() - CHAT_LOCK_FILE.stat().st_mtime
-        if age > 3600:  # 60 minutes - treat as stale
-            return False
-        return True
-    except OSError:
-        return False
 
 
 # =============================================
@@ -240,11 +192,6 @@ def main() -> int:
     log("=" * 60)
     log("Daemon wake-up triggered")
 
-    # Check if chat session is active (skip wake-up to avoid interference)
-    if is_chat_active():
-        log("Chat session active, skipping wake-up cycle")
-        return 0
-
     # Ensure lock directory exists
     LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -268,39 +215,17 @@ def _run_locked() -> int:
     """Execute the wake-up job while holding the lock."""
     exit_code = 0
 
-    # Step 1: Send "waking up" notification (optional)
-    if TELEGRAM_AVAILABLE:
-        try:
-            notify_wakeup()
-            log("Telegram: wakeup notification sent")
-        except Exception as e:
-            log(f"WARNING: Telegram wakeup notification failed: {e}")
-
-    # Step 2: Check inbox
+    # Step 1: Check inbox
     try:
         inbox = check_inbox()
         log(f"Inbox: {inbox['new_count']} new, {inbox['opened_count']} opened")
     except Exception as e:
         log(f"CRITICAL: Unhandled error in check_inbox: {e}")
-        if TELEGRAM_AVAILABLE:
-            try:
-                notify_error(f"Inbox check failed: {e}")
-            except Exception:
-                pass
         return 1
 
-    # Step 3: Build report
+    # Step 2: Build report
     report = build_report(inbox)
     log(f"Report: {report.splitlines()[0]}")
-
-    # Step 4: Send report notification (optional)
-    if TELEGRAM_AVAILABLE:
-        try:
-            notify_report(report)
-            log("Telegram: report notification sent")
-        except Exception as e:
-            log(f"WARNING: Telegram report notification failed: {e}")
-            exit_code = 1
 
     log("Daemon wake-up finished")
     log("=" * 60)
@@ -314,9 +239,4 @@ if __name__ == "__main__":
         # Last-resort catch -- never crash silently
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         console.print(f"[{timestamp}] FATAL: Unhandled exception: {e}")
-        if TELEGRAM_AVAILABLE:
-            try:
-                notify_error(f"FATAL: {e}")
-            except Exception:
-                pass
         sys.exit(1)

@@ -127,17 +127,18 @@ def print_help(modules: List[Any]):
     console.print("[bold cyan]AVAILABLE COMMANDS:[/bold cyan]")
     console.print()
 
-    if modules:
-        for module in modules:
-            module_name = module.__name__.split('.')[-1]
-            # Get first line of docstring
-            description = "No description"
-            if module.__doc__:
-                description = module.__doc__.strip().split('\n')[0]
+    # Show actual routable commands, not module names
+    _COMMAND_HELP = [
+        ("update", "Returns digest of DAEMON activity for check-ins."),
+        ("schedule", "CLI interface for fire-and-forget scheduled follow-ups."),
+        ("activity", "Quick 24-hour activity summary."),
+        ("activity-report", "Full detailed activity report (--json for raw)."),
+        ("branch-health", "Single branch deep dive (e.g., branch-health DAEMON)."),
+        ("actions", "CLI interface for the numbered action registry."),
+    ]
 
-            console.print(f"  [green]{module_name:20}[/green] [dim]{description}[/dim]")
-    else:
-        console.print("  [dim]No modules discovered[/dim]")
+    for cmd_name, desc in _COMMAND_HELP:
+        console.print(f"  [green]{cmd_name:20}[/green] [dim]{desc}[/dim]")
 
     console.print()
     console.print("-" * 70)

@@ -19,7 +19,7 @@ skills_root = Path(__file__).resolve().parent.parent.parent
 if str(skills_root) not in sys.path:
     sys.path.insert(0, str(skills_root))
 
-from skills.apps.modules.discovery import (
+from skills.apps.handlers.discovery_handler import (
     _extract_frontmatter,
     _parse_simple_value,
     _simple_frontmatter_parse,

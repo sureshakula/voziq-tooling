@@ -47,14 +47,26 @@ try:
     FILELOCK_AVAILABLE = True
 except ImportError:
     FILELOCK_AVAILABLE = False
+    FileLock = None  # type: ignore[assignment,misc]
+    Timeout = None  # type: ignore[assignment,misc]
 
-# Email integration (optional)
-try:
-    from ai_mail.apps.modules.email import send_email_direct
-    AI_MAIL_AVAILABLE = True
-except ImportError:
-    AI_MAIL_AVAILABLE = False
-    send_email_direct = None
+# Email integration via drone subprocess
+import subprocess
+
+def _send_email_via_drone(to_branch, subject, message, from_branch='@daemon',
+                          auto_execute=True, reply_to=None, **kwargs):
+    """Send email via drone @ai_mail send subprocess."""
+    cmd = ["drone", "@ai_mail", "send", to_branch, subject, message]
+    if auto_execute:
+        cmd.append("--dispatch")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        return result.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+AI_MAIL_AVAILABLE = True
+send_email_direct = _send_email_via_drone
 
 # =============================================
 # CONSTANTS

@@ -171,6 +171,13 @@ def handle_command(command: str, args: List[str]) -> bool:
     Returns:
         True if command was handled, False if not our command.
     """
+    # Handle 'activity_report' as alias — help shows module name, users expect it to work
+    if command == "activity_report":
+        hours = _parse_hours_arg(args)
+        report = generate_activity_report(since_hours=hours, verbosity="normal")
+        console.print(report)
+        return True
+
     # Handle 'activity' command - quick summary
     if command == "activity":
         if args and args[0] in ('--help', '-h', 'help'):

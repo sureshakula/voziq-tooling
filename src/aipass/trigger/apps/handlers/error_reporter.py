@@ -41,9 +41,9 @@ def send_source_fix_email(entry: dict) -> bool:
         True if email sent successfully
     """
     try:
-        from aipass.ai_mail.apps.modules.email import send_email_direct
+        from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
     except ImportError:
-        logger.info("[ERRORS] Could not import send_email_direct - ai_mail not available")
+        logger.info("[ERRORS] Could not import deliver_email_to_branch - ai_mail not available")
         return False
 
     try:
@@ -85,16 +85,20 @@ This will prevent unnecessary error dispatch for this issue.
 Automated recommendation from Medic v2 Error Registry.
 Reply to @trigger with your fix status."""
 
-        send_email_direct(
-            to_branch=recipient,
-            subject=subject,
-            message=body,
-            reply_to='@trigger',
-            from_branch='@trigger'
-        )
+        from datetime import datetime
+        email_data = {
+            "from": "@trigger",
+            "from_name": "TRIGGER",
+            "to": recipient,
+            "subject": subject,
+            "message": body,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        success, _ = deliver_email_to_branch(recipient, email_data)
 
-        logger.info(f"[ERRORS] Source fix email sent to {recipient} for {fingerprint}")
-        return True
+        if success:
+            logger.info(f"[ERRORS] Source fix email sent to {recipient} for {fingerprint}")
+        return success
     except Exception as exc:
         logger.info(f"[ERRORS] Failed to send source fix email: {exc}")
         return False

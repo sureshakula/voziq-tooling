@@ -35,7 +35,7 @@ MODULE_NAME = "post_close_runner"
 
 LOCK_FILE = FLOW_ROOT / ".post_close_runner.lock"
 
-# AI summarization removed — plans vectorized directly from backup_system/processed_plans/
+# AI summarization removed — plans vectorized directly from flow/processed_plans/
 # from aipass.flow.apps.handlers.summary.generate import generate_summaries
 from aipass.flow.apps.handlers.mbank.process import process_closed_plans
 

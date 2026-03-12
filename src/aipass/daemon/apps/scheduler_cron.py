@@ -3,7 +3,7 @@
 # Description: DAEMON Scheduler Cron Trigger
 # Version: 2.0.0
 # Created: 2026-02-15
-# Modified: 2026-03-02
+# Modified: 2026-03-10
 # =============================================
 
 """
@@ -13,10 +13,10 @@ Called periodically by cron. Standalone script -- not imported as a module.
 
 Flow:
   1. Acquire single-instance lock
-  2. Send Telegram "triggered" notification (optional)
-  3. Recover stale dispatches
-  4. Process all due tasks (send emails, mark complete)
-  5. Send Telegram "complete" or "error" notification with summary (optional)
+  2. Recover stale dispatches
+  3. Process all due tasks (send emails, mark complete)
+  4. Process actions from registry
+  5. Log summary
 """
 
 # =============================================
@@ -41,20 +41,6 @@ from aipass.cli.apps.modules import console
 # OPTIONAL IMPORTS (via module layer)
 # =============================================
 
-# Resolve package imports — route through modules, not handlers directly
-try:
-    from aipass.daemon.apps.modules.scheduler_ops import (
-        notify_triggered,
-        notify_complete,
-        notify_error,
-        TELEGRAM_AVAILABLE,
-    )
-except ImportError:
-    TELEGRAM_AVAILABLE = False
-    notify_triggered = None
-    notify_complete = None
-    notify_error = None
-
 # Task registry (via module layer)
 try:
     from aipass.daemon.apps.modules.scheduler_ops import (
@@ -73,13 +59,21 @@ except ImportError:
     mark_pending = None
     recover_stale_dispatches = None
 
-# ai_mail (optional)
-try:
-    from ai_mail.apps.modules.email import send_email_direct
-    AI_MAIL_AVAILABLE = True
-except ImportError:
-    AI_MAIL_AVAILABLE = False
-    send_email_direct = None
+# Email integration via drone subprocess
+def _send_email_via_drone(to_branch, subject, message, from_branch='@daemon',
+                          auto_execute=True, reply_to=None, **kwargs):
+    """Send email via drone @ai_mail send subprocess."""
+    cmd = ["drone", "@ai_mail", "send", to_branch, subject, message]
+    if auto_execute:
+        cmd.append("--dispatch")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        return result.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+AI_MAIL_AVAILABLE = True
+send_email_direct = _send_email_via_drone
 
 # Plugin discovery
 try:
@@ -137,9 +131,7 @@ def print_introspection():
     console.print()
     console.print("Connected Handlers:")
     console.print("  modules/")
-    console.print("    - scheduler_ops.py (notify_triggered, notify_complete, notify_error — Telegram notifications)")
-    console.print("    - scheduler_ops.py (get_due_tasks, mark_dispatching, mark_completed, mark_pending, recover_stale_dispatches — task registry ops)")
-    console.print("    - scheduler_ops.py (load_registry, is_action_due, update_last_run, mark_reminder_completed, migrate_plugins, next_due_str — action registry ops)")
+    console.print("    - scheduler_ops.py (task registry ops + action registry ops)")
     console.print()
     console.print("  plugins/")
     console.print("    - discover_plugins (plugin discovery and scheduled execution)")
@@ -822,27 +814,14 @@ def _run_locked() -> int:
     """Execute the cron job while holding the lock."""
     exit_code = 0
 
-    # Step 1: Send "triggered" notification (optional)
-    if TELEGRAM_AVAILABLE:
-        try:
-            notify_triggered(EVENT_NAME)
-            log("Telegram: triggered notification sent")
-        except Exception as e:
-            log(f"WARNING: Telegram triggered notification failed: {e}")
-
-    # Step 2: Process due tasks
+    # Step 1: Process due tasks
     try:
         results = process_due_tasks()
     except Exception as e:
         log(f"CRITICAL: Unhandled error in process_due_tasks: {e}")
-        if TELEGRAM_AVAILABLE:
-            try:
-                notify_error(EVENT_NAME, f"Unhandled error: {e}")
-            except Exception:
-                pass
         return 1
 
-    # Step 2.5: Process actions from registry (replaces old process_plugins)
+    # Step 2: Process actions from registry
     action_results = {
         "total": 0, "enabled": 0, "executed": 0, "failed": 0,
         "errors": [], "executed_actions": [], "skipped_actions": [],
@@ -853,7 +832,7 @@ def _run_locked() -> int:
         log(f"WARNING: Unhandled error in process_actions: {e}")
         action_results["errors"].append(f"Action processing: {e}")
 
-    # Step 3: Build detailed summary
+    # Step 3: Build summary
     lines = []
 
     # Tasks section
@@ -888,24 +867,9 @@ def _run_locked() -> int:
 
     log(f"Results: {summary}")
 
-    # Step 4: Send completion or error notification (optional)
-    if TELEGRAM_AVAILABLE:
-        try:
-            if results["failed"] > 0 or results["errors"] or action_results["failed"] > 0 or action_results["errors"]:
-                error_detail = summary
-                all_errors = results["errors"] + action_results["errors"]
-                if all_errors:
-                    error_detail += f"\nErrors:\n" + "\n".join(
-                        f"  - {e}" for e in all_errors[:5]
-                    )
-                notify_error(EVENT_NAME, error_detail)
-                log("Telegram: error notification sent")
-                exit_code = 1
-            else:
-                notify_complete(EVENT_NAME, summary)
-                log("Telegram: complete notification sent")
-        except Exception as e:
-            log(f"WARNING: Telegram result notification failed: {e}")
+    # Step 4: Determine exit code
+    if results["failed"] > 0 or results["errors"] or action_results["failed"] > 0 or action_results["errors"]:
+        exit_code = 1
 
     log("Scheduler cron finished")
     log("=" * 60)
@@ -919,9 +883,4 @@ if __name__ == "__main__":
         # Last-resort catch -- never crash silently
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         console.print(f"[{timestamp}] FATAL: Unhandled exception: {e}")
-        if TELEGRAM_AVAILABLE:
-            try:
-                notify_error(EVENT_NAME, f"FATAL: {e}")
-            except Exception:
-                pass
         sys.exit(1)

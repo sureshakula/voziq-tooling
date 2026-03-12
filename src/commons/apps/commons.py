@@ -24,6 +24,13 @@ import sys
 from pathlib import Path
 from typing import List, Any
 
+# Fix: When run as a script, Python adds apps/ to sys.path[0] which causes
+# this file (commons.py) to shadow the commons package. Remove it so the
+# installed package resolves correctly.
+_script_dir = str(Path(__file__).resolve().parent)
+if _script_dir in sys.path:
+    sys.path.remove(_script_dir)
+
 # Handle broken pipe gracefully (e.g. output piped to head)
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 

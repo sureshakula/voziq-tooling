@@ -53,3 +53,7 @@ tools/
 test/
 src/aipass/seedgo/apps/standards/aipass/pack.json
 backup_data/
+
+
+backups
+backup_system

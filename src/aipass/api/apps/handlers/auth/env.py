@@ -38,6 +38,7 @@ from aipass.prax import logger
 # Navigate: env.py -> auth/ -> handlers/ -> apps/ -> api/
 API_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_ENV_PATHS = [
+    Path.home() / ".secrets" / "aipass" / ".env",  # ~/.secrets/aipass/.env (cross-platform standard)
     API_ROOT / ".env",                    # <api_root>/.env
     Path.cwd() / ".env",                  # <cwd>/.env
 ]

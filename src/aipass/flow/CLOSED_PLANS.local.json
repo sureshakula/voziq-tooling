@@ -1,6 +1,13 @@
 {
   "closed_plans": [
     {
+      "plan_id": "DPLAN-002",
+      "type": "DPLAN",
+      "subject": "DPLAN-002__2026-03-10",
+      "date_closed": "2026-03-10",
+      "location": "dev_central"
+    },
+    {
       "plan_id": "DPLAN-001",
       "type": "DPLAN",
       "subject": "test dispatch fix",
