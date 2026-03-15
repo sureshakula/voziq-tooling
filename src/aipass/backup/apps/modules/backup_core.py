@@ -46,7 +46,9 @@ from aipass.backup.apps.handlers.config.config_handler import (
     GLOBAL_IGNORE_PATTERNS,
     IGNORE_EXCEPTIONS,
     filter_tracked_items,
-    should_ignore
+    should_ignore,
+    SOURCE_WHITELIST,
+    MAX_FILE_SIZE_MB
 )
 from aipass.backup.apps.handlers.models.backup_models import BackupResult
 from aipass.backup.apps.handlers.operations.file_operations import copy_file_with_structure, copy_versioned_file
@@ -388,7 +390,11 @@ class BackupEngine:
 
         # HANDLER: Scan files
         from aipass.backup.apps.handlers.operations.file_scanner import scan_files
-        files_to_backup, skipped_items = scan_files(self.source_dir, self.should_ignore)
+        files_to_backup, skipped_items = scan_files(
+            self.source_dir, self.should_ignore,
+            whitelist=SOURCE_WHITELIST,
+            max_file_size_mb=MAX_FILE_SIZE_MB
+        )
 
         # HANDLER: Process files
         from aipass.backup.apps.handlers.operations.path_builder import build_backup_path

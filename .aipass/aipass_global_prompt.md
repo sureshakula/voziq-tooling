@@ -80,6 +80,8 @@ drone @ai_mail dispatch wake --fresh @target   # Fresh session
 - `--dispatch` = recipient must ACT (tasks, bugs, investigations)
 - No flag = just informing (FYI, status updates)
 
+**Always reply to dispatch emails.** When devpulse or another branch sends you work, they're waiting for a response. Complete the task, then email back with results. No silent completions — if someone dispatched you, they need to know what happened.
+
 ## How to Work
 
 **Always plan before executing.** Create an FPLAN before building anything non-trivial. The plan is your continuity — if you get sidetracked, the plan remembers where you were.

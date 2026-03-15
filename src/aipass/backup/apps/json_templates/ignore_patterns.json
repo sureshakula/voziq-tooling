@@ -62,6 +62,10 @@
             ".backup",
             ".antigravity",
             ".gemini",
+            ".docker",
+            ".expo",
+            ".password-store",
+            ".copilot",
             "snap",
 
             ".trinity",
@@ -78,16 +82,7 @@
             ".idea",
             ".eclipse",
 
-            ".claude/todos",
-            ".claude/shell-snapshots",
-            ".claude/ide",
-            ".claude/statsig",
-            ".claude/.credentials.json",
-            ".claude/debug",
-            ".claude/file-history",
-            ".claude/history.jsonl",
-            ".claude/.update.lock",
-            ".claude/.projects",
+            ".claude",
             ".serena/logs",
             ".code",
 
@@ -171,7 +166,7 @@
             "aipass_internal": "AIPass internal state (runtime, not user data): .trinity (passport, local, observations), .ai_mail.local (mailbox dirs), .archive, backup_data (runtime state), backup_json (metadata tracking), DASHBOARD.local.json, CLOSED_PLANS.local.json, STATUS.local.md",
             "version_control": "Version control (huge number of files!): .git repos are version controlled elsewhere",
             "ide_dirs": "IDE and editor directories: .idea (IntelliJ), .eclipse",
-            "claude_session": "Claude Code session files (change every session) — synced from .gitignore: .claude/todos, .claude/shell-snapshots, .claude/ide, .claude/statsig, .claude/.credentials.json, .claude/debug, .claude/file-history, .claude/history.jsonl, .claude/.update.lock, .claude/.projects, .serena/logs, .code",
+            "claude_code": "Claude Code — ignore entire .claude/ directory (projects, cache, session data). Exceptions in ignore_exceptions for: hooks/, hook_logger.sh, settings.json, settings.local.json, statusline.sh. Also .serena/logs, .code",
             "dev_cache": "Development cache/build directories: .npm, .cargo, .rustup, .gem, .gradle, .m2",
             "app_data": "Application data we don't need in backups: .thunderbird, .wine, .steam, .zoom",
             "user_dirs": "User directories that shouldn't be backed up: Downloads, Videos, Pictures, Dropbox, system_logs, external_repos (version controlled elsewhere), mcp_servers/* (external MCP server repos)",
@@ -190,6 +185,11 @@
             "*.local.md",
             ".vscode/settings.json",
             "*/.claude/settings.local.json",
+            ".claude/hooks/**",
+            ".claude/hook_logger.sh",
+            ".claude/settings.json",
+            ".claude/settings.local.json",
+            ".claude/statusline.sh",
             "tools/cleanup_configs/*.json",
             "*_config.json",
             "drone/commands/global/*.json",
@@ -217,7 +217,8 @@
             "root_files": ".gitignore — Root .gitignore file should be backed up",
             "aipass_session": "*.local.md — AIPass session tracking files (caught by .local pattern but should be backed up)",
             "vscode": ".vscode/settings.json — VS Code settings",
-            "claude_settings": "*/.claude/settings.local.json — Claude local settings in any directory",
+            "claude_settings": "*/.claude/settings.local.json — Claude local settings in any project directory",
+            "claude_keep": ".claude/hooks/**, .claude/hook_logger.sh, .claude/settings.json, .claude/settings.local.json, .claude/statusline.sh — essential Claude Code config files to preserve",
             "config_json": "*_config.json, tools/cleanup_configs/*.json, drone/commands/global/*.json, .claude.json, .mcp.json, .commands.json — Various config JSON files",
             "nerd_dictation": ".config/nerd-dictation/* — Nerd dictation config",
             "branch_registry": "BRANCH_REGISTRY.json — Core ecosystem registry — vital file",
@@ -278,5 +279,16 @@
             "settings.json",
             "settings.local.json"
         ]
+    },
+    "source_whitelist": {
+        "comments": "Top-level directories under home to scan. Empty = scan all (backwards compatible). Only these directories are entered — everything else is invisible.",
+        "directories": [
+            "Projects",
+            "Desktop"
+        ]
+    },
+    "max_file_size_mb": {
+        "comments": "Files larger than this are skipped and reported. Safety net against backing up huge binaries/images.",
+        "value": 100
     }
 }

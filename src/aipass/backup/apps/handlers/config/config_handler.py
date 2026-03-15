@@ -28,7 +28,8 @@ from typing import Dict, Set, List, Optional
 from aipass.backup.apps.handlers.config.ignore_patterns import (
     GLOBAL_IGNORE_PATTERNS, IGNORE_EXCEPTIONS, should_ignore,
     filter_tracked_items, get_ignore_patterns, get_cli_tracking_patterns,
-    DIFF_IGNORE_PATTERNS, DIFF_INCLUDE_PATTERNS, CLI_TRACKING_PATTERNS
+    DIFF_IGNORE_PATTERNS, DIFF_INCLUDE_PATTERNS, CLI_TRACKING_PATTERNS,
+    SOURCE_WHITELIST, MAX_FILE_SIZE_MB
 )
 
 # =============================================

@@ -1,8 +1,8 @@
-# Pre-Compact Prep
+# Session Wrap-Up
 
-Purpose: Button up everything before a manual /compact. Memories, plans, git — all tidy so the compacted summary has clean state to work from.
+Purpose: Button up everything at the end of a session — or before a /compact. Memories, plans, git — all tidy. Works for both closing out a chat and preparing for compaction.
 
-**Workflow:** `/prep` → review output → `/compact`
+**Workflow:** `/prep` → review output → close chat or `/compact`
 
 ## Execution
 
@@ -49,5 +49,5 @@ Prep complete:
 - Inbox: [count, action taken]
 - Loose ends: [any flagged]
 
-Ready for /compact.
+Ready to close out or /compact.
 ```

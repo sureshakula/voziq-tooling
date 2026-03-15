@@ -31,7 +31,7 @@ def _get_write_section():
     """Lazy import write_section from devpulse module API."""
     global _write_section
     if _write_section is None:
-        from aipass.devpulse.apps.modules.dashboard import write_section
+        from aipass.prax.apps.modules.dashboard import write_section
         _write_section = write_section
     return _write_section
 

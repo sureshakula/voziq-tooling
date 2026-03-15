@@ -68,6 +68,8 @@ IGNORE_EXCEPTIONS: List[str] = _data["ignore_exceptions"]["patterns"]
 CLI_TRACKING_PATTERNS: List[str] = _data["cli_tracking_patterns"]["patterns"]
 DIFF_IGNORE_PATTERNS: List[str] = _data["diff_ignore_patterns"]["patterns"]
 DIFF_INCLUDE_PATTERNS: List[str] = _data["diff_include_patterns"]["patterns"]
+SOURCE_WHITELIST: List[str] = _data.get("source_whitelist", {}).get("directories", [])
+MAX_FILE_SIZE_MB: int = _data.get("max_file_size_mb", {}).get("value", 100)
 
 # =============================================
 # HELPER FUNCTIONS
@@ -209,4 +211,6 @@ def should_ignore(path: Path, ignore_patterns: Optional[List[str]] = None,
 
 logger.info(f"[ignore_patterns] Module loaded — {len(GLOBAL_IGNORE_PATTERNS)} global patterns, "
             f"{len(IGNORE_EXCEPTIONS)} exceptions, {len(DIFF_IGNORE_PATTERNS)} diff-ignore, "
-            f"{len(DIFF_INCLUDE_PATTERNS)} diff-include")
+            f"{len(DIFF_INCLUDE_PATTERNS)} diff-include, "
+            f"whitelist: {SOURCE_WHITELIST if SOURCE_WHITELIST else '(all)'}, "
+            f"max_file_size: {MAX_FILE_SIZE_MB}MB")
