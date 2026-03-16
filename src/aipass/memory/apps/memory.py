@@ -107,13 +107,14 @@ def print_help():
     table.add_column("Command", style="green")
     table.add_column("Description", style="dim")
 
-    # Core commands (only implemented ones)
+    # Core commands — only those with backing modules
+    table.add_row("rollover", "Show rollover module introspection")
+    table.add_row("rollover run", "Execute memory rollover")
+    table.add_row("rollover status", "Show rollover statistics")
+    table.add_row("rollover check", "Dry run — check what needs rollover")
+    table.add_row("rollover sync-lines", "Update line count metadata")
     table.add_row("search <query>", "Semantic search across all branch memories")
-    table.add_row("rollover", "Execute memory rollover for files exceeding limits")
-    table.add_row("status", "Show rollover statistics for all branches")
-    table.add_row("check", "Check which files need rollover (dry run)")
     table.add_row("watch", "Start memory watcher (auto-rollover on changes)")
-    table.add_row("sync-lines", "Update line count metadata for all branches")
 
     console.print(table)
 
@@ -125,12 +126,12 @@ def print_help():
     console.print()
     console.print("  [bold]Via Drone (recommended):[/bold]")
     console.print("    [dim]drone @memory search \"performance patterns\"[/dim]")
-    console.print("    [dim]drone @memory status[/dim]")
-    console.print("    [dim]drone @memory rollover[/dim]")
+    console.print("    [dim]drone @memory rollover status[/dim]")
+    console.print("    [dim]drone @memory rollover run[/dim]")
     console.print()
     console.print("  [bold]Direct execution:[/bold]")
     console.print("    [dim]python3 -m aipass.memory.apps.memory search \"query\"[/dim]")
-    console.print("    [dim]python3 -m aipass.memory.apps.memory rollover[/dim]")
+    console.print("    [dim]python3 -m aipass.memory.apps.memory rollover run[/dim]")
     console.print()
     console.print("-" * 70)
     console.print()
@@ -158,7 +159,7 @@ def print_help():
     console.print("-" * 70)
     console.print()
 
-    console.print("Commands: search, rollover, status, check, watch, sync-lines")
+    console.print("Commands: search, rollover [run|status|check|sync-lines], watch")
     console.print()
 
 

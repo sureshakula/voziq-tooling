@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: search.py
 # Description: Search Orchestration Module
-# Version: 0.4.0
+# Version: 0.5.0
 # Created: 2025-11-27
-# Modified: 2026-03-08
+# Modified: 2026-03-15
 # =============================================
 
 """
@@ -20,6 +20,7 @@ Purpose:
 """
 
 import sys
+from pathlib import Path
 from typing import List
 
 from rich.panel import Panel
@@ -44,11 +45,15 @@ from aipass.memory.apps.handlers.search.query_executor import (
 
 def handle_command(command: str, args: List[str]) -> bool:
     """
-    Handle search commands
+    Handle search commands with seedgo-compliant introspection.
 
-    Commands supported:
-    - search <query>: Execute semantic search across all branches
-    - help: Show search help
+    Routing:
+        search (no args)          -> print_introspection()
+        search --help/-h/help     -> print_help()
+        search <query> [options]  -> execute query
+
+    Backward-compatible top-level commands (routed from entry point):
+        --help, -h, help          -> print_help()
 
     Args:
         command: Command name
@@ -57,13 +62,20 @@ def handle_command(command: str, args: List[str]) -> bool:
     Returns:
         True if command handled, False otherwise
     """
+    # Top-level help (backward compat — entry point may send these)
     if command in ('--help', '-h', 'help'):
         print_help()
         return True
 
     if command == 'search':
+        # No args → introspection (seedgo standard)
         if not args:
-            error("Search query required", suggestion="Usage: search <query> [--branch BRANCH] [--type TYPE] [--n N]")
+            print_introspection()
+            return True
+
+        # --help / -h / help → full help
+        if args[0] in ('--help', '-h', 'help'):
+            print_help()
             return True
 
         # Parse arguments
@@ -251,15 +263,58 @@ def show_search_results(
 # INTROSPECTION
 # =============================================================================
 
-def print_introspection():
-    """Display module introspection info."""
+def _discover_handlers() -> dict[str, list[str]]:
+    """Auto-discover handler directories and their Python files.
+
+    Scans the handlers/ directory relative to this module.
+
+    Returns:
+        Dict mapping handler directory name to list of .py filenames
+        (excluding __init__.py and __pycache__).
+    """
+    handlers_dir = Path(__file__).resolve().parent.parent / "handlers"
+    result: dict[str, list[str]] = {}
+    if not handlers_dir.exists():
+        return result
+    for d in sorted(handlers_dir.iterdir()):
+        if not d.is_dir() or d.name.startswith("__"):
+            continue
+        py_files = sorted(
+            f.name for f in d.iterdir()
+            if f.is_file() and f.suffix == ".py" and f.name != "__init__.py"
+        )
+        if py_files:
+            result[d.name] = py_files
+    return result
+
+
+def print_introspection() -> None:
+    """Display module introspection info (seedgo standard).
+
+    Called when 'search' is invoked with no arguments.
+    Shows module identity, connected handlers, and next-step hints.
+    """
     console.print()
-    console.print("search Module")
+    console.print("[bold cyan]search Module[/bold cyan]")
     console.print("Orchestrates semantic search across memory collections via vector embeddings and ChromaDB")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/search/")
-    console.print("    - query_executor.py (execute_search — encode query, search collections, filter results by similarity)")
+
+    # Connected handlers (auto-discovered)
+    handlers = _discover_handlers()
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    if handlers:
+        for dir_name, files in handlers.items():
+            file_list = ", ".join(files)
+            console.print(f"  [cyan]handlers/{dir_name}/[/cyan]  [dim]{file_list}[/dim]")
+    else:
+        console.print("  [dim]No handlers found[/dim]")
+    console.print()
+
+    # Next-step hints
+    console.print("[yellow]Next:[/yellow]")
+    console.print('  [green]drone @memory search "your query"[/green]              [dim]# Semantic search[/dim]')
+    console.print('  [green]drone @memory search "query" --branch SEED[/green]     [dim]# Filter by branch[/dim]')
+    console.print("  [green]drone @memory search --help[/green]                    [dim]# Full usage guide[/dim]")
     console.print()
 
 
@@ -268,9 +323,14 @@ def print_introspection():
 # =============================================================================
 
 if __name__ == "__main__":
-    # Handle --help before argparse (module standard)
-    if len(sys.argv) < 2 or sys.argv[1] in ('--help', '-h', 'help'):
-        handle_command('help', [])
+    # No args → introspection (seedgo standard)
+    if len(sys.argv) < 2:
+        handle_command('search', [])
+        sys.exit(0)
+
+    # --help → full help
+    if sys.argv[1] in ('--help', '-h', 'help'):
+        handle_command('search', ['--help'])
         sys.exit(0)
 
     # Execute command via handle_command
