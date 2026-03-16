@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: rollover.py
 # Description: Rollover Orchestration Module
-# Version: 0.5.0
+# Version: 0.6.0
 # Created: 2025-11-16
-# Modified: 2026-03-08
+# Modified: 2026-03-15
 # =============================================
 
 """
@@ -21,6 +21,7 @@ Purpose:
 """
 
 import sys
+from pathlib import Path
 from typing import List
 
 from rich.panel import Panel
@@ -45,15 +46,28 @@ from ..handlers.rollover.orchestrator import (
 # COMMAND HANDLERS
 # =============================================================================
 
-def handle_command(command: str, args: List[str]) -> bool:  # noqa: ARG001
-    """
-    Handle rollover commands
+_SUBCOMMANDS = {
+    "run": "Execute rollover for files exceeding limits",
+    "status": "Show rollover statistics for all branches",
+    "check": "Check which files need rollover (dry run)",
+    "sync-lines": "Update line count metadata for all branches",
+}
 
-    Commands supported:
-    - rollover: Execute rollover for triggered branches
-    - status: Show rollover statistics
-    - check: Check which branches need rollover
-    - sync-lines: Update line count metadata for all branches
+
+def handle_command(command: str, args: List[str]) -> bool:
+    """
+    Handle rollover commands with seedgo-compliant introspection.
+
+    Routing:
+        rollover (no args)        -> print_introspection()
+        rollover --help/-h/help   -> print_help()
+        rollover run              -> execute rollover
+        rollover status           -> show rollover status
+        rollover check            -> dry-run check
+        rollover sync-lines       -> sync line counts
+
+    Backward-compatible top-level commands (routed from entry point):
+        status, check, sync-lines -> forwarded directly
 
     Args:
         command: Command name
@@ -62,15 +76,50 @@ def handle_command(command: str, args: List[str]) -> bool:  # noqa: ARG001
     Returns:
         True if command handled, False otherwise
     """
+    # Top-level help (backward compat — entry point may send these)
     if command in ('--help', '-h', 'help'):
         print_help()
         return True
 
     if command == 'rollover':
-        run_rollover()
+        # No args → introspection (seedgo standard)
+        if not args:
+            print_introspection()
+            return True
+
+        # --help / -h / help → full help
+        if args[0] in ('--help', '-h', 'help'):
+            print_help()
+            return True
+
+        # Subcommand routing
+        sub = args[0]
+
+        if sub == 'run':
+            run_rollover()
+            return True
+
+        if sub == 'status':
+            show_status()
+            return True
+
+        if sub == 'check':
+            check_triggers()
+            return True
+
+        if sub == 'sync-lines':
+            sync_line_counts()
+            return True
+
+        # Unknown subcommand
+        error(
+            f"Unknown subcommand: '{sub}'",
+            suggestion="Available: " + ", ".join(_SUBCOMMANDS.keys()),
+        )
         return True
 
-    elif command == 'status':
+    # Backward-compatible top-level commands (entry point still routes these)
+    if command == 'status':
         show_status()
         return True
 
@@ -318,19 +367,66 @@ def check_triggers() -> None:
 # INTROSPECTION
 # =============================================================================
 
-def print_introspection():
-    """Display module introspection info."""
+def _discover_handlers() -> dict[str, list[str]]:
+    """Auto-discover handler directories and their Python files.
+
+    Scans the handlers/ directory relative to this module.
+
+    Returns:
+        Dict mapping handler directory name to list of .py filenames
+        (excluding __init__.py and __pycache__).
+    """
+    handlers_dir = Path(__file__).resolve().parent.parent / "handlers"
+    result: dict[str, list[str]] = {}
+    if not handlers_dir.exists():
+        return result
+    for d in sorted(handlers_dir.iterdir()):
+        if not d.is_dir() or d.name.startswith("__"):
+            continue
+        py_files = sorted(
+            f.name for f in d.iterdir()
+            if f.is_file() and f.suffix == ".py" and f.name != "__init__.py"
+        )
+        if py_files:
+            result[d.name] = py_files
+    return result
+
+
+def print_introspection() -> None:
+    """Display module introspection info (seedgo standard).
+
+    Called when 'rollover' is invoked with no arguments.
+    Shows module identity, connected handlers, available subcommands,
+    and next-step hints.
+    """
     console.print()
-    console.print("rollover Module")
+    console.print("[bold cyan]rollover Module[/bold cyan]")
     console.print("Orchestrates memory rollover workflow: trigger detection, extraction, embedding, and vector storage")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/monitor/")
-    console.print("    - detector.py (check_all_branches — detect branches exceeding rollover threshold)")
-    console.print("    - detector.py (get_rollover_stats — retrieve rollover statistics for all branches)")
-    console.print("  handlers/rollover/")
-    console.print("    - orchestrator.py (execute_rollover — run full rollover pipeline for triggered branches)")
-    console.print("    - orchestrator.py (sync_line_counts — update line count metadata for all memory files)")
+
+    # Connected handlers (auto-discovered)
+    handlers = _discover_handlers()
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    if handlers:
+        for dir_name, files in handlers.items():
+            file_list = ", ".join(files)
+            console.print(f"  [cyan]handlers/{dir_name}/[/cyan]  [dim]{file_list}[/dim]")
+    else:
+        console.print("  [dim]No handlers found[/dim]")
+    console.print()
+
+    # Available subcommands
+    console.print("[yellow]Subcommands:[/yellow]")
+    for sub, desc in _SUBCOMMANDS.items():
+        console.print(f"  [green]{sub:<14}[/green] {desc}")
+    console.print()
+
+    # Next-step hints
+    console.print("[yellow]Next:[/yellow]")
+    console.print("  [green]drone @memory rollover run[/green]          [dim]# Execute rollover[/dim]")
+    console.print("  [green]drone @memory rollover status[/green]       [dim]# View rollover stats[/dim]")
+    console.print("  [green]drone @memory rollover check[/green]        [dim]# Dry-run check[/dim]")
+    console.print("  [green]drone @memory rollover --help[/green]       [dim]# Full usage guide[/dim]")
     console.print()
 
 
@@ -341,9 +437,14 @@ def print_introspection():
 if __name__ == "__main__":
     import sys
 
-    # Handle --help before argparse (module standard)
-    if len(sys.argv) < 2 or sys.argv[1] in ('--help', '-h', 'help'):
-        handle_command('help', [])
+    # No args → introspection (seedgo standard)
+    if len(sys.argv) < 2:
+        handle_command('rollover', [])
+        sys.exit(0)
+
+    # --help → full help
+    if sys.argv[1] in ('--help', '-h', 'help'):
+        handle_command('rollover', ['--help'])
         sys.exit(0)
 
     # Execute command via handle_command
