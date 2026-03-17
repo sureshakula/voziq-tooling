@@ -103,6 +103,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'log-audit':
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     from aipass.prax.apps.handlers.logging.log_watchdog import (
         scan_log_files,
         enforce_log_limits,

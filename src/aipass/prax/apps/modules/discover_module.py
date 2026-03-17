@@ -15,8 +15,7 @@ Implements the 'discover' command using handle_command interface.
 import sys
 from typing import List
 
-from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, header, success, error
+from aipass.cli.apps.modules import console
 from aipass.prax.apps.handlers.discovery.scanner import discover_python_modules
 
 
@@ -53,6 +52,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'discover':
         return False
+
+    if not args:
+        print_introspection()
+        return True
 
     console.print("🔍 Discovering Python modules...")
     modules = discover_python_modules()

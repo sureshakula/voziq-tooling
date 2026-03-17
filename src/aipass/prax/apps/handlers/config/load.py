@@ -73,7 +73,9 @@ def get_module_logs_dir(module_name: str) -> Path:
     """Get the branch-root logs directory for a module.
 
     Returns ECOSYSTEM_ROOT / module_name / "logs", creating it if needed.
-    All branch-local logs are placed here (two-tier: system_logs/ + branch logs/).
+    This is the primary local log directory resolver for the two-tier
+    model (system_logs/ for central aggregation + branch-root logs/
+    for local debugging).
 
     Args:
         module_name: Module name (e.g., "flow", "prax", "trigger")

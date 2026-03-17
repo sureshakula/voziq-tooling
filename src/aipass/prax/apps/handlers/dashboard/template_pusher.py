@@ -106,7 +106,7 @@ def _replace_placeholders(template: dict, branch_name: str) -> dict:
     Returns:
         New dict with placeholders replaced
     """
-    def _walk(val):
+    def _walk(val: Any) -> Any:
         if isinstance(val, str):
             return val.replace("{{BRANCHNAME}}", branch_name)
         elif isinstance(val, list):
@@ -115,7 +115,9 @@ def _replace_placeholders(template: dict, branch_name: str) -> dict:
             return {k: _walk(v) for k, v in val.items()}
         return val
 
-    return _walk(copy.deepcopy(template))
+    result = _walk(copy.deepcopy(template))
+    assert isinstance(result, dict)
+    return result
 
 
 # =============================================================================

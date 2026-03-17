@@ -57,13 +57,12 @@ from typing import List, Optional
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 # CLI services (display/output formatting)
-from aipass.cli.apps.modules import console, header, success, error, warning
+from aipass.cli.apps.modules import console, header, error
 
 # Monitoring handlers (connected subsystems)
 from aipass.prax.apps.handlers.monitoring import (
     print_event,              # unified_stream.py
     print_command_separator,  # unified_stream.py - command headers
-    parse_command,            # interactive_filter.py
     MonitoringQueue,          # event_queue.py
     ModuleTracker,            # module_tracker.py
 )
@@ -200,6 +199,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'monitor':
         return False
+
+    if not args:
+        print_introspection()
+        return True
 
     global _monitoring_active, _event_queue, _module_tracker
     global _display_thread, _file_watcher_thread, _log_watcher_thread
@@ -343,7 +346,7 @@ def _log_watcher_worker():
     if _event_queue is None:
         logger.error("[monitor] Event queue not initialized for log watcher")
         return
-    observer = start_log_watcher(_event_queue)
+    _observer = start_log_watcher(_event_queue)
 
     try:
         while _monitoring_active:
@@ -533,10 +536,10 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # Prepare arguments for handle_command
-    cmd_args = []
+    _cmd_args = []
     if args.branches:
-        cmd_args = [args.branches]
+        _cmd_args = [args.branches]
 
     # Execute monitor command
-    handled = handle_command('monitor', cmd_args)
+    handled = handle_command('monitor', _cmd_args)
     sys.exit(0 if handled else 1)

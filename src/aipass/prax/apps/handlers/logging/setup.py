@@ -45,7 +45,8 @@ try:
     from aipass.prax.apps.handlers.logging.terminal.filtering import should_display_terminal
     _terminal_module_available = True
 except ImportError:
-    pass  # Terminal module not available yet
+    create_terminal_handler = None  # type: ignore[assignment]
+    should_display_terminal = None  # type: ignore[assignment]
 
 def _safe_rotating_handler(log_file: Path, max_bytes: int, backup_count: int) -> logging.Handler:
     """Create RotatingFileHandler — self-heals missing directories, never crashes."""
@@ -131,8 +132,8 @@ def setup_individual_logger(module_name: str) -> logging.Logger:
 
     # HANDLER 3: Terminal output (if enabled)
     if _terminal_output_enabled and _terminal_module_available:
-        if should_display_terminal(module_name):
-            terminal_handler = create_terminal_handler()
+        if should_display_terminal(module_name):  # type: ignore[misc]
+            terminal_handler = create_terminal_handler()  # type: ignore[misc]
             logger.addHandler(terminal_handler)
 
     # Store for reuse

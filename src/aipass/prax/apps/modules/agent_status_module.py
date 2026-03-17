@@ -16,7 +16,6 @@ Pushes agent_status section to all branch dashboards showing active/stale agents
 import sys
 from typing import List
 
-from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console, error
 
 
@@ -72,6 +71,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'agent-status-push':
         return False
+
+    if not args:
+        print_introspection()
+        return True
 
     from aipass.prax.apps.handlers.dashboard.agent_status_writer import (
         build_agent_status_section,

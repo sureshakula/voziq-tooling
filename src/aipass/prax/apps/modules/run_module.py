@@ -13,11 +13,10 @@ Implements the 'run' command using handle_command interface.
 """
 
 import sys
-from pathlib import Path
 from typing import List
 
-from aipass.prax.apps.modules.logger import start_continuous_logging, system_logger as logger
-from aipass.cli.apps.modules import console, header, success, error
+from aipass.prax.apps.modules.logger import start_continuous_logging
+from aipass.cli.apps.modules import console
 
 
 def print_help():
@@ -49,6 +48,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'run':
         return False
+
+    if not args:
+        print_introspection()
+        return True
 
     console.print("🚀 Starting PRAX continuous logging mode...")
     start_continuous_logging()

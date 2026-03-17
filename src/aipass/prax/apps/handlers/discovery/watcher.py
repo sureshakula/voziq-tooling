@@ -42,6 +42,7 @@ try:
     from aipass.trigger.apps.modules.core import trigger
     _HAS_TRIGGER = True
 except ImportError:
+    trigger = None  # type: ignore[assignment]
     _HAS_TRIGGER = False
 
 # Global observer instance
@@ -91,7 +92,7 @@ class PythonFileWatcher(FileSystemEventHandler):
             # Fire trigger event for module discovery
             if _HAS_TRIGGER:
                 try:
-                    trigger.fire('module_discovered',
+                    trigger.fire('module_discovered',  # type: ignore[union-attr]
                         module_name=module_name,
                         file_path=str(py_file),
                         relative_path=str(relative_path)
