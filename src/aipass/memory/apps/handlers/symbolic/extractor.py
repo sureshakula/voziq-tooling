@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: extractor.py - Symbolic Memory Extractor Handler
@@ -28,14 +26,13 @@ v2 (LLM):  extract_fragments_llm, analyze_conversation_llm
 
 import json
 import re
-import sys
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
+# memory/ root resolved from symbolic/extractor.py
+_MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 # =============================================================================
 # v1 REGEX EXTRACTION (fallback)
@@ -364,9 +361,11 @@ def extract_fragments_llm(chat_history: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     # Load API key from env file
     api_key = None
+    _aipass_root = _MEMORY_ROOT.parent  # memory/ -> aipass/
     for env_path in [
-        Path.home() / "aipass_core" / "api" / "apps" / ".env",
-        Path.home() / "aipass_core" / "api" / ".env",
+        Path.home() / ".secrets" / "aipass" / ".env",
+        _aipass_root / "api" / "apps" / ".env",
+        _aipass_root / "api" / ".env",
     ]:
         if env_path.exists():
             with open(env_path, encoding="utf-8") as f:

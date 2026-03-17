@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: chroma_client.py - Shared ChromaDB Client Handler
@@ -25,7 +23,7 @@ write contention from multiple competing PersistentClient instances against
 the same .chroma/ directory.
 
 ALL handlers that need ChromaDB access MUST import from here:
-    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_client
+    from aipass.memory.apps.handlers.symbolic.chroma_client import get_client
 
 Key Functions:
     - get_client(db_path) - get singleton PersistentClient (preferred)
@@ -33,21 +31,17 @@ Key Functions:
     - get_collection() - get or create a collection with correct settings
 """
 
-import sys
 from typing import Dict, Any
 from pathlib import Path
-
-# Infrastructure setup
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
 
 
 # =============================================================================
 # CONSTANTS
 # =============================================================================
 
-DEFAULT_DB_PATH = Path.home() / "MEMORY_BANK" / ".chroma"
+# memory/ root resolved from symbolic/chroma_client.py
+_MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+DEFAULT_DB_PATH = _MEMORY_ROOT / ".chroma"
 
 # Singleton client cache - keyed by resolved path string
 _clients: Dict[str, Any] = {}
@@ -66,7 +60,7 @@ def get_client(db_path: Path | str | None = None):
     PersistentClient instances to avoid write contention on .chroma/.
 
     Args:
-        db_path: Optional path to ChromaDB (default: MEMORY_BANK/.chroma)
+        db_path: Optional path to ChromaDB (default: memory/.chroma)
                  Accepts Path or str.
 
     Returns:

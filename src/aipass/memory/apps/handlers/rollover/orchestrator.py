@@ -455,6 +455,53 @@ def execute_rollover() -> Dict[str, Any]:
     if failed:
         logger.error(f"[rollover] {len(failed)} operations failed")
 
+    # =========================================================================
+    # Post-rollover processing chain
+    # =========================================================================
+    if success_count > 0:
+
+        # Post-rollover: fire event for trigger system
+        try:
+            from aipass.trigger.apps.modules.core import Trigger
+            Trigger.fire('rollover_complete',
+                         triggers_count=len(triggers),
+                         success_count=success_count,
+                         failed_count=len(failed))
+            logger.info("[rollover] Fired rollover_complete event")
+        except Exception:
+            pass  # Trigger system optional
+
+        # Post-rollover: update central stats
+        try:
+            from aipass.memory.apps.handlers.central_writer import update_central
+            central_result = update_central()
+            if central_result and central_result.get('success'):
+                logger.info("[rollover] Central stats updated")
+            else:
+                logger.warning(f"[rollover] Central update returned: {central_result}")
+        except Exception as e:
+            logger.warning(f"[rollover] Central writer unavailable: {e}")
+
+        # Post-rollover: push dashboard
+        try:
+            from aipass.memory.apps.handlers.dashboard_push import push_memory_bank_dashboard
+            dash_ok = push_memory_bank_dashboard()
+            if dash_ok:
+                logger.info("[rollover] Dashboard pushed")
+            else:
+                logger.warning("[rollover] Dashboard push returned False")
+        except Exception as e:
+            logger.warning(f"[rollover] Dashboard push unavailable: {e}")
+
+        # Post-rollover: process memory pool if files waiting
+        try:
+            from aipass.memory.apps.handlers.intake.pool_processor import process_memory_pool
+            pool_result = process_memory_pool()
+            if pool_result and pool_result.get('files_processed', 0) > 0:
+                logger.info(f"[rollover] Memory pool: {pool_result['files_processed']} files processed")
+        except Exception as e:
+            logger.info(f"[rollover] Memory pool check: {e}")
+
     return {
         'success': success_count > 0 or len(triggers) == 0,
         'triggers_count': len(triggers),

@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: hook.py - Fragmented Memory Hook Handler
@@ -36,22 +34,19 @@ import time
 from pathlib import Path
 from typing import Dict, List, Any, Tuple
 
-# Infrastructure setup
-import sys
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 # Handler imports (domain-organized, no modules)
-from MEMORY_BANK.apps.handlers.symbolic import retriever
-from MEMORY_BANK.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.symbolic import retriever
+from aipass.memory.apps.handlers.json import json_handler
+
+# memory/ root resolved from symbolic/hook.py
+_MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 # =============================================================================
 # CONSTANTS
 # =============================================================================
 
-DEFAULT_CONFIG_PATH = Path.home() / "MEMORY_BANK" / "apps" / "json_templates" / "custom" / "fragmented_memory_config.json"
+DEFAULT_CONFIG_PATH = _MEMORY_ROOT / "apps" / "json_templates" / "custom" / "fragmented_memory_config.json"
 
 DEFAULT_CONFIG = {
     "enabled": True,

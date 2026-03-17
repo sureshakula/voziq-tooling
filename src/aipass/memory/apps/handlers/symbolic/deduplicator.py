@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: deduplicator.py - Symbolic Fragment Deduplication Handler
@@ -31,14 +29,11 @@ Key Functions:
 
 import json
 import re
-import sys
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-# Infrastructure setup
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
+# memory/ root resolved from symbolic/deduplicator.py
+_MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 # =============================================================================
@@ -121,9 +116,11 @@ def deduplicate_fragment(
     from pathlib import Path
 
     api_key = None
+    _aipass_root = _MEMORY_ROOT.parent  # memory/ -> aipass/
     for env_path in [
-        Path.home() / "aipass_core" / "api" / "apps" / ".env",
-        Path.home() / "aipass_core" / "api" / ".env",
+        Path.home() / ".secrets" / "aipass" / ".env",
+        _aipass_root / "api" / "apps" / ".env",
+        _aipass_root / "api" / ".env",
     ]:
         if env_path.exists():
             with open(env_path, encoding="utf-8") as f:
