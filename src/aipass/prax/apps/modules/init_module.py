@@ -69,6 +69,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'init':
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     try:
         console.print("🚀 Initializing PRAX logging system...")
         initialize_logging_system()

@@ -2,7 +2,7 @@
 
 **Purpose:** System-wide logging, real-time monitoring, and dashboard for AIPass.
 **Module:** `aipass.prax`
-**Last Updated:** 2026-03-08
+**Last Updated:** 2026-03-17
 
 ---
 
@@ -31,7 +31,7 @@ logger.warning("Disk usage high")
 logger.error("Connection failed")
 ```
 
-Logs auto-route to `system_logs/<branch>_<module>.log` based on the calling module. No configuration needed — prax detects the caller via stack introspection.
+Logs auto-route via two-tier placement: `system_logs/<branch>_<module>.log` (central aggregation) and `<branch>/logs/` (branch-local). No configuration needed — prax detects the caller via stack introspection.
 
 For handlers or plugins that need to bypass the event pipeline:
 
@@ -73,7 +73,9 @@ quit                # Exit
 | `drone @prax log-audit` | Audit log file sizes and health |
 | `drone @prax terminal enable\|disable` | Enable or disable terminal output |
 | `drone @prax dashboard` | Show system dashboard |
+| `drone @prax dashboard refresh --all` | Refresh dashboard data from centrals |
 | `drone @prax agent-status` | Show agent status overview |
+| `drone @prax status sync` | Sync STATUS.md from all branch STATUS.local.md |
 
 ## Architecture
 
@@ -91,23 +93,29 @@ prax/
 │   │   ├── log_audit_module.py    # Log file audit
 │   │   ├── run_module.py          # Continuous logging mode
 │   │   ├── shutdown_module.py     # Logging system shutdown
-│   │   ├── status_module.py       # System status display
+│   │   ├── status_module.py       # System status / STATUS sync
 │   │   └── terminal_module.py     # Terminal output toggle
 │   └── handlers/
+│       ├── central/               # Central file reader
+│       ├── config/                # Configuration loading
+│       ├── dashboard/             # Dashboard refresh and operations
+│       ├── discovery/             # Module scanning and filtering
 │       ├── logging/               # Log setup, rotation, introspection
 │       ├── monitoring/            # Event queue, branch detection, stream output
-│       ├── discovery/             # Module scanning and filtering
-│       ├── config/                # Configuration loading
-│       └── registry/              # Module registry management
+│       ├── registry/              # Module registry management
+│       ├── status/                # STATUS sync handler
+│       └── watcher/               # File and log watchers
 ├── docs/                          # Documentation
+├── templates/                     # Dashboard templates
 └── tests/                         # Test suite
 ```
 
 ## How It Works
 
 1. **Auto-routing** — When any module calls `logger.info()`, prax inspects the call stack to identify the caller and routes the log entry to the appropriate file.
-2. **Dual output** — Each log entry goes to both a system-wide log (`system_logs/`) and a branch-local log (`{branch}/logs/`), both with rotation.
+2. **Two-tier logging** — Each log entry goes to both `system_logs/` (central aggregation) and `<branch>/logs/` (branch-local), both with rotation. No nested hierarchical placement.
 3. **Mission Control** — A multi-threaded monitoring console that watches file changes (via inotify), log events, and agent activity across all branches simultaneously.
+4. **Dashboard** — Aggregates data from central files and branch status into per-branch dashboard views. Supports manual refresh from centrals.
 
 ---
 
@@ -124,4 +132,4 @@ prax/
 
 ---
 
-*Last Updated: 2026-03-08*
+*Last Updated: 2026-03-17*

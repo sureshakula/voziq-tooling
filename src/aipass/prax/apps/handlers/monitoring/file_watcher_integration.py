@@ -34,7 +34,7 @@ Linux Limitations:
 import json
 import logging
 from pathlib import Path
-from typing import List, Tuple, Optional, TYPE_CHECKING, Any
+from typing import List, Tuple, Optional, Any
 from datetime import datetime
 
 from aipass.prax import logger
@@ -48,26 +48,23 @@ from aipass.prax import logger
 try:
     # Import file watcher handler
     from aipass.prax.apps.handlers.watcher.monitor import (
-        BranchFileHandler,
         start_monitoring,
         stop_monitoring,
         WATCHDOG_AVAILABLE,
-        Observer
     )
 
     from aipass.prax.apps.handlers.monitoring.event_queue import (
         MonitoringEvent,
-        MonitoringQueue,
         global_queue
-    )
-
-    from aipass.prax.apps.handlers.monitoring.branch_detector import (
-        detect_branch_from_path
     )
 
 except ImportError as e:
     logger.error(f"Import error in file_watcher_integration: {e}")
     WATCHDOG_AVAILABLE = False
+    start_monitoring = None  # type: ignore[assignment]
+    stop_monitoring = None  # type: ignore[assignment]
+    MonitoringEvent = None  # type: ignore[assignment, misc]
+    global_queue = None  # type: ignore[assignment]
 
 
 # =============================================================================
@@ -174,7 +171,7 @@ def file_event_callback(branch_name: str, event_type: str, file_path: str):
         priority = priority_map.get(action, 3)
 
         # Create monitoring event
-        event = MonitoringEvent(
+        event = MonitoringEvent(  # type: ignore[misc]
             priority=priority,
             timestamp=datetime.now(),
             event_type='file',
@@ -185,7 +182,7 @@ def file_event_callback(branch_name: str, event_type: str, file_path: str):
         )
 
         # Enqueue to global queue (thread-safe)
-        success = global_queue.enqueue(event)
+        success = global_queue.enqueue(event)  # type: ignore[union-attr]
 
         if not success:
             logger.info(f"Failed to enqueue file event: {branch_name} {action} {file_path}")
@@ -208,7 +205,7 @@ class FileWatcherManager:
     - Connect file events to monitoring queue
     """
 
-    def __init__(self, queue: MonitoringQueue | None = None, branch_filter: List[str] | None = None):
+    def __init__(self, queue: Any = None, branch_filter: List[str] | None = None):
         """
         Initialize file watcher manager
 
@@ -246,7 +243,7 @@ class FileWatcherManager:
 
         # Start monitoring with callback
         logger.info(f"Starting file watcher for {len(self.branch_paths)} branches")
-        self.observer = start_monitoring(self.branch_paths, file_event_callback)
+        self.observer = start_monitoring(self.branch_paths, file_event_callback)  # type: ignore[misc]
 
         if self.observer:
             self.running = True
@@ -263,7 +260,7 @@ class FileWatcherManager:
 
         if self.observer:
             logger.info("Stopping file watcher")
-            stop_monitoring(self.observer)
+            stop_monitoring(self.observer)  # type: ignore[misc]
             self.observer = None
 
         self.running = False
@@ -380,7 +377,7 @@ if __name__ == '__main__':
         event_count = 0
 
         while time.time() - start_time < 10:
-            event = global_queue.dequeue(timeout=0.5)
+            event = global_queue.dequeue(timeout=0.5)  # type: ignore[union-attr]
             if event:
                 event_count += 1
                 print(f"Event #{event_count}: {event.branch} - {event.action} - {event.message}")

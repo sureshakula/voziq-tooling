@@ -19,7 +19,6 @@ Extracted from monitor_module.py to maintain 3-layer architecture:
 """
 
 import json as _json
-import threading
 from pathlib import Path
 from typing import Optional, Dict
 
@@ -32,6 +31,7 @@ try:
     from aipass.trigger.apps.modules.core import trigger
     _trigger_available = True
 except ImportError:
+    trigger = None  # type: ignore[assignment]
     _trigger_available = False
 
 # Monitoring subsystem imports
@@ -120,7 +120,7 @@ class MonitoringFileHandler(FileSystemEventHandler):
         if not _trigger_available:
             return
         try:
-            trigger.fire(event_name, **kwargs)
+            trigger.fire(event_name, **kwargs)  # type: ignore[union-attr]
         except Exception as e:
             logger.warning(f"[monitor] trigger.fire('{event_name}') failed: {e}")
 

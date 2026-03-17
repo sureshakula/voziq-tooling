@@ -23,10 +23,9 @@ Based on: apps/handlers/discovery/watcher.py (production-ready log tailing)
 
 from pathlib import Path
 
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Union
+from datetime import datetime
+from typing import Optional, Dict, Any
 import re
-import logging
 
 from aipass.prax import logger
 from watchdog.observers import Observer as WatchdogObserver
@@ -41,9 +40,10 @@ from aipass.prax.apps.handlers.monitoring.branch_detector import detect_branch_f
 
 # Trigger integration - graceful fallback if trigger not available
 try:
-    from trigger import trigger
+    from aipass.trigger.apps.modules.core import trigger
     HAS_TRIGGER = True
 except ImportError:
+    trigger = None  # type: ignore[assignment]
     HAS_TRIGGER = False
 
 # Logger
@@ -162,7 +162,7 @@ class LogFileWatcher(FileSystemEventHandler):
             # Log error but don't crash watcher
             logger.info(f"Error reading log file {file_path}: {e}")
 
-    def _should_display_log(self, log_line: str) -> bool:
+    def _should_display_log(self, _log_line: str) -> bool:
         """Check if log line should be displayed. No filtering — show everything."""
         return True
 
@@ -409,7 +409,7 @@ class LogFileWatcher(FileSystemEventHandler):
                 if len(parts) >= 2:
                     module_name = parts[1].strip()
 
-            trigger.fire('error_detected',
+            trigger.fire('error_detected',  # type: ignore[union-attr]
                 branch=branch,
                 message=clean_message,
                 error_hash=_generate_error_hash(module_name, clean_message),

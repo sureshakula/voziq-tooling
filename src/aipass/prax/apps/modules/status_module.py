@@ -13,12 +13,11 @@ Implements the 'status' command using handle_command interface.
 """
 
 import sys
-from pathlib import Path
 from typing import List
 
 from aipass.prax.apps.modules.logger import get_system_status, system_logger as logger
 from aipass.prax.apps.handlers.status.sync import sync_status
-from aipass.cli.apps.modules import console, header, success, error, warning
+from aipass.cli.apps.modules import console, success, error, warning
 
 
 def print_help():
@@ -44,6 +43,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'status':
         return False
+
+    if not args:
+        print_introspection()
+        return True
 
     # --- sub-command routing ------------------------------------------------
     if args and args[0] in ("--help", "help"):

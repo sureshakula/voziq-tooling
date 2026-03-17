@@ -73,8 +73,9 @@ def get_module_logs_dir(module_name: str) -> Path:
     """Get the branch-root logs directory for a module.
 
     Returns ECOSYSTEM_ROOT / module_name / "logs", creating it if needed.
-    For hierarchical placement (logs at the caller's level), use
-    get_hierarchical_logs_dir() instead.
+    This is the primary local log directory resolver for the two-tier
+    model (system_logs/ for central aggregation + branch-root logs/
+    for local debugging).
 
     Args:
         module_name: Module name (e.g., "flow", "prax", "trigger")
@@ -85,43 +86,6 @@ def get_module_logs_dir(module_name: str) -> Path:
     logs_dir = ECOSYSTEM_ROOT / module_name / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     return logs_dir
-
-
-def get_hierarchical_logs_dir(caller_path: str) -> Path:
-    """Get the logs directory at the caller's level in the code hierarchy.
-
-    Resolves a logs/ directory as a sibling of the caller's parent directory.
-    Logs live where the code lives:
-        handlers/dispatch/wake.py  → handlers/dispatch/logs/
-        modules/email.py           → modules/logs/
-        apps/branch.py             → apps/logs/
-
-    Falls back to branch-root logs/ if the caller is outside the
-    ecosystem or path resolution fails.
-
-    Args:
-        caller_path: Absolute path to the calling Python file
-
-    Returns:
-        Path to the logs directory (created if it doesn't exist)
-    """
-    try:
-        caller = Path(caller_path).resolve()
-        caller_dir = caller.parent
-
-        # Verify caller is inside the ecosystem
-        try:
-            caller.relative_to(ECOSYSTEM_ROOT)
-        except ValueError:
-            # Outside ecosystem — fall back to branch root
-            return get_module_logs_dir("prax")
-
-        logs_dir = caller_dir / "logs"
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        return logs_dir
-
-    except Exception:
-        return get_module_logs_dir("prax")
 
 # Config file
 PRAX_LOGGER_CONFIG_FILE = PRAX_JSON_DIR / "prax_logger_config.json"

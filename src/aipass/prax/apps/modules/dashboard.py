@@ -15,6 +15,23 @@ DASHBOARD.local.json files. Each service manages only its own section.
 Run directly or via: python3 apps/modules/dashboard.py
 """
 
+__all__ = [
+    "write_section",
+    "update_section",
+    "get_dashboard_path",
+    "calculate_quick_status",
+    "get_branch_paths",
+    "resolve_branch_path",
+    "refresh_all_dashboards",
+    "refresh_single_dashboard",
+    "push_dashboard_template",
+    "get_template_status",
+    "diff_dashboard_template",
+    "DASHBOARD_TEMPLATE",
+    "handle_command",
+    "main",
+]
+
 import json
 import sys
 from pathlib import Path
@@ -25,10 +42,8 @@ from aipass.cli.apps.modules import console, error, warning
 
 # Import handlers
 from aipass.prax.apps.handlers.dashboard.operations import (
-    load_dashboard,
-    save_dashboard,
     update_section as handler_update_section,
-    write_section,
+    write_section,  # re-exported: used by ai_mail.apps.handlers.email.dashboard_sync
     get_dashboard_path,
 )
 from aipass.prax.apps.handlers.dashboard.status import (
@@ -373,7 +388,11 @@ def _handle_diff_template(args: List[str]) -> None:
     console.print(f"  Needs update: {summary.get('needs_update', 0)}")
     console.print(f"  Up to date:   {summary.get('up_to_date', 0)}")
     console.print(f"  Missing:      {summary.get('missing', 0)}")
-    console.print(f"  Invalid JSON: {summary.get('invalid_json', 0)}")
+    invalid_json_count = summary.get('invalid_json', 0)
+    if invalid_json_count:
+        error(f"Invalid JSON: {invalid_json_count}")
+    else:
+        console.print(f"  Invalid JSON: {invalid_json_count}")
 
     for branch_diff in result.get("branches", []):
         status = branch_diff["status"]
@@ -443,7 +462,11 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != "dashboard":
         return False
 
-    subcmd = args[0] if args else ""
+    if not args:
+        print_introspection()
+        return True
+
+    subcmd = args[0]
 
     if subcmd == "status":
         print_status()

@@ -20,6 +20,25 @@ Provides:
 - Status and control functions
 """
 
+__all__ = [
+    "system_logger",
+    "get_system_logger",
+    "SystemLogger",
+    "get_direct_logger",
+    "direct_log",
+    "DirectLogger",
+    "initialize_logging_system",
+    "shutdown_logging_system",
+    "start_continuous_logging",
+    "get_system_status",
+    "enable_terminal_output",
+    "disable_terminal_output",
+    "print_introspection",
+    "handle_command",
+    "MODULE_NAME",
+    "DATA_FILE",
+]
+
 import sys
 from typing import Dict, Any
 
@@ -39,7 +58,6 @@ from aipass.prax.apps.handlers.logging.override import (
 )
 from aipass.prax.apps.handlers.discovery.watcher import (
     start_file_watcher,
-    stop_file_watcher,
     is_file_watcher_active
 )
 from aipass.prax.apps.handlers.registry.load import load_module_registry
@@ -264,10 +282,13 @@ def print_introspection():
     console.print()
 
 
-def handle_command(command: str, args: list) -> bool:
+def handle_command(_command: str, args: list) -> bool:
     """Handle commands routed by the entry point.
 
     Logger is a service module with no user-facing commands.
     All interaction happens through the system_logger API.
     """
+    if not args:
+        print_introspection()
+        return True
     return False

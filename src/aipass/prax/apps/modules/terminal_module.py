@@ -13,7 +13,6 @@ Implements the 'terminal' command using handle_command interface.
 """
 
 import sys
-from pathlib import Path
 from typing import List
 
 from aipass.prax.apps.modules.logger import enable_terminal_output, disable_terminal_output, system_logger as logger
@@ -85,8 +84,12 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'terminal':
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     try:
-        if not args or args[0] not in ['enable', 'disable']:
+        if args[0] not in ['enable', 'disable']:
             print_help()
             return True  # Command was handled, even if validation failed
 

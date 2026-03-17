@@ -22,7 +22,6 @@ Usage (internal):
 import json
 import re
 from datetime import datetime
-from pathlib import Path
 from typing import Dict
 
 from aipass.prax.apps.handlers.config.load import _find_repo_root
@@ -93,7 +92,7 @@ def sync_status() -> Dict:
 
         if not status_file.exists():
             missing.append(branch_email)
-            logger.debug("STATUS.local.md missing for %s", branch_email)
+            logger.info("STATUS.local.md missing for %s", branch_email)
             continue
 
         try:
