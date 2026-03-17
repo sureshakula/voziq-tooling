@@ -6,6 +6,14 @@
     },
     "per_branch": {}
   },
+  "memory_pool": {
+    "enabled": true,
+    "path": "memory_pool",
+    "supported_extensions": [".md", ".txt"],
+    "collection_name": "memory_pool_docs",
+    "keep_recent": 50,
+    "archive_path": "memory_pool_archive"
+  },
   "plans": {
     "enabled": true,
     "path": "src/aipass/flow/processed_plans",

@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: storage.py - Symbolic Fragment Storage Handler
@@ -35,19 +33,13 @@ Key Functions:
     - store_llm_fragments_batch() - batch storage for LLM-extracted fragments
 """
 
-import sys
 import uuid
 from datetime import datetime
 from typing import Dict, List, Any
 from pathlib import Path
 
-# Infrastructure setup
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 # Handler imports (domain-organized, no modules)
-from MEMORY_BANK.apps.handlers.vector import embedder
+from aipass.memory.apps.handlers.vector import embedder
 
 
 # =============================================================================
@@ -248,7 +240,7 @@ def store_fragment(
 
     Args:
         fragment: Fragment dict from create_fragment()
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', storage details
@@ -260,7 +252,7 @@ def store_fragment(
         }
 
     # Import shared client
-    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
+    from aipass.memory.apps.handlers.symbolic.chroma_client import get_chroma_client
 
     frag_content = fragment.get('content', '')
     frag_id = fragment.get('id', '')
@@ -340,7 +332,7 @@ def store_fragments_batch(
 
     Args:
         fragments: List of fragment dicts from create_fragment()
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', batch storage details
@@ -405,7 +397,7 @@ def store_fragments_batch(
         batch_metadatas.append(flat_result['metadata'])
 
     # Import shared client
-    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
+    from aipass.memory.apps.handlers.symbolic.chroma_client import get_chroma_client
 
     try:
         client = get_chroma_client(db_path)
@@ -458,7 +450,7 @@ def store_llm_fragment(
         fragment: LLM-extracted fragment dict with summary, insight, type,
             triggers, emotional_tone, technical_domain
         source_branch: Optional branch name for filtering (e.g., 'SEED')
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'fragment_id', 'collection', 'total_fragments'
@@ -479,7 +471,7 @@ def store_llm_fragment(
         }
 
     # Import shared client
-    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
+    from aipass.memory.apps.handlers.symbolic.chroma_client import get_chroma_client
 
     # Generate unique ID
     timestamp = datetime.now()
@@ -570,7 +562,7 @@ def store_llm_fragments_batch(
     Args:
         fragments: List of LLM-extracted fragment dicts
         source_branch: Optional branch name for filtering (e.g., 'SEED')
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'stored' count, 'collection', 'total_fragments'
@@ -649,7 +641,7 @@ def store_llm_fragments_batch(
         batch_embeddings.append(vec)
 
     # Import shared client
-    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
+    from aipass.memory.apps.handlers.symbolic.chroma_client import get_chroma_client
 
     try:
         client = get_chroma_client(db_path)
@@ -694,12 +686,12 @@ def delete_fragment(
 
     Args:
         fragment_id: The ChromaDB document ID to delete
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'deleted_id', 'total_fragments'
     """
-    from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
+    from aipass.memory.apps.handlers.symbolic.chroma_client import get_chroma_client
 
     try:
         client = get_chroma_client(db_path)

@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: symbolic.py - Symbolic Memory Orchestration Module
@@ -34,21 +32,30 @@ import time
 from pathlib import Path
 from typing import List, Dict, Any
 
-# Infrastructure setup
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))  # For MEMORY_BANK package imports
-
 # Service imports
-from prax.apps.modules.logger import system_logger as logger
-from cli.apps.modules import console, header
+from aipass.prax import logger
+from aipass.cli.apps.modules import console, header
 
 # Handler imports (domain-organized)
-from MEMORY_BANK.apps.handlers.symbolic import extractor
-from MEMORY_BANK.apps.handlers.symbolic import storage
-from MEMORY_BANK.apps.handlers.symbolic import retriever
-from MEMORY_BANK.apps.handlers.symbolic import hook
-from MEMORY_BANK.apps.handlers.symbolic import deduplicator
+from aipass.memory.apps.handlers.symbolic import extractor
+from aipass.memory.apps.handlers.symbolic import storage
+from aipass.memory.apps.handlers.symbolic import retriever
+from aipass.memory.apps.handlers.symbolic import hook
+from aipass.memory.apps.handlers.symbolic import deduplicator
+
+
+# =============================================================================
+# SUBCOMMAND REGISTRY
+# =============================================================================
+
+_SUBCOMMANDS = {
+    "demo": "Run demonstration analysis (v1 + v2 mock)",
+    "analyze": "Analyze a conversation JSON file (v1 pipeline)",
+    "extract": "Extract fragments via LLM and store (v2 pipeline)",
+    "bootstrap": "Populate fragments from session JSONLs",
+    "fragments": "Search symbolic fragments (v1 + v2)",
+    "hook-test": "Test hook with sample conversation text",
+}
 
 
 # =============================================================================
@@ -167,7 +174,7 @@ def create_fragment(
     result = storage.create_fragment(analysis, content, source_branch)
     if result.get('success'):
         try:
-            from trigger.apps.modules.core import trigger
+            from aipass.trigger.apps.modules.core import trigger
             trigger.fire('fragment_created',
                         fragment_id=result['fragment'].get('id'),
                         source_branch=source_branch or 'unknown')
@@ -184,7 +191,7 @@ def store_fragment(
     result = storage.store_fragment(fragment, db_path)
     if result.get('success'):
         try:
-            from trigger.apps.modules.core import trigger
+            from aipass.trigger.apps.modules.core import trigger
             trigger.fire('fragment_stored', fragment_id=result.get('fragment_id'))
         except Exception:
             pass  # Trigger optional
@@ -203,7 +210,7 @@ def store_fragments_batch(
 
     Args:
         fragments: List of fragment dicts from create_fragment()
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', batch storage details
@@ -323,11 +330,11 @@ def extract_and_store_llm(
         error_msg = extract_result.get('error', 'Unknown extraction error')
         logger.error(f"[symbolic] LLM extraction failed: {error_msg}")
         try:
-            from trigger.apps.modules.errors import report_error
+            from aipass.trigger.apps.modules.errors import report_error
             report_error(
                 error_type="ExtractionError",
                 message=error_msg,
-                component="MEMORY_BANK",
+                component="memory",
                 severity="high"
             )
         except Exception:
@@ -460,7 +467,7 @@ def retrieve_fragments(
         dimension_filters: Optional dict of dimension filters
         trigger_keywords: Optional list of trigger keywords
         n_results: Number of results to return
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'results' list with relevance scores
@@ -645,6 +652,54 @@ def get_hook_session_state() -> Dict[str, Any]:
 
 
 # =============================================================================
+# INTROSPECTION (seedgo standard)
+# =============================================================================
+
+def _discover_handlers() -> dict[str, list[str]]:
+    """Auto-discover handler directories and their Python files."""
+    handlers_dir = Path(__file__).resolve().parent.parent / "handlers"
+    result: dict[str, list[str]] = {}
+    if not handlers_dir.exists():
+        return result
+    for d in sorted(handlers_dir.iterdir()):
+        if not d.is_dir() or d.name.startswith("__"):
+            continue
+        py_files = sorted(
+            f.name for f in d.iterdir()
+            if f.is_file() and f.suffix == ".py" and f.name != "__init__.py"
+        )
+        if py_files:
+            result[d.name] = py_files
+    return result
+
+
+def print_introspection() -> None:
+    """Display module introspection (seedgo standard: no args = structure/discovery)."""
+    console.print()
+    console.print("[bold cyan]symbolic[/bold cyan] — Fragmented Memory Extraction")
+    console.print("[dim]Extracts symbolic dimensions from conversations and stores as searchable vector fragments[/dim]")
+    console.print()
+
+    handlers = _discover_handlers()
+    if "symbolic" in handlers:
+        console.print("[yellow]Connected Handlers:[/yellow]")
+        for f in handlers["symbolic"]:
+            console.print(f"  [dim]{f}[/dim]")
+        console.print()
+
+    console.print("[yellow]Subcommands:[/yellow]")
+    for sub, desc in _SUBCOMMANDS.items():
+        console.print(f"  [green]{sub:<20}[/green] {desc}")
+    console.print()
+
+    console.print("[yellow]Next:[/yellow]")
+    console.print("  [green]drone @memory symbolic demo[/green]         [dim]# run demo analysis[/dim]")
+    console.print("  [green]drone @memory symbolic fragments <q>[/green] [dim]# search fragments[/dim]")
+    console.print("  [green]drone @memory symbolic --help[/green]       [dim]# full usage guide[/dim]")
+    console.print()
+
+
+# =============================================================================
 # COMMAND HANDLERS
 # =============================================================================
 
@@ -667,10 +722,65 @@ def handle_command(command: str, args: List[str]) -> bool:
     Returns:
         True if command handled, False otherwise
     """
+    # Top-level help (backward compat -- entry point may send these)
     if command in ('--help', '-h', 'help'):
         print_help()
         return True
 
+    if command == 'symbolic':
+        # No args -> introspection (seedgo standard)
+        if not args:
+            print_introspection()
+            return True
+
+        # --help / -h / help -> full help
+        if args[0] in ('--help', '-h', 'help'):
+            print_help()
+            return True
+
+        # Subcommand routing
+        sub = args[0]
+        remaining = args[1:]
+
+        if sub == 'demo':
+            run_demo()
+            return True
+
+        if sub == 'analyze':
+            if not remaining:
+                console.print("[red]Error:[/red] File path required")
+                console.print("Usage: symbolic analyze <conversation.json>")
+                return True
+            analyze_file(remaining[0])
+            return True
+
+        if sub == 'extract':
+            if not remaining:
+                console.print("[red]Error:[/red] File path required")
+                console.print("Usage: symbolic extract <conversation.json>")
+                return True
+            extract_file(remaining[0], source_branch=remaining[1] if len(remaining) > 1 else None)
+            return True
+
+        if sub == 'bootstrap':
+            max_sessions = 8
+            for arg in remaining:
+                if arg.startswith('--max='):
+                    max_sessions = int(arg.split('=')[1])
+            bootstrap_from_jsonl(max_sessions=max_sessions)
+            return True
+
+        if sub == 'fragments':
+            search_fragments_cli(remaining)
+            return True
+
+        if sub == 'hook-test':
+            run_hook_test(remaining)
+            return True
+
+        return False
+
+    # Backward-compat: direct command routing (entry point may send these)
     if command == 'demo':
         run_demo()
         return True
@@ -1161,7 +1271,7 @@ def run_hook_test(args: List[str]) -> None:
 
 def analyze_file(file_path: str) -> None:
     """Analyze a conversation JSON file"""
-    from MEMORY_BANK.apps.handlers.json import json_handler
+    from aipass.memory.apps.handlers.json import json_handler
 
     path = Path(file_path)
     if not path.exists():
@@ -1220,7 +1330,7 @@ def extract_file(file_path: str, source_branch: str | None = None) -> None:
         file_path: Path to JSON conversation file
         source_branch: Optional branch name tag for stored fragments
     """
-    from MEMORY_BANK.apps.handlers.json import json_handler
+    from aipass.memory.apps.handlers.json import json_handler
 
     path = Path(file_path)
     if not path.exists():

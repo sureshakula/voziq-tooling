@@ -1,13 +1,12 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: pool_processor.py - Memory Pool Intake Handler
 # Date: 2025-11-27
-# Version: 0.1.0
-# Category: memory_bank/handlers/intake
+# Version: 0.2.0
+# Category: memory/handlers/intake
 #
 # CHANGELOG (Max 5 entries):
+#   - v0.2.0 (2026-03-16): Modernize imports, paths, remove MEMORY_BANK references
 #   - v0.1.0 (2025-11-27): Initial version - process memory_pool files to vectors
 #
 # CODE STANDARDS:
@@ -36,13 +35,13 @@ from datetime import datetime
 from typing import List, Dict, Any
 
 # Paths
-MEMORY_BANK_ROOT = Path.home() / "MEMORY_BANK"
-CONFIG_PATH = MEMORY_BANK_ROOT / "memory_bank_json" / "memory_bank.config.json"
-MEMORY_POOL_PATH = MEMORY_BANK_ROOT / "memory_pool"
-CHROMA_PATH = MEMORY_BANK_ROOT / ".chroma"
+_MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # handlers/intake/ → handlers/ → apps/ → memory/
+CONFIG_PATH = _MEMORY_ROOT / "config" / "memory_bank.config.json"
+MEMORY_POOL_PATH = _MEMORY_ROOT / "memory_pool"
+CHROMA_PATH = _MEMORY_ROOT / ".chroma"
 
 
-AI_MAIL_PATH = Path.home() / "aipass_core" / "ai_mail" / "apps" / "ai_mail.py"
+AI_MAIL_PATH = _MEMORY_ROOT.parent / "ai_mail" / "apps" / "ai_mail.py"
 
 
 def _notify_failure(subject: str, message: str) -> None:
@@ -53,7 +52,7 @@ def _notify_failure(subject: str, message: str) -> None:
             capture_output=True,
             text=True,
             timeout=30,
-            cwd=str(MEMORY_BANK_ROOT)
+            cwd=str(_MEMORY_ROOT)
         )
     except Exception:
         pass  # Best-effort - don't let notification failure break processing
@@ -61,7 +60,7 @@ def _notify_failure(subject: str, message: str) -> None:
 
 def _update_central_and_dashboard() -> None:
     """
-    Update MEMORY_BANK.central.json and push dashboard section after vector writes.
+    Update memory central stats and push dashboard section after vector writes.
 
     Uses subprocess to call sibling handlers (central_writer, dashboard_push)
     to maintain handler independence. Failures are silent.
@@ -72,8 +71,7 @@ def _update_central_and_dashboard() -> None:
     try:
         subprocess.run(
             [sys.executable, "-c",
-             "import sys; sys.path.insert(0, str(__import__('pathlib').Path.home()));"
-             "from MEMORY_BANK.apps.handlers.central_writer import update_central;"
+             "from aipass.memory.apps.handlers.central_writer import update_central;"
              "update_central()"],
             capture_output=True, text=True, timeout=30
         )
@@ -84,8 +82,7 @@ def _update_central_and_dashboard() -> None:
     try:
         subprocess.run(
             [sys.executable, "-c",
-             "import sys; sys.path.insert(0, str(__import__('pathlib').Path.home()));"
-             "from MEMORY_BANK.apps.handlers.dashboard_push import push_memory_bank_dashboard;"
+             "from aipass.memory.apps.handlers.dashboard_push import push_memory_bank_dashboard;"
              "push_memory_bank_dashboard()"],
             capture_output=True, text=True, timeout=60
         )
@@ -128,7 +125,7 @@ def load_config() -> dict:
         return {'enabled': False, 'error': str(e)}
 
 
-def get_pool_files(extensions: List[str] = None) -> List[Path]:
+def get_pool_files(extensions: List[str] | None = None) -> List[Path]:
     """
     Get all files from memory_pool sorted by modification time (newest first).
 
@@ -328,7 +325,7 @@ def archive_old_files(keep_recent: int, archive_path: str = 'memory_pool_archive
     archive_files = files[keep_recent:]
 
     # Create archive directory
-    archive_dir = MEMORY_BANK_ROOT / archive_path
+    archive_dir = _MEMORY_ROOT / archive_path
     archive_dir.mkdir(exist_ok=True)
 
     archived_count = 0
@@ -373,6 +370,9 @@ def process_memory_pool() -> dict:
     Returns:
         dict with full processing results
     """
+    # Ensure memory_pool directory exists for file drops
+    MEMORY_POOL_PATH.mkdir(parents=True, exist_ok=True)
+
     config = load_config()
 
     if not config.get('enabled', False):

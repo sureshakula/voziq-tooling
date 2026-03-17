@@ -1,5 +1,3 @@
-#!/home/aipass/MEMORY_BANK/.venv/bin/python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: retriever.py - Symbolic Fragment Retrieval Handler
@@ -34,17 +32,12 @@ Key Functions:
     - search_by_triggers() - keyword matching in triggers field
 """
 
-import sys
 from typing import Dict, List, Any
 from pathlib import Path
 
-# Infrastructure setup
-AIPASS_ROOT = Path.home() / "aipass_core"
-sys.path.insert(0, str(AIPASS_ROOT))
-sys.path.insert(0, str(Path.home()))
-
 # Handler imports (domain-organized, no modules)
-from MEMORY_BANK.apps.handlers.vector import embedder
+from aipass.memory.apps.handlers.vector import embedder
+from aipass.memory.apps.handlers.symbolic.chroma_client import get_chroma_client
 
 
 # =============================================================================
@@ -53,9 +46,6 @@ from MEMORY_BANK.apps.handlers.vector import embedder
 
 COLLECTION_NAME = "symbolic_fragments"
 DEFAULT_N_RESULTS = 5
-
-# Import shared chroma client
-from MEMORY_BANK.apps.handlers.symbolic.chroma_client import get_chroma_client
 
 
 # =============================================================================
@@ -76,7 +66,7 @@ def search_by_vector(
     Args:
         query: Search query text
         n_results: Number of results to return
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'results' list containing fragments with scores
@@ -163,7 +153,7 @@ def search_by_dimensions(
     Args:
         dimension_filters: Dict of dimension_key: value pairs to match
         n_results: Number of results to return
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'results' list of matching fragments
@@ -245,7 +235,7 @@ def search_by_triggers(
     Args:
         keywords: List of keywords to search for in triggers
         n_results: Number of results to return
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'results' list of matching fragments
@@ -354,7 +344,7 @@ def retrieve_fragments(
         dimension_filters: Optional dict of dimension filters
         trigger_keywords: Optional list of trigger keywords
         n_results: Number of results to return
-        db_path: Optional ChromaDB path (default: MEMORY_BANK/.chroma)
+        db_path: Optional ChromaDB path (default: memory/.chroma)
 
     Returns:
         Dict with 'success', 'results' list with relevance scores
