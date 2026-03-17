@@ -309,7 +309,7 @@ def resolve_branch(branch_email: str) -> Optional[Tuple[Path, str]]:
 
 def wake_branch(branch_email: str, custom_message: Optional[str] = None,
                 fresh: bool = False, auto: bool = False,
-                sender: str = "@dev_central") -> Tuple[DispatchStatus, bool]:
+                sender: str = "@devpulse") -> Tuple[DispatchStatus, bool]:
     """
     Spawn a Claude agent at the target branch with step-by-step status.
 
@@ -488,7 +488,7 @@ if __name__ == "__main__":
         print("Flags:")
         print("  --fresh          Start fresh session (claude -p) instead of resuming (claude -c -p)")
         print("  --auto           Respect autonomous_pause (used by daemon). Manual wake ignores it.")
-        print("  --sender @branch Set return-to-sender for bounce emails (default: @dev_central)")
+        print("  --sender @branch Set return-to-sender for bounce emails (default: @devpulse)")
         print()
         print("Output: Step-by-step status of the dispatch pipeline:")
         print("  ✅ resolve → @branch found at /path/to/branch")
@@ -508,7 +508,7 @@ if __name__ == "__main__":
     # Parse flags
     use_fresh = "--fresh" in args
     use_auto = "--auto" in args
-    use_sender = "@dev_central"
+    use_sender = "@devpulse"
 
     if "--sender" in args:
         idx = args.index("--sender")

@@ -160,7 +160,7 @@ def _orchestrate_wake(args: List[str]) -> bool:
 
     # Parse --fresh and --sender flags
     use_fresh = "--fresh" in args
-    use_sender = "@dev_central"
+    use_sender = "@devpulse"
     filtered = []
     i = 0
     while i < len(args):

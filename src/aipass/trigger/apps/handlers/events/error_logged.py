@@ -15,7 +15,7 @@ backoff, and registry-based deduplication.
 
 This handler remains for backward compatibility with code that fires error_logged
 events directly. It now includes full medic gating (medic_enabled, branch_muted,
-rate limiting, DEV_CENTRAL protection) to prevent bypass.
+rate limiting, devpulse protection) to prevent bypass.
 
 Event data expected:
     - branch: Branch where error occurred (e.g., FLOW)
@@ -198,14 +198,14 @@ INVESTIGATION STEPS:
 
 DECISION TREE:
 - SIMPLE FIX (typo, missing import, config issue):
-  -> Fix it yourself, then report what you did to @dev_central
+  -> Fix it yourself, then report what you did to @devpulse
 - COMPLEX/UNCLEAR (needs research, affects multiple files):
-  -> Report findings only to @dev_central, recommend action, don't fix
+  -> Report findings only to @devpulse, recommend action, don't fix
 - CRITICAL (data loss risk, security, system stability):
-  -> STOP immediately, escalate to @dev_central with full context
+  -> STOP immediately, escalate to @devpulse with full context
 
-REPORT TO @dev_central:
-  ai_mail send @dev_central "ERROR {error_hash[:8]} - [STATUS]" "Findings..."
+REPORT TO @devpulse:
+  ai_mail send @devpulse "ERROR {error_hash[:8]} - [STATUS]" "Findings..."
 """
 
 
@@ -229,7 +229,7 @@ def handle_error_logged(
     Gating (matches error_detected.py):
         1. medic_enabled check (global toggle)
         2. branch_muted check (per-branch suppression)
-        3. DEV_CENTRAL protection (HARD RULE: never auto-trigger)
+        3. devpulse protection (never auto-trigger)
         4. Branch validation (unknown branches logged + skipped)
         5. Rate limiting (3 per 10 minutes per branch)
 
@@ -266,8 +266,8 @@ def handle_error_logged(
         # Gate 3: Convert branch name to email format
         recipient = f"@{branch.lower()}"
 
-        # HARD RULE: DEV_CENTRAL is NEVER auto-triggered
-        if recipient == '@dev_central':
+        # devpulse is protected from auto-triggering
+        if recipient == '@devpulse':
             return
 
         # Gate 4: Validate target branch exists in registry

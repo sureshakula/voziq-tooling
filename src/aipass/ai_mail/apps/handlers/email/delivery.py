@@ -455,7 +455,7 @@ def _send_desktop_notification(sender: str, recipient: str, subject: str, messag
     Gracefully handles cases where notify-send is not available.
 
     Args:
-        sender: Email sender address (e.g., @dev_central)
+        sender: Email sender address (e.g., @devpulse)
         recipient: Email recipient address (e.g., @ai_mail)
         subject: Email subject line
         message: Email body (first ~100 chars shown in notification)

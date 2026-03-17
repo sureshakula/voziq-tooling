@@ -292,19 +292,19 @@ INVESTIGATION STEPS:
 
 DECISION TREE:
 - SIMPLE FIX (typo, missing import, config issue):
-  -> Fix it yourself, then report what you did to @dev_central
+  -> Fix it yourself, then report what you did to @devpulse
 - COMPLEX/UNCLEAR (needs research, affects multiple files):
-  -> Report findings only to @dev_central, recommend action, don't fix
+  -> Report findings only to @devpulse, recommend action, don't fix
 - CRITICAL (data loss risk, security, system stability):
-  -> STOP immediately, escalate to @dev_central with full context
+  -> STOP immediately, escalate to @devpulse with full context
 
 SEED STANDARDS REMINDER:
 - Any code changes made during this investigation MUST follow Seed standards
 - After fixing, run: drone @seed checklist <modified_file>
 - Fixes scoring below 80% on Seed audit should NOT be shipped - clean up first
 
-REPORT TO @dev_central:
-  ai_mail send @dev_central "ERROR {error_hash} - [STATUS]" "Findings..."
+REPORT TO @devpulse:
+  ai_mail send @devpulse "ERROR {error_hash} - [STATUS]" "Findings..."
 
   Include: Error ID, severity (low/medium/high/critical), what you found, action taken or recommended.
 """
@@ -422,14 +422,14 @@ def handle_error_detected(
         # Convert branch name to email format (FLOW -> @flow)
         recipient = f"@{branch.lower()}"
 
-        # HARD RULE: DEV_CENTRAL is NEVER auto-triggered
-        if recipient == '@dev_central':
+        # devpulse is protected from auto-triggering
+        if recipient == '@devpulse':
             return
 
         # Validate target branch exists in registry before attempting delivery
         registered_emails = _get_registered_emails()
         if recipient not in registered_emails:
-            # Unknown branch - log and skip (do NOT route to dev_central)
+            # Unknown branch - log and skip (do NOT route to devpulse)
             try:
                 suppressed_log = TRIGGER_ROOT / "logs" / "medic_suppressed.log"
                 suppressed_log.parent.mkdir(parents=True, exist_ok=True)

@@ -100,7 +100,7 @@ def send_reply(
         raise RuntimeError(error_msg)
 
     # Get reply destination - use reply_to if set, otherwise use original sender
-    # This allows emails to specify where replies should go (e.g., broadcasts from dev_central)
+    # This allows emails to specify where replies should go (e.g., broadcasts from devpulse)
     reply_destination = original_email.get("reply_to") or original_email.get("from", "")
     if not reply_destination:
         return False, "Original email has no sender or reply_to address", None

@@ -482,7 +482,7 @@ def spawn_agent(
 
 def is_protected_branch(branch_email: str) -> bool:
     """Check if a branch is protected from auto-dispatch."""
-    return branch_email == "@dev_central"
+    return branch_email == "@devpulse"
 
 
 def _read_session_type(pid_str: str) -> str:

@@ -26,7 +26,7 @@ from typing import Dict, Any, Optional, List
 if hasattr(signal, 'SIGPIPE'):
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
-# Dashboard integration (optional, requires dev_central package)
+# Dashboard integration (optional, provided by prax)
 _UPDATE_SECTION = None  # type: ignore
 
 # AIPass infrastructure imports

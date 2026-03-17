@@ -66,20 +66,20 @@ Error message:
 {message}
 
 ---
-INVESTIGATION STEPS:
+Investigation steps:
 1. Check the log file for context around this error
 2. Identify root cause
 
-DECISION TREE:
-- SIMPLE FIX (typo, missing import, config issue):
-  -> Fix it yourself, then report what you did to @dev_central
-- COMPLEX/UNCLEAR (needs research, affects multiple files):
-  -> Report findings only to @dev_central, recommend action, don't fix
-- CRITICAL (data loss risk, security, system stability):
-  -> STOP immediately, escalate to @dev_central with full context
+Decision tree:
+- Simple fix (typo, missing import, config issue):
+  -> Fix it yourself, then report what you did to @devpulse
+- Complex/unclear (needs research, affects multiple files):
+  -> Report findings only to @devpulse, recommend action, don't fix
+- Critical (data loss risk, security, system stability):
+  -> Stop immediately, escalate to @devpulse with full context
 
-REPORT TO @dev_central:
-  ai_mail send @dev_central "ERROR {error_hash} - [STATUS]" "Findings..."
+Report to @devpulse:
+  ai_mail send @devpulse "ERROR {error_hash} - [STATUS]" "Findings..."
 
   Include: Error ID, severity (low/medium/high/critical), what you found, action taken or recommended.
 """
@@ -162,7 +162,7 @@ def handle_error_detected(
             'timestamp': timestamp,
             'auto_execute': True,
             'priority': 'normal',
-            'reply_to': '@dev_central'
+            'reply_to': '@devpulse'
         }
 
         # Deliver via inbox.json

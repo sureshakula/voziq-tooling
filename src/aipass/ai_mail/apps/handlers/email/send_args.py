@@ -82,7 +82,7 @@ def parse_send_args(args: List[str]) -> Dict[str, Any]:
                 "subject": None,
                 "message": None,
                 "mode": "error",
-                "error": "--reply-to requires a branch address (e.g., --reply-to @dev_central)",
+                "error": "--reply-to requires a branch address (e.g., --reply-to @devpulse)",
             }
 
     # Separate recipients from subject/message

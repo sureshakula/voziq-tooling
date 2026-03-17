@@ -53,7 +53,7 @@ def build_error_report(to_branch: str, subject: str, error_msg: str) -> Dict[str
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "auto_execute": False,
         "priority": "normal",
-        "reply_to": "@dev_central",
+        "reply_to": "@devpulse",
     }
 
 
