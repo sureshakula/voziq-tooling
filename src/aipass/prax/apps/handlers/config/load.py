@@ -74,18 +74,35 @@ def get_system_logs_dir() -> Path:
 def get_module_logs_dir(module_name: str) -> Path:
     """Get the branch-root logs directory for a module.
 
-    Returns ECOSYSTEM_ROOT / module_name / "logs", creating it if needed.
+    Checks ECOSYSTEM_ROOT (src/aipass/) first, then SRC_ROOT (src/) for
+    branches that live outside the aipass namespace (e.g., commons).
     This is the primary local log directory resolver for the two-tier
     model (system_logs/ for central aggregation + branch-root logs/
     for local debugging).
 
     Args:
-        module_name: Module name (e.g., "flow", "prax", "trigger")
+        module_name: Module name (e.g., "flow", "prax", "commons")
 
     Returns:
         Path to the module's branch-root logs directory
     """
-    logs_dir = ECOSYSTEM_ROOT / module_name / "logs"
+    # Standard: src/aipass/{module}/logs
+    branch_dir = ECOSYSTEM_ROOT / module_name
+    if branch_dir.exists():
+        logs_dir = branch_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        return logs_dir
+
+    # Fallback: src/{module}/logs for branches outside aipass namespace
+    src_root = ECOSYSTEM_ROOT.parent
+    alt_branch_dir = src_root / module_name
+    if alt_branch_dir.exists():
+        logs_dir = alt_branch_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        return logs_dir
+
+    # Default: create under ECOSYSTEM_ROOT (original behavior for new branches)
+    logs_dir = branch_dir / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     return logs_dir
 

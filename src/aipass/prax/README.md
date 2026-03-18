@@ -85,16 +85,16 @@ prax/
 │   ├── prax.py                    # Entry point (CLI)
 │   ├── modules/
 │   │   ├── logger.py              # SystemLogger (public API)
-│   │   ├── monitor_module.py      # Mission Control
-│   │   ├── agent_status_module.py # Agent status overview
+│   │   ├── monitor.py             # Mission Control
+│   │   ├── agent_status.py        # Agent status overview
 │   │   ├── dashboard.py           # System dashboard
-│   │   ├── discover_module.py     # Module discovery
-│   │   ├── init_module.py         # Logging system initialization
-│   │   ├── log_audit_module.py    # Log file audit
-│   │   ├── run_module.py          # Continuous logging mode
-│   │   ├── shutdown_module.py     # Logging system shutdown
-│   │   ├── status_module.py       # System status / STATUS sync
-│   │   └── terminal_module.py     # Terminal output toggle
+│   │   ├── discover.py            # Module discovery
+│   │   ├── init_prax.py           # Logging system initialization
+│   │   ├── log_audit.py           # Log file audit
+│   │   ├── run.py                 # Continuous logging mode
+│   │   ├── shutdown.py            # Logging system shutdown
+│   │   ├── status.py              # System status / STATUS sync
+│   │   └── terminal.py            # Terminal output toggle
 │   └── handlers/
 │       ├── central/               # Central file reader
 │       ├── config/                # Configuration loading

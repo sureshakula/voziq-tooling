@@ -78,17 +78,20 @@ def get_calling_module_path() -> Optional[str]:
         del frame
 
 _AIPASS_PKG_ROOT = Path(__file__).resolve().parents[4]  # logging/ → handlers/ → apps/ → prax/ → aipass/
+_SRC_ROOT = _AIPASS_PKG_ROOT.parent  # aipass/ → src/ (contains branches outside aipass namespace)
 
 def detect_branch_from_path(module_path: str) -> Optional[str]:
     """Detect branch name from module file path
 
     The package structure is: .../src/aipass/{module}/apps/...
     Resolves relative to the aipass package root found via __file__.
+    Also handles branches outside src/aipass/ (e.g., src/commons/).
 
     Examples:
         .../src/aipass/flow/apps/module.py → "flow"
         .../src/aipass/prax/apps/module.py → "prax"
         .../src/aipass/drone/apps/branch.py → "drone"
+        .../src/commons/apps/module.py → "commons"
 
     Returns:
         Module/branch name (e.g., "flow") or None
@@ -96,13 +99,25 @@ def detect_branch_from_path(module_path: str) -> Optional[str]:
     if not module_path:
         return None
 
+    path = Path(module_path).resolve()
+
+    # Primary: src/aipass/{branch}/...
     try:
-        path = Path(module_path).resolve()
         relative = path.relative_to(_AIPASS_PKG_ROOT)
         # relative is like: flow/apps/module.py → parts[0] = "flow"
         if len(relative.parts) >= 2:
             branch = relative.parts[0]
             json_handler.log_operation("introspection_resolved", {"module_path": module_path, "branch": branch})
+            return branch
+    except ValueError:
+        pass
+
+    # Fallback: src/{branch}/... for branches outside src/aipass/ (e.g., commons)
+    try:
+        relative = path.relative_to(_SRC_ROOT)
+        if len(relative.parts) >= 2 and relative.parts[0] != "aipass":
+            branch = relative.parts[0]
+            json_handler.log_operation("introspection_resolved", {"module_path": module_path, "branch": branch, "outside_aipass": True})
             return branch
     except ValueError:
         pass

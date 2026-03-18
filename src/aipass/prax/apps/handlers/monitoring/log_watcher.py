@@ -493,15 +493,16 @@ class LogFileWatcher(FileSystemEventHandler):
                 logger.info(f"Error replaying {log_file}: {e}")
 
 
-def start_log_watcher(event_queue: MonitoringQueue) -> Any:
+def start_log_watcher(event_queue: MonitoringQueue, use_polling: bool = False) -> Any:
     """
     Start watching log files and pushing events to queue.
 
     Args:
         event_queue: MonitoringQueue instance for event delivery
+        use_polling: If True, use PollingObserver instead of native inotify
 
     Returns:
-        Observer instance (caller must keep alive and call .stop() on shutdown)
+        Observer instance
     """
     global _log_observer
 
@@ -513,18 +514,28 @@ def start_log_watcher(event_queue: MonitoringQueue) -> Any:
     # Create watcher instance
     watcher = LogFileWatcher(event_queue)
 
-    # Soft start: seek to end of all logs, only show NEW activity
+    # Replay recent lines for startup context (before seeking to EOF)
+    watcher.replay_recent(num_lines=2)
+
+    # Soft start: seek to end of all logs, only show NEW activity after this
     watcher.initialize_positions()
 
-    # Create and start observer
-    observer = WatchdogObserver()
+    # Create observer — polling fallback when inotify unavailable
+    if use_polling:
+        from watchdog.observers.polling import PollingObserver
+        observer = PollingObserver(timeout=1)
+        logger.info("Log watcher using polling observer (1s interval)")
+    else:
+        observer = WatchdogObserver()
+
     observer.schedule(watcher, str(get_system_logs_dir()), recursive=False)
     observer.start()
 
     _log_observer = observer
 
-    json_handler.log_operation("log_watcher_started", {"log_dir": str(get_system_logs_dir())})
-    logger.info(f"Log watcher started, monitoring: {get_system_logs_dir()}")
+    mode = "polling" if use_polling else "inotify"
+    json_handler.log_operation("log_watcher_started", {"log_dir": str(get_system_logs_dir()), "mode": mode})
+    logger.info(f"Log watcher started ({mode}), monitoring: {get_system_logs_dir()}")
 
     return observer
 

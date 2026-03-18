@@ -12,7 +12,7 @@ Dashboard Section Utilities
 Provides utilities for services to update their sections in branch
 DASHBOARD.local.json files. Each service manages only its own section.
 
-Run directly or via: python3 apps/modules/dashboard.py
+Run via: drone @prax dashboard
 """
 
 __all__ = [
@@ -162,7 +162,7 @@ def print_introspection():
     for section in DASHBOARD_TEMPLATE["sections"]:
         console.print(f"  - {section}")
     console.print()
-    console.print("[dim]Run 'python3 dashboard.py --help' for usage[/dim]")
+    console.print("[dim]Run 'drone @prax dashboard --help' for usage[/dim]")
     console.print()
 
 
@@ -463,6 +463,10 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     if not args:
         print_introspection()
+        return True
+
+    if args[0] in ('--help', '-h', 'help'):
+        print_help()
         return True
 
     subcmd = args[0]

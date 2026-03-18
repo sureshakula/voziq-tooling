@@ -96,7 +96,37 @@ def print_introspection():
         console.print(f"  [cyan]•[/cyan] {module_name}")
 
     console.print()
-    console.print("[dim]Run 'prax --help' for usage information[/dim]")
+    console.print("[dim]Run 'drone @prax --help' for usage information[/dim]")
+    console.print()
+
+
+def print_help():
+    """Rich-formatted top-level help for PRAX"""
+    console.print()
+    console.print("[bold cyan]PRAX - System-Wide Logging Infrastructure[/bold cyan]")
+    console.print()
+
+    console.print("[yellow]Commands:[/yellow]")
+    console.print("  [cyan]monitor[/cyan]     Mission Control - unified real-time monitoring")
+    console.print("  [cyan]init[/cyan]        Initialize PRAX logging system")
+    console.print("  [cyan]status[/cyan]      Show PRAX system status")
+    console.print("  [cyan]run[/cyan]         Start continuous logging mode")
+    console.print("  [cyan]shutdown[/cyan]    Shutdown PRAX logging system")
+    console.print("  [cyan]discover[/cyan]    Discover Python modules in ecosystem")
+    console.print("  [cyan]terminal[/cyan]    Enable/disable terminal output")
+    console.print()
+
+    console.print("[yellow]Flags:[/yellow]")
+    console.print("  [cyan]--help, -h[/cyan]     Show help information")
+    console.print("  [cyan]--version, -V[/cyan]  Show version")
+    console.print("  [cyan]--verbose, -v[/cyan]  Verbose output")
+    console.print()
+
+    console.print("[yellow]Examples:[/yellow]")
+    console.print("  $ drone @prax monitor")
+    console.print("  $ drone @prax monitor run")
+    console.print("  $ drone @prax status")
+    console.print("  $ drone @prax terminal enable")
     console.print()
 
 
@@ -135,6 +165,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='PRAX - System-Wide Logging Infrastructure',
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,  # We route --help to modules when a command is given
         epilog="""
 Available Commands:
   monitor     Mission Control - unified real-time monitoring
@@ -146,10 +177,10 @@ Available Commands:
   terminal    Enable/disable terminal output (requires: enable|disable)
 
 Examples:
-  prax monitor
-  prax init
-  prax status
-  prax terminal enable
+  drone @prax monitor
+  drone @prax init
+  drone @prax status
+  drone @prax terminal enable
         """
     )
 
@@ -163,14 +194,19 @@ Examples:
                        nargs='*',
                        help='Arguments for the command')
 
+    parser.add_argument('--help', '-h', action='store_true', dest='show_help',
+                       help='Show help information')
     parser.add_argument('--version', '-V', action='version', version='PRAX v2.0.0')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
 
     parsed_args, remaining = parser.parse_known_args()
 
-    # If no command provided, show introspection display
+    # If no command provided, show introspection or top-level help
     if not parsed_args.command:
-        print_introspection()
+        if parsed_args.show_help:
+            print_help()
+        else:
+            print_introspection()
         return 0
 
     # Discover command modules
@@ -183,6 +219,10 @@ Examples:
     # Merge positional args with any flags argparse didn't consume
     # so subcommand handlers like dashboard can receive --all, --branch, etc.
     all_args = parsed_args.args + remaining
+
+    # Pass --help through to module handler (e.g. drone @prax monitor --help)
+    if parsed_args.show_help:
+        all_args = ['--help'] + all_args
 
     # Route command to appropriate handler
     if route_command(parsed_args.command, all_args, handlers):

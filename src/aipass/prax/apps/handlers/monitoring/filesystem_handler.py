@@ -14,7 +14,7 @@ Watchdog FileSystemEventHandler that processes filesystem events and:
 2. Fires trigger events for cross-module integration
 3. Parses Claude Code JSONL sessions for agent activity tracking
 
-Extracted from monitor_module.py to maintain 3-layer architecture:
+Extracted from monitor.py to maintain 3-layer architecture:
   module (orchestration) -> handler (implementation)
 """
 

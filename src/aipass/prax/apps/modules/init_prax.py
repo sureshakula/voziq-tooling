@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: init_module.py
+# Name: init_prax.py
 # Description: PRAX Init Command
 # Version: 1.0.0
 # Created: 2025-11-15
@@ -32,7 +32,7 @@ def print_introspection():
     console.print("    [dim]- logger.py[/dim] (initialize_logging_system, system_logger)")
     console.print()
 
-    console.print("[dim]Run 'python3 init_module.py --help' for usage[/dim]")
+    console.print("[dim]Run 'drone @prax init --help' for usage[/dim]")
     console.print()
 
 
@@ -46,13 +46,18 @@ def print_help():
     console.print("  Initialize the PRAX logging system for monitoring AIPass operations")
     console.print()
 
-    console.print("[yellow]Usage Examples:[/yellow]")
+    console.print("[yellow]Usage:[/yellow]")
+    console.print("  drone @prax init start")
+    console.print()
+
+    console.print("[yellow]Subcommands:[/yellow]")
+    console.print("  start    Initialize the PRAX logging system")
+    console.print()
+
+    console.print("[yellow]Examples:[/yellow]")
     console.print()
     console.print("  [dim]# Initialize logging system[/dim]")
-    console.print("  $ prax init")
-    console.print()
-    console.print("  [dim]# Standalone execution[/dim]")
-    console.print("  $ python3 init_module.py")
+    console.print("  $ drone @prax init start")
     console.print()
 
 
@@ -74,17 +79,26 @@ def handle_command(command: str, args: List[str]) -> bool:
         print_introspection()
         return True
 
-    try:
-        json_handler.log_operation("init_command_executed", {"command": command})
-        console.print("🚀 Initializing PRAX logging system...")
-        initialize_logging_system()
-        console.print("✅ PRAX logging system initialized")
+    if args[0] in ('--help', '-h', 'help'):
+        print_help()
         return True
 
-    except Exception as e:
-        logger.error(f"Error in init command: {e}")
-        error(str(e))
-        return True
+    if args[0] == 'start':
+        try:
+            json_handler.log_operation("init_command_executed", {"command": command})
+            console.print("🚀 Initializing PRAX logging system...")
+            initialize_logging_system()
+            console.print("✅ PRAX logging system initialized")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error in init command: {e}")
+            error(str(e))
+            return True
+
+    error(f"Unknown init subcommand: {args[0]}")
+    print_help()
+    return True
 
 
 if __name__ == "__main__":

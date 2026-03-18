@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: log_audit_module.py
+# Name: log_audit.py
 # Description: PRAX Log Audit Command
 # Version: 0.1.0
 # Created: 2026-02-26
@@ -37,7 +37,7 @@ def print_introspection():
     console.print("    [dim]- log_watchdog.py (scan_log_files, enforce_log_limits, log_health_summary)[/dim]")
     console.print()
 
-    console.print("[dim]Run 'drone @prax log-audit' for status, 'drone @prax log-audit enforce' to truncate[/dim]")
+    console.print("[dim]Run 'drone @prax log-audit --help' for usage[/dim]")
     console.print()
 
 
@@ -51,10 +51,15 @@ def print_help():
     console.print("  Scan system_logs/ for oversized files and enforce rotation limits")
     console.print()
 
+    console.print("[yellow]Subcommands:[/yellow]")
+    console.print()
+    console.print("  [cyan]audit[/cyan]     Show log health summary + any oversized files")
+    console.print("  [cyan]enforce[/cyan]   Truncate all oversized files to 1000 lines")
+    console.print()
     console.print("[yellow]Usage:[/yellow]")
     console.print()
     console.print("  [dim]# Show log health summary + any oversized files[/dim]")
-    console.print("  $ drone @prax log-audit")
+    console.print("  $ drone @prax log-audit audit")
     console.print()
     console.print("  [dim]# Truncate all oversized files to 1000 lines[/dim]")
     console.print("  $ drone @prax log-audit enforce")
@@ -108,15 +113,25 @@ def handle_command(command: str, args: List[str]) -> bool:
         print_introspection()
         return True
 
+    if args[0] in ('--help', '-h', 'help'):
+        print_help()
+        return True
+
     from aipass.prax.apps.handlers.logging.log_watchdog import (
         scan_log_files,
         enforce_log_limits,
         log_health_summary,
     )
 
-    json_handler.log_operation("log_audit_executed", {"mode": args[0] if args else "audit"})
+    subcmd = args[0]
+    json_handler.log_operation("log_audit_executed", {"mode": subcmd})
 
-    if args and args[0] == 'enforce':
+    if subcmd == 'audit':
+        files = scan_log_files()
+        summary = log_health_summary()
+        _display_audit(files, summary)
+        return True
+    elif subcmd == 'enforce':
         console.print("\n[bold cyan]Enforcing log limits...[/bold cyan]")
         actions = enforce_log_limits()
 
@@ -134,12 +149,10 @@ def handle_command(command: str, args: List[str]) -> bool:
             console.print()
             logger.info("[log-audit] Enforced limits on %d files", len(actions))
         return True
-
-    # Default: audit mode
-    files = scan_log_files()
-    summary = log_health_summary()
-    _display_audit(files, summary)
-    return True
+    else:
+        error(f"Unknown log-audit subcommand: {subcmd}")
+        print_help()
+        return True
 
 
 if __name__ == "__main__":

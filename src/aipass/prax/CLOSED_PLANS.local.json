@@ -13,6 +13,13 @@
       "subject": "Seedgo log_structure standard update for hierarchical placement",
       "date_closed": "2026-03-09",
       "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0039",
+      "type": "FPLAN",
+      "subject": "Dashboard Pipeline — Full Lifecycle",
+      "date_closed": "2026-03-18",
+      "location": "prax"
     }
   ]
 }

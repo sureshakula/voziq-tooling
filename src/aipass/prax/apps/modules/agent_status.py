@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: agent_status_module.py
+# Name: agent_status.py
 # Description: PRAX Agent Status Push Command
 # Version: 0.1.0
 # Created: 2026-02-25
@@ -72,10 +72,6 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'agent-status-push':
         return False
-
-    if not args:
-        print_introspection()
-        return True
 
     from aipass.prax.apps.handlers.dashboard.agent_status_writer import (
         build_agent_status_section,

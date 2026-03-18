@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: status_module.py
+# Name: status.py
 # Description: PRAX Status Command
 # Version: 1.1.0
 # Created: 2025-11-15
@@ -44,10 +44,6 @@ def handle_command(command: str, args: List[str]) -> bool:
     """
     if command != 'status':
         return False
-
-    if not args:
-        print_introspection()
-        return True
 
     json_handler.log_operation("status_checked", {"subcommand": args[0] if args else "default"})
 
@@ -110,7 +106,7 @@ def _handle_sync() -> bool:
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("status_module Module")
+    console.print("status Module")
     console.print("Implements the 'status' command to display PRAX system status dashboard")
     console.print()
     console.print("Connected Handlers:")

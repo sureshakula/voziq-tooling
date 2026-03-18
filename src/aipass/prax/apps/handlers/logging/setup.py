@@ -104,7 +104,7 @@ def setup_individual_logger(module_name: str) -> logging.Logger:
     if branch_path:
         branch_name = Path(branch_path).name
     else:
-        branch_name = "prax"  # Fallback to prax if no branch detected
+        branch_name = "unknown_branch"  # Visible fallback — never silently route to prax
 
     # Create formatter (shared by all handlers)
     formatter = logging.Formatter(

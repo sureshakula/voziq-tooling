@@ -20,7 +20,7 @@ Flow:
 5. Include branch attribution in all events
 
 Thread Safety:
-- Designed to run in monitor_module.py's file watcher thread
+- Designed to run in monitor.py's file watcher thread
 - Uses MonitoringQueue's thread-safe enqueue
 - Watchdog observers run in their own threads
 

@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: monitor_module.py
+# Name: monitor.py
 # Description: Unified Monitoring Module
 # Version: 0.3.0
 # Created: 2025-11-23
@@ -22,9 +22,9 @@ Purpose:
     Enables multi-agent workflow visibility and coordination.
 
 Usage:
-    prax monitor              # Monitor all branches (quiet mode)
-    prax monitor all          # Explicit all-branches monitoring
-    prax monitor seed,cli     # Monitor specific branches
+    drone @prax monitor              # Show introspection
+    drone @prax monitor run          # Monitor all branches
+    drone @prax monitor run seed,cli # Monitor specific branches
 
 Interactive Commands:
     help                      # Show available commands
@@ -50,6 +50,7 @@ import sys
 import argparse
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -68,6 +69,7 @@ from aipass.prax.apps.handlers.monitoring import (
     MonitoringQueue,          # event_queue.py
     ModuleTracker,            # module_tracker.py
 )
+from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent
 # NOTE: FileSystemEventHandler implementation lives in:
 #   aipass.prax.apps.handlers.monitoring.filesystem_handler.MonitoringFileHandler
 # It handles trigger events for file_created/file_deleted/file_modified/file_moved
@@ -202,10 +204,29 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'monitor':
         return False
 
+    # Introspection gate — bare command shows module info
     if not args:
         print_introspection()
         return True
 
+    # Help intercept
+    if args[0] in ('--help', '-h', 'help'):
+        print_help()
+        return True
+
+    # Subcommand routing
+    subcmd = args[0]
+    if subcmd == 'run':
+        return _run_monitor(args[1:])
+
+    # Unknown subcommand
+    error(f"Unknown monitor subcommand: {subcmd}")
+    print_help()
+    return True
+
+
+def _run_monitor(args: List[str]) -> bool:
+    """Launch Mission Control live monitoring."""
     global _monitoring_active, _event_queue, _module_tracker
     global _display_thread, _file_watcher_thread, _log_watcher_thread
 
@@ -304,6 +325,47 @@ def _display_worker():
                 print_event(event.event_type, event.branch, event.message, event.level, pid=branch_pid)
 
 
+def _get_watch_directories(repo_root: Path) -> list[tuple[Path, bool]]:
+    """Get targeted directories to watch instead of entire repo root.
+
+    Returns (path, recursive) tuples. Watches apps/ recursively for code,
+    branch roots non-recursively for STATUS/README, and .trinity/ for identity.
+
+    Some branches (backup, memory) have 10,000+ dirs in data stores.
+    Watching only apps/ keeps inotify count under ~800.
+    """
+    dirs: list[tuple[Path, bool]] = []
+
+    # Load branch paths from registry
+    registry_path = repo_root / "AIPASS_REGISTRY.json"
+    if registry_path.exists():
+        try:
+            data = _json.loads(registry_path.read_text(encoding="utf-8"))
+            for branch in data.get("branches", []):
+                branch_path = repo_root / branch.get("path", "")
+                if not branch_path.exists():
+                    continue
+                # apps/ recursive — source code changes
+                apps_dir = branch_path / "apps"
+                if apps_dir.exists():
+                    dirs.append((apps_dir, True))
+                # Branch root non-recursive — STATUS.local.md, README.md
+                dirs.append((branch_path, False))
+                # .trinity/ non-recursive — identity files
+                trinity_dir = branch_path / ".trinity"
+                if trinity_dir.exists():
+                    dirs.append((trinity_dir, False))
+        except (ValueError, OSError) as e:
+            logger.warning(f"[monitor] Failed to read registry: {e}")
+
+    # Watch Claude Code project sessions for agent activity tracking
+    claude_projects = Path.home() / ".claude" / "projects"
+    if claude_projects.exists():
+        dirs.append((claude_projects, True))
+
+    return dirs
+
+
 def _file_watcher_worker():
     """File watcher thread - watches filesystem changes and pushes to queue"""
     global _monitoring_active, _event_queue
@@ -311,24 +373,64 @@ def _file_watcher_worker():
     from watchdog.observers import Observer
     from aipass.prax.apps.handlers.monitoring.filesystem_handler import MonitoringFileHandler
 
-    # Files whose modification indicates a command is running (python3 direct calls)
-    # Maps filename -> command description. Used to emit command separators from file events.
     COMMAND_INDICATOR_FILES = {
         'standards_audit_log.json': 'seed audit',
         'standards_checklist_log.json': 'seed checklist',
     }
 
-    # Create observer and start watching
-    # Watch from repo root (covers all modules)
-    from aipass.prax.apps.handlers.config.load import _find_repo_root
-    observer = Observer()
     handler = MonitoringFileHandler(
         event_queue=_event_queue,
         command_indicator_files=COMMAND_INDICATOR_FILES,
     )
-    watch_dir = _find_repo_root()
-    observer.schedule(handler, str(watch_dir), recursive=True)
-    observer.start()
+
+    from aipass.prax.apps.handlers.config.load import _find_repo_root
+    repo_root = _find_repo_root()
+    watch_dirs = _get_watch_directories(repo_root)
+
+    if not watch_dirs:
+        logger.error("[monitor] No watch directories found — file watcher disabled")
+        if _event_queue:
+            _event_queue.enqueue(MonitoringEvent(
+                priority=2, event_type='log', branch='PRAX',
+                action='warning', level='warning', timestamp=datetime.now(),
+                message="File watcher: no watch directories found — file events disabled"
+            ))
+        return
+
+    observer = Observer()
+    for watch_dir, recursive in watch_dirs:
+        observer.schedule(handler, str(watch_dir), recursive=recursive)
+
+    logger.info(f"[monitor] File watcher: {len(watch_dirs)} watches scheduled")
+
+    try:
+        observer.start()
+    except OSError as e:
+        logger.warning(f"[monitor] inotify unavailable: {e} — switching to polling")
+        if _event_queue:
+            _event_queue.enqueue(MonitoringEvent(
+                priority=2, event_type='log', branch='PRAX',
+                action='warning', level='warning', timestamp=datetime.now(),
+                message="File watcher: inotify unavailable — using polling fallback (slower)"
+            ))
+
+        # Fallback to PollingObserver
+        try:
+            from watchdog.observers.polling import PollingObserver
+            observer = PollingObserver(timeout=2)
+            for watch_dir, recursive in watch_dirs:
+                observer.schedule(handler, str(watch_dir), recursive=recursive)
+            observer.start()
+            logger.info("[monitor] File watcher: polling fallback active")
+        except Exception as e2:
+            logger.error(f"[monitor] Polling fallback also failed: {e2}")
+            if _event_queue:
+                _event_queue.enqueue(MonitoringEvent(
+                    priority=1, event_type='log', branch='PRAX',
+                    action='error', level='error', timestamp=datetime.now(),
+                    message="File watcher: completely unavailable — no file events"
+                ))
+            return
 
     try:
         while _monitoring_active:
@@ -344,12 +446,31 @@ def _log_watcher_worker():
 
     from aipass.prax.apps.handlers.monitoring.log_watcher import start_log_watcher, stop_log_watcher
 
-    # Start the proper log watcher (has command detection, branch detection, message parsing)
-    # Guard against None - should never happen since we initialize before starting threads
     if _event_queue is None:
         logger.error("[monitor] Event queue not initialized for log watcher")
         return
-    _observer = start_log_watcher(_event_queue)
+
+    try:
+        start_log_watcher(_event_queue)
+    except OSError as e:
+        logger.warning(f"[monitor] Log watcher inotify failed: {e} — switching to polling")
+        if _event_queue:
+            _event_queue.enqueue(MonitoringEvent(
+                priority=2, event_type='log', branch='PRAX',
+                action='warning', level='warning', timestamp=datetime.now(),
+                message="Log watcher: inotify unavailable — using polling fallback (slower)"
+            ))
+        try:
+            start_log_watcher(_event_queue, use_polling=True)
+        except Exception as e2:
+            logger.error(f"[monitor] Log watcher polling fallback failed: {e2}")
+            if _event_queue:
+                _event_queue.enqueue(MonitoringEvent(
+                    priority=1, event_type='log', branch='PRAX',
+                    action='error', level='error', timestamp=datetime.now(),
+                    message="Log watcher: completely unavailable — no log events"
+                ))
+            return
 
     try:
         while _monitoring_active:
@@ -383,7 +504,7 @@ def _interactive_loop():
             if not user_input:
                 continue
 
-            cmd, cmd_args = parse_command(user_input)
+            cmd, _cmd_args = parse_command(user_input)
             if not cmd:
                 continue
 
@@ -460,7 +581,7 @@ def print_introspection():
     console.print("     [green]STATUS: Active - watches *.log files for new entries[/green]")
     console.print()
 
-    console.print("[dim]Run 'python3 monitor_module.py --help' for usage[/dim]")
+    console.print("[dim]Run 'drone @prax monitor --help' for usage[/dim]")
     console.print()
 
 
@@ -476,15 +597,21 @@ def print_help():
 
     console.print("[yellow]Commands:[/yellow]")
     console.print()
-    console.print("  [cyan]monitor[/cyan]")
-    console.print("    Start monitoring all branches (quiet mode)")
+    console.print("  [cyan]drone @prax monitor[/cyan]")
+    console.print("    Show module introspection")
     console.print()
-    console.print("  [cyan]monitor all[/cyan]")
+    console.print("  [cyan]drone @prax monitor run[/cyan]")
+    console.print("    Start monitoring all branches")
+    console.print()
+    console.print("  [cyan]drone @prax monitor run all[/cyan]")
     console.print("    Explicit all-branches monitoring")
     console.print()
-    console.print("  [cyan]monitor [branches][/cyan]")
+    console.print("  [cyan]drone @prax monitor run [branches][/cyan]")
     console.print("    Monitor specific branches (comma-separated)")
-    console.print("    Example: monitor seed,cli,flow")
+    console.print("    Example: drone @prax monitor run seed,cli,flow")
+    console.print()
+    console.print("  [cyan]drone @prax monitor --help[/cyan]")
+    console.print("    Show this help")
     console.print()
 
     console.print("[yellow]Interactive Mode Commands:[/yellow]")
@@ -498,13 +625,10 @@ def print_help():
     console.print("[yellow]Examples:[/yellow]")
     console.print()
     console.print("  [dim]# Monitor all branches[/dim]")
-    console.print("  $ prax monitor")
+    console.print("  $ drone @prax monitor run")
     console.print()
     console.print("  [dim]# Monitor specific branches[/dim]")
-    console.print("  $ prax monitor seed,cli,flow")
-    console.print()
-    console.print("  [dim]# Standalone execution[/dim]")
-    console.print("  $ python3 monitor_module.py")
+    console.print("  $ drone @prax monitor run seed,cli,flow")
     console.print()
 
 

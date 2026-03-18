@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: terminal_module.py
+# Name: terminal.py
 # Description: PRAX Terminal Command
 # Version: 1.1.0
 # Created: 2025-11-15
@@ -36,7 +36,7 @@ def print_introspection():
     console.print("    [dim]- logger.py[/dim] (enable_terminal_output, disable_terminal_output, system_logger)")
     console.print()
 
-    console.print("[dim]Run 'python3 terminal_module.py --help' for usage[/dim]")
+    console.print("[dim]Run 'drone @prax terminal --help' for usage[/dim]")
     console.print()
 
 
@@ -58,13 +58,10 @@ def print_help():
     console.print("[yellow]Usage Examples:[/yellow]")
     console.print()
     console.print("  [dim]# Enable terminal output[/dim]")
-    console.print("  $ prax terminal enable")
+    console.print("  $ drone @prax terminal enable")
     console.print()
     console.print("  [dim]# Disable terminal output[/dim]")
-    console.print("  $ prax terminal disable")
-    console.print()
-    console.print("  [dim]# Standalone execution[/dim]")
-    console.print("  $ python3 terminal_module.py enable")
+    console.print("  $ drone @prax terminal disable")
     console.print()
 
     console.print("[dim]Commands: enable, disable[/dim]")
@@ -87,6 +84,10 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     if not args:
         print_introspection()
+        return True
+
+    if args[0] in ('--help', '-h', 'help'):
+        print_help()
         return True
 
     try:
