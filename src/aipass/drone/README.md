@@ -25,6 +25,10 @@ drone systems                    # List all registered modules and branches
 drone @seedgo verify             # Route "verify" to the seedgo module
 drone @seedgo audit aipass       # Route "audit aipass" to seedgo
 drone @module --help             # Show help for any module
+drone scan @branch               # Discover available commands in a branch
+drone activate @branch           # Scan + register all commands from a branch
+drone list                       # List registered custom command shortcuts
+drone remove <name>              # Remove a custom command shortcut
 drone --version                  # Show version
 drone --help                     # Show usage information
 ```
@@ -91,10 +95,15 @@ drone/
 │   │   ├── resolver.py    # Branch resolution (@name -> path)
 │   │   ├── router.py      # Command routing via subprocess
 │   │   ├── discovery.py   # Module and command discovery
-│   │   └── module_registry.py  # Internal module routing
+│   │   ├── module_registry.py  # Internal module routing
+│   │   ├── commands.py    # Custom command shortcut orchestrator
+│   │   └── scan.py        # Branch command scanning
 │   └── handlers/          # Implementation
 │       ├── executor.py    # Safe subprocess execution
-│       └── exceptions.py  # Exception hierarchy
+│       ├── exceptions.py  # Exception hierarchy
+│       ├── json/          # Three-JSON Pattern handler
+│       ├── scanning/      # Scan result formatting + discovery
+│       └── command_registry/  # Command shortcut CRUD + lookup
 ├── docs/                  # Documentation
 └── tests/
 ```
@@ -140,3 +149,4 @@ To add: edit `interactive_commands` or `interactive_branches` in `_handle_target
 ---
 
 **Last Updated:** 2026-03-17
+

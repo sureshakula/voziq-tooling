@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: drone.py
 # Description: Drone - Command Router & Discovery
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-03-05
-# Modified: 2026-03-08
+# Modified: 2026-03-17
 # =============================================
 
 """
@@ -31,7 +31,7 @@ from aipass.drone.apps.modules.module_registry import (
     get_module_help,
 )
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 # =============================================================================
@@ -49,6 +49,10 @@ def show_help() -> None:
     console.print("  drone @target command \\[args]   Route command to branch or module")
     console.print("  drone @target --help           Show help for branch or module")
     console.print("  drone systems                  List registered branches and modules")
+    console.print("  drone scan @target             Discover available commands in a branch")
+    console.print("  drone activate @target         Register all commands from a branch")
+    console.print("  drone list                     List registered custom commands")
+    console.print("  drone remove <name>            Remove a custom command")
     console.print("  drone --help                   Show this help")
     console.print("  drone --version                Show version")
     console.print()
@@ -57,6 +61,8 @@ def show_help() -> None:
     console.print("  drone @seedgo list")
     console.print("  drone @flow status")
     console.print("  drone systems")
+    console.print("  drone activate @seedgo")
+    console.print("  drone audit                    (custom command shortcut)")
     console.print()
 
 
@@ -169,6 +175,104 @@ def _handle_module(name: str, args: List[str]) -> int:
     return result.get("exit_code", 0)
 
 
+def _handle_activate(target: str) -> int:
+    """Handle `drone activate @branch` -- scan and register all discovered commands."""
+    from aipass.drone.apps.modules.scan import scan
+    from aipass.drone.apps.modules.commands import add
+    from aipass.drone.apps.modules.commands import format_activation_results
+
+    branch_name = target.lstrip("@").lower()
+
+    results = scan(target)
+    if results is None:
+        err_console.print(f"drone: could not resolve '{target}'")
+        return 1
+
+    if not results:
+        return 0
+
+    added: list[str] = []
+    skipped: list[str] = []
+
+    for cmd in results:
+        name = cmd["name"]
+        description = cmd.get("description", "")
+        success = add(
+            name=name,
+            target=f"@{branch_name}",
+            command=name,
+            description=description,
+            source_branch=branch_name,
+        )
+        if success:
+            added.append(name)
+        else:
+            skipped.append(name)
+
+    format_activation_results(branch_name, added, skipped)
+    return 0
+
+
+def _handle_list() -> int:
+    """Handle `drone list` -- show all registered custom commands."""
+    from aipass.drone.apps.modules.commands import list_all
+    from aipass.drone.apps.modules.commands import format_command_list
+
+    commands = list_all()
+    format_command_list(commands)
+    return 0
+
+
+def _handle_remove(name: str) -> int:
+    """Handle `drone remove <name>` -- remove a custom command."""
+    from aipass.drone.apps.modules.commands import remove
+    from aipass.drone.apps.modules.commands import format_removal
+
+    success = remove(name)
+    format_removal(name, success)
+    return 0 if success else 1
+
+
+def _handle_custom_command(args: list[str]) -> int:
+    """Handle a custom command shortcut by matching and routing.
+
+    Uses greedy multi-word matching to resolve user input to a registered
+    custom command, then routes through the same path as ``@target`` commands.
+    """
+    from aipass.drone.apps.modules.commands import match
+
+    matched = match(args)
+    if matched is None:
+        return -1  # Signal: not a custom command
+
+    cmd_data, remaining_args = matched
+    target = cmd_data["target"]
+    command = cmd_data["command"]
+    cmd_args = list(cmd_data.get("args", [])) + remaining_args
+    module_name = target.lstrip("@").lower()
+
+    # Interactive detection -- same logic as _handle_target
+    interactive_commands = ("monitor", "snapshot", "versioned")
+    interactive_branches = ("cli",)
+    interactive = command in interactive_commands or module_name in interactive_branches
+
+    try:
+        result = route_command(
+            target, command,
+            args=cmd_args if cmd_args else None,
+            interactive=interactive,
+        )
+    except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+        err_console.print(f"drone: {exc}")
+        return 1
+
+    if result.stdout:
+        console.print(result.stdout, end="", highlight=False)
+    if result.stderr:
+        err_console.print(result.stderr, end="", highlight=False)
+    return result.exit_code
+
+
 def _handle_target(args: List[str]) -> int:
     """Handle `drone @target command [args]` or `drone @target --help`."""
     target = args[0]
@@ -270,9 +374,41 @@ def main() -> int:
             err_console.print(f"drone: {exc}")
             return 1
 
+    # scan — discover available commands in a branch
+    if command == "scan":
+        if len(args) < 2:
+            err_console.print("drone: scan requires a target (e.g., drone scan @seedgo)")
+            return 1
+        from aipass.drone.apps.modules.scan import scan
+        results = scan(args[1])
+        return 0 if results is not None else 1
+
+    # activate — scan + register all discovered commands from a branch
+    if command == "activate":
+        if len(args) < 2:
+            err_console.print("drone: activate requires a target (e.g., drone activate @seedgo)")
+            return 1
+        return _handle_activate(args[1])
+
+    # list — show registered custom commands
+    if command == "list":
+        return _handle_list()
+
+    # remove — remove a custom command by name
+    if command == "remove":
+        if len(args) < 2:
+            err_console.print("drone: remove requires a command name (e.g., drone remove audit)")
+            return 1
+        return _handle_remove(args[1])
+
     # @target — route to branch or module
     if command.startswith("@"):
         return _handle_target(args)
+
+    # Custom command matching (greedy multi-word, before unknown error)
+    custom_result = _handle_custom_command(args)
+    if custom_result != -1:
+        return custom_result
 
     # Unknown command
     err_console.print(f"drone: unknown command '{command}'")
