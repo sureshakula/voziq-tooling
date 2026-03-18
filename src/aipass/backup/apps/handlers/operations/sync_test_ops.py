@@ -19,6 +19,7 @@ from pathlib import Path
 from datetime import datetime
 
 from aipass.prax import logger
+from aipass.backup.apps.handlers.json import json_handler
 
 
 def create_sync_test_files(backup_root: Path) -> dict:
@@ -34,6 +35,8 @@ def create_sync_test_files(backup_root: Path) -> dict:
             - file_count (int): Number of test files created
             - error (str|None): Error message if failed
     """
+    json_handler.log_operation("sync_test_created")
+
     try:
         test_dir = backup_root / "backups" / "_sync_test"
         test_dir.mkdir(parents=True, exist_ok=True)

@@ -21,6 +21,7 @@ from pathlib import Path
 
 from aipass.prax import logger
 from aipass.backup.apps.handlers.models.backup_models import BackupResult
+from aipass.backup.apps.handlers.json import json_handler
 
 # logger imported from aipass.prax
 
@@ -45,6 +46,7 @@ def display_backup_results(result: BackupResult, mode_config: dict, backup_path:
         filter_tracked_items_func: Function to filter tracked items
         dry_run: If True, show "would be" language in statistics
     """
+    json_handler.log_operation("report_formatted")
     duration = datetime.datetime.now() - result.start_time
 
     # Determine overall result status

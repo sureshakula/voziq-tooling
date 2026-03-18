@@ -23,6 +23,7 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, Ti
 from aipass.cli.apps.modules import console
 from aipass.cli.apps.modules.display import error, warning
 from aipass.prax import logger
+from aipass.backup.apps.handlers.json import json_handler
 
 _BACKUP_ROOT = Path(__file__).resolve().parents[2]  # src/aipass/backup/
 
@@ -62,10 +63,14 @@ except ImportError:
 
 def _load_config():
     """Load config using module JSON paths."""
+    if _load_config_fn is None:
+        return {}
     return _load_config_fn(CONFIG_FILE)
 
 def _load_data():
     """Load data using module JSON paths."""
+    if _load_data_fn is None:
+        return {}
     return _load_data_fn(DATA_FILE)
 
 
@@ -93,6 +98,9 @@ from aipass.backup.apps.handlers.operations.sync_test_ops import (
 def _show_file_tracker_stats() -> bool:
     """Display file tracker statistics."""
     try:
+        if get_file_tracker_stats is None:
+            error("Drive sync dependencies not available")
+            return False
         stats = get_file_tracker_stats()
         console.print(f"File Tracker Statistics:")
         console.print(f"  - Total tracked files: {stats['total']}")
@@ -115,6 +123,9 @@ def _clear_file_tracker() -> bool:
     try:
         data = _load_data()
         tracker_count = len(data.get("runtime_state", {}).get("file_tracker", {}))
+        if _clear_file_tracker_handler is None:
+            error("Drive sync dependencies not available")
+            return False
         success = _clear_file_tracker_handler()
         if success:
             console.print(f"Cleared {tracker_count} entries from file tracker")
@@ -131,10 +142,16 @@ def _clear_file_tracker() -> bool:
 def _test_drive_sync() -> bool:
     """Test Drive integration."""
     try:
+        if GoogleDriveSync is None:
+            error("Drive sync dependencies not available")
+            return False
         sync = GoogleDriveSync()
         if not sync.authenticate():
             return False
         console.print("Testing folder creation...")
+        if _test_drive_connection is None:
+            error("Drive sync dependencies not available")
+            return False
         result = _test_drive_connection(sync)
         if result:
             folder_id = sync.get_or_create_backup_folder()
@@ -162,6 +179,10 @@ def _run_sync_test() -> bool:
     console.print(f"  Created {setup['file_count']} test files in {test_dir}")
 
     # Run sync
+    if GoogleDriveSync is None:
+        error("Drive sync dependencies not available")
+        cleanup_sync_test_dir(test_dir)
+        return False
     sync = GoogleDriveSync()
     if not sync.authenticate():
         error("Auth failed")
@@ -239,6 +260,10 @@ def handle_command(args) -> bool:
     Returns:
         bool: True if command was handled, False if not a drive sync command
     """
+    if not args:
+        print_introspection()
+        return True
+
     if not hasattr(args, 'command'):
         return False
 
@@ -286,6 +311,9 @@ def handle_command(args) -> bool:
         note = getattr(args, 'note', 'Manual sync') or 'Manual sync'
         force = getattr(args, 'force', False)
 
+        if GoogleDriveSync is None:
+            error("Drive sync dependencies not available")
+            return False
         sync = GoogleDriveSync()
         if not sync.authenticate():
             error("FAILED: Could not authenticate with Google Drive")
@@ -392,6 +420,7 @@ def handle_command(args) -> bool:
     elif command == 'drive-stats':
         return _show_file_tracker_stats()
 
+    json_handler.log_operation("drive_command", {"command": command})
     return False
 
 # =============================================
@@ -493,6 +522,9 @@ EXAMPLES:
             error(f"Backup directory not found: {backup_path}")
             sys.exit(1)
 
+        if GoogleDriveSync is None:
+            error("Drive sync dependencies not available")
+            sys.exit(1)
         sync = GoogleDriveSync()
         if not sync.authenticate():
             error("Failed to authenticate with Google Drive")

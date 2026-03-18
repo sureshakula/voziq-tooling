@@ -25,6 +25,7 @@ from typing import Dict, List, Optional
 
 # Import from handlers
 from aipass.backup.apps.handlers.utils.system_utils import safe_print
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # VERSION FILE DISCOVERY
@@ -42,6 +43,7 @@ def get_versioned_files(backup_path: Path, file_path: str | None = None) -> Dict
     """
     versioned_files = {}
 
+    json_handler.log_operation("version_discovery")
     if not backup_path.exists():
         return versioned_files
 

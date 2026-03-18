@@ -20,6 +20,7 @@ from pathlib import Path
 from aipass.cli.apps.modules import console
 from aipass.cli.apps.modules.display import error
 from aipass.prax import logger
+from aipass.backup.apps.handlers.json import json_handler
 
 # Handler imports
 from aipass.backup.apps.handlers.utils.reauth_handler import reauth as _run_reauth
@@ -37,6 +38,10 @@ def handle_command(args) -> bool:
     Returns:
         bool: True if command handled, False otherwise
     """
+    if not args:
+        print_introspection()
+        return True
+
     if not hasattr(args, 'command'):
         return False
 
@@ -46,6 +51,7 @@ def handle_command(args) -> bool:
         return True
 
     if command == 'reauth':
+        json_handler.log_operation("reauth_command")
         return _execute_reauth()
 
     return False

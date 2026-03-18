@@ -19,6 +19,8 @@ Constructs destination paths based on backup mode and file structure.
 import hashlib
 from pathlib import Path
 
+from aipass.backup.apps.handlers.json import json_handler
+
 # =============================================
 # PATH CONSTRUCTION OPERATIONS
 # =============================================
@@ -35,6 +37,8 @@ def build_backup_path(source_file: Path, source_dir: Path, backup_path: Path, mo
     Returns:
         Full backup file path
     """
+    json_handler.log_operation("path_built")
+
     rel_path = source_file.relative_to(source_dir)
 
     if mode == 'versioned':

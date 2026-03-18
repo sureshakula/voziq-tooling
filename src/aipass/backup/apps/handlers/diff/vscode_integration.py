@@ -28,6 +28,7 @@ from pathlib import Path
 # Import from handlers
 from aipass.backup.apps.handlers.utils.system_utils import safe_print
 from aipass.backup.apps.handlers.diff.version_manager import get_versioned_files
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # VS CODE INTEGRATION
@@ -47,6 +48,7 @@ def show_file_diff(backup_path: Path, source_dir: Path, file_path: str, version1
         True if diff was opened successfully, False otherwise
     """
     try:
+        json_handler.log_operation("vscode_diff_opened")
         versioned_files = get_versioned_files(backup_path, file_path)
 
         if not versioned_files:

@@ -22,6 +22,7 @@ from aipass.backup.apps.handlers.json.drive_sync_json import (
     save_data,
     log_operation,
 )
+from aipass.backup.apps.handlers.json import json_handler
 
 # JSON file paths (resolved relative to backup root)
 _BACKUP_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/backup/
@@ -38,6 +39,8 @@ def get_status() -> Dict[str, Any]:
     Returns:
         Dict with module status fields
     """
+    json_handler.log_operation("drive_sync_status_checked")
+
     data = load_data(_DATA_FILE)
     config = load_config(_CONFIG_FILE)
 

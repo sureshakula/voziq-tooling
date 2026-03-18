@@ -24,6 +24,7 @@ from pathlib import Path
 # Import from handlers
 from aipass.backup.apps.handlers.utils.system_utils import safe_print
 from aipass.backup.apps.handlers.config.config_handler import DIFF_IGNORE_PATTERNS, DIFF_INCLUDE_PATTERNS
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # DIFF GENERATION
@@ -101,6 +102,7 @@ def generate_diff_content(old_file: Path, new_file: Path) -> str:
             lineterm=''
         )
 
+        json_handler.log_operation("diff_generated")
         return '\n'.join(diff_lines)
 
     except Exception as e:

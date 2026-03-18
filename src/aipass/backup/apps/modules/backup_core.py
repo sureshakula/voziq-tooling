@@ -53,7 +53,7 @@ from aipass.backup.apps.handlers.config.config_handler import (
 from aipass.backup.apps.handlers.models.backup_models import BackupResult
 from aipass.backup.apps.handlers.operations.file_operations import copy_file_with_structure, copy_versioned_file
 from aipass.backup.apps.handlers.utils.system_utils import safe_print
-from aipass.backup.apps.handlers.json.json_handler import log_operation, ensure_module_jsons
+from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.json.changelog_handler import (
     load_changelog as load_changelog_file,
     save_changelog_entry as save_changelog_entry_file,
@@ -145,6 +145,10 @@ def handle_command(args) -> bool:
     Returns:
         bool: True if command was handled, False if not a backup command
     """
+    if not args:
+        print_introspection()
+        return True
+
     # Check if args has backup-related command
     if not hasattr(args, 'command'):
         return False
@@ -266,7 +270,7 @@ class BackupEngine:
         self.backup_path = self.backup_dest / self.backup_folder_name
 
         # Initialize JSON system (handler creates directory if needed)
-        ensure_module_jsons("backup_core")
+        json_handler.ensure_module_jsons("backup_core")
 
         # JSON files (mode-specific) - backup-specific tracking files
         self.backup_info_file = JSON_DIR / f"{mode}_backup.json"
@@ -497,7 +501,7 @@ class BackupEngine:
         # Update JSON system
         execution_time = int((datetime.datetime.now() - result.start_time).total_seconds() * 1000)
         if result.success and result.errors == 0:
-            log_operation(
+            json_handler.log_operation(
                 "backup",
                 {
                     "mode": self.mode,
@@ -524,7 +528,7 @@ class BackupEngine:
                 logger.info("[backup_core] Drive sync skipped (not implemented)")
             logger.info("[backup_core] Read-only protection skipped (not implemented)")
         else:
-            log_operation(
+            json_handler.log_operation(
                 "backup",
                 {
                     "mode": self.mode,

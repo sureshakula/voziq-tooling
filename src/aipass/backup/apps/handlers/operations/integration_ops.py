@@ -21,6 +21,8 @@ import stat
 from pathlib import Path
 from typing import Any, Optional
 
+from aipass.backup.apps.handlers.json import json_handler
+
 
 def sync_to_drive(
     backup_path: Path,
@@ -43,6 +45,8 @@ def sync_to_drive(
     Returns:
         bool: True if sync succeeded, False otherwise
     """
+    json_handler.log_operation("drive_sync_initiated")
+
     if not drive_sync_available or drive_sync_module is None:
         return False
 

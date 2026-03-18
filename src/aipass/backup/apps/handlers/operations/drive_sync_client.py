@@ -32,21 +32,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
-# Google API imports
+# Google API imports (optional — not installed in every environment)
 try:
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaFileUpload
-    from google.auth.transport.requests import Request
-    from google.oauth2.credentials import Credentials
-    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build  # type: ignore[import-unresolved]
+    from googleapiclient.http import MediaFileUpload  # type: ignore[import-unresolved]
+    from google.auth.transport.requests import Request  # type: ignore[import-unresolved]
+    from google.oauth2.credentials import Credentials  # type: ignore[import-unresolved]
+    from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-unresolved]
     GOOGLE_API_AVAILABLE = True
 except ImportError:
     GOOGLE_API_AVAILABLE = False
-    build = None
-    MediaFileUpload = None
-    Request = None
-    Credentials = None
-    InstalledAppFlow = None
+    build = None  # type: ignore[assignment]
+    MediaFileUpload = None  # type: ignore[assignment]
+    Request = None  # type: ignore[assignment]
+    Credentials = None  # type: ignore[assignment]
+    InstalledAppFlow = None  # type: ignore[assignment]
 
 # JSON handler for data persistence
 from aipass.backup.apps.handlers.json.drive_sync_json import (
@@ -58,6 +58,7 @@ from aipass.backup.apps.handlers.json.drive_sync_json import (
     save_log as _save_log_fn,
     log_operation as _log_operation_fn,
 )
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # CONSTANTS
@@ -158,6 +159,8 @@ class GoogleDriveSync:
 
     def authenticate(self) -> bool:
         """Authenticate with Google Drive using OAuth credentials"""
+        json_handler.log_operation("drive_authenticate_started")
+
         if not GOOGLE_API_AVAILABLE:
             python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
@@ -170,7 +173,7 @@ class GoogleDriveSync:
         # Load existing credentials if they exist
         if self.creds_path.exists():
             try:
-                creds = Credentials.from_authorized_user_file(str(self.creds_path), SCOPES)
+                creds = Credentials.from_authorized_user_file(str(self.creds_path), SCOPES)  # type: ignore[union-attr]
             except Exception as e:
 
                 creds = None
@@ -179,7 +182,7 @@ class GoogleDriveSync:
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 try:
-                    creds.refresh(Request())
+                    creds.refresh(Request())  # type: ignore[misc]
 
                 except Exception as e:
 
@@ -195,7 +198,7 @@ class GoogleDriveSync:
                 try:
 
 
-                    flow = InstalledAppFlow.from_client_secrets_file(
+                    flow = InstalledAppFlow.from_client_secrets_file(  # type: ignore[union-attr]
                         str(self.client_secrets_path), SCOPES
                     )
                     creds = flow.run_local_server(port=0)
@@ -220,7 +223,7 @@ class GoogleDriveSync:
         # Build Drive service
         try:
             self.creds = creds  # Store for building per-thread services
-            self.drive_service = build('drive', 'v3', credentials=creds)
+            self.drive_service = build('drive', 'v3', credentials=creds)  # type: ignore[misc]
 
             # Update runtime state (ensure runtime_state exists first)
             if "runtime_state" not in self.data:
@@ -492,7 +495,7 @@ class GoogleDriveSync:
                 'description': f'AIPass backup - {note}' if note else 'AIPass backup'
             }
 
-            media = MediaFileUpload(str(local_file), resumable=True)
+            media = MediaFileUpload(str(local_file), resumable=True)  # type: ignore[misc]
 
             # Get file tracker info to avoid API calls when possible
             if backup_root and backup_root in local_file.parents:
@@ -625,10 +628,10 @@ class GoogleDriveSync:
         Loads fresh credentials from disk to avoid sharing credential state
         (token refresh races) and creates a fully isolated HTTP/SSL connection.
         """
-        creds = Credentials.from_authorized_user_file(str(self.creds_path), SCOPES)
+        creds = Credentials.from_authorized_user_file(str(self.creds_path), SCOPES)  # type: ignore[union-attr]
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        return build('drive', 'v3', credentials=creds)
+            creds.refresh(Request())  # type: ignore[misc]
+        return build('drive', 'v3', credentials=creds)  # type: ignore[misc]
 
     @staticmethod
     def _is_ssl_error(exc: Exception) -> bool:
@@ -646,7 +649,7 @@ class GoogleDriveSync:
         msg = str(exc)
         return any(kw in msg for kw in ssl_keywords)
 
-    def _api_call_with_retry(self, request, max_retries: int = 3):
+    def _api_call_with_retry(self, request: Any, max_retries: int = 3) -> Dict[str, Any]:
         """Execute a Google API request with exponential backoff on SSL errors."""
         for attempt in range(max_retries + 1):
             try:
@@ -660,6 +663,7 @@ class GoogleDriveSync:
                     self._thread_local.service = self._build_thread_service()
                     continue
                 raise
+        raise RuntimeError("Retries exhausted")
 
     def _check_file_needs_upload_local(self, local_file: Path, backup_root: Path) -> bool:
         """Check if file needs upload using local tracker (no API calls)"""

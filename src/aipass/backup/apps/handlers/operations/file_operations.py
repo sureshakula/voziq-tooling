@@ -32,6 +32,7 @@ from pathlib import Path
 from aipass.backup.apps.handlers.utils.system_utils import temporarily_writable, safe_print
 from aipass.backup.apps.handlers.diff.diff_generator import should_create_diff, generate_diff_content
 from aipass.backup.apps.handlers.models.backup_models import BackupResult
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # SNAPSHOT MODE OPERATIONS
@@ -76,6 +77,8 @@ def copy_file_with_structure(source_file: Path, target_file: Path, backup_path: 
             result.add_error(error_msg)
             safe_print(f"  {error_msg}")
             return False
+
+        json_handler.log_operation("file_copied")
 
         # Track if this is a new file for appropriate messaging
         is_new_file = not target_file.exists()

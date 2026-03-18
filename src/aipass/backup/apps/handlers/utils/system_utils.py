@@ -30,6 +30,8 @@ from aipass.prax import logger
 from pathlib import Path
 from contextlib import contextmanager
 
+from aipass.backup.apps.handlers.json import json_handler
+
 # logger imported from aipass.prax
 
 # =============================================
@@ -121,6 +123,8 @@ def ensure_backup_directory(backup_dest: Path, backup_path: Path, is_dynamic: bo
     Returns:
         Tuple of (success: bool, error_message: str or None)
     """
+    json_handler.log_operation("backup_directory_ensured")
+
     try:
         # Check if backup_dest exists and might be read-only
         if backup_dest.exists():

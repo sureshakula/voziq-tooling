@@ -17,6 +17,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+from aipass.backup.apps.handlers.json import json_handler
+
 _BACKUP_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/backup/
 TIMESTAMPS_FILE = _BACKUP_ROOT / "backup_data" / "backup_timestamps.json"
 
@@ -44,6 +46,8 @@ def update_timestamp(mode: str) -> None:
     Args:
         mode: One of 'snapshot', 'versioned', 'drive_sync'
     """
+    json_handler.log_operation("timestamp_updated")
+
     data = {}
     if TIMESTAMPS_FILE.exists():
         try:

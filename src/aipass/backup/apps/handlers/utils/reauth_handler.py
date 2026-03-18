@@ -15,6 +15,8 @@ Called by the reauth_drive module orchestrator.
 
 from pathlib import Path
 
+from aipass.backup.apps.handlers.json import json_handler
+
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 CREDS_PATH = Path.home() / '.aipass' / 'drive_creds.json'
 
@@ -29,12 +31,14 @@ def reauth(client_secrets_path: Path) -> bool:
         bool: True if authentication succeeded, False otherwise
     """
     try:
-        from google_auth_oauthlib.flow import InstalledAppFlow
-        from google.oauth2.credentials import Credentials
-        from google.auth.transport.requests import Request
-        from googleapiclient.discovery import build
+        from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-unresolved]
+        from google.oauth2.credentials import Credentials  # type: ignore[import-unresolved]
+        from google.auth.transport.requests import Request  # type: ignore[import-unresolved]
+        from googleapiclient.discovery import build  # type: ignore[import-unresolved]
     except ImportError as e:
         return False
+
+    json_handler.log_operation("reauth_initiated")
 
     # Step 1: Try refreshing existing token first
     if CREDS_PATH.exists():

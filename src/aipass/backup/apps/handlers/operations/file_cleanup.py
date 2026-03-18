@@ -24,6 +24,7 @@ from typing import Callable
 
 from aipass.backup.apps.handlers.utils.system_utils import temporarily_writable, safe_print
 from aipass.backup.apps.handlers.models.backup_models import BackupResult
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # FILE CLEANUP OPERATIONS
@@ -40,6 +41,8 @@ def cleanup_deleted_files(backup_path: Path, source_dir: Path, should_ignore: Ca
         result: BackupResult to track deletions and errors
         dry_run: If True, only show what would be deleted without actually deleting
     """
+    json_handler.log_operation("cleanup_executed")
+
     import shutil
     import stat
 

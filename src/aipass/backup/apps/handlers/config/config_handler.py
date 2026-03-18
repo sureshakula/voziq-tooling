@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Dict, Set, List, Optional
 
 # Re-export from ignore_patterns for backwards compatibility
+from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.config.ignore_patterns import (
     GLOBAL_IGNORE_PATTERNS, IGNORE_EXCEPTIONS, should_ignore,
     filter_tracked_items, get_ignore_patterns, get_cli_tracking_patterns,
@@ -82,6 +83,7 @@ def get_backup_destination(system_name: str) -> str:
     Returns:
         Path to backup destination, or base directory if not found
     """
+    json_handler.log_operation("config_loaded")
     return BACKUP_DESTINATIONS.get(system_name, BASE_BACKUP_DIR)
 
 # =============================================

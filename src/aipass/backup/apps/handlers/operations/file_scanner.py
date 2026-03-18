@@ -20,6 +20,8 @@ import os
 from pathlib import Path
 from typing import Callable, List, Optional
 
+from aipass.backup.apps.handlers.json import json_handler
+
 # =============================================
 # FILE SCANNING OPERATIONS
 # =============================================
@@ -41,6 +43,8 @@ def scan_files(source_dir: Path, should_ignore: Callable, show_progress: bool = 
         - file_list: List of Path objects for files to backup
         - skipped_items: Dict with 'directories', 'files', and 'too_large' sets
     """
+    json_handler.log_operation("scan_started")
+
     files_to_backup = []
     skipped_items = {"directories": set(), "files": set(), "too_large": set()}
     max_bytes = max_file_size_mb * 1024 * 1024 if max_file_size_mb > 0 else 0

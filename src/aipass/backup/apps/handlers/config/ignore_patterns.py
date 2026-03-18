@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Dict, Set, List, Optional
 
 from aipass.prax import logger
+from aipass.backup.apps.handlers.json import json_handler
 
 # =============================================
 # PATTERN LOADING
@@ -53,6 +54,7 @@ def load_patterns() -> dict:
     with open(_PATTERNS_JSON, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    json_handler.log_operation("patterns_loaded")
     logger.info(f"[ignore_patterns] Loaded patterns from {_PATTERNS_JSON}")
     return data
 

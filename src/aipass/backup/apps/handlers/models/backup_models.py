@@ -22,6 +22,8 @@ from pathlib import Path
 import datetime
 from typing import List
 
+from aipass.backup.apps.handlers.json import json_handler
+
 # =============================================
 # DATA MODELS
 # =============================================
@@ -50,6 +52,7 @@ class BackupResult:
     """
 
     def __init__(self):
+        json_handler.log_operation("backup_result_created")
         # File statistics
         self.files_checked: int = 0
         self.files_copied: int = 0

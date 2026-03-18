@@ -34,6 +34,7 @@ from pathlib import Path
 
 from aipass.cli.apps.modules import console
 from aipass.prax import logger
+from aipass.backup.apps.handlers.json import json_handler
 
 
 def _header(text):
@@ -84,8 +85,14 @@ def handle_command(args) -> bool | None:
         - sync-to-drive: Sync backup to Google Drive
         - set-readonly: Protect backup with read-only permissions
     """
+    if not args:
+        print_introspection()
+        return True
+
     if not hasattr(args, 'integration_command'):
         return None
+
+    json_handler.log_operation("integration_command")
 
     if args.integration_command == 'sync-to-drive':
         backup_path = Path(args.backup_path) if hasattr(args, 'backup_path') else None
