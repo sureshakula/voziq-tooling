@@ -31,6 +31,7 @@ Usage:
 from typing import Optional
 
 from aipass.api.apps.handlers.google import auth as auth
+from aipass.api.apps.handlers.json import json_handler
 
 # =============================================
 # GOOGLE API AVAILABILITY
@@ -74,7 +75,9 @@ def build_service(
         return None
 
     try:
-        return build(service_name, version, credentials=creds)
+        service = build(service_name, version, credentials=creds)
+        json_handler.log_operation("build_service", {"service": service_name, "version": version})
+        return service
     except Exception:
         return None
 
