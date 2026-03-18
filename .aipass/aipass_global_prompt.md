@@ -99,29 +99,24 @@ from aipass.prax import logger
 
 ## Git Workflow
 
-Only commit files inside your own branch directory (`src/aipass/{your_branch}/`). When your task is complete and you're satisfied with the work, commit, push, and open a PR. Not per-file — per task.
+**All PR workflow goes through drone.** Never use raw git commands for commits, branches, or pushes. Drone handles everything atomically with a lockfile that prevents concurrent PR collisions.
+
+**Always work on main.** Edit files in your branch directory on the main branch. When ready to submit:
 
 ```
-git checkout -b feat/{branch}-short-description   # create git branch
-git add src/aipass/{branch}/...                    # stage your files only
-git commit -m "feat(branch): description"         # commit (see signature below)
-git push -u origin feat/{branch}-short-description
-gh pr create --title "feat(branch): ..." --body "..."
+drone @git pr "short description"    # Full PR workflow (lock, branch, commit, push, PR, back to main)
+drone @git status                    # What changed in my branch directory?
+drone @git sync                      # Pull latest main
+drone @git lock                      # Who has the PR lock?
 ```
 
-**Sign your work.** End every commit message with:
-```
-Co-Authored-By: @{branch} <{branch}@aipass>
-```
+`drone @git pr` does everything: acquires a lock (so no other branch can PR simultaneously), creates a feature branch, stages only your files, commits with your Co-Authored-By signature, pushes, creates the PR on GitHub, returns to main, and releases the lock. One command.
 
-**Stage from git, not from memory.** Use `git diff --stat` or `git status` to see what's actually changed, then stage those files. Never manually list files to commit from memory — you'll try to add gitignored files or miss real changes. Trust `.gitignore` and let git tell you what changed.
+**You may NOT run these directly:** `git checkout -b`, `git commit`, `git push`, `gh pr create`. These are blocked by deny rules. Only devpulse and drone have raw git access.
 
-**Return to main after PR.** Git branches are repo-wide — when you create a feature branch, every citizen in the repo is on that branch, not just you. After your PR is created (or merged), switch back to main so you don't strand other citizens on your stale branch:
-```
-git checkout main && git pull    # always do this after PR creation
-```
+**You CAN still use:** `git status`, `git diff`, `git log` — read-only operations are fine for checking your work.
 
-**Never merge.** Only devpulse or Patrick merge PRs. If your PR gets feedback, fix the issues, commit, and push to the same git branch — the PR updates automatically.
+**Never merge.** Only devpulse or Patrick merge PRs. If your PR gets feedback, fix the issues and run `drone @git pr` again.
 
 ## Context Guardrail
 
