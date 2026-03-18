@@ -20,6 +20,7 @@ import subprocess
 import sys
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def send_notification(title: str, body: str, source: str = "ai_mail",
@@ -36,6 +37,8 @@ def send_notification(title: str, body: str, source: str = "ai_mail",
     Returns:
         True if sent, False on failure
     """
+    json_handler.log_operation("send_notification", {"title": title, "source": source})
+
     # Primary: dbus direct (bypasses Portal, supports stacking)
     if _send_via_dbus(title, body, source, icon):
         return True

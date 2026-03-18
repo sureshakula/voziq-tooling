@@ -25,6 +25,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Tuple
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 # Constants
 MODULE_NAME = "registry.update"
@@ -56,6 +58,8 @@ def ping_registry(
     Returns:
         True if registry updated successfully, False otherwise
     """
+    json_handler.log_operation("ping_registry", {"branch_name": branch_name, "branch_path": str(branch_path)})
+
     try:
         # Ensure registry directory exists
         REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)

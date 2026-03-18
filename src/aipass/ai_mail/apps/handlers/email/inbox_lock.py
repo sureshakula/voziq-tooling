@@ -23,6 +23,8 @@ import sys
 from pathlib import Path
 from contextlib import contextmanager
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 # fcntl is POSIX-only (Linux/macOS). On Windows, use msvcrt for locking.
 if sys.platform == "win32":
     import msvcrt
@@ -49,6 +51,7 @@ def inbox_lock(inbox_file: Path):
     Raises:
         OSError: If lock cannot be acquired
     """
+    json_handler.log_operation("inbox_lock", {"inbox_file": str(inbox_file)})
     lock_file = inbox_file.parent / ".inbox.lock"
     lock_fd = None
 

@@ -16,6 +16,8 @@ Independent handler - no module or display dependencies.
 from pathlib import Path
 from typing import Dict, Optional, Any, Callable, Tuple
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 def resolve_inbox_target(
     args_first: Optional[str],
@@ -40,6 +42,7 @@ def resolve_inbox_target(
             target_branch: str | None (the explicit target, or None for current)
             error: str | None (set when success is False)
     """
+    json_handler.log_operation("resolve_inbox_target", {"target": args_first})
     target_branch = None
     if args_first and args_first.startswith("@"):
         target_branch = args_first

@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import Dict, Tuple, Optional, Any
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 # Lazy import for inbox file lock
@@ -45,7 +46,7 @@ def _get_console() -> Any:
 def _get_update_section() -> Any:
     """Lazy import update_section."""
     try:
-        from aipass.devpulse.apps.modules.dashboard import update_section
+        from aipass.devpulse.apps.modules.dashboard import update_section  # type: ignore[import-not-found]
         return update_section
     except ImportError:
         return None
@@ -154,6 +155,7 @@ def mark_read_and_archive(branch_path: Path, message_id: str) -> Tuple[bool, str
     Returns:
         Tuple of (success: bool, message: str)
     """
+    json_handler.log_operation("inbox_cleanup", {"branch_path": str(branch_path), "message_id": message_id})
     mailbox_path = branch_path / ".ai_mail.local"
     inbox_file = mailbox_path / "inbox.json"
 

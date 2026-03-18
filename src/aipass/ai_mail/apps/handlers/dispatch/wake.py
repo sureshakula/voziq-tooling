@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def _find_repo_root() -> Path:
@@ -316,6 +317,8 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
     Returns:
         Tuple of (DispatchStatus with all steps, overall success bool)
     """
+    json_handler.log_operation("wake_branch", {"branch": branch_email, "fresh": fresh, "auto": auto})
+
     status = DispatchStatus()
 
     # Step 1: Pause check (auto-dispatch only)

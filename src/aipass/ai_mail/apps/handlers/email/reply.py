@@ -19,6 +19,7 @@ from typing import Dict, Tuple, Optional
 from datetime import datetime
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 # Services imported in __main__ only (handlers should not display)
 
@@ -70,6 +71,7 @@ def send_reply(
     Returns:
         Tuple of (success: bool, message: str, reply_id: str or None)
     """
+    json_handler.log_operation("send_reply", {"from_branch": str(from_branch_path), "reply_to": original_email.get("from", "unknown")})
     # Import here to avoid circular imports
     from aipass.ai_mail.apps.handlers.email.delivery import deliver_email_to_branch, get_all_branches
     from aipass.ai_mail.apps.handlers.email.inbox_cleanup import mark_as_closed_and_archive

@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def _send_bounce(branch_email: str, reason: str, sender: str,
@@ -97,6 +98,8 @@ def main():
     if not claude_cmd:
         logger.warning("[monitor] No claude command after --")
         sys.exit(1)
+
+    json_handler.log_operation("dispatch_monitor_start", {"branch": branch_email, "sender": sender})
 
     # Open stderr log for claude output
     try:

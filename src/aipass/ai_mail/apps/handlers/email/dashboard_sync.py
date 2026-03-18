@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 # Lazy-loaded write_section reference
 _write_section = None
@@ -155,6 +156,7 @@ def push_dashboard_update(branch_path: Path) -> bool:
     Returns:
         True if update succeeded, False on any error (never raises)
     """
+    json_handler.log_operation("dashboard_sync", {"branch_path": str(branch_path)})
     try:
         branch_path = Path(branch_path)
 

@@ -45,7 +45,7 @@ from aipass.ai_mail.apps.handlers.email.reply import get_email_by_id, send_reply
 from aipass.ai_mail.apps.handlers.email.header import prepend_dispatch_header
 from aipass.ai_mail.apps.handlers.users.user import get_current_user
 from aipass.ai_mail.apps.handlers.registry.read import get_all_branches, get_branch_by_email
-from aipass.ai_mail.apps.handlers.json_utils.json_handler import log_operation
+from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.email.send import (
     resolve_sender_info, send_to_broadcast, send_to_single, collect_interactive_input
 )
@@ -116,7 +116,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 
 def handle_send(args: List[str]) -> bool:
     """Orchestrate email sending workflow."""
-    log_operation("send_email_initiated", {"args_count": len(args)})
+    json_handler.log_operation("send_email_initiated", {"args_count": len(args)})
     parsed = parse_send_args(args)
 
     if parsed["mode"] == "error":
@@ -192,7 +192,7 @@ def _send_direct(to_branch, subject, message, auto_execute=False,
         success, error_msg = send_to_single(
             to_branch, subject, message, user_info, auto_execute, no_memory_save,
             reply_to, dispatched_to, create_email_file, load_email_file,
-            deliver_email_to_branch, _delivery_callback, log_operation, update_central)
+            deliver_email_to_branch, _delivery_callback, json_handler.log_operation, update_central)
 
         if success:
             label = f"\\[dispatch: queued for daemon]" if auto_execute else ""
@@ -205,7 +205,7 @@ def _send_direct(to_branch, subject, message, auto_execute=False,
             return True
         else:
             error(f"Failed to deliver: {error_msg}")
-            dispatch_send_error(to_branch, subject, error_msg, deliver_email_to_branch)
+            dispatch_send_error(to_branch, subject, error_msg or "", deliver_email_to_branch)
             return False
     except BrokenPipeError:
         logger.info("[email] Send: broken pipe (stdout closed early)")
@@ -224,11 +224,11 @@ def _send_broadcast(subject, message, user_info, auto_execute, no_memory_save, r
     ok, success_count, total, results = send_to_broadcast(
         subject, message, user_info, auto_execute, no_memory_save, reply_to, dispatched_to,
         branches, create_email_file, load_email_file, deliver_email_to_branch,
-        _delivery_callback, log_operation, update_central)
-    if isinstance(results, str):
+        _delivery_callback, json_handler.log_operation, update_central)
+    if isinstance(results, str) or results is None:
         error("Failed to load email file for broadcast")
         return False
-    for name, ok, err in results:
+    for name, ok, err in results:  # type: ignore[union-attr]
         if ok:
             console.print(f"  [green]OK[/green] {name}")
         else:
@@ -239,7 +239,7 @@ def _send_broadcast(subject, message, user_info, auto_execute, no_memory_save, r
 
 def handle_inbox(args: List[str]) -> bool:
     """Orchestrate inbox viewing."""
-    log_operation("inbox_viewed")
+    json_handler.log_operation("inbox_viewed")
     try:
         first_arg = args[0] if args else None
         ok, info = resolve_inbox_target(first_arg, _REPO_ROOT, get_branch_by_email, get_current_user)
@@ -278,14 +278,14 @@ def handle_inbox(args: List[str]) -> bool:
 
 def handle_view(args: List[str]) -> bool:
     """View email content and mark as opened."""
-    log_operation("view_email_initiated", {"args": args})
+    json_handler.log_operation("view_email_initiated", {"args": args})
     if not args:
         error("Usage: drone @ai_mail view <message_id>")
         return False
     try:
         branch_path = Path(get_current_user()["mailbox_path"]).parent
         success, message, email_data = mark_as_opened(branch_path, args[0])
-        if not success:
+        if not success or email_data is None:
             error(message)
             return False
         console.print(f"\n{'='*60}")
@@ -296,7 +296,7 @@ def handle_view(args: List[str]) -> bool:
         console.print(f"[dim]Status: opened | ID: {args[0]}[/dim]")
         console.print(f"[dim]To reply: drone @ai_mail reply {args[0]} \"your message\"[/dim]")
         console.print(f"[dim]To close: drone @ai_mail close {args[0]}[/dim]")
-        log_operation("email_viewed", {"message_id": args[0]})
+        json_handler.log_operation("email_viewed", {"message_id": args[0]})
         return True
     except BrokenPipeError:
         return True
@@ -308,7 +308,7 @@ def handle_view(args: List[str]) -> bool:
 
 def handle_close(args: List[str]) -> bool:
     """Close email(s) and archive to deleted."""
-    log_operation("close_email_initiated", {"args": args})
+    json_handler.log_operation("close_email_initiated", {"args": args})
     if not args:
         error("Usage: drone @ai_mail close <id> [id2 ...] | close all")
         return False
@@ -321,7 +321,7 @@ def handle_close(args: List[str]) -> bool:
             else:
                 error(message)
             if success:
-                log_operation("email_closed_all", {"count": count})
+                json_handler.log_operation("email_closed_all", {"count": count})
             return success
 
         results, closed, failed = batch_close(branch_path, args, mark_as_closed_and_archive)
@@ -331,7 +331,7 @@ def handle_close(args: List[str]) -> bool:
             else:
                 error(message)
             if success:
-                log_operation("email_closed", {"message_id": msg_id})
+                json_handler.log_operation("email_closed", {"message_id": msg_id})
 
         if len(args) > 1 and closed > 0:
             try:
@@ -350,7 +350,7 @@ def handle_close(args: List[str]) -> bool:
 
 def handle_reply(args: List[str]) -> bool:
     """Reply to an email."""
-    log_operation("reply_email_initiated", {"args": args})
+    json_handler.log_operation("reply_email_initiated", {"args": args})
     if len(args) < 2:
         error("Usage: drone @ai_mail reply <message_id> \"your message\"")
         return False
@@ -367,7 +367,7 @@ def handle_reply(args: List[str]) -> bool:
         else:
             error(message)
         if success:
-            log_operation("email_replied", {"message_id": args[0], "reply_id": reply_id})
+            json_handler.log_operation("email_replied", {"message_id": args[0], "reply_id": reply_id})
         return success
     except Exception as e:
         logger.error(f"[email] Reply failed: {e}")
@@ -377,7 +377,7 @@ def handle_reply(args: List[str]) -> bool:
 
 def handle_sent(args: List[str]) -> bool:
     """View sent messages."""
-    log_operation("sent_viewed")
+    json_handler.log_operation("sent_viewed")
     try:
         sent_folder = Path(get_current_user()["mailbox_path"]) / "sent"
         if not sent_folder.exists():
@@ -402,7 +402,7 @@ def handle_sent(args: List[str]) -> bool:
 
 def handle_contacts(args: List[str]) -> bool:
     """View contacts."""
-    log_operation("contacts_viewed")
+    json_handler.log_operation("contacts_viewed")
     try:
         branches = get_all_branches()
         if not branches:

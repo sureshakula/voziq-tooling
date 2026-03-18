@@ -8,6 +8,8 @@
 
 from pathlib import Path
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 """
 Email Header Handler
 
@@ -68,6 +70,7 @@ def prepend_dispatch_header(message: str, no_memory_save: bool = False) -> str:
     Returns:
         Message with dispatch header prepended
     """
+    json_handler.log_operation("prepend_dispatch_header", {"no_memory_save": no_memory_save})
     return get_dispatch_header(no_memory_save=no_memory_save) + message
 
 

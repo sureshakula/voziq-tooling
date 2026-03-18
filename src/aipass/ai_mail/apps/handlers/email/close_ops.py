@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import List, Tuple, Callable, Optional
 
 from aipass.prax import logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def batch_close(
@@ -36,6 +37,7 @@ def batch_close(
         Tuple of (results_list, closed_count, failed_count)
         results_list contains (message_id, success, message) tuples
     """
+    json_handler.log_operation("batch_close", {"branch_path": str(branch_path), "count": len(message_ids)})
     batch_mode = len(message_ids) > 1
     results = []
     closed_count = 0

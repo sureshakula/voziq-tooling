@@ -19,9 +19,10 @@ Walks up directory tree to find branch root (has .trinity/passport.json).
 import os
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 # =============================================
 # CONSTANTS
@@ -55,7 +56,7 @@ def _get_branches_list(registry: dict) -> list:
 # BRANCH DETECTION FUNCTIONS
 # =============================================
 
-def detect_branch_from_pwd() -> Dict | None:
+def detect_branch_from_pwd() -> Optional[Dict]:
     """
     Detect which branch is calling based on current working directory.
 
@@ -73,6 +74,8 @@ def detect_branch_from_pwd() -> Dict | None:
         }
         None if no branch detected
     """
+    json_handler.log_operation("detect_branch_from_pwd", {"cwd": str(Path.cwd())})
+
     try:
         # Primary: use explicit branch name passed by drone (works in Docker + local)
         caller_branch = os.environ.get("AIPASS_CALLER_BRANCH")
@@ -102,7 +105,7 @@ def detect_branch_from_pwd() -> Dict | None:
         return None
 
 
-def _lookup_branch_by_name(branch_name: str) -> Dict | None:
+def _lookup_branch_by_name(branch_name: str) -> Optional[Dict]:
     """
     Look up branch in the registry by name (case-insensitive).
 
@@ -135,7 +138,7 @@ def _lookup_branch_by_name(branch_name: str) -> Dict | None:
         return None
 
 
-def find_branch_root(start_path: Path) -> Path | None:
+def find_branch_root(start_path: Path) -> Optional[Path]:
     """
     Walk up directory tree to find branch root.
 
@@ -165,7 +168,7 @@ def find_branch_root(start_path: Path) -> Path | None:
     return None
 
 
-def get_branch_info_from_registry(branch_path: Path) -> Dict | None:
+def get_branch_info_from_registry(branch_path: Path) -> Optional[Dict]:
     """
     Look up branch information in BRANCH_REGISTRY.json by path.
 
@@ -250,9 +253,9 @@ if __name__ == "__main__":
     console.print("  Walks up directory tree to find branch root")
     console.print()
     console.print("FUNCTIONS PROVIDED:")
-    console.print("  - detect_branch_from_pwd() -> Dict | None")
-    console.print("  - find_branch_root(start_path) -> Path | None")
-    console.print("  - get_branch_info_from_registry(branch_path) -> Dict | None")
+    console.print("  - detect_branch_from_pwd() -> Optional[Dict]")
+    console.print("  - find_branch_root(start_path) -> Optional[Path]")
+    console.print("  - get_branch_info_from_registry(branch_path) -> Optional[Dict]")
     console.print("  - get_branch_display_name(branch_info) -> str")
     console.print("  - get_local_config_path(branch_path) -> Path")
     console.print()

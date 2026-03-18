@@ -36,6 +36,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 # =============================================================================
 # CONSTANTS
@@ -290,6 +292,8 @@ def update_central() -> Dict[str, Any]:
         >>> print(stats["system_totals"]["total_unread"])
         5
     """
+    json_handler.log_operation("update_central", {"target": str(CENTRAL_FILE)})
+
     # Aggregate statistics from all branches
     branch_stats = aggregate_branch_stats()
 

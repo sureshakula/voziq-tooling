@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Dict, Any, Callable, Optional
 
 from aipass.prax import logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def build_error_report(to_branch: str, subject: str, error_msg: str) -> Dict[str, Any]:
@@ -75,6 +76,8 @@ def dispatch_send_error(
     Returns:
         True if error dispatched successfully, False otherwise.
     """
+    json_handler.log_operation("dispatch_send_error", {"to_branch": to_branch, "subject": subject})
+
     try:
         email_data = build_error_report(to_branch, subject, error_msg)
         deliver_fn("@drone", email_data)

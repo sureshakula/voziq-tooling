@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Dict, Any
 
 from aipass.prax import logger
-# logger imported from aipass.prax
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def resolve_sender_info(
@@ -41,6 +41,7 @@ def resolve_sender_info(
     Returns:
         Dict with email_address, display_name, mailbox_path, timestamp_format.
     """
+    json_handler.log_operation("resolve_sender", {"from_branch": from_branch})
     if from_branch:
         email_addr = f"@{from_branch.lstrip('@').lower()}"
         branch_info = get_branch_by_email_fn(email_addr)
@@ -81,13 +82,14 @@ def send_to_broadcast(
     on_delivered_callback,
     log_operation_fn,
     update_central_fn,
-) -> Tuple[bool, int, int, Optional[str]]:
+) -> Tuple[bool, int, int, Any]:
     """
     Execute broadcast send to all branches.
 
     Returns:
-        Tuple of (success, success_count, total_count, error_msg).
-        error_msg is set if the email file could not be loaded.
+        Tuple of (success, success_count, total_count, results_or_error).
+        On failure: 4th element is an error string.
+        On success: 4th element is a list of (branch_name, success, error_msg) tuples.
     """
     email_file = create_email_file_fn("all", subject, message, user_info, reply_to=reply_to, dispatched_to=dispatched_to)
     email_data = load_email_file_fn(email_file)

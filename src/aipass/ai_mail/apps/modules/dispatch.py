@@ -19,6 +19,7 @@ from typing import List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console, error
+from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.dispatch.status import (
     load_dispatch_log,
     check_pid_status,
@@ -81,10 +82,12 @@ def handle_command(command: str, args: List[str]) -> bool:
         return True
 
     if not args:
-        print_help()
+        print_introspection()
         return True
 
     subcommand = args[0]
+
+    json_handler.log_operation("dispatch_command", {"subcommand": subcommand})
 
     if subcommand == "status":
         return _orchestrate_status()

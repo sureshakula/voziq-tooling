@@ -16,9 +16,10 @@ Independent handler - no module dependencies.
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 # Lazy imports
 _append_footer = None
@@ -52,6 +53,7 @@ def create_email_file(to_branch: str, subject: str, message: str, user_info: Dic
     Returns:
         Path to created email file in sent folder
     """
+    json_handler.log_operation("create_email_file", {"to": to_branch, "subject": subject})
     timestamp = datetime.now()
     timestamp_str = timestamp.strftime(user_info.get("timestamp_format", "%Y-%m-%d %H:%M:%S"))
 
@@ -110,7 +112,7 @@ def _trigger_sent_purge(mailbox_path: Path) -> None:
         logger.warning("[create] _trigger_sent_purge() failed: %s", e)
 
 
-def load_email_file(email_file: Path) -> Dict | None:
+def load_email_file(email_file: Path) -> Optional[Dict]:
     """
     Load email data from file.
 
@@ -158,7 +160,7 @@ if __name__ == "__main__":
     c.print()
     c.print("FUNCTIONS PROVIDED:")
     c.print("  - create_email_file(to_branch, subject, message, user_info) -> Path")
-    c.print("  - load_email_file(email_file) -> Dict | None")
+    c.print("  - load_email_file(email_file) -> Optional[Dict]")
     c.print("  - sanitize_subject(subject, max_length) -> str")
     c.print()
     c.print("HANDLER CHARACTERISTICS:")

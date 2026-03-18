@@ -23,6 +23,8 @@ Architecture:
 # =============================================
 from pathlib import Path
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 # =============================================
 # CONSTANTS
@@ -107,6 +109,8 @@ def get_health_info(file_path: Path | str) -> dict:
     Returns:
         Dict with line_count, status, needs_email
     """
+    json_handler.log_operation("get_health_info", {"file_path": str(file_path)})
+
     line_count = count_file_lines(file_path)
 
     return {

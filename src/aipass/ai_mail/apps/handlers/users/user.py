@@ -19,9 +19,10 @@ PHILOSOPHY: Fail hard if detection fails. Fallbacks hide bugs.
 # IMPORTS
 # =============================================
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 # Import branch detection functions
 from .branch_detection import detect_branch_from_pwd
@@ -49,6 +50,8 @@ def get_current_user() -> Dict:
     Raises:
         RuntimeError: If branch detection fails (not called from a branch directory)
     """
+    json_handler.log_operation("get_current_user", {"cwd": str(Path.cwd())})
+
     # Detect branch from PWD
     branch_info = detect_branch_from_pwd()
 
@@ -93,7 +96,7 @@ def get_current_user() -> Dict:
     }
 
 
-def get_user_by_email(email: str) -> Dict | None:
+def get_user_by_email(email: str) -> Optional[Dict]:
     """
     Get user information by email address from BRANCH_REGISTRY.json
 

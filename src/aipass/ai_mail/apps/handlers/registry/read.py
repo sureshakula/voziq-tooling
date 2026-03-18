@@ -22,7 +22,9 @@ Handler Independence:
 
 import json
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
+
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 # Constants
@@ -53,6 +55,8 @@ def get_all_branches() -> List[Dict]:
     Note:
         Returns empty list if registry not found or on error.
     """
+    json_handler.log_operation("get_all_branches", {"registry_path": str(BRANCH_REGISTRY_PATH)})
+
     branches = []
 
     if not BRANCH_REGISTRY_PATH.exists():
@@ -118,7 +122,7 @@ def _derive_email_from_branch_name(branch_name: str) -> str:
     return f"@{email_part}"
 
 
-def get_branch_by_email(email: str) -> Dict | None:
+def get_branch_by_email(email: str) -> Optional[Dict]:
     """
     Get branch information by email address.
 
@@ -170,7 +174,7 @@ if __name__ == "__main__":
     console.print()
     console.print("FUNCTIONS PROVIDED:")
     console.print("  - get_all_branches() -> List[Dict]")
-    console.print("  - get_branch_by_email(email) -> Dict | None")
+    console.print("  - get_branch_by_email(email) -> Optional[Dict]")
     console.print("  - get_branch_email_map() -> Dict[str, str]")
     console.print("  - get_branch_path_map() -> Dict[str, str]")
     console.print()

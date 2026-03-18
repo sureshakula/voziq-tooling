@@ -21,6 +21,7 @@ from typing import Dict, Tuple, List, Optional, Callable
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json_utils.json_handler import load_json, save_json
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def _find_repo_root() -> Path:
@@ -242,6 +243,8 @@ def deliver_email_to_branch(
         Tuple of (success: bool, error_message: str)
         error_message is empty string if successful
     """
+    json_handler.log_operation("deliver_email", {"to": to_branch, "subject": email_data.get("subject", "")})
+
     # Handle path input from DRONE's @ resolution
     if to_branch.startswith('/'):
         branches_list = get_all_branches()

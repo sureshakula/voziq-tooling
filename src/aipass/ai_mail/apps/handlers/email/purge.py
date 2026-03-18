@@ -27,6 +27,7 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 # Purge configuration
 MAX_EMAILS = 10
@@ -275,6 +276,7 @@ def run_purge(mailbox_path: Path) -> Dict[str, Any]:
     Returns:
         Dict with combined results
     """
+    json_handler.log_operation("run_purge", {"mailbox_path": str(mailbox_path)})
     sent_result = purge_sent_folder(mailbox_path)
     deleted_result = purge_deleted_folder(mailbox_path)
 

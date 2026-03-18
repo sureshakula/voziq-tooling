@@ -19,6 +19,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 # Dispatch log location (package-relative)
 _AI_MAIL_DIR = Path(__file__).resolve().parents[3]  # ai_mail/
 DISPATCH_LOG_FILE = _AI_MAIL_DIR / ".ai_mail.local" / "dispatch_log.json"
@@ -71,6 +73,8 @@ def log_dispatch(branch: str, pid: Optional[int], status: str, error_msg: Option
     Returns:
         True if logged successfully
     """
+    json_handler.log_operation("log_dispatch", {"branch": branch, "status": status})
+
     dispatches = load_dispatch_log()
 
     entry: Dict[str, Any] = {

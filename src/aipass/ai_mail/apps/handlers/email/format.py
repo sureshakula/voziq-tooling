@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 def _find_repo_root() -> Path:
     """Walk up from this file to find AIPASS_REGISTRY.json (repo root)."""
@@ -104,6 +106,7 @@ def format_email_header(email_data: Dict) -> str:
     Returns:
         Formatted header string
     """
+    json_handler.log_operation("format_email_header", {"subject": email_data.get("subject", "")})
     sender = format_sender_display(
         email_data.get('from_name', 'Unknown'),
         email_data.get('from', 'unknown')

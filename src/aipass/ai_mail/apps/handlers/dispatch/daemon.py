@@ -32,6 +32,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 def _find_repo_root() -> Path:
@@ -600,6 +601,8 @@ def run_daemon() -> None:
 
     Exits gracefully on SIGTERM/SIGINT or kill switch.
     """
+    json_handler.log_operation("run_daemon", {"pid": os.getpid()})
+
     if not _write_pid_file():
         return
 

@@ -26,6 +26,8 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, Tuple
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 def _find_repo_root() -> Path:
     """Walk up from this file to find AIPASS_REGISTRY.json (repo root)."""
@@ -63,6 +65,8 @@ def parse_error_log_line(log_line: str) -> Optional[Dict]:
         Dict with timestamp, logger_name, module_name, level, message
         None if not an ERROR line or parsing fails
     """
+    json_handler.log_operation("parse_error_log_line", {"log_line_length": len(log_line)})
+
     match = re.match(LOG_PATTERN, log_line.strip())
 
     if not match:

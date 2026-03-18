@@ -16,6 +16,8 @@ Independent handler - no module or display dependencies.
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 def parse_send_args(args: List[str]) -> Dict[str, Any]:
     """
@@ -35,6 +37,7 @@ def parse_send_args(args: List[str]) -> Dict[str, Any]:
             mode: 'direct' | 'interactive' | 'error'
             error: str | None (set when mode=='error')
     """
+    json_handler.log_operation("parse_send_args", {"arg_count": len(args)})
     working_args = list(args)
 
     # Extract --dispatch / --auto-execute

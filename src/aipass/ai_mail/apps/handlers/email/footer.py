@@ -14,6 +14,8 @@ Reminds branches of process steps: Seed audit, memory update, FPLAN close, confi
 Independent handler - no module dependencies.
 """
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 # Standard footer for all outgoing emails
 STANDARD_FOOTER = """
 ---
@@ -47,6 +49,7 @@ def append_footer(message: str) -> str:
     Returns:
         Message with footer appended
     """
+    json_handler.log_operation("append_footer", {"message_length": len(message)})
     return message + get_footer()
 
 

@@ -14,6 +14,8 @@ import json
 from pathlib import Path
 from typing import Dict
 
+from aipass.ai_mail.apps.handlers.json import json_handler
+
 
 def load_registry(registry_file: Path) -> Dict:
     """
@@ -35,6 +37,8 @@ def load_registry(registry_file: Path) -> Dict:
             }
         }
     """
+    json_handler.log_operation("load_registry", {"registry_file": str(registry_file)})
+
     if not registry_file.exists():
         return {
             "last_updated": "",

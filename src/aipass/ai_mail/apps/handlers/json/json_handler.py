@@ -24,4 +24,5 @@ from aipass.ai_mail.apps.handlers.json_utils.json_handler import (  # noqa: F401
     save_json,
     ensure_json_exists,
     get_json_path,
+    log_operation,
 )

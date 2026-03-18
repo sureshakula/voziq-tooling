@@ -31,7 +31,7 @@ from aipass.ai_mail.apps.handlers.registry.update import (
     get_branch_context,
     update_json_memory_health
 )
-from aipass.ai_mail.apps.handlers.json_utils.json_handler import log_operation
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 MODULE_NAME = "branch_ping"
 THRESHOLDS = {"green": (0, 400), "yellow": (401, 550), "red": (551, float('inf'))}
@@ -55,7 +55,7 @@ def handle_ping(verbose: bool = False) -> bool:
         obs_status = {"line_count": obs_count, "status": obs_status_code}
         ping_registry(branch_name, cwd, local_status, obs_status)
 
-        log_operation("ping_executed", {"branch": branch_name, "local_count": local_count, "obs_count": obs_count})
+        json_handler.log_operation("ping_executed", {"branch": branch_name, "local_count": local_count, "obs_count": obs_count})
 
         if verbose:
             console.print(f"Ping successful for {branch_name}")
@@ -170,6 +170,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     # Handle help flag
     if args and args[0] in ['--help', '-h', 'help']:
         print_help()
+        return True
+
+    if not args:
+        print_introspection()
         return True
 
     if command == "ping":

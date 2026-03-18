@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.ai_mail.apps.handlers.json import json_handler
 
 
 
@@ -34,6 +35,7 @@ def load_inbox(inbox_file: Path) -> Dict:
     Raises:
         Exception: If file cannot be read or parsed
     """
+    json_handler.log_operation("load_inbox", {"inbox_file": str(inbox_file)})
     if not inbox_file.exists():
         return {"messages": []}
 
