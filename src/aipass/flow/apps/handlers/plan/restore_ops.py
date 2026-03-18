@@ -25,6 +25,7 @@ from typing import Dict, Any, List
 
 from aipass.prax import logger
 # logger imported from aipass.prax
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # INFRASTRUCTURE
@@ -280,6 +281,7 @@ def restore_plan_impl(
         except ImportError:
             logger.info(f"[{MODULE_NAME}] Trigger module not available, skipping event fire")
 
+        json_handler.log_operation("plan_restored", {"plan_key": plan_key, "location": restored_location, "success": True})
         return {
             "success": True,
             "messages": messages,

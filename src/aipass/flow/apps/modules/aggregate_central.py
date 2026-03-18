@@ -40,6 +40,9 @@ FLOW_ROOT = _PKG_ROOT / "flow"
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console
 
+# JSON handler for operation tracking
+from aipass.flow.apps.handlers.json import json_handler
+
 # Implementation handler
 from aipass.flow.apps.handlers.plan.aggregate_ops import aggregate_central_impl
 
@@ -152,15 +155,25 @@ def handle_command(command: str, args: List[str]) -> bool:
     Returns:
         True if command handled successfully
     """
-    if command == "aggregate":
-        # Check for --heal flag (default is True)
-        heal = True
-        if "--no-heal" in args:
-            heal = False
+    if command != "aggregate":
+        return False
 
-        return aggregate_central(heal=heal)
+    if not args:
+        print_introspection()
+        return True
 
-    return False
+    # Log the operation
+    json_handler.log_operation(
+        "central_aggregated",
+        {"command": command, "args": args}
+    )
+
+    # Check for --heal flag (default is True)
+    heal = True
+    if "--no-heal" in args:
+        heal = False
+
+    return aggregate_central(heal=heal)
 
 
 # =============================================

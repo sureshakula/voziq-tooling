@@ -46,6 +46,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -339,7 +341,18 @@ def push_flow_to_branch_dashboard(branch_path: Path) -> bool:
         section_data = _build_section_data(active_plans, recently_closed, total_plans)
 
         # 4. Write flow section to branch dashboard
-        return _write_dashboard_section(branch_path, "flow", section_data)
+        result = _write_dashboard_section(branch_path, "flow", section_data)
+
+        if result:
+            json_handler.log_operation("branch_dashboard_pushed", {
+                "branch": branch_path.name,
+                "active_plans": len(active_plans),
+                "recently_closed": len(recently_closed),
+                "total_plans": total_plans,
+                "success": True,
+            })
+
+        return result
 
     except Exception:
         return False

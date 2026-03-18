@@ -46,6 +46,7 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
+from aipass.flow.apps.handlers.json import json_handler
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 # =============================================
@@ -199,7 +200,15 @@ def discover_plan_types() -> Dict[str, Dict]:
     # Force a fresh scan (useful after adding new plan types at runtime)
     global _plan_type_cache  # noqa: PLW0603
     _plan_type_cache = None
-    return _get_cache()
+    cache = _get_cache()
+
+    json_handler.log_operation("plan_types_discovered", {
+        "types_found": len(cache),
+        "type_keys": list(cache.keys()),
+        "success": True,
+    })
+
+    return cache
 
 
 def get_plan_type(type_key: str) -> Dict:

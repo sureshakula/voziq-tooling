@@ -15,6 +15,8 @@ User interaction and confirmation prompts for plan operations.
 import sys
 from pathlib import Path
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # Infrastructure
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
@@ -43,6 +45,7 @@ def confirm_plan_deletion(plan_key: str) -> bool:
     """
     # Auto-confirm in non-interactive environments (autonomous workflows, CI/CD)
     if not sys.stdin.isatty():
+        json_handler.log_operation("plan_deletion_confirmed", {"plan_key": plan_key, "method": "auto_non_interactive"})
         return True
 
     try:

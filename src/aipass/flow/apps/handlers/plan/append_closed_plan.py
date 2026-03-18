@@ -21,6 +21,7 @@ _PKG_ROOT = Path(__file__).resolve().parents[4]
 
 # External: Prax logger
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.flow.apps.handlers.json import json_handler
 
 MODULE_NAME = "append_closed_plan"
 CLOSED_PLANS_FILE = "CLOSED_PLANS.local.json"
@@ -77,6 +78,7 @@ def append_to_closed_plans(plan_key: str, plan_info: dict, plan_location: Path) 
             f.write('\n')
 
         logger.info(f"[{MODULE_NAME}] Appended {plan_id} to {closed_plans_path}")
+        json_handler.log_operation("closed_plan_appended", {"plan_id": plan_id, "path": str(closed_plans_path), "success": True})
         return True
 
     except Exception as e:

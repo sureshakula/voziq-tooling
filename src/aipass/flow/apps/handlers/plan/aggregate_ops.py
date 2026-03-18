@@ -23,6 +23,7 @@ from typing import Dict, Any, List, Tuple, Optional
 
 from aipass.prax import logger
 # logger imported from aipass.prax
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # CONFIGURATION
@@ -419,6 +420,7 @@ def aggregate_central_impl(heal: bool = True,
             except ImportError:
                 pass
 
+            json_handler.log_operation("central_aggregated", {"active_count": len(all_active), "closed_count": len(recently_closed), "success": True})
             return True
         else:
             logger.error(f"[{MODULE_NAME}] Failed to save central file")

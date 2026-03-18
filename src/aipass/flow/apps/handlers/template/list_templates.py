@@ -26,6 +26,8 @@ Usage:
 
 from pathlib import Path
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
@@ -71,6 +73,13 @@ def list_templates() -> list[str]:
                 template_names.add(template_file.stem)
 
         sorted_templates = sorted(template_names)
+
+        json_handler.log_operation("templates_listed", {
+            "count": len(sorted_templates),
+            "templates": sorted_templates,
+            "success": True,
+        })
+
         return sorted_templates
 
     except Exception:

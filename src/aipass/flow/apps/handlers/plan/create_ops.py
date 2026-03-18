@@ -25,6 +25,7 @@ from typing import Callable, Tuple, List, Dict, Any
 
 from aipass.prax import logger
 # logger imported from aipass.prax
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # INFRASTRUCTURE
@@ -247,6 +248,7 @@ def create_plan_impl(
         except ImportError:
             pass  # Trigger not available, silent fallback
 
+        json_handler.log_operation("plan_created", {"plan_number": NEXT_NUM, "location": RELATIVE_LOCATION, "template": template_type, "success": True})
         return True, NEXT_NUM, RELATIVE_LOCATION, template_type, "", messages
 
     except Exception as e:

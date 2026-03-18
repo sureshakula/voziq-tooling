@@ -31,6 +31,9 @@ FLOW_ROOT = _PKG_ROOT / "flow"
 from aipass.cli.apps.modules import console, error, warning
 from aipass.prax.apps.modules.logger import system_logger as logger
 
+# JSON handler for operation tracking
+from aipass.flow.apps.handlers.json import json_handler
+
 MODULE_NAME = "post_close_runner"
 
 LOCK_FILE = FLOW_ROOT / ".post_close_runner.lock"
@@ -57,9 +60,19 @@ def handle_command(command: str, args: list) -> bool:
     if command != "post_close":
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     if args and args[0] in ("--help", "-h"):
         print_help()
         return True
+
+    # Log the operation
+    json_handler.log_operation(
+        "post_close_processed",
+        {"command": command, "args": args}
+    )
 
     # Run the post-close processing directly (foreground)
     if not _acquire_lock():

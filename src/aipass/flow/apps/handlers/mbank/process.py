@@ -28,6 +28,8 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # AI summarization removed — OpenRouter API no longer needed here
 # from aipass.api.apps.modules.openrouter_client import get_response
 
@@ -772,6 +774,14 @@ def process_closed_plans() -> Dict[str, Any]:
                 results.append({"plan": str(plan.get("path", "unknown")), "status": "error", "error": str(e)})
 
         cleanup_result = cleanup_temp_files()
+
+        json_handler.log_operation("closed_plans_processed", {
+            "processed": processed_count,
+            "errors": error_count,
+            "cleanup_deleted": cleanup_result.get("files_deleted", 0),
+            "success": True,
+        })
+
         return {"success": True, "processed": processed_count, "errors": error_count,
                 "results": results, "cleanup": cleanup_result}
 

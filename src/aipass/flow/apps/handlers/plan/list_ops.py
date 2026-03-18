@@ -19,6 +19,7 @@ Usage:
 from typing import Dict, Any, Tuple
 
 from aipass.prax import logger
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # CONFIGURATION
@@ -127,6 +128,7 @@ def list_plans_impl(
 
         # STEP 5: Log success
         logger.info(f"[{MODULE_NAME}] Listed plans (filter: {filter_type})")
+        json_handler.log_operation("plans_listed", {"filter_type": filter_type, "count": len(merged_plans), "success": True})
 
         return {
             "success": True,

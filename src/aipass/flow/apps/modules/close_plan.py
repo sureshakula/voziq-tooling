@@ -275,6 +275,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != "close":
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     # Import parser here (after command check)
     from aipass.flow.apps.handlers.plan.command_parser import parse_close_command_args
 

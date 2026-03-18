@@ -173,6 +173,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != "registry":
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     # Get subcommand
     subcommand = args[0] if args else "status"
 

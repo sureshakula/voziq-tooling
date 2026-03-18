@@ -30,6 +30,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
@@ -58,10 +60,19 @@ def get_registry_statistics(registry: Dict[str, Any]) -> Dict[str, Any]:
     closed_count = sum(1 for plan in plans.values() if plan.get("status") == "closed")
     other_count = len(plans) - open_count - closed_count
 
-    return {
+    result = {
         "total_plans": len(plans),
         "open_plans": open_count,
         "closed_plans": closed_count,
         "other_plans": other_count,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+    json_handler.log_operation("registry_statistics_calculated", {
+        "total_plans": len(plans),
+        "open_plans": open_count,
+        "closed_plans": closed_count,
+        "success": True,
+    })
+
+    return result

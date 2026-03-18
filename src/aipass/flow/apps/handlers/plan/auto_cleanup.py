@@ -17,6 +17,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # Infrastructure
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
@@ -57,4 +59,6 @@ def auto_close_orphaned_plans(registry: Dict[str, Any]) -> Tuple[Dict[str, Any],
                 info["closed_reason"] = "auto_closed_missing_file"
                 auto_closed_count += 1
 
+    if auto_closed_count > 0:
+        json_handler.log_operation("orphaned_plans_auto_closed", {"count": auto_closed_count, "success": True})
     return registry, auto_closed_count

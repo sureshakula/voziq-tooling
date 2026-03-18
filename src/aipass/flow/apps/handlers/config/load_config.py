@@ -29,6 +29,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -101,6 +103,12 @@ def load_config(module_name: str, default_settings: Dict[str, Any] | None = None
 
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+        json_handler.log_operation("config_loaded", {
+            "module": module_name,
+            "config_file": config_file.name,
+            "success": True,
+        })
+        return data
     except Exception:
         return {"config": default_settings or {"enabled": True}}

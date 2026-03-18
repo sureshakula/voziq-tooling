@@ -20,6 +20,8 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 def _get_caller_cwd() -> Path:
     """Return the caller's working directory.
@@ -67,4 +69,5 @@ def resolve_plan_location(
     if not target_dir.exists():
         return False, caller_cwd, f"Directory {target_dir} does not exist"
 
+    json_handler.log_operation("location_resolved", {"input": location, "resolved": str(target_dir), "success": True})
     return True, target_dir, ""

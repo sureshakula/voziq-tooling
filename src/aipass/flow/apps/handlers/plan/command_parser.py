@@ -14,6 +14,8 @@ Parses command-line arguments for plan operations.
 
 from typing import List, Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 def parse_create_plan_args(args: List[str]) -> Tuple[str | None, str, str]:
     """
@@ -60,6 +62,7 @@ def parse_create_plan_args(args: List[str]) -> Tuple[str | None, str, str]:
     }
     plan_type_key = _TYPE_MAP.get(raw_type.lower(), raw_type)
 
+    json_handler.log_operation("create_args_parsed", {"location": location, "subject": subject, "plan_type_key": plan_type_key})
     return location, subject, plan_type_key
 
 

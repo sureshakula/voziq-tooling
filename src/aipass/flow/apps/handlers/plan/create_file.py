@@ -15,6 +15,8 @@ Creates plan files with validation and error handling.
 from pathlib import Path
 from typing import Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 def create_plan_file(
     plan_file: Path,
@@ -56,6 +58,7 @@ def create_plan_file(
     try:
         with open(plan_file, 'w', encoding='utf-8') as f:
             f.write(content)
+        json_handler.log_operation("plan_file_created", {"file_path": str(plan_file), "success": True})
         return True, ""
     except Exception as e:
         error_msg = f"Failed to create {plan_file}: {e}"

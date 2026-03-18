@@ -28,6 +28,8 @@ Usage:
 from pathlib import Path
 from datetime import datetime
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
@@ -159,6 +161,12 @@ def get_template(
             plan_number=plan_number,
             tag="",
         )
+
+        json_handler.log_operation("template_loaded", {
+            "template": template_file.stem,
+            "plan_number": plan_number,
+            "success": True,
+        })
 
         return formatted_content
 

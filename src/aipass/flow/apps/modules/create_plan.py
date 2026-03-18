@@ -244,6 +244,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != "create":
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     # Log the operation
     json_handler.log_operation(
         "plan_created",

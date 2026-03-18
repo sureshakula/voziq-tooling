@@ -24,6 +24,7 @@ _PKG_ROOT = Path(__file__).resolve().parents[4]
 
 # Internal: Registry handler
 from aipass.flow.apps.handlers.registry.load_registry import load_registry
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # HANDLER FUNCTION
@@ -52,4 +53,5 @@ def get_closed_plans() -> List[Tuple[str, Dict[str, Any]]]:
         if plan_info.get("status") == "closed"
     ]
 
+    json_handler.log_operation("closed_plans_retrieved", {"count": len(closed_plans)})
     return closed_plans

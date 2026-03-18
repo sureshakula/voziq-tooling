@@ -29,6 +29,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -68,6 +70,11 @@ def save_registry(registry: Dict[str, Any], registry_file: str | None = None) ->
         registry["last_updated"] = datetime.now(timezone.utc).isoformat()
         with open(target, 'w', encoding='utf-8') as f:
             json.dump(registry, f, indent=2, ensure_ascii=False)
+        json_handler.log_operation("registry_saved", {
+            "target_file": target.name,
+            "plan_count": len(registry.get("plans", {})),
+            "success": True,
+        })
         return True
     except Exception:
         return False

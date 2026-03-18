@@ -14,6 +14,8 @@ Add and remove plan entries from registry.
 
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 def add_plan_to_registry(
     registry: Dict[str, Any],
@@ -59,6 +61,7 @@ def add_plan_to_registry(
     # Increment counter
     registry["next_number"] = plan_num + 1
 
+    json_handler.log_operation("plan_added_to_registry", {"plan_key": plan_key, "success": True})
     return registry
 
 

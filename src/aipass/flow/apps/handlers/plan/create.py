@@ -38,6 +38,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
 
@@ -80,6 +81,7 @@ def write_plan_file(plan_file: Path, content: str) -> Tuple[bool, str]:
         with open(plan_file, 'w', encoding='utf-8') as f:
             f.write(content)
 
+        json_handler.log_operation("plan_file_written", {"file_path": str(plan_file), "success": True})
         return True, ""
 
     except Exception as e:

@@ -15,6 +15,8 @@ File system operations for plan files (deletion, etc.).
 from pathlib import Path
 from typing import Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 def delete_plan_file(plan_file: Path) -> Tuple[bool, str]:
     """
@@ -40,6 +42,7 @@ def delete_plan_file(plan_file: Path) -> Tuple[bool, str]:
     """
     if plan_file.exists():
         plan_file.unlink()
+        json_handler.log_operation("plan_file_deleted", {"file_path": str(plan_file), "success": True})
         return True, f"[OK] Deleted file: {plan_file}"
     else:
         return False, f"[WARNING] File not found: {plan_file}"

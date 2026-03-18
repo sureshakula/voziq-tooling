@@ -38,6 +38,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -349,5 +351,13 @@ def write_plan_outputs(summaries: Dict[str, Any], hide_empty: bool = True) -> bo
     # Write global and local files
     global_success = _write_central_summary_json(active_entries, closed_entries)
     local_success = _write_branch_local_files(branch_map)
+
+    if global_success and local_success:
+        json_handler.log_operation("plan_outputs_written", {
+            "active_plans": len(active_entries),
+            "closed_plans": len(closed_entries),
+            "branches_written": len(branch_map),
+            "success": True,
+        })
 
     return global_success and local_success

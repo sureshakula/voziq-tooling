@@ -16,6 +16,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 def build_plan_registry_entry(
     plan_num: int,
@@ -63,7 +65,7 @@ def build_plan_registry_entry(
         >>> entry["status"]
         "open"
     """
-    return {
+    entry = {
         "location": str(target_dir),
         "relative_path": relative_location,
         "created": datetime.now(timezone.utc).isoformat(),
@@ -72,3 +74,5 @@ def build_plan_registry_entry(
         "file_path": str(plan_file),
         "template_type": template_type
     }
+    json_handler.log_operation("registry_entry_built", {"plan_num": plan_num, "subject": subject, "location": relative_location})
+    return entry

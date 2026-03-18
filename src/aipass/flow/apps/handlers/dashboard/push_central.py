@@ -31,6 +31,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -250,6 +252,13 @@ def push_to_plans_central() -> bool:
         # Call aggregate_central to rebuild top-level arrays with validation
         # This ensures active_plans is built from all branches and validates files exist
         aggregate_central(heal=True)
+
+        json_handler.log_operation("plans_central_pushed", {
+            "active_plans": len(active_plans),
+            "recently_closed": len(recently_closed),
+            "branches_reporting": central_data["global_statistics"].get("branches_reporting", 0),
+            "success": True,
+        })
 
         return True
 

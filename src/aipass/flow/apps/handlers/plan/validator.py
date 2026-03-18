@@ -16,6 +16,8 @@ Plan-type-agnostic: handles FPLAN-, DPLAN-, and future prefixes.
 import re
 from typing import Dict, Any, Tuple
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # Matches any PREFIX- at the start (e.g. FPLAN-, DPLAN-, XPLAN-)
 _PREFIX_RE = re.compile(r'^([A-Z]+PLAN)-', re.IGNORECASE)
 
@@ -67,7 +69,9 @@ def normalize_plan_number(plan_num: str) -> str:
             plan_num = plan_num[5:]
         elif upper.startswith("PLAN"):
             plan_num = plan_num[4:]
-    return f"{int(plan_num):04d}"
+    normalized = f"{int(plan_num):04d}"
+    json_handler.log_operation("plan_number_normalized", {"input": plan_num, "output": normalized})
+    return normalized
 
 
 def validate_plan_exists(plan_key: str, registry: Dict[str, Any]) -> Tuple[bool, str | None]:

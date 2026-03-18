@@ -16,6 +16,8 @@ Returns formatted strings - caller handles actual output.
 from pathlib import Path
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 
 # CREATE PLAN DISPLAY FUNCTIONS
 
@@ -47,6 +49,7 @@ def display_plan_created(
         f"[FLOW] Template: {template_type}",
         f"[FLOW] Subject: {subject}"
     ]
+    json_handler.log_operation("plan_displayed", {"plan_id": plan_id, "location": relative_location, "template": template_type})
     return "\n".join(lines)
 
 

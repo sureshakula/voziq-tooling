@@ -22,10 +22,11 @@ import sys
 import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Tuple
+from typing import Callable, Dict, Any, List, Tuple
 
 from aipass.prax import logger
 # logger imported from aipass.prax
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # INFRASTRUCTURE
@@ -357,6 +358,7 @@ def close_plan_impl(plan_num: Any = None, confirm: bool = False,
         except Exception as e:
             logger.warning(f"[{MODULE_NAME}] Trigger fire failed (non-critical): {e}")
 
+        json_handler.log_operation("plan_closed", {"plan_key": plan_key, "success": True})
         return {
             "success": True,
             "messages": messages,
@@ -488,6 +490,7 @@ def close_all_plans_impl(confirm: bool = False,
         })
 
         logger.info(f"[{MODULE_NAME}] close_all completed: {success_count} success, {failure_count} failures")
+        json_handler.log_operation("all_plans_closed", {"success_count": success_count, "failure_count": failure_count, "total": len(open_plans)})
         return {
             "success": success_count > 0,
             "messages": messages,

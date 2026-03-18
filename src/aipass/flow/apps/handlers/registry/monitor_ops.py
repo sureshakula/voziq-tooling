@@ -24,12 +24,14 @@ import re
 import time
 import threading
 from pathlib import Path
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Callable, Dict, Any, List, Tuple, Optional
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from aipass.prax import logger
 # logger imported from aipass.prax
+
+from aipass.flow.apps.handlers.json import json_handler
 
 # =============================================
 # CONFIGURATION
@@ -203,7 +205,7 @@ def _fire_event(event_name: str, **kwargs) -> bool:
 # SCAN AND HEAL IMPLEMENTATION
 # =============================================
 
-def scan_plan_files_impl(ecosystem_root: Path, load_registry=None) -> Dict[str, Any]:
+def scan_plan_files_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[str, Any]] = lambda: {"plans": {}}) -> Dict[str, Any]:
     """
     Scan ecosystem for PLAN files and fire events to heal registry
 
@@ -336,6 +338,15 @@ def scan_plan_files_impl(ecosystem_root: Path, load_registry=None) -> Dict[str, 
 
     logger.info(f"[{MODULE_NAME}] Scan complete - {total_plans} PLAN files in registry")
 
+    json_handler.log_operation("plan_files_scanned", {
+        "total_plans": total_plans,
+        "added": len(added),
+        "updated": len(updated),
+        "removed": len(removed),
+        "renumbered": len(renumbered),
+        "success": True,
+    })
+
     return {
         "total_plans": total_plans,
         "added": added,
@@ -399,7 +410,7 @@ def stop_monitoring_impl() -> Dict[str, Any]:
             return {"success": False, "message": "Monitor is not running", "status": "not_running"}
 
 
-def get_status_impl(ecosystem_root: Path, load_registry=None) -> Dict[str, Any]:
+def get_status_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[str, Any]] = lambda: {"plans": {}}) -> Dict[str, Any]:
     """Get monitoring status
 
     Args:

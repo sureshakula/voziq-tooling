@@ -26,6 +26,8 @@ import json
 from pathlib import Path
 from typing import Dict, Any
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -65,6 +67,12 @@ def load_registry(registry_file: str | None = None) -> Dict[str, Any]:
 
     try:
         with open(target, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+        json_handler.log_operation("registry_loaded", {
+            "target_file": target.name,
+            "plan_count": len(data.get("plans", {})),
+            "success": True,
+        })
+        return data
     except Exception:
         return {"plans": {}, "next_number": 1}

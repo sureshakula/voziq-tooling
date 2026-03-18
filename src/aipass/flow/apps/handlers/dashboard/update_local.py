@@ -73,6 +73,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
+from aipass.flow.apps.handlers.json import json_handler
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -285,4 +287,13 @@ def update_dashboard_local() -> bool:
     dashboard = _build_dashboard_data(active, closed, statistics, existing)
 
     # Write dashboard
-    return _write_dashboard(dashboard)
+    result = _write_dashboard(dashboard)
+
+    if result:
+        json_handler.log_operation("dashboard_local_updated", {
+            "active_count": statistics["active_count"],
+            "total_closed": statistics["total_closed"],
+            "success": True,
+        })
+
+    return result
