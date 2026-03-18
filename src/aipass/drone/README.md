@@ -97,6 +97,7 @@ drone/
 │   │   ├── discovery.py   # Module and command discovery
 │   │   ├── module_registry.py  # Internal module routing
 │   │   ├── commands.py    # Custom command shortcut orchestrator
+│   │   ├── git_module.py  # Git workflow (PR, status, sync, lock)
 │   │   └── scan.py        # Branch command scanning
 │   └── handlers/          # Implementation
 │       ├── executor.py    # Safe subprocess execution
