@@ -1,9 +1,0 @@
-{
-  "service": "memory_bank",
-  "last_updated": "2026-03-17T18:19:25.268718",
-  "stats": {
-    "total_vectors": 0,
-    "total_archives": 0,
-    "last_rollover": ""
-  }
-}
