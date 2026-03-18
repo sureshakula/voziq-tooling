@@ -1,0 +1,45 @@
+{
+  "commands": {
+    "checklist": {
+      "name": "checklist",
+      "target": "@seedgo",
+      "command": "checklist",
+      "args": [],
+      "description": "Per-File Standards Checklist Module",
+      "created": "2026-03-17",
+      "source_branch": "seedgo"
+    },
+    "diagnostics_audit": {
+      "name": "diagnostics_audit",
+      "target": "@seedgo",
+      "command": "diagnostics_audit",
+      "args": [],
+      "description": "System-wide Type Error Diagnostics",
+      "created": "2026-03-17",
+      "source_branch": "seedgo"
+    },
+    "standards_audit": {
+      "name": "standards_audit",
+      "target": "@seedgo",
+      "command": "standards_audit",
+      "args": [],
+      "description": "Standards Audit Module",
+      "created": "2026-03-17",
+      "source_branch": "seedgo"
+    },
+    "standards_query": {
+      "name": "standards_query",
+      "target": "@seedgo",
+      "command": "standards_query",
+      "args": [],
+      "description": "Standards Query Module",
+      "created": "2026-03-17",
+      "source_branch": "seedgo"
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-03-17",
+    "command_count": 4
+  }
+}
