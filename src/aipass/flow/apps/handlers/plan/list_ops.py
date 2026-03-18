@@ -16,7 +16,7 @@ Usage:
     from aipass.flow.apps.handlers.plan.list_ops import list_plans_impl
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 from aipass.prax import logger
 
@@ -27,20 +27,29 @@ from aipass.prax import logger
 MODULE_NAME = "list_plans"
 
 
-def _get_all_registry_files() -> list[str]:
-    """Return per-type registry filenames via plan-type discovery."""
+def _get_all_registry_info() -> Tuple[list[str], Dict[str, str]]:
+    """Return per-type registry filenames and a registry_file -> prefix map.
+
+    Returns:
+        (registry_files, prefix_map) where prefix_map maps e.g.
+        "dplan_registry.json" -> "DPLAN".  Empty list means caller
+        should fall back to the default registry.
+    """
     try:
         from aipass.flow.apps.handlers.template.plan_type_loader import discover_plan_types  # type: ignore[import-not-found]
         files: list[str] = []
+        prefix_map: Dict[str, str] = {}
         for _key, config in discover_plan_types().items():
             rf = config.get("registry_file")
-            if rf and rf not in files:
-                files.append(rf)
+            if rf:
+                prefix_map[rf] = config.get("prefix", "FPLAN")
+                if rf not in files:
+                    files.append(rf)
         if files:
-            return files
+            return files, prefix_map
     except Exception:
         pass
-    return []  # empty means caller should fall back to default
+    return [], {}  # empty means caller should fall back to default
 
 
 # =============================================
@@ -72,14 +81,16 @@ def list_plans_impl(
     try:
         # STEP 1: Load ALL per-type registries and merge plans
         merged_plans: Dict[str, Any] = {}
-        reg_files = _get_all_registry_files()
+        reg_files, reg_prefix_map = _get_all_registry_info()
 
         if reg_files:
             for reg_file in reg_files:
                 try:
                     registry = load_registry(registry_file=reg_file)
+                    source_prefix = reg_prefix_map.get(reg_file, "FPLAN")
                     for plan_num, plan_info in registry.get("plans", {}).items():
-                        # Prefix the key to avoid collisions across registries
+                        # Tag each plan with its source prefix for display
+                        plan_info["_source_prefix"] = source_prefix
                         merged_plans[plan_num] = plan_info
                 except Exception:
                     continue

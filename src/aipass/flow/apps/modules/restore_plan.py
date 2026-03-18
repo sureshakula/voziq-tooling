@@ -226,13 +226,15 @@ def handle_command(command: str, args: List[str]) -> bool:
     # 2. VALIDATE: Check for parsing errors
     if error:
         console.print(format_restore_usage_error())
-        return False
+        return True  # Command was handled (error already displayed)
 
     # 3. EXECUTE: Run workflow orchestrator
-    success = restore_plan(plan_num=plan_num)
+    restore_plan(plan_num=plan_num)
 
-    # 4. RETURN: Result (restore_plan already handles all output)
-    return success
+    # 4. RETURN: True = command was handled (even if the operation failed,
+    #    the error has already been displayed -- returning False would cause
+    #    flow.py to print a spurious "Unknown command" message)
+    return True
 
 
 # =============================================

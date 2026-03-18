@@ -275,11 +275,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     )
     console.print(result_msg)
 
-    # Return boolean result
-    if success:
-        return True
-    else:
-        return False
+    # Command was handled (even if the operation failed, the error has
+    # already been displayed -- returning False would cause flow.py to
+    # print a spurious "Unknown command" message)
+    return True
 
 
 # =============================================

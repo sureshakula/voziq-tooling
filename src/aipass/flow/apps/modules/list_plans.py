@@ -30,7 +30,7 @@ Filters:
 
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py -> modules/ -> apps/ -> flow/ -> aipass/
@@ -51,7 +51,6 @@ from aipass.flow.apps.handlers.registry.statistics import get_registry_statistic
 
 # Plan display handler
 from aipass.flow.apps.handlers.plan.display import (
-    format_plan_info,
     format_plans_list,
     format_statistics_summary
 )
@@ -208,10 +207,12 @@ def handle_command(command: str, args: List[str]) -> bool:
             console.print("[dim]Valid filters: open, closed, all[/dim]")
 
     # STEP 2: Execute workflow
-    success = list_plans(filter_type)
+    list_plans(filter_type)
 
-    # STEP 3: Return result
-    return success
+    # STEP 3: Command was handled (even if the operation failed, the error
+    # has already been displayed -- returning False would cause flow.py to
+    # print a spurious "Unknown command" message)
+    return True
 
 
 # =============================================

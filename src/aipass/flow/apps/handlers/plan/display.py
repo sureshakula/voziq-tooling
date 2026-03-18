@@ -300,12 +300,17 @@ def format_plan_info(plan_key: str, plan_info: Dict[str, Any], prefix: str = "FP
     Args:
         plan_key: Plan number (e.g., "0001")
         plan_info: Plan metadata dictionary
-        prefix: Plan prefix (e.g. "FPLAN", "DPLAN")
+        prefix: Plan prefix (e.g. "FPLAN", "DPLAN").
+            Overridden by ``_source_prefix`` in *plan_info* when present
+            (set by list_ops when merging multi-registry plans).
 
     Returns:
         Formatted string with plan details
     """
     from datetime import datetime
+
+    # Use source prefix if tagged by list_ops, otherwise fall back to arg
+    display_prefix = plan_info.get("_source_prefix", prefix)
 
     subject = plan_info.get("subject", "No subject")
     location = plan_info.get("relative_path", "unknown")
@@ -320,7 +325,7 @@ def format_plan_info(plan_key: str, plan_info: Dict[str, Any], prefix: str = "FP
         except (ValueError, AttributeError):
             pass  # Keep original value if parsing fails
 
-    return f"  {prefix}-{plan_key}  [{status:>6}]  {location:<30}  {subject:<40}  {created}"
+    return f"  {display_prefix}-{plan_key}  [{status:>6}]  {location:<30}  {subject:<40}  {created}"
 
 
 def format_plans_list(

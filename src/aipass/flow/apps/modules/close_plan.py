@@ -290,13 +290,15 @@ def handle_command(command: str, args: List[str]) -> bool:
     # 2. VALIDATE: Check for parsing errors
     if error:
         console.print(format_delete_usage_error())
-        return False
+        return True  # Command was handled (error already displayed)
 
     # 3. EXECUTE: Run workflow orchestrator
-    success = close_plan(plan_num=plan_num, confirm=confirm, all_plans=all_plans)
+    close_plan(plan_num=plan_num, confirm=confirm, all_plans=all_plans)
 
-    # 4. RETURN: Result (close_plan already handles all output)
-    return success
+    # 4. RETURN: True = command was handled (even if the operation failed,
+    #    the error has already been displayed -- returning False would cause
+    #    flow.py to print a spurious "Unknown command" message)
+    return True
 
 
 # =============================================
