@@ -108,25 +108,21 @@ def print_help():
 
     console.print("[yellow]Commands:[/yellow]")
     console.print("  [cyan]monitor[/cyan]     Mission Control - unified real-time monitoring")
-    console.print("  [cyan]init[/cyan]        Initialize PRAX logging system")
     console.print("  [cyan]status[/cyan]      Show PRAX system status")
-    console.print("  [cyan]run[/cyan]         Start continuous logging mode")
-    console.print("  [cyan]shutdown[/cyan]    Shutdown PRAX logging system")
-    console.print("  [cyan]discover[/cyan]    Discover Python modules in ecosystem")
-    console.print("  [cyan]terminal[/cyan]    Enable/disable terminal output")
+    console.print("  [cyan]log-audit[/cyan]   Audit log file sizes and health")
+    console.print("  [cyan]dashboard[/cyan]   System dashboard")
     console.print()
 
     console.print("[yellow]Flags:[/yellow]")
-    console.print("  [cyan]--help, -h[/cyan]     Show help information")
-    console.print("  [cyan]--version, -V[/cyan]  Show version")
-    console.print("  [cyan]--verbose, -v[/cyan]  Verbose output")
+    console.print("  [cyan]--help[/cyan]       Show help information")
+    console.print("  [cyan]--version[/cyan]    Show version")
     console.print()
 
     console.print("[yellow]Examples:[/yellow]")
-    console.print("  $ drone @prax monitor")
     console.print("  $ drone @prax monitor run")
     console.print("  $ drone @prax status")
-    console.print("  $ drone @prax terminal enable")
+    console.print("  $ drone @prax log-audit audit")
+    console.print("  $ drone @prax dashboard")
     console.print()
 
 
@@ -169,18 +165,14 @@ def main():
         epilog="""
 Available Commands:
   monitor     Mission Control - unified real-time monitoring
-  init        Initialize PRAX logging system
   status      Show PRAX system status
-  run         Start continuous logging mode
-  shutdown    Shutdown PRAX logging system
-  discover    Discover Python modules in ecosystem
-  terminal    Enable/disable terminal output (requires: enable|disable)
+  log-audit   Audit log file sizes and health
+  dashboard   System dashboard
 
 Examples:
-  drone @prax monitor
-  drone @prax init
+  drone @prax monitor run
   drone @prax status
-  drone @prax terminal enable
+  drone @prax dashboard
         """
     )
 
@@ -197,7 +189,6 @@ Examples:
     parser.add_argument('--help', '-h', action='store_true', dest='show_help',
                        help='Show help information')
     parser.add_argument('--version', '-V', action='version', version='PRAX v2.0.0')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
 
     parsed_args, remaining = parser.parse_known_args()
 
