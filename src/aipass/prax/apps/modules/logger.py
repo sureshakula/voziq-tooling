@@ -293,4 +293,7 @@ def handle_command(_command: str, args: list) -> bool:
     if not args:
         print_introspection()
         return True
+    if args[0] in ('--help', '-h', 'help'):
+        print_introspection()  # Logger has no user commands — introspection IS the help
+        return True
     return False

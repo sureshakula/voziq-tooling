@@ -45,10 +45,14 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'status':
         return False
 
-    json_handler.log_operation("status_checked", {"subcommand": args[0] if args else "default"})
+    if not args:
+        print_introspection()
+        return True
+
+    json_handler.log_operation("status_checked", {"subcommand": args[0]})
 
     # --- sub-command routing ------------------------------------------------
-    if args and args[0] in ("--help", "help"):
+    if args[0] in ("--help", "-h", "help"):
         print_help()
         return True
 
