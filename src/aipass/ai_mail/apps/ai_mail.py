@@ -56,15 +56,16 @@ def print_help():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 COMMANDS:
+  dispatch  - Send dispatch email + wake target (one step)
+  email     - Send email to a branch
+  send      - Send email (alias for email)
   inbox     - List emails (new + opened)
   view      - View email content (marks as opened)
   reply     - Reply to email (closes + archives)
   close     - Close email(s) without reply (archives)
-  send      - Send email to a branch
   sent      - View sent messages
   contacts  - Manage contacts
   ping      - Memory health check
-  dispatch  - Dispatch status and log
 
 EMAIL LIFECYCLE (v2):
   new → opened → closed
@@ -77,6 +78,14 @@ USAGE:
   drone @ai_mail --help
 
 EXAMPLES:
+  # Dispatch (send + wake in one command)
+  drone @ai_mail dispatch @branch "Subject" "Body"
+  drone @ai_mail dispatch @branch "Subject" "Body" --fresh
+
+  # Send mail (no wake)
+  drone @ai_mail email @seed "Subject" "Msg"  # Send to branch
+  drone @ai_mail email @all "Subject" "Msg"   # Broadcast to all
+
   # Check mail
   drone @ai_mail inbox                        # List all emails
   drone @ai_mail view abc123                  # View email (marks as opened)
@@ -86,10 +95,6 @@ EXAMPLES:
   drone @ai_mail close abc123                 # Close single email
   drone @ai_mail close abc123 def456 ghi789   # Close multiple emails
   drone @ai_mail close all                    # Close ALL emails
-
-  # Send mail
-  drone @ai_mail send @seed "Subject" "Msg"   # Send to branch
-  drone @ai_mail send @all "Subject" "Msg"    # Broadcast to all
         """
     )
     console.print(parser.format_help())
@@ -118,7 +123,7 @@ def print_introspection():
         console.print(f"  [cyan]•[/cyan] {module_name}")
 
     console.print()
-    console.print("[dim]Run 'python3 ai_mail.py --help' for usage information[/dim]")
+    console.print("[dim]Run 'drone @ai_mail --help' for usage information[/dim]")
     console.print()
 
 

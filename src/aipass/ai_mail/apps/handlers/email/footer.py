@@ -23,7 +23,7 @@ STANDARD_FOOTER = """
 □ SEEDGO CHECK → drone @seedgo audit @branch (80%+)
 □ UPDATE MEMORIES → Your .trinity/local.json records this work
 □ CLOSE FPLAN → drone @flow close <plan_id>
-□ EMAIL SENDER → drone @ai_mail send @<sender> "Subject" "Summary"
+□ EMAIL SENDER → drone @ai_mail email @<sender> "Subject" "Summary"
 
 Memories = Presence. No update = No learning.
 ---"""

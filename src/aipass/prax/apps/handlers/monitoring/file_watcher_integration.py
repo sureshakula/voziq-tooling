@@ -37,9 +37,9 @@ from pathlib import Path
 from typing import List, Tuple, Optional, Any
 from datetime import datetime
 
-from aipass.prax import logger
+from aipass.prax.apps.modules.logger import get_direct_logger
 
-# logger imported from aipass.prax
+logger = get_direct_logger()
 
 # =============================================================================
 # IMPORTS - File watcher and event queue

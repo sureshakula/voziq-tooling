@@ -59,14 +59,16 @@ def _run_all_files(checker, name: str, files: List[Dict], bypass_rules: list) ->
         if checks and not any(w in c.get("message", "").lower() for c in checks
                               for w in ("skipped", "not applicable")):
             scores.append(score)
-        if not r.get("passed", True):
-            failed = [c for c in checks if not c.get("passed", False)]
-            if failed:
-                msgs = [c.get("message", "Unknown") for c in failed]
-                v = {"file": fi["name"], "path": fi["file"], "score": score, "issues": msgs}
-                if name == "modules":
-                    v["message"] = "; ".join(msgs)
-                violations.append(v)
+        # Collect violations from ANY file with failing checks, regardless of
+        # overall pass/fail.  The old gate (not r["passed"]) hid violations
+        # from files scoring 75-99% — score dropped but nothing was reported.
+        failed = [c for c in checks if not c.get("passed", False)]
+        if failed:
+            msgs = [c.get("message", "Unknown") for c in failed]
+            v = {"file": fi["name"], "path": fi["file"], "score": score, "issues": msgs}
+            if name == "modules":
+                v["message"] = "; ".join(msgs)
+            violations.append(v)
     return violations, scores
 
 def _log_structure_post_checks(branch_path: Path) -> tuple:

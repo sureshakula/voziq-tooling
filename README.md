@@ -159,7 +159,7 @@ All branches follow this structure. Drone resolves `@name` to paths via `AIPASS_
 Drone's argument structure is designed so AI agents can operate the entire system through single-line, non-interactive commands. No interactive menus, no prompts, no multi-step wizards. Everything — sending emails, running audits, creating plans, managing backups — is a one-liner:
 
 ```bash
-drone @ai_mail send @memory "Bug Report" "Search fails without torch" --dispatch
+drone @ai_mail dispatch @memory "Bug Report" "Search fails without torch"
 drone @seedgo audit aipass @memory
 drone @flow create . "Fix search module" dplan
 ```

@@ -32,11 +32,11 @@ When a task belongs to a specialist, send it there. Don't burn context doing the
 ## Key Commands
 
 ```
-drone @ai_mail send @target "Subject" "Body" --dispatch   # Task email
-drone @ai_mail dispatch wake @target                       # Wake branch
+drone @ai_mail dispatch @target "Subject" "Body"             # Send + wake (one command)
+drone @ai_mail email @target "Subject" "Body"                # Just mail, no wake
 drone @flow create . "Subject"                             # Create FPLAN
 drone @flow create . "Subject" dplan                       # Create DPLAN (dplan template)
-drone @flow list                                           # Active plans
+drone @flow list open                                      # Active plans
 drone systems                                              # All branches
 ```
 

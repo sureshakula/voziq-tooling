@@ -411,7 +411,7 @@ def _file_watcher_worker():
             _event_queue.enqueue(MonitoringEvent(
                 priority=2, event_type='log', branch='PRAX',
                 action='warning', level='warning', timestamp=datetime.now(),
-                message="File watcher: inotify unavailable — using polling fallback (slower)"
+                message="File watcher: inotify watch limit reached (VSCode/editors consume most of the 65K default). Using polling fallback (slower). Fix: sudo sysctl -w fs.inotify.max_user_watches=524288"
             ))
 
         # Fallback to PollingObserver
@@ -458,7 +458,7 @@ def _log_watcher_worker():
             _event_queue.enqueue(MonitoringEvent(
                 priority=2, event_type='log', branch='PRAX',
                 action='warning', level='warning', timestamp=datetime.now(),
-                message="Log watcher: inotify unavailable — using polling fallback (slower)"
+                message="Log watcher: inotify watch limit reached (VSCode/editors consume most of the 65K default). Using polling fallback (slower). Fix: sudo sysctl -w fs.inotify.max_user_watches=524288"
             ))
         try:
             start_log_watcher(_event_queue, use_polling=True)

@@ -71,7 +71,8 @@ HELP_TEXT = """
 Email Module - Send and manage branch-to-branch email (Lifecycle v2)
 
 COMMANDS:
-  send      - Send email to a branch
+  email     - Send email to a branch (preferred)
+  send      - Send email to a branch (alias for email)
   inbox     - View inbox messages (new + opened)
   view      - View email content and mark as opened
   reply     - Reply to email (auto-closes original)
@@ -80,12 +81,16 @@ COMMANDS:
   contacts  - Manage contacts
 
 USAGE:
-  ai_mail send @recipient "subject" "message" [--dispatch] [--reply-to @branch]
+  ai_mail email @recipient "subject" "message" [--dispatch] [--reply-to @branch]
+  ai_mail send @recipient "subject" "message"   (same as email)
   ai_mail inbox | view <id> | reply <id> "msg" | close <id> | sent | contacts
 
 FLAGS:
-  --dispatch        Spawn agent at target branch to execute
+  --dispatch        Mark as dispatch task (adds dispatch header)
   --reply-to        Redirect replies to a different branch
+  --no-memory-save  Skip memory update requirement in dispatch header
+
+NOTE: To send + wake in one step, use: drone @ai_mail dispatch @target "Subject" "Body"
 """
 
 
@@ -99,7 +104,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command in ("--help", "-h"):
         print_help()
         return True
-    valid = ["send", "inbox", "view", "close", "reply", "sent", "contacts", "read"]
+    valid = ["send", "email", "inbox", "view", "close", "reply", "sent", "contacts", "read"]
     if command not in valid:
         return False
     if args and args[0] in ['--help', '-h', 'help']:
@@ -107,7 +112,8 @@ def handle_command(command: str, args: List[str]) -> bool:
         return True
 
     dispatch = {
-        "send": handle_send, "inbox": handle_inbox, "view": handle_view,
+        "send": handle_send, "email": handle_send,
+        "inbox": handle_inbox, "view": handle_view,
         "close": handle_close, "reply": handle_reply, "read": handle_view,
         "sent": handle_sent, "contacts": handle_contacts,
     }

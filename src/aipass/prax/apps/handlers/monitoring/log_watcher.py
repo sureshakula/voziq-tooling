@@ -27,7 +27,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import re
 
-from aipass.prax import logger
+from aipass.prax.apps.modules.logger import get_direct_logger
 from watchdog.observers import Observer as WatchdogObserver
 from watchdog.events import FileSystemEventHandler
 
@@ -48,8 +48,7 @@ except ImportError:
 
 from aipass.prax.apps.handlers.json import json_handler
 
-# Logger
-# logger imported from aipass.prax
+logger = get_direct_logger()
 
 
 def _generate_error_hash(module_name: str, message: str) -> str:

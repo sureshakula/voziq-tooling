@@ -12,3 +12,6 @@ build/
 *.log
 *.tmp
 *.swp
+
+processed_plans
+

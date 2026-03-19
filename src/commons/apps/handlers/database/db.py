@@ -14,8 +14,8 @@ and schema bootstrapping for The Commons social network.
 
 Pure sqlite3 stdlib - no external dependencies.
 
-Database location: {AIPASS_ROOT}/.aipass/commons.db
-where AIPASS_ROOT comes from environment variable or defaults to ~/.aipass/
+Database location: {project_root}/.aipass/commons.db
+resolved by walking up from __file__ to find project root.
 """
 
 import os
@@ -32,22 +32,49 @@ from commons.apps.handlers.json import json_handler
 # DATABASE PATHS
 # =============================================================================
 
+def _find_project_root() -> Optional[Path]:
+    """
+    Walk up from this file to find the project root.
+
+    Looks for AIPASS_REGISTRY.json as the project root marker.
+    This file only exists at the true project root, unlike .aipass/
+    which exists at both branch and project levels.
+
+    Returns:
+        Path to project root, or None if not found.
+    """
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        if (current / "AIPASS_REGISTRY.json").exists():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
+
+
 def _get_db_path() -> Path:
     """
     Resolve the database file path.
 
-    Uses AIPASS_ROOT environment variable if set, otherwise defaults
-    to ~/.aipass/. Database stored at {root}/.aipass/commons.db.
+    Resolution order:
+    1. Walk up from __file__ to find project root → {root}/.aipass/commons.db
+    2. AIPASS_ROOT environment variable → {AIPASS_ROOT}/.aipass/commons.db
+    3. Fallback → ~/.aipass/commons.db
 
     Returns:
         Path to the commons.db file.
     """
+    project_root = _find_project_root()
+    if project_root:
+        return project_root / ".aipass" / "commons.db"
+
     aipass_root = os.environ.get("AIPASS_ROOT", "")
     if aipass_root:
-        root = Path(aipass_root) / ".aipass"
-    else:
-        root = Path.home() / ".aipass"
-    return root / "commons.db"
+        return Path(aipass_root) / ".aipass" / "commons.db"
+
+    return Path.home() / ".aipass" / "commons.db"
 
 
 DB_PATH = _get_db_path()

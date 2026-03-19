@@ -24,7 +24,9 @@ from typing import Optional, Dict
 
 from watchdog.events import FileSystemEventHandler
 
-from aipass.prax import logger
+from aipass.prax.apps.modules.logger import get_direct_logger
+
+logger = get_direct_logger()
 
 # Trigger integration (graceful fallback if unavailable)
 try:

@@ -12,12 +12,12 @@
 ## Commands / Usage
 
 ```bash
-drone @ai_mail send @target "Subject" "Body"   # Send inter-branch email
-drone @ai_mail send @target "Subject" "Body" --dispatch  # Send task dispatch email
-drone @ai_mail dispatch wake @target            # Wake a branch
-drone @ai_mail dispatch wake --fresh @target    # Fresh wake (no context)
-drone @ai_mail inbox                            # Check inbox
-drone @ai_mail --help                           # Full help
+drone @ai_mail dispatch @target "Subject" "Body"          # Send dispatch email + wake
+drone @ai_mail dispatch @target "Subject" "Body" --fresh  # Send + fresh wake
+drone @ai_mail email @target "Subject" "Body"             # Send email (no wake)
+drone @ai_mail dispatch wake @target                      # Wake only (no email)
+drone @ai_mail inbox                                      # Check inbox
+drone @ai_mail --help                                     # Full help
 ```
 
 ## Email Lifecycle

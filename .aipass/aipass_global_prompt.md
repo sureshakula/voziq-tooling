@@ -57,28 +57,32 @@ drone @prax monitor               # Real-time monitoring (interactive)
 drone @flow create . "Subject"        # Create FPLAN (execution plan)
 drone @flow create . "Subject" master # Create FPLAN master (multi-phase execution)
 drone @flow create . "Subject" dplan  # Create DPLAN (design/planning doc)
-drone @flow list                      # List active plans
+drone @flow list open                 # List active plans
 ```
 
 **DPLAN** = Design Plan. Thinking, brainstorming, capturing ideas and decisions. Created early — even before you know if you'll build anything. The template explains more when you open it.
 
 **FPLAN** = Flow Plan. Building and executing. Default is for single focused tasks. Master is for multi-phase projects that spawn sub-FPLANs per phase. DPLANs come first, FPLANs come when you're ready to build.
 
-## Dispatch — Wake a Branch
-
-Send a task via email, then wake the branch to process it autonomously.
+## Dispatch — Send Task + Wake a Branch
 
 ```
-# Step 1: Send the task
-drone @ai_mail send @target "Subject" "Body" --dispatch
+# One command: send dispatch email + wake target
+drone @ai_mail dispatch @target "Subject" "Body"
+drone @ai_mail dispatch @target "Subject" "Body" --fresh   # Fresh session
 
-# Step 2: Wake the branch
+# Just send email (no wake)
+drone @ai_mail email @target "Subject" "Body"              # FYI, no dispatch header
+drone @ai_mail email @target "Subject" "Body" --dispatch   # With dispatch header, no wake
+
+# Wake only (no email)
 drone @ai_mail dispatch wake @target
-drone @ai_mail dispatch wake --fresh @target   # Fresh session
+drone @ai_mail dispatch wake --fresh @target
 ```
 
-- `--dispatch` = recipient must ACT (tasks, bugs, investigations)
-- No flag = just informing (FYI, status updates)
+- `dispatch @target` = send email with dispatch header + wake (preferred for tasks)
+- `email @target` = just mail, no wake (FYI, status updates)
+- `--dispatch` flag on `email` = adds dispatch header but doesn't auto-wake
 
 **Always reply to dispatch emails.** When devpulse or another branch sends you work, they're waiting for a response. Complete the task, then email back with results. No silent completions — if someone dispatched you, they need to know what happened.
 
@@ -90,12 +94,21 @@ drone @ai_mail dispatch wake --fresh @target   # Fresh session
 
 **Check seedgo standards.** Before building: `drone @seedgo standards_query aipass_standards` to know what applies. During: check your work against standards as you go. After: `drone @seedgo audit aipass @{branch}` as a final gate before committing.
 
-## Logging
+## Logging & Debugging
 
 Prax is the ONLY logging system. Every branch uses:
 ```python
 from aipass.prax import logger
 ```
+
+Two output channels — know the difference:
+
+- **Console** = what the user sees right now. Command results, errors, success messages. If something fails, the user MUST see it in the console — never fail silently. Use CLI console output for real-time feedback.
+- **Prax logs** = what gets written to your `logs/` directory. Operational history for after-the-fact debugging — what resolved, what path was taken, what failed and why. Use `logger.info()`, `logger.warning()`, `logger.error()`.
+
+**Errors go to BOTH.** Console tells the user something broke. Log tells you (or the next session) what happened and why.
+
+**Your logs are your first diagnostic tool.** When something unexpected happens — a command fails, output looks wrong, behavior doesn't match — check your `logs/` before trying anything else. The answer is usually already there. Other branches' logs are in their own `logs/` directories — you can read those too if you need to trace cross-branch behavior. Don't write debug scripts, don't add print statements — read your logs.
 
 ## Git Workflow
 
@@ -118,6 +131,8 @@ drone @git lock                      # Who has the PR lock?
 
 **Never merge.** Only devpulse or Patrick merge PRs. If your PR gets feedback, fix the issues and run `drone @git pr` again.
 
+**Local main is always ahead of origin — that's normal.** `drone @git pr` commits on local main first, then pushes a feature branch for the PR. Your local main will show "ahead of origin" — this is correct. Don't `git pull` to fix it. Patrick merges PRs and pulls when he chooses. Diverged state is expected, not a problem.
+
 ## Context Guardrail
 
 If the conversation suddenly shifts to a topic, project, or domain that doesn't relate to your current branch — **say something.** Don't just roll with it. Patrick uses voice input and multiple terminals. He may think he's talking to a different agent. A quick "Hey, this sounds like it's for [other project] — are you in the right terminal?" saves both of you from polluting memories with cross-context noise. Your job is to be the sanity check when the human has 5 windows open.
@@ -127,7 +142,11 @@ If the conversation suddenly shifts to a topic, project, or domain that doesn't 
 - **No cross-branch file edits.** If you find an issue in another branch → email them.
 - **No bare imports.** Always `from aipass.{module}.apps.modules...`
 - **No hardcoded paths.** Use `Path(__file__).parents[N]` or drone for resolution.
-- **No deleting files.** Move to `.archive/` or rename with `(disabled)`.
+- **No deleting files.** Tag with `(disabled)` and move to `.archive/`:
+  - Rename the file: `my_handler.py` → `my_handler(disabled).py`. The `(disabled)` tag is gitignored — it blocks imports and keeps the file out of version control while preserving it locally.
+  - If `.archive/` doesn't exist in the current directory, create it. Place `.archive/` next to the files being moved — if you're in `handlers/`, the archive goes in `handlers/.archive/`. If in `apps/`, it goes in `apps/.archive/`.
+  - Move disabled files into `.archive/`. This keeps the working directory clean while preserving everything for recovery.
+  - Never truly delete files. If something breaks after removal, check `.archive/` first.
 - **Verify after fixing.** Run a test or command to confirm. Don't say "fixed" until verified.
 - **Cross-platform.** AIPass is a public package — code must work on Linux, macOS, and Windows. Use `pathlib.Path` not string concatenation. Use `Path.home()` not `~` or `/home/`. Secrets live at `~/.secrets/aipass/` (`Path.home() / ".secrets" / "aipass"`).
 - **Public repo — no local paths in code.** Never hardcode `/home/username/...` or any machine-specific path. All file paths must derive from `Path(__file__)`, `Path.home()`, or registry lookups. This repo is public — your local directory structure doesn't exist for anyone else. Tests included.
@@ -169,14 +188,11 @@ Small knowledge traces that trigger awareness. Not full knowledge — just enoug
 
 When adding context to prompts, memories, or docs: plant breadcrumbs, not encyclopedias. Two lines that say "this exists, look here" beat twenty lines explaining how it works. If one source is lost, others reinforce. The system teaches through convention, not search.
 
-**Prompts are signposts, not journals.** Branch prompts (`aipass_local_prompt.md`) are injected every turn — keep them minimal. Never track state, sessions, or current context in prompts. State goes in `.trinity/` and `dev.local.md`. Prompts guide; memories record.
+**Prompts are signposts, not journals.** Branch prompts (`aipass_local_prompt.md`) are injected every turn — keep them minimal. Never track state, sessions, or current context in prompts. State goes in `.trinity/` and `STATUS.local.md`. Prompts guide; memories record.
 
 ## Claude Code Docs (Local)
 
-Offline mirror of Anthropic's Claude Code docs — no web searches needed. Auto-updates from GitHub.
-- `/docs` — list all topics
-- `/docs <topic>` — read a doc (e.g. `/docs hooks`, `/docs statusline`, `/docs sub-agents`)
-- `/docs whats new` — recent changes
+Offline docs: `/docs` to list topics, `/docs <topic>` to read (e.g. `/docs hooks`).
 
 ## Docker
 

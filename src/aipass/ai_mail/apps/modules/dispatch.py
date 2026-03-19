@@ -33,32 +33,25 @@ def print_help() -> None:
 Dispatch Module - Agent dispatch management
 
 COMMANDS:
-  dispatch status    - Show last 5 dispatch spawns with current status
-  dispatch daemon    - Start the continuous dispatch daemon
-  dispatch wake      - Manually wake a branch (spawn agent without daemon)
+  dispatch @target "Subject" "Body"   - Send dispatch email + wake target
+  dispatch status                     - Show last 5 dispatch spawns with current status
+  dispatch daemon                     - Start the continuous dispatch daemon
+  dispatch wake @branch               - Wake only (no email sent)
 
-WAKE:
-  drone wake @branch                  - Wake branch with default inbox check
-  drone wake @branch "custom msg"     - Wake branch with custom prompt
-  ai_mail dispatch wake @branch       - Same, via ai_mail directly
+DISPATCH (send + wake):
+  drone @ai_mail dispatch @branch "Subject" "Body"          # Send + continue wake
+  drone @ai_mail dispatch @branch "Subject" "Body" --fresh  # Send + fresh wake
+  drone @ai_mail dispatch @branch "Subject" "Body" --no-memory-save
+
+WAKE ONLY:
+  drone @ai_mail dispatch wake @branch            # Wake with default inbox check
+  drone @ai_mail dispatch wake @branch "custom"   # Wake with custom prompt
+  drone wake @branch                              # Shortcut via drone
 
 DAEMON:
   The daemon polls branch inboxes for --dispatch emails and spawns agents.
-  Run as: ai_mail dispatch daemon
-  Or standalone: python3 apps/handlers/dispatch/daemon.py
-
   Kill switch: touch <repo_root>/.aipass/autonomous_pause
   Config: safety_config.json
-
-EXAMPLE:
-  ai_mail dispatch status
-
-  DISPATCH STATUS
-  ────────────────────────────────────
-  @flow    PID 108957  RUNNING    2m ago
-  @ai_mail PID 85997   COMPLETED  10m ago
-  ────────────────────────────────────
-  Active: 1  |  Total: 2
 """
     console.print(help_text)
 
@@ -95,6 +88,8 @@ def handle_command(command: str, args: List[str]) -> bool:
         return _orchestrate_daemon()
     elif subcommand == "wake":
         return _orchestrate_wake(args[1:])
+    elif subcommand.startswith("@") or subcommand.startswith("/"):
+        return _orchestrate_dispatch_send(args)
     else:
         error(f"Unknown dispatch subcommand: {subcommand}")
         print_help()
@@ -198,6 +193,118 @@ def _orchestrate_wake(args: List[str]) -> bool:
     return success
 
 
+def _orchestrate_dispatch_send(args: List[str]) -> bool:
+    """Orchestrate combined dispatch: send email with --dispatch flag + wake branch."""
+    # Parse flags
+    use_fresh = False
+    no_memory_save = False
+    from_branch = None
+    filtered = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--fresh":
+            use_fresh = True
+            i += 1
+            continue
+        if args[i] == "--no-memory-save":
+            no_memory_save = True
+            i += 1
+            continue
+        if args[i] == "--from" and i + 1 < len(args):
+            from_branch = args[i + 1]
+            i += 2
+            continue
+        filtered.append(args[i])
+        i += 1
+
+    if len(filtered) < 3:
+        error("Usage: dispatch @target \"Subject\" \"Body\" [--fresh] [--no-memory-save]")
+        return True
+
+    target = filtered[0]
+    subject = filtered[1]
+    body = filtered[2]
+
+    logger.info(f"[dispatch] Combined dispatch: send + wake for {target}")
+    json_handler.log_operation("dispatch_send_and_wake", {
+        "target": target, "subject": subject, "fresh": use_fresh
+    })
+
+    # --- Step 1: Send dispatch email ---
+    console.print(f"\nSending dispatch email to {target}...")
+
+    from aipass.ai_mail.apps.handlers.email.send import resolve_sender_info, send_to_single
+    from aipass.ai_mail.apps.handlers.email.create import create_email_file, load_email_file
+    from aipass.ai_mail.apps.handlers.email.delivery import deliver_email_to_branch
+    from aipass.ai_mail.apps.handlers.email.header import prepend_dispatch_header
+    from aipass.ai_mail.apps.handlers.email.error_dispatch import dispatch_send_error, on_email_delivered
+    from aipass.ai_mail.apps.handlers.email.dashboard_sync import push_dashboard_update
+    from aipass.ai_mail.apps.handlers.users.user import get_current_user
+    from aipass.ai_mail.apps.handlers.registry.read import get_branch_by_email
+
+    try:
+        from aipass.ai_mail.apps.handlers.central_writer import update_central
+    except ImportError:
+        update_central = None
+
+    _ai_mail_dir = Path(__file__).resolve().parents[2]
+    _repo_root = _ai_mail_dir.parents[2]
+
+    def _delivery_callback(branch_path, new_count, opened_count, total):
+        on_email_delivered(branch_path, new_count, opened_count, total,
+                           push_dashboard_fn=push_dashboard_update,
+                           update_central_fn=update_central)
+
+    try:
+        user_info = resolve_sender_info(
+            from_branch, _repo_root, _ai_mail_dir, get_branch_by_email, get_current_user
+        )
+        message = prepend_dispatch_header(body, no_memory_save=no_memory_save)
+
+        send_ok, send_error = send_to_single(
+            target, subject, message, user_info, True, no_memory_save,
+            None, target, create_email_file, load_email_file,
+            deliver_email_to_branch, _delivery_callback,
+            json_handler.log_operation, update_central
+        )
+
+        if not send_ok:
+            error(f"Send failed: {send_error}")
+            dispatch_send_error(target, subject, send_error or "", deliver_email_to_branch)
+            return False
+
+        console.print(f"[green]Email sent to {target}[/green]")
+
+        try:
+            from aipass.trigger.apps.modules.core import trigger
+            trigger.fire('email_dispatched', to=target, subject=subject)
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error(f"[dispatch] Send phase failed: {e}")
+        error(f"Send failed: {e}")
+        return False
+
+    # --- Step 2: Wake the branch ---
+    console.print(f"\nWaking {target}...")
+
+    from aipass.ai_mail.apps.handlers.dispatch.wake import wake_branch
+    dispatch_status, wake_ok = wake_branch(
+        target, fresh=use_fresh,
+        sender=user_info.get("email_address", "@ai_mail")
+    )
+    console.print(dispatch_status.format())
+
+    if not wake_ok:
+        console.print(
+            f"[yellow]Email sent but wake failed — retry: "
+            f"drone @ai_mail dispatch wake {target}[/yellow]"
+        )
+
+    return True
+
+
 def _orchestrate_daemon() -> bool:
     """Orchestrate daemon startup."""
     logger.info("[dispatch] Starting dispatch daemon")
@@ -212,7 +319,7 @@ def print_introspection():
     """Display module introspection info."""
     console.print()
     console.print("dispatch Module")
-    console.print("Orchestrates dispatch commands: status tracking, daemon management, and manual branch wake.")
+    console.print("Orchestrates dispatch commands: combined send+wake, status tracking, daemon management, and manual wake.")
     console.print()
     console.print("Connected Handlers:")
     console.print("  handlers/dispatch/")
@@ -221,6 +328,11 @@ def print_introspection():
     console.print("    - status.py (calculate_age — calculate age string from timestamp)")
     console.print("    - wake.py (wake_branch — manually wake a branch by spawning an agent)")
     console.print("    - daemon.py (run_daemon — start the continuous dispatch daemon)")
+    console.print("  handlers/email/ (used by combined dispatch)")
+    console.print("    - send.py (resolve_sender_info, send_to_single — send email pipeline)")
+    console.print("    - create.py (create_email_file, load_email_file — email file creation)")
+    console.print("    - delivery.py (deliver_email_to_branch — inbox delivery)")
+    console.print("    - header.py (prepend_dispatch_header — dispatch header injection)")
     console.print()
 
 

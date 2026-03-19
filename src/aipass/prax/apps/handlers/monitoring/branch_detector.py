@@ -20,13 +20,11 @@ Uses BRANCH_REGISTRY.json for accurate mapping with caching for performance.
 from pathlib import Path
 from typing import Optional, Dict, Set
 import json
-import logging
-from functools import lru_cache
 
-from aipass.prax import logger
+from aipass.prax.apps.modules.logger import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
 
-# logger imported from aipass.prax
+logger = get_direct_logger()
 
 
 class BranchDetector:

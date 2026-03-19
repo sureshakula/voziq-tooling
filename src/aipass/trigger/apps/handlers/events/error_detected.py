@@ -317,7 +317,7 @@ SEED STANDARDS REMINDER:
 - Fixes scoring below 80% on Seed audit should NOT be shipped - clean up first
 
 REPORT TO @devpulse:
-  ai_mail send @devpulse "ERROR {error_hash} - [STATUS]" "Findings..."
+  ai_mail email @devpulse "ERROR {error_hash} - [STATUS]" "Findings..."
 
   Include: Error ID, severity (low/medium/high/critical), what you found, action taken or recommended.
 """

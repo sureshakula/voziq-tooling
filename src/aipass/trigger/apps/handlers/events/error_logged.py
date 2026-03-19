@@ -206,7 +206,7 @@ DECISION TREE:
   -> STOP immediately, escalate to @devpulse with full context
 
 REPORT TO @devpulse:
-  ai_mail send @devpulse "ERROR {error_hash[:8]} - [STATUS]" "Findings..."
+  ai_mail email @devpulse "ERROR {error_hash[:8]} - [STATUS]" "Findings..."
 """
 
 
