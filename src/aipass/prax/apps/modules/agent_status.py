@@ -73,6 +73,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != 'agent-status-push':
         return False
 
+    if not args:
+        print_introspection()
+        return True
+
     from aipass.prax.apps.handlers.dashboard.agent_status_writer import (
         build_agent_status_section,
         push_agent_status_dashboard,
@@ -80,7 +84,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     json_handler.log_operation("agent_status_push_executed", {"args": args})
 
-    if '--help' in args:
+    if args[0] in ('--help', '-h', 'help'):
         print_help()
         return True
 

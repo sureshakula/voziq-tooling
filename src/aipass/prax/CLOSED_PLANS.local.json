@@ -20,6 +20,27 @@
       "subject": "Dashboard Pipeline — Full Lifecycle",
       "date_closed": "2026-03-18",
       "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0025",
+      "type": "FPLAN",
+      "subject": "Prax Monitor Restoration — rich output, caller attribution, inotify resilience",
+      "date_closed": "2026-03-19",
+      "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0106",
+      "type": "FPLAN",
+      "subject": "Monitor Phase 1: visible degradation + polling fallback",
+      "date_closed": "2026-03-19",
+      "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0109",
+      "type": "FPLAN",
+      "subject": "Monitor Phase 2: caller attribution via drone CALLER markers",
+      "date_closed": "2026-03-19",
+      "location": "prax"
     }
   ]
 }
