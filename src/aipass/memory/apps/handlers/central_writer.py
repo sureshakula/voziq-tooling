@@ -36,7 +36,18 @@ logger = get_system_logger()
 # =============================================================================
 
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]
-CENTRAL_FILE = _MEMORY_ROOT / "central" / "memory_bank.central.json"
+
+
+def _find_repo_root() -> Path:
+    """Walk up from this file to find repo root (contains AIPASS_REGISTRY.json)."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        if (parent / "AIPASS_REGISTRY.json").exists():
+            return parent
+    return Path.cwd()
+
+
+CENTRAL_FILE = _find_repo_root() / ".ai_central" / "MEMORY.central.json"
 CHROMA_DB_PATH = _MEMORY_ROOT / ".chroma"
 ARCHIVE_DIR = _MEMORY_ROOT / ".archive"
 

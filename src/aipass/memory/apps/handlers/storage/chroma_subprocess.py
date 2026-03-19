@@ -107,6 +107,49 @@ def _list_collections(db_path=None):
     }
 
 
+def _check_plan(plan_label, db_path=None):
+    """Check if a plan has been vectorized in ChromaDB.
+
+    Args:
+        plan_label: Plan label to search for (e.g., "FPLAN-0126")
+        db_path: Optional path to Chroma database
+
+    Returns:
+        Dict with found status, count of matching chunks, and source files
+    """
+    client = _get_client(db_path)
+
+    collection_name = "flow_flow_plans"
+    try:
+        collection = client.get_collection(collection_name, embedding_function=None)
+    except Exception:
+        return {
+            'success': True,
+            'found': False,
+            'count': 0,
+            'source_files': [],
+            'message': f'Collection {collection_name} does not exist'
+        }
+
+    result = collection.get(include=["metadatas"])
+    metadatas = result.get('metadatas', [])
+
+    matching_files = set()
+    match_count = 0
+    for metadata in metadatas:
+        source_file = metadata.get('source_file', '')
+        if plan_label in source_file:
+            match_count += 1
+            matching_files.add(source_file)
+
+    return {
+        'success': True,
+        'found': match_count > 0,
+        'count': match_count,
+        'source_files': sorted(matching_files)
+    }
+
+
 def _search_vectors(query_embedding, branch=None, memory_type=None, n_results=5, db_path=None):
     """Search for similar vectors."""
     client = _get_client(db_path)
@@ -184,6 +227,11 @@ def main():
                 branch=input_data.get('branch'),
                 memory_type=input_data.get('memory_type'),
                 n_results=input_data.get('n_results', 5),
+                db_path=input_data.get('db_path')
+            )
+        elif operation == 'check_plan':
+            result = _check_plan(
+                plan_label=input_data.get('plan_label'),
                 db_path=input_data.get('db_path')
             )
         else:

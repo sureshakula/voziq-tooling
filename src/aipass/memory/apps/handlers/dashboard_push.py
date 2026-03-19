@@ -38,7 +38,6 @@ _MEMORY_ROOT = Path(__file__).resolve().parents[3]
 # CONSTANTS
 # =============================================================================
 
-CENTRAL_FILE = _MEMORY_ROOT / "central" / "memory_bank.central.json"
 CONFIG_PATH = _MEMORY_ROOT / "config" / "memory_bank.config.json"
 TEMPLATE_VERSION_FILE = _MEMORY_ROOT / "templates" / ".template_version.json"
 
@@ -52,6 +51,7 @@ def _find_repo_root() -> Path:
     return Path.cwd()
 
 
+CENTRAL_FILE = _find_repo_root() / ".ai_central" / "MEMORY.central.json"
 AIPASS_REGISTRY = _find_repo_root() / "AIPASS_REGISTRY.json"
 
 # Near-rollover threshold: branches with fewer than this many lines remaining
