@@ -170,15 +170,30 @@ def create_plan_impl(
             PLAN_FILE = target_dir / f"{prefix}-{formatted_num}_{date_str}.md"
 
         # STEP 7: Get template content
-        # Resolve template path from plan_type_config when available
+        # Resolve template path from plan_type_config — no fallback
         template_path: Path | None = None
         if plan_type_config is not None:
             tmpl_name = plan_type_config.get("default_template", "default")
             tmpl_dir: Path | None = plan_type_config.get("_directory")
             if tmpl_dir is not None:
+                available = sorted(p for p in tmpl_dir.glob("*.md")) if tmpl_dir.is_dir() else []
                 candidate = tmpl_dir / f"{tmpl_name}.md"
                 if candidate.is_file():
+                    # Exact template match
                     template_path = candidate
+                elif len(available) == 1:
+                    # Single template in directory — use it regardless of name
+                    template_path = available[0]
+                elif len(available) > 1:
+                    names = [p.stem for p in available]
+                    error_msg = (
+                        f"Multiple templates in {tmpl_dir.name}/. "
+                        f"Specify which one: {names}"
+                    )
+                    return False, 0, "", "", error_msg, []
+                else:
+                    error_msg = f"No templates found in {tmpl_dir.name}/"
+                    return False, 0, "", "", error_msg, []
 
         try:
             CONTENT = get_template(

@@ -44,7 +44,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # CLI services for display
-from aipass.cli.apps.modules import console, warning
+from aipass.cli.apps.modules import console, error as cli_error, warning
 
 # Registry handlers (cross-domain - OK for modules)
 from aipass.flow.apps.handlers.registry.load_registry import load_registry
@@ -264,8 +264,13 @@ def handle_command(command: str, args: List[str]) -> bool:
     # STEP 1b: Resolve plan type config (for prefix/digits in display)
     try:
         plan_type_config = get_plan_type(plan_type_key)
-    except ValueError:
-        plan_type_config = None
+    except ValueError as exc:
+        cli_error(str(exc))
+        console.print()
+        console.print("[dim]Registered types: drone @flow templates[/dim]")
+        console.print("[dim]Register new:     drone @flow register <dir> <PREFIX>[/dim]")
+        console.print()
+        return True
 
     # STEP 2: Execute workflow
     success, num, loc, tmpl, error = create_plan(

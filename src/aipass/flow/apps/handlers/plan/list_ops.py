@@ -90,9 +90,12 @@ def list_plans_impl(
                     registry = load_registry(registry_file=reg_file)
                     source_prefix = reg_prefix_map.get(reg_file, "FPLAN")
                     for plan_num, plan_info in registry.get("plans", {}).items():
-                        # Tag each plan with its source prefix for display
+                        # Tag each plan with its source prefix and original number for display
                         plan_info["_source_prefix"] = source_prefix
-                        merged_plans[plan_num] = plan_info
+                        plan_info["_plan_num"] = plan_num
+                        # Use prefix-qualified key to avoid collisions across registries
+                        merge_key = f"{source_prefix}-{plan_num}"
+                        merged_plans[merge_key] = plan_info
                 except Exception:
                     continue
         else:

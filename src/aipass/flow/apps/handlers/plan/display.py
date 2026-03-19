@@ -328,7 +328,9 @@ def format_plan_info(plan_key: str, plan_info: Dict[str, Any], prefix: str = "FP
         except (ValueError, AttributeError):
             pass  # Keep original value if parsing fails
 
-    return f"  {display_prefix}-{plan_key}  [{status:>6}]  {location:<30}  {subject:<40}  {created}"
+    # Use original plan number if available (set by list_ops merge), else use key
+    display_num = plan_info.get("_plan_num", plan_key)
+    return f"  {display_prefix}-{display_num}  [{status:>6}]  {location:<30}  {subject:<40}  {created}"
 
 
 def format_plans_list(

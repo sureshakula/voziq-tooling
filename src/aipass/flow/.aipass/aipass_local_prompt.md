@@ -20,16 +20,20 @@ drone @flow restore FPLAN-0042              # Reopen a closed plan
 - `apps/flow.py` -- Entry point. Auto-discovers modules in `apps/modules/` via `handle_command()` convention.
 - `apps/modules/` -- Thin orchestrators. No business logic. Route to handlers and display results.
 - `apps/handlers/` -- Implementation. Grouped by domain: `plan/`, `registry/`, `template/`, `dashboard/`, `mbank/`, `summary/`.
-- `templates/` -- Data-only plugins. Each subdirectory has `plan_type.json` config + Markdown templates.
-- `flow_json/` -- Per-type JSON registries (`fplan_registry.json`, `dplan_registry.json`).
+- `templates/` -- Plan type directories. Each subdirectory contains Markdown templates. Registered via `drone @flow register`.
+- `flow_json/` -- Registries: per-type plan registries + `template_registry.json` (plan type definitions).
 
-## Plan Type Plugins
+## Plan Type System
 
-Plan types are DATA, not code. Each plugin directory under `templates/` contains:
-- `plan_type.json` -- prefix, digits, registry_file, available_templates, default_template
-- Markdown template files (e.g. default.md, master.md)
+Plan types are filesystem-driven. Drop a directory with `.md` templates into `templates/`, register it, done:
+```bash
+drone @flow register testing TPLAN          # Register new type
+drone @flow unregister testing              # Remove type
+drone @flow templates                       # List registered types
+drone @flow scan                            # Find unregistered directories
+```
 
-Discovered at runtime by `apps/handlers/template/plan_type_loader.py`. Add a new type by creating a new directory with these files.
+Discovered at runtime by `plan_type_loader.py` + `registry_ops.py`. No per-directory JSON config needed.
 
 | Type | Prefix | Registry File | Templates |
 |------|--------|---------------|-----------|

@@ -281,7 +281,7 @@ def handle_command(command: str, args: List[str]) -> bool:
             console.print()
             return True
 
-        console.print(f"[yellow]Found {len(unregistered)} unregistered directory(ies):[/yellow]")
+        warning(f"Found {len(unregistered)} unregistered directory(ies):")
         console.print()
 
         for entry in unregistered:

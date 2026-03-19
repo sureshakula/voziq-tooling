@@ -66,21 +66,20 @@ def _find_template_file(template_name: str) -> Path:
     """
     search_paths = _template_search_dirs()
 
-    # Look for the requested template
+    # Look for the requested template — no fallback
     candidate = search_paths[0] / f"{template_name}.md"
     if candidate.exists():
         return candidate
 
-    # Fallback to default template
-    default_candidate = search_paths[0] / f"{DEFAULT_TEMPLATE}.md"
-    if default_candidate.exists():
-        return default_candidate
-
-    # Nothing found – raise helpful error
+    # Not found — error with available templates
+    available = [
+        p.stem for p in search_paths[0].iterdir()
+        if p.suffix == ".md"
+    ] if search_paths[0].is_dir() else []
     searched = ", ".join(str(path) for path in search_paths)
     error_msg = (
-        f"Templates not found. Searched for '{template_name}.md' and "
-        f"'{DEFAULT_TEMPLATE}.md' in: {searched}"
+        f"Template '{template_name}' not found in: {searched}. "
+        f"Available: {available if available else 'none'}"
     )
     raise FileNotFoundError(error_msg)
 
