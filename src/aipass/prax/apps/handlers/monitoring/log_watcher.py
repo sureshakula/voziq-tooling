@@ -529,9 +529,6 @@ def start_log_watcher(event_queue: MonitoringQueue, use_polling: bool = False) -
     # Create watcher instance
     watcher = LogFileWatcher(event_queue)
 
-    # Replay recent lines for startup context (before seeking to EOF)
-    watcher.replay_recent(num_lines=2)
-
     # Soft start: seek to end of all logs, only show NEW activity after this
     watcher.initialize_positions()
 
