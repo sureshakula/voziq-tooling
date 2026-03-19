@@ -46,17 +46,21 @@ def _slugify(text: str, max_length: int = 40) -> str:
 def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
     """Execute the full PR creation workflow.
 
+    Changes are committed on main locally first, so they never disappear
+    from the working tree. A feature branch is created as a pointer to
+    the same commit (without checkout) and pushed for GitHub's PR system.
+
     Steps:
         1. Verify we are on main
         2. Acquire lock
-        3. Create feature branch
-        4. Stage only files under branch_dir
-        5. Check if anything staged
-        6. Commit
-        7. Push
+        3. Stage only files under branch_dir (on main)
+        4. Check if anything staged
+        5. Commit on main (local only — not pushed to origin/main)
+        6. Create feature branch pointing to same commit (no checkout)
+        7. Push feature branch to origin
         8. Create PR via gh
-        9. Checkout main (finally)
-        10. Release lock (finally)
+        9. Delete local feature branch (remote copy is what matters)
+        10. Release lock
 
     Args:
         branch_name: The calling branch name (e.g. "api").
@@ -99,17 +103,7 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             return result
         lock_acquired = True
 
-        # Step 3: Create feature branch
-        checkout = subprocess.run(
-            ["git", "checkout", "-b", feature_branch],
-            capture_output=True, text=True, cwd=str(repo_root),
-        )
-        if checkout.returncode != 0:
-            result["message"] = f"Failed to create branch: {checkout.stderr.strip()}"
-            logger.error(result["message"])
-            return result
-
-        # Step 4: Stage only files under branch_dir
+        # Step 3: Stage only files under branch_dir (on main)
         try:
             rel_dir = branch_dir.resolve().relative_to(repo_root.resolve())
         except ValueError:
@@ -124,18 +118,17 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             logger.error(result["message"])
             return result
 
-        # Step 5: Check if anything was staged
+        # Step 4: Check if anything was staged
         diff_check = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
             capture_output=True, text=True, cwd=str(repo_root),
         )
         if diff_check.returncode == 0:
-            # Nothing staged
             result["message"] = "Nothing to commit: no changes staged under branch directory"
             logger.warning(result["message"])
             return result
 
-        # Step 6: Commit
+        # Step 5: Commit on main (changes stay local)
         commit_msg = (
             f"feat({branch_name}): {description}\n\n"
             f"Co-Authored-By: @{branch_name} <{branch_name}@aipass>"
@@ -149,7 +142,17 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             logger.error(result["message"])
             return result
 
-        # Step 7: Push
+        # Step 6: Create feature branch pointing to same commit (no checkout)
+        branch_create = subprocess.run(
+            ["git", "branch", feature_branch],
+            capture_output=True, text=True, cwd=str(repo_root),
+        )
+        if branch_create.returncode != 0:
+            result["message"] = f"Failed to create branch: {branch_create.stderr.strip()}"
+            logger.error(result["message"])
+            return result
+
+        # Step 7: Push feature branch (not main — main stays local-only)
         push = subprocess.run(
             ["git", "push", "-u", "origin", feature_branch],
             capture_output=True, text=True, cwd=str(repo_root),
@@ -169,6 +172,7 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
         pr_create = subprocess.run(
             [
                 "gh", "pr", "create",
+                "--head", feature_branch,
                 "--title", f"feat({branch_name}): {description}",
                 "--body", pr_body,
             ],
@@ -178,6 +182,12 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             result["message"] = f"PR creation failed: {pr_create.stderr.strip()}"
             logger.error(result["message"])
             return result
+
+        # Step 9: Clean up local feature branch (remote copy is what matters)
+        subprocess.run(
+            ["git", "branch", "-d", feature_branch],
+            capture_output=True, text=True, cwd=str(repo_root),
+        )
 
         pr_url = pr_create.stdout.strip()
         result["success"] = True
@@ -196,19 +206,6 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
         return result
 
     finally:
-        # Step 9: Always checkout main
-        try:
-            subprocess.run(
-                ["git", "checkout", "main"],
-                capture_output=True, text=True, cwd=str(repo_root),
-            )
-            subprocess.run(
-                ["git", "pull"],
-                capture_output=True, text=True, cwd=str(repo_root),
-            )
-        except (OSError, subprocess.SubprocessError):
-            logger.warning("Failed to checkout main during cleanup")
-
-        # Step 10: Always release lock
+        # Always release lock — no checkout needed, we never left main
         if lock_acquired:
             release_lock(force=True)
