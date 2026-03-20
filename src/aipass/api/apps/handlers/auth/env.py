@@ -152,17 +152,17 @@ def create_env_template(provider: str = "openrouter", target_path: Optional[Path
 
     Args:
         provider: API provider name (default: 'openrouter')
-        target_path: Optional custom path (defaults to api/.env)
+        target_path: Optional custom path (defaults to ~/.secrets/aipass/.env)
 
     Returns:
         bool: True if template created successfully, False otherwise
 
     Example:
         >>> if create_env_template('openrouter'):
-        ...     print("Template created at <api_root>/.env")
+        ...     print("Template created at ~/.secrets/aipass/.env")
     """
-    # Default to api/.env
-    env_path = target_path or (API_ROOT / ".env")
+    # Default to ~/.secrets/aipass/.env (cross-platform standard)
+    env_path = target_path or (Path.home() / ".secrets" / "aipass" / ".env")
 
     # Don't overwrite existing file
     if env_path.exists():

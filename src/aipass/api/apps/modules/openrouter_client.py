@@ -138,7 +138,7 @@ def handle_command(command: str, args: List[str]) -> bool:
             test_connection()
             return True
         if command == "models":
-            list_models()
+            list_models(args)
             return True
         if command == "status":
             check_status()
@@ -164,17 +164,23 @@ def test_connection():
     header("Test OpenRouter Connection")
     console.print()
 
+    console.print("[dim]Testing connection...[/dim]")
+
     # Get API key via handler
     api_key = keys.get_api_key("openrouter")
 
     if not api_key:
-        error("No API key configured")
+        diagnosis = keys.diagnose_key("openrouter")
+        error(diagnosis)
         return
 
-    warning("Testing connection...")
+    # Real API ping — hit /models endpoint
+    model_list = models.fetch_models_from_api(api_key)
 
-    # TODO: Call handler to test connection when implemented
-    success("Connection test successful")
+    if model_list:
+        success(f"Connection successful — {len(model_list)} models available")
+    else:
+        error("Connection failed — could not reach OpenRouter API")
 
 
 def make_call(args: List[str]):
@@ -187,31 +193,67 @@ def make_call(args: List[str]):
     warning("API call workflow - TODO")
 
 
-def list_models():
+def list_models(args: List[str] | None = None):
     """Orchestrate list models workflow"""
     header("Available Models")
     console.print()
+
+    show_all = args and "--all" in args
 
     # Get API key via handler
     api_key = keys.get_api_key("openrouter")
 
     if not api_key:
-        error("No API key configured")
+        diagnosis = keys.diagnose_key("openrouter")
+        error(diagnosis)
         return
 
-    warning("Fetching available models...")
+    console.print("[dim]Fetching available models...[/dim]")
 
     # Call handler to fetch models
     model_list = models.fetch_models_from_api(api_key)
 
-    if model_list:
-        success(f"Found {len(model_list)} models")
-        for model in model_list[:10]:
-            console.print(f"  - {model}")
-        if len(model_list) > 10:
-            console.print(f"  ... and {len(model_list) - 10} more")
-    else:
+    if not model_list:
         error("Failed to fetch models")
+        return
+
+    success(f"Found {len(model_list)} models")
+    console.print()
+
+    # Format as table
+    display_count = len(model_list) if show_all else min(10, len(model_list))
+
+    console.print(f"  {'Model':<50} {'Context':>10} {'$/prompt':>10} {'$/compl':>10}")
+    console.print(f"  {'─' * 50} {'─' * 10} {'─' * 10} {'─' * 10}")
+
+    for model_data in model_list[:display_count]:
+        model_id = model_data.get("id", "unknown")
+        context = model_data.get("context_length", 0)
+        pricing = model_data.get("pricing", {})
+        prompt_cost = pricing.get("prompt", "0")
+        completion_cost = pricing.get("completion", "0")
+
+        # Format context length
+        if context >= 1_000_000:
+            ctx_str = f"{context // 1_000_000}M"
+        elif context >= 1_000:
+            ctx_str = f"{context // 1_000}k"
+        else:
+            ctx_str = str(context)
+
+        # Format pricing
+        if str(prompt_cost) == "0" and str(completion_cost) == "0":
+            p_str = "free"
+            c_str = "free"
+        else:
+            p_str = f"${prompt_cost}"
+            c_str = f"${completion_cost}"
+
+        console.print(f"  {model_id:<50} {ctx_str:>10} {p_str:>10} {c_str:>10}")
+
+    if not show_all and len(model_list) > 10:
+        console.print()
+        console.print(f"  [dim]Showing 10 of {len(model_list)} — use --all for full list[/dim]")
 
 
 def check_status():
@@ -219,8 +261,32 @@ def check_status():
     header("OpenRouter Client Status")
     console.print()
 
-    # TODO: Call handlers for status when implemented
-    warning("Client status - TODO")
+    # Key status
+    api_key = keys.get_api_key("openrouter")
+
+    if api_key:
+        masked = api_key[:8] + "..." + api_key[-4:]
+        console.print(f"  [cyan]Key configured:[/cyan]  [green]yes[/green]")
+        console.print(f"  [cyan]Key:[/cyan]             {masked}")
+    else:
+        console.print(f"  [cyan]Key configured:[/cyan]  [red]no[/red]")
+        diagnosis = keys.diagnose_key("openrouter")
+        console.print(f"  [cyan]Reason:[/cyan]          {diagnosis}")
+
+    console.print(f"  [cyan]Provider:[/cyan]        OpenRouter")
+    console.print(f"  [cyan]Base URL:[/cyan]        https://openrouter.ai/api/v1")
+
+    # OpenAI SDK availability
+    try:
+        import openai  # noqa: F401
+        console.print(f"  [cyan]OpenAI SDK:[/cyan]     [green]available[/green]")
+    except ImportError:
+        console.print(f"  [cyan]OpenAI SDK:[/cyan]     [red]missing[/red]")
+
+    # Client cache stats
+    cache_stats = client.get_cache_stats()
+    console.print(f"  [cyan]Cached clients:[/cyan] {cache_stats['cached_clients']}/{cache_stats['max_cache_size']}")
+    console.print()
 
 
 # =============================================

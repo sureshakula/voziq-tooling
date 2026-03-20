@@ -56,6 +56,7 @@ except ImportError:
 # Handler imports
 from aipass.api.apps.handlers.auth.keys import get_api_key
 from aipass.api.apps.handlers.openrouter.caller import get_caller_info
+from aipass.api.apps.handlers.openrouter.provision import ensure_caller_config
 from aipass.api.apps.handlers.usage.tracking import track_usage
 
 # JSON handler
@@ -314,6 +315,12 @@ def get_response(prompt: str, caller: Optional[str] = None, model: Optional[str]
         else:
             # logger.warning("Could not detect caller - using 'unknown'")
             caller = "unknown"
+
+    # Step 1b: Ensure caller has config (auto-provision if missing)
+    try:
+        ensure_caller_config(caller)
+    except Exception:
+        pass  # Provisioning is best-effort — don't block the API call
 
     # Step 2: Require model from caller - no defaults
     if not model:

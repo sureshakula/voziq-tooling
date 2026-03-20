@@ -153,9 +153,15 @@ def init_env():
     header("Initialize API Configuration")
     console.print()
 
+    env_path = Path.home() / ".secrets" / "aipass" / ".env"
+
+    if env_path.exists():
+        success(f"Environment file already exists at {env_path}")
+        return
+
     # Create .env template via handler
     if env.create_env_template():
-        success("Environment template created")
+        success(f"Environment template created at {env_path}")
     else:
         error("Failed to create environment template")
 

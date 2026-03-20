@@ -23,26 +23,26 @@ An operating system for AI agents. Not a chatbot wrapper. Not a prompt chain. A 
 
 ## Current State: Beta
 
-**It works.** 14 of 15 branches are operational, tested, and communicating. 53 PRs merged. 30+ orchestration sessions. We're past prototyping and into hardening — building the infrastructure that makes the system reliable at scale.
+**It works.** All 15 branches operational. 95+ PRs merged. 38 orchestration sessions. 733 tests across the system. 173 drone commands discovered. The system is past prototyping — we're in the hardening phase, building diagnostic tooling and iterating branch by branch.
 
 **Recently completed:**
 
-- **CLI front door + init anywhere** — full discovery chain rebuilt so users can find and use `aipass init` through natural exploration. CLI rewritten to seedgo's auto-discovery pattern. Registered as a drone internal module — `drone @cli aipass init` works from any directory on any system, before any project exists. Creates a registry (UUID), passport, `.trinity/` memories, prompt files, and hooks. Every project is fully self-contained — no shared state, no cross-contamination between workspaces.
-- **Memory introspection overhaul** — memory branch rewired to seedgo-compliant CLI discovery. Rollover and search introspection rebuilt. 18+ files ported back from archives (symbolic reasoning, templates, pool processor). Templates modernization in progress (FPLAN-0052).
-- **Seedgo standards enforcement** — checklist command fixed, checker false positives addressed, handler guards added. PR #52 open.
-- **Credential model** — UUID-based registry matching is live. Every project gets a unique registry ID, every citizen's passport carries it. `aipass init` creates a new project in any directory with its own credentials.
-- **Stderr routing** — system-wide migration across 10 branches (48 files). CLI owns the display layer (`error()`, `warning()`, `fatal()` all route to stderr). Seedgo enforces it with an automated checker.
-- **Dashboard pipeline** — Prax owns the dashboard end-to-end. Per-branch `STATUS.local.md` files sync to a central `STATUS.md` via `drone @prax status sync`.
-- **Drone test suite** — 188 tests across 5 files. Interactive mode for human-facing commands. Credential verification with dedicated error hierarchy.
-- **System governance** — git workflow, commit signing (`Co-Authored-By: @branch`), DPLAN/FPLAN documentation, and "How to Work" guidelines all codified in the global prompt.
+- **Dispatch UX redesign** — `drone @ai_mail dispatch @target "Subject" "Body"` sends + wakes in one command. `--fresh` flag for clean sessions. `email` command for mail-only (no wake). Fully tested.
+- **PR v2 workflow** — commit-on-main architecture. Changes never leave your working tree. Feature branches are just pointers for GitHub's PR system. No more disappearing files.
+- **Handler guard fix** — cross-branch handler imports blocked by `.py` files from other branches. Command-line `python3 -c` allowed through. 13 branches updated.
+- **Memory vectorization fix** — batch processing (2 subprocess calls instead of 228), decoupled from startup trigger, explicit `drone @memory process-plans` command. 113 plan files vectorized in ~1 minute.
+- **Diagnostic tooling** — 4 scanners built: dead code (14 unused files found), command inventory (173 commands), prompt quality (6 rich/4 basic/5 stub), test coverage (733 tests, 26% module coverage).
+- **Prax monitor** — fully operational with inotify file watching, branch detection, polling fallback with actionable error messages.
+- **Plan cleanup** — 60+ FPLANs/DPLANs closed. Templates updated with "close immediately when done" rule.
+- **System governance** — git workflow, commit signing, DPLAN/FPLAN documentation, logging/debugging guidelines, `.archive/` pattern all codified in the global prompt.
 
 **What we're solving now:**
 
-- **Memory subsystem wiring** — symbolic reasoning, templates, and pool processor modules ported back but need full integration and testing. Templates modernization (spawn handler, v2 schema) in progress.
-- **Lint cleanup** — 474 ruff violations remain (mostly unused imports from unwired modules). Blocked until seedgo audit coverage is higher — we can't confidently remove imports until we know what's actually used.
-- **Dashboard CLI routing** — the Python API works but `drone @prax dashboard refresh --all` fails because argparse eats the flags before the module sees them. Known bug, fix pending.
-- **Cross-platform reliability** — Linux and Windows tested. macOS is structurally supported but needs a dedicated testing pass. All paths use `pathlib`, no hardcoded paths, secrets stored at `~/.secrets/aipass/`.
-- **Agent agnosticism** — currently focused on [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (hooks for auto-diagnostics, prompt injection, session recovery). But AIPass is designed to not depend on any single provider. `agents.md` and `gemini.md` can bootstrap the system for Codex and Gemini — you lose hooks but keep the core. The plan is truly agnostic: any agent, anywhere, persistent memory, no vendor lock-in.
+- **Branch-by-branch audit** — walking through every branch from devpulse, testing commands, noting issues, dispatching fixes. API branch audit in progress (DPLAN-0029).
+- **Local prompt enrichment** — 5 branches still on 14-line stubs (ai_mail, backup, cli, drone, prax). Rich prompts = less babysitting.
+- **Test coverage expansion** — 9 branches have zero tests. Building toward comprehensive coverage using the test scanner for visibility.
+- **Cross-platform reliability** — Linux and Windows tested. macOS structurally supported. All paths use `pathlib`, secrets at `~/.secrets/aipass/`.
+- **Agent agnosticism** — currently focused on [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (hooks for auto-diagnostics, prompt injection, session recovery). But AIPass is designed to not depend on any single provider. `agents.md` and `gemini.md` can bootstrap the system for Codex and Gemini — you lose hooks but keep the core.
 
 ## Getting Started
 
@@ -92,7 +92,7 @@ Every branch is a citizen — an expert in its domain with its own memories and 
 |--------|------|
 | `devpulse` | **Start here.** Orchestration hub — coordinates everything |
 | `drone` | AI-friendly CLI — every command is a single-line, non-interactive call |
-| `seedgo` | Standards enforcement — 24-standard audit pack, system compliance |
+| `seedgo` | Standards enforcement — 21-standard audit pack, system compliance |
 | `prax` | Logging and monitoring (the only logger in the system) |
 | `cli` | Terminal display, stderr routing, project commands |
 | `flow` | Workflow management — FPLANs (execution) and DPLANs (design) |

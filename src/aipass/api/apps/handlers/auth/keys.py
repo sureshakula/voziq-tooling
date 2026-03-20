@@ -268,6 +268,53 @@ def get_validation_rules(provider: str) -> Dict[str, Any]:
 # KEY FORMAT CHECKING
 # ==============================================
 
+def diagnose_key(provider: str = "openrouter") -> str:
+    """
+    Diagnose why get_api_key() returned None.
+
+    Checks all sources for a raw key (skipping validation) and explains
+    exactly why it failed — missing entirely, wrong prefix, too short, etc.
+
+    Args:
+        provider: Provider name (default: 'openrouter')
+
+    Returns:
+        str: Human-readable explanation of the key issue
+
+    Example:
+        >>> if not get_api_key('openrouter'):
+        ...     print(diagnose_key('openrouter'))
+    """
+    # Check all sources for raw key (without validation)
+    key = get_key_from_config(provider)
+    source = "config"
+
+    if not key:
+        key = get_key_from_env(provider)
+        source = "env"
+
+    if not key:
+        env_var = f"{provider.upper()}_API_KEY"
+        key = read_env_file(env_var)
+        source = "dotenv"
+
+    if not key:
+        return "No API key found in any source (config, environment, .env file)"
+
+    # Key exists but failed validation — explain why
+    key = key.strip()
+    rules = get_validation_rules(provider)
+
+    if "prefix" in rules and not key.startswith(rules["prefix"]):
+        actual_prefix = key[:len(rules["prefix"])] if len(key) >= len(rules["prefix"]) else key[:6]
+        return f"Key found ({source}) but invalid — expected prefix '{rules['prefix']}', got '{actual_prefix}...'"
+
+    if "min_length" in rules and len(key) < rules["min_length"]:
+        return f"Key found ({source}) but too short — {len(key)} chars, need {rules['min_length']}+"
+
+    return f"Key found ({source}) but failed validation"
+
+
 def check_key_format(key: str) -> Dict[str, Any]:
     """
     Analyze key format and return details.
