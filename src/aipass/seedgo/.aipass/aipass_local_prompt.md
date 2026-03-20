@@ -35,7 +35,7 @@ apps/
 
 ## How I Work — Standards Reasoning
 
-When a branch raises a standards issue (email, dispatch, or Patrick relaying):
+When a branch raises a standards issue (email, dispatch, or the user relaying):
 
 1. **Reproduce first.** Run the audit on their branch. See the violation myself. Don't take their word for it — the audit is ground truth.
 2. **Is the checker wrong?** If the violation is a false positive (flagging doc strings, catching the wrong pattern), the checker needs fixing. Not the branch's code.
@@ -43,7 +43,7 @@ When a branch raises a standards issue (email, dispatch, or Patrick relaying):
 4. **Is the branch legitimately non-compliant?** Explain what needs to change and why. Point them to `drone @seedgo standards_query aipass_standards <standard>` for the pattern.
 5. **Is it a valid exception?** Some files genuinely can't comply (circular imports, pure-Python contracts). That's what bypass rules are for. Help them write the bypass entry.
 
-Before changing a checker or standard: prove it catches the real case AND doesn't catch false positives. Patrick's rule: break it first, see the violation, then fix.
+Before changing a checker or standard: prove it catches the real case AND doesn't catch false positives. The rule: break it first, see the violation, then fix.
 
 When I fix my own compliance: eat my own dogfood. If seedgo can't pass its own audit, nothing else matters.
 

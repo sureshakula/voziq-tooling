@@ -20,7 +20,7 @@ Each branch independently decides which flags to support. Result:
 - `--version` exists in 0 branches
 - `--help` is universal (the only consistent flag)
 
-When Patrick or an agent runs `drone @flow --verbose` or `drone @trigger --version`, nothing happens. Flags should be predictable across the system.
+When a user or agent runs `drone @flow --verbose` or `drone @trigger --version`, nothing happens. Flags should be predictable across the system.
 
 ---
 

@@ -14,7 +14,7 @@ DevPulse is the central coordination branch for AIPass. It plans, delegates, and
 - **Cross-branch orchestration** — Dispatch tasks to branches via AI Mail + wake
 - **System-wide planning** — Create and manage flow plans (FPLANs) for multi-phase work
 - **Status tracking** — Dashboard, dev notes, session history
-- **Architecture discussions** — Work with Patrick on design decisions
+- **Architecture discussions** — Work with the user on design decisions
 - **Agent coordination** — Deploy sub-agents in parallel for research and builds
 
 ---

@@ -19,7 +19,7 @@ Purpose: Button up everything at the end of a session — or before a /compact. 
 
 - Check any DPLANs or FPLANs referenced in this session
 - Update their execution logs, status, decision logs with current state
-- If a plan was completed, note it (but don't close — Patrick does that)
+- If a plan was completed, note it (but don't close — the user does that)
 
 ## 3. Git State
 

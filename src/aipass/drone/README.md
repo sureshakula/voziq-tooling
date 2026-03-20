@@ -115,7 +115,7 @@ drone/
 
 By default, drone captures subprocess output (`capture_output=True`) with a 30s timeout. This is safe for AI-to-AI routing but strips Rich colors, buffers progress bars, and kills long-running commands.
 
-Commands in the interactive tuple bypass capture and inherit the terminal directly — enabling live Rich output, colors, and no timeout. Only add commands here when Patrick needs full terminal experience.
+Commands in the interactive tuple bypass capture and inherit the terminal directly — enabling live Rich output, colors, and no timeout. Only add commands here when the user needs full terminal experience.
 
 **Per-command allowlist** (in `apps/drone.py`):
 

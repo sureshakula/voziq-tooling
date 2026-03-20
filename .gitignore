@@ -35,6 +35,7 @@ logs/
 artifacts/
 dropbox/
 tools/
+docs.local/
 .archive/
 .backup/
 .seed/

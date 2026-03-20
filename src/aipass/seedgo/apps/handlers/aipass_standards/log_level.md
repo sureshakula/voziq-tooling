@@ -129,7 +129,7 @@ The checker uses AST-aware docstring tracking to avoid false positives from code
 
 | Date | Decision | By | Status |
 |------|----------|----|--------|
-| 2026-01-31 | ERROR vs WARNING distinction approved | Patrick | Active |
+| 2026-01-31 | ERROR vs WARNING distinction approved | User | Active |
 | 2026-02-13 | Automated checker created | Seedgo | Active |
 
 ---

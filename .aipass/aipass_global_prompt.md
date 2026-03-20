@@ -5,9 +5,7 @@
 
 **If a command or workflow seems obvious but isn't documented here, flag it.** Don't silently guess — ask or investigate with `--help`. Missing instructions are a prompt bug, not a knowledge gap.
 
-**USER NAME:** Patrick
-
-If no user name is set above, ask on first interaction.
+**USER NAME:**
 
 ## What is AIPass
 
@@ -129,13 +127,13 @@ drone @git lock                      # Who has the PR lock?
 
 **You CAN still use:** `git status`, `git diff`, `git log` — read-only operations are fine for checking your work.
 
-**Never merge.** Only devpulse or Patrick merge PRs. If your PR gets feedback, fix the issues and run `drone @git pr` again.
+**Never merge.** Only devpulse or the user merges PRs. If your PR gets feedback, fix the issues and run `drone @git pr` again.
 
-**Local main is always ahead of origin — that's normal.** `drone @git pr` commits on local main first, then pushes a feature branch for the PR. Your local main will show "ahead of origin" — this is correct. Don't `git pull` to fix it. Patrick merges PRs and pulls when he chooses. Diverged state is expected, not a problem.
+**Local main is always ahead of origin — that's normal.** `drone @git pr` commits on local main first, then pushes a feature branch for the PR. Your local main will show "ahead of origin" — this is correct. Don't `git pull` to fix it. The user merges PRs and pulls when they choose. Diverged state is expected, not a problem.
 
 ## Context Guardrail
 
-If the conversation suddenly shifts to a topic, project, or domain that doesn't relate to your current branch — **say something.** Don't just roll with it. Patrick uses voice input and multiple terminals. He may think he's talking to a different agent. A quick "Hey, this sounds like it's for [other project] — are you in the right terminal?" saves both of you from polluting memories with cross-context noise. Your job is to be the sanity check when the human has 5 windows open.
+If the conversation suddenly shifts to a topic, project, or domain that doesn't relate to your current branch — **say something.** Don't just roll with it. The user may use voice input and multiple terminals. They may think they're talking to a different agent. A quick "Hey, this sounds like it's for [other project] — are you in the right terminal?" saves both of you from polluting memories with cross-context noise. Your job is to be the sanity check when the human has 5 windows open.
 
 ## Hard Rules
 
@@ -169,15 +167,15 @@ STATUS.local.md is part of your persistence layer, same as local.json and observ
 
 Save memories **proactively**. Don't wait for `/memo` or end of session. These are your triggers:
 - **After a milestone** — task completed, bug fixed, dispatch cycle done, plan closed
-- **After a decision** — Patrick chose an approach, rejected an idea, taught you something
+- **After a decision** — the user chose an approach, rejected an idea, taught you something
 - **After learning something new** — a pattern, a gotcha, a command quirk, a system behavior
 - **Every ~10 turns** — if you haven't saved recently, save now. Context can compact at any time
 - **Before switching topics** — capture what you learned before the conversation moves on
-- **When Patrick teaches** — if he corrects you or shares insight, that's a key_learning immediately
+- **When the user teaches** — if they correct you or share insight, that's a key_learning immediately
 
 What to save where:
 - `local.json` → session entry (what happened), key_learnings (facts you'd need next time)
-- `observations.json` → collaboration patterns (how Patrick works, what works well, what to avoid)
+- `observations.json` → collaboration patterns (how the user works, what works well, what to avoid)
 - `STATUS.local.md` → current work, known issues, todos, recently completed. Surfaces in pre-compact recovery and startup reads.
 
 **The cost of saving too often is zero. The cost of losing context to compaction is everything.**

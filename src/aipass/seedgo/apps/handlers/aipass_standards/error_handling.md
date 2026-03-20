@@ -571,7 +571,7 @@ class ContentLogger:
 
 **Original Decision:** 2025-11-21 — 3-tier logging, handlers prohibited from Prax
 **Updated:** 2026-02-27 — Unified Prax logging everywhere (FPLAN-0382)
-**Decision Maker:** Patrick
+**Decision Maker:** User
 **Applies To:** All AIPass branches
 **Status:** Active — handlers now use Prax system_logger
 **RFC:** Commons #165 — Handler & Plugin Logging
