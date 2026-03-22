@@ -56,7 +56,7 @@ def print_help():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="python3 api.py",
+        prog="drone @api",
         description="Usage Tracker - Monitor API usage and costs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -68,11 +68,11 @@ COMMANDS:
   cleanup          - Clean up old usage data
 
 USAGE:
-  python3 api.py track <caller>
-  python3 api.py stats
-  python3 api.py session
-  python3 api.py caller-usage <caller>
-  python3 api.py cleanup [days]
+  drone @api track <caller>
+  drone @api stats
+  drone @api session
+  drone @api caller-usage <caller>
+  drone @api cleanup [days]
 
 ARGUMENTS:
   caller - Caller identifier
@@ -80,19 +80,19 @@ ARGUMENTS:
 
 EXAMPLES:
   # Track usage for a caller
-  python3 api.py track my_application
+  drone @api track my_application
 
   # Show usage statistics
-  python3 api.py stats
+  drone @api stats
 
   # Show session data
-  python3 api.py session
+  drone @api session
 
   # Show usage for specific caller
-  python3 api.py caller-usage my_application
+  drone @api caller-usage my_application
 
   # Cleanup data older than 60 days
-  python3 api.py cleanup 60
+  drone @api cleanup 60
         """
     )
 

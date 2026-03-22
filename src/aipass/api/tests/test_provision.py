@@ -1,0 +1,194 @@
+# =================== AIPass ====================
+# Name: test_provision.py
+# Description: Tests for caller auto-provisioning handler
+# Version: 1.0.0
+# Created: 2026-03-20
+# Modified: 2026-03-20
+# =============================================
+
+"""
+Tests for provision.py — caller auto-provisioning.
+
+Tests:
+- create_caller_config() creates 3 JSON files with correct defaults
+- ensure_caller_config() provisions on first call, returns existing on second
+- Idempotency: second call doesn't overwrite existing config
+- Config defaults match expected values
+"""
+
+import json
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from aipass.api.apps.handlers.openrouter.provision import (
+    create_caller_config,
+    ensure_caller_config,
+    get_default_caller_config,
+    provision_json_folder,
+    read_json,
+)
+
+
+# =============================================
+# create_caller_config tests
+# =============================================
+
+
+def test_create_caller_config_creates_three_files(tmp_path: Path):
+    """create_caller_config() should create config, data, and log JSON files."""
+    json_folder = tmp_path / "test_json"
+
+    result = create_caller_config("test_caller", json_folder)
+
+    assert result != {}
+    assert (json_folder / "openrouter_skill_config.json").exists()
+    assert (json_folder / "openrouter_skill_data.json").exists()
+    assert (json_folder / "openrouter_skill_log.json").exists()
+
+
+def test_create_caller_config_defaults(tmp_path: Path):
+    """Config defaults should match: ai_temperature=0.7, ai_max_tokens=4000, enabled=True."""
+    json_folder = tmp_path / "test_json"
+
+    create_caller_config("test_caller", json_folder)
+
+    config = read_json(json_folder / "openrouter_skill_config.json")
+    assert config is not None
+    assert config["config"]["ai_temperature"] == 0.7
+    assert config["config"]["ai_max_tokens"] == 4000
+    assert config["config"]["enabled"] is True
+    assert config["config"]["ai_model"] == ""
+    assert config["skill_name"] == "openrouter"
+
+
+def test_create_caller_config_data_defaults(tmp_path: Path):
+    """Data file should have zeroed counters."""
+    json_folder = tmp_path / "test_json"
+
+    create_caller_config("test_caller", json_folder)
+
+    data = read_json(json_folder / "openrouter_skill_data.json")
+    assert data is not None
+    assert data["data"]["total_requests"] == 0
+    assert data["data"]["successful_requests"] == 0
+    assert data["data"]["failed_requests"] == 0
+    assert data["data"]["models_used"] == {}
+    assert data["data"]["last_request"] is None
+
+
+def test_create_caller_config_log_defaults(tmp_path: Path):
+    """Log file should have empty logs list."""
+    json_folder = tmp_path / "test_json"
+
+    create_caller_config("test_caller", json_folder)
+
+    log = read_json(json_folder / "openrouter_skill_log.json")
+    assert log is not None
+    assert log["logs"] == []
+    assert log["skill_name"] == "openrouter"
+
+
+def test_create_caller_config_creates_folder(tmp_path: Path):
+    """Should create the json_folder if it doesn't exist."""
+    json_folder = tmp_path / "nested" / "deep" / "test_json"
+    assert not json_folder.exists()
+
+    create_caller_config("test_caller", json_folder)
+
+    assert json_folder.exists()
+
+
+# =============================================
+# provision_json_folder tests
+# =============================================
+
+
+def test_provision_json_folder_creates(tmp_path: Path):
+    """Should create folder when it doesn't exist."""
+    folder = tmp_path / "new_folder"
+    assert not folder.exists()
+
+    result = provision_json_folder(folder)
+
+    assert result is True
+    assert folder.exists()
+
+
+def test_provision_json_folder_existing(tmp_path: Path):
+    """Should return True for already-existing folder."""
+    folder = tmp_path / "existing"
+    folder.mkdir()
+
+    result = provision_json_folder(folder)
+
+    assert result is True
+
+
+# =============================================
+# ensure_caller_config tests (mocked stack detection)
+# =============================================
+
+
+@patch("aipass.api.apps.handlers.openrouter.provision.detect_caller_from_stack")
+def test_ensure_caller_config_provisions_new(mock_detect, tmp_path: Path):
+    """ensure_caller_config() should create config when none exists."""
+    json_folder = tmp_path / "caller_json"
+    mock_detect.return_value = ("test_caller", json_folder)
+
+    result = ensure_caller_config("test_caller")
+
+    assert result != {}
+    assert (json_folder / "openrouter_skill_config.json").exists()
+    assert (json_folder / "openrouter_skill_data.json").exists()
+    assert (json_folder / "openrouter_skill_log.json").exists()
+
+
+@patch("aipass.api.apps.handlers.openrouter.provision.detect_caller_from_stack")
+def test_ensure_caller_config_returns_existing(mock_detect, tmp_path: Path):
+    """Second call should return existing config without overwriting."""
+    json_folder = tmp_path / "caller_json"
+    mock_detect.return_value = ("test_caller", json_folder)
+
+    # First call — creates config
+    first_result = ensure_caller_config("test_caller")
+    assert first_result != {}
+
+    # Read the created config and modify it to detect overwrites
+    config_path = json_folder / "openrouter_skill_config.json"
+    config = read_json(config_path)
+    assert config is not None
+    config["config"]["ai_model"] = "test/modified-model"
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+
+    # Second call — should return existing (modified) config, not overwrite
+    second_result = ensure_caller_config("test_caller")
+    assert second_result["config"]["ai_model"] == "test/modified-model"
+
+
+@patch("aipass.api.apps.handlers.openrouter.provision.detect_caller_from_stack")
+def test_ensure_caller_config_no_folder_detected(mock_detect):
+    """Should return empty dict when stack detection fails to find json_folder."""
+    mock_detect.return_value = (None, None)
+
+    result = ensure_caller_config()
+
+    assert result == {}
+
+
+# =============================================
+# get_default_caller_config tests
+# =============================================
+
+
+def test_get_default_caller_config_structure():
+    """Default config should have expected structure."""
+    config = get_default_caller_config()
+
+    assert "skill_name" in config
+    assert "timestamp" in config
+    assert "config" in config
+    assert isinstance(config["config"], dict)
+    assert set(config["config"].keys()) == {"ai_model", "ai_temperature", "ai_max_tokens", "enabled"}

@@ -412,9 +412,9 @@ def spawn_agent(
 
     # Build monitor command (dispatch_monitor wraps claude, handles bounce + lock cleanup)
     MONITOR_SCRIPT = Path(__file__).resolve().parent / "dispatch_monitor.py"
-    LOG_DIR = branch_path / ".ai_mail.local"
+    LOG_DIR = branch_path / "logs"
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    STDERR_LOG = str(LOG_DIR / "agent_stderr.log")
+    STDERR_LOG = str(LOG_DIR / "dispatch_stderr.log")
 
     monitor_cmd = [
         sys.executable, str(MONITOR_SCRIPT),

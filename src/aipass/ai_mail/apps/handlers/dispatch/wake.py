@@ -402,9 +402,9 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
         _set_session_name(branch_path, session_label)
 
     # Step 7: Spawn via dispatch_monitor
-    log_dir = branch_path / ".ai_mail.local"
+    log_dir = branch_path / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    stderr_log = str(log_dir / "agent_stderr.log")
+    stderr_log = str(log_dir / "dispatch_stderr.log")
 
     # Build monitor command
     monitor_cmd = [

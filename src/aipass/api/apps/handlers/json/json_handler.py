@@ -19,7 +19,6 @@ import inspect
 # Navigate: json_handler.py -> json/ -> handlers/ -> apps/ -> api/
 API_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 API_JSON_DIR = API_ROOT / "api_json"
-JSON_TEMPLATES_DIR = API_ROOT / "apps" / "json_templates"
 
 
 def _get_caller_module_name() -> str:
@@ -47,25 +46,35 @@ def _get_caller_module_name() -> str:
         return "unknown"
 
 
-def load_template(json_type: str, module_name: str) -> Any:
-    """Load JSON template from template file"""
-    template_path = JSON_TEMPLATES_DIR / "default" / f"{json_type}.json"
+def _create_default(json_type: str, module_name: str) -> Any:
+    """Create default JSON structure for a given type."""
+    today = datetime.now().date().isoformat()
 
-    if not template_path.exists():
-        return None
-    
-    try:
-        with open(template_path, 'r', encoding='utf-8') as f:
-            template = json.load(f)
-        
-        # Replace placeholders
-        template_str = json.dumps(template)
-        template_str = template_str.replace("{{MODULE_NAME}}", module_name)
-        template_str = template_str.replace("{{TIMESTAMP}}", datetime.now().date().isoformat())
+    if json_type == "config":
+        return {
+            "module_name": module_name,
+            "version": "1.0.0",
+            "timestamp": today,
+            "config": {
+                "auto_save": True,
+                "enabled": True,
+            },
+        }
 
-        return json.loads(template_str)
-    except Exception:
-        return None
+    if json_type == "data":
+        return {
+            "module_name": module_name,
+            "created": today,
+            "last_updated": today,
+            "operations_total": 0,
+            "operations_successful": 0,
+            "operations_failed": 0,
+        }
+
+    if json_type == "log":
+        return []
+
+    raise ValueError(f"Unknown json_type: {json_type}")
 
 
 def validate_json_structure(data: Any, json_type: str) -> bool:
@@ -112,16 +121,11 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
         except Exception:
             pass  # Unreadable - regenerating
 
-    template = load_template(json_type, module_name)
-    if template is None:
-        return False
+    template = _create_default(json_type, module_name)
 
-    try:
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(template, f, indent=2, ensure_ascii=False)
-        return True
-    except Exception:
-        return False
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(template, f, indent=2, ensure_ascii=False)
+    return True
 
 
 def load_json(module_name: str, json_type: str) -> Optional[Any]:

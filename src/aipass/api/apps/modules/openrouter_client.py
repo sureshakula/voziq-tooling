@@ -56,7 +56,7 @@ def print_help():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="python3 api.py",
+        prog="drone @api",
         description="OpenRouter Client - Manage LLM API connections",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -67,10 +67,10 @@ COMMANDS:
   status           - Check connection status
 
 USAGE:
-  python3 api.py test
-  python3 api.py call <prompt> [--model MODEL]
-  python3 api.py models
-  python3 api.py status
+  drone @api test
+  drone @api call <prompt> [--model MODEL]
+  drone @api models
+  drone @api status
 
 ARGUMENTS:
   prompt - Prompt to send to the model
@@ -78,16 +78,16 @@ ARGUMENTS:
 
 EXAMPLES:
   # Test OpenRouter connection
-  python3 api.py test
+  drone @api test
 
   # Make an API call
-  python3 api.py call "What is AI?" --model gpt-4
+  drone @api call "What is AI?" --model gpt-4
 
   # List available models
-  python3 api.py models
+  drone @api models
 
   # Check connection status
-  python3 api.py status
+  drone @api status
         """
     )
 

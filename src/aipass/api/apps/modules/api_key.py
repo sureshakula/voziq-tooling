@@ -171,6 +171,7 @@ def print_help():
     import argparse
 
     parser = argparse.ArgumentParser(
+        prog="drone @api",
         description='API Key Management Module - Manage API keys and credentials',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -181,21 +182,21 @@ COMMANDS:
   init             - Initialize .env template
 
 USAGE:
-  python3 api_key.py <command> [args]
-  python3 api_key.py --help
+  drone @api <command> [args]
+  drone @api --help
 
 EXAMPLES:
   # Get key for provider
-  python3 api_key.py get-key openrouter
+  drone @api get-key openrouter
 
   # Validate key
-  python3 api_key.py validate openrouter
+  drone @api validate openrouter
 
   # List providers
-  python3 api_key.py list-providers
+  drone @api list-providers
 
   # Initialize environment
-  python3 api_key.py init
+  drone @api init
         """
     )
     console.print(parser.format_help())

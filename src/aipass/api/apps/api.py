@@ -102,7 +102,7 @@ def print_introspection():
     modules = discover_modules()
 
     if not modules:
-        error("No modules discovered", suggestion="Run 'python3 api.py --help' for usage information")
+        error("No modules discovered", suggestion="Run 'drone @api --help' for usage information")
         console.print()
         return
 
@@ -114,7 +114,7 @@ def print_introspection():
         console.print(f"  [cyan]•[/cyan] {module_name}")
 
     console.print()
-    console.print("[dim]Run 'python3 api.py --help' for usage information[/dim]")
+    console.print("[dim]Run 'drone @api --help' for usage information[/dim]")
     console.print()
 
 
@@ -169,9 +169,9 @@ def print_help():
     console.print()
 
     usage_examples = [
-        "[yellow]Quick Commands:[/yellow]\n  [dim]python3 api.py get-key[/dim]\n  [dim]python3 api.py validate[/dim]",
-        "[yellow]Testing:[/yellow]\n  [dim]python3 api.py test[/dim]\n  [dim]python3 api.py models[/dim]",
-        "[yellow]Analytics:[/yellow]\n  [dim]python3 api.py track[/dim]\n  [dim]python3 api.py stats[/dim]"
+        "[yellow]Quick Commands:[/yellow]\n  [dim]drone @api get-key[/dim]\n  [dim]drone @api validate[/dim]",
+        "[yellow]Testing:[/yellow]\n  [dim]drone @api test[/dim]\n  [dim]drone @api models[/dim]",
+        "[yellow]Analytics:[/yellow]\n  [dim]drone @api track[/dim]\n  [dim]drone @api stats[/dim]"
     ]
 
     console.print(Columns(usage_examples, equal=True, expand=True))

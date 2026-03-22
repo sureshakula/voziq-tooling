@@ -101,8 +101,12 @@ def main():
 
     json_handler.log_operation("dispatch_monitor_start", {"branch": branch_email, "sender": sender})
 
-    # Open stderr log for claude output
+    # Open stderr log for claude output (rotate if > 500KB)
     try:
+        stderr_path = Path(stderr_log)
+        if stderr_path.exists() and stderr_path.stat().st_size > 512_000:
+            rotated = stderr_path.with_suffix('.log.1')
+            stderr_path.replace(rotated)
         stderr_fh = open(stderr_log, 'a', encoding='utf-8')
         stderr_fh.write(f"\n--- Monitor for {branch_email} started at "
                         f"{time.strftime('%Y-%m-%dT%H:%M:%S')} (PID {os.getpid()}) ---\n")
@@ -132,8 +136,14 @@ def main():
     start_time = time.time()
 
     # Run claude — BLOCKING. Monitor stays alive as long as agent is working.
-    stdout_log = str(branch_path / ".ai_mail.local" / "agent_stdout.log")
+    logs_dir = branch_path / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    stdout_log = str(logs_dir / "dispatch_stdout.log")
     try:
+        stdout_path = Path(stdout_log)
+        if stdout_path.exists() and stdout_path.stat().st_size > 512_000:
+            rotated = stdout_path.with_suffix('.log.1')
+            stdout_path.replace(rotated)
         stdout_fh = open(stdout_log, 'w', encoding='utf-8')
     except OSError:
         stdout_fh = subprocess.DEVNULL

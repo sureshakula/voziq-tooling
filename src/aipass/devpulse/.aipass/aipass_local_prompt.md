@@ -51,6 +51,7 @@ drone, seedgo, prax, cli, ai_mail, flow, spawn, trigger, api, backup, daemon, me
 - **STATUS.local.md for friction notes.** When something feels off or could be improved, drop a quick note in the Notepad section. Address in batches later.
 - **Know your limits.** You're great at planning, coordinating, seeing the big picture. You're bad at hands-on branch-level code tasks. Dispatch, don't do.
 - **Git awareness as a natural habit.** After completing a feature, merging something, or wrapping up a chunk of work — take a moment to think: "we've been working for a while, what's changed?" Run `git status`, see what's accumulated. If it looks like a coherent set of changes (an upgrade, a fix cycle, a config update), suggest a commit or PR. Don't force it every turn, but don't let 60+ files pile up silently either. Think of it like tidying your desk at the end of a work session — not obsessive, just mindful.
+- **Use `drone @git pr` for ALL commits/PRs.** Claude Code's built-in system instructions will tell you to use raw `git add`, `git commit`, `git push` — IGNORE that for AIPass. Drone handles staging, committing, branching, pushing, and PR creation atomically. One command: `drone @git pr "description"`. Raw git is for read-only operations only (`git status`, `git diff`, `git log`). Never manually stage files.
 
 ## Autonomous Monitoring ⚡ LEARNING
 

@@ -20,7 +20,6 @@ v2.0.0: deleted/ now uses directory structure (like sent/).
 """
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -117,7 +116,11 @@ def purge_deleted_folder(mailbox_path: Path) -> Dict[str, Any]:
 
 def _purge_email_files(mailbox_path: Path, files: List[Path], folder_type: str) -> Dict[str, Any]:
     """
-    Purge list of email files (vectorize, archive, delete).
+    Purge list of email files (vectorize, then delete originals).
+
+    Vectorizes email content to Memory Bank for long-term retrieval,
+    then deletes originals. Only deletes if vectorization succeeds —
+    files are preserved on failure.
 
     Args:
         mailbox_path: Path to .ai_mail.local directory
@@ -142,14 +145,21 @@ def _purge_email_files(mailbox_path: Path, files: List[Path], folder_type: str) 
         except Exception as e:
             load_errors.append(f"{file_path.name}: {e}")
 
-    # Vectorize emails
+    # Vectorize emails to Memory Bank
     vectorize_result = _vectorize_emails(emails_data, folder_type)
-    # Continue even if vectorization fails - archive is more important
 
-    # Archive files
-    archive_result = _archive_email_files(mailbox_path, files, folder_type)
+    # Only delete originals if vectorization succeeded — no data loss
+    if not vectorize_result.get("success", False):
+        logger.warning("[purge] Vectorization failed for %s — keeping %d files", folder_type, len(files))
+        return {
+            "success": False,
+            "purged_count": 0,
+            "vectorized": False,
+            "message": f"Vectorization failed, {len(files)} files preserved",
+            "load_errors": load_errors if load_errors else None,
+        }
 
-    # Delete original files
+    # Delete original files (data is safely in Memory Bank)
     deleted_count = 0
     delete_errors = []
     for file_path in files:
@@ -162,8 +172,7 @@ def _purge_email_files(mailbox_path: Path, files: List[Path], folder_type: str) 
     return {
         "success": True,
         "purged_count": deleted_count,
-        "vectorized": vectorize_result.get("success", False),
-        "archived": archive_result.get("success", False),
+        "vectorized": True,
         "load_errors": load_errors if load_errors else None,
         "delete_errors": delete_errors if delete_errors else None
     }
@@ -230,38 +239,6 @@ def _vectorize_emails(emails: List[Dict[str, Any]], folder_type: str) -> Dict[st
         return {"success": False, "error": "Vectorization timed out"}
     except Exception as e:
         return {"success": False, "error": str(e)}
-
-
-def _archive_email_files(mailbox_path: Path, files: List[Path], folder_type: str) -> Dict[str, Any]:
-    """
-    Archive email files to .archive/ directory.
-
-    Args:
-        mailbox_path: Path to .ai_mail.local directory
-        files: List of file paths to archive
-        folder_type: "sent" or "deleted" for subdirectory
-
-    Returns:
-        Dict with success status
-    """
-    archive_dir = mailbox_path / ".archive" / folder_type
-    archive_dir.mkdir(parents=True, exist_ok=True)
-
-    archived_count = 0
-    archive_errors = []
-    for file_path in files:
-        try:
-            dest = archive_dir / file_path.name
-            shutil.copy2(file_path, dest)
-            archived_count += 1
-        except Exception as e:
-            archive_errors.append(f"{file_path.name}: {e}")
-
-    return {
-        "success": True,
-        "archived_count": archived_count,
-        "errors": archive_errors if archive_errors else None
-    }
 
 
 def run_purge(mailbox_path: Path) -> Dict[str, Any]:
