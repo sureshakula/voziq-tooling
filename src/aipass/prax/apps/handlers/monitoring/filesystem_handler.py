@@ -207,7 +207,7 @@ class MonitoringFileHandler(FileSystemEventHandler):
                                 action_text = f"🔧 {tool_name}"
                             break
                         elif item_type == 'text':
-                            text = item.get('text', '').strip()[:200]
+                            text = item.get('text', '').strip()
                             if text:
                                 action_text = f"💬 {text}"
                             break
