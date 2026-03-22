@@ -16,31 +16,32 @@ An operating system for AI agents. Not a chatbot wrapper. Not a prompt chain. A 
 - **15 citizens** work in the same filesystem without isolation (no git worktrees, no sandboxes)
 - **Dispatch locks** prevent conflicts — if an agent is working, incoming tasks queue instead of spawning duplicates
 - **Persistent memory** survives across sessions via `.trinity/` files (identity, session history, collaboration patterns)
-- **Standards enforcement** keeps the system consistent as it grows (seedgo runs 24+ automated checks)
+- **Standards enforcement** keeps the system consistent as it grows (seedgo runs 24 automated checks)
+- **Diagnostic tooling** — 20 standalone scanners cover code quality, security, documentation, and compliance
 - **Inter-agent messaging** lets citizens email each other, dispatch tasks, and wake each other up
 - **Everything is tracked** — design plans (DPLANs), execution plans (FPLANs), and seedgo audits make changes traceable even when 500+ files change in a single session
 - **Init anywhere** — `aipass init` turns any directory into a self-contained AI workspace with its own registry, identity, and memories. No repo required. A business project, a research folder, a side project — each gets its own isolated environment that works immediately
 
 ## Current State: Beta
 
-**It works.** All 15 branches operational. 95+ PRs merged. 38 orchestration sessions. 733 tests across the system. 173 drone commands discovered. The system is past prototyping — we're in the hardening phase, building diagnostic tooling and iterating branch by branch.
+**It works.** All 15 branches operational. 106+ PRs merged. 44 orchestration sessions. 744 tests across the system. 173 drone commands discovered. The system is past prototyping — we're in the hardening phase, with diagnostic tooling complete and seedgo integration next.
 
 **Recently completed:**
 
+- **Diagnostic tooling suite** — 20 standalone scanners built, validated against API ground truth, and personally reviewed. Covers: silent catches, dead code, unused functions, deep nesting, debug prints, commented loggers, hardcoded keys, URL injection, magic numbers, TODO tracking, help text, README freshness, stale terminology, command verification, test coverage, prompt quality, and more. All follow `{concern}_scanner_v1.py` convention with `@branch` / `--all` / `--summary` flags.
+- **Seedgo integration research** — 15-agent analysis mapped how all 20 scanners integrate into seedgo's auto-discovery checker system. 10 tools map to hard checks, 7 are advisory (investigation tools). Integration plan ready for dispatch.
+- **3-tier logging revision** — handlers can now use `logger.info/warning` (previously prohibited). 112 commented-out logger calls across API handlers alone. DPLAN-0040 created for seedgo standard update.
+- **Branch audit cycle** — DPLANs created per branch (API, commons, ai_mail, spawn, backup, prax, memory, drone). 4 branches dispatched and verified (commons DB path fixed, ai_mail purge consolidated, spawn templates updated, backup archived 8 files).
 - **Dispatch UX redesign** — `drone @ai_mail dispatch @target "Subject" "Body"` sends + wakes in one command. `--fresh` flag for clean sessions. `email` command for mail-only (no wake). Fully tested.
 - **PR v2 workflow** — commit-on-main architecture. Changes never leave your working tree. Feature branches are just pointers for GitHub's PR system. No more disappearing files.
-- **Handler guard fix** — cross-branch handler imports blocked by `.py` files from other branches. Command-line `python3 -c` allowed through. 13 branches updated.
-- **Memory vectorization fix** — batch processing (2 subprocess calls instead of 228), decoupled from startup trigger, explicit `drone @memory process-plans` command. 113 plan files vectorized in ~1 minute.
-- **Diagnostic tooling** — 4 scanners built: dead code (14 unused files found), command inventory (173 commands), prompt quality (6 rich/4 basic/5 stub), test coverage (733 tests, 26% module coverage).
-- **Prax monitor** — fully operational with inotify file watching, branch detection, polling fallback with actionable error messages.
-- **Plan cleanup** — 60+ FPLANs/DPLANs closed. Templates updated with "close immediately when done" rule.
-- **System governance** — git workflow, commit signing, DPLAN/FPLAN documentation, logging/debugging guidelines, `.archive/` pattern all codified in the global prompt.
+- **Prax monitor** — fully operational with inotify file watching, branch detection, full message display. Used as secondary terminal to work around Claude Code's scroll limitation.
 
 **What we're solving now:**
 
-- **Branch-by-branch audit** — walking through every branch from devpulse, testing commands, noting issues, dispatching fixes. API branch audit in progress (DPLAN-0029).
-- **Local prompt enrichment** — 5 branches still on 14-line stubs (ai_mail, backup, cli, drone, prax). Rich prompts = less babysitting.
-- **Test coverage expansion** — 9 branches have zero tests. Building toward comprehensive coverage using the test scanner for visibility.
+- **Seedgo checker integration** — porting diagnostic tool logic into seedgo's `*_check.py` auto-discovery pattern. Goal: `drone @seedgo audit aipass` runs 34+ checks (24 existing + 10 new from diagnostic tools).
+- **Branch-by-branch audit** — walking through every branch from devpulse, testing commands, noting issues, dispatching fixes. API branch audit complete (DPLAN-0029), 6 more branch DPLANs in progress.
+- **Local prompt enrichment** — template finalized (DPLAN-0032), ready for rollout to 5 stub branches.
+- **Test coverage expansion** — 9 branches have zero tests. 744 tests total, 27% module coverage. Test scanner provides per-branch visibility.
 - **Cross-platform reliability** — Linux and Windows tested. macOS structurally supported. All paths use `pathlib`, secrets at `~/.secrets/aipass/`.
 - **Agent agnosticism** — currently focused on [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (hooks for auto-diagnostics, prompt injection, session recovery). But AIPass is designed to not depend on any single provider. `agents.md` and `gemini.md` can bootstrap the system for Codex and Gemini — you lose hooks but keep the core.
 
@@ -90,9 +91,9 @@ Every branch is a citizen — an expert in its domain with its own memories and 
 
 | Branch | Role |
 |--------|------|
-| `devpulse` | **Start here.** Orchestration hub — coordinates everything |
+| `devpulse` | **Start here.** Orchestration hub — coordinates everything, maintains 20 diagnostic tools |
 | `drone` | AI-friendly CLI — every command is a single-line, non-interactive call |
-| `seedgo` | Standards enforcement — 21-standard audit pack, system compliance |
+| `seedgo` | Standards enforcement — 24-standard audit pack, system compliance |
 | `prax` | Logging and monitoring (the only logger in the system) |
 | `cli` | Terminal display, stderr routing, project commands |
 | `flow` | Workflow management — FPLANs (execution) and DPLANs (design) |
@@ -137,6 +138,17 @@ Every citizen has `.trinity/` files:
 ```
 
 These grow over time. A citizen that's been through 20+ sessions knows things — patterns, gotchas, preferences, past decisions. When context compacts (conversation gets too long), memories survive because they're written to disk. When a new session starts, the citizen reads its memories and picks up where it left off.
+
+### Diagnostic Tooling
+
+DevPulse maintains 20 standalone scanners in its `tools/` directory — purpose-built for AI consumption. Each scanner follows the same CLI pattern (`@branch`, `--all`, `--summary`) and targets a single concern:
+
+- **Code quality** — silent catches, dead code, unused functions, deep nesting, raw prints, commented loggers
+- **Security** — hardcoded keys, partial key display, URL injection
+- **Documentation** — stale help text, README freshness, prompt quality, TODO tracking
+- **Consistency** — magic numbers, stale terminology, command verification, test coverage
+
+Tools surface patterns. Patterns create conversations. Conversations improve the system. Run a scanner, get instant visibility into code quality across all 15 branches without reading a single file.
 
 ## Architecture
 
