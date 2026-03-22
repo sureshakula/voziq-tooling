@@ -106,7 +106,7 @@ def print_introspection():
             console.print(f"  [cyan]handlers/{domain}/[/cyan]")
 
     console.print()
-    console.print("[dim]Run 'python3 backup_core.py --help' for usage[/dim]")
+    console.print("[dim]Run 'drone @backup --help' for usage[/dim]")
     console.print()
 
 
@@ -123,8 +123,8 @@ def print_help():
     console.print("Main backup orchestration module")
     console.print()
     console.print("[yellow]Usage:[/yellow]")
-    console.print("  python3 backup_core.py              # Show module info")
-    console.print("  python3 backup_core.py --help       # Show this help")
+    console.print("  drone @backup              # Show module info")
+    console.print("  drone @backup --help       # Show this help")
     console.print()
     console.print("[yellow]Commands:[/yellow]")
     console.print("  snapshot    Full copy backup (overwrites destination)")
@@ -152,6 +152,10 @@ def handle_command(args) -> bool:
     # Check if args has backup-related command
     if not hasattr(args, 'command'):
         return False
+
+    if args.command in ['--help', '-h', 'help']:
+        print_help()
+        return True
 
     # Check for backup commands ('all' handled by entry point, listed here for drone discovery)
     if args.command not in ['snapshot', 'versioned', 'all']:

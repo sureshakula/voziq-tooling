@@ -20,7 +20,7 @@ from datetime import datetime
 from aipass.backup.apps.handlers.json import json_handler
 
 _BACKUP_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/backup/
-TIMESTAMPS_FILE = _BACKUP_ROOT / "backup_data" / "backup_timestamps.json"
+TIMESTAMPS_FILE = _BACKUP_ROOT / "backup_json" / "backup_timestamps.json"
 
 MODES = ["snapshot", "versioned", "drive_sync"]
 

@@ -23,13 +23,13 @@ from aipass.cli.apps.modules import console, error
 from aipass.prax import logger
 
 # Explicit module imports (replaces dynamic discover_modules)
-from aipass.backup.apps.modules import backup_core, google_drive_sync, integrations, reauth_drive
+from aipass.backup.apps.modules import backup_core, google_drive_sync
 
 
 def get_modules():
     """Return list of modules with handle_command() interface"""
     modules = []
-    for mod in [backup_core, google_drive_sync, integrations, reauth_drive]:
+    for mod in [backup_core, google_drive_sync]:
         if hasattr(mod, 'handle_command'):
             modules.append(mod)
     return modules
