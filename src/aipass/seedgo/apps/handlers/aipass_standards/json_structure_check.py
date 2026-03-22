@@ -201,11 +201,13 @@ def _check_code_wiring(_path: Path, content: str) -> List[Dict]:
 
 def _check_json_handler_config(_handler_path: Path, content: str, _bypass_rules: list | None = None) -> List[Dict]:
     """
-    Check json_handler.py for library profile.
+    Check json_handler.py for correct wiring per the json_structure standard.
 
-    For pip packages:
-    - PASS if using relative paths (Path(__file__).resolve().parent)
-    - FAIL if using hardcoded absolute paths (Path.home(), BRANCH_ROOT, etc.)
+    Validates:
+    1. No hardcoded absolute paths (Path.home())
+    2. Uses relative path resolution (Path(__file__))
+    3. No template directory references (json_templates)
+    4. Uses inline code defaults, not file-based templates (load_template)
     """
     checks: List[Dict] = []
 
@@ -250,6 +252,37 @@ def _check_json_handler_config(_handler_path: Path, content: str, _bypass_rules:
         'passed': has_relative,
         'message': 'Uses relative path resolution (Path(__file__).parent)' if has_relative
                    else 'Missing relative path resolution — should use Path(__file__).resolve().parent'
+    })
+
+    # Check 3: No template directory references
+    # The standard says: "The CODE PATTERN is the template -- no json_templates/ directory"
+    # Check for path constants or strings referencing json_templates
+    has_template_dir = False
+    for line in content.split('\n'):
+        stripped = line.strip()
+        if stripped.startswith('#'):
+            continue
+        if 'json_templates' in stripped:
+            has_template_dir = True
+            break
+
+    checks.append({
+        'name': 'No template directory',
+        'passed': not has_template_dir,
+        'message': 'No json_templates/ references (correct — code is the template)' if not has_template_dir
+                   else 'References json_templates/ directory — standard requires auto-create from code defaults, not file templates'
+    })
+
+    # Check 4: No load_template() function
+    # The correct pattern uses inline defaults (_create_default or similar).
+    # A load_template() that reads from files violates the auto-create principle.
+    has_load_template = bool(re.search(r'def\s+load_template\s*\(', content))
+
+    checks.append({
+        'name': 'No file-based templates',
+        'passed': not has_load_template,
+        'message': 'No load_template() function (correct — uses inline code defaults)' if not has_load_template
+                   else 'Has load_template() function — standard requires inline code defaults, not file-based templates'
     })
 
     return checks
