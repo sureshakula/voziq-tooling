@@ -54,6 +54,10 @@ def handle_command(command: str, args: list) -> bool:
         print_introspection()
         return True
 
+    if "--help" in args:
+        print_introspection()
+        return True
+
     return handle_sync_templates(args) == 0
 
 

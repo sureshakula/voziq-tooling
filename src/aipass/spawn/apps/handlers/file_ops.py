@@ -133,9 +133,6 @@ def _should_skip(rel_path):
     for part in parts:
         if part in SKIP_NAMES:
             return True
-    # Skip .gitkeep files (template needs them, branches don't)
-    if rel_path.name == ".gitkeep":
-        return True
     return False
 
 

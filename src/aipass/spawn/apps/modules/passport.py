@@ -50,6 +50,10 @@ def handle_command(command: str, args: list) -> bool:
         print_introspection()
         return True
 
+    if "--help" in args:
+        print_introspection()
+        return True
+
     return handle_passport(args) == 0
 
 

@@ -80,6 +80,10 @@ def handle_command(command: str, args: List[str]) -> bool:
         print_introspection()
         return True
 
+    if "--help" in args:
+        print_introspection()
+        return True
+
     if command == "create":
         if not args:
             logger.error("spawn create requires a target path")

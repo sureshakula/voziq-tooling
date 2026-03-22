@@ -119,7 +119,7 @@ spawn/
 ### Create (builder class)
 1. **Resolve** — Extract branch name from target path, validate path doesn't exist
 2. **Lookup** — Resolve citizen class to template directory via class_registry
-3. **Copy** — Recursive copy of class template to target (skips `__pycache__`, `.gitkeep`)
+3. **Copy** — Recursive copy of class template to target (skips `__pycache__`)
 4. **Rename** — Replace `{{BRANCH}}` in directory and file names
 5. **Replace** — Substitute all `{{PLACEHOLDER}}` patterns in file contents
 6. **Registry** — Regenerate `.template_registry.json`, register in `AIPASS_REGISTRY.json`
