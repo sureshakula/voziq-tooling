@@ -16,6 +16,7 @@ Run: seedgo audit
 """
 
 import sys
+import time
 from pathlib import Path
 from typing import List
 from collections import defaultdict
@@ -204,7 +205,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     # Validate pack name
     packs = _discover_packs()
-    if pack_name not in packs:
+    if pack_name is None or pack_name not in packs:
         available = ", ".join(packs.keys())
         error(
             f"Unknown pack: '{pack_name}'",
@@ -254,20 +255,55 @@ def handle_command(command: str, args: List[str]) -> bool:
             console.print(f"[red]Branch '{specific_branch}' not found[/red]")
             return True
 
-    console.print(f"[dim]Discovered {len(branches)} branches to audit...[/dim]")
+    from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, SpinnerColumn
 
-    # Audit all branches (always full - checks all files)
+    is_compact = specific_branch is None  # Full audit = compact, single branch = detailed
+
+    total_branches = len(branches)
+    console.print(f"[dim]Discovered {total_branches} branch{'es' if total_branches != 1 else ''} to audit...[/dim]")
+    console.print()
+
+    # Audit all branches with live progress
     audit_results = []
-    for branch in branches:
-        console.print(f"[dim]Auditing {branch['name']}...[/dim]", end="\r")
+    audit_start = time.monotonic()
 
-        # Load bypass rules for this branch
-        bypass_rules = load_bypass_rules(branch['path'])
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeRemainingColumn(),
+        console=console,
+        transient=True,
+    ) as progress:
+        task = progress.add_task("Scanning...", total=total_branches)
 
-        result = audit_branch(branch, bypass_rules, pack_path=pack_path)
-        audit_results.append(result)
+        for idx, branch in enumerate(branches, 1):
+            branch_name = branch['name']
+            progress.update(task, description=f"[cyan]{branch_name}[/cyan]")
 
-    console.print(" " * 50, end="\r")  # Clear progress line
+            # Load bypass rules for this branch
+            bypass_rules = load_bypass_rules(branch['path'])
+
+            branch_start = time.monotonic()
+            result = audit_branch(branch, bypass_rules, pack_path=pack_path)
+            branch_elapsed = time.monotonic() - branch_start
+
+            result['elapsed'] = branch_elapsed
+            audit_results.append(result)
+
+            # Print completed branch result (persists above progress bar)
+            avg = result.get('average', 0)
+            style = "green" if avg >= 90 else "yellow" if avg >= 75 else "red"
+            progress.console.print(
+                f"  [dim][{idx}/{total_branches}][/dim] [cyan]{branch_name:<12}[/cyan] [{style}]{avg:>3}%[/{style}] [dim]({branch_elapsed:.1f}s)[/dim]"
+            )
+            progress.advance(task)
+
+    total_elapsed = time.monotonic() - audit_start
+    console.print()
+    console.print(f"[dim]Audit complete — {total_branches} branches in {total_elapsed:.1f}s[/dim]")
+    console.print()
 
     # Calculate system-wide averages for each standard
     standard_scores = defaultdict(list)
@@ -282,12 +318,13 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     overall_system_avg = int(sum(r['average'] for r in audit_results) / len(audit_results)) if audit_results else 0
 
-    # Print results with system averages
-    for result in audit_results:
-        print_branch_summary(result, system_averages, overall_system_avg)
+    # Print results — detailed for single branch, skip for full audit
+    if not is_compact:
+        for result in audit_results:
+            print_branch_summary(result, system_averages, overall_system_avg)
 
-    # Print system summary (unless specific branch)
-    if not specific_branch:
+    # Print system summary (full audit only)
+    if is_compact:
         print_system_summary(audit_results)
 
     # Log completion

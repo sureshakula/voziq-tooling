@@ -142,11 +142,22 @@ def print_branch_summary(audit_result: Dict, system_averages: Dict[str, int] | N
                     for check in other_failures:
                         console.print(f"         [dim]• {check.get('message', '')}[/dim]")
             else:
-                # Non-architecture failures - show as before
-                console.print(f"    [red]└─ {standard_name.title()} issues:[/red]")
-                for check in result.get('checks', []):
-                    if not check.get('passed', False):
-                        console.print(f"       [dim]• {check.get('message', 'Unknown error')}[/dim]")
+                # Non-architecture failures — check for per-file violations first
+                per_file_violations = audit_result.get(f'{standard_name}_violations', [])
+                if per_file_violations:
+                    console.print(f"    [red]└─ {standard_name.replace('_', ' ').title()} issues:[/red]")
+                    for violation in per_file_violations:
+                        file_path = violation.get('path', violation.get('file', ''))
+                        score = violation.get('score', 0)
+                        console.print(f"    [red]✗[/red] [magenta]{file_path}[/magenta] [dim](score: {score}%)[/dim]")
+                        for issue in violation.get('issues', []):
+                            console.print(f"      [dim]• {issue}[/dim]")
+                else:
+                    # Fallback: show check messages directly
+                    console.print(f"    [red]└─ {standard_name.replace('_', ' ').title()} issues:[/red]")
+                    for check in result.get('checks', []):
+                        if not check.get('passed', False):
+                            console.print(f"       [dim]• {check.get('message', 'Unknown error')}[/dim]")
 
     # Always show CLI violations (audit = comprehensive)
     # Use absolute paths for reliable VS Code clickability

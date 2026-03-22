@@ -10,7 +10,9 @@
 Error Handling Standards Checker Handler
 
 Validates module compliance with AIPass 3-tier logging standards.
-Checks Prax imports in modules/handlers, logger calls in handlers.
+- Modules: MUST import Prax, logger.error() for system failures only
+- Handlers: MAY import Prax for info/warning, MUST NOT use logger.error()
+- stdlib logging.getLogger() prohibited everywhere
 """
 
 import re
@@ -114,6 +116,9 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     if is_handler:
         no_stdlib_check = check_handler_no_stdlib_logging(content, module_path, bypass_rules)
         checks.append(no_stdlib_check)
+
+    # Note: Handlers MAY import Prax and use logger.info/warning/error (DPLAN-0040)
+    # Only stdlib logging.getLogger() is prohibited (check 2 above)
 
     # Check 4: Modules should have error logging
     if is_module:
@@ -323,3 +328,5 @@ def check_error_vs_warning_usage(lines: List[str], file_path: str, bypass_rules:
             'passed': True,
             'message': 'logger.error() correctly used for system failures only'
         }
+
+
