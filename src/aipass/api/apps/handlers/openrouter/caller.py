@@ -27,6 +27,9 @@ from pathlib import Path
 import inspect
 from typing import Dict, Any, Optional, Tuple
 
+# Logging
+from aipass.prax import logger
+
 # JSON handler
 from aipass.api.apps.handlers.json import json_handler
 
@@ -76,11 +79,11 @@ def get_caller_info() -> Optional[Dict[str, Any]]:
                 json_handler.log_operation("caller_detected", {"caller": result.get("caller_name"), "category": "skills"})
                 return result
 
-        # logger.info(f"[{MODULE_NAME}] Could not detect caller from stack trace")
+        logger.info(f"[{MODULE_NAME}] Could not detect caller from stack trace")
         return None
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Caller detection failed: {e}")
+        logger.error(f"Caller detection failed: {e}")
         return None
 
 
@@ -124,17 +127,17 @@ def get_json_folder_path(caller: str) -> Optional[Path]:
                 base_path = _PACKAGE_ROOT / "skills" / f"skills_{skills_category}"
                 json_folder = base_path / f"{skills_category}_json"
             else:
-                # logger.info(f"[{MODULE_NAME}] Cannot parse skills category from: {caller}")
+                logger.info(f"[{MODULE_NAME}] Cannot parse skills category from: {caller}")
                 return None
         else:
-            # logger.info(f"[{MODULE_NAME}] Unknown caller pattern: {caller}")
+            logger.info(f"[{MODULE_NAME}] Unknown caller pattern: {caller}")
             return None
 
-        # logger.info(f"[{MODULE_NAME}] Resolved JSON folder for {caller}: {json_folder}")
+        logger.info(f"[{MODULE_NAME}] Resolved JSON folder for {caller}: {json_folder}")
         return json_folder
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Failed to determine JSON folder for {caller}: {e}")
+        logger.error(f"Failed to determine JSON folder for {caller}: {e}")
         return None
 
 
@@ -153,7 +156,7 @@ def detect_caller_category(caller_path: Path) -> str:
             return "unknown"
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Failed to detect category for {caller_path}: {e}")
+        logger.error(f"Failed to detect category for {caller_path}: {e}")
         return "unknown"
 
 
@@ -169,7 +172,7 @@ def _detect_flow_caller(frame_path: Path) -> Dict[str, Any]:
         json_folder_path = flow_path / "flow_json"
         caller_name = frame_path.stem
 
-        # logger.info(f"[{MODULE_NAME}] Detected flow caller: {caller_name}")
+        logger.info(f"[{MODULE_NAME}] Detected flow caller: {caller_name}")
 
         return {
             "caller_name": caller_name,
@@ -180,7 +183,7 @@ def _detect_flow_caller(frame_path: Path) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Failed to detect flow caller: {e}")
+        logger.error(f"Failed to detect flow caller: {e}")
         return _create_fallback_info(frame_path)
 
 
@@ -192,7 +195,7 @@ def _detect_prax_caller(frame_path: Path) -> Dict[str, Any]:
         json_folder_path = prax_path / "prax_json"
         caller_name = frame_path.stem
 
-        # logger.info(f"[{MODULE_NAME}] Detected prax caller: {caller_name}")
+        logger.info(f"[{MODULE_NAME}] Detected prax caller: {caller_name}")
 
         return {
             "caller_name": caller_name,
@@ -203,7 +206,7 @@ def _detect_prax_caller(frame_path: Path) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Failed to detect prax caller: {e}")
+        logger.error(f"Failed to detect prax caller: {e}")
         return _create_fallback_info(frame_path)
 
 
@@ -220,7 +223,7 @@ def _detect_skills_caller(frame_path: Path) -> Dict[str, Any]:
                 json_folder_path = skills_path / f"{category}_json"
                 caller_name = frame_path.stem
 
-                # logger.info(f"[{MODULE_NAME}] Detected skills caller: {caller_name} (category: {category})")
+                logger.info(f"[{MODULE_NAME}] Detected skills caller: {caller_name} (category: {category})")
 
                 return {
                     "caller_name": caller_name,
@@ -231,11 +234,11 @@ def _detect_skills_caller(frame_path: Path) -> Dict[str, Any]:
                     "detection_method": "stack"
                 }
 
-        # logger.info(f"[{MODULE_NAME}] Could not find skills directory in path: {frame_path}")
+        logger.info(f"[{MODULE_NAME}] Could not find skills directory in path: {frame_path}")
         return _create_fallback_info(frame_path)
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Failed to detect skills caller: {e}")
+        logger.error(f"Failed to detect skills caller: {e}")
         return _create_fallback_info(frame_path)
 
 
@@ -244,7 +247,7 @@ def _create_fallback_info(frame_path: Path) -> Dict[str, Any]:
     caller_name = frame_path.stem
     category = detect_caller_category(frame_path)
 
-    # logger.info(f"[{MODULE_NAME}] Using fallback detection for: {caller_name}")
+    logger.info(f"[{MODULE_NAME}] Using fallback detection for: {caller_name}")
 
     return {
         "caller_name": caller_name,
@@ -265,26 +268,26 @@ def validate_caller_info(caller_info: Dict[str, Any]) -> bool:
         required_fields = ["caller_name", "caller_path", "category", "detection_method"]
         for field in required_fields:
             if field not in caller_info:
-                # logger.info(f"[{MODULE_NAME}] Missing required field: {field}")
+                logger.info(f"[{MODULE_NAME}] Missing required field: {field}")
                 return False
 
         if not caller_info["caller_name"]:
-            # logger.info(f"[{MODULE_NAME}] Caller name is empty")
+            logger.info(f"[{MODULE_NAME}] Caller name is empty")
             return False
 
         if not isinstance(caller_info["caller_path"], Path):
-            # logger.info(f"[{MODULE_NAME}] Caller path is not a Path object")
+            logger.info(f"[{MODULE_NAME}] Caller path is not a Path object")
             return False
 
         valid_categories = ["flow", "prax", "skills", "unknown"]
         if caller_info["category"] not in valid_categories:
-            # logger.info(f"[{MODULE_NAME}] Invalid category: {caller_info['category']}")
+            logger.info(f"[{MODULE_NAME}] Invalid category: {caller_info['category']}")
             return False
 
         return True
 
     except Exception as e:
-        # logger.error(f"[{MODULE_NAME}] Validation failed: {e}")
+        logger.error(f"Validation failed: {e}")
         return False
 
 
@@ -294,7 +297,6 @@ def validate_caller_info(caller_info: Dict[str, Any]) -> bool:
 
 def _initialize():
     """Initialize caller detection module."""
-    # logger.info(f"[{MODULE_NAME}] Caller detection handler loaded (v{MODULE_VERSION})")
-    pass
+    logger.info(f"[{MODULE_NAME}] Caller detection handler loaded (v{MODULE_VERSION})")
 
 _initialize()

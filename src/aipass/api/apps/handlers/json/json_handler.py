@@ -13,6 +13,9 @@ from typing import Dict, Any, Optional
 import sys
 import inspect
 
+# Logging
+from aipass.prax import logger
+
 # Infrastructure
 
 # Constants — package-relative paths
@@ -42,7 +45,8 @@ def _get_caller_module_name() -> str:
 
         # Fallback
         return "unknown"
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to detect module name: {e}")
         return "unknown"
 
 
@@ -118,8 +122,8 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
                 return True
             else:
                 pass  # Corrupted - regenerating
-        except Exception:
-            pass  # Unreadable - regenerating
+        except Exception as e:
+            logger.warning(f"Unreadable JSON at {json_path}, regenerating: {e}")
 
     template = _create_default(json_type, module_name)
 
@@ -138,7 +142,8 @@ def load_json(module_name: str, json_type: str) -> Optional[Any]:
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to load JSON from {json_path}: {e}")
         return None
 
 
@@ -156,7 +161,8 @@ def save_json(module_name: str, json_type: str, data: Any) -> bool:
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to save JSON to {json_path}: {e}")
         return False
 
 

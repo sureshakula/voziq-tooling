@@ -74,7 +74,7 @@ def get_available_models(api_key: Optional[str] = None) -> List[Dict]:
             api_key = get_api_key("openrouter")
 
         if not api_key:
-            # logger.info(f"[{MODULE_NAME}] No API key available for OpenRouter")
+            logger.info(f"[{MODULE_NAME}] No API key available for OpenRouter")
             logger.warning("No OpenRouter API key found")
             return []
 
@@ -82,15 +82,15 @@ def get_available_models(api_key: Optional[str] = None) -> List[Dict]:
         models = fetch_models_from_api(api_key)
 
         if models:
-            # logger.info(f"[{MODULE_NAME}] Fetched {len(models)} models from OpenRouter")
+            logger.info(f"[{MODULE_NAME}] Fetched {len(models)} models from OpenRouter")
             json_handler.log_operation("models_listed", {"count": len(models)})
             return models
         else:
-            # logger.info(f"[{MODULE_NAME}] No models returned from API")
+            logger.info(f"[{MODULE_NAME}] No models returned from API")
             return []
 
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Failed to get available models: {e}")
+        logger.info(f"[{MODULE_NAME}] Failed to get available models: {e}")
         logger.error(f"Error fetching models: {e}")
         return []
 
@@ -123,11 +123,11 @@ def get_free_models(api_key: Optional[str] = None) -> List[Dict]:
         # Filter for free models
         free_models = filter_by_pricing(all_models, max_cost=0.0)
 
-        # logger.info(f"[{MODULE_NAME}] Found {len(free_models)} free models")
+        logger.info(f"[{MODULE_NAME}] Found {len(free_models)} free models")
         return free_models
 
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Failed to get free models: {e}")
+        logger.info(f"[{MODULE_NAME}] Failed to get free models: {e}")
         logger.error(f"Error fetching free models: {e}")
         return []
 
@@ -156,7 +156,7 @@ def fetch_models_from_api(api_key: str) -> List[Dict]:
         }
 
         # Make API request
-        # logger.info(f"[{MODULE_NAME}] Requesting models from OpenRouter API")
+        logger.info(f"[{MODULE_NAME}] Requesting models from OpenRouter API")
         response = requests.get(
             OPENROUTER_API_URL,
             headers=headers,
@@ -165,7 +165,7 @@ def fetch_models_from_api(api_key: str) -> List[Dict]:
 
         # Check response status
         if response.status_code != 200:
-            # logger.info(f"[{MODULE_NAME}] API request failed with status {response.status_code}")
+            logger.info(f"[{MODULE_NAME}] API request failed with status {response.status_code}")
             logger.error(f"OpenRouter API error: {response.status_code}")
             return []
 
@@ -175,29 +175,29 @@ def fetch_models_from_api(api_key: str) -> List[Dict]:
         # Extract models from response
         if "data" in data and isinstance(data["data"], list):
             models = data["data"]
-            # logger.info(f"[{MODULE_NAME}] Successfully parsed {len(models)} models")
+            logger.info(f"[{MODULE_NAME}] Successfully parsed {len(models)} models")
             return models
         else:
-            # logger.info(f"[{MODULE_NAME}] Invalid response format - no 'data' field")
+            logger.info(f"[{MODULE_NAME}] Invalid response format - no 'data' field")
             return []
 
     except requests.exceptions.Timeout:
-        # logger.info(f"[{MODULE_NAME}] API request timeout after {DEFAULT_TIMEOUT}s")
+        logger.info(f"[{MODULE_NAME}] API request timeout after {DEFAULT_TIMEOUT}s")
         logger.error("Request timeout - OpenRouter API not responding")
         return []
 
     except requests.exceptions.RequestException as e:
-        # logger.info(f"[{MODULE_NAME}] Network error: {e}")
+        logger.info(f"[{MODULE_NAME}] Network error: {e}")
         logger.error(f"Network error: {e}")
         return []
 
     except ValueError as e:
-        # logger.info(f"[{MODULE_NAME}] JSON parse error: {e}")
+        logger.info(f"[{MODULE_NAME}] JSON parse error: {e}")
         logger.error("Invalid JSON response from API")
         return []
 
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Unexpected error fetching models: {e}")
+        logger.info(f"[{MODULE_NAME}] Unexpected error fetching models: {e}")
         logger.error(f"Error: {e}")
         return []
 
@@ -232,19 +232,20 @@ def filter_by_pricing(models: List[Dict], max_cost: float = 0.0) -> List[Dict]:
             try:
                 prompt_cost = float(pricing.get("prompt", "0"))
                 completion_cost = float(pricing.get("completion", "0"))
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
                 # Skip models with invalid pricing data
+                logger.warning(f"Skipping model with invalid pricing data: {e}")
                 continue
 
             # Check if both costs are at or below threshold
             if prompt_cost <= max_cost and completion_cost <= max_cost:
                 filtered.append(model)
 
-        # logger.info(f"[{MODULE_NAME}] Filtered {len(filtered)}/{len(models)} models at max_cost={max_cost}")
+        logger.info(f"[{MODULE_NAME}] Filtered {len(filtered)}/{len(models)} models at max_cost={max_cost}")
         return filtered
 
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Error filtering models: {e}")
+        logger.error(f"Error filtering models: {e}")
         return []
 
 
@@ -264,14 +265,14 @@ def get_model_by_id(model_id: str, api_key: Optional[str] = None) -> Optional[Di
 
         for model in all_models:
             if model.get("id") == model_id:
-                # logger.info(f"[{MODULE_NAME}] Found model: {model_id}")
+                logger.info(f"[{MODULE_NAME}] Found model: {model_id}")
                 return model
 
-        # logger.info(f"[{MODULE_NAME}] Model not found: {model_id}")
+        logger.info(f"[{MODULE_NAME}] Model not found: {model_id}")
         return None
 
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Error finding model {model_id}: {e}")
+        logger.error(f"Error finding model {model_id}: {e}")
         return None
 
 
@@ -314,7 +315,7 @@ def extract_model_metadata(model: Dict) -> Dict:
         return metadata
 
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Error extracting metadata: {e}")
+        logger.error(f"Error extracting metadata: {e}")
         return {}
 
 
@@ -331,7 +332,7 @@ def list_model_ids(models: List[Dict]) -> List[str]:
     try:
         return [model.get("id", "") for model in models if model.get("id")]
     except Exception as e:
-        # logger.info(f"[{MODULE_NAME}] Error extracting IDs: {e}")
+        logger.error(f"Error extracting model IDs: {e}")
         return []
 
 

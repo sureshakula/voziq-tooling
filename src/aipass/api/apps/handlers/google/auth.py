@@ -23,6 +23,9 @@ Consumers get authenticated credentials, they decide what to do with them.
 from pathlib import Path
 from typing import Optional
 
+# Logging
+from aipass.prax import logger
+
 # JSON handler
 from aipass.api.apps.handlers.json import json_handler
 
@@ -51,7 +54,8 @@ try:
     from google.auth.transport.requests import Request
     from google_auth_oauthlib.flow import InstalledAppFlow
     GOOGLE_AUTH_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    logger.warning(f"Google auth libraries not available: {e}")
     GOOGLE_AUTH_AVAILABLE = False
     Credentials = None  # type: ignore[assignment, misc]
     Request = None  # type: ignore[assignment, misc]
@@ -90,7 +94,8 @@ def load_credentials(scopes: Optional[list] = None) -> Optional["Credentials"]:
         creds = Credentials.from_authorized_user_file(str(CREDS_PATH), effective_scopes)
         json_handler.log_operation("credentials_loaded", {"source": str(CREDS_PATH)})
         return creds
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to load credentials from {CREDS_PATH}: {e}")
         return None
 
 
@@ -113,7 +118,8 @@ def refresh_credentials(creds: "Credentials") -> bool:
         creds.refresh(Request())
         _save_credentials(creds)
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to refresh credentials: {e}")
         return False
 
 
@@ -150,7 +156,8 @@ def run_oauth_flow(
         creds = flow.run_local_server(port=port, open_browser=open_browser)
         _save_credentials(creds)
         return creds
-    except Exception:
+    except Exception as e:
+        logger.error(f"OAuth flow failed: {e}")
         return None
 
 

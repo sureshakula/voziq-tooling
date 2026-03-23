@@ -93,6 +93,7 @@ def read_env_file(env_var: str, search_paths: Optional[List[Path]] = None) -> Op
                             return value.strip()
         except Exception as e:
             # Error reading env_file
+            logger.warning(f"Error reading env file '{env_file}': {e}")
             continue
 
     # Variable not found in any .env file
@@ -136,6 +137,7 @@ def read_env_file_dict(env_path: Path) -> Dict[str, str]:
 
     except Exception as e:
         # Error reading env_path
+        logger.error(f"Error reading env file '{env_path}': {e}")
         return env_dict
 
 

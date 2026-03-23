@@ -251,7 +251,7 @@ def cleanup_data(args: List[str]):
             from aipass.trigger.apps.modules.core import trigger
             trigger.fire('usage_data_cleaned', days=days, data_path=str(data_path))
         except ImportError:
-            pass  # Silent fallback
+            logger.warning("Trigger module not available — skipping event fire")
     else:
         error("Cleanup failed")
 
@@ -280,6 +280,6 @@ if __name__ == "__main__":
         console.print()
         console.print(f"[red]Unknown command: {command}[/red]")
         console.print()
-        console.print("Run [dim]python3 usage_tracker.py --help[/dim] for available commands")
+        console.print("Run [dim]drone @api --help[/dim] for available commands")
         console.print()
         sys.exit(1)

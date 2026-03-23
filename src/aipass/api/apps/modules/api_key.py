@@ -226,6 +226,6 @@ if __name__ == "__main__":
         console.print()
         console.print(f"[red]Unknown command: {command}[/red]")
         console.print()
-        console.print("Run [dim]python3 api_key.py --help[/dim] for available commands")
+        console.print("Run [dim]drone @api --help[/dim] for available commands")
         console.print()
         sys.exit(1)

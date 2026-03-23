@@ -272,7 +272,7 @@ def main():
         return 0
     else:
         logger.warning(f"Unknown command: {command}")
-        error(f"Unknown command: {command}", suggestion="Run 'python3 api.py --help' for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @api --help' for available commands")
         return 1
 
 if __name__ == "__main__":

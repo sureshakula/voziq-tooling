@@ -5,6 +5,7 @@
 # Created: 2026-03-14
 # Modified: 2026-03-14
 # =============================================
+# pyright: reportMissingImports=false, reportOptionalCall=false
 
 """
 Google API Service Factory
@@ -30,6 +31,7 @@ Usage:
 
 from typing import Optional
 
+from aipass.prax import logger
 from aipass.api.apps.handlers.google import auth as auth
 from aipass.api.apps.handlers.json import json_handler
 
@@ -40,7 +42,8 @@ from aipass.api.apps.handlers.json import json_handler
 try:
     from googleapiclient.discovery import build
     GOOGLE_BUILD_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    logger.warning(f"Google API client library not available: {e}")
     GOOGLE_BUILD_AVAILABLE = False
     build = None  # type: ignore[assignment]
 
@@ -78,7 +81,8 @@ def build_service(
         service = build(service_name, version, credentials=creds)
         json_handler.log_operation("build_service", {"service": service_name, "version": version})
         return service
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to build Google {service_name} service: {e}")
         return None
 
 
@@ -118,5 +122,6 @@ def build_thread_safe_service(
 
     try:
         return build(service_name, version, credentials=creds)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to build thread-safe Google {service_name} service: {e}")
         return None

@@ -48,8 +48,8 @@ from aipass.prax import logger
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
-except ImportError:
-    # logger.error("OpenAI SDK not available. Install with: pip install openai")
+except ImportError as e:
+    logger.error(f"OpenAI SDK not available. Install with: pip install openai: {e}")
     OpenAI = None  # type: ignore[assignment,misc]
     OPENAI_AVAILABLE = False
 
@@ -121,7 +121,7 @@ def create_client(api_key: str, base_url: str = OPENROUTER_BASE_URL, timeout: in
             default_headers=OPENROUTER_HEADERS
         )
 
-        # logger.info(f"Created OpenRouter client - base_url: {base_url}, timeout: {timeout}s")
+        logger.info(f"Created OpenRouter client - base_url: {base_url}, timeout: {timeout}s")
         json_handler.log_operation("client_initialized", {"base_url": base_url, "timeout": timeout})
         return client
 
@@ -155,7 +155,7 @@ def get_cached_client(api_key: str, base_url: str = OPENROUTER_BASE_URL, timeout
         cached_client = _client_cache[api_key]
         # Verify cached client is still valid
         if cached_client and cached_client.api_key == api_key:
-            # logger.info("Using cached OpenRouter client")
+            logger.info("Using cached OpenRouter client")
             return cached_client
 
     # Create new client
@@ -169,10 +169,10 @@ def get_cached_client(api_key: str, base_url: str = OPENROUTER_BASE_URL, timeout
         # Remove oldest client (first key in dict)
         oldest_key = next(iter(_client_cache))
         del _client_cache[oldest_key]
-        # logger.info(f"Removed oldest cached client - cache limit: {MAX_CACHED_CLIENTS}")
+        logger.info(f"Removed oldest cached client - cache limit: {MAX_CACHED_CLIENTS}")
 
     _client_cache[api_key] = client
-    # logger.info("Cached new OpenRouter client")
+    logger.info("Cached new OpenRouter client")
 
     return client
 
@@ -257,7 +257,7 @@ def extract_response(response: Any) -> Optional[Dict[str, Any]]:
         content = response.choices[0].message.content
 
         if not content:
-            # logger.warning("Response has no content")
+            logger.warning("Response has no content")
             return None
 
         # Extract metadata
@@ -268,11 +268,11 @@ def extract_response(response: Any) -> Optional[Dict[str, Any]]:
             "finish_reason": response.choices[0].finish_reason if hasattr(response.choices[0], 'finish_reason') else None
         }
 
-        # logger.info(f"Extracted response - length: {len(content)} chars, id: {result['id']}")
+        logger.info(f"Extracted response - length: {len(content)} chars, id: {result['id']}")
         return result
 
     except Exception as e:
-        # logger.error(f"Failed to extract response: {e}")
+        logger.error(f"Failed to extract response: {e}")
         return None
 
 
@@ -311,16 +311,16 @@ def get_response(prompt: str, caller: Optional[str] = None, model: Optional[str]
         caller_info = get_caller_info()
         if caller_info and caller_info.get("caller_name"):
             caller = caller_info["caller_name"]
-            # logger.info(f"Auto-detected caller: {caller}")
+            logger.info(f"Auto-detected caller: {caller}")
         else:
-            # logger.warning("Could not detect caller - using 'unknown'")
+            logger.warning("Could not detect caller - using 'unknown'")
             caller = "unknown"
 
     # Step 1b: Ensure caller has config (auto-provision if missing)
     try:
         ensure_caller_config(caller)
-    except Exception:
-        pass  # Provisioning is best-effort — don't block the API call
+    except Exception as e:
+        logger.warning(f"Caller config provisioning failed (non-blocking): {e}")
 
     # Step 2: Require model from caller - no defaults
     if not model:
@@ -362,11 +362,9 @@ def get_response(prompt: str, caller: Optional[str] = None, model: Optional[str]
         try:
             track_usage(result["id"], caller if caller else "unknown", model, api_key)
         except Exception as e:
-            # logger.warning(f"Usage tracking failed: {e}")
-            # Don't fail the request if tracking fails
-            pass
+            logger.warning(f"Usage tracking failed: {e}")
 
-    # logger.info(f"Successfully got response - caller: {caller}, model: {model}, length: {len(result['content'])} chars")
+    logger.info(f"Successfully got response - caller: {caller}, model: {model}, length: {len(result['content'])} chars")
     return result
 
 
@@ -382,7 +380,6 @@ def clear_client_cache() -> None:
     global _client_cache
     count = len(_client_cache)
     _client_cache.clear()
-    # logger.info(f"Cleared {count} cached clients")
     logger.info(f"Cleared {count} cached OpenRouter clients")
 
 

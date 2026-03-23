@@ -29,6 +29,9 @@ import time
 from datetime import datetime
 from typing import Dict, Any, Optional
 
+# Logging
+from aipass.prax import logger
+
 # JSON handler
 from aipass.api.apps.handlers.json import json_handler
 
@@ -82,7 +85,7 @@ def track_usage(generation_id: str, caller: str, model: str = "unknown", api_key
                 from aipass.api.apps.handlers.auth.keys import get_api_key
                 api_key = get_api_key("openrouter")
             except Exception as e:
-                # Failed to load API key
+                logger.error(f"[{MODULE_NAME}] Failed to load API key: {e}")
                 return {"success": False, "error": "No API key available"}
 
         if not api_key:
@@ -109,7 +112,7 @@ def track_usage(generation_id: str, caller: str, model: str = "unknown", api_key
             return {"success": False, "error": "Failed to store usage data"}
 
     except Exception as e:
-        # Usage tracking failed
+        logger.error(f"[{MODULE_NAME}] Usage tracking failed: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -176,20 +179,20 @@ def get_generation_metrics(generation_id: str, api_key: str) -> Optional[Dict[st
             # OpenRouter API returned non-200 status
             return None
 
-    except requests.exceptions.Timeout:
-        # Request timeout querying generation
+    except requests.exceptions.Timeout as e:
+        logger.warning(f"[{MODULE_NAME}] Request timeout querying generation: {e}")
         return None
 
     except requests.exceptions.RequestException as e:
-        # Request error querying generation
+        logger.error(f"[{MODULE_NAME}] Request error querying generation: {e}")
         return None
 
     except (ValueError, KeyError) as e:
-        # Error parsing metrics
+        logger.error(f"[{MODULE_NAME}] Error parsing metrics: {e}")
         return None
 
     except Exception as e:
-        # Unexpected error getting generation metrics
+        logger.error(f"[{MODULE_NAME}] Unexpected error getting generation metrics: {e}")
         return None
 
 
@@ -304,7 +307,7 @@ def store_usage_data(caller: str, model: str, generation_id: str, metrics: Dict[
         return True
 
     except Exception as e:
-        # Failed to store usage data
+        logger.error(f"[{MODULE_NAME}] Failed to store usage data: {e}")
         return False
 
 
@@ -330,5 +333,5 @@ def load_usage_data() -> Dict[str, Any]:
         return data_wrapper.get("data", {})
 
     except Exception as e:
-        # Failed to load usage data
+        logger.error(f"[{MODULE_NAME}] Failed to load usage data: {e}")
         return {}

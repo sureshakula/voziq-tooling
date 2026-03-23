@@ -128,10 +128,10 @@ def load_provider_config(provider: str = "openrouter") -> Optional[Dict[str, Any
             return None
 
     except json.JSONDecodeError as e:
-        # Invalid JSON in config file
+        logger.error(f"Invalid JSON in provider config: {e}")
         return None
     except Exception as e:
-        # Failed to load provider config
+        logger.error(f"Failed to load provider config: {e}")
         return None
 
 
@@ -153,7 +153,7 @@ def get_full_config() -> Optional[Dict[str, Any]]:
             return json.load(f)
 
     except Exception as e:
-        # Failed to load full config
+        logger.error(f"Failed to load full config: {e}")
         return None
 
 
@@ -258,7 +258,7 @@ def update_full_config(updates: Dict[str, Any]) -> bool:
         return True
 
     except Exception as e:
-        # Failed to update full config
+        logger.error(f"Failed to update full config: {e}")
         return False
 
 
@@ -340,7 +340,7 @@ def _create_default_config() -> bool:
         return True
 
     except Exception as e:
-        # Failed to create default config
+        logger.error(f"Failed to create default config: {e}")
         return False
 
 

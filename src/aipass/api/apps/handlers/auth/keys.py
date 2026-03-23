@@ -28,6 +28,9 @@ import sys
 import os
 from typing import Optional, Dict, Any
 
+# Logging
+from aipass.prax import logger
+
 # Internal handlers
 from aipass.api.apps.handlers.auth.env import read_env_file
 
@@ -121,6 +124,7 @@ def get_api_key(provider: str = "openrouter") -> Optional[str]:
 
     except Exception as e:
         # Failed to get key
+        logger.error(f"Failed to get API key for provider '{provider}': {e}")
         return None
 
 
@@ -163,6 +167,7 @@ def get_key_from_config(provider: str) -> Optional[str]:
 
     except Exception as e:
         # Error reading config
+        logger.error(f"Error reading config for provider '{provider}': {e}")
         return None
 
 

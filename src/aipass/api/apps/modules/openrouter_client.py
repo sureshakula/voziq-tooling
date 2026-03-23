@@ -281,6 +281,7 @@ def check_status():
         import openai  # noqa: F401
         console.print(f"  [cyan]OpenAI SDK:[/cyan]     [green]available[/green]")
     except ImportError:
+        logger.warning("OpenAI SDK not installed")
         console.print(f"  [cyan]OpenAI SDK:[/cyan]     [red]missing[/red]")
 
     # Client cache stats
@@ -343,6 +344,6 @@ if __name__ == "__main__":
         console.print()
         console.print(f"[red]Unknown command: {command}[/red]")
         console.print()
-        console.print("Run [dim]python3 openrouter_client.py --help[/dim] for available commands")
+        console.print("Run [dim]drone @api --help[/dim] for available commands")
         console.print()
         sys.exit(1)

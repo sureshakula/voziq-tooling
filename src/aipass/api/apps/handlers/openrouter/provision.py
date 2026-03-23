@@ -61,7 +61,7 @@ def read_json(file_path: Path) -> Optional[Dict[str, Any]]:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        # logger.error(f"Failed to read {file_path}: {e}")
+        logger.error(f"Failed to read {file_path}: {e}")
         return None
 
 
@@ -84,7 +84,7 @@ def write_json(file_path: Path, data: Dict[str, Any]) -> bool:
 
         return True
     except Exception as e:
-        # logger.error(f"Failed to write {file_path}: {e}")
+        logger.error(f"Failed to write {file_path}: {e}")
         return False
 
 
@@ -166,7 +166,7 @@ def provision_json_folder(json_folder: Path) -> bool:
             return True
 
         json_folder.mkdir(parents=True, exist_ok=True)
-        # logger.info(f"Created JSON folder: {json_folder}")
+        logger.info(f"Created JSON folder: {json_folder}")
         logger.info(f"Created JSON folder: {json_folder}")
 
         return True
@@ -205,7 +205,7 @@ def create_caller_config(caller: str, json_folder: Path) -> Dict[str, Any]:
             # logger.error(f"Failed to write config for {caller}")
             return {}
 
-        # logger.info(f"Created API config for {caller}: {config_file}")
+        logger.info(f"Created API config for {caller}: {config_file}")
         logger.info(f"Created config: {config_file.name}")
 
         # Create data file
@@ -213,7 +213,7 @@ def create_caller_config(caller: str, json_folder: Path) -> Dict[str, Any]:
         data = get_default_caller_data()
 
         if write_json(data_file, data):
-            # logger.info(f"Created data file for {caller}: {data_file}")
+            logger.info(f"Created data file for {caller}: {data_file}")
             logger.info(f"Created data: {data_file.name}")
 
         # Create log file
@@ -221,7 +221,7 @@ def create_caller_config(caller: str, json_folder: Path) -> Dict[str, Any]:
         log_data = get_default_caller_log()
 
         if write_json(log_file, log_data):
-            # logger.info(f"Created log file for {caller}: {log_file}")
+            logger.info(f"Created log file for {caller}: {log_file}")
             logger.info(f"Created log: {log_file.name}")
 
         logger.info(f"Auto-provisioned OpenRouter config for '{caller}'")
@@ -256,9 +256,8 @@ def ensure_caller_config(caller: str | None = None) -> Dict[str, Any]:
             detected_caller, json_folder = detect_caller_from_stack()
             if detected_caller:
                 caller = detected_caller
-                # logger.info(f"Auto-detected caller: {caller}")
+                logger.info(f"Auto-detected caller: {caller}")
             else:
-                # logger.warning("Could not detect caller from stack")
                 logger.warning("Could not detect caller module")
                 return {}
 
@@ -276,11 +275,10 @@ def ensure_caller_config(caller: str | None = None) -> Dict[str, Any]:
         if config_file.exists():
             config = read_json(config_file)
             if config:
-                # logger.info(f"Using existing config for {caller}")
+                logger.info(f"Using existing config for {caller}")
                 return config
             else:
-                # logger.warning(f"Config file corrupted for {caller}, regenerating")
-                logger.warning("Corrupted config, regenerating...")
+                logger.warning(f"Config file corrupted for {caller}, regenerating")
 
         # Create new config
         return create_caller_config(caller, json_folder)

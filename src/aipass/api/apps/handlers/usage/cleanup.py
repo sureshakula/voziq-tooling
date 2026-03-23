@@ -37,7 +37,7 @@ def _read_json(file_path: Path) -> Optional[Dict]:
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        # logger.error(f"Failed to read JSON from {file_path}: {e}")
+        logger.error(f"Failed to read JSON from {file_path}: {e}")
         return None
 
 
@@ -49,7 +49,7 @@ def _write_json(file_path: Path, data: Dict) -> bool:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:
-        # logger.error(f"Failed to write JSON to {file_path}: {e}")
+        logger.error(f"Failed to write JSON to {file_path}: {e}")
         return False
 
 
@@ -91,7 +91,7 @@ def cleanup_old_data(data_file_path: Path, retention_days: int = 30) -> int:
             data["timestamp"] = datetime.now().isoformat()
 
         _write_json(data_file_path, data)
-        # logger.info(f"Cleaned up {len(old_generations)} generation entries")
+        logger.info(f"Cleaned up {len(old_generations)} generation entries")
         logger.info(f"Cleaned up {len(old_generations)} generation entries older than {retention_days} days")
         json_handler.log_operation("usage_cleanup", {"generations_removed": len(old_generations), "retention_days": retention_days})
 
@@ -118,7 +118,8 @@ def _identify_old_generations(generation_tracking: Dict, cutoff_date: datetime) 
             if gen_date < cutoff_date:
                 old_generations.append(gen_id)
 
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid timestamp for generation {gen_id}, marking for cleanup: {e}")
             old_generations.append(gen_id)
 
     return old_generations
@@ -141,7 +142,8 @@ def cleanup_daily_totals(data_file_path: Path, retention_days: int = 90) -> int:
                 date_obj = datetime.fromisoformat(date_str).date()
                 if date_obj < cutoff_date:
                     old_dates.append(date_str)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Invalid date format '{date_str}', marking for cleanup: {e}")
                 old_dates.append(date_str)
 
         if not old_dates:
@@ -155,7 +157,7 @@ def cleanup_daily_totals(data_file_path: Path, retention_days: int = 90) -> int:
             data["timestamp"] = datetime.now().isoformat()
 
         _write_json(data_file_path, data)
-        # logger.info(f"Cleaned up {len(old_dates)} daily total entries")
+        logger.info(f"Cleaned up {len(old_dates)} daily total entries")
         logger.info(f"Cleaned up {len(old_dates)} daily total entries older than {retention_days} days")
 
         return len(old_dates)
@@ -175,7 +177,7 @@ def auto_cleanup(data_file_path: Path, config: Optional[Dict] = None) -> Dict[st
         generations_removed = cleanup_old_data(data_file_path, gen_retention)
         daily_totals_removed = cleanup_daily_totals(data_file_path, daily_retention)
 
-        # logger.info(f"Auto cleanup: {generations_removed} generations, {daily_totals_removed} daily totals removed")
+        logger.info(f"Auto cleanup: {generations_removed} generations, {daily_totals_removed} daily totals removed")
 
         return {
             "generations_removed": generations_removed,
@@ -225,7 +227,7 @@ def get_cleanup_stats(data_file_path: Path) -> Dict[str, int]:
         }
 
     except Exception as e:
-        # logger.error(f"Failed to get cleanup stats: {e}")
+        logger.error(f"Failed to get cleanup stats: {e}")
         return empty_stats
 
 
@@ -234,5 +236,6 @@ def _is_old_date(date_str: str, cutoff_date) -> bool:
     try:
         date_obj = datetime.fromisoformat(date_str).date()
         return date_obj < cutoff_date
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        logger.warning(f"Invalid date format '{date_str}' in _is_old_date: {e}")
         return True
