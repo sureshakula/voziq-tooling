@@ -29,6 +29,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -76,5 +77,6 @@ def save_registry(registry: Dict[str, Any], registry_file: str | None = None) ->
             "success": True,
         })
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"[{MODULE_NAME}] Failed to save registry to {target}: {e}")
         return False

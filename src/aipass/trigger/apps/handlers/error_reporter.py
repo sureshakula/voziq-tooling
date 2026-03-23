@@ -166,8 +166,8 @@ def report_error(
             count=error_count,
         )
         result["dispatched"] = True
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to fire error_detected event for '%s': %s", component, exc)
 
     json_handler.log_operation("error_reported", {"branch": component, "error_type": error_type})
     return result

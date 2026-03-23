@@ -14,6 +14,7 @@ Handles dual logging (system-wide + branch-local) and terminal output.
 """
 
 import logging
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Dict, Optional
 from logging.handlers import RotatingFileHandler
@@ -36,6 +37,7 @@ from aipass.prax.apps.handlers.logging.introspection import (
 from aipass.prax.apps.handlers.json import json_handler
 
 # Global state for logging system
+logger = logging.getLogger(__name__)
 _system_logger: Optional[logging.Logger] = None
 _captured_loggers: Dict[str, logging.Logger] = {}
 _terminal_output_enabled = False
@@ -46,7 +48,8 @@ try:
     from aipass.prax.apps.handlers.logging.terminal.formatting import create_terminal_handler
     from aipass.prax.apps.handlers.logging.terminal.filtering import should_display_terminal
     _terminal_module_available = True
-except ImportError:
+except ImportError as e:
+    logger.info(f"[setup] Terminal handler modules not available: {e}")
     create_terminal_handler = None  # type: ignore[assignment]
     should_display_terminal = None  # type: ignore[assignment]
 
@@ -60,8 +63,7 @@ def _safe_rotating_handler(log_file: Path, max_bytes: int, backup_count: int) ->
                 _system_logger.warning(f"Self-healed missing log directory: {parent}")
         return RotatingFileHandler(log_file, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
     except OSError as e:
-        if _system_logger:
-            _system_logger.error(f"Log handler failed for {log_file}: {e}")
+        logger.error("Log handler failed for %s: %s", log_file, e)
         return logging.NullHandler()
 
 

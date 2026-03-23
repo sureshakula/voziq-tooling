@@ -417,8 +417,8 @@ def aggregate_central_impl(heal: bool = True,
                            active_count=len(all_active),
                            closed_count=len(recently_closed),
                            branches_count=len(branches))
-            except ImportError:
-                pass
+            except ImportError as e:
+                logger.warning(f"[{MODULE_NAME}] Trigger module not available, skipping central_aggregated event: {e}")
 
             json_handler.log_operation("central_aggregated", {"active_count": len(all_active), "closed_count": len(recently_closed), "success": True})
             return True

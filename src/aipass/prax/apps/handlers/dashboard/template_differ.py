@@ -23,10 +23,13 @@ Independence:
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # PATH RESOLUTION
@@ -103,7 +106,8 @@ def _diff_branch(branch_name: str, branch_path: Path, template: dict) -> Dict[st
 
     try:
         data = json.loads(content)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.warning("Invalid JSON in dashboard for diff: %s", e)
         result["status"] = "invalid_json"
         return result
 
@@ -188,6 +192,7 @@ def diff_dashboard_template(branch_name: Optional[str] = None) -> Dict[str, Any]
     try:
         template = json.loads(TEMPLATE_FILE.read_text())
     except json.JSONDecodeError as e:
+        logger.error("Invalid template JSON: %s", e)
         return {"error": f"Invalid template JSON: {e}", "branches": [], "summary": {}}
 
     # Load branch registry
@@ -197,6 +202,7 @@ def diff_dashboard_template(branch_name: Optional[str] = None) -> Dict[str, Any]
     try:
         registry = json.loads(BRANCH_REGISTRY.read_text())
     except json.JSONDecodeError as e:
+        logger.error("Invalid registry JSON: %s", e)
         return {"error": f"Invalid registry JSON: {e}", "branches": [], "summary": {}}
 
     # Filter to active branches

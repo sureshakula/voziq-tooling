@@ -16,6 +16,7 @@ Returns formatted strings - caller handles actual output.
 from pathlib import Path
 from typing import Dict, Any
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 
@@ -325,8 +326,8 @@ def format_plan_info(plan_key: str, plan_info: Dict[str, Any], prefix: str = "FP
         try:
             dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
             created = dt.strftime("%Y-%m-%d %H:%M")
-        except (ValueError, AttributeError):
-            pass  # Keep original value if parsing fails
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"[display] Failed to parse created date '{created}': {e}")
 
     # Use original plan number if available (set by list_ops merge), else use key
     display_num = plan_info.get("_plan_num", plan_key)

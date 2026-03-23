@@ -32,7 +32,7 @@ from rich.columns import Columns
 from aipass.cli.apps.handlers.json import json_handler
 
 # NOTE: Cannot import prax here — circular import (prax depends on cli)
-# from aipass.prax import logger
+# Silent catches in this file are bypassed via .seedgo/bypass.json
 
 # Initialize Rich console (lowercase follows service instance pattern)
 CONSOLE = Console(force_terminal=True)  # Internal constant — force_terminal ensures ANSI colors even when piped
@@ -75,7 +75,7 @@ def print_introspection():
         CONSOLE.print("  [dim]handlers/display/ (not found)[/dim]")
         CONSOLE.print()
 
-    CONSOLE.print("[dim]Run 'python3 display.py --help' for usage[/dim]")
+    CONSOLE.print("[dim]Run 'drone @cli display --help' for usage[/dim]")
     CONSOLE.print()
 
 
@@ -145,9 +145,9 @@ def print_help():
     CONSOLE.print()
 
     usage_examples = [
-        "[yellow]Module Info:[/yellow]\n  [dim]python3 display.py[/dim]\n  [dim]drone cli display[/dim]",
-        "[yellow]Run Demo:[/yellow]\n  [dim]python3 display.py demo[/dim]\n  [dim]drone cli demo[/dim]",
-        "[yellow]Show Help:[/yellow]\n  [dim]python3 display.py --help[/dim]\n  [dim]drone cli display --help[/dim]"
+        "[yellow]Module Info:[/yellow]\n  [dim]drone @cli display[/dim]",
+        "[yellow]Run Demo:[/yellow]\n  [dim]drone @cli display demo[/dim]",
+        "[yellow]Show Help:[/yellow]\n  [dim]drone @cli display --help[/dim]"
     ]
 
     # RICH FORMATTING TIP: Columns creates side-by-side layout
@@ -212,7 +212,7 @@ def print_help():
     CONSOLE.print()
 
     # RICH FORMATTING TIP: Use [bold] for emphasis without color
-    CONSOLE.print("[bold]TIP:[/bold] Run [green]python3 display.py demo[/green] to see all functions in action!")
+    CONSOLE.print("[bold]TIP:[/bold] Run [green]drone @cli display demo[/green] to see all functions in action!")
     CONSOLE.print()
     CONSOLE.print("─" * 70)
     CONSOLE.print()
@@ -232,6 +232,9 @@ def handle_command(command: str, args: List[str]) -> bool:
         return False
     if not args:
         print_introspection()
+        return True
+    if args[0] in ("--help", "-h", "help"):
+        print_help()
         return True
     if args[0] == "demo":
         run_demo()
@@ -431,9 +434,8 @@ if __name__ == "__main__":
             sys.exit(0)
         else:
             CONSOLE.print(f"[red]Unknown command: {command}[/red]")
-            CONSOLE.print("[dim]Run 'python3 display.py --help' for usage[/dim]")
+            CONSOLE.print("[dim]Run 'drone @cli display --help' for usage[/dim]")
             sys.exit(1)
     except Exception as e:
-        # Note: Can't use Prax logger here due to circular import (display <- prax <- display)
         CONSOLE.print(f"[red]Error: {e}[/red]")
         sys.exit(1)

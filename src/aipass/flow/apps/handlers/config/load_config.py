@@ -29,6 +29,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -72,7 +73,8 @@ def create_default_config(config_file: Path, module_name: str, default_settings:
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, indent=2, ensure_ascii=False)
         return default_config
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Failed to create default config at {config_file}: {e}")
         return default_config
 
 
@@ -110,5 +112,6 @@ def load_config(module_name: str, default_settings: Dict[str, Any] | None = None
             "success": True,
         })
         return data
-    except Exception:
+    except Exception as e:
+        logger.error(f"[{MODULE_NAME}] Failed to load config for '{module_name}' from {config_file}: {e}")
         return {"config": default_settings or {"enabled": True}}

@@ -13,6 +13,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from aipass.prax import logger
 from aipass.spawn.apps.handlers.json import json_handler
 
 
@@ -112,7 +113,8 @@ def load_registry(registry_path):
     try:
         data = json.loads(registry_path.read_text(encoding="utf-8"))
         return data
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning("Failed to load registry from %s: %s", registry_path, e)
         return {
             "metadata": {
                 "version": "1.0.0",
@@ -154,7 +156,8 @@ def save_registry(registry_path, data):
             encoding="utf-8",
         )
         return True
-    except (IOError, TypeError):
+    except (IOError, TypeError) as e:
+        logger.error("Failed to save registry to %s: %s", registry_path, e)
         return False
 
 

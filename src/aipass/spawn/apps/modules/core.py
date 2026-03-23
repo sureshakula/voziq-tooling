@@ -26,7 +26,8 @@ from aipass.prax import logger
 
 try:
     from aipass.cli.apps.modules.display import console
-except ImportError:
+except ImportError as e:
+    logger.warning("Failed to import aipass.cli.apps.modules.display, falling back to rich.console: %s", e)
     from rich.console import Console
     console = Console()
 

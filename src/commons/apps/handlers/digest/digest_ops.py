@@ -197,7 +197,7 @@ def show_digest(args: List[str]) -> dict:
         close_db(conn)
 
     except Exception as e:
-        logger.error(f"Digest query failed: {e}")
+        logger.error(f"[digest_ops] Digest query failed: {e}")
         return {"success": False, "error": str(e)}
 
     json_handler.log_operation("digest_query", {"top_posts": len(top_posts), "totals": totals})

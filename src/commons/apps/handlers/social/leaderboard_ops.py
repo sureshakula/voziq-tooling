@@ -138,5 +138,5 @@ def show_leaderboard(args: List[str]) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Leaderboard query failed: {e}")
+        logger.error(f"[leaderboard_ops] Leaderboard query failed: {e}")
         return {"success": False, "error": str(e)}

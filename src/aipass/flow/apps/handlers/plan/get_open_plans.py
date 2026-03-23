@@ -19,8 +19,12 @@ Usage:
 from pathlib import Path
 from typing import List, Tuple, Dict, Any
 
+from aipass.prax import logger
+
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
+
+MODULE_NAME = "get_open_plans"
 
 # Internal: Registry handler
 from aipass.flow.apps.handlers.registry.load_registry import load_registry
@@ -41,8 +45,8 @@ def _get_all_registry_files() -> List[str]:
                 files.append(rf)
         if files:
             return files
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Failed to discover plan types for registry files: {e}")
     return []
 
 
@@ -66,7 +70,8 @@ def get_open_plans() -> List[Tuple[str, Dict[str, Any]]]:
                     for plan_num, plan_info in registry.get("plans", {}).items()
                     if plan_info.get("status") == "open"
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning(f"[{MODULE_NAME}] Failed to load registry '{reg_file}' for open plan scan: {e}")
                 continue
     else:
         # Fallback: load default registry

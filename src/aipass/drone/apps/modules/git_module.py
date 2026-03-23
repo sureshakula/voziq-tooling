@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from aipass.prax import logger
 from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.git import lock_handler, status_handler, sync_handler, pr_handler
 
@@ -254,6 +255,7 @@ def print_introspection() -> None:
     try:
         from aipass.cli.apps.modules.display import console
     except ImportError:
+        logger.warning("CLI console not available, using fallback")
         from rich.console import Console
         console = Console()
 
@@ -265,6 +267,7 @@ def print_help() -> None:
     try:
         from aipass.cli.apps.modules.display import console
     except ImportError:
+        logger.warning("CLI console not available, using fallback")
         from rich.console import Console
         console = Console()
 

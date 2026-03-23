@@ -25,6 +25,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 try:
     from aipass.cli.apps.modules import console, error, warning
 except ImportError:
+    logger.warning("[commons_identity] CLI console unavailable, using fallback")
     from rich.console import Console
     console = Console()
     error = lambda msg, **kw: console.print(f"[red]{msg}[/red]")

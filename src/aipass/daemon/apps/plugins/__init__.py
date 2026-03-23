@@ -54,6 +54,8 @@ Naming Convention:
 import importlib
 from pathlib import Path
 
+from aipass.prax import logger
+
 
 def discover_plugins() -> list:
     """
@@ -88,7 +90,8 @@ def discover_plugins() -> list:
                 "config": config,
                 "file": str(file_path),
             })
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to load plugin %s: %s", module_name, e)
             continue
 
     return plugins

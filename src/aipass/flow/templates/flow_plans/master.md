@@ -80,7 +80,7 @@ Don't figure everything out alone. Other branches are domain experts - ask them 
 
 **Before building anything that touches another branch's domain:**
 ```bash
-ai_mail send @branch "Question: [topic]" "I'm working on X and need guidance on Y. What's the best approach?"
+ai_mail email @branch "Question: [topic]" "I'm working on X and need guidance on Y. What's the best approach?"
 ```
 
 **Common examples:**
@@ -120,7 +120,7 @@ When unsure about syntax, use `--help`:
 drone @flow create . "Phase X: subject"      # Create sub-plan (. = current dir)
 drone @flow create . "subject" master        # Create master plan
 drone @flow close {prefix}-XXXX           # Close plan
-drone @flow list                       # List active plans
+drone @flow list open                  # List active plans
 drone @flow status                     # Plan status
 drone @flow --help                     # Full help
 
@@ -130,7 +130,7 @@ drone @seedgo audit @branch              # Full branch audit (before master clos
 drone @seedgo --help                     # Full help
 
 # AI_Mail - Status updates
-drone @ai_mail send @devpulse "Subject" "Message"
+drone @ai_mail email @devpulse "Subject" "Message"
 drone @ai_mail inbox                   # Check your inbox
 drone @ai_mail --help                  # Full help
 
@@ -311,7 +311,7 @@ Seedgo audits are helpful but not infallible.
 If something causes production to STOP (critical blocker), **immediately email @devpulse**:
 
 ```bash
-drone @ai_mail send @devpulse "PRODUCTION STOPPED: {plan_number}" "Phase X halted. Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
+drone @ai_mail email @devpulse "PRODUCTION STOPPED: {plan_number}" "Phase X halted. Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
 ```
 
 **Never leave a branch stopped without reporting.** The orchestration hub needs visibility into all work.
@@ -496,7 +496,7 @@ Track issues here as you encounter them. Don't fix during build - log and contin
 - [ ] Artifacts reviewed (devpulse manages cleanup)
 - [ ] Final email to @devpulse:
   ```bash
-  drone @ai_mail send @devpulse "{plan_number} MASTER COMPLETE" "Full build summary: phases completed, deliverables, remaining issues (if any)"
+  drone @ai_mail email @devpulse "{plan_number} MASTER COMPLETE" "Full build summary: phases completed, deliverables, remaining issues (if any)"
   ```
 
 **Completion Order:** Memories -> README -> Email (README before email - don't report complete with stale docs)

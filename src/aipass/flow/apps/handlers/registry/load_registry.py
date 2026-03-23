@@ -26,6 +26,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -74,5 +75,6 @@ def load_registry(registry_file: str | None = None) -> Dict[str, Any]:
             "success": True,
         })
         return data
-    except Exception:
+    except Exception as e:
+        logger.error(f"[{MODULE_NAME}] Failed to load registry from {target}: {e}")
         return {"plans": {}, "next_number": 1}

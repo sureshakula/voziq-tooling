@@ -18,13 +18,17 @@ Single point for all monitoring terminal output with:
 
 from pathlib import Path
 
+import logging
+logger = logging.getLogger(__name__)
+
 from datetime import datetime
 from typing import Optional, Dict, List
 from threading import Lock
 
 try:
     from aipass.cli.apps.modules import console
-except ImportError:
+except ImportError as e:
+    logger.info(f"[unified_stream] CLI console not available, falling back to rich.Console: {e}")
     from rich.console import Console
     console = Console()
 

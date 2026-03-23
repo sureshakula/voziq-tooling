@@ -38,6 +38,7 @@ def parse_full_skill_md(skill_md_path):
     try:
         content = Path(skill_md_path).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
+        logger.warning(f"Failed to read SKILL.md: {skill_md_path}")
         return None, None
 
     lines = content.strip().splitlines()

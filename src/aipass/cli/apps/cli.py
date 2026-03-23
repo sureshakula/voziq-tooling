@@ -307,6 +307,7 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
+        logger.warning("CLI interrupted by user")
         CONSOLE.print("\n[yellow]Operation cancelled[/yellow]")
         sys.exit(0)
     except Exception as e:

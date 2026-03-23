@@ -127,6 +127,7 @@ def scan_module_files(branch_path: str) -> list[dict]:
         try:
             source = py_file.read_text(encoding="utf-8")
         except OSError:
+            logger.warning("scan_module_files: could not read %s", py_file)
             continue
 
         if "def handle_command" not in source:

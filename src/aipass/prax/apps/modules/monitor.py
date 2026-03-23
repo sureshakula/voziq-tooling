@@ -153,7 +153,8 @@ def _refresh_pid_cache() -> None:
                     name = branch.get("name", "").upper()
                     if name:
                         new_cache[name] = pid
-            except (ValueError, OSError):
+            except (ValueError, OSError) as e:
+                logger.info("[monitor] Skipping dispatch lock %s: %s", lock_path, e)
                 continue
         with _pid_cache_lock:
             _pid_cache.clear()
@@ -490,6 +491,7 @@ def _interactive_loop():
             while _monitoring_active:
                 time.sleep(0.5)
         except KeyboardInterrupt:
+            logger.info("[monitor] Stopped by user (passive mode)")
             console.print("\n[yellow]Stopping monitoring...[/yellow]")
         return
 
@@ -520,9 +522,11 @@ def _interactive_loop():
                 console.print("[dim]Type 'help' for available commands[/dim]")
 
         except KeyboardInterrupt:
+            logger.info("[monitor] Stopped by user")
             console.print("\n[yellow]Stopping monitoring...[/yellow]")
             break
         except EOFError:
+            logger.info("[monitor] EOF received, stopping interactive loop")
             break
 
 

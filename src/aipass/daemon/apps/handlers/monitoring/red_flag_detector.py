@@ -26,6 +26,7 @@ OK Conditions:
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
+from aipass.prax import logger
 from aipass.daemon.apps.handlers.json import json_handler
 from aipass.daemon.apps.handlers.monitoring import activity_collector
 
@@ -55,7 +56,8 @@ def _parse_iso_datetime(iso_string: str) -> Optional[datetime]:
             return datetime.fromisoformat(iso_string)
         else:
             return datetime.fromisoformat(iso_string)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        logger.warning("Failed to parse ISO datetime %s: %s", iso_string, e)
         return None
 
 
@@ -147,6 +149,7 @@ def get_branch_status(
             branch_name, branch_path, since_timestamp
         )
     except Exception as e:
+        logger.error("Failed to scan branch %s: %s", branch_name, e)
         result["status"] = STATUS_ERROR
         result["reason"] = f"Failed to scan branch: {str(e)}"
         return result

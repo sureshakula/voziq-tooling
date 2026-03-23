@@ -13,6 +13,8 @@ Stack introspection for detecting calling modules and branch paths.
 Used by logger_setup.py to route logs to correct files.
 """
 
+import logging
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Optional
 
@@ -110,7 +112,7 @@ def detect_branch_from_path(module_path: str) -> Optional[str]:
             json_handler.log_operation("introspection_resolved", {"module_path": module_path, "branch": branch})
             return branch
     except ValueError:
-        pass
+        logger.info("Path %s is not relative to aipass package root", module_path)
 
     # Fallback: src/{branch}/... for branches outside src/aipass/ (e.g., commons)
     try:
@@ -120,6 +122,6 @@ def detect_branch_from_path(module_path: str) -> Optional[str]:
             json_handler.log_operation("introspection_resolved", {"module_path": module_path, "branch": branch, "outside_aipass": True})
             return branch
     except ValueError:
-        pass
+        logger.info("Path %s is not relative to src root", module_path)
 
     return None

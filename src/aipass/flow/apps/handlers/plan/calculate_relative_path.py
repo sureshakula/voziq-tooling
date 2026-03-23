@@ -14,6 +14,7 @@ Calculates relative paths from ecosystem root for plan location display.
 
 from pathlib import Path
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 
@@ -68,4 +69,5 @@ def calculate_relative_location(
 
     except ValueError:
         # target_dir is outside ecosystem_root
+        logger.warning(f"[calculate_relative_path] Target '{target_dir}' is outside ecosystem root '{ecosystem_root}', using absolute path")
         return str(target_dir)

@@ -26,6 +26,7 @@ Usage:
 
 from pathlib import Path
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -82,5 +83,6 @@ def list_templates() -> list[str]:
 
         return sorted_templates
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"[{MODULE_NAME}] Failed to list templates: {e}")
         return []

@@ -117,7 +117,7 @@ def generate_prompt(args: List[str]) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Daily prompt failed: {e}")
+        logger.error(f"[engagement_ops] Daily prompt creation failed: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -188,5 +188,5 @@ def create_event(args: List[str]) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Event creation failed: {e}")
+        logger.error(f"[engagement_ops] Event creation failed: {e}")
         return {"success": False, "error": str(e)}

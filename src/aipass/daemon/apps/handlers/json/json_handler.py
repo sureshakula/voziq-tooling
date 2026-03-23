@@ -18,6 +18,8 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 import inspect
 
+from aipass.prax import logger
+
 # Constants
 _DAEMON_ROOT = Path(__file__).resolve().parents[3]  # src/aipass/daemon/
 JSON_DIR = _DAEMON_ROOT / "daemon_json"
@@ -101,10 +103,10 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
 
             if validate_json_structure(data, json_type):
                 return True
-        except json.JSONDecodeError:
-            pass  # File corrupted, regenerate
-        except OSError:
-            pass  # File unreadable, regenerate
+        except json.JSONDecodeError as e:
+            logger.warning("[json_handler] Corrupted JSON file %s, regenerating: %s", json_path.name, e)
+        except OSError as e:
+            logger.warning("[json_handler] Unreadable JSON file %s, regenerating: %s", json_path.name, e)
 
     template = load_template(json_type, module_name)
 

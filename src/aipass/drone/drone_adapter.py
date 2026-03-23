@@ -8,6 +8,8 @@ and routes `drone @drone <command> [args]` here.
 import sys
 from io import StringIO
 
+from aipass.prax import logger
+
 DRONE_MODULE = {
     "name": "drone",
     "version": "1.0.0",
@@ -89,4 +91,5 @@ def get_introspective() -> str:
             f"  Run 'drone @drone --help' for usage\n"
         )
     except Exception:
+        logger.warning("get_introspective: failed to load module list or branch list")
         return "@drone — Command routing and module discovery (run 'drone --help' for usage)\n"

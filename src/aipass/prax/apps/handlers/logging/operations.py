@@ -23,7 +23,7 @@ from aipass.prax.apps.handlers.config.load import PRAX_JSON_DIR
 from aipass.prax.apps.handlers.logging.direct import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
 
-_logger = get_direct_logger()
+logger = get_direct_logger()
 
 # Module constants
 MODULE_NAME = "prax_logger"
@@ -50,7 +50,8 @@ def log_operation(message: str, data: Optional[Dict] = None):
         try:
             with open(LOG_FILE, 'r', encoding='utf-8') as f:
                 log_entries = json.load(f)
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to load log file %s, resetting entries: %s", LOG_FILE, e)
             log_entries = []
 
     # Add new entry
@@ -91,6 +92,6 @@ def create_config_file():
         try:
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, indent=2, ensure_ascii=False)
-            _logger.info("Config file created: %s", CONFIG_FILE)
+            logger.info("Config file created: %s", CONFIG_FILE)
         except Exception as e:
-            _logger.warning("Failed to create config file: %s", e)
+            logger.warning("Failed to create config file: %s", e)

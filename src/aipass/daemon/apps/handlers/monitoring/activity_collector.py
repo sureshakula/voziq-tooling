@@ -20,6 +20,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
+from aipass.prax import logger
 from aipass.daemon.apps.handlers.json import json_handler
 
 
@@ -49,7 +50,8 @@ def load_branch_registry() -> Dict[str, Any]:
     try:
         with open(REGISTRY_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to load branch registry %s: %s", REGISTRY_PATH, e)
         return {"metadata": {}, "branches": []}
 
 
@@ -93,8 +95,8 @@ def _get_file_mtime(file_path: Path) -> Optional[datetime]:
     try:
         if file_path.exists():
             return datetime.fromtimestamp(file_path.stat().st_mtime)
-    except OSError:
-        pass
+    except OSError as e:
+        logger.warning("Failed to get mtime for %s: %s", file_path, e)
     return None
 
 
@@ -188,10 +190,10 @@ def _scan_directory_files(
                         memory_files.append(file_info)
                     elif item.suffix == CODE_FILE_EXTENSION:
                         code_files.append(file_info)
-        except PermissionError:
-            pass
-        except OSError:
-            pass
+        except PermissionError as e:
+            logger.warning("Permission denied scanning %s: %s", path, e)
+        except OSError as e:
+            logger.warning("OS error scanning %s: %s", path, e)
 
     scan_recursive(directory)
 

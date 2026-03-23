@@ -102,7 +102,6 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
                 return True
             # If corrupted, fall through to regenerate
         except Exception:
-            # If unreadable, fall through to regenerate
             pass
 
     template = load_template(json_type, module_name)

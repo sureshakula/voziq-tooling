@@ -63,6 +63,7 @@ def add_react(args: List[str]) -> dict:
     try:
         target_id = int(args[1])
     except ValueError:
+        logger.warning("[curation_ops] Non-numeric ID provided for react")
         return {"success": False, "error": "ID must be a number"}
 
     reaction = args[2].lower()
@@ -132,6 +133,7 @@ def remove_react(args: List[str]) -> dict:
     try:
         target_id = int(args[1])
     except ValueError:
+        logger.warning("[curation_ops] Non-numeric ID provided for unreact")
         return {"success": False, "error": "ID must be a number"}
 
     reaction = args[2].lower()
@@ -187,6 +189,7 @@ def show_reactions(args: List[str]) -> dict:
     try:
         target_id = int(args[1])
     except ValueError:
+        logger.warning("[curation_ops] Non-numeric ID provided for reactions query")
         return {"success": False, "error": "ID must be a number"}
 
     try:
@@ -229,6 +232,7 @@ def pin_post_cmd(args: List[str]) -> dict:
     try:
         post_id = int(args[0])
     except ValueError:
+        logger.warning("[curation_ops] Non-numeric post ID provided for pin")
         return {"success": False, "error": "Post ID must be a number"}
 
     caller = get_caller_branch()
@@ -292,6 +296,7 @@ def unpin_post_cmd(args: List[str]) -> dict:
     try:
         post_id = int(args[0])
     except ValueError:
+        logger.warning("[curation_ops] Non-numeric post ID provided for unpin")
         return {"success": False, "error": "Post ID must be a number"}
 
     caller = get_caller_branch()

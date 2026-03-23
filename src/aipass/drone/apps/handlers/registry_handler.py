@@ -142,8 +142,8 @@ def _verify_registry_credential(registry_path: Path, registry_data: Dict[str, An
             )
     except RegistryMismatchError:
         raise
-    except Exception:
-        pass  # Verification should never crash drone
+    except Exception as exc:
+        logger.warning("Registry credential verification failed: %s", exc)
 
 
 def set_registry_path(path: str | Path) -> None:
@@ -235,6 +235,7 @@ def get_all_branches(
     try:
         registry = load_registry()
     except RegistryNotFoundError:
+        logger.warning("get_all_branches: registry not found, returning empty list")
         return []
 
     branches = registry.get("branches", {}).values()
@@ -255,6 +256,7 @@ def get_branch_by_name(name: str) -> Optional[Dict[str, Any]]:
     try:
         registry = load_registry()
     except RegistryNotFoundError:
+        logger.warning("get_branch_by_name: registry not found for lookup of '%s'", name)
         return None
 
     return registry.get("branches", {}).get(name.lower())

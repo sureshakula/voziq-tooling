@@ -62,7 +62,7 @@ def create_welcome_post(conn: sqlite3.Connection, branch_name: str) -> Optional[
         return post_id
 
     except Exception as e:
-        logger.error(f"Failed to create welcome post for {branch_name}: {e}")
+        logger.error(f"[welcome_handler] Failed to create welcome post for {branch_name}: {e}")
         return None
 
 

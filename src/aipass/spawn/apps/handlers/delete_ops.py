@@ -117,7 +117,8 @@ def delete_branch(
     if confirm and not dry_run:
         try:
             answer = input("Are you sure? (y/N): ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
+        except (EOFError, KeyboardInterrupt) as e:
+            logger.warning("Delete confirmation prompt interrupted: %s", e)
             answer = ""
         if answer != "y":
             return {

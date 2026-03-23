@@ -17,6 +17,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from commons.apps.handlers.json import json_handler
 
 
@@ -209,4 +210,5 @@ def format_time_ago(timestamp: str) -> str:
         else:
             return timestamp[:10]
     except (ValueError, TypeError):
+        logger.warning("[profile_queries] Failed to parse timestamp for time_ago")
         return "unknown"

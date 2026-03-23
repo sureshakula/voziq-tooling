@@ -35,11 +35,25 @@ Architecture (Medic v2):
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from aipass.trigger.apps.config import TRIGGER_ROOT
 from aipass.trigger.apps.handlers.json import json_handler
+
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "error_detected_handler.log"
+
+
+def _log_warning(message: str) -> None:
+    """Log warning to file (event handlers cannot import Prax logger - causes recursion)."""
+    try:
+        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        with open(_HANDLER_LOG, 'a', encoding='utf-8') as f:
+            f.write(f"{ts} | WARNING | {message}\n")
+    except Exception:
+        pass
+
 
 def _find_repo_root() -> Path:
     """Walk up from this file to find the repo root (contains AIPASS_REGISTRY.json)."""
@@ -101,7 +115,8 @@ def _is_medic_enabled() -> bool:
         if TRIGGER_CONFIG_FILE.exists():
             data = json.loads(TRIGGER_CONFIG_FILE.read_text(encoding='utf-8'))
             return bool(data.get('config', {}).get('medic_enabled', True))
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"_is_medic_enabled config read failed: {exc}")
         return True  # Default to enabled on read failure
     return True
 
@@ -124,7 +139,8 @@ def _is_branch_muted(branch_name: str) -> bool:
             data = json.loads(TRIGGER_CONFIG_FILE.read_text(encoding='utf-8'))
             muted = data.get('config', {}).get('muted_branches', [])
             return branch_name.lower() in [b.lower() for b in muted]
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"_is_branch_muted config read failed: {exc}")
         return False
     return False
 
@@ -154,7 +170,8 @@ def _get_registered_emails() -> set:
         if BRANCH_REGISTRY_FILE.exists():
             data = json.loads(BRANCH_REGISTRY_FILE.read_text(encoding='utf-8'))
             return {b["email"] for b in data.get("branches", [])}
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"_get_registered_emails registry read failed: {exc}")
         return set()
     return set()
 
@@ -231,7 +248,8 @@ def _read_log_context(log_path: str, error_message: str, context_lines: int = 2)
         end = min(len(lines), target_idx + context_lines + 1)
         context = lines[start:end]
         return "\n".join(context)
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"_read_log_context failed for {log_path}: {exc}")
         return ""
 
 
@@ -393,7 +411,8 @@ def handle_error_detected(
                         f"Medic OFF - suppressed dispatch for {branch}: "
                         f"{module} - {message[:100]}\n"
                     )
-            except Exception:
+            except Exception as exc:
+                _log_warning(f"medic OFF suppression log write failed: {exc}")
                 return  # Can't log suppression, but still skip dispatch
             return
 
@@ -408,7 +427,8 @@ def handle_error_detected(
                         f"Branch muted - suppressed dispatch for {branch}: "
                         f"{module} - {message[:100]}\n"
                     )
-            except Exception:
+            except Exception as exc:
+                _log_warning(f"branch muted suppression log write failed: {exc}")
                 return  # Can't log suppression, but still skip dispatch
             return
 
@@ -424,7 +444,8 @@ def handle_error_detected(
                         f"First occurrence (count={count}) - waiting for pattern: "
                         f"{branch}: {module} - {message[:100]}\n"
                     )
-            except Exception:
+            except Exception as exc:
+                _log_warning(f"first occurrence suppression log write failed: {exc}")
                 return  # Can't log, but still skip dispatch
             return
 
@@ -452,7 +473,8 @@ def handle_error_detected(
                         f"Unknown branch skipped: {recipient} - "
                         f"{module}: {message[:100]}\n"
                     )
-            except Exception:
+            except Exception as exc:
+                _log_warning(f"unknown branch suppression log write failed: {exc}")
                 return  # Can't log skip, still don't dispatch
             return
 
@@ -469,8 +491,8 @@ def handle_error_detected(
                             f"Circuit breaker OPEN - suppressed dispatch for {branch}: "
                             f"{module} - {message[:100]}\n"
                         )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _log_warning(f"circuit breaker suppression log write failed: {exc}")
                 return
 
             if not registry_should_dispatch(fingerprint):
@@ -483,8 +505,8 @@ def handle_error_detected(
                             f"Backoff active for fingerprint {fingerprint[:12]}: "
                             f"{recipient} - {module}, skipping\n"
                         )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _log_warning(f"backoff rate log write failed: {exc}")
                 return
         else:
             # Legacy fallback: per-branch rate limiting (Medic v1)
@@ -502,8 +524,8 @@ def handle_error_detected(
                             f"Rate limited: {recipient} has {recent_count} "
                             f"recent dispatches, skipping\n"
                         )
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _log_warning(f"legacy rate limit log write failed: {exc}")
                 return
 
         # Default timestamp to now if not provided
@@ -555,5 +577,6 @@ def handle_error_detected(
             # Legacy: per-branch rate limiting
             _record_dispatch(recipient)
 
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"handle_error_detected failed: {exc}")
         return  # Silent failure - handler must not raise

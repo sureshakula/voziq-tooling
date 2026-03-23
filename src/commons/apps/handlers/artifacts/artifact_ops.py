@@ -48,6 +48,7 @@ def _validate_metadata(metadata_str: str) -> Optional[dict]:
     try:
         data = json.loads(metadata_str)
     except (json.JSONDecodeError, TypeError):
+        logger.warning("[artifact_ops] Invalid metadata JSON string")
         return None
 
     if not isinstance(data, dict):
@@ -75,6 +76,7 @@ def _resolve_branch_name(mention: str) -> Optional[str]:
                 return name
         return None
     except Exception:
+        logger.error("[artifact_ops] Failed to resolve branch name from registry")
         return None
 
 
@@ -261,6 +263,7 @@ def inspect_artifact(args: List[str]) -> dict:
     try:
         artifact_id = int(filtered_args[0])
     except ValueError:
+        logger.warning("[artifact_ops] Non-numeric artifact ID provided for inspect")
         return {"success": False, "error": "Artifact ID must be a number"}
 
     try:
@@ -289,6 +292,7 @@ def inspect_artifact(args: List[str]) -> dict:
     try:
         metadata = json.loads(artifact["metadata"]) if artifact["metadata"] else {}
     except (json.JSONDecodeError, TypeError):
+        logger.warning("[artifact_ops] Failed to parse artifact metadata JSON")
         metadata = {}
 
     artifact["_parsed_metadata"] = metadata
@@ -397,6 +401,7 @@ def sign_artifact(args: List[str]) -> dict:
     try:
         pending_id = int(args[0])
     except ValueError:
+        logger.warning("[artifact_ops] Non-numeric pending ID provided for sign")
         return {"success": False, "error": "Pending ID must be a number"}
 
     from commons.apps.modules.commons_identity import get_caller_branch

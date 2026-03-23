@@ -45,6 +45,7 @@ def seal_capsule(args: List[str]) -> dict:
     try:
         days = int(args[2])
     except ValueError:
+        logger.warning("[capsule_ops] Non-numeric days value provided for seal")
         return {"success": False, "error": "Days must be a number"}
 
     days = max(1, min(365, days))
@@ -159,6 +160,7 @@ def open_capsule(args: List[str]) -> dict:
     try:
         capsule_id = int(args[0])
     except ValueError:
+        logger.warning("[capsule_ops] Non-numeric capsule ID provided for open")
         return {"success": False, "error": "Capsule ID must be a number"}
 
     from commons.apps.modules.commons_identity import get_caller_branch

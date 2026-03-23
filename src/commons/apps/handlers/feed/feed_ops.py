@@ -46,6 +46,7 @@ def format_time_ago(timestamp: str) -> str:
         else:
             return timestamp[:10]
     except (ValueError, TypeError):
+        logger.warning("[feed_ops] Failed to parse timestamp for relative time")
         return "unknown"
 
 
@@ -92,19 +93,19 @@ def display_feed(args: List[str]) -> dict:
             try:
                 limit = int(args[i + 1])
             except ValueError:
-                pass
+                logger.warning("[feed_ops] Invalid --limit value, using default")
             i += 2
         elif arg == "--offset" and i + 1 < len(args):
             try:
                 offset = int(args[i + 1])
             except ValueError:
-                pass
+                logger.warning("[feed_ops] Invalid --offset value, using default")
             i += 2
         elif arg == "--page" and i + 1 < len(args):
             try:
                 page = int(args[i + 1])
             except ValueError:
-                pass
+                logger.warning("[feed_ops] Invalid --page value, using default")
             i += 2
         else:
             i += 1

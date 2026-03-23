@@ -17,6 +17,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from aipass.prax import logger
+
 _SPAWN_ROOT = Path(__file__).resolve().parents[3]
 _JSON_DIR = _SPAWN_ROOT / "spawn_json"
 
@@ -24,8 +26,9 @@ _JSON_DIR = _SPAWN_ROOT / "spawn_json"
 def read_json(file_path: Path) -> Optional[dict]:
     """Read and parse a JSON file."""
     try:
-        return json.loads(file_path.read_text())
-    except (json.JSONDecodeError, FileNotFoundError):
+        return json.loads(file_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        logger.warning("Failed to read JSON from %s: %s", file_path, e)
         return None
 
 
@@ -33,9 +36,10 @@ def write_json(file_path: Path, data: Any, indent: int = 2) -> bool:
     """Write data to a JSON file."""
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(json.dumps(data, indent=indent) + "\n")
+        file_path.write_text(json.dumps(data, indent=indent) + "\n", encoding="utf-8")
         return True
-    except OSError:
+    except OSError as e:
+        logger.error("Failed to write JSON to %s: %s", file_path, e)
         return False
 
 
@@ -72,8 +76,9 @@ def log_operation(operation: str, data: Dict[str, Any] | None = None, module_nam
     log: list = []
     if log_path.exists():
         try:
-            log = json.loads(log_path.read_text())
-        except (json.JSONDecodeError, OSError):
+            log = json.loads(log_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to read operation log %s, resetting: %s", log_path, e)
             log = []
 
     entry: Dict[str, Any] = {
@@ -90,7 +95,8 @@ def log_operation(operation: str, data: Dict[str, Any] | None = None, module_nam
         log = log[-100:]
 
     try:
-        log_path.write_text(json.dumps(log, indent=2) + "\n")
+        log_path.write_text(json.dumps(log, indent=2) + "\n", encoding="utf-8")
         return True
-    except OSError:
+    except OSError as e:
+        logger.error("Failed to write operation log %s: %s", log_path, e)
         return False

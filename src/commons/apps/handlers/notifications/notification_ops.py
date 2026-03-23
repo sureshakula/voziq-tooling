@@ -109,6 +109,7 @@ def _set_notification_level(args: List[str], level: str) -> dict:
             try:
                 post_id_int = int(target_id)
             except ValueError:
+                logger.warning(f"[notification_ops] Invalid post/thread ID: {target_id}")
                 close_db(conn)
                 return {"success": False, "error": "Post/thread ID must be a number"}
             row = conn.execute(
@@ -135,7 +136,7 @@ def _set_notification_level(args: List[str], level: str) -> dict:
             return {"success": False, "error": "Failed to set preference"}
 
     except Exception as e:
-        logger.error(f"Notification preference failed: {e}")
+        logger.error(f"[notification_ops] Notification preference failed: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -166,5 +167,5 @@ def show_preferences(args: List[str]) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Preferences query failed: {e}")
+        logger.error(f"[notification_ops] Preferences query failed: {e}")
         return {"success": False, "error": str(e)}

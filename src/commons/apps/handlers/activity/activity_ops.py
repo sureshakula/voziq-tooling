@@ -56,6 +56,7 @@ def _relative_time(timestamp_str: str) -> str:
             days = total_seconds // 86400
             return f"{days}d ago"
     except (ValueError, TypeError):
+        logger.warning("[activity_ops] Failed to parse timestamp for relative time")
         return "unknown"
 
 
@@ -104,6 +105,7 @@ def run_activity(args: List[str]) -> dict:
                 limit = int(args[i + 1])
                 limit = max(1, min(100, limit))
             except ValueError:
+                logger.warning("[activity_ops] Invalid --limit value")
                 return {"success": False, "error": "Limit must be a number"}
             i += 2
         elif args[i] == "--room" and i + 1 < len(args):
@@ -156,7 +158,7 @@ def run_activity(args: List[str]) -> dict:
         conn = None
 
     except Exception as e:
-        logger.error(f"Activity feed error: {e}")
+        logger.error(f"[activity_ops] Activity feed query failed: {e}")
         if conn:
             close_db(conn)
         return {"success": False, "error": str(e)}

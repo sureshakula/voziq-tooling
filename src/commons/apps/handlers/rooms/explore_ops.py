@@ -82,7 +82,7 @@ def explore_rooms(args: List[str]) -> dict:
         return result
 
     except Exception as e:
-        logger.error(f"Explore failed: {e}")
+        logger.error(f"[explore_ops] Explore rooms failed: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -133,5 +133,5 @@ def list_secrets(args: List[str]) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Secrets listing failed: {e}")
+        logger.error(f"[explore_ops] Secrets listing failed: {e}")
         return {"success": False, "error": str(e)}

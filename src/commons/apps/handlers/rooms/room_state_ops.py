@@ -16,6 +16,8 @@ and convenience setters for room personality columns (mood, flavor, entrance).
 import sqlite3
 from typing import Dict, Optional
 
+from aipass.prax.apps.modules.logger import system_logger as logger
+
 from commons.apps.handlers.json import json_handler
 
 
@@ -37,6 +39,7 @@ def set_room_state(conn: sqlite3.Connection, room_name: str, key: str, value: st
         json_handler.log_operation("set_room_state", {"room": room_name, "key": key})
         return True
     except Exception:
+        logger.error(f"[room_state_ops] Failed to set state key '{key}' for room '{room_name}'")
         return False
 
 
@@ -49,6 +52,7 @@ def get_room_state(conn: sqlite3.Connection, room_name: str, key: str) -> Option
         ).fetchone()
         return row["value"] if row else None
     except Exception:
+        logger.error(f"[room_state_ops] Failed to get state key '{key}' for room '{room_name}'")
         return None
 
 
@@ -61,6 +65,7 @@ def get_all_room_state(conn: sqlite3.Connection, room_name: str) -> Dict[str, st
         ).fetchall()
         return {row["key"]: row["value"] for row in rows}
     except Exception:
+        logger.error(f"[room_state_ops] Failed to get all state for room '{room_name}'")
         return {}
 
 
@@ -75,6 +80,7 @@ def set_mood(conn: sqlite3.Connection, room_name: str, mood: str) -> bool:
         conn.commit()
         return True
     except Exception:
+        logger.error(f"[room_state_ops] Failed to set mood for room '{room_name}'")
         return False
 
 
@@ -85,6 +91,7 @@ def set_flavor(conn: sqlite3.Connection, room_name: str, text: str) -> bool:
         conn.commit()
         return True
     except Exception:
+        logger.error(f"[room_state_ops] Failed to set flavor text for room '{room_name}'")
         return False
 
 
@@ -95,4 +102,5 @@ def set_entrance(conn: sqlite3.Connection, room_name: str, message: str) -> bool
         conn.commit()
         return True
     except Exception:
+        logger.error(f"[room_state_ops] Failed to set entrance message for room '{room_name}'")
         return False

@@ -203,6 +203,7 @@ def print_status():
     try:
         branches = get_branch_paths()
     except Exception as e:
+        logger.error("Error loading branches: %s", e)
         error(f"Error loading branches: {e}")
         return
 
@@ -279,6 +280,7 @@ def _handle_refresh(args: List[str]) -> None:
         try:
             branch_path = _resolve_branch_path(args[0])
         except FileNotFoundError as e:
+            logger.warning("Branch path not found: %s", e)
             error(str(e))
             return
         console.print(f"[dim]Refreshing {branch_path.name.upper()} dashboard...[/dim]")

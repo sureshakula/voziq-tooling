@@ -32,7 +32,8 @@ logger = get_direct_logger()
 try:
     from aipass.trigger.apps.modules.core import trigger
     _trigger_available = True
-except ImportError:
+except ImportError as e:
+    logger.info(f"[monitor] trigger module not available, falling back: {e}")
     trigger = None  # type: ignore[assignment]
     _trigger_available = False
 
@@ -162,7 +163,8 @@ class MonitoringFileHandler(FileSystemEventHandler):
             for line in reversed(lines):
                 try:
                     entry = _json.loads(line)
-                except _json.JSONDecodeError:
+                except _json.JSONDecodeError as e:
+                    logger.info(f"[monitor] Skipping malformed JSONL line: {e}")
                     continue
 
                 entry_type = entry.get('type', '')

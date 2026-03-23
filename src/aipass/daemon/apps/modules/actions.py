@@ -328,6 +328,7 @@ def _handle_set_schedule(args: List[str]) -> bool:
         try:
             interval_minutes = int(args[3])
         except ValueError:
+            logger.warning("Invalid interval minutes value: %s", args[3])
             _error(f"Invalid interval minutes: {args[3]}")
             return False
     else:
@@ -421,12 +422,14 @@ def _parse_date(date_str: str) -> str:
             days = int(date_str[:-1])
             return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
         except ValueError:
+            logger.warning("Invalid relative day format: %s", date_str)
             return ""
     elif date_str.endswith("w"):
         try:
             weeks = int(date_str[:-1])
             return (datetime.now() + timedelta(weeks=weeks)).strftime("%Y-%m-%d")
         except ValueError:
+            logger.warning("Invalid relative week format: %s", date_str)
             return ""
 
     # ISO date
@@ -434,6 +437,7 @@ def _parse_date(date_str: str) -> str:
         datetime.strptime(date_str, "%Y-%m-%d")
         return date_str
     except ValueError:
+        logger.warning("Invalid ISO date format: %s", date_str)
         return ""
 
 

@@ -53,6 +53,7 @@ def _get_write_section() -> Optional[Callable[..., Any]]:
             from aipass.devpulse.apps.modules import dashboard as _dashboard  # type: ignore[import-not-found]
             _write_section_fn = _dashboard.write_section
         except ImportError:
+            logger.warning("[dashboard_writer] devpulse import fallback")
             _write_section_fn = None
     return _write_section_fn
 
@@ -74,6 +75,7 @@ def _find_branch_path(branch_name: str) -> Optional[str]:
         with open(BRANCH_REGISTRY_PATH, "r", encoding="utf-8") as f:
             registry = json.load(f)
     except (json.JSONDecodeError, OSError):
+        logger.warning("[dashboard_writer] Failed to read branch registry")
         return None
 
     for branch in registry.get("branches", []):
@@ -213,6 +215,7 @@ def _read_last_checked(branch_path: str) -> str:
             last_checked = commons.get("last_updated", "")
         return last_checked if last_checked else epoch
     except (json.JSONDecodeError, OSError):
+        logger.warning(f"[dashboard_writer] Failed to read last_checked from dashboard for {branch_path}")
         return epoch
 
 

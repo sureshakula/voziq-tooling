@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import re
 
+from aipass.prax import logger
 from aipass.daemon.apps.handlers.json import json_handler
 
 # =============================================
@@ -71,7 +72,8 @@ def load_tasks() -> List[Dict[str, Any]]:
         with open(SCHEDULE_JSON_PATH, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data.get("tasks", [])
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, IOError) as e:
+        logger.error("[task_registry] Failed to load schedule.json: %s", e)
         return []
 
 
@@ -92,7 +94,8 @@ def save_tasks(tasks: List[Dict[str, Any]]) -> bool:
         with open(SCHEDULE_JSON_PATH, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
-    except IOError:
+    except IOError as e:
+        logger.error("[task_registry] Failed to save schedule.json: %s", e)
         return False
 
 
@@ -319,8 +322,9 @@ def recover_stale_dispatches(max_age_minutes: int = 5) -> int:
                         task["status"] = "pending"
                         task.pop("dispatch_started", None)
                         recovered += 1
-                except ValueError:
+                except ValueError as e:
                     # Invalid timestamp, reset anyway
+                    logger.warning("[task_registry] Invalid dispatch_started timestamp, resetting task: %s", e)
                     task["status"] = "pending"
                     task.pop("dispatch_started", None)
                     recovered += 1
@@ -422,12 +426,14 @@ def process_due_tasks_batch(
         recovered = recover_stale_dispatches(max_age_minutes=stale_max_age)
         results["recovered"] = recovered
     except Exception as e:
+        logger.warning("[task_registry] Stale dispatch recovery failed: %s", e)
         results["errors"].append(f"Stale recovery: {e}")
 
     # Get due tasks
     try:
         due_tasks = get_due_tasks()
     except Exception as e:
+        logger.error("[task_registry] Failed to load due tasks: %s", e)
         results["errors"].append(f"Load tasks: {e}")
         return results
 
@@ -453,6 +459,7 @@ def process_due_tasks_batch(
         try:
             mark_dispatching(task_id)
         except Exception as e:
+            logger.error("[task_registry] Failed to mark task %s as dispatching: %s", task_id[:8], e)
             results["errors"].append(f"Mark dispatching {task_id[:8]}: {e}")
             results["failed"] += 1
             task_result["status"] = "error"
@@ -497,10 +504,11 @@ def process_due_tasks_batch(
                 results["errors"].append(f"Email failed: {task_id[:8]} -> {recipient}")
 
         except Exception as e:
+            logger.error("[task_registry] Email dispatch error for task %s: %s", task_id[:8], e)
             try:
                 mark_pending(task_id)
-            except Exception:
-                pass
+            except Exception as pending_err:
+                logger.error("[task_registry] Failed to reset task %s to pending: %s", task_id[:8], pending_err)
             results["failed"] += 1
             task_result["status"] = "error"
             task_result["error"] = str(e)
@@ -540,12 +548,14 @@ if __name__ == "__main__":
             result = parse_due_date(d)
             console.print(f"  {d} -> {result}")
         except ValueError as e:
+            logger.warning("Date parse test failed for %s: %s", d, e)
             console.print(f"  {d} -> [red]ERROR: {e}[/red]")
 
     # Test invalid date
     try:
         parse_due_date("invalid")
     except ValueError as e:
+        logger.info("Expected parse failure for 'invalid': %s", e)
         console.print(f"  invalid -> [green]Correctly raised: {e}[/green]")
 
     console.print()

@@ -61,7 +61,7 @@ def run_welcome(args: List[str]) -> dict:
         return result
 
     except Exception as e:
-        logger.error(f"Welcome command failed: {e}")
+        logger.error(f"[welcome_ops] Welcome command failed: {e}")
         if conn:
             close_db(conn)
         return {"success": False, "error": str(e)}

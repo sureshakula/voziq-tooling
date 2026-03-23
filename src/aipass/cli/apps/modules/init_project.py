@@ -23,6 +23,7 @@ from typing import List
 from aipass.cli.apps.handlers.init.bootstrap import init_project
 from aipass.cli.apps.modules.display import console, success, error, header
 from aipass.cli.apps.handlers.json import json_handler
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 
 # =============================================================================
@@ -185,12 +186,15 @@ def _handle_init(args: List[str]) -> bool:
     try:
         result = init_project(target, project_name)
     except ValueError as exc:
+        logger.warning("Init validation error: %s", exc)
         error(str(exc), suggestion="Pass a project name explicitly")
         sys.exit(1)
     except FileExistsError as exc:
+        logger.warning("Init target already exists: %s", exc)
         error(str(exc), suggestion="Remove the existing file to re-initialize")
         sys.exit(1)
     except OSError as exc:
+        logger.error("Init filesystem error: %s", exc)
         error(f"Filesystem error: {exc}")
         sys.exit(1)
 
@@ -326,8 +330,9 @@ if __name__ == "__main__":
             sys.exit(0)
         else:
             console.print(f"[red]Unknown command: {command}[/red]")
-            console.print("[dim]Run 'python3 init_project.py --help' for usage[/dim]")
+            console.print("[dim]Run 'drone @cli aipass --help' for usage[/dim]")
             sys.exit(1)
     except Exception as e:
+        logger.error("CLI init_project error: %s", e)
         console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)

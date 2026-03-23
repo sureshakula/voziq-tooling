@@ -9,6 +9,7 @@
 import shutil
 from pathlib import Path
 
+from aipass.prax import logger
 from skills.apps.handlers.json import json_handler
 
 
@@ -80,8 +81,7 @@ def copy_template(template_path, target_path, skill_name):
                         content = content.replace("{{SKILL_NAME}}", skill_name)
                         file_path.write_text(content, encoding="utf-8")
                 except UnicodeDecodeError:
-                    # Skip binary files
-                    pass
+                    logger.warning(f"Skipping binary file during template copy: {file_path}")
 
         json_handler.log_operation("template_copied", {
             "template": str(template_path.name),
@@ -96,6 +96,7 @@ def copy_template(template_path, target_path, skill_name):
         }
 
     except Exception as e:
+        logger.error(f"Template copy failed: {e}")
         # Clean up on failure
         if target.exists():
             shutil.rmtree(str(target))

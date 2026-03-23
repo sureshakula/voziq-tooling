@@ -52,7 +52,8 @@ try:
         recover_stale_dispatches,
         TASK_REGISTRY_AVAILABLE,
     )
-except ImportError:
+except ImportError as e:
+    logger.info(f"Optional dependency not available: scheduler_ops task registry ({e})")
     TASK_REGISTRY_AVAILABLE = False
     get_due_tasks = None
     mark_dispatching = None
@@ -70,7 +71,8 @@ def _send_email_via_drone(to_branch, subject, message, from_branch='@daemon',
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
         return result.returncode == 0
-    except (subprocess.SubprocessError, OSError):
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning(f"Drone email subprocess failed: {e}")
         return False
 
 AI_MAIL_AVAILABLE = True
@@ -80,7 +82,8 @@ send_email_direct = _send_email_via_drone
 try:
     from aipass.daemon.apps.plugins import discover_plugins
     PLUGINS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    logger.info(f"Optional dependency not available: discover_plugins ({e})")
     PLUGINS_AVAILABLE = False
     discover_plugins = None
 
@@ -95,7 +98,8 @@ try:
         next_due_str,
         ACTION_REGISTRY_AVAILABLE,
     )
-except ImportError:
+except ImportError as e:
+    logger.info(f"Optional dependency not available: scheduler_ops action registry ({e})")
     ACTION_REGISTRY_AVAILABLE = False
     load_registry = None
     is_action_due = None
@@ -190,6 +194,7 @@ def process_due_tasks() -> dict:
         if recovered:
             log(f"Recovered {recovered} stale dispatch(es)")
     except Exception as e:
+        logger.warning(f"Failed to recover stale dispatches: {e}")
         log(f"WARNING: Failed to recover stale dispatches: {e}")
         results["errors"].append(f"Stale recovery: {e}")
 
@@ -197,6 +202,7 @@ def process_due_tasks() -> dict:
     try:
         due_tasks = get_due_tasks()  # type: ignore[misc]
     except Exception as e:
+        logger.error(f"Failed to load due tasks: {e}")
         log(f"ERROR: Failed to load due tasks: {e}")
         results["errors"].append(f"Load tasks: {e}")
         return results
@@ -222,6 +228,7 @@ def process_due_tasks() -> dict:
         try:
             mark_dispatching(task_id)  # type: ignore[misc]
         except Exception as e:
+            logger.warning(f"Failed to mark dispatching {task_id[:8]}: {e}")
             log(f"WARNING: Failed to mark dispatching {task_id[:8]}: {e}")
             results["errors"].append(f"Mark dispatching {task_id[:8]}: {e}")
             results["failed"] += 1
@@ -264,8 +271,9 @@ def process_due_tasks() -> dict:
             # Reset to pending for retry on next run
             try:
                 mark_pending(task_id)  # type: ignore[misc]
-            except Exception:
-                pass  # Best effort reset
+            except Exception as reset_err:
+                logger.warning(f"Best-effort reset to pending failed for {task_id[:8]}: {reset_err}")
+            logger.error(f"Exception sending to {recipient}: {e}")
             log(f"ERROR: Exception sending to {recipient}: {e}")
             results["failed"] += 1
             results["errors"].append(f"Email error {task_id[:8]}: {e}")
@@ -286,7 +294,8 @@ def _load_last_run() -> dict:
     if PLUGIN_LAST_RUN_FILE.exists():
         try:
             return json.loads(PLUGIN_LAST_RUN_FILE.read_text())
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Failed to load plugin last-run file, using empty defaults: {e}")
             return {}
     return {}
 
@@ -425,6 +434,7 @@ def process_plugins() -> dict:
     try:
         plugins = discover_plugins()  # type: ignore[misc]
     except Exception as e:
+        logger.error(f"Plugin discovery failed: {e}")
         log(f"PLUGIN: Discovery failed: {e}")
         results["errors"].append(f"Plugin discovery: {e}")
         return results
@@ -479,6 +489,7 @@ def process_plugins() -> dict:
                     results["failed"] += 1
                     results["errors"].append(f"Plugin {name} self-dispatch: {error_msg}")
             except Exception as e:
+                logger.error(f"Plugin {name} self-dispatch error: {e}")
                 log(f"PLUGIN: {name} - self-dispatch error: {e}")
                 results["failed"] += 1
                 results["errors"].append(f"Plugin {name}: {e}")
@@ -523,10 +534,12 @@ def process_plugins() -> dict:
                 results["errors"].append(f"Plugin {name} wake rc={result.returncode}")
 
         except subprocess.TimeoutExpired:
+            logger.warning(f"Plugin {name} wake script timed out (30s)")
             log(f"PLUGIN: {name} - wake script timed out (30s)")
             results["failed"] += 1
             results["errors"].append(f"Plugin {name} wake timeout")
         except Exception as e:
+            logger.error(f"Plugin {name} error: {e}")
             log(f"PLUGIN: {name} - error: {e}")
             results["failed"] += 1
             results["errors"].append(f"Plugin {name}: {e}")
@@ -538,6 +551,7 @@ def process_plugins() -> dict:
     try:
         _save_last_run(last_run_map)
     except Exception as e:
+        logger.warning(f"Failed to save plugin last_run timestamps: {e}")
         log(f"PLUGIN: Failed to save last_run: {e}")
         results["errors"].append(f"Save last_run: {e}")
 
@@ -580,6 +594,7 @@ def _dispatch_action(action: dict) -> dict:
         try:
             module = importlib.import_module(f".plugins.{plugin_file}", package=__package__)
         except Exception as e:
+            logger.error(f"Action {name} failed to import plugin {plugin_file}: {e}")
             log(f"ACTION: {name} - failed to import plugin {plugin_file}: {e}")
             return {"status": "failed", "branch": target, "error": str(e)}
 
@@ -598,6 +613,7 @@ def _dispatch_action(action: dict) -> dict:
                     log(f"ACTION: {name} - self-dispatch failed: {error_msg}")
                     return {"status": "failed", "branch": target, "error": error_msg}
             except Exception as e:
+                logger.error(f"Action {name} self-dispatch error: {e}")
                 log(f"ACTION: {name} - self-dispatch error: {e}")
                 return {"status": "failed", "branch": target, "error": str(e)}
 
@@ -613,6 +629,7 @@ def _dispatch_action(action: dict) -> dict:
                         return {"status": "ok", "branch": target}
                     return {"status": "failed", "branch": target, "error": f"run() returned {run_status}"}
             except Exception as e:
+                logger.warning(f"Action {name} plugin run() error: {e}")
                 log(f"ACTION: {name} - plugin run() error: {e}")
                 # Continue to wake script dispatch anyway
 
@@ -639,6 +656,7 @@ def _dispatch_action(action: dict) -> dict:
                 log(f"ACTION: {name} - reminder email failed")
                 return {"status": "failed", "branch": target, "error": "email send returned False"}
         except Exception as e:
+            logger.error(f"Action {name} reminder error: {e}")
             log(f"ACTION: {name} - reminder error: {e}")
             return {"status": "failed", "branch": target, "error": str(e)}
 
@@ -671,9 +689,11 @@ def _dispatch_action(action: dict) -> dict:
             log(f"ACTION: {name} - wake script failed (rc={result.returncode}): {stderr_snippet}")
             return {"status": "failed", "branch": target, "error": f"wake rc={result.returncode}"}
     except subprocess.TimeoutExpired:
+        logger.warning(f"Action {name} wake script timed out (30s)")
         log(f"ACTION: {name} - wake script timed out (30s)")
         return {"status": "failed", "branch": target, "error": "wake timeout"}
     except Exception as e:
+        logger.error(f"Action {name} dispatch error: {e}")
         log(f"ACTION: {name} - dispatch error: {e}")
         return {"status": "failed", "branch": target, "error": str(e)}
 
@@ -709,6 +729,7 @@ def process_actions() -> dict:
     try:
         _ensure_registry()
     except Exception as e:
+        logger.warning(f"Action registry migration error: {e}")
         log(f"ACTION: Migration error: {e}")
         results["errors"].append(f"Migration: {e}")
 
@@ -716,6 +737,7 @@ def process_actions() -> dict:
     try:
         registry = load_registry()  # type: ignore[misc]
     except Exception as e:
+        logger.error(f"Failed to load action registry: {e}")
         log(f"ACTION: Failed to load registry: {e}")
         results["errors"].append(f"Load registry: {e}")
         return results
@@ -806,7 +828,8 @@ def main() -> int:
     lock_fd = open(LOCK_FILE, "w", encoding="utf-8")
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    except OSError as e:
+        logger.warning(f"Scheduler lock acquisition failed (another instance running): {e}")
         log("Another instance already running, skipping.")
         lock_fd.close()
         return 0
@@ -826,6 +849,7 @@ def _run_locked() -> int:
     try:
         results = process_due_tasks()
     except Exception as e:
+        logger.error(f"Unhandled error in process_due_tasks: {e}", exc_info=True)
         log(f"CRITICAL: Unhandled error in process_due_tasks: {e}")
         return 1
 
@@ -837,6 +861,7 @@ def _run_locked() -> int:
     try:
         action_results = process_actions()
     except Exception as e:
+        logger.warning(f"Unhandled error in process_actions: {e}")
         log(f"WARNING: Unhandled error in process_actions: {e}")
         action_results["errors"].append(f"Action processing: {e}")
 
@@ -889,6 +914,7 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as e:
         # Last-resort catch -- never crash silently
+        logger.error(f"FATAL scheduler_cron exception: {e}", exc_info=True)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         console.print(f"[{timestamp}] FATAL: Unhandled exception: {e}")
         sys.exit(1)

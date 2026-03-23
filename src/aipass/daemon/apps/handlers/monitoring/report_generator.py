@@ -66,7 +66,8 @@ def _format_time_ago(iso_timestamp: Optional[str]) -> str:
         else:
             days = int(hours / 24)
             return f"{days}d ago"
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        logger.warning("Failed to parse timestamp %s: %s", iso_timestamp, e)
         return "unknown"
 
 

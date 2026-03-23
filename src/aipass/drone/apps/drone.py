@@ -165,6 +165,7 @@ def _handle_module(name: str, args: List[str]) -> int:
     try:
         result = route_module_command(name, command, cmd_args)
     except (ImportError, AttributeError) as exc:
+        logger.error("Module @%s not available: %s", name, exc)
         err_console.print(f"drone: module @{name} is registered but not available: {exc}")
         return 1
 
@@ -263,6 +264,7 @@ def _handle_custom_command(args: list[str]) -> int:
             interactive=interactive,
         )
     except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+        logger.warning("Custom command failed for target %s: %s", target, exc)
         err_console.print(f"drone: {exc}")
         return 1
 
@@ -300,6 +302,7 @@ def _handle_target(args: List[str]) -> int:
         try:
             result = route_command(target)
         except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+            logger.warning("Introspection failed for %s: %s", target, exc)
             err_console.print(f"drone: {exc}")
             return 1
         if result.stdout:
@@ -317,6 +320,7 @@ def _handle_target(args: List[str]) -> int:
             else:
                 console.print(f"No help available for {target}.")
         except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+            logger.warning("Help lookup failed for %s: %s", target, exc)
             err_console.print(f"drone: {exc}")
             return 1
         return 0
@@ -335,6 +339,7 @@ def _handle_target(args: List[str]) -> int:
             interactive=interactive,
         )
     except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+        logger.warning("Command routing failed for %s %s: %s", target, command, exc)
         err_console.print(f"drone: {exc}")
         return 1
 
@@ -358,6 +363,7 @@ def main() -> int:
         try:
             show_introspection()
         except RegistryError as exc:
+            logger.warning("Registry error during introspection: %s", exc)
             err_console.print(f"drone: {exc}")
             return 1
         return 0
@@ -379,6 +385,7 @@ def main() -> int:
         try:
             return _handle_systems()
         except RegistryError as exc:
+            logger.warning("Registry error during systems listing: %s", exc)
             err_console.print(f"drone: {exc}")
             return 1
 

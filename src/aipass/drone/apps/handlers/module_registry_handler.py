@@ -65,7 +65,8 @@ def get_module_info(name: str) -> ModuleInfo | None:
             description=meta.get("description", ""),
             adapter_path=adapter_path,
         )
-    except ImportError:
+    except ImportError as exc:
+        logger.warning("get_module_info: failed to import adapter '%s': %s", adapter_path, exc)
         return None
 
 
@@ -93,7 +94,8 @@ def get_module_help(name: str, command: str | None = None) -> str:
         if help_fn is None:
             return ""
         return help_fn(command)
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError) as exc:
+        logger.warning("get_module_help: failed for module '%s': %s", name, exc)
         return ""
 
 
@@ -115,7 +117,8 @@ def get_module_introspective(name: str) -> str:
         if help_fn is not None:
             return help_fn(None)
         return ""
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError) as exc:
+        logger.warning("get_module_introspective: failed for module '%s': %s", name, exc)
         return ""
 
 

@@ -8,6 +8,9 @@
 
 """Thread-safe event coordination for monitoring system"""
 
+import logging
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 
 from queue import Empty, PriorityQueue
@@ -67,7 +70,8 @@ class MonitoringQueue:
                     if len(self.recent_events) > 100:
                         self.recent_events.pop(0)
                 return True
-            except Exception:
+            except Exception as e:
+                logger.warning(f"[event_queue] Failed to enqueue event (type={event.event_type}, branch={event.branch}): {e}")
                 return False
         return False
 
@@ -76,6 +80,7 @@ class MonitoringQueue:
         try:
             return self.queue.get(timeout=timeout)
         except Empty:
+            logger.info("[event_queue] Queue empty on dequeue (timeout=%.1f)", timeout)
             return None
 
     def flush(self):
@@ -85,6 +90,7 @@ class MonitoringQueue:
                 try:
                     self.queue.get_nowait()
                 except Empty:
+                    logger.info("[event_queue] Flush complete (queue drained)")
                     break
             self.recent_events.clear()
 

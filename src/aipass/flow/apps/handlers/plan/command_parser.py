@@ -14,7 +14,10 @@ Parses command-line arguments for plan operations.
 
 from typing import List, Tuple
 
+from aipass.prax import logger
 from aipass.flow.apps.handlers.json import json_handler
+
+MODULE_NAME = "command_parser"
 
 
 def parse_create_plan_args(args: List[str]) -> Tuple[str | None, str, str]:
@@ -59,7 +62,8 @@ def parse_create_plan_args(args: List[str]) -> Tuple[str | None, str, str]:
     try:
         from aipass.flow.apps.handlers.template.registry_ops import get_type_map
         type_map = get_type_map()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Failed to load type map from registry_ops, using defaults: {e}")
         type_map = {"default": "flow_plans", "dplan": "dev_plans"}
     plan_type_key = type_map.get(raw_type.lower(), raw_type)
 

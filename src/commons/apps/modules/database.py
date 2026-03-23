@@ -23,6 +23,7 @@ from aipass.prax import logger
 try:
     from aipass.cli.apps.modules import console
 except ImportError:
+    logger.warning("[database] CLI console unavailable, using fallback")
     from rich.console import Console
     console = Console()
 

@@ -14,6 +14,9 @@ Monitors all files (including __pycache__, .pyc, etc.) to provide
 complete visibility into branch modifications.
 """
 
+import logging
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 from typing import List, Callable, Optional, TYPE_CHECKING, Any
 
@@ -28,7 +31,8 @@ try:
     from watchdog.events import FileSystemEventHandler  # type: ignore
     from watchdog.events import FileSystemEvent  # type: ignore
     WATCHDOG_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    logger.info(f"[monitor] watchdog not available, using placeholders: {e}")
     WATCHDOG_AVAILABLE = False
     # Create placeholder classes for when watchdog not available
     class Observer:  # type: ignore

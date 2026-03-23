@@ -14,6 +14,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from aipass.prax import logger
+
 # ---------------------------------------------------------------------------
 # Infrastructure — auto-detect branch root from file location
 # json_handler.py -> json/ -> handlers/ -> apps/ -> drone/
@@ -164,8 +166,8 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
             if validate_json_structure(data, json_type):
                 return True
             # Corrupted — fall through to regenerate
-        except Exception:  # noqa: BLE001
-            pass  # Unreadable — fall through to regenerate
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ensure_json_exists: failed to read %s, regenerating: %s", json_path, exc)
 
     # Create from inline default
     factory = _DEFAULTS.get(json_type)

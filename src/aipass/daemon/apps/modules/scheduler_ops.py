@@ -13,6 +13,8 @@ Provides a clean module-layer interface over handler functions
 used by scheduler_cron.py.
 """
 
+from aipass.prax import logger
+
 from aipass.daemon.apps.handlers.json import json_handler
 
 try:
@@ -20,6 +22,7 @@ try:
 except ImportError:
     from rich.console import Console
     console = Console()
+    logger.info("Optional: aipass.cli.apps.modules.display not available, using rich.console fallback")
 
 # =============================================
 # TASK REGISTRY
@@ -41,6 +44,7 @@ except ImportError:
     mark_completed = None  # type: ignore[assignment]
     mark_pending = None  # type: ignore[assignment]
     recover_stale_dispatches = None  # type: ignore[assignment]
+    logger.info("Optional: task_registry not available")
 
 # =============================================
 # ACTION REGISTRY (DPLAN-043)
@@ -64,6 +68,7 @@ except ImportError:
     mark_reminder_completed = None  # type: ignore[assignment]
     migrate_plugins = None  # type: ignore[assignment]
     next_due_str = None  # type: ignore[assignment]
+    logger.info("Optional: actions_registry not available")
 
 
 # =============================================

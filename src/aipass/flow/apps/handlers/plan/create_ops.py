@@ -261,7 +261,7 @@ def create_plan_impl(
             from aipass.trigger.apps.modules.core import trigger
             trigger.fire('plan_created', plan_number=NEXT_NUM, location=RELATIVE_LOCATION, subject=subject)
         except ImportError:
-            pass  # Trigger not available, silent fallback
+            logger.info(f"[{MODULE_NAME}] Trigger module not available, skipping plan_created event")
 
         json_handler.log_operation("plan_created", {"plan_number": NEXT_NUM, "location": RELATIVE_LOCATION, "template": template_type, "success": True})
         return True, NEXT_NUM, RELATIVE_LOCATION, template_type, "", messages

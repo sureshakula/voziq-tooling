@@ -130,7 +130,8 @@ def _load_seen_hashes() -> None:
             data = json.loads(TRIGGER_DATA_FILE.read_text(encoding='utf-8'))
             stored = data.get('seen_error_hashes', [])
             _seen_error_hashes = set(stored)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to load seen hashes: %s", exc)
         _seen_error_hashes = set()  # Start fresh on read failure
 
 
@@ -150,7 +151,8 @@ def _save_seen_hashes() -> None:
         TRIGGER_DATA_FILE.write_text(
             json.dumps(data, indent=2), encoding='utf-8'
         )
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to save seen hashes: %s", exc)
         return  # Write failure - hashes remain in memory only
 
 
@@ -194,7 +196,8 @@ def _save_log_positions(positions: Dict[str, int]) -> None:
         TRIGGER_DATA_FILE.write_text(
             json.dumps(data, indent=2), encoding='utf-8'
         )
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to save log positions: %s", exc)
         return  # Write failure - positions remain in memory only
 
 
@@ -226,7 +229,8 @@ def _is_stale_entry(timestamp_str: str) -> bool:
         try:
             entry_time = datetime.strptime(timestamp_str.strip(), fmt)
             return entry_time < cutoff
-        except ValueError:
+        except ValueError as exc:
+            logger.warning("Failed to parse timestamp '%s': %s", timestamp_str.strip(), exc)
             continue
 
     # If we can't parse the timestamp, treat as STALE to avoid re-flagging
@@ -291,7 +295,8 @@ def _detect_branch_from_path(log_path: str) -> str:
                 if i + 2 < len(parts) and parts[i + 2] == 'logs':
                     return parts[i + 1].upper()
         return 'UNKNOWN'
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to detect branch from path '%s': %s", log_path, exc)
         return 'UNKNOWN'
 
 
@@ -346,7 +351,8 @@ def _parse_prax_log_line(log_line: str) -> Optional[Dict[str, str]]:
                     }
 
         return None
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to parse log line: %s", exc)
         return None
 
 
@@ -462,7 +468,8 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                     _save_log_positions(self.log_positions)
                     self._position_save_counter = 0
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to read log file '%s': %s", file_path, exc)
             return  # Read failure on this event - skip without raising
 
     def _process_log_line(self, log_line: str, log_path: str) -> None:
@@ -572,7 +579,8 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                     "(branch=%s, module=%s)", branch, module
                 )
 
-        except Exception:
+        except Exception as exc:
+            logger.warning("Failed to process log line from '%s': %s", log_path, exc)
             return  # Parse/fire failure on this line - skip without raising
 
     def initialize_positions(self) -> None:
@@ -604,7 +612,8 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                         self.log_positions[file_path] = saved_pos
                     else:
                         self.log_positions[file_path] = current_size
-                except Exception:
+                except Exception as exc:
+                    logger.warning("Failed to initialize position for branch log '%s': %s", log_file, exc)
                     continue  # Skip unreadable log file
 
         # System-level logs under ~/system_logs/
@@ -618,7 +627,8 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                         self.log_positions[file_path] = saved_pos
                     else:
                         self.log_positions[file_path] = current_size
-                except Exception:
+                except Exception as exc:
+                    logger.warning("Failed to initialize position for system log '%s': %s", log_file, exc)
                     continue  # Skip unreadable log file
 
 

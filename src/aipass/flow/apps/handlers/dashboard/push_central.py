@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from aipass.flow.apps.handlers.json import json_handler
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
@@ -76,7 +77,8 @@ def _load_registry() -> Dict[str, Any]:
     try:
         with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to load fplan registry '%s': %s", REGISTRY_FILE, exc)
         return {"plans": {}, "next_number": 1}
 
 
@@ -147,7 +149,8 @@ def _load_central() -> Dict[str, Any]:
     try:
         with open(CENTRAL_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to load PLANS.central.json '%s': %s", CENTRAL_FILE, exc)
         return {
             "generated_at": "",
             "branches": {},
@@ -262,5 +265,6 @@ def push_to_plans_central() -> bool:
 
         return True
 
-    except Exception:
+    except Exception as exc:
+        logger.error("Failed to push plans to central '%s': %s", CENTRAL_FILE, exc)
         return False

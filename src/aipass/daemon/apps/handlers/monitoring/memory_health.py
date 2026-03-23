@@ -18,6 +18,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
 
+from aipass.prax import logger
 from aipass.daemon.apps.handlers.json import json_handler
 
 
@@ -147,6 +148,7 @@ def validate_memory_structure(
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
+        logger.warning("Invalid JSON in memory file %s: %s", file_path, e)
         return {
             "valid": False,
             "has_metadata": False,
@@ -155,6 +157,7 @@ def validate_memory_structure(
             "metadata_fields": [],
         }
     except OSError as e:
+        logger.warning("Cannot read memory file %s: %s", file_path, e)
         return {
             "valid": False,
             "has_metadata": False,
@@ -258,6 +261,7 @@ def check_freshness(
             "message": message,
         }
     except OSError as e:
+        logger.error("Cannot read file stats for %s: %s", file_path, e)
         return {
             "exists": True,
             "last_modified": None,

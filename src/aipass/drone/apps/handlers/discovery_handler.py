@@ -111,8 +111,8 @@ def discover_modules(branch_path: str, branch_name: str) -> List[str]:
             if commands:
                 json_handler.log_operation("discover_modules", {"branch": branch_name, "count": len(commands)})
                 return commands
-        except (subprocess.TimeoutExpired, OSError):
-            pass
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.warning("discover_modules: --help failed for '%s': %s", branch_name, exc)
 
     modules = scan_modules_directory(branch_path)
     json_handler.log_operation("discover_modules", {"branch": branch_name, "count": len(modules), "source": "scan"})

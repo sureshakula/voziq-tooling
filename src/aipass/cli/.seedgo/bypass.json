@@ -9,6 +9,16 @@
       "file": "apps/handlers/init/bootstrap.py",
       "standard": "json_structure",
       "reason": "Pure Python bootstrap — no branch imports by design"
+    },
+    {
+      "file": "apps/modules/display.py",
+      "standard": "silent_catch",
+      "reason": "Circular import — display.py cannot import prax (prax depends on cli). Silent catches are ImportError guard for optional trigger and __main__ error handler."
+    },
+    {
+      "file": "apps/handlers/json/json_handler.py",
+      "standard": "silent_catch",
+      "reason": "Dependency-free by design — json_handler cannot import prax (circular: json_handler → prax → cli.display → json_handler). Catch regenerates corrupted JSON silently."
     }
   ],
   "notes": {

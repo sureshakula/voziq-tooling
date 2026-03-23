@@ -19,6 +19,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import inspect
 
+from aipass.prax.apps.modules.logger import system_logger as logger
+
 # Infrastructure
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
@@ -49,7 +51,8 @@ def _get_caller_module_name() -> str:
 
         # Fallback
         return "unknown"
-    except Exception:
+    except Exception as exc:
+        logger.warning("[json_handler] Failed to detect caller module name: %s", exc)
         return "unknown"
 
 
@@ -70,7 +73,8 @@ def load_template(json_type: str, module_name: str) -> Any:
         template_str = template_str.replace("{{TIMESTAMP}}", datetime.now().date().isoformat())
 
         return json.loads(template_str)
-    except Exception:
+    except Exception as exc:
+        logger.warning("[json_handler] Failed to load template '%s' for module '%s': %s", json_type, module_name, exc)
         return None
 
 
@@ -113,9 +117,9 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
 
             if validate_json_structure(data, json_type):
                 return True
-        except Exception:
+        except Exception as exc:
             # File exists but is corrupted - will regenerate below
-            pass
+            logger.warning("[json_handler] Corrupted JSON file for '%s/%s', regenerating: %s", module_name, json_type, exc)
 
     template = load_template(json_type, module_name)
     if template is None:
@@ -125,7 +129,8 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(template, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.error("[json_handler] Failed to write JSON template for '%s/%s': %s", module_name, json_type, exc)
         return False
 
 
@@ -139,7 +144,8 @@ def load_json(module_name: str, json_type: str) -> Optional[Any]:
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.error("[json_handler] Failed to load JSON for '%s/%s': %s", module_name, json_type, exc)
         return None
 
 
@@ -157,7 +163,8 @@ def save_json(module_name: str, json_type: str, data: Any) -> bool:
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.error("[json_handler] Failed to save JSON for '%s/%s': %s", module_name, json_type, exc)
         return False
 
 

@@ -58,7 +58,7 @@ def print_introspection():
         CONSOLE.print("  [dim]handlers/templates/ (not found)[/dim]")
         CONSOLE.print()
 
-    CONSOLE.print("[dim]Run 'python3 templates.py --help' for usage[/dim]")
+    CONSOLE.print("[dim]Run 'drone @cli templates --help' for usage[/dim]")
     CONSOLE.print()
 
 
@@ -84,10 +84,10 @@ def print_help():
     CONSOLE.print("[bold cyan]Usage Examples:[/bold cyan]")
     CONSOLE.print()
     CONSOLE.print("  [green]# Show module info[/green]")
-    CONSOLE.print("  python3 templates.py")
+    CONSOLE.print("  drone @cli templates")
     CONSOLE.print()
     CONSOLE.print("  [green]# Run demo[/green]")
-    CONSOLE.print("  python3 templates.py demo")
+    CONSOLE.print("  drone @cli templates demo")
     CONSOLE.print()
     CONSOLE.print("  [green]# Via drone[/green]")
     CONSOLE.print("  drone cli templates")
@@ -124,6 +124,9 @@ def handle_command(command: str, args: List[str]) -> bool:
         return False
     if not args:
         print_introspection()
+        return True
+    if args[0] in ("--help", "-h", "help"):
+        print_help()
         return True
     if args[0] == "demo":
         run_demo()
@@ -233,5 +236,5 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         CONSOLE.print(f"[red]Unknown command: {command}[/red]")
-        CONSOLE.print("[dim]Run 'python3 templates.py --help' for usage[/dim]")
+        CONSOLE.print("[dim]Run 'drone @cli templates --help' for usage[/dim]")
         sys.exit(1)

@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from aipass.flow.apps.handlers.json import json_handler
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
@@ -98,7 +99,8 @@ def _normalize_plan_entry(plan_num: str, info: Dict[str, Any]) -> Optional[Dict[
 
         try:
             branch_relative_path = str(path_obj.relative_to(_PKG_ROOT))
-        except Exception:
+        except Exception as exc:
+            logger.warning("[write_plan_outputs] Could not resolve relative path for plan %s: %s", plan_num, exc)
             branch_relative_path = str(path_obj)
     else:
         branch_relative_path = file_path
@@ -111,7 +113,8 @@ def _normalize_plan_entry(plan_num: str, info: Dict[str, Any]) -> Optional[Dict[
     if branch_dir is not None and not branch_name:
         try:
             branch_name = branch_dir.relative_to(_PKG_ROOT).parts[0]
-        except Exception:
+        except Exception as exc:
+            logger.warning("[write_plan_outputs] Could not determine branch name from dir for plan %s: %s", plan_num, exc)
             branch_name = branch_dir.name if branch_dir.name else "unknown"
 
     entry = {
@@ -132,14 +135,16 @@ def _normalize_plan_entry(plan_num: str, info: Dict[str, Any]) -> Optional[Dict[
     if path_obj is not None and branch_dir is not None:
         try:
             entry["branch_relative_path"] = str(path_obj.relative_to(branch_dir))
-        except Exception:
+        except Exception as exc:
+            logger.warning("[write_plan_outputs] Could not compute branch-relative path for plan %s: %s", plan_num, exc)
             entry["branch_relative_path"] = entry["relative_path"]
 
     if path_obj is not None:
         entry["absolute_path"] = str(path_obj)
         try:
             entry["file_uri"] = path_obj.as_uri()
-        except ValueError:
+        except ValueError as exc:
+            logger.warning("[write_plan_outputs] Could not generate file URI for plan %s: %s", plan_num, exc)
             entry["file_uri"] = None
 
         entry["vscode_uri"] = f"vscode://file{entry['absolute_path']}" if entry.get("absolute_path") else None
@@ -148,7 +153,8 @@ def _normalize_plan_entry(plan_num: str, info: Dict[str, Any]) -> Optional[Dict[
         try:
             branch_dir.relative_to(_PKG_ROOT)
             entry["branch_path"] = branch_dir
-        except Exception:
+        except Exception as exc:
+            logger.warning("[write_plan_outputs] Branch dir outside package root for plan %s: %s", plan_num, exc)
             entry["branch_path"] = None
 
     return entry
@@ -221,7 +227,8 @@ def _write_central_summary_json(active_entries: list, closed_entries: list) -> b
         with open(CLAUDE_JSON_FILE, 'w', encoding='utf-8') as f:
             json.dump(payload, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.error("[write_plan_outputs] Failed to write central summary JSON: %s", exc)
         return False
 
 
@@ -300,7 +307,8 @@ def _write_branch_local_files(branch_map: Dict[Path, Dict[str, Any]]) -> bool:
             branch_path.mkdir(parents=True, exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-        except Exception:
+        except Exception as exc:
+            logger.error("[write_plan_outputs] Failed to write branch-local file for '%s': %s", branch_name, exc)
             all_success = False
 
     return all_success

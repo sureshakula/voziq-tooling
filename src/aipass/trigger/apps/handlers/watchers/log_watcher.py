@@ -86,7 +86,8 @@ def _detect_branch_from_log(log_file: str) -> str:
             parts = name.split('_')
             return parts[0].upper()
         return name.upper()
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to detect branch from log '%s': %s", log_file, exc)
         return 'UNKNOWN'
 
 
@@ -225,8 +226,8 @@ class LogFileWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else o
 
                     self.log_positions[file_path] = f.tell()
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to read log file '%s': %s", file_path, exc)
 
     def _process_log_line(self, branch: str, log_line: str, log_file: str) -> None:
         """
@@ -263,8 +264,8 @@ class LogFileWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else o
                 trigger.fire('warning_logged', **event_data)
                 json_handler.log_operation("system_log_event", {"level": level, "module": module_name})
 
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to process log line from '%s': %s", log_file, exc)
 
     def initialize_positions(self) -> None:
         """
@@ -278,8 +279,8 @@ class LogFileWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else o
         for log_file in SYSTEM_LOGS_DIR.glob("*.log"):
             try:
                 self.log_positions[str(log_file)] = log_file.stat().st_size
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to initialize position for '%s': %s", log_file, exc)
 
 
 def start_log_watcher() -> Any:

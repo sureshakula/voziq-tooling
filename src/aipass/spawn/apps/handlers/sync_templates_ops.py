@@ -148,5 +148,6 @@ def _file_hash(filepath: Path) -> str:
     try:
         content = filepath.read_bytes()
         return hashlib.sha256(content).hexdigest()[:12]
-    except IOError:
+    except IOError as e:
+        logger.warning(f"Failed to hash file {filepath}: {e}")
         return ""

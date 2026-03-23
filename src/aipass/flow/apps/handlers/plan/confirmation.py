@@ -15,6 +15,7 @@ User interaction and confirmation prompts for plan operations.
 import sys
 from pathlib import Path
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # Infrastructure
@@ -53,4 +54,5 @@ def confirm_plan_deletion(plan_key: str) -> bool:
         return response in ['yes', 'y']
     except EOFError:
         # Fallback for edge cases where isatty() returns True but input fails
+        logger.warning(f"[confirmation] EOFError reading input for plan {plan_key} deletion, auto-confirming")
         return True

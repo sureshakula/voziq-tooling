@@ -502,8 +502,8 @@ def _load_registry() -> dict:
             data = json.loads(REGISTRY_FILE.read_text(encoding='utf-8'))
             if isinstance(data, dict) and 'errors' in data:
                 return data
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to load error registry: %s", exc)
     return {
         "errors": {},
         "metadata": {
@@ -621,7 +621,8 @@ def report(
             json_handler.log_operation("error_registered", {"fingerprint": fingerprint[:12], "count": 1})
             return result
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to report error for component '%s': %s", component, exc)
         return {
             "error_type": error_type,
             "message": message,
@@ -670,7 +671,8 @@ def query(
 
         return entries[:limit]
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to query error registry: %s", exc)
         return []
 
 
@@ -706,7 +708,8 @@ def update_status(fingerprint: str, new_status: str, reason: str = "") -> bool:
 
         return _save_registry(registry)
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to update status for fingerprint '%s': %s", fingerprint, exc)
         return False
 
 
@@ -725,7 +728,8 @@ def get_entry(fingerprint: str) -> Optional[dict]:
     try:
         registry = _load_registry()
         return _find_entry(registry, fingerprint)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to get entry for fingerprint '%s': %s", fingerprint, exc)
         return None
 
 
@@ -762,7 +766,8 @@ def clear_resolved(days: int = 7) -> int:
 
         return removed
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to clear resolved entries: %s", exc)
         return 0
 
 
@@ -801,7 +806,8 @@ def get_stats() -> dict:
             "by_severity": by_severity
         }
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to get error registry stats: %s", exc)
         return {
             "total": 0,
             "by_status": {},
@@ -832,7 +838,8 @@ def update_source_fix_status(fingerprint: str, fix_status: str) -> bool:
             return False
         entry["source_fix_status"] = fix_status
         return _save_registry(registry)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to update source fix status for '%s': %s", fingerprint, exc)
         return False
 
 

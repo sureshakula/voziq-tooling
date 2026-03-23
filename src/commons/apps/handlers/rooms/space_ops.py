@@ -73,6 +73,7 @@ def get_room_enter_data(room_name: str) -> Dict[str, Any]:
         json_handler.log_operation("room_enter", {"room": room_name, "post_count": post_count})
 
     except Exception as e:
+        logger.error(f"[space_ops] Failed to get room enter data for '{room_name}': {e}")
         result["error"] = str(e)
 
     return result
@@ -141,6 +142,7 @@ def get_room_look_data(room_name: str) -> Dict[str, Any]:
         })
 
     except Exception as e:
+        logger.error(f"[space_ops] Failed to get room look data for '{room_name}': {e}")
         result["error"] = str(e)
 
     return result
@@ -176,6 +178,7 @@ def place_decoration(room_name: str, item_name: str, description: str, branch_na
             result["error"] = "Failed to store decoration"
 
     except Exception as e:
+        logger.error(f"[space_ops] Failed to place decoration '{item_name}' in room '{room_name}': {e}")
         result["error"] = str(e)
 
     return result
@@ -237,6 +240,7 @@ def get_visitors_data(room_name: str) -> Dict[str, Any]:
         result.update({"found": True, "visitors": sorted(visitors)})
 
     except Exception as e:
+        logger.error(f"[space_ops] Failed to get visitors data for room '{room_name}': {e}")
         result["error"] = str(e)
 
     return result

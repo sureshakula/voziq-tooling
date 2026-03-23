@@ -28,6 +28,7 @@ import fcntl
 from pathlib import Path
 from datetime import datetime
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console
 from aipass.daemon.apps.handlers.json import json_handler
 
@@ -103,6 +104,7 @@ def check_inbox() -> dict:
         with open(INBOX_PATH, "r", encoding="utf-8") as f:
             inbox_data = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
+        logger.warning(f"Failed to read inbox: {e}")
         log(f"WARNING: Failed to read inbox: {e}")
         return result
 
@@ -199,7 +201,8 @@ def main() -> int:
     lock_fd = open(LOCK_FILE, "w")
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    except OSError as e:
+        logger.warning(f"Wakeup lock acquisition failed (another instance running): {e}")
         log("Another instance already running, skipping.")
         lock_fd.close()
         return 0
@@ -220,6 +223,7 @@ def _run_locked() -> int:
         inbox = check_inbox()
         log(f"Inbox: {inbox['new_count']} new, {inbox['opened_count']} opened")
     except Exception as e:
+        logger.error(f"Unhandled error in check_inbox: {e}", exc_info=True)
         log(f"CRITICAL: Unhandled error in check_inbox: {e}")
         return 1
 
@@ -237,6 +241,7 @@ if __name__ == "__main__":
         sys.exit(main())
     except Exception as e:
         # Last-resort catch -- never crash silently
+        logger.error(f"FATAL wakeup exception: {e}", exc_info=True)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         console.print(f"[{timestamp}] FATAL: Unhandled exception: {e}")
         sys.exit(1)

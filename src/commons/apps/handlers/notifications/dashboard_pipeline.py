@@ -184,7 +184,7 @@ def update_dashboards_for_event(
         try:
             update_central()
         except (OSError, sqlite3.OperationalError):
-            pass
+            logger.warning("[dashboard_pipeline] Failed to update central file after event")
 
         json_handler.log_operation("dashboard_pipeline", {"event_type": event_type, "dashboards_updated": count})
 

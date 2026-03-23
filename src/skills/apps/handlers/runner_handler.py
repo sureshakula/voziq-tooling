@@ -17,6 +17,7 @@ Purpose:
     orchestration layer to satisfy thin-module standard.
 """
 
+from aipass.prax import logger
 from skills.apps.handlers.json import json_handler
 
 
@@ -45,6 +46,7 @@ def run_handler(handler, name, action, args, config):
                     "error": None,
                 }
             except Exception as exc:
+                logger.error(f"Failed to list actions for {name}: {exc}")
                 return {
                     "success": False,
                     "output": "",
@@ -83,6 +85,7 @@ def run_handler(handler, name, action, args, config):
             "error": None,
         }
     except Exception as exc:
+        logger.error(f"Skill {name} action '{action}' failed: {exc}")
         return {
             "success": False,
             "output": "",

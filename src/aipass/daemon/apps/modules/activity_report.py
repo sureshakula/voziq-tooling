@@ -146,8 +146,8 @@ def _parse_hours_arg(args: List[str]) -> float:
         if args[i] in ('--hours', '-t') and i + 1 < len(args):
             try:
                 hours = float(args[i + 1])
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.warning("Invalid --hours value '%s': %s", args[i + 1], e)
             i += 2
         else:
             i += 1

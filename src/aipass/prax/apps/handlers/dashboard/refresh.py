@@ -14,9 +14,12 @@ AIPASS owns all dashboards - services only maintain their central files.
 """
 
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Same-package imports allowed
 from .operations import create_fresh_dashboard, save_dashboard
@@ -138,8 +141,8 @@ def _extract_memory_bank_section(centrals: Dict, branch_path: Path) -> Dict:
                 cursor.execute("SELECT COUNT(*) FROM embeddings")
                 local_vectors = cursor.fetchone()[0]
                 conn.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to read ChromaDB vectors from %s: %s", chroma_dir, e)
 
     # Pull last_updated from central if available
     mb_data = centrals.get("memory_bank", {})
@@ -249,6 +252,7 @@ def refresh_all_dashboards() -> Dict:
     try:
         branch_paths = _load_branch_paths()
     except Exception as e:
+        logger.error("Failed to load branch paths: %s", e)
         return {
             "status": "error",
             "branches_updated": 0,
@@ -281,8 +285,8 @@ def refresh_all_dashboards() -> Dict:
                         existing_commons = existing.get("sections", {}).get("commons_activity")
                         if existing_commons:
                             dashboard["sections"]["commons_activity"] = existing_commons
-                    except (json.JSONDecodeError, OSError):
-                        pass
+                    except (json.JSONDecodeError, OSError) as e:
+                        logger.warning("Failed to read existing commons data for %s: %s", branch_name, e)
 
             # Preserve write-through sections not managed by refresh (e.g. agent_status)
             existing_path = branch_path / "DASHBOARD.local.json"
@@ -292,8 +296,8 @@ def refresh_all_dashboards() -> Dict:
                     for key, value in existing.get("sections", {}).items():
                         if key not in REFRESH_MANAGED_SECTIONS and key not in dashboard["sections"]:
                             dashboard["sections"][key] = value
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning("Failed to preserve write-through sections for %s: %s", branch_name, e)
 
             # Calculate quick status
             dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
@@ -303,6 +307,7 @@ def refresh_all_dashboards() -> Dict:
             branches_updated += 1
 
         except Exception as e:
+            logger.warning("Dashboard refresh failed for %s: %s", branch_name, e)
             errors.append(f"{branch_name}: {str(e)}")
             branches_failed += 1
 
@@ -360,8 +365,8 @@ def refresh_single_dashboard(branch_path: Path) -> Dict:
                     existing_commons = existing.get("sections", {}).get("commons_activity")
                     if existing_commons:
                         dashboard["sections"]["commons_activity"] = existing_commons
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning("Failed to read existing commons data for %s: %s", branch_name, e)
 
         # Preserve write-through sections not managed by refresh (e.g. agent_status)
         existing_path = branch_path / "DASHBOARD.local.json"
@@ -371,8 +376,8 @@ def refresh_single_dashboard(branch_path: Path) -> Dict:
                 for key, value in existing.get("sections", {}).items():
                     if key not in REFRESH_MANAGED_SECTIONS and key not in dashboard["sections"]:
                         dashboard["sections"][key] = value
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Failed to preserve write-through sections for %s: %s", branch_name, e)
 
         dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
 
@@ -381,4 +386,5 @@ def refresh_single_dashboard(branch_path: Path) -> Dict:
         return {"status": "success", "branch": branch_name}
 
     except Exception as e:
+        logger.error("Single dashboard refresh failed for %s: %s", branch_name, e)
         return {"status": "error", "branch": branch_name, "error": str(e)}

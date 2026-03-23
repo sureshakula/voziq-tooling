@@ -14,10 +14,13 @@ Never manually create JSONs - they build themselves.
 """
 
 import json
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
 import inspect
+
+logger = logging.getLogger(__name__)
 
 # Resolve paths relative to this file (no hardcoded paths)
 _HANDLER_DIR = Path(__file__).resolve().parent          # .../handlers/json/
@@ -48,7 +51,8 @@ def _get_caller_module_name() -> str:
 
         # Fallback
         return "unknown"
-    except Exception:
+    except Exception as e:
+        logger.warning("json_handler: failed to detect caller module name: %s", e)
         return "unknown"
 
 
@@ -69,7 +73,8 @@ def load_template(json_type: str, module_name: str) -> Any:
         template_str = template_str.replace("{{TIMESTAMP}}", datetime.now().date().isoformat())
 
         return json.loads(template_str)
-    except Exception:
+    except Exception as e:
+        logger.warning("json_handler: failed to load template '%s' for module '%s': %s", json_type, module_name, e)
         return None
 
 
@@ -114,8 +119,8 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
                 return True
             else:
                 pass  # Corrupted - will regenerate
-        except Exception:
-            pass  # Unreadable - will regenerate
+        except Exception as e:
+            logger.warning("json_handler: unreadable json for '%s/%s', will regenerate: %s", module_name, json_type, e)
 
     template = load_template(json_type, module_name)
     if template is None:
@@ -125,7 +130,8 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(template, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as e:
+        logger.error("json_handler: failed to write json file '%s/%s': %s", module_name, json_type, e)
         return False
 
 
@@ -139,7 +145,8 @@ def load_json(module_name: str, json_type: str) -> Optional[Any]:
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.warning("json_handler: failed to load json '%s/%s': %s", module_name, json_type, e)
         return None
 
 
@@ -157,7 +164,8 @@ def save_json(module_name: str, json_type: str, data: Any) -> bool:
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as e:
+        logger.error("json_handler: failed to save json '%s/%s': %s", module_name, json_type, e)
         return False
 
 

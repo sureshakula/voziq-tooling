@@ -8,11 +8,23 @@
 
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import inspect
 
 # Infrastructure
+_LOG_FILE = Path(__file__).parent.parent.parent.parent / "logs" / "json_handler.log"
+
+
+def _log_warning(msg: str) -> None:
+    """File-based warning logger to avoid circular imports with prax."""
+    try:
+        _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(_LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} | WARNING | {msg}\n")
+    except Exception:
+        pass
+
 
 # Constants
 TRIGGER_ROOT = Path(__file__).resolve().parents[3]
@@ -100,8 +112,9 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
             if validate_json_structure(data, json_type):
                 return True
             # If corrupted, fall through to regenerate
-        except Exception:
+        except Exception as exc:
             # If unreadable, fall through to regenerate
+            _log_warning(f"ensure_json_exists failed for {module_name}_{json_type}: {exc}")
             pass
 
     template = load_template(json_type, module_name)

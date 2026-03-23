@@ -24,14 +24,28 @@ Event data expected:
     - timestamp: When detected
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from aipass.trigger.apps.config import TRIGGER_ROOT
 from aipass.trigger.apps.handlers.json import json_handler
 
 
 # Path resolution not needed - this handler uses only event data passed in kwargs
+
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "memory_threshold_handler.log"
+
+
+def _log_warning(message: str) -> None:
+    """Log warning to file (event handlers cannot import Prax logger - causes recursion)."""
+    try:
+        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        with open(_HANDLER_LOG, 'a', encoding='utf-8') as f:
+            f.write(f"{ts} | WARNING | {message}\n")
+    except Exception:
+        pass
 
 
 def _build_compression_message(
@@ -160,5 +174,5 @@ def handle_memory_threshold_exceeded(
 
         json_handler.log_operation("memory_threshold_event", {"success": True})
 
-    except Exception:
-        pass
+    except Exception as exc:
+        _log_warning(f"handle memory threshold exceeded failed: {exc}")

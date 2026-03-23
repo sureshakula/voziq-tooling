@@ -47,6 +47,7 @@ def find_repo_root() -> Path:
         if result.returncode == 0 and result.stdout.strip():
             return Path(result.stdout.strip())
     except (OSError, subprocess.SubprocessError):
+        logger.warning("find_repo_root: git rev-parse fallback failed, using CWD")
         pass
 
     return cwd
@@ -125,6 +126,7 @@ def release_lock(force: bool = False) -> dict:
         logger.info("Lock released (force=%s)", force)
         return {"success": True, "message": "Lock released"}
     except OSError as exc:
+        logger.warning("release_lock: failed to remove lock file: %s", exc)
         return {"success": False, "message": f"Failed to release lock: {exc}"}
 
 
@@ -176,6 +178,7 @@ def check_lock_status() -> dict:
             age_seconds = (datetime.now(timezone.utc) - start_time).total_seconds()
             stale = age_seconds > _STALE_THRESHOLD_SECONDS
         except (ValueError, TypeError):
+            logger.warning("check_lock_status: could not parse lock start time: %s", started)
             pass
 
     # Check if PID is still alive (orphan detection)
@@ -187,6 +190,7 @@ def check_lock_status() -> dict:
             orphaned = True
         except PermissionError:
             # Process exists but we can't signal it — not orphaned
+            logger.warning("check_lock_status: PID %d exists but permission denied for signal check", pid)
             pass
 
     status = "active"
@@ -226,4 +230,5 @@ def _read_lock_file(lock_path: Path) -> dict | None:
         content = lock_path.read_text(encoding="utf-8")
         return json.loads(content)
     except (OSError, json.JSONDecodeError):
+        logger.warning("_read_lock_file: could not read or parse lock file %s", lock_path)
         return None

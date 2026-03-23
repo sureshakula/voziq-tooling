@@ -12,6 +12,8 @@ PRAX Terminal Filtering
 Filters terminal output to reduce noise from internal modules.
 """
 
+import logging
+logger = logging.getLogger(__name__)
 from pathlib import Path
 
 import json
@@ -46,8 +48,8 @@ def load_filtered_modules() -> Set[str]:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 config = json.load(f)
                 return set(config.get('filtered_modules', DEFAULT_FILTERED_MODULES))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to load terminal filter config %s: %s", CONFIG_FILE, e)
 
     return DEFAULT_FILTERED_MODULES
 

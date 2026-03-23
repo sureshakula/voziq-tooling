@@ -21,7 +21,7 @@ import json
 import hashlib
 import time
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Set
 from aipass.trigger.apps.config import TRIGGER_ROOT
 from aipass.trigger.apps.handlers.json import json_handler
@@ -38,6 +38,19 @@ MAX_ERRORS_PER_SCAN = 50          # Stop after this many new errors found
 MAX_FILE_SIZE_BYTES = 512_000     # Skip files larger than 500KB
 SCAN_TIME_BUDGET_SECONDS = 5.0    # Abort entire scan after this many seconds
 
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "startup_handler.log"
+
+
+def _log_warning(message: str) -> None:
+    """Log warning to file (event handlers cannot import Prax logger - causes recursion)."""
+    try:
+        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        with open(_HANDLER_LOG, 'a', encoding='utf-8') as f:
+            f.write(f"{ts} | WARNING | {message}\n")
+    except Exception:
+        pass
+
 
 def _load_trigger_data() -> Dict[str, Any]:
     """Load trigger_data.json with error_catchup section."""
@@ -53,7 +66,8 @@ def _load_trigger_data() -> Dict[str, Any]:
                     'max_lookback_hours': MAX_LOOKBACK_HOURS
                 }
             return data
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"load trigger data failed: {exc}")
         return {
             'error_catchup': {
                 'last_scan_timestamp': None,
@@ -78,7 +92,8 @@ def _save_trigger_data(data: Dict[str, Any]) -> None:
         TRIGGER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(TRIGGER_DATA_FILE, 'w') as f:
             json.dump(data, f, indent=2)
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"save trigger data failed: {exc}")
         return
 
 
@@ -92,7 +107,8 @@ def _log_suppression(reason: str) -> None:
         SUPPRESSED_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(SUPPRESSED_LOG, 'a') as f:
             f.write(f"{datetime.now().isoformat()} | error_catchup: {reason}\n")
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"log suppression write failed: {exc}")
         return
 
 
@@ -144,7 +160,8 @@ def _parse_log_line(log_line: str) -> Optional[Dict[str, str]]:
                     }
 
         return None
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"parse log line failed: {exc}")
         return None
 
 
@@ -177,7 +194,8 @@ def _detect_branch_from_log(log_file: str) -> str:
         if '_' in name:
             return name.split('_')[0].upper()
         return name.upper()
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"detect branch from log failed: {exc}")
         return 'UNKNOWN'
 
 
@@ -223,7 +241,8 @@ def _scan_system_logs_for_errors(
             if file_size > MAX_FILE_SIZE_BYTES:
                 files_skipped_size += 1
                 continue
-        except Exception:
+        except Exception as exc:
+            _log_warning(f"stat log file {log_file}: {exc}")
             continue
 
         try:
@@ -279,7 +298,8 @@ def _scan_system_logs_for_errors(
                 if len(errors) >= MAX_ERRORS_PER_SCAN:
                     break
 
-        except Exception:
+        except Exception as exc:
+            _log_warning(f"scan log file {log_file}: {exc}")
             continue
 
     if files_skipped_size > 0:
@@ -312,8 +332,8 @@ def _run_error_catchup(fire_event: Optional[Callable[..., None]] = None) -> None
         if last_scan:
             try:
                 since_ts = datetime.fromisoformat(last_scan)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_warning(f"parse last_scan_timestamp '{last_scan}': {exc}")
 
         processed_hashes = set(catchup.get('processed_hashes', []))
 
@@ -336,7 +356,8 @@ def _run_error_catchup(fire_event: Optional[Callable[..., None]] = None) -> None
 
         json_handler.log_operation("startup_catchup", {"errors_found": len(errors)})
 
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"error catchup scan failed: {exc}")
         return
 
 
@@ -351,7 +372,8 @@ def _run_memory_bank_check() -> None:
         check_and_rollover()
     except ImportError:
         return  # Memory not available
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"memory bank check failed: {exc}")
         return
 
 

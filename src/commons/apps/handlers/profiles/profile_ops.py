@@ -80,7 +80,7 @@ def show_profile(args: List[str]) -> dict:
         return {"success": True, "action": "view", "profile": profile}
 
     except Exception as e:
-        logger.error(f"Profile fetch failed: {e}")
+        logger.error(f"[profile_ops] Profile fetch failed: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -111,7 +111,7 @@ def _handle_profile_set(args: List[str]) -> dict:
             return {"success": False, "error": f"Agent '{branch_name}' not found"}
 
     except Exception as e:
-        logger.error(f"Profile update failed: {e}")
+        logger.error(f"[profile_ops] Profile update failed: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -135,5 +135,5 @@ def list_members(args: List[str]) -> dict:
         return {"success": True, "agents": agents}
 
     except Exception as e:
-        logger.error(f"Who listing failed: {e}")
+        logger.error(f"[profile_ops] Member listing failed: {e}")
         return {"success": False, "error": str(e)}

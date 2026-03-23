@@ -10,7 +10,7 @@ drone @flow create . "Subject" master       # FPLAN master template
 drone @flow create . "Design topic" dplan   # DPLAN
 drone @flow close FPLAN-0042                # Close specific plan
 drone @flow close --all                     # Close all open plans
-drone @flow list                            # List open plans (all types)
+drone @flow list open                       # List open plans (all types)
 drone @flow list all                        # List all plans
 drone @flow restore FPLAN-0042              # Reopen a closed plan
 ```

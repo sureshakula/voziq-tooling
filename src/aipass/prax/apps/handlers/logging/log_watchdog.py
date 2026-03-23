@@ -21,6 +21,8 @@ Two modes:
   - enforce: Truncate oversized files to keep last max_lines
 """
 
+import logging
+logger = logging.getLogger(__name__)
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -73,7 +75,8 @@ def _count_lines(filepath: Path) -> int:
     try:
         with open(filepath, 'rb') as f:
             return sum(1 for _ in f)
-    except OSError:
+    except OSError as e:
+        logger.info("Failed to count lines in %s: %s", filepath, e)
         return 0
 
 
@@ -89,7 +92,8 @@ def _get_file_size_kb(filepath: Path) -> float:
     """
     try:
         return filepath.stat().st_size / 1024.0
-    except OSError:
+    except OSError as e:
+        logger.info("Failed to stat file %s: %s", filepath, e)
         return 0.0
 
 
@@ -186,7 +190,8 @@ def truncate_log_file(filepath: Path, keep_lines: int = DEFAULT_MAX_LINES) -> Tu
 
         return original_count, keep_lines + 1  # +1 for marker line
 
-    except OSError:
+    except OSError as e:
+        logger.warning("Failed to truncate log file %s: %s", filepath, e)
         return 0, 0
 
 

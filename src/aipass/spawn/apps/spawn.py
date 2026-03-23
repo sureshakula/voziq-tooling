@@ -193,6 +193,7 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
+        logger.warning("SPAWN interrupted by user (KeyboardInterrupt)")
         console.print("\n\nOperation cancelled by user")
         sys.exit(0)
     except Exception as e:

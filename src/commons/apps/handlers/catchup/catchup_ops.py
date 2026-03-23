@@ -57,6 +57,7 @@ def _calculate_time_label(last_active: str) -> str:
             days = hours // 24
             return f"{days} days ago"
     except (ValueError, TypeError):
+        logger.warning("[catchup_ops] Failed to parse last_active timestamp")
         return "your last visit"
 
 
@@ -106,7 +107,7 @@ def run_catchup(args: List[str]) -> dict:
         conn = None
 
     except Exception as e:
-        logger.error(f"Catchup query failed: {e}")
+        logger.error(f"[catchup_ops] Catchup query failed: {e}")
         if conn:
             close_db(conn)
         return {"success": False, "error": str(e)}
@@ -119,7 +120,7 @@ def run_catchup(args: List[str]) -> dict:
         nudge = get_onboarding_nudge(conn_nudge, branch_name)
         close_db(conn_nudge)
     except Exception:
-        pass
+        logger.warning("[catchup_ops] Failed to fetch onboarding nudge")
 
     json_handler.log_operation("catchup_run", {"branch": branch_name, "is_first_visit": is_first_visit})
     return {

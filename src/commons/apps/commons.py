@@ -360,6 +360,7 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except BrokenPipeError:
+        logger.warning("[commons] Broken pipe")
         import os
         try:
             sys.stdout.close()

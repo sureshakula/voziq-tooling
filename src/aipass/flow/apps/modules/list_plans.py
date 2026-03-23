@@ -146,7 +146,7 @@ def list_plans(filter_type: str = "open") -> bool:
         try:
             error(f"ERROR: {error_msg}")
         except BrokenPipeError:
-            pass
+            logger.info(f"[{MODULE_NAME}] Broken pipe while displaying error (stdout closed early)")
         return False
 
     # Display formatted results
@@ -256,8 +256,9 @@ if __name__ == "__main__":
     except BrokenPipeError:
         # Pipe closed by reader - exit cleanly
         import os
+        logger.info(f"[{MODULE_NAME}] Broken pipe in standalone mode (stdout closed early)")
         try:
             sys.stdout.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[{MODULE_NAME}] Error closing stdout after broken pipe: {e}")
         os._exit(0)

@@ -13,6 +13,8 @@ Provides a clean module-layer interface over handler functions
 used by daemon_wakeup.py.
 """
 
+from aipass.prax import logger
+
 from aipass.daemon.apps.handlers.json import json_handler
 
 try:
@@ -20,6 +22,7 @@ try:
 except ImportError:
     from rich.console import Console
     console = Console()
+    logger.info("Optional: aipass.cli.apps.modules.display not available, using rich.console fallback")
 
 # =============================================
 # INTROSPECTION

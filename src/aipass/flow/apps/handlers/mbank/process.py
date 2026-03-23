@@ -73,8 +73,8 @@ def _is_branch_private(branch_name: str) -> bool:
         for branch in registry.get("branches", []):
             if branch.get("name", "").upper() == branch_name.upper():
                 return True
-    except (json.JSONDecodeError, IOError):
-        pass
+    except (json.JSONDecodeError, IOError) as exc:
+        logger.warning("[mbank] Failed to read private branch registry for '%s': %s", branch_name, exc)
     return False
 
 
@@ -88,8 +88,8 @@ def _get_private_branch_path(branch_name: str) -> Optional[str]:
         for branch in registry.get("branches", []):
             if branch.get("name", "").upper() == branch_name.upper():
                 return branch.get("path")
-    except (json.JSONDecodeError, IOError):
-        pass
+    except (json.JSONDecodeError, IOError) as exc:
+        logger.warning("[mbank] Failed to read private branch path for '%s': %s", branch_name, exc)
     return None
 
 
@@ -112,8 +112,8 @@ def _get_private_branch_for_path(plan_path: Path) -> Optional[Dict[str, str]]:
             branch_path = branch.get("path", "")
             if branch_path and plan_str.startswith(branch_path):
                 return {"name": branch.get("name", ""), "path": branch_path}
-    except (json.JSONDecodeError, IOError):
-        pass
+    except (json.JSONDecodeError, IOError) as exc:
+        logger.warning("[mbank] Failed to check private branch for path '%s': %s", plan_path, exc)
     return None
 
 
@@ -218,7 +218,8 @@ def get_ai_model() -> Optional[str]:
 
         return None
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("[mbank] Failed to read AI model from API config: %s", exc)
         return None
 
 # =============================================
@@ -237,8 +238,8 @@ def _get_all_registry_files() -> List[str]:
                 files.append(rf)
         if files:
             return files
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("[mbank] Failed to discover plan types, falling back to default registry: %s", exc)
     return [REGISTRY_FILE.name]
 
 
@@ -278,7 +279,8 @@ def get_closed_plans() -> List[Dict[str, Any]]:
     for reg_file in _get_all_registry_files():
         try:
             registry = load_flow_registry(registry_file=reg_file)
-        except Exception:
+        except Exception as exc:
+            logger.warning("[mbank] Failed to load registry '%s' while fetching closed plans: %s", reg_file, exc)
             continue
         for plan_num, plan_info in registry.get("plans", {}).items():
             if plan_info.get("status") == "closed" and plan_info.get("processed") is not True:
@@ -599,7 +601,8 @@ def archive_plan(plan_path: Path) -> bool:
 
         return True
 
-    except Exception:
+    except Exception as exc:
+        logger.error("[mbank] Failed to archive plan '%s': %s", plan_path, exc)
         return False
 
 # =============================================
@@ -688,7 +691,8 @@ def verify_and_heal_orphaned_plans() -> Dict[str, Any]:
     for reg_file in _get_all_registry_files():
         try:
             registry = load_flow_registry(registry_file=reg_file)
-        except Exception:
+        except Exception as exc:
+            logger.warning("[mbank] Failed to load registry '%s' during orphan healing: %s", reg_file, exc)
             continue
         for plan_num, plan_info in registry.get("plans", {}).items():
             # Heal ANY closed plan whose file still sits at its original location.

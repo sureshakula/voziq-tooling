@@ -19,6 +19,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import inspect
 
+from aipass.prax import logger
+
 
 # Infrastructure
 _BRANCH_ROOT = Path(__file__).resolve().parents[3]
@@ -49,6 +51,7 @@ def _get_caller_module_name() -> str:
 
         return "unknown"
     except Exception:
+        logger.warning("Failed to detect caller module name from stack")
         return "unknown"
 
 
@@ -70,6 +73,7 @@ def load_template(json_type: str, module_name: str) -> Any:
 
         return json.loads(template_str)
     except Exception:
+        logger.warning(f"Failed to load JSON template: {json_type} for {module_name}")
         return None
 
 
@@ -113,7 +117,7 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
             if validate_json_structure(data, json_type):
                 return True
         except Exception:
-            pass
+            logger.warning(f"Corrupt JSON file, will recreate: {json_path}")
 
     template = load_template(json_type, module_name)
     if template is None:
@@ -124,6 +128,7 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
             json.dump(template, f, indent=2, ensure_ascii=False)
         return True
     except Exception:
+        logger.error(f"Failed to write JSON file: {json_path}")
         return False
 
 

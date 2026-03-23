@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
 from aipass.flow.apps.handlers.json import json_handler
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
@@ -88,7 +89,8 @@ def _write_dashboard_section(branch_path: Path, section_name: str, section_data:
             if content:
                 try:
                     dashboard = json.loads(content)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as exc:
+                    logger.warning("Corrupt dashboard JSON at '%s', creating fresh: %s", dashboard_path, exc)
                     dashboard = _create_fresh_dashboard(branch_path)
             else:
                 dashboard = _create_fresh_dashboard(branch_path)
@@ -106,7 +108,8 @@ def _write_dashboard_section(branch_path: Path, section_name: str, section_data:
         dashboard_path.write_text(json.dumps(dashboard, indent=2))
         return True
 
-    except Exception:
+    except Exception as exc:
+        logger.error("Failed to write dashboard section '%s' for branch '%s': %s", section_name, branch_path, exc)
         return False
 
 
@@ -128,8 +131,8 @@ def _create_fresh_dashboard(branch_path: Path) -> Dict[str, Any]:
             )
             dashboard["last_updated"] = datetime.now().isoformat()
             return dashboard
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Failed to load dashboard template '%s', using fallback: %s", DASHBOARD_TEMPLATE_FILE, exc)
 
     now = datetime.now().isoformat()
     return {
@@ -204,7 +207,8 @@ def _load_registry() -> Dict[str, Any]:
             return {"plans": {}, "next_number": 1}
         with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to load fplan registry '%s': %s", REGISTRY_FILE, exc)
         return {"plans": {}, "next_number": 1}
 
 
@@ -260,8 +264,9 @@ def _filter_branch_plans(
                             "subject": plan_data.get("subject", ""),
                             "closed": closed_ts
                         })
-                except (ValueError, TypeError):
+                except (ValueError, TypeError) as exc:
                     # If we can't parse the timestamp, include it anyway
+                    logger.warning("Unparseable closed timestamp '%s' for plan %s, including anyway: %s", closed_ts, plan_id, exc)
                     closed_plans.append({
                         "id": plan_id,
                         "subject": plan_data.get("subject", ""),
@@ -354,5 +359,6 @@ def push_flow_to_branch_dashboard(branch_path: Path) -> bool:
 
         return result
 
-    except Exception:
+    except Exception as exc:
+        logger.error("Failed to push flow section to branch dashboard '%s': %s", branch_path, exc)
         return False

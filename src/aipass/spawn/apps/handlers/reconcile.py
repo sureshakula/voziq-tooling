@@ -35,7 +35,8 @@ def _compute_hash(file_path: Path) -> str:
             for chunk in iter(lambda: f.read(8192), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()[:12]
-    except (IOError, PermissionError):
+    except (IOError, PermissionError) as e:
+        logger.warning("Failed to compute hash for %s: %s", file_path, e)
         return ""
 
 

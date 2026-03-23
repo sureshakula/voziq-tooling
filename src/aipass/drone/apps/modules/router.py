@@ -117,6 +117,7 @@ def print_introspection():
     try:
         from aipass.cli.apps.modules.display import console
     except ImportError:
+        logger.warning("CLI console not available, using fallback")
         from rich.console import Console
         console = Console()
 

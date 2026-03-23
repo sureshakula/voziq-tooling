@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List
 
+from aipass.prax import logger
 from aipass.daemon.apps.handlers.json import json_handler
 
 # =============================================
@@ -37,7 +38,8 @@ def load_inbox() -> Dict[str, Any]:
     try:
         with open(INBOX_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.error("[data_loader] Failed to load inbox.json: %s", e)
         return {"messages": [], "total_messages": 0, "unread_count": 0}
 
 
@@ -49,7 +51,8 @@ def load_local() -> Dict[str, Any]:
     try:
         with open(LOCAL_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.error("[data_loader] Failed to load DAEMON.local.json: %s", e)
         return {"sessions": [], "active_tasks": {}}
 
 

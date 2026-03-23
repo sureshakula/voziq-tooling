@@ -22,9 +22,10 @@ Event data expected:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
+from aipass.trigger.apps.config import TRIGGER_ROOT
 from aipass.trigger.apps.handlers.json import json_handler
 
 def _find_repo_root() -> Path:
@@ -41,6 +42,19 @@ _REPO_ROOT = _find_repo_root()
 BRANCH_REGISTRY = _REPO_ROOT / "BRANCH_REGISTRY.json"
 BULLETINS_PATH = _REPO_ROOT / "BULLETINS.central.json"
 
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "bulletin_handler.log"
+
+
+def _log_warning(message: str) -> None:
+    """Log warning to file (event handlers cannot import Prax logger - causes recursion)."""
+    try:
+        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        with open(_HANDLER_LOG, 'a', encoding='utf-8') as f:
+            f.write(f"{ts} | WARNING | {message}\n")
+    except Exception:
+        pass
+
 
 def _load_branch_registry() -> List[Dict]:
     """
@@ -55,7 +69,8 @@ def _load_branch_registry() -> List[Dict]:
             return []
         data = json.loads(BRANCH_REGISTRY.read_text())
         return data.get("branches", [])
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"load branch registry failed: {exc}")
         return []
 
 
@@ -71,7 +86,8 @@ def _load_bulletins() -> List[Dict]:
             return []
         data = json.loads(BULLETINS_PATH.read_text())
         return data.get("bulletins", [])
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"load bulletins failed: {exc}")
         return []
 
 
@@ -112,8 +128,8 @@ def _load_dashboard(branch_path: Path) -> Dict:
                     "pending_ack": []
                 }
             return data
-        except Exception:
-            pass
+        except Exception as exc:
+            _log_warning(f"parse dashboard JSON for {branch_path}: {exc}")
 
     # Create minimal dashboard structure
     return {
@@ -144,7 +160,8 @@ def _save_dashboard(branch_path: Path, dashboard: Dict) -> bool:
         dashboard["last_refreshed"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         dashboard_path.write_text(json.dumps(dashboard, indent=2))
         return True
-    except Exception:
+    except Exception as exc:
+        _log_warning(f"save dashboard to {branch_path}: {exc}")
         return False
 
 
@@ -193,11 +210,12 @@ def _propagate_bulletins_to_branches() -> None:
 
                 # Save dashboard
                 _save_dashboard(branch_path, dashboard)
-            except Exception:
+            except Exception as exc:
+                _log_warning(f"propagate to branch {branch_path_str}: {exc}")
                 continue
 
-    except Exception:
-        pass
+    except Exception as exc:
+        _log_warning(f"bulletin propagation failed: {exc}")
 
 
 def handle_bulletin_created(
@@ -232,5 +250,5 @@ def handle_bulletin_created(
 
         json_handler.log_operation("bulletin_event", {"success": True})
 
-    except Exception:
-        pass
+    except Exception as exc:
+        _log_warning(f"handle_bulletin_created failed: {exc}")

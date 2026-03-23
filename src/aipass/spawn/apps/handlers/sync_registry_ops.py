@@ -191,8 +191,8 @@ def sync_registry(fix: bool = False) -> dict:
                     try:
                         passport = json.loads(passport_path.read_text(encoding="utf-8"))
                         citizen_class = passport.get("identity", {}).get("citizen_class", "builder")
-                    except (json.JSONDecodeError, IOError):
-                        pass
+                    except (json.JSONDecodeError, IOError) as e:
+                        logger.warning(f"Failed to read passport for citizen class detection ({name}): {e}")
 
                 # Load template registry for that class (fall back to builder if unknown)
                 try:

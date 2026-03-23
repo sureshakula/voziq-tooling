@@ -55,6 +55,7 @@ def _resolve_branch_name(mention: str) -> Optional[str]:
                 return name
         return None
     except Exception:
+        logger.error("[trade_ops] Failed to resolve branch name from registry")
         return None
 
 
@@ -125,6 +126,7 @@ def gift_artifact(args: List[str]) -> dict:
     try:
         artifact_id = int(args[0])
     except ValueError:
+        logger.warning("[trade_ops] Non-numeric artifact ID provided for gift")
         return {"success": False, "error": "Artifact ID must be a number"}
 
     recipient = _resolve_branch_name(args[1])
@@ -200,6 +202,7 @@ def trade_artifact(args: List[str]) -> dict:
         your_id = int(args[0])
         their_id = int(args[1])
     except ValueError:
+        logger.warning("[trade_ops] Non-numeric artifact IDs provided for trade")
         return {"success": False, "error": "Artifact IDs must be numbers"}
 
     partner = _resolve_branch_name(args[2])
@@ -306,6 +309,7 @@ def drop_item(args: List[str]) -> dict:
                 expires_minutes = int(remaining[i + 1])
                 expires_minutes = max(1, min(1440, expires_minutes))
             except ValueError:
+                logger.warning("[trade_ops] Non-numeric --expires value provided for drop")
                 return {"success": False, "error": "--expires must be a number (minutes)"}
             i += 2
         else:
@@ -380,6 +384,7 @@ def find_item(args: List[str]) -> dict:
     try:
         artifact_id = int(args[0])
     except ValueError:
+        logger.warning("[trade_ops] Non-numeric artifact ID provided for find")
         return {"success": False, "error": "Artifact ID must be a number"}
 
     sweep_expired()

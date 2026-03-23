@@ -27,11 +27,14 @@ Usage:
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Set
 
 from aipass.prax.apps.handlers.config.load import PRAX_ROOT
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 # =============================================
 # CONFIGURATION
@@ -76,9 +79,8 @@ def load_ignore_patterns_from_config() -> Set[str]:
                 if patterns:
                     json_handler.log_operation("ignore_patterns_loaded", {"pattern_count": len(patterns)})
                     return set(patterns)
-    except Exception:
-        # Silently fall back to defaults - logging not available at this level
-        pass
+    except Exception as e:
+        logger.warning("ignore_patterns: failed to load config from '%s', using defaults: %s", PRAX_LOGGER_CONFIG_FILE, e)
 
     # Fallback to hardcoded if config missing/invalid
     return DEFAULT_IGNORE_FOLDERS

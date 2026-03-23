@@ -25,9 +25,12 @@ Independence:
 
 import json
 import copy
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
+
+logger = logging.getLogger(__name__)
 
 from aipass.prax.apps.handlers.json import json_handler
 
@@ -217,6 +220,7 @@ def push_dashboard_template(dry_run: bool = False) -> Dict[str, Any]:
     try:
         template = json.loads(TEMPLATE_FILE.read_text())
     except json.JSONDecodeError as e:
+        logger.error("Invalid template JSON: %s", e)
         result["success"] = False
         result["errors"].append(f"Invalid template JSON: {e}")
         return result
@@ -230,6 +234,7 @@ def push_dashboard_template(dry_run: bool = False) -> Dict[str, Any]:
     try:
         registry = json.loads(BRANCH_REGISTRY.read_text())
     except json.JSONDecodeError as e:
+        logger.error("Invalid registry JSON: %s", e)
         result["success"] = False
         result["errors"].append(f"Invalid registry JSON: {e}")
         return result
@@ -269,6 +274,7 @@ def push_dashboard_template(dry_run: bool = False) -> Dict[str, Any]:
                     tmp_path.write_text(json.dumps(new_dashboard, indent=2))
                     tmp_path.rename(dashboard_path)
                 except OSError as e:
+                    logger.warning("Failed to create dashboard for %s: %s", branch_name, e)
                     result["errors"].append(f"{branch_name}: failed to create dashboard: {e}")
                     result["branches_skipped"] += 1
                     continue
@@ -295,6 +301,7 @@ def push_dashboard_template(dry_run: bool = False) -> Dict[str, Any]:
                     tmp_path.write_text(json.dumps(new_dashboard, indent=2))
                     tmp_path.rename(dashboard_path)
                 except OSError as e:
+                    logger.warning("Failed to write dashboard for %s: %s", branch_name, e)
                     result["errors"].append(f"{branch_name}: failed to write dashboard: {e}")
                     result["branches_skipped"] += 1
                     continue
@@ -307,7 +314,8 @@ def push_dashboard_template(dry_run: bool = False) -> Dict[str, Any]:
 
         try:
             data = json.loads(content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.warning("Invalid JSON in dashboard for %s: %s", branch_name, e)
             result["branches_skipped"] += 1
             result["errors"].append(f"{branch_name}: invalid JSON in dashboard, skipped")
             continue
@@ -375,6 +383,7 @@ def push_dashboard_template(dry_run: bool = False) -> Dict[str, Any]:
                     tmp_path.write_text(json.dumps(data, indent=2))
                     tmp_path.rename(dashboard_path)
                 except OSError as e:
+                    logger.warning("Failed to write updated dashboard for %s: %s", branch_name, e)
                     result["errors"].append(f"{branch_name}: failed to write dashboard: {e}")
                     result["branches_skipped"] += 1
                     continue
@@ -421,7 +430,8 @@ def _update_version_file(branches_pushed: List[str]) -> bool:
 
         VERSION_FILE.write_text(json.dumps(version_data, indent=2) + "\n")
         return True
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to update dashboard version file %s: %s", VERSION_FILE, e)
         return False
 
 
@@ -456,7 +466,8 @@ def get_template_status() -> Dict[str, Any]:
             status["changes"] = data.get("changes", [])
             status["last_push"] = data.get("last_push")
             status["last_push_branches"] = data.get("last_push_branches", [])
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to read dashboard version file %s: %s", VERSION_FILE, e)
             status["version"] = "error reading version file"
 
     return status

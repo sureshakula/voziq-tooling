@@ -14,9 +14,12 @@ All business logic for dashboard file operations.
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
+
+logger = logging.getLogger(__name__)
 
 from aipass.prax.apps.handlers.json import json_handler
 
@@ -60,8 +63,9 @@ def load_dashboard(branch_path: Path, template: Dict) -> Dict:
             return new_dashboard
         try:
             data = json.loads(content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             # Corrupted file - recreate from template
+            logger.warning("Corrupted dashboard JSON for %s, recreating from template: %s", branch_path.name, e)
             new_dashboard = template.copy()
             new_dashboard["branch"] = branch_path.name.upper()
             return new_dashboard
@@ -124,8 +128,8 @@ def create_fresh_dashboard(branch_path: Path) -> Dict:
             )
             dashboard["last_updated"] = now
             return dashboard
-        except (json.JSONDecodeError, OSError):
-            pass  # Fall through to hardcoded
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load dashboard template file %s, falling back to hardcoded: %s", template_file, e)
 
     # Fallback: hardcoded (backward compat)
     now = datetime.now().isoformat()
@@ -322,7 +326,8 @@ def write_section(branch_path: Path, section_name: str, section_data: Dict) -> b
             if content:
                 try:
                     dashboard = json.loads(content)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    logger.warning("Corrupted dashboard JSON at %s, creating fresh: %s", dashboard_path, e)
                     dashboard = create_fresh_dashboard(branch_path)
             else:
                 dashboard = create_fresh_dashboard(branch_path)
@@ -352,5 +357,6 @@ def write_section(branch_path: Path, section_name: str, section_data: Dict) -> b
 
         return saved
 
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to write section '%s' for branch %s: %s", section_name, branch_path.name, e)
         return False

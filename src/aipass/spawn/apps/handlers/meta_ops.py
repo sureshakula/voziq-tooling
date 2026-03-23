@@ -166,8 +166,8 @@ def save_branch_meta(branch_dir: Path, meta: dict) -> bool:
         if tmp_path.exists():
             try:
                 tmp_path.unlink()
-            except OSError:
-                pass
+            except OSError as e:
+                logger.warning(f"Failed to clean up temp file {tmp_path}: {e}")
         return False
 
 

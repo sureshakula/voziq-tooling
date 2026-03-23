@@ -27,12 +27,15 @@ Usage:
 """
 
 import json
+import logging
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
 
 from aipass.prax.apps.handlers.config.load import PRAX_ROOT, ECOSYSTEM_ROOT
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 # =============================================
 # CONFIGURATION
@@ -97,6 +100,6 @@ def save_module_registry(modules: Dict[str, Dict[str, Any]]) -> bool:
 
         return True
 
-    except Exception:
-        # Silently return False - logging not available at this level
+    except Exception as e:
+        logger.error("save: failed to save module registry to '%s': %s", REGISTRY_FILE, e)
         return False

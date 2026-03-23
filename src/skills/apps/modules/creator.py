@@ -22,6 +22,7 @@ from skills.apps.handlers.json import json_handler
 try:
     from aipass.trigger.apps.modules.core import trigger
 except ImportError:
+    logger.warning("trigger module not available — skill events disabled")
     trigger = None
 
 

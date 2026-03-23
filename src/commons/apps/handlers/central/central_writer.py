@@ -102,6 +102,7 @@ def _read_last_checked(branch_path: str) -> str:
             last_checked = commons.get("last_updated", "")
         return last_checked if last_checked else epoch
     except (json.JSONDecodeError, OSError):
+        logger.warning(f"[central_writer] Failed to read dashboard last_checked for {branch_path}")
         return epoch
 
 

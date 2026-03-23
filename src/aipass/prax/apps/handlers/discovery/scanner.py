@@ -12,10 +12,14 @@ PRAX Discovery Scanner
 Safe directory scanning for Python module discovery.
 """
 
+import logging
+
 from pathlib import Path
 
 from datetime import datetime, timezone
 from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
 
 # Import from prax config
 from aipass.prax.apps.handlers.config.load import (
@@ -65,12 +69,10 @@ def scan_directory_safely(directory: Path, modules: Dict, max_depth: int = 10):
             elif item.is_dir():
                 scan_directory_safely(item, modules, max_depth - 1)
 
-    except PermissionError:
-        # Silent operation - permission denied directories are skipped
-        pass
-    except Exception:
-        # Silent operation - errors are skipped
-        pass
+    except PermissionError as e:
+        logger.warning(f"[scanner] Permission denied scanning directory {directory}: {e}")
+    except Exception as e:
+        logger.warning(f"[scanner] Error scanning directory {directory}: {e}")
 
 def discover_python_modules() -> Dict[str, Dict[str, Any]]:
     """Discover all Python modules in the ecosystem

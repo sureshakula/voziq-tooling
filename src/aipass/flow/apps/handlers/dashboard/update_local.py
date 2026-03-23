@@ -74,6 +74,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 from aipass.flow.apps.handlers.json import json_handler
+from aipass.prax.apps.modules.logger import system_logger as logger
 
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[4]
@@ -102,7 +103,8 @@ def _read_registry() -> Optional[Dict[str, Any]]:
             return None
         with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to read fplan registry '%s': %s", REGISTRY_FILE, exc)
         return None
 
 
@@ -193,7 +195,8 @@ def _read_existing_dashboard() -> Dict[str, Any]:
                 return {}
             # Parse the JSON content we just read
             return json.loads(content)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to read existing dashboard '%s': %s", DASHBOARD_FILE, exc)
         return {}
 
 
@@ -242,7 +245,8 @@ def _write_dashboard(dashboard: Dict[str, Any]) -> bool:
         with open(DASHBOARD_FILE, 'w', encoding='utf-8') as f:
             json.dump(dashboard, f, indent=2, ensure_ascii=False)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.error("Failed to write dashboard '%s': %s", DASHBOARD_FILE, exc)
         return False
 
 

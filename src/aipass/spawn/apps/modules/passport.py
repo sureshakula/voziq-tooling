@@ -15,6 +15,7 @@ All implementation logic lives in apps/handlers/passport_ops.py.
 import argparse
 
 from aipass.cli.apps.modules import console, error, warning
+from aipass.prax import logger
 
 from aipass.spawn.apps.handlers.passport_ops import grant_passport
 from aipass.spawn.apps.handlers.json import json_handler

@@ -15,6 +15,9 @@ Memory file handling moved to MEMORY_BANK's own watcher.
 No console output - follows 3-tier handler pattern.
 """
 
+import logging
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 
 from datetime import datetime, timezone
@@ -42,7 +45,8 @@ from aipass.prax.apps.handlers.json import json_handler
 try:
     from aipass.trigger.apps.modules.core import trigger
     _HAS_TRIGGER = True
-except ImportError:
+except ImportError as e:
+    logger.info(f"[watcher] trigger module not available, falling back: {e}")
     trigger = None  # type: ignore[assignment]
     _HAS_TRIGGER = False
 
@@ -72,8 +76,9 @@ class PythonFileWatcher(FileSystemEventHandler):
             # Add new module to registry
             try:
                 relative_path = py_file.relative_to(ECOSYSTEM_ROOT)
-            except ValueError:
+            except ValueError as e:
                 # File is outside ECOSYSTEM_ROOT, skip
+                logger.info(f"[watcher] Path outside ecosystem root, skipping {py_file}: {e}")
                 return
 
             modules[module_name] = {
@@ -98,8 +103,8 @@ class PythonFileWatcher(FileSystemEventHandler):
                         file_path=str(py_file),
                         relative_path=str(relative_path)
                     )
-                except (OSError, Exception):
-                    pass  # Trigger fire failed, continue silently
+                except (OSError, Exception) as e:
+                    logger.warning(f"[watcher] trigger.fire('module_discovered') failed for {module_name}: {e}")
 
 
 def start_file_watcher():

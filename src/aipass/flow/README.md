@@ -28,7 +28,7 @@ drone @flow create . "Design topic" dplan       # Create DPLAN
 drone @flow close FPLAN-0042                    # Close an FPLAN
 drone @flow close DPLAN-0005                    # Close a DPLAN
 drone @flow close --all                         # Close all open plans
-drone @flow list                                # List all plan types
+drone @flow list open                           # List open plans
 drone @flow --help                              # Full help
 ```
 

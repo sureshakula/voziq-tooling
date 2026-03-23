@@ -322,7 +322,8 @@ def _read_citizen_class(branch_dir: Path) -> str:
     try:
         data = json.loads(passport_path.read_text(encoding="utf-8"))
         return data.get("identity", {}).get("citizen_class", "builder")
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, IOError) as e:
+        logger.warning(f"[update] Failed to read citizen_class from passport {passport_path}: {e}")
         return "builder"
 
 
@@ -422,8 +423,9 @@ def _execute_addition(
         content = source.read_text(encoding="utf-8")
         content = replace_placeholders(content, replacements)
         dest.write_text(content, encoding="utf-8")
-    except (UnicodeDecodeError, UnicodeEncodeError):
+    except (UnicodeDecodeError, UnicodeEncodeError) as e:
         # Binary file — copy directly
+        logger.warning(f"[update] Text read/write failed for {template_path}, falling back to binary copy: {e}")
         shutil.copy2(source, dest)
 
     if trace:

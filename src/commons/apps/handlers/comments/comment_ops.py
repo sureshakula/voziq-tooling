@@ -61,6 +61,7 @@ def add_comment(args: List[str]) -> dict:
             try:
                 parent_id = int(args[i + 1])
             except ValueError:
+                logger.warning(f"[comment_ops] Invalid --parent value: {args[i + 1]!r}")
                 return {"success": False, "error": "Invalid --parent value - must be an integer"}
             i += 2
         else:
@@ -77,6 +78,7 @@ def add_comment(args: List[str]) -> dict:
     try:
         post_id = int(filtered_args[0])
     except ValueError:
+        logger.warning(f"[comment_ops] Invalid post_id for add_comment: {filtered_args[0]!r}")
         return {"success": False, "error": "Invalid post_id - must be an integer"}
 
     content = filtered_args[1]
@@ -253,6 +255,7 @@ def vote_on_content(args: List[str]) -> dict:
     try:
         target_id = int(args[1])
     except ValueError:
+        logger.warning(f"[comment_ops] Invalid target_id for vote: {args[1]!r}")
         return {"success": False, "error": "Invalid target_id - must be an integer"}
 
     # --- Validate direction ---

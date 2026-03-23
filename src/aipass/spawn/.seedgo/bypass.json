@@ -34,6 +34,36 @@
       "file": "log_structure",
       "standard": "log_structure",
       "reason": "Two-tier model managed by Prax — flat logs/ at branch root is correct per PR #63"
+    },
+    {
+      "file": "apps/modules/core.py",
+      "standard": "deep_nesting",
+      "reason": "handle_command() depth 7 — complex argument parsing for spawn create with --role/--traits/--purpose/--template/--registry flags. Nested while loop through args array; extraction would obscure control flow."
+    },
+    {
+      "file": "apps/handlers/update_ops.py",
+      "standard": "deep_nesting",
+      "reason": "update_branch() depth 4 — 10-step orchestration workflow (resolve, load registry, load meta, reconcile, detect changes, dry-run, execute changes, refresh meta, post-flight, return). Nesting serves workflow structure."
+    },
+    {
+      "file": "apps/handlers/file_ops.py",
+      "standard": "deep_nesting",
+      "reason": "regenerate_template_registry() depth 5 — dual-pass tree scan (directories then files) to build registry with correct IDs. Nesting inherent to algorithm."
+    },
+    {
+      "file": "apps/handlers/meta_ops.py",
+      "standard": "deep_nesting",
+      "reason": "save_branch_meta() depth 5 — atomic file write with try-except-cleanup for temp file pattern. generate_branch_meta() depth 5 — triple-loop adoption path matching (path-first, then hash). Both justified."
+    },
+    {
+      "file": "apps/handlers/sync_templates_ops.py",
+      "standard": "deep_nesting",
+      "reason": "sync_templates() depth 4 — linear workflow loading owners, iterating managed files, checking hashes. Minimal branching, straightforward responsibility."
+    },
+    {
+      "file": "apps/handlers/reconcile.py",
+      "standard": "deep_nesting",
+      "reason": "reconcile_branch_state() depth 6 — three independent checks (tracked files, tracked dirs, untracked files) with iterdir loops and hash computation. Structure reflects algorithm necessity."
     }
   ],
   "notes": {

@@ -38,17 +38,18 @@ from aipass.prax.apps.handlers.config.load import get_system_logs_dir
 from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent, MonitoringQueue
 from aipass.prax.apps.handlers.monitoring.branch_detector import detect_branch_from_log
 
+from aipass.prax.apps.handlers.json import json_handler
+
+logger = get_direct_logger()
+
 # Trigger integration - graceful fallback if trigger not available
 try:
     from aipass.trigger.apps.modules.core import trigger
     HAS_TRIGGER = True
-except ImportError:
+except ImportError as e:
+    logger.info("[log_watcher] trigger module not available: %s", e)
     trigger = None  # type: ignore[assignment]
     HAS_TRIGGER = False
-
-from aipass.prax.apps.handlers.json import json_handler
-
-logger = get_direct_logger()
 
 
 def _generate_error_hash(module_name: str, message: str) -> str:
@@ -636,6 +637,7 @@ if __name__ == '__main__':
             time.sleep(0.1)
 
     except KeyboardInterrupt:
+        logger.info("[log_watcher] Stopped by user")
         console.print("\n[yellow]Stopping log watcher...[/yellow]")
         stop_log_watcher()
         queue.stop()

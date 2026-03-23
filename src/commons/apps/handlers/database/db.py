@@ -113,6 +113,7 @@ def retry_on_locked(fn: Callable[..., T], *args, **kwargs) -> T:
         except sqlite3.OperationalError as exc:
             if "database is locked" not in str(exc):
                 raise
+            logger.warning(f"[db] Database locked, retrying: {exc}")
             last_err = exc
             if delay is None:
                 break
@@ -347,6 +348,7 @@ def _register_branches(conn: sqlite3.Connection) -> None:
     try:
         registry = json.loads(registry_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
+        logger.warning("[db] Failed to read branch registry JSON")
         return
 
     branches = registry.get("branches", [])

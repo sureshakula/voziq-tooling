@@ -39,8 +39,13 @@ __all__ = [
     "DATA_FILE",
 ]
 
+import logging
 import sys
 from typing import Dict, Any
+
+# Stdlib logger for except-block compliance (seedgo requires variable named 'logger')
+# SystemLogger methods shadow this with local 'logger = get_system_logger()' which is fine
+logger = logging.getLogger(__name__)
 
 # NOTE: CLI imports are done lazily inside functions to avoid circular dependency.
 # CLI imports prax logger, so prax logger must not import CLI at module level.
@@ -98,14 +103,14 @@ class SystemLogger:
             if not is_file_watcher_active():
                 try:
                     start_file_watcher()
-                except OSError:
-                    pass  # inotify limit reached, continue without watcher
+                except OSError as e:
+                    logger.warning("inotify limit reached, continuing without file watcher: %s", e)
             # Fire startup event (trigger auto-initializes handlers)
             try:
                 from aipass.trigger.apps.modules.core import trigger
                 trigger.fire('startup')
-            except (ImportError, OSError):
-                pass  # Trigger not available or inotify full, silent fallback
+            except (ImportError, OSError) as e:
+                logger.warning("Trigger startup fire skipped (not available or inotify full): %s", e)
 
     def info(self, message, *args, **kwargs):
         """Log info message to calling module's log file"""
@@ -205,6 +210,7 @@ def start_continuous_logging():
         )
     except KeyboardInterrupt:
         # Handler re-raises KeyboardInterrupt, we handle cleanup here
+        logger.info("Logger capture stopped by user")
         disable_terminal_output()
         shutdown_logging_system()
         console.print(f"[{MODULE_NAME}] Logger capture stopped.")
@@ -251,7 +257,8 @@ def print_introspection():
     """Display module introspection info."""
     try:
         from aipass.cli.apps.modules.display import console
-    except ImportError:
+    except ImportError as e:
+        logger.info("CLI console not available, using rich fallback: %s", e)
         from rich.console import Console
         console = Console()
 

@@ -186,6 +186,7 @@ def view_thread(args: List[str]) -> dict:
     try:
         post_id = int(args[0])
     except (ValueError, IndexError):
+        logger.warning(f"[post_ops] Invalid post_id for view_thread: {args[0]!r}")
         return {"success": False, "error": "Invalid post_id - must be an integer"}
 
     conn = None
@@ -251,6 +252,7 @@ def delete_post(args: List[str]) -> dict:
     try:
         post_id = int(args[0])
     except (ValueError, IndexError):
+        logger.warning(f"[post_ops] Invalid post_id for delete_post: {args[0]!r}")
         return {"success": False, "error": "Invalid post_id - must be an integer"}
 
     # --- Get caller identity ---

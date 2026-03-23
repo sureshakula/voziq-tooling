@@ -28,6 +28,7 @@ try:
     import yaml
     HAS_YAML = True
 except ImportError:
+    logger.warning("yaml package not available — using simple frontmatter parser")
     HAS_YAML = False
 
 
@@ -119,6 +120,7 @@ def parse_frontmatter(skill_md_path):
     try:
         content = Path(skill_md_path).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
+        logger.warning(f"Failed to read frontmatter from: {skill_md_path}")
         return None
 
     return _extract_frontmatter(content)
@@ -153,6 +155,7 @@ def _extract_frontmatter(content):
         try:
             return yaml.safe_load(frontmatter_text)
         except yaml.YAMLError:
+            logger.warning("YAML parse failed — falling back to simple parser")
             return _simple_frontmatter_parse(frontmatter_text)
     else:
         return _simple_frontmatter_parse(frontmatter_text)
@@ -253,7 +256,7 @@ def _parse_simple_value(value):
             return float(value)
         return int(value)
     except ValueError:
-        pass
+        logger.warning(f"Could not parse numeric value: {value}")
 
     # String (strip quotes)
     return value.strip("'\"")

@@ -131,6 +131,7 @@ def get_branch_info_from_registry(branch_path: Path) -> Optional[Dict[str, Any]]
         return None
 
     except Exception:
+        logger.warning("[identity_ops] Failed to look up branch in registry")
         return None
 
 

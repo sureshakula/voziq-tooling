@@ -63,6 +63,7 @@ def discover_command_modules() -> List[Callable]:
                 command_handlers.append(module.handle_command)
 
         except Exception as e:
+            logger.warning("Failed to load module %s: %s", module_file.name, e)
             warning(f"Failed to load module {module_file.name}: {e}")
 
     return command_handlers
@@ -147,6 +148,7 @@ def route_command(command: str, args: List[str], handlers: List[Callable]) -> bo
             if handler(command, args):
                 return True
         except Exception as e:
+            logger.error("Handler failed: %s", e)
             error(f"Handler failed: {e}")
             return False
 

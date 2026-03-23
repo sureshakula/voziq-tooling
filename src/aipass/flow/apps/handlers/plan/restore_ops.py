@@ -110,11 +110,12 @@ def recover_plan_from_backup(plan_key: str, load_registry: Any = None, save_regi
         else:
             try:
                 relative_path = str(original_path.relative_to(_PKG_ROOT))
-            except ValueError:
+            except ValueError as e:
+                logger.warning(f"[{MODULE_NAME}] Could not compute relative path for '{original_path}': {e}")
                 relative_path = str(original_path)
 
     except Exception as e:
-        # If parsing fails, default to FLOW_ROOT
+        logger.warning(f"[{MODULE_NAME}] Failed to parse plan file '{plan_file}' for recovery, defaulting to FLOW_ROOT: {e}")
         original_location = str(FLOW_ROOT)
         relative_path = "flow"
 

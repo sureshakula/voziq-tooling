@@ -13,6 +13,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.spawn.apps.handlers.registry import find_registry
 
 
@@ -47,7 +48,8 @@ def build_replacements_dict(target_dir, branch_name, **overrides):
         if registry_path.exists():
             data = json.loads(registry_path.read_text(encoding="utf-8"))
             registry_id = data.get("metadata", {}).get("id", "")
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to read registry ID for placeholders: {e}")
         registry_id = ""
 
     replacements = {
@@ -87,7 +89,8 @@ def validate_no_placeholders(target_dir):
             continue
         try:
             content = file_path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, PermissionError):
+        except (UnicodeDecodeError, PermissionError) as e:
+            logger.warning(f"Could not read file for placeholder validation {file_path}: {e}")
             continue
 
         found = pattern.findall(content)

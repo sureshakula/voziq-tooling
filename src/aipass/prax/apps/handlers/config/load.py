@@ -29,6 +29,7 @@ Usage:
 
 import json
 import logging
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Dict, Any
 
@@ -154,7 +155,7 @@ def get_debug_prints_enabled() -> bool:
                 config = json.load(f)
                 return config.get('config', {}).get('debug_prints_enabled', False)
     except (json.JSONDecodeError, OSError) as e:
-        logging.debug(f"Config load error (using defaults): {e}")
+        logger.info(f"Config load error (using defaults): {e}")
     return False
 
 def load_log_config() -> Dict[str, Any]:
@@ -202,7 +203,7 @@ def load_log_config() -> Dict[str, Any]:
                 json_handler.log_operation("config_loaded", {"source": str(PRAX_LOGGER_CONFIG_FILE)})
                 return result
     except (json.JSONDecodeError, OSError) as e:
-        logging.debug(f"Log config load error (using defaults): {e}")
+        logger.info(f"Log config load error (using defaults): {e}")
 
     # Fallback to code defaults
     return {

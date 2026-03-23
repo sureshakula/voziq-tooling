@@ -50,6 +50,7 @@ except ImportError:
     FILELOCK_AVAILABLE = False
     FileLock = None  # type: ignore[assignment,misc]
     Timeout = None  # type: ignore[assignment,misc]
+    logger.info("Optional: filelock not available")
 
 # Email integration via drone subprocess
 import subprocess
@@ -63,7 +64,8 @@ def _send_email_via_drone(to_branch, subject, message, from_branch='@daemon',
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=DRONE_SUBPROCESS_TIMEOUT)
         return result.returncode == 0
-    except (subprocess.SubprocessError, OSError):
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning("Drone email subprocess failed: %s", e)
         return False
 
 AI_MAIL_AVAILABLE = True
@@ -184,6 +186,7 @@ def _handle_create(args: List[str]) -> bool:
     try:
         parsed = parser.parse_args(args)
     except SystemExit:
+        logger.warning("Invalid arguments for schedule create")
         _error('Usage: schedule create "task" --due <date> --to @branch [--message "details"]')
         return False
 
@@ -280,6 +283,7 @@ def _handle_run_due(_args: List[str]) -> bool:
         with lock.acquire(timeout=LOCK_ACQUIRE_TIMEOUT):
             return _process_due_tasks()
     except Timeout:  # type: ignore[misc]
+        logger.warning("Schedule run-due already in progress, skipping")
         console.print("[dim]Schedule run-due already in progress, skipping.[/dim]")
         return True
 

@@ -61,7 +61,8 @@ def _resolve_registry_file(plan_num_raw: str) -> str | None:
         from aipass.flow.apps.handlers.template.plan_type_loader import get_plan_type  # type: ignore[import-not-found]
         config = get_plan_type(prefix)
         return config.get("registry_file")
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Failed to resolve registry file for prefix '{prefix}': {e}")
         return None
 
 
@@ -80,10 +81,11 @@ def _find_plan_across_registries(plan_key: str, load_registry_fn: Any) -> str | 
                 registry = load_registry_fn(registry_file=reg_file)
                 if plan_key in registry.get("plans", {}):
                     return reg_file
-            except Exception:
+            except Exception as e:
+                logger.warning(f"[{MODULE_NAME}] Failed to search registry '{reg_file}' for plan '{plan_key}': {e}")
                 continue
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Failed to discover plan types while searching for plan '{plan_key}': {e}")
     return None
 
 
@@ -351,8 +353,8 @@ def close_plan_impl(plan_num: Any = None, confirm: bool = False,
                 ["drone", "@memory", "process-plans"],
                 capture_output=True, timeout=30,
             )
-        except Exception:
-            pass  # Best effort — verification below reports actual status
+        except Exception as e:
+            logger.warning(f"[{MODULE_NAME}] Best-effort drone @memory process-plans failed: {e}")
 
         # Verify vectorization via memory's verify module
         try:

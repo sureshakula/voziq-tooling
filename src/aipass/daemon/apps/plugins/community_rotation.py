@@ -124,7 +124,8 @@ def _load_rotation_state() -> int:
         with open(ROTATION_STATE_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return data.get("last_index", -1)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("[community_rotation] Failed to load rotation state: %s", e)
         return -1
 
 
@@ -421,12 +422,14 @@ def run() -> dict:
             }
 
     except subprocess.TimeoutExpired:
+        logger.error("[community_rotation] Wake script timed out for %s", target["name"])
         return {
             "status": "failed",
             "branch": target["email"],
             "error": "wake script timed out (30s)",
         }
     except Exception as e:
+        logger.error("[community_rotation] Wake script failed for %s: %s", target["name"], e)
         return {
             "status": "failed",
             "branch": target["email"],

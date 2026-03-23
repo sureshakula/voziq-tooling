@@ -38,6 +38,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, Tuple
 
+from aipass.prax import logger
 from aipass.flow.apps.handlers.json import json_handler
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -86,6 +87,7 @@ def write_plan_file(plan_file: Path, content: str) -> Tuple[bool, str]:
 
     except Exception as e:
         error_msg = f"Failed to write plan file: {e}"
+        logger.error(f"[{MODULE_NAME}] {error_msg}")
         return False, error_msg
 
 
@@ -114,7 +116,8 @@ def create_registry_entry(
         RELATIVE_LOCATION = str(target_dir.relative_to(ECOSYSTEM_ROOT))
         if RELATIVE_LOCATION == ".":
             RELATIVE_LOCATION = "root"
-    except ValueError:
+    except ValueError as e:
+        logger.warning(f"[{MODULE_NAME}] Could not compute relative location for '{target_dir}': {e}")
         RELATIVE_LOCATION = str(target_dir)
 
     # Build plan file path

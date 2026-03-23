@@ -69,7 +69,8 @@ def copy_template(template_dir, target_dir, replacements):
                 content = replace_placeholders(content, replacements)
                 dest.write_text(content, encoding="utf-8")
                 copied.append(str(dest_rel))
-            except (UnicodeDecodeError, UnicodeEncodeError):
+            except (UnicodeDecodeError, UnicodeEncodeError) as e:
+                logger.warning(f"[spawn] Text read/write failed for {dest_rel}, falling back to binary copy: {e}")
                 shutil.copy2(item, dest)
                 copied.append(f"{dest_rel} (binary)")
 
@@ -186,15 +187,16 @@ def regenerate_template_registry(target_dir):
             try:
                 content = item.read_bytes()
                 content_hash = hashlib.sha256(content).hexdigest()[:16]
-            except (IOError, PermissionError):
+            except (IOError, PermissionError) as e:
+                logger.error(f"[spawn] Failed to read file for hashing {item}: {e}")
                 content_hash = "unreadable"
 
             has_placeholder = False
             try:
                 text = item.read_text(encoding="utf-8")
                 has_placeholder = "{{" in text and "}}" in text
-            except (UnicodeDecodeError, IOError):
-                pass
+            except (UnicodeDecodeError, IOError) as e:
+                logger.warning(f"[spawn] Failed to check placeholders in {item}: {e}")
 
             files[file_id] = {
                 "path": str(rel),

@@ -22,6 +22,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 try:
     from aipass.cli.apps.modules import console, error
 except ImportError:
+    logger.warning("[space] CLI console unavailable, using fallback")
     from rich.console import Console
     console = Console()
 
@@ -195,7 +196,7 @@ def _cmd_enter(args: List[str]) -> bool:
         visitor_name = caller["name"] if caller else "unknown"
         record_visit(room_name, visitor_name)
     except Exception:
-        pass  # visit recording is non-critical
+        logger.warning("[space] Failed to get room state")  # visit recording is non-critical
 
     return True
 

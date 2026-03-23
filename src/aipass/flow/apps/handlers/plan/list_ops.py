@@ -48,8 +48,8 @@ def _get_all_registry_info() -> Tuple[list[str], Dict[str, str]]:
                     files.append(rf)
         if files:
             return files, prefix_map
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Failed to discover plan types for registry info: {e}")
     return [], {}  # empty means caller should fall back to default
 
 
@@ -96,7 +96,8 @@ def list_plans_impl(
                         # Use prefix-qualified key to avoid collisions across registries
                         merge_key = f"{source_prefix}-{plan_num}"
                         merged_plans[merge_key] = plan_info
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"[{MODULE_NAME}] Failed to load registry '{reg_file}' for plan listing: {e}")
                     continue
         else:
             # Fallback: load default registry

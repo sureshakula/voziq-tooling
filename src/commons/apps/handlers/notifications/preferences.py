@@ -79,7 +79,7 @@ def set_preference(
         json_handler.log_operation("set_preference", {"agent": agent_name, "target_type": target_type, "level": level})
         return True
     except Exception as e:
-        logger.error(f"Failed to set preference: {e}")
+        logger.error(f"[preferences] Failed to set preference: {e}")
         return False
 
 

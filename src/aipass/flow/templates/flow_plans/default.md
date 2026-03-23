@@ -77,7 +77,7 @@ Don't figure everything out alone. Other branches are domain experts - ask them 
 
 **Before building anything that touches another branch's domain:**
 ```bash
-ai_mail send @branch "Question: [topic]" "I'm working on X and need guidance on Y. What's the best approach?"
+ai_mail email @branch "Question: [topic]" "I'm working on X and need guidance on Y. What's the best approach?"
 ```
 
 **Common examples:**
@@ -111,7 +111,7 @@ When unsure about syntax, use `--help`:
 # Flow - Plan management
 drone @flow create . "subject"         # Create plan (. = current dir)
 drone @flow close {prefix}-XXXX           # Close plan
-drone @flow list                       # List active plans
+drone @flow list open                  # List active plans
 drone @flow --help                     # Full help
 
 # Seedgo - Quality gates
@@ -120,7 +120,7 @@ drone @seedgo audit @branch              # Full branch audit
 drone @seedgo --help                     # Full help
 
 # AI_Mail - Status updates
-drone @ai_mail send @devpulse "Subject" "Message"
+drone @ai_mail email @devpulse "Subject" "Message"
 drone @ai_mail --help                  # Full help
 
 # Discovery
@@ -213,7 +213,7 @@ WHEN COMPLETE:
 
 **If production stops (critical blocker):**
 ```bash
-drone @ai_mail send @devpulse "PRODUCTION STOPPED: {plan_number}" "Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
+drone @ai_mail email @devpulse "PRODUCTION STOPPED: {plan_number}" "Issue: [description]. Attempted: [what was tried]. Awaiting guidance."
 ```
 
 ---
@@ -237,7 +237,7 @@ drone @ai_mail send @devpulse "PRODUCTION STOPPED: {plan_number}" "Issue: [descr
 - [ ] README.md updated (if build changed status/capabilities)
 - [ ] Status email sent to @devpulse:
   ```bash
-  drone @ai_mail send @devpulse "{plan_number} Complete" "Summary of what was done, any issues, outcomes"
+  drone @ai_mail email @devpulse "{plan_number} Complete" "Summary of what was done, any issues, outcomes"
   ```
 
 **Completion Order:** Memories -> README -> Email (README before email - don't report complete with stale docs)

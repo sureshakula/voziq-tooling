@@ -10,6 +10,7 @@ import importlib.util
 import os
 import shutil
 
+from aipass.prax import logger
 from skills.apps.handlers.json import json_handler
 
 
@@ -73,6 +74,7 @@ def _check_pip(packages):
             if spec is None:
                 missing.append(pkg)
         except (ModuleNotFoundError, ValueError):
+            logger.warning(f"Package check failed for: {pkg}")
             missing.append(pkg)
     return missing
 

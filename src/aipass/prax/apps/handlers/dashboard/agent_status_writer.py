@@ -20,11 +20,14 @@ Data sources:
 """
 
 import json
+import logging
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
 
 from aipass.prax.apps.handlers.json import json_handler
 
@@ -74,7 +77,8 @@ def _get_all_branches() -> List[Dict[str, Any]]:
                     "path": branch_path
                 })
         return branches
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to load branch registry: %s", e)
         return []
 
 
@@ -96,7 +100,8 @@ def _is_pid_alive(pid: int) -> bool:
             return False
         cmdline = cmdline_path.read_bytes().decode("utf-8", errors="replace")
         return "claude" in cmdline.lower()
-    except (PermissionError, OSError):
+    except (PermissionError, OSError) as e:
+        logger.warning("Failed to check PID %d status: %s", pid, e)
         return False
 
 
@@ -114,7 +119,8 @@ def _read_lock_file(lock_path: Path) -> Dict[str, Any]:
         if not lock_path.exists():
             return {}
         return json.loads(lock_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to read lock file %s: %s", lock_path, e)
         return {}
 
 
@@ -132,7 +138,8 @@ def _calculate_runtime_minutes(timestamp_str: str) -> float:
         started = datetime.fromisoformat(timestamp_str)
         elapsed = datetime.now() - started
         return elapsed.total_seconds() / 60.0
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        logger.warning("Failed to parse timestamp '%s': %s", timestamp_str, e)
         return 0.0
 
 
@@ -277,7 +284,8 @@ def _write_section_to_all_branches(section_name: str, section_data: Dict,
         if result.returncode == 0 and result.stdout.strip().isdigit():
             return int(result.stdout.strip())
         return 0
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to write agent_status section to branches: %s", e)
         return 0
 
 
@@ -315,7 +323,8 @@ def push_agent_status_dashboard() -> bool:
 
         return success_count > 0
 
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to push agent status dashboard: %s", e)
         return False
 
 

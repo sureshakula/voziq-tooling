@@ -116,7 +116,7 @@ def run_search(args: List[str]) -> dict:
         close_db(conn)
 
     except Exception as e:
-        logger.error(f"Search failed: {e}")
+        logger.error(f"[search_ops] Search query failed: {e}")
         return {"success": False, "error": str(e)}
 
     json_handler.log_operation("search_query", {"query": query, "post_results": len(posts), "comment_results": len(comments_list)})
@@ -153,6 +153,7 @@ def run_log_export(args: List[str]) -> dict:
             try:
                 limit = int(remaining[idx + 1])
             except ValueError:
+                logger.warning("[search_ops] Invalid --limit value for log export")
                 return {"success": False, "error": "Limit must be a number"}
 
     try:
@@ -167,7 +168,7 @@ def run_log_export(args: List[str]) -> dict:
         close_db(conn)
 
     except Exception as e:
-        logger.error(f"Log export failed: {e}")
+        logger.error(f"[search_ops] Log export failed: {e}")
         return {"success": False, "error": str(e)}
 
     return {

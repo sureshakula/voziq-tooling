@@ -16,11 +16,14 @@ Used by dashboard/refresh.py to populate branch dashboards.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Dict
 
 from aipass.prax.apps.handlers.config.load import _find_repo_root
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 
 def read_all_centrals() -> Dict:
@@ -45,7 +48,8 @@ def read_all_centrals() -> Dict:
             # Key by service name: AI_MAIL.central.json -> ai_mail
             service_name = central_file.name.replace(".central.json", "").lower()
             centrals[service_name] = data
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("reader: failed to read central file '%s': %s", central_file.name, e)
             continue
 
     json_handler.log_operation("central_data_read", {"services_found": len(centrals)})

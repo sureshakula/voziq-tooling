@@ -301,8 +301,9 @@ if __name__ == "__main__":
         sys.exit(main())
     except BrokenPipeError:
         import os
+        logger.info("[FLOW] Broken pipe in main (stdout closed early)")
         try:
             sys.stdout.close()
         except Exception as e:
-            print(f"Error: {e}")
+            logger.warning(f"[FLOW] Error closing stdout after broken pipe: {e}")
         os._exit(0)

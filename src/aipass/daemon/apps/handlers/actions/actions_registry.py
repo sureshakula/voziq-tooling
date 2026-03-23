@@ -262,7 +262,8 @@ def is_action_due(action: dict) -> bool:
         target_time = action.get("time", "00:00")
         try:
             target_h, target_m = map(int, target_time.split(":"))
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError) as e:
+            logger.info("[actions_registry] Daily time parse failed for %r: %s", target_time, e)
             return False
         # Fuzzy 15-minute window (cron may not fire at exact minute)
         current_minutes = now.hour * 60 + now.minute
@@ -277,15 +278,16 @@ def is_action_due(action: dict) -> bool:
                 last_dt = datetime.fromisoformat(last_run)
                 if last_dt.date() == now.date():
                     return False
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.info("[actions_registry] Daily last_run parse failed: %s", e)
         return True
 
     elif schedule_type == "hourly":
         target_m_str = action.get("time", "0")
         try:
             target_m = int(target_m_str)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.info("[actions_registry] Hourly time parse failed for %r: %s", target_m_str, e)
             return False
         # Fuzzy 15-minute window (cron may not fire at exact minute)
         minutes_diff = abs(now.minute - target_m)
@@ -298,8 +300,8 @@ def is_action_due(action: dict) -> bool:
                 last_dt = datetime.fromisoformat(last_run)
                 if last_dt.hour == now.hour and last_dt.date() == now.date():
                     return False
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                logger.info("[actions_registry] Hourly last_run parse failed: %s", e)
         return True
 
     elif schedule_type == "interval":
@@ -311,7 +313,8 @@ def is_action_due(action: dict) -> bool:
             last_dt = datetime.fromisoformat(last_run)
             elapsed = (now - last_dt).total_seconds() / 60
             return elapsed >= interval
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.info("[actions_registry] Interval last_run parse failed: %s", e)
             return True
 
     elif schedule_type == "once":
@@ -321,7 +324,8 @@ def is_action_due(action: dict) -> bool:
         try:
             due_dt = datetime.fromisoformat(due_date).date() if "T" in due_date else datetime.strptime(due_date, "%Y-%m-%d").date()
             return now.date() >= due_dt
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.info("[actions_registry] Once due_date parse failed for %r: %s", due_date, e)
             return False
 
     return False
@@ -336,7 +340,8 @@ def calc_next_run(action: dict) -> Optional[str]:
         target_time = action.get("time", "00:00")
         try:
             target_h, target_m = map(int, target_time.split(":"))
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError) as e:
+            logger.info("[actions_registry] calc_next_run daily time parse failed: %s", e)
             return None
         next_dt = now.replace(hour=target_h, minute=target_m, second=0, microsecond=0)
         if next_dt <= now:
@@ -347,7 +352,8 @@ def calc_next_run(action: dict) -> Optional[str]:
         target_m_str = action.get("time", "0")
         try:
             target_m = int(target_m_str)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.info("[actions_registry] calc_next_run hourly time parse failed: %s", e)
             return None
         next_dt = now.replace(minute=target_m, second=0, microsecond=0)
         if next_dt <= now:
@@ -362,7 +368,8 @@ def calc_next_run(action: dict) -> Optional[str]:
         try:
             last_dt = datetime.fromisoformat(last_run)
             return (last_dt + timedelta(minutes=interval)).isoformat()
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.info("[actions_registry] calc_next_run interval last_run parse failed: %s", e)
             return now.isoformat()
 
     elif schedule_type == "once":
@@ -393,7 +400,8 @@ def next_due_str(action: dict) -> str:
                 if next_dt <= datetime.now():
                     return "now"
                 return next_dt.strftime("%H:%M")
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
+                logger.info("[actions_registry] next_due_str interval last_run parse failed: %s", e)
                 return "now"
         return "now"
     elif schedule_type == "once":
@@ -429,8 +437,8 @@ def migrate_plugins() -> int:
     if last_run_file.exists():
         try:
             last_run_map = json.loads(last_run_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("[actions_registry] Failed to load last_run.json: %s", e)
 
     # Discover plugins
     migrated = 0
