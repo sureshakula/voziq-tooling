@@ -51,7 +51,7 @@
       "file": "apps/handlers/dashboard/push_central.py",
       "standard": "handlers",
       "category": "architectural",
-      "reason": "Handler imports aggregate_central module — push_central is the dashboard handler that must invoke the aggregation orchestrator"
+      "reason": "Cross-handler import of aggregate_ops — push_central calls aggregate_central_impl after pushing data to central"
     },
     {
       "file": "apps/handlers/dashboard/push_central.py",
