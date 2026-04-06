@@ -343,6 +343,103 @@ else
     echo "Skipping hooks (no .claude/hooks/ directory found)"
 fi
 
+# --- Install Codex CLI hooks ---
+if command -v codex &>/dev/null; then
+    if [ -f "$SCRIPT_DIR/.codex/hooks.json" ]; then
+        echo "Installing Codex CLI hooks ..."
+        mkdir -p "$HOME/.codex"
+
+        python3 - "$SCRIPT_DIR" "$HOME/.codex/config.toml" << 'PYEOF'
+import sys
+from pathlib import Path
+
+repo_root = sys.argv[1]
+config_path = Path(sys.argv[2])
+
+# Read existing config or start fresh
+existing = {}
+if config_path.exists():
+    for line in config_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("[") and not line.startswith("#") and "=" in line:
+            key, val = line.split("=", 1)
+            existing[key.strip()] = val.strip()
+
+# Preserve model if set
+model = existing.get("model", '"o4-mini"')
+
+config = f'''model = {model}
+check_for_update_on_startup = false
+
+[features]
+codex_hooks = true
+
+[experimental_features]
+multi_agent = true
+multi_agent_v2 = true
+
+[projects."{repo_root}"]
+trust_level = "trusted"
+'''
+
+config_path.write_text(config)
+print(f"  config.toml -> {config_path}")
+print(f"  hooks.json -> {repo_root}/.codex/hooks.json (project-level, travels with repo)")
+PYEOF
+    else
+        echo "Skipping Codex hooks (no .codex/hooks.json found in repo)"
+    fi
+else
+    echo "Skipping Codex CLI (not installed)"
+fi
+
+# --- Install Gemini CLI hooks ---
+if command -v gemini &>/dev/null; then
+    if [ -d "$SCRIPT_DIR/.gemini/hooks" ]; then
+        echo "Installing Gemini CLI hooks ..."
+
+        GEMINI_SETTINGS="$HOME/.gemini/settings.json"
+        mkdir -p "$HOME/.gemini"
+
+        python3 - "$SCRIPT_DIR" "$GEMINI_SETTINGS" << 'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+repo_root = sys.argv[1]
+settings_path = Path(sys.argv[2])
+hooks_dir = f"{repo_root}/.gemini/hooks"
+
+# Load existing settings or start fresh
+if settings_path.exists():
+    settings = json.loads(settings_path.read_text())
+else:
+    settings = {}
+
+# Build hooks config with absolute paths (Gemini uses different event names)
+settings["hooks"] = {
+    "SessionStart": [
+        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/session_start_identity.py", "timeout": 10}]}
+    ],
+    "BeforeModel": [
+        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/prompt_inject.py", "timeout": 10}]}
+    ],
+    "BeforeTool": [
+        {"matcher": "Edit|Write",
+         "hooks": [{"type": "command", "command": f"python3 {hooks_dir}/pre_edit_gate.py", "timeout": 5}]}
+    ],
+}
+
+settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+print(f"  hooks -> {settings_path}")
+PYEOF
+    else
+        echo "Skipping Gemini hooks (no .gemini/hooks/ directory found in repo)"
+    fi
+else
+    echo "Skipping Gemini CLI (not installed)"
+fi
+
 # --- Create global symlinks for CLI tools ---
 echo ""
 echo "Creating global symlinks ..."
@@ -369,6 +466,11 @@ if [ "$FAIL" -eq 0 ]; then
     echo "drone is available globally via /usr/local/bin symlink."
     echo "seedgo is accessed via: drone @seedgo"
     echo "No venv activation needed for CLI commands."
+    echo ""
+    echo "CLI integrations:"
+    echo "  Claude Code: hooks installed to ~/.claude/settings.json"
+    command -v codex &>/dev/null && echo "  Codex CLI:   hooks at .codex/hooks.json + config at ~/.codex/config.toml"
+    command -v gemini &>/dev/null && echo "  Gemini CLI:  hooks installed to ~/.gemini/settings.json"
     echo ""
 else
     echo "=== Setup finished with errors ==="

@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel 2>/dev/null)/.codex/hooks/session_start_identity.py",
+            "timeout": 10,
+            "statusMessage": "Loading AIPass identity..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel 2>/dev/null)/.codex/hooks/prompt_inject.py",
+            "timeout": 10,
+            "statusMessage": "Injecting AIPass context..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^(Edit|MultiEdit|Write|NotebookEdit)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel 2>/dev/null)/.codex/hooks/pre_edit_gate.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
