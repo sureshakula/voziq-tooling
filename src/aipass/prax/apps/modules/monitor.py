@@ -332,10 +332,18 @@ def _get_watch_directories(repo_root: Path) -> list[tuple[Path, bool]]:
         except (ValueError, OSError) as e:
             logger.warning(f"[monitor] Failed to read registry: {e}")
 
-    # Watch Claude Code project sessions for agent activity tracking
+    # Watch CLI session directories for agent activity tracking
     claude_projects = Path.home() / ".claude" / "projects"
     if claude_projects.exists():
         dirs.append((claude_projects, True))
+
+    codex_sessions = Path.home() / ".codex" / "sessions"
+    if codex_sessions.exists():
+        dirs.append((codex_sessions, True))
+
+    gemini_tmp = Path.home() / ".gemini" / "tmp"
+    if gemini_tmp.exists():
+        dirs.append((gemini_tmp, True))
 
     return dirs
 
@@ -350,6 +358,19 @@ def _emit_watcher_event(level: str, message: str) -> None:
         action=level, level=level, timestamp=datetime.now(),
         message=message,
     ))
+
+
+def _inotify_fix_message(err: OSError) -> str:
+    """Return the correct sysctl fix for the specific inotify limit hit."""
+    import errno as _errno
+    if err.errno == _errno.ENOSPC:  # Errno 28 — max_user_watches
+        return ("inotify watch limit reached (max_user_watches). "
+                "Fix: sudo sysctl -w fs.inotify.max_user_watches=524288")
+    elif err.errno == _errno.EMFILE:  # Errno 24 — max_user_instances
+        return ("inotify instance limit reached (max_user_instances). "
+                "Fix: sudo sysctl -w fs.inotify.max_user_instances=1024")
+    else:
+        return f"inotify error ({err}). Check system inotify limits."
 
 
 def _start_observer_with_fallback(handler, watch_dirs):
@@ -367,10 +388,9 @@ def _start_observer_with_fallback(handler, watch_dirs):
         observer.start()
         return observer
     except OSError as e:
+        fix_msg = _inotify_fix_message(e)
         logger.warning(f"[monitor] inotify unavailable: {e} — switching to polling")
-        _emit_watcher_event('warning',
-            "File watcher: inotify watch limit reached (VSCode/editors consume most of the 65K default). "
-            "Using polling fallback (slower). Fix: sudo sysctl -w fs.inotify.max_user_watches=524288")
+        _emit_watcher_event('warning', f"File watcher: {fix_msg} Using polling fallback (slower).")
 
     try:
         from watchdog.observers.polling import PollingObserver
@@ -435,10 +455,9 @@ def _start_log_watcher_with_fallback(event_queue) -> bool:
         start_log_watcher(event_queue)
         return True
     except OSError as e:
+        fix_msg = _inotify_fix_message(e)
         logger.warning(f"[monitor] Log watcher inotify failed: {e} — switching to polling")
-        _emit_watcher_event('warning',
-            "Log watcher: inotify watch limit reached (VSCode/editors consume most of the 65K default). "
-            "Using polling fallback (slower). Fix: sudo sysctl -w fs.inotify.max_user_watches=524288")
+        _emit_watcher_event('warning', f"Log watcher: {fix_msg} Using polling fallback (slower).")
 
     try:
         start_log_watcher(event_queue, use_polling=True)

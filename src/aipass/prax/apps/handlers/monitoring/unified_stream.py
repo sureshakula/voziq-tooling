@@ -123,9 +123,11 @@ def print_event(event_type: str, branch: str, message: str, level: str = 'info',
         timestamp = datetime.now().strftime("%H:%M:%S")
 
         # Get branch color (unique per branch)
-        # For subagent labels like 'DEVPULSE AGENT', use base branch color
+        # Strip suffixes for color lookup: 'DEVPULSE AGENT' → DEVPULSE, 'DEVPULSE/opus' → DEVPULSE
         branch_upper = branch.upper()
-        base_branch = branch_upper[:-6] if branch_upper.endswith(' AGENT') else branch_upper
+        base_branch = branch_upper.split('/')[0]  # strip model tag
+        if base_branch.endswith(' AGENT'):
+            base_branch = base_branch[:-6]
         branch_color = BRANCH_COLORS.get(base_branch, 'white')
 
         # Format branch label with optional PID

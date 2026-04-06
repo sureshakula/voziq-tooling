@@ -317,6 +317,12 @@ def should_monitor(path: Path) -> bool:
     if '.claude.json.backup' in name or '.claude.json.tmp' in name:
         return False
 
+    # CLI session files: always monitor (override ignore patterns for .codex, .gemini)
+    if '.codex/sessions/' in path_str and name.endswith('.jsonl'):
+        return True
+    if '.gemini/tmp/' in path_str and '/chats/' in path_str and name.endswith('.json'):
+        return True
+
     if _matches_always_patterns(path_str, parts, name):
         return True
 

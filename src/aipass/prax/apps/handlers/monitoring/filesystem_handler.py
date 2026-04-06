@@ -12,7 +12,7 @@ PRAX Filesystem Event Handler
 Watchdog FileSystemEventHandler that processes filesystem events and:
 1. Pushes events to the monitoring event queue for display
 2. Fires trigger events for cross-module integration
-3. Parses Claude Code JSONL sessions for agent activity tracking
+3. Parses CLI session files for agent activity tracking (Claude Code, Codex, Gemini)
 
 Extracted from monitor.py to maintain 3-layer architecture:
   module (orchestration) -> handler (implementation)
@@ -70,6 +70,8 @@ class MonitoringFileHandler(FileSystemEventHandler):
         self._jsonl_positions: Dict[str, int] = {}
         # Track last agent action per session to avoid duplicate displays
         self._last_agent_action: Dict[str, str] = {}
+        # Track model per session file for display tags
+        self._session_models: Dict[str, str] = {}
 
     # -- public property so the module can swap queues after construction ------
     @property
@@ -152,6 +154,12 @@ class MonitoringFileHandler(FileSystemEventHandler):
         return f"🔧 {tool_name}"
 
     @staticmethod
+    def _extract_model_from_entry(entry: dict) -> Optional[str]:
+        """Extract model name from a Claude Code JSONL entry."""
+        msg = entry.get('message', {}) if isinstance(entry.get('message'), dict) else {}
+        return msg.get('model')
+
+    @staticmethod
     def _extract_action_from_entry(entry: dict) -> Optional[str]:
         """Extract a display action string from a JSONL entry."""
         entry_type = entry.get('type', '')
@@ -182,6 +190,259 @@ class MonitoringFileHandler(FileSystemEventHandler):
             return '📩 User message'
 
         return None
+
+    # =========================================================================
+    # MODEL TAG HELPERS
+    # =========================================================================
+
+    @staticmethod
+    def _shorten_model(model: str) -> str:
+        """Shorten a model identifier for display."""
+        if not model:
+            return ''
+        m = model.lower()
+        # Claude models
+        if 'opus' in m:
+            return 'opus'
+        if 'sonnet' in m:
+            return 'sonnet'
+        if 'haiku' in m:
+            return 'haiku'
+        # OpenAI/Codex models
+        if m.startswith('gpt-'):
+            return m  # already short: gpt-4o, gpt-5.4
+        if m.startswith('o') and any(c.isdigit() for c in m):
+            return m  # o1, o3, o4-mini
+        # Gemini models
+        if 'gemini' in m:
+            # gemini-3-flash-preview → gemini-3-flash
+            parts = m.replace('gemini-', '').split('-')
+            return 'gemini-' + '-'.join(p for p in parts if p != 'preview')
+        # Fallback: first 15 chars
+        return model[:15]
+
+    def _tag_branch_with_model(self, path_key: str, branch: str) -> str:
+        """Append model tag to branch if known for this session."""
+        model = self._session_models.get(path_key, '')
+        if model:
+            return f"{branch}/{model}"
+        return branch
+
+    # =========================================================================
+    # CODEX AGENT ACTIVITY PARSING (JSONL sessions)
+    # =========================================================================
+
+    @staticmethod
+    def _extract_codex_action(entry: dict) -> Optional[str]:
+        """Extract a display action string from a Codex JSONL entry."""
+        entry_type = entry.get('type', '')
+        payload = entry.get('payload', {})
+
+        if entry_type == 'event_msg':
+            event_type = payload.get('type', '')
+            if event_type == 'agent_message':
+                text = payload.get('text', '') or payload.get('message', '')
+                if text:
+                    return f"💬 {str(text)[:120]}"
+                return '💬 Agent response'
+            if event_type == 'user_message':
+                return '📩 User message'
+            if event_type == 'token_count':
+                return '💭 Thinking'
+            if event_type == 'task_started':
+                return '🚀 Task started'
+            if event_type == 'task_complete':
+                return '✅ Task complete'
+            return None
+
+        if entry_type == 'response_item':
+            item = payload.get('item', payload)
+            item_type = item.get('type', '')
+            if item_type == 'function_call':
+                name = item.get('name', 'tool')
+                args = item.get('arguments', '')
+                if isinstance(args, str) and len(args) > 80:
+                    args = args[:80] + '...'
+                return f"🔧 {name}"
+            if item_type == 'function_call_output':
+                return None  # Skip output events
+            if item_type == 'message':
+                content = item.get('content', [])
+                if isinstance(content, list):
+                    for part in content:
+                        if isinstance(part, dict):
+                            text = part.get('text', '')
+                            if text:
+                                return f"💬 {text[:120]}"
+                return '💬 Agent response'
+            return None
+
+        if entry_type == 'session_meta':
+            return None  # Skip metadata
+
+        if entry_type == 'turn_context':
+            return None  # Skip context snapshots
+
+        return None
+
+    # =========================================================================
+    # GEMINI AGENT ACTIVITY PARSING (full JSON sessions)
+    # =========================================================================
+
+    @staticmethod
+    def _extract_gemini_action(message: dict) -> Optional[str]:
+        """Extract a display action string from a Gemini session message."""
+        msg_type = message.get('type', '')
+
+        if msg_type == 'user':
+            return '📩 User message'
+
+        if msg_type == 'gemini':
+            # Check for tool calls first
+            tool_calls = message.get('toolCalls', [])
+            if tool_calls:
+                last_tool = tool_calls[-1]
+                name = last_tool.get('displayName', last_tool.get('name', 'tool'))
+                return f"🔧 {name}"
+
+            # Check for thoughts
+            thoughts = message.get('thoughts', [])
+            if thoughts:
+                return '💭 Thinking'
+
+            # Text response
+            content = message.get('content', [])
+            if isinstance(content, list) and content:
+                for part in content:
+                    if isinstance(part, dict):
+                        text = part.get('text', '').strip()
+                        if text:
+                            return f"💬 {text[:120]}"
+            elif isinstance(content, str) and content.strip():
+                return f"💬 {content.strip()[:120]}"
+
+            return '💬 Agent response'
+
+        return None
+
+    def _parse_gemini_activity(self, file_path, branch):
+        """Parse Gemini session JSON to show agent actions.
+
+        Gemini rewrites the entire file on each change, so we track
+        the message count and only process new messages.
+        """
+        try:
+            path_key = str(file_path)
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                data = _json.load(f)
+
+            messages = data.get('messages', [])
+            last_count = self._jsonl_positions.get(path_key, 0)
+
+            if len(messages) <= last_count:
+                return True  # No new messages
+
+            self._jsonl_positions[path_key] = len(messages)
+
+            # Extract model from gemini messages
+            for msg in messages:
+                model = msg.get('model', '')
+                if model:
+                    self._session_models[path_key] = self._shorten_model(model)
+                    break
+
+            # Process new messages (most recent first for dedup)
+            new_messages = messages[last_count:]
+            for msg in reversed(new_messages):
+                action_text = self._extract_gemini_action(msg)
+                if not action_text:
+                    continue
+
+                if self._last_agent_action.get(path_key) == action_text:
+                    return True
+                self._last_agent_action[path_key] = action_text
+
+                tagged_branch = self._tag_branch_with_model(path_key, branch)
+                evt = MonitoringEvent(
+                    priority=1, event_type='agent', branch=tagged_branch,
+                    action='activity', message=action_text, level='info',
+                )
+                if self._event_queue:
+                    self._event_queue.enqueue(evt)
+                return True
+
+            return True
+        except (_json.JSONDecodeError, OSError) as e:
+            logger.info(f"[monitor] Gemini parse error for {file_path.name}: {e}")
+            return False
+
+    def _parse_codex_activity(self, file_path, branch):
+        """Parse Codex session JSONL to show agent actions.
+
+        Same JSONL tail-and-parse approach as Claude Code, but uses
+        _extract_codex_action() for Codex-specific event types.
+        """
+        try:
+            path_key = str(file_path)
+            current_size = file_path.stat().st_size
+            last_pos = self._jsonl_positions.get(path_key, 0)
+
+            if current_size < last_pos:
+                last_pos = 0
+            if current_size <= last_pos:
+                return True
+
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                f.seek(last_pos)
+                new_data = f.read()
+                self._jsonl_positions[path_key] = f.tell()
+
+            lines = [l for l in new_data.strip().split('\n') if l.strip()]
+            if not lines:
+                return True
+
+            for line in reversed(lines):
+                try:
+                    entry = _json.loads(line)
+                except _json.JSONDecodeError as e:
+                    logger.info(f"[monitor] Skipping malformed Codex JSONL: {e}")
+                    continue
+
+                # Extract model from session_meta or response_item
+                if entry.get('type') == 'session_meta':
+                    model = entry.get('payload', {}).get('model', '')
+                    if model:
+                        self._session_models[path_key] = self._shorten_model(model)
+                elif entry.get('type') == 'response_item':
+                    model = entry.get('payload', {}).get('item', {}).get('model', '')
+                    if model:
+                        self._session_models[path_key] = self._shorten_model(model)
+
+                action_text = self._extract_codex_action(entry)
+                if not action_text:
+                    continue
+
+                if self._last_agent_action.get(path_key) == action_text:
+                    return True
+                self._last_agent_action[path_key] = action_text
+
+                tagged_branch = self._tag_branch_with_model(path_key, branch)
+                evt = MonitoringEvent(
+                    priority=1, event_type='agent', branch=tagged_branch,
+                    action='activity', message=action_text, level='info',
+                )
+                if self._event_queue:
+                    self._event_queue.enqueue(evt)
+                return True
+
+            return True
+        except Exception as e:
+            logger.info(f"[monitor] Codex JSONL parse error for {file_path.name}: {e}")
+            return False
+
+    # =========================================================================
+    # CLAUDE CODE AGENT ACTIVITY PARSING (JSONL sessions)
+    # =========================================================================
 
     def _parse_agent_activity(self, file_path, branch):
         """Parse Claude Code session JSONL to show agent actions.
@@ -214,6 +475,11 @@ class MonitoringFileHandler(FileSystemEventHandler):
                     logger.info(f"[monitor] Skipping malformed JSONL line: {e}")
                     continue
 
+                # Extract model for display tag
+                model = self._extract_model_from_entry(entry)
+                if model:
+                    self._session_models[path_key] = self._shorten_model(model)
+
                 action_text = self._extract_action_from_entry(entry)
                 if not action_text:
                     continue
@@ -222,8 +488,9 @@ class MonitoringFileHandler(FileSystemEventHandler):
                     return True
                 self._last_agent_action[path_key] = action_text
 
+                tagged_branch = self._tag_branch_with_model(path_key, branch)
                 evt = MonitoringEvent(
-                    priority=1, event_type='agent', branch=branch,
+                    priority=1, event_type='agent', branch=tagged_branch,
                     action='activity', message=action_text, level='info',
                 )
                 if self._event_queue:
@@ -271,6 +538,18 @@ class MonitoringFileHandler(FileSystemEventHandler):
                 if '/subagents/' in path_str:
                     branch = branch + ' agent'
                 if self._parse_agent_activity(file_path, branch):
+                    return
+
+            # Codex JSONL files: parse agent activity
+            if file_path.suffix == '.jsonl' and '.codex/sessions/' in path_str:
+                codex_branch = 'CODEX'
+                if self._parse_codex_activity(file_path, codex_branch):
+                    return
+
+            # Gemini JSON session files: parse agent activity
+            if file_path.suffix == '.json' and '.gemini/tmp/' in path_str and '/chats/' in path_str:
+                gemini_branch = 'GEMINI'
+                if self._parse_gemini_activity(file_path, gemini_branch):
                     return
 
             self._check_command_indicator(action, file_path, branch)
