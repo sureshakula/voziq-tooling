@@ -67,7 +67,8 @@ drone @seedgo standards_query aipass_standards  # List all standards (then query
 drone @seedgo checklist <file>    # Quick standards check on a single file
 drone @seedgo checklist <dir>     # Check all .py files in a directory
 drone @prax monitor               # Real-time monitoring (interactive)
-drone @flow create . "Subject"        # Create FPLAN (execution plan)
+drone @flow create . "Subject"        # Create FPLAN in current branch
+drone @flow create /path/to "Subject" # Create FPLAN at any path (e.g. external projects)
 drone @flow create . "Subject" master # Create FPLAN master (multi-phase execution)
 drone @flow create . "Subject" dplan  # Create DPLAN (design/planning doc)
 drone @flow list open                 # List active plans

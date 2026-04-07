@@ -298,6 +298,9 @@ def _handle_custom_command(args: list[str]) -> int:
             interactive=interactive,
         )
     except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+        if isinstance(exc, BranchNotFoundError) and is_module(module_name):
+            logger.info("Falling back to module routing for custom command @%s %s (not in local registry)", module_name, command)
+            return _handle_module(module_name, [command] + cmd_args)
         logger.warning("Custom command failed for target %s: %s", target, exc)
         err_console.print(f"drone: {exc}")
         return 1
@@ -336,6 +339,9 @@ def _handle_target(args: List[str]) -> int:
         try:
             result = route_command(target)
         except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+            if isinstance(exc, BranchNotFoundError) and is_module(module_name):
+                logger.info("Falling back to module routing for @%s (not in local registry)", module_name)
+                return _handle_module(module_name, rest)
             logger.warning("Introspection failed for %s: %s", target, exc)
             err_console.print(f"drone: {exc}")
             return 1
@@ -354,6 +360,9 @@ def _handle_target(args: List[str]) -> int:
             else:
                 console.print(f"No help available for {target}.")
         except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+            if isinstance(exc, BranchNotFoundError) and is_module(module_name):
+                logger.info("Falling back to module routing for @%s --help (not in local registry)", module_name)
+                return _handle_module(module_name, rest)
             logger.warning("Help lookup failed for %s: %s", target, exc)
             err_console.print(f"drone: {exc}")
             return 1
@@ -373,6 +382,9 @@ def _handle_target(args: List[str]) -> int:
             interactive=interactive,
         )
     except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
+        if isinstance(exc, BranchNotFoundError) and is_module(module_name):
+            logger.info("Falling back to module routing for @%s %s (not in local registry)", module_name, command)
+            return _handle_module(module_name, rest)
         logger.warning("Command routing failed for %s %s: %s", target, command, exc)
         err_console.print(f"drone: {exc}")
         return 1

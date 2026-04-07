@@ -187,9 +187,15 @@ def _spawn_agent(target_path, role="", traits="", purpose="", profile=None,
         branch_meta = generate_branch_meta(target, template_registry)
         save_branch_meta(target, branch_meta)
 
-    # Step 4: Register in AIPASS_REGISTRY.json
+    # Step 4: Register in project registry
+    # Store path relative to registry location (works for both AIPass and external projects)
+    try:
+        registry_branch_path = str(target.relative_to(reg_path.parent))
+    except ValueError as e:
+        logger.warning("Cannot relativize path %s to registry %s: %s", target, reg_path.parent, e)
+        registry_branch_path = str(target)
     registry_updated = add_to_registry(
-        reg_path, branch_upper, str(target), detected_profile,
+        reg_path, branch_upper, registry_branch_path, detected_profile,
         f"@{branch_lower}", purpose or "New agent - purpose TBD",
     )
 
