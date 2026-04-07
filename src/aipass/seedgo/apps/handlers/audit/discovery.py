@@ -54,17 +54,19 @@ def _is_branch_private(branch_name: str) -> bool:
 
 def _find_registry() -> Path:
     """
-    Find *_REGISTRY.json by walking up from this file's location.
-    Uses glob to match any registry file (aligned with drone's registry_handler).
+    Find *_REGISTRY.json by walking up from CWD first, then from __file__.
+    CWD-first matches drone's registry_handler search order and supports
+    external projects with their own registries.
     """
-    current = Path(__file__).resolve().parent
-    for parent in [current] + list(current.parents):
+    # Walk up from CWD first — this is where the user is working
+    cwd = Path.cwd()
+    for parent in [cwd] + list(cwd.parents):
         matches = sorted(parent.glob("*_REGISTRY.json"))
         if matches:
             return matches[0]
-    # Fallback: walk up from CWD (matches drone's search order)
-    cwd = Path.cwd()
-    for parent in [cwd] + list(cwd.parents):
+    # Fallback: walk up from this file (pip editable installs)
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
         matches = sorted(parent.glob("*_REGISTRY.json"))
         if matches:
             return matches[0]
