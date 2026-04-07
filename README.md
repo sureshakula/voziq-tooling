@@ -45,11 +45,51 @@ What's missing isn't more agents — it's *presence*. Agents that have identity,
 
 ## What AIPass Does
 
-AIPass gives your AI agents **persistent identity and memory**. Each agent lives in your filesystem, remembers its history, and communicates with other agents through a shared mailbox system. You talk to one orchestrator. It dispatches specialists. Results come back. Context survives.
+AIPass is a local CLI framework that gives your AI agents **identity, memory, and teamwork**. Tested with Claude Code, Codex, and Gemini — built to work with any AI that can read a file and follow a prompt.
+
+**Start a project in one command:**
+
+```bash
+aipass init ~/Projects/my-saas-app   # coming soon — currently requires dev setup
+```
+
+Your project gets its own registry, its own identity, and persistent memory. Your AI reads its context on startup, remembers across sessions, and saves what it learns. Each project is isolated — its own agents, its own mail, its own rules. No cross-contamination between projects.
+
+**Need more than memory? Build a team:**
+
+Use `spawn` to create full agents with the same infrastructure AIPass itself runs on — communication, monitoring, standards, the whole scaffold. Or keep it lightweight with just memory and identity. Your choice:
+
+| What you need | What to use | What you get |
+|---------------|-------------|-------------|
+| Memory + identity | `aipass init` | Registry, passport, memory files, local prompt |
+| A full agent | `spawn create` | All of the above + apps scaffold, mail, dashboard, tests |
+| A lightweight agent | `spawn passport` | Identity + rich memory (no apps scaffold) |
+
+**How AIPass itself is built:**
+
+AIPass ships with 15 specialist agents that maintain and develop the framework. They're the reference implementation — proof that the architecture works at scale:
 
 ```
-You <-> devpulse (orchestrator) <-> 14 specialist agents
+devpulse (orchestrator)
+   ├── drone    — command routing + @agent resolution
+   ├── seedgo   — 33 automated quality standards
+   ├── prax     — real-time monitoring across all agents
+   ├── ai_mail  — agent-to-agent communication + task dispatch
+   ├── flow     — plans, workflows, phased coordination
+   ├── spawn    — creates new agents anywhere on your filesystem
+   ├── memory   — vector search across archived context
+   ├── backup   — versioned backups + Google Drive sync
+   └── ...and 6 more specialists
 ```
+
+These 15 agents work on the **same filesystem, same project, same time**. No sandboxes. No worktrees. No isolation. They see each other's work, coordinate through mail, and share a planning system that prevents conflicts. This is the pattern your projects inherit.
+
+**What makes this different:**
+
+- **Agents are persistent.** They have passports, memories, and expertise that develop over time. They're not disposable workers — they're specialists who remember.
+- **Everything is local.** Your data stays on your machine. Memory is JSON files. Communication is local mailbox files. No cloud dependencies, no external APIs for core operations.
+- **Projects are isolated by design.** Each project gets its own registry. Agents communicate within their project, not across projects. No external agent can accidentally break your system.
+- **You build within the framework, and the framework gives you everything.** Follow the structure and you get memory, monitoring, communication, quality enforcement, backup, and dispatch for free.
 
 **Say "hi" tomorrow and pick up exactly where you left off.**
 
@@ -123,13 +163,14 @@ Opens a code-server IDE with Python, Node.js, and Claude Code pre-installed.
 
 ## What You Can Do
 
-- **Never re-explain context.** Your agents remember across sessions, days, weeks. Memory persists in `.trinity/` files and rolls over to vector search when full.
-- **Dispatch work to specialists.** Send a task to the right agent. It investigates, builds, tests, and reports back. You don't wait — start something else.
-- **Work in teams on the same files.** 15 agents share one filesystem. No git worktrees isolating them. A planning system prevents conflicts.
-- **Enforce quality automatically.** 33 automated standards checks run across every agent. Code stays consistent at scale.
-- **Use any AI CLI.** Claude Code, Codex, or Gemini CLI. Same hooks, same identity, same commands.
-- **Switch context freely.** Building something complex? Pause it. "Hey, investigate this other thing." Come back when ready.
-- **Scale it your way.** Add agents. Add capabilities. The framework grows with you.
+- **Start any project with memory.** `aipass init` gives your AI persistent context — it picks up where you left off, every session, no re-explaining.
+- **Build your own agents.** Use `spawn` to create agents with the same infrastructure AIPass runs on. Full scaffold or lightweight — your call.
+- **Agents work as a team.** Agents within a project share one filesystem, communicate through mail, and coordinate through plans. No sandboxes isolating them.
+- **Dispatch work, don't do it yourself.** Send a task to the right agent — it investigates, builds, tests, and reports back. You keep working on something else.
+- **Enforce quality automatically.** Define standards, run audits across every agent. Code stays consistent at scale.
+- **Use any AI CLI.** Tested with Claude Code, Codex, and Gemini. Same hooks, same identity, same commands. The framework is model-agnostic.
+- **Projects stay isolated.** Each project gets its own registry. Your agents talk to each other, not to other projects' agents. No cross-contamination.
+- **Scale your way.** One agent with memory, or fifty agents with full infrastructure. The framework grows with your project.
 
 <p align="right"><a href="#contents">Back to contents</a></p>
 

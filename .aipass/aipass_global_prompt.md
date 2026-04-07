@@ -45,6 +45,19 @@ src/aipass/{name}/
 
 `drone` is a global CLI available in PATH. Never `cd` before running it. Never prefix with `export PATH=...` or full venv paths. Just `drone`. It resolves everything.
 
+### aipass init
+
+`aipass init` bootstraps an AIPass project in **any directory** — inside or outside the repo. One command creates:
+- `{NAME}_REGISTRY.json` — project registry with UUID
+- `.trinity/passport.json` — project identity
+- `.trinity/local.json` + `observations.json` — persistent memory
+- `.aipass/aipass_local_prompt.md` — local prompt (injected every turn)
+- `AIPASS.md` — project prompt with startup instructions
+
+This is how AIPass reaches beyond its own repo. Any folder becomes an AI-powered workspace with persistent memory, identity, and structure. Spawn can then add full agent scaffolding (apps/, handlers/, mail, etc.) on top.
+
+Source: `src/aipass/cli/apps/handlers/init/bootstrap.py`
+
 ```
 drone @branch command [args]      # Route command to any branch
 drone @branch --help              # Branch help
