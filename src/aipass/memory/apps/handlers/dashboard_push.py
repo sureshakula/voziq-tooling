@@ -51,7 +51,7 @@ def _find_repo_root() -> Path:
     return Path.cwd()
 
 
-CENTRAL_FILE = _find_repo_root() / ".ai_mail" / "MEMORY.central.json"
+CENTRAL_FILE = _find_repo_root() / ".ai_central" / "MEMORY.central.json"
 AIPASS_REGISTRY = _find_repo_root() / "AIPASS_REGISTRY.json"
 
 # Near-rollover threshold: branches with fewer than this many lines remaining

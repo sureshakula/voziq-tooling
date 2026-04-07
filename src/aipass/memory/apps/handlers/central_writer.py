@@ -47,7 +47,7 @@ def _find_repo_root() -> Path:
     return Path.cwd()
 
 
-CENTRAL_FILE = _find_repo_root() / ".ai_mail" / "MEMORY.central.json"
+CENTRAL_FILE = _find_repo_root() / ".ai_central" / "MEMORY.central.json"
 CHROMA_DB_PATH = _MEMORY_ROOT / ".chroma"
 ARCHIVE_DIR = _MEMORY_ROOT / ".archive"
 
