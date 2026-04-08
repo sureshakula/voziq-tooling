@@ -5,11 +5,11 @@
 **Purpose:** Inter-agent messaging for AIPass. File-based email system that lets agents send, receive, and process messages using `@branch` addresses. No SMTP, no external services — just JSON files and symbolic routing.
 **Module:** `aipass.ai_mail`
 **Created:** 2025-11-08
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-04-07
 
 ---
 
-**Status:** Operational. Core email workflow (send/inbox/reply/close), dispatch system, daemon, desktop notifications all working. Seedgo 100%.
+**Status:** Operational. Core email workflow (send/inbox/reply/close), dispatch system (with startup timeout + auto-retry), daemon, desktop notifications all working. Seedgo 99%. 322 tests.
 
 ## Commands / Usage
 
@@ -36,12 +36,15 @@ new → opened → closed
 
 ## Dispatch System
 
-The `--dispatch` flag marks emails for autonomous execution. A polling daemon watches inboxes and spawns agents to process dispatch emails automatically.
+The `dispatch` command sends an email and wakes the target branch in one step. A polling daemon can also watch inboxes and spawn agents for `auto_execute` dispatch emails automatically.
 
 - Agents are ephemeral (wake, do work, exit)
 - Safety limits: max turns per wake, max dispatches per branch per day
 - PID-based locking prevents concurrent agents per branch
+- Startup health check: monitors JSONL session files for 90s, kills if no activity
+- Auto-retry: 3 strikes (resume, resume, fresh) before bounce
 - Failed agents trigger bounce emails back to sender
+- `ping` commands exit 0 but produce no visible output in drone context *(partial)*
 
 ## Architecture
 
@@ -62,8 +65,9 @@ ai_mail/
 │       ├── users/           # Branch detection, user lookup
 │       ├── json_utils/      # JSON I/O helpers (load_json, save_json)
 │       ├── monitoring/      # Memory health, error tracking
+│       ├── paths.py         # Shared find_repo_root() utility
 │       ├── notify.py        # Desktop notifications (dbus)
-│       └── central_writer.py # Registry status aggregation
+│       └── central_writer.py # Central inbox stats aggregation
 ```
 
 ## Integration Points
@@ -81,7 +85,7 @@ ai_mail/
 
 ---
 
-*Last Updated: 2026-03-24*
+*Last Updated: 2026-04-07*
 
 ---
 [← Back to AIPass](../../../README.md)

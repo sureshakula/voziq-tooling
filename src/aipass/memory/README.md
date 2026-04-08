@@ -5,7 +5,7 @@
 **Purpose:** Central memory archive with semantic search, rollover, and archival across all AIPass branches.
 **Module:** `aipass.memory`
 **Created:** 2026-03-07
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-07
 **Citizen Class:** builder
 
 ---
@@ -24,26 +24,41 @@ Memory is the central memory archive system that:
 
 **Via Drone (recommended):**
 ```bash
-drone @memory search "error handling"       # Semantic search across all branch memories
+# Rollover
+drone @memory rollover                        # Show rollover module introspection
+drone @memory rollover run                    # Execute memory rollover for files over limits
+drone @memory rollover status                 # Show rollover statistics for all branches
+drone @memory rollover check                  # Dry run — check which files need rollover
+drone @memory rollover sync-lines             # Update line count metadata for all branches
+
+# Search
+drone @memory search "error handling"         # Semantic search across all branch memories
 drone @memory search "query" --branch SEEDGO  # Filter search by branch
-drone @memory search "query" --n 10         # Limit number of results
-drone @memory rollover                      # Execute memory rollover for files over 600 lines
-drone @memory status                        # Show rollover statistics for all branches
-drone @memory check                         # Dry run — check which files need rollover
-drone @memory watch                         # Start auto-rollover watcher (Ctrl+C to stop)
-drone @memory sync-lines                    # Update line count metadata for all branches
-drone @memory push-templates                # Push template updates to all branches
-drone @memory push-templates --dry-run      # Preview template changes without writing
-drone @memory diff-templates                # Show template differences per branch
-drone @memory template-status               # Show template version and push status
-drone @memory symbolic demo                 # Run fragmented memory demonstration
-drone @memory symbolic fragments "query"    # Search symbolic fragments
+drone @memory search "query" --n 10           # Limit number of results
+
+# Symbolic (fragmented memory)
+drone @memory symbolic                        # Show symbolic module introspection
+drone @memory symbolic demo                   # Run fragmented memory demonstration
+drone @memory symbolic fragments "query"      # Search symbolic fragments (not operational — no stored fragments)
+drone @memory symbolic extract <file>         # Extract fragments via LLM (requires API)
+
+# Templates (not operational — template files missing)
+drone @memory templates                       # Show templates module introspection
+drone @memory templates push-templates        # Push template updates to all branches (not operational)
+drone @memory templates diff-templates        # Show template differences per branch (not operational)
+drone @memory templates template-status       # Show template version and push status (not operational)
+
+# Verify
+drone @memory verify FPLAN-XXXX               # Check if a plan is vectorized in ChromaDB
+
+# Watch
+drone @memory watch                           # Start auto-rollover watcher (Ctrl+C to stop)
 ```
 
 **Direct execution:**
 ```bash
 python3 -m aipass.memory.apps.memory search "query"
-python3 -m aipass.memory.apps.memory rollover
+python3 -m aipass.memory.apps.memory rollover status
 ```
 
 ---
@@ -108,7 +123,19 @@ memory/
 ## Key Modules
 
 ### rollover
-The rollover module monitors memory files across all branches registered in `AIPASS_REGISTRY.json`. When files exceed 600 lines, it triggers archival — splitting the file, preserving recent context, and indexing the archived portion. The `watch` command runs a persistent file watcher that auto-triggers rollover on changes.
+The rollover module monitors memory files across all branches registered in `AIPASS_REGISTRY.json`. When files exceed entry-count limits (20 sessions, 25 key_learnings), it triggers archival — extracting oldest entries, embedding them via subprocess, and storing in ChromaDB vectors. The `watch` command runs a persistent file watcher that auto-triggers rollover on changes.
+
+### search
+Semantic search across all branch memories using ChromaDB + sentence-transformers. Requires memory `.venv/` with torch installed (~3GB). All ML operations run via subprocess isolation — main process never imports torch.
+
+### symbolic *(partial)*
+Fragmented memory extraction and search. Demo and introspection work. `fragments` search returns 0 results (no stored fragments). `extract` requires API key. Code is operational but no fragment data has been stored yet.
+
+### templates *(not operational)*
+Living template push system for distributing `.trinity/` schema updates across branches. Template files (`LOCAL.template.json`, `OBS.template`) are missing — all subcommands (`push-templates`, `diff-templates`, `template-status`) fail.
+
+### verify
+Checks whether a specific flow plan (FPLAN-XXXX) has been vectorized into ChromaDB. Works correctly.
 
 ---
 
@@ -121,7 +148,7 @@ The rollover module monitors memory files across all branches registered in `AIP
 
 ---
 
-*Last Updated: 2026-04-01*
+*Last Updated: 2026-04-07*
 
 ---
 [← Back to AIPass](../../../README.md)

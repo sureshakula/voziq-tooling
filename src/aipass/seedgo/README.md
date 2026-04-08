@@ -45,7 +45,13 @@ drone @seedgo --help                                   # Full help
 drone @seedgo audit aipass                             # Audit all branches
 drone @seedgo audit aipass @spawn                      # Audit specific branch
 drone @seedgo standards_query aipass_standards cli      # Show standard content
+drone @seedgo checklist <file>                         # Per-file standards check
+drone @seedgo diagnostics                              # Pyright diagnostics
+drone @seedgo proof aipass                             # Proof certification
+drone @seedgo test_map @seedgo                         # Function test coverage
 ```
+
+> **Note:** `proof`, `proof_query`, and `test_map` commands work but are not listed in `--help` output *(partial)*
 
 ---
 
@@ -146,7 +152,7 @@ The `test_map` module and `test_map/` handler directory provide custom function-
 
 ---
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-04-07
 
 ---
 [← Back to AIPass](../../../README.md)

@@ -24,9 +24,16 @@ Drone provides a CLI for terminal use and a Python API for programmatic access.
 
 ```bash
 drone systems                    # List all registered modules and branches
-drone @seedgo verify             # Route "verify" to the seedgo module
 drone @seedgo audit aipass       # Route "audit aipass" to seedgo
 drone @module --help             # Show help for any module
+drone @git pr "description"      # Create a PR from current branch
+drone @git status                # Git status scoped to branch directory
+drone @git sync                  # Pull latest main with --rebase
+drone @git lock / unlock         # Atomic branch lockfile
+drone @git system-pr "desc"      # System-wide PR (devpulse only)
+drone @git merge <PR#>           # Squash-merge a PR
+drone @git smart-sync            # Fetch + detect divergence + rebase
+drone @git fix                   # Auto-fix stuck rebase / detached HEAD
 drone scan @branch               # Discover available commands in a branch
 drone activate @branch           # Scan + register all commands from a branch
 drone list                       # List registered custom command shortcuts
@@ -100,16 +107,23 @@ drone/
 │   │   ├── commands.py    # Custom command shortcut orchestrator
 │   │   ├── git_module.py  # Git workflow (PR, status, sync, lock)
 │   │   └── scan.py        # Branch command scanning
-│   └── handlers/          # Implementation
-│       ├── executor.py    # Safe subprocess execution
-│       ├── exceptions.py  # Exception hierarchy
-│       ├── generic_adapter.py   # Centralized capture for external modules
-│       ├── routing_config.json  # External module routing declarations
-│       ├── json/          # Three-JSON Pattern handler
-│       ├── scanning/      # Scan result formatting + discovery
-│       └── command_registry/  # Command shortcut CRUD + lookup
+│   ├── handlers/          # Implementation
+│   │   ├── executor.py    # Safe subprocess execution
+│   │   ├── exceptions.py  # Exception hierarchy
+│   │   ├── generic_adapter.py   # Centralized capture for external modules
+│   │   ├── routing_config.json  # External module routing declarations
+│   │   ├── json/          # Three-JSON Pattern handler
+│   │   ├── scanning/      # Scan result formatting + discovery
+│   │   ├── command_registry/  # Command shortcut CRUD + lookup
+│   │   └── git/           # Git workflow handlers
+│   │       ├── lock_handler.py    # Atomic lockfile (O_CREAT|O_EXCL)
+│   │       ├── pr_handler.py      # 10-step PR workflow
+│   │       ├── status_handler.py  # Scoped git status
+│   │       └── sync_handler.py    # Safe main sync
+│   └── plugins/           # Extensions beyond core routing
+│       └── devpulse_ops/  # System-wide PR, merge, smart-sync, fix
 ├── docs/                  # Documentation
-└── tests/
+└── tests/                 # 513 tests, 19 test files
 ```
 
 ---
@@ -152,7 +166,13 @@ To add: edit `interactive_commands` or `interactive_branches` in `_handle_target
 
 ---
 
-**Last Updated:** 2026-03-29
+## External Project Support
+
+Infrastructure modules (seedgo, cli, git) work from external AIPass projects without per-project registration. When subprocess routing fails (branch not in local registry), drone falls back to module routing automatically. Graceful degradation: Rich output from AIPass, functional output from external projects.
+
+---
+
+**Last Updated:** 2026-04-07
 
 ---
 [← Back to AIPass](../../../README.md)

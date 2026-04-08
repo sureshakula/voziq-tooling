@@ -54,9 +54,16 @@ drone @spawn update --dry-run @branch_name    # Preview changes
 ```bash
 drone @spawn delete @branch_name              # Archive + deregister
 drone @spawn sync-registry                    # Repair registry vs filesystem
-drone @spawn sync-templates                   # Pull managed files from sources
+drone @spawn sync-registry --fix              # Repair + rebuild missing .spawn/ tracking
+drone @spawn sync-templates                   # Pull managed files from sources *(partial — template_owners.json empty)*
 drone @spawn regenerate-registry              # Regenerate builder template registry
 drone @spawn regenerate-registry --all        # Regenerate all template class registries
+```
+
+**External project support:**
+```bash
+# Creating inside an existing AIPass project auto-detects the project registry
+drone @spawn create ~/Projects/compass/navigator   # Registers in COMPASS_REGISTRY.json
 ```
 
 **Python API:**
@@ -71,6 +78,12 @@ result = spawn_agent(
 )
 # result dict includes: success, branch_name, path, files_copied, validation_issues
 ```
+
+### Known Limitations
+
+- `update --help` and `delete --help` fall through to argparse instead of showing help *(not operational — argparse `add_help=False` swallows --help before module intercept)*
+- `sync-templates` runs but has no managed files *(partial — template_owners.json is empty)*
+- `.py` files are never auto-updated by `update` — requires manual review by design
 
 ---
 
@@ -157,7 +170,7 @@ spawn/
 
 ---
 
-*Last Updated: 2026-04-06*
+*Last Updated: 2026-04-07*
 
 ---
 [← Back to AIPass](../../../README.md)

@@ -125,7 +125,7 @@ drone systems                           # List every agent and what it does
 
 ## How It Works
 
-**One agent:** Your AI reads `.trinity/` on startup and writes back what it learned. That's the whole memory model — JSON files on disk. Next session, it picks up where it left off.
+**One agent:** Your AI reads `.trinity/` on startup and picks up where it left off. But memory files have limits. When they fill up, the memory agent automatically archives older entries into a searchable vector database (ChromaDB). Nothing is lost — it just moves from active memory to long-term recall.
 
 **A team:** When one agent isn't enough, every agent shares the same structure:
 
@@ -162,9 +162,9 @@ devpulse (orchestrator)
    ├── seedgo   — 33 automated quality standards
    ├── prax     — real-time monitoring across all agents
    ├── ai_mail  — agent-to-agent communication + task dispatch
-   ├── flow     — plans, workflows, phased coordination
+   ├── flow     — plan lifecycle, templates, auto-archival
    ├── spawn    — creates new agents anywhere on your filesystem
-   ├── memory   — vector search across archived context
+   ├── memory   — automatic archival, ChromaDB, semantic search
    ├── backup   — versioned backups + Google Drive sync
    └── ...and 6 more specialists
 ```
@@ -185,7 +185,7 @@ You don't need to memorize this list. Start with `devpulse`, use `drone` to reac
 |-------|------|
 | [**drone**](src/aipass/drone/README.md) | Routes `drone @branch command` to the right agent |
 | [**ai_mail**](src/aipass/ai_mail/README.md) | Agent-to-agent messaging and task dispatch |
-| [**memory**](src/aipass/memory/README.md) | Long-term vector search across all agent knowledge |
+| [**memory**](src/aipass/memory/README.md) | Memory lifecycle — automatic archival, ChromaDB vectors, semantic search |
 | [**spawn**](src/aipass/spawn/README.md) | Creates new agents from templates |
 
 <details>
@@ -197,7 +197,7 @@ You don't need to memorize this list. Start with `devpulse`, use `drone` to reac
 |-------|------|
 | [**seedgo**](src/aipass/seedgo/README.md) | 33 automated quality standards, enforced across all agents |
 | [**prax**](src/aipass/prax/README.md) | Real-time monitoring, logs, dashboards |
-| [**flow**](src/aipass/flow/README.md) | Work plans, phased coordination |
+| [**flow**](src/aipass/flow/README.md) | Plan lifecycle — 6 template types, auto-archival, vector verification |
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
 
 **Support** — everything else:
@@ -239,7 +239,8 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | Quality standards | 33 automated checks |
 | Tests | 4,900+ (across all agents) |
 | PRs merged | 192+ (created by agents, reviewed by human) |
-| Development sessions | 78 |
+
+Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 
 For detailed session history, see [HERALD.md](HERALD.md).
 

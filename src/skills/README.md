@@ -5,7 +5,7 @@
 **Purpose:** Capability framework for AI agents in AIPass. Skills are discoverable, validatable, and executable units of capability that any AI agent can use.
 **Module:** `skills`
 **Created:** 2026-03-07
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-04-07
 
 ---
 
@@ -135,12 +135,12 @@ src/skills/
       validator.py         # Check skill requirements
     handlers/
       json/                # JSON handler (three-JSON pattern)
+      creator_handler.py   # Skill creation logic (name validation, orchestration)
       registry.py          # Skill registry management
       validator.py         # Check requirements
       template.py          # Skill templates
-    json_templates/        # JSON auto-creation templates
     plugins/               # Plugin extensions
-  catalog/                 # Built-in skills
+  catalog/                 # Built-in skills (branch_health, drone_commands, github, inbox_check, system_status)
   templates/               # Skill creation templates
   skills_json/             # JSON tracking directory
   dropbox/                 # External storage sync
@@ -163,7 +163,7 @@ src/skills/
 
 ---
 
-*Last Updated: 2026-03-28*
+*Last Updated: 2026-04-07*
 
 ---
 [← Back to AIPass](../../README.md)

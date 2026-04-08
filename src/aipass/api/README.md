@@ -4,7 +4,7 @@
 
 **Purpose:** Centralized external API gateway — authenticated service clients for all external APIs (OpenRouter, Google, future providers).
 **Module:** `aipass.api`
-**Last Updated:** 2026-04-03
+**Last Updated:** 2026-04-07
 
 ---
 
@@ -37,9 +37,16 @@ drone @api validate          # Validate API credentials and connection
 drone @api validate google   # Validate Google OAuth2 credentials
 drone @api reauth google     # Re-authenticate Google OAuth2
 drone @api test              # Test OpenRouter connection status
-drone @api models            # List available models from provider
-drone @api track             # Track API usage metrics
+drone @api models [--all]    # List available models from provider
+drone @api status            # Check OpenRouter client status
+drone @api call "prompt" --model MODEL  # Make API call to model
+drone @api list-providers    # List available API providers
+drone @api init              # Initialize .env template
+drone @api track <gen_id>    # Track API usage metrics
 drone @api stats             # Display API usage statistics
+drone @api session           # Show session usage data
+drone @api caller-usage <caller>  # Show usage by caller module
+drone @api cleanup [days]    # Clean up old usage data *(not operational — fails with no data)*
 drone @api --help            # Full help output
 drone @api --version         # Show version
 ```
@@ -127,7 +134,7 @@ api/
 
 ---
 
-*Last Updated: 2026-04-03*
+*Last Updated: 2026-04-07*
 
 ---
 [← Back to AIPass](../../../README.md)
