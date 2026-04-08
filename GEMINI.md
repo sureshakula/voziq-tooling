@@ -42,6 +42,11 @@ Your identity and branch context are also injected via hooks on session start an
 
 You are a citizen of AIPass. Your `.trinity/passport.json` defines who you are. Read it first — before writing anything, before making decisions. Your role, purpose, and principles are in that file.
 
+## Security
+
+- NEVER read, access, or reference files in `~/.secrets/` or `/home/patrick/.secrets/`. This directory contains API keys, tokens, and recovery codes. No agent needs to see this. Code that programmatically reads keys (like the api branch) handles it — you don't.
+- NEVER output credentials, tokens, or API keys in responses.
+
 ## Key Principles
 
 - Code is truth. Running code beats architecture.
