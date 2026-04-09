@@ -274,3 +274,106 @@ class TestTemplateStructure:
         """Old agent.template directory should not exist."""
         spawn_root = Path(__file__).parents[1]
         assert not (spawn_root / "templates" / "agent.template").exists()
+
+    def test_builder_template_has_claude_md(self):
+        """Builder template includes CLAUDE.md with startup protocol."""
+        from aipass.spawn.apps.handlers.class_registry import get_template_dir
+        builder = get_template_dir("builder")
+        claude_md = builder / "CLAUDE.md"
+        assert claude_md.exists(), "Builder template must include CLAUDE.md"
+        content = claude_md.read_text()
+        assert "{{BRANCHNAME}}" in content
+        assert "Startup" in content
+        assert ".trinity/passport.json" in content
+
+    def test_builder_template_has_local_prompt(self):
+        """Builder template includes non-empty local prompt."""
+        from aipass.spawn.apps.handlers.class_registry import get_template_dir
+        builder = get_template_dir("builder")
+        prompt = builder / ".aipass" / "aipass_local_prompt.md"
+        assert prompt.exists()
+        content = prompt.read_text()
+        assert len(content) > 100, "Local prompt should have substantial content"
+        assert "{{BRANCHNAME}}" in content
+
+
+# =============================================================================
+# AGENT SCAFFOLD CONTENT TESTS
+# =============================================================================
+
+class TestAgentScaffoldContent:
+    """Tests verifying created agents have useful content."""
+
+    def test_created_agent_has_claude_md(self, tmp_path):
+        """Created agent should have CLAUDE.md with branch name substituted."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+        target = tmp_path / "content_test"
+        _spawn_agent(str(target), role="Tester", purpose="Testing scaffold")
+
+        claude_md = target / "CLAUDE.md"
+        assert claude_md.exists()
+        content = claude_md.read_text()
+        assert "CONTENT_TEST" in content
+        assert "{{BRANCHNAME}}" not in content
+        assert ".trinity/passport.json" in content
+
+    def test_created_agent_local_prompt_has_content(self, tmp_path):
+        """Created agent's local prompt should reference branch identity."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+        target = tmp_path / "prompt_agent"
+        _spawn_agent(str(target), purpose="Testing prompt")
+
+        prompt = target / ".aipass" / "aipass_local_prompt.md"
+        assert prompt.exists()
+        content = prompt.read_text()
+        assert "PROMPT_AGENT" in content
+        assert len(content) > 100
+
+    def test_created_agent_claude_md_has_role(self, tmp_path):
+        """CLAUDE.md should include the agent's role if provided."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+        target = tmp_path / "role_test"
+        _spawn_agent(str(target), role="Data Analyst", purpose="Reports")
+
+        content = (target / "CLAUDE.md").read_text()
+        assert "Data Analyst" in content
+
+
+# =============================================================================
+# MULTI-AGENT COEXISTENCE TESTS
+# =============================================================================
+
+class TestMultiAgentCoexistence:
+    """Tests verifying multiple agents can coexist in the same registry."""
+
+    def test_two_agents_same_registry(self, tmp_path):
+        """Two agents created with the same registry both register."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        r1 = _spawn_agent(str(tmp_path / "agent_a"), registry_path=str(reg))
+        r2 = _spawn_agent(str(tmp_path / "agent_b"), registry_path=str(reg))
+
+        assert r1["success"] is True
+        assert r2["success"] is True
+
+        data = json.loads(reg.read_text())
+        names = [b["name"] for b in data["branches"]]
+        assert "AGENT_A" in names
+        assert "AGENT_B" in names
+        assert data["metadata"]["total_branches"] == 2
+
+    def test_three_agents_distinct_identities(self, tmp_path):
+        """Three agents in same registry have distinct passports."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        for name in ["alpha", "beta", "gamma"]:
+            _spawn_agent(str(tmp_path / name), registry_path=str(reg), purpose=f"{name} purpose")
+
+        for name in ["alpha", "beta", "gamma"]:
+            passport = json.loads((tmp_path / name / ".trinity" / "passport.json").read_text())
+            assert passport["branch_info"]["branch_name"] == name.upper()
+            assert passport["identity"]["citizen_class"] == "builder"

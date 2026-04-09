@@ -5,7 +5,6 @@ use tmp_path to stay fully isolated from the live filesystem.
 """
 
 import json
-import re
 import uuid
 from datetime import date
 from pathlib import Path
@@ -75,8 +74,8 @@ def test_sanitize_name_only_underscores():
 # ---------------------------------------------------------------------------
 
 
-def test_init_project_creates_all_six_files(tmp_path):
-    """init_project produces exactly the six expected files."""
+def test_init_project_creates_all_expected_files(tmp_path):
+    """init_project produces all expected files and directories."""
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -84,16 +83,27 @@ def test_init_project_creates_all_six_files(tmp_path):
 
     expected_files = [
         target / "DEMO_REGISTRY.json",
-        target / ".trinity" / "passport.json",
-        target / ".trinity" / "local.json",
-        target / ".trinity" / "observations.json",
+        target / ".aipass" / "aipass_global_prompt.md",
         target / ".aipass" / "aipass_local_prompt.md",
-        target / "AIPASS.md",
+        target / "CLAUDE.md",
+        target / "AGENTS.md",
+        target / "GEMINI.md",
+        target / "README.md",
+        target / "STATUS.local.md",
+        target / ".gitignore",
+        target / ".claude" / "settings.json",
     ]
     for f in expected_files:
         assert f.exists(), f"Expected file not created: {f}"
 
-    assert len(result["created_files"]) == 6
+    # hooks/ is a directory, not a file
+    assert (target / "hooks").is_dir(), "Expected hooks/ directory"
+
+    # No .trinity/ should be created (projects are not citizens)
+    assert not (target / ".trinity").exists(), ".trinity/ should NOT be created"
+
+    # 10 files + 1 directory = 11 created_files entries
+    assert len(result["created_files"]) == 11
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -146,38 +156,14 @@ def test_init_project_registry_json_contents(tmp_path):
     assert data["branches"] == []
 
 
-def test_init_project_passport_json_contents(tmp_path):
-    """passport.json has correct identity and citizenship fields."""
+def test_init_project_no_trinity_created(tmp_path):
+    """Projects are not citizens — no .trinity/ directory created."""
     target = tmp_path / "proj"
     target.mkdir()
 
-    result = init_project(target, project_name="gamma")
+    init_project(target, project_name="gamma")
 
-    passport_path = target / ".trinity" / "passport.json"
-    data = json.loads(passport_path.read_text(encoding="utf-8"))
-
-    assert data["document_metadata"]["document_type"] == "project_identity"
-    assert data["document_metadata"]["document_name"] == "GAMMA.PASSPORT"
-    assert data["document_metadata"]["version"] == "1.0.0"
-    assert re.match(r"^\d{4}-\d{2}-\d{2}$", data["document_metadata"]["created"])
-    assert data["identity"]["project_name"] == "GAMMA"
-    assert data["identity"]["role"] == "project_root"
-    assert data["citizenship"]["registered"] is True
-    assert data["citizenship"]["registry_id"] == result["registry_id"]
-    assert data["citizenship"]["registry_name"] == "GAMMA"
-
-
-def test_init_project_local_and_observations_are_empty_objects(tmp_path):
-    """local.json and observations.json are written as empty JSON objects."""
-    target = tmp_path / "proj"
-    target.mkdir()
-
-    init_project(target, project_name="delta")
-
-    for filename in ("local.json", "observations.json"):
-        path = target / ".trinity" / filename
-        content = path.read_text(encoding="utf-8")
-        assert content == "{}\n"
+    assert not (target / ".trinity").exists()
 
 
 def test_init_project_local_prompt_content(tmp_path):
@@ -193,41 +179,40 @@ def test_init_project_local_prompt_content(tmp_path):
     assert "Local Prompt" in content
 
 
-def test_init_project_aipass_md_content(tmp_path):
-    """AIPASS.md contains the standard project prompt boilerplate."""
+def test_init_project_claude_md_content(tmp_path):
+    """CLAUDE.md contains real AIPass project content."""
     target = tmp_path / "proj"
     target.mkdir()
 
     init_project(target, project_name="zeta")
 
-    md_path = target / "AIPASS.md"
+    md_path = target / "CLAUDE.md"
     content = md_path.read_text(encoding="utf-8")
-    assert "# AIPass" in content
-    assert "## Startup" in content
-    assert "## Memories" in content
-    assert ".trinity/passport.json" in content
+    assert "# ZETA" in content
+    assert "## What is AIPass" in content
+    assert "## Getting Started" in content
+    assert "## Available Commands" in content
+    assert "## Startup Protocol" in content
+    # Startup protocol reads registry, not .trinity/
+    startup_idx = content.index("## Startup Protocol")
+    startup_section = content[startup_idx:]
+    assert ".trinity/" not in startup_section
+    assert "aipass init agent" in content
+    assert "ZETA_REGISTRY.json" in content
 
 
-def test_init_project_raises_on_existing_passport(tmp_path):
-    """FileExistsError when .trinity/passport.json already exists."""
+def test_init_project_rerunnable_skips_existing_registry(tmp_path):
+    """Running init twice skips the existing registry and reuses its ID."""
     target = tmp_path / "proj"
     target.mkdir()
-    trinity = target / ".trinity"
-    trinity.mkdir()
-    (trinity / "passport.json").write_text("{}", encoding="utf-8")
 
-    with pytest.raises(FileExistsError, match="Passport already exists"):
-        init_project(target, project_name="dup")
+    result1 = init_project(target, project_name="dup")
+    result2 = init_project(target, project_name="dup")
 
-
-def test_init_project_raises_on_existing_registry(tmp_path):
-    """FileExistsError when the REGISTRY.json file already exists."""
-    target = tmp_path / "proj"
-    target.mkdir()
-    (target / "DUP_REGISTRY.json").write_text("{}", encoding="utf-8")
-
-    with pytest.raises(FileExistsError, match="Registry already exists"):
-        init_project(target, project_name="dup")
+    # Same registry ID reused
+    assert result1["registry_id"] == result2["registry_id"]
+    # Second run creates no new files (all already exist)
+    assert len(result2["created_files"]) == 0
 
 
 def test_init_project_raises_on_empty_name(tmp_path):
@@ -239,6 +224,84 @@ def test_init_project_raises_on_empty_name(tmp_path):
         init_project(target, project_name="!!!")
 
 
+def test_init_project_agents_md_content(tmp_path):
+    """AGENTS.md contains Codex-equivalent content."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    content = (target / "AGENTS.md").read_text(encoding="utf-8")
+    assert "# ALPHA" in content
+    assert "ALPHA_REGISTRY.json" in content
+    assert "aipass init agent" in content
+
+
+def test_init_project_gemini_md_content(tmp_path):
+    """GEMINI.md contains Gemini-equivalent content."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    content = (target / "GEMINI.md").read_text(encoding="utf-8")
+    assert "# ALPHA" in content
+    assert "ALPHA_REGISTRY.json" in content
+
+
+def test_init_project_gitignore_content(tmp_path):
+    """.gitignore contains standard AIPass patterns."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    content = (target / ".gitignore").read_text(encoding="utf-8")
+    assert ".trinity/" in content
+    assert ".ai_mail.local/" in content
+    assert "__pycache__/" in content
+    assert "logs/" in content
+
+
+def test_init_project_claude_settings_content(tmp_path):
+    """.claude/settings.json has valid hook configuration."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    settings_path = target / ".claude" / "settings.json"
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert "hooks" in data
+    assert "UserPromptSubmit" in data["hooks"]
+
+
+def test_init_project_global_prompt_content(tmp_path):
+    """Global prompt contains project name and AIPass terminology."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    content = (target / ".aipass" / "aipass_global_prompt.md").read_text(encoding="utf-8")
+    assert "# ALPHA" in content
+    assert "ALPHA_REGISTRY.json" in content
+    assert "## Commands" in content
+
+
+def test_init_project_readme_md_content(tmp_path):
+    """README.md contains getting started guide with project name."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    content = (target / "README.md").read_text(encoding="utf-8")
+    assert "# ALPHA" in content
+    assert "## Quick Start" in content
+    assert "aipass init agent" in content
+
+
 def test_init_project_auto_creates_target_dir(tmp_path):
     """Target directory is created (including parents) if it doesn't exist."""
     target = tmp_path / "deep" / "nested" / "proj"
@@ -248,7 +311,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) == 6
+    assert len(result["created_files"]) == 11
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -275,47 +338,48 @@ def test_init_project_custom_name_overrides_directory(tmp_path):
 
 
 def test_init_project_skips_existing_optional_files(tmp_path):
-    """local.json, observations.json, prompt, and AIPASS.md are not
-    overwritten if they already exist (only passport and registry guard
-    with errors)."""
+    """Optional files are not overwritten if they already exist.
+    Init is re-runnable — existing files are skipped."""
     target = tmp_path / "proj"
     target.mkdir()
 
-    # Pre-create the optional files
-    trinity = target / ".trinity"
-    trinity.mkdir()
-    (trinity / "local.json").write_text('{"existing": true}\n', encoding="utf-8")
-    (trinity / "observations.json").write_text(
-        '{"existing": true}\n', encoding="utf-8"
-    )
-
+    # Pre-create optional files
     aipass_dir = target / ".aipass"
     aipass_dir.mkdir()
+    (aipass_dir / "aipass_global_prompt.md").write_text(
+        "# Custom global\n", encoding="utf-8"
+    )
     (aipass_dir / "aipass_local_prompt.md").write_text(
         "# Custom prompt\n", encoding="utf-8"
     )
 
-    (target / "AIPASS.md").write_text("# Custom AIPASS\n", encoding="utf-8")
+    (target / "CLAUDE.md").write_text("# Custom CLAUDE\n", encoding="utf-8")
+    (target / "AGENTS.md").write_text("# Custom AGENTS\n", encoding="utf-8")
+    (target / "GEMINI.md").write_text("# Custom GEMINI\n", encoding="utf-8")
+    (target / "README.md").write_text("# Custom README\n", encoding="utf-8")
+    (target / "STATUS.local.md").write_text("# Custom status\n", encoding="utf-8")
+    (target / ".gitignore").write_text("# Custom\n", encoding="utf-8")
+
+    claude_dir = target / ".claude"
+    claude_dir.mkdir()
+    (claude_dir / "settings.json").write_text("{}\n", encoding="utf-8")
+
+    hooks_dir = target / "hooks"
+    hooks_dir.mkdir()
 
     result = init_project(target, project_name="eta")
 
-    # Only registry and passport should be in created_files
-    assert len(result["created_files"]) == 2
+    # Only registry should be in created_files (everything else pre-existed)
+    assert len(result["created_files"]) == 1
 
     # Verify pre-existing files were NOT overwritten
-    local_content = (trinity / "local.json").read_text(encoding="utf-8")
-    assert '"existing": true' in local_content
-
-    obs_content = (trinity / "observations.json").read_text(encoding="utf-8")
-    assert '"existing": true' in obs_content
-
     prompt_content = (aipass_dir / "aipass_local_prompt.md").read_text(
         encoding="utf-8"
     )
     assert prompt_content == "# Custom prompt\n"
 
-    md_content = (target / "AIPASS.md").read_text(encoding="utf-8")
-    assert md_content == "# Custom AIPASS\n"
+    md_content = (target / "CLAUDE.md").read_text(encoding="utf-8")
+    assert md_content == "# Custom CLAUDE\n"
 
 
 def test_init_project_returns_dict(tmp_path):
@@ -328,15 +392,13 @@ def test_init_project_returns_dict(tmp_path):
     assert isinstance(result, dict)
 
 
-def test_init_project_no_overwrite_local_json(tmp_path):
-    """Existing local.json content is preserved — no_overwrite contract."""
+def test_init_project_agents_md_no_trinity(tmp_path):
+    """AGENTS.md startup protocol references registry, not .trinity/."""
     target = tmp_path / "proj"
     target.mkdir()
-    trinity = target / ".trinity"
-    trinity.mkdir()
-    (trinity / "local.json").write_text('{"custom": true}\n', encoding="utf-8")
 
     init_project(target, project_name="keep")
 
-    content = (trinity / "local.json").read_text(encoding="utf-8")
-    assert '"custom": true' in content
+    content = (target / "AGENTS.md").read_text(encoding="utf-8")
+    assert ".trinity/" not in content
+    assert "KEEP_REGISTRY.json" in content

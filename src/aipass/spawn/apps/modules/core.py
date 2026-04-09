@@ -103,7 +103,11 @@ def handle_command(command: str, args: List[str]) -> bool:
                 kwargs["purpose"] = args[i + 1]
                 i += 2
             elif args[i] == "--template" and i + 1 < len(args):
-                kwargs["template_dir"] = args[i + 1]
+                template_val = args[i + 1]
+                if validate_class(template_val):
+                    kwargs["citizen_class"] = template_val
+                else:
+                    kwargs["template_dir"] = template_val
                 i += 2
             elif args[i] == "--registry" and i + 1 < len(args):
                 kwargs["registry_path"] = args[i + 1]

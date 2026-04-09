@@ -16,6 +16,7 @@ Run: drone @cli aipass
 """
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import List
@@ -49,6 +50,11 @@ def print_introspection():
         "init",
         "Bootstrap a new AIPass project",
         "drone @cli aipass init /path MyProject",
+    )
+    table.add_row(
+        "init agent",
+        "Create an agent in current project",
+        "drone @cli aipass init agent my_agent",
     )
 
     console.print(table)
@@ -86,6 +92,7 @@ def print_help():
     console.print("  [green]drone @cli aipass init[/green]                  [dim]Bootstrap in current directory[/dim]")
     console.print("  [green]drone @cli aipass init /path[/green]            [dim]Bootstrap in target directory[/dim]")
     console.print("  [green]drone @cli aipass init /path MyProj[/green]     [dim]Bootstrap with custom name[/dim]")
+    console.print("  [green]drone @cli aipass init agent <name>[/green]     [dim]Create an agent in current project[/dim]")
     console.print("  [green]drone @cli aipass --help[/green]                [dim]This help message[/dim]")
     console.print()
     console.print("─" * 70)
@@ -95,16 +102,19 @@ def print_help():
     console.print("[bold cyan]WHAT INIT CREATES:[/bold cyan]")
     console.print()
 
-    files_text = """[bold]Project scaffold (8 files):[/bold]
+    files_text = """[bold]Project scaffold (11 items):[/bold]
 
-  [green]1.[/green] [yellow]{NAME}_REGISTRY.json[/yellow]       Project registry with UUID
-  [green]2.[/green] [yellow].trinity/passport.json[/yellow]      Project identity (with registry_id)
-  [green]3.[/green] [yellow].trinity/local.json[/yellow]         Session history & learnings
-  [green]4.[/green] [yellow].trinity/observations.json[/yellow]  Collaboration patterns
-  [green]5.[/green] [yellow].aipass/aipass_local_prompt.md[/yellow]  Local prompt (injected every turn)
-  [green]6.[/green] [yellow]CLAUDE.md[/yellow]                   Project prompt (Claude Code reads this)
-  [green]7.[/green] [yellow]README.md[/yellow]                   Project readme
-  [green]8.[/green] [yellow]STATUS.local.md[/yellow]             Project status"""
+  [green]1.[/green]  [yellow]{NAME}_REGISTRY.json[/yellow]            Project registry with UUID
+  [green]2.[/green]  [yellow].aipass/aipass_global_prompt.md[/yellow]  Global prompt (injected every turn)
+  [green]3.[/green]  [yellow].aipass/aipass_local_prompt.md[/yellow]   Local prompt skeleton
+  [green]4.[/green]  [yellow]CLAUDE.md[/yellow]                       Project prompt (Claude Code)
+  [green]5.[/green]  [yellow]AGENTS.md[/yellow]                       Codex instructions
+  [green]6.[/green]  [yellow]GEMINI.md[/yellow]                       Gemini instructions
+  [green]7.[/green]  [yellow]README.md[/yellow]                       Getting started guide
+  [green]8.[/green]  [yellow]STATUS.local.md[/yellow]                 Project status
+  [green]9.[/green]  [yellow].gitignore[/yellow]                      Standard AIPass ignores
+  [green]10.[/green] [yellow].claude/settings.json[/yellow]           Claude Code hooks
+  [green]11.[/green] [yellow]hooks/[/yellow]                          User hooks directory"""
 
     console.print(Panel(files_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
     console.print()
@@ -185,6 +195,10 @@ def _handle_init(args: List[str]) -> bool:
         _print_init_help()
         return True
 
+    # Route 'init agent <name>' to spawn
+    if args and args[0] == "agent":
+        return _handle_init_agent(args[1:])
+
     # Parse positional args: [target_dir] [project_name]
     caller_cwd = os.environ.get("AIPASS_CALLER_CWD", os.getcwd())
     target = Path(args[0]) if args else Path(caller_cwd)
@@ -198,7 +212,7 @@ def _handle_init(args: List[str]) -> bool:
         sys.exit(1)
     except FileExistsError as exc:
         logger.warning("Init target already exists: %s", exc)
-        error(str(exc), suggestion="Remove the existing file to re-initialize")
+        error(str(exc))
         sys.exit(1)
     except OSError as exc:
         logger.error("Init filesystem error: %s", exc)
@@ -236,9 +250,57 @@ def _handle_init(args: List[str]) -> bool:
         "files_created": len(result["created_files"]),
     })
 
+    # Next steps
+    console.print()
+    console.print("[bold cyan]Next steps:[/bold cyan]")
+    console.print(f"  [green]1.[/green] Create your first agent:  [yellow]aipass init agent <name>[/yellow]")
+    console.print(f"  [green]2.[/green] Start a session:          [dim]cd <name>/ && claude[/dim]")
+    console.print(f"  [green]3.[/green] Read the docs:            [dim]cat README.md[/dim]")
     console.print()
 
     return True
+
+
+def _handle_init_agent(args: List[str]) -> bool:
+    """Handle 'aipass init agent <name>' — routes to drone @spawn create."""
+    if not args or args[0] in ("--help", "-h", "help"):
+        console.print()
+        header("aipass init agent — Create an Agent")
+        console.print("[dim]Creates a new agent inside the current project[/dim]")
+        console.print()
+        console.print("[bold cyan]Usage:[/bold cyan]")
+        console.print("  [green]aipass init agent <name>[/green]")
+        console.print("  [green]drone @cli aipass init agent <name>[/green]")
+        console.print()
+        console.print("[bold cyan]What it does:[/bold cyan]")
+        console.print("  Routes to [yellow]drone @spawn create <name>[/yellow]")
+        console.print("  Creates full agent scaffold (apps/, .trinity/, .ai_mail.local/)")
+        console.print("  Registers agent in the project registry")
+        console.print()
+        console.print("[dim]Commands: init agent, init agent --help[/dim]")
+        console.print()
+        return True
+
+    agent_name = args[0]
+    logger.info("Routing 'init agent %s' to drone @spawn create", agent_name)
+
+    try:
+        result = subprocess.run(
+            ["drone", "@spawn", "create", agent_name],
+            check=False,
+        )
+        if result.returncode != 0:
+            error(
+                f"Agent creation failed (exit {result.returncode})",
+                suggestion="Check drone @spawn create --help",
+            )
+        return True
+    except FileNotFoundError:
+        error(
+            "drone command not found",
+            suggestion="Ensure AIPass is installed and drone is in PATH",
+        )
+        return True
 
 
 def _print_init_help():
@@ -273,16 +335,19 @@ def _print_init_help():
     console.print("[bold cyan]WHAT IT CREATES:[/bold cyan]")
     console.print()
 
-    files_text = """[bold]Project scaffold (8 files):[/bold]
+    files_text = """[bold]Project scaffold (11 items):[/bold]
 
-  [green]1.[/green] [yellow]{NAME}_REGISTRY.json[/yellow]       Project registry with UUID
-  [green]2.[/green] [yellow].trinity/passport.json[/yellow]      Project identity (with registry_id)
-  [green]3.[/green] [yellow].trinity/local.json[/yellow]         Session history & learnings
-  [green]4.[/green] [yellow].trinity/observations.json[/yellow]  Collaboration patterns
-  [green]5.[/green] [yellow].aipass/aipass_local_prompt.md[/yellow]  Local prompt (injected every turn)
-  [green]6.[/green] [yellow]CLAUDE.md[/yellow]                   Project prompt (Claude Code reads this)
-  [green]7.[/green] [yellow]README.md[/yellow]                   Project readme
-  [green]8.[/green] [yellow]STATUS.local.md[/yellow]             Project status"""
+  [green]1.[/green]  [yellow]{NAME}_REGISTRY.json[/yellow]            Project registry with UUID
+  [green]2.[/green]  [yellow].aipass/aipass_global_prompt.md[/yellow]  Global prompt (injected every turn)
+  [green]3.[/green]  [yellow].aipass/aipass_local_prompt.md[/yellow]   Local prompt skeleton
+  [green]4.[/green]  [yellow]CLAUDE.md[/yellow]                       Project prompt (Claude Code)
+  [green]5.[/green]  [yellow]AGENTS.md[/yellow]                       Codex instructions
+  [green]6.[/green]  [yellow]GEMINI.md[/yellow]                       Gemini instructions
+  [green]7.[/green]  [yellow]README.md[/yellow]                       Getting started guide
+  [green]8.[/green]  [yellow]STATUS.local.md[/yellow]                 Project status
+  [green]9.[/green]  [yellow].gitignore[/yellow]                      Standard AIPass ignores
+  [green]10.[/green] [yellow].claude/settings.json[/yellow]           Claude Code hooks
+  [green]11.[/green] [yellow]hooks/[/yellow]                          User hooks directory"""
 
     console.print(Panel(files_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
     console.print()

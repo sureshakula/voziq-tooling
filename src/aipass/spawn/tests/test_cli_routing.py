@@ -138,6 +138,54 @@ class TestCreateDryRun:
         assert result == 1
 
 
+class TestTemplateFlag:
+    """Tests for --template flag as class selector."""
+
+    def test_template_flag_selects_class(self, tmp_path):
+        """--template birthright creates birthright-class agent."""
+        from aipass.spawn.apps.spawn import handle_create
+        target = str(tmp_path / "tmpl_test")
+        with patch("aipass.spawn.apps.spawn.console"), \
+             patch("aipass.spawn.apps.spawn.header"):
+            result = handle_create([target, "--template", "birthright"])
+        assert result == 0
+        # Birthright class: has .trinity but no apps/
+        assert (tmp_path / "tmpl_test" / ".trinity").exists()
+        assert not (tmp_path / "tmpl_test" / "apps").exists()
+
+    def test_template_flag_overrides_positional_class(self, tmp_path):
+        """--template overrides positional class arg."""
+        from aipass.spawn.apps.spawn import handle_create
+        target = str(tmp_path / "override_test")
+        # Positional says builder, flag says birthright
+        with patch("aipass.spawn.apps.spawn.console"), \
+             patch("aipass.spawn.apps.spawn.header"):
+            result = handle_create(["builder", target, "--template", "birthright"])
+        assert result == 0
+        # --template wins: birthright has no apps/
+        assert not (tmp_path / "override_test" / "apps").exists()
+
+    def test_template_flag_unknown_treated_as_path(self, tmp_path):
+        """--template with unknown value is treated as path (backward compat)."""
+        from aipass.spawn.apps.spawn import handle_create
+        target = str(tmp_path / "path_test")
+        with patch("aipass.spawn.apps.spawn.console"), \
+             patch("aipass.spawn.apps.spawn.error") as mock_error:
+            result = handle_create([target, "--template", "/nonexistent/path"])
+        assert result == 1
+        mock_error.assert_called_once()
+
+    def test_template_flag_dry_run(self, tmp_path):
+        """--template works with --dry-run."""
+        from aipass.spawn.apps.spawn import handle_create
+        target = str(tmp_path / "drytest")
+        with patch("aipass.spawn.apps.spawn.console"), \
+             patch("aipass.spawn.apps.spawn.header"):
+            result = handle_create([target, "--template", "birthright", "--dry-run"])
+        assert result == 0
+        assert not (tmp_path / "drytest").exists()
+
+
 class TestPassportHelp:
     """Tests for passport --help interception."""
 

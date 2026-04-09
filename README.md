@@ -48,20 +48,23 @@ AIPass is a local CLI framework that gives your AI agents **identity, memory, an
 Your AI reads `.trinity/` on startup and writes back what it learned before the session ends. That's the whole memory model — JSON files your AI can read and write. Next session, it picks up where it left off. No database, no API, no setup beyond one command.
 
 ```bash
-aipass init ~/Projects/my-saas-app 
+mkdir my-project && cd my-project
+aipass init
 ```
 
 Your project gets its own registry, its own identity, and persistent memory. Each project is isolated — its own agents, its own rules. No cross-contamination between projects.
 
-**Add teammates when you need them:**
+**Add agents when you need them:**
 
-When one agent isn't enough, use `spawn` to create specialists with the same infrastructure AIPass runs on — communication, monitoring, standards, the whole scaffold.
+```bash
+aipass init agent my-agent            # Full agent: apps, mail, memory, identity
+```
 
-| Start here | What to use | What you get |
-|------------|-------------|-------------|
-| One persistent agent | `aipass init` | Registry, passport, memory files, local prompt |
-| A lightweight specialist | `spawn passport` | Identity + rich memory (no apps scaffold) |
-| A full specialist | `spawn create` | All of the above + apps scaffold, mail, dashboard, tests |
+| What you need | Command | What you get |
+|---------------|---------|-------------|
+| A new project | `aipass init` | Registry, project identity, prompts, hooks, docs |
+| A full agent | `aipass init agent <name>` | Apps scaffold, mailbox, memory, identity — registered in project |
+| A lightweight agent | `drone @spawn create <name> --template birthright` | Identity + memory only (no apps scaffold) |
 
 **What makes this different:**
 
@@ -77,45 +80,36 @@ When one agent isn't enough, use `spawn` to create specialists with the same inf
 
 ## Quick Start
 
+### Start your own project
+
 ```bash
-pip install aipass                    # Install the package
+pip install aipass
+
+mkdir my-project && cd my-project
+aipass init                           # Creates project: registry, prompts, hooks, docs
+aipass init agent my-agent            # Creates your first agent inside the project
+cd my-agent
+claude                                # Or: codex, gemini — your agent reads its memory and is ready
 ```
 
-Or clone the full framework with all 15 agents:
+That's it. Your agent has identity, memory, a mailbox, and knows what AIPass is. Say "hi" — it picks up where it left off. Come back tomorrow, it remembers.
+
+### Explore the full framework
+
+Clone the repo to see all 15 agents working together — the reference implementation:
 
 ```bash
 git clone https://github.com/AIOSAI/AIPass.git
 cd AIPass
-./setup.sh        # Creates venv, installs, bootstraps 15 agents
-drone systems     # See all agents
-```
+./setup.sh                            # Creates venv, installs, bootstraps 15 agents
+drone systems                         # See all agents
 
-Then start working:
-
-```bash
 cd src/aipass/devpulse
-claude                # devpulse reads its memory, knows who it is, picks up where it left off
+claude                                # Talk to the orchestrator
 ```
-
-Say "hi." Here's what that looks like:
-
-```
-You:      hi
-devpulse: Hey. Picking up where we left off.
-
-          Status:
-          - Branch: main, up to date
-          - Inbox: 1 email from drone — routing fix applied
-          - Git: 3 files modified, not committed
-          - Dropbox: 1 item from @api
-
-          Ready when you are.
-```
-
-Come back tomorrow — it remembers.
 
 ```bash
-# More things you can do:
+# Things you can do:
 drone @seedgo audit aipass              # Run 33 quality checks across all agents
 drone @flow create . "Add user auth"    # Create a work plan
 drone systems                           # List every agent and what it does

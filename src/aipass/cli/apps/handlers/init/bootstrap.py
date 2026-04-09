@@ -1,23 +1,29 @@
 # =================== AIPass ====================
 # Name: bootstrap.py
 # Description: Init handler — bootstrap an AIPass project in any directory
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-03-14
-# Modified: 2026-03-14
+# Modified: 2026-04-08
 # =============================================
 
 """
 Init Bootstrap Handler - PRIVATE implementation
 
 Business logic for `aipass init`. Creates the project scaffold:
-  1. {NAME}_REGISTRY.json       — project registry with UUID
-  2. .trinity/passport.json     — project identity
-  3. .trinity/local.json        — session history (full schema)
-  4. .trinity/observations.json — collaboration patterns (full schema)
-  5. .aipass/aipass_local_prompt.md — local prompt
-  6. CLAUDE.md                  — project prompt (Claude Code reads this)
-  7. README.md                  — project readme
-  8. STATUS.local.md            — project status
+   1. {NAME}_REGISTRY.json            — project registry with UUID
+   2. .aipass/aipass_global_prompt.md  — global prompt (injected every turn)
+   3. .aipass/aipass_local_prompt.md   — local prompt skeleton
+   4. CLAUDE.md                       — project prompt (Claude Code reads this)
+   5. AGENTS.md                       — Codex equivalent of CLAUDE.md
+   6. GEMINI.md                       — Gemini equivalent of CLAUDE.md
+   7. README.md                       — getting started guide
+   8. STATUS.local.md                 — project status
+   9. .gitignore                      — standard AIPass ignores
+  10. .claude/settings.json           — Claude Code hooks configuration
+  11. hooks/                          — directory for user hooks
+
+Projects are NOT citizens — no .trinity/ directory. Identity lives in the
+registry JSON. Init is re-runnable: existing files are skipped, not errors.
 
 RULES:
   - Pure Python only (no module/prax/cli imports)
@@ -41,6 +47,311 @@ def _sanitize_name(raw: str) -> str:
     return re.sub(r"[^A-Z0-9_-]", "_", raw.upper()).strip("_")
 
 
+# ---------------------------------------------------------------------------
+# Template content generators
+# ---------------------------------------------------------------------------
+
+
+def _claude_md(name: str) -> str:
+    """Generate CLAUDE.md content — Claude Code reads this on startup."""
+    return (
+        f"# {name}\n"
+        "\n"
+        "**User:** (your name here)\n"
+        "\n"
+        "## What is AIPass\n"
+        "\n"
+        "AIPass is a multi-agent framework. This project was created with `aipass init`.\n"
+        "\n"
+        "**Key concepts:**\n"
+        "- **Project** — this directory. Contains a registry and one or more agents.\n"
+        "- **Agent** — a citizen that lives inside the project. Has identity (`.trinity/`), "
+        "memory, mailbox, and its own apps/ directory.\n"
+        f"- **Registry** — `{name}_REGISTRY.json` tracks all agents in this project.\n"
+        "\n"
+        "## Getting Started\n"
+        "\n"
+        "Create your first agent:\n"
+        "```\n"
+        "aipass init agent <name>\n"
+        "```\n"
+        "\n"
+        "This creates a full agent scaffold (`apps/`, `.trinity/`, `.ai_mail.local/`) "
+        "and registers it in your project registry.\n"
+        "\n"
+        "## Available Commands\n"
+        "\n"
+        "```\n"
+        "aipass init agent <name>           # Create a new agent\n"
+        "drone @spawn create <name>         # Create agent (alternative)\n"
+        "drone @seedgo audit <project>      # Run standards audit\n"
+        "drone @ai_mail inbox               # Check mailbox (per-agent)\n"
+        "drone systems                      # List all available infrastructure\n"
+        "```\n"
+        "\n"
+        "## Startup Protocol\n"
+        "\n"
+        "On any greeting, silently read these files — no narration, just do it "
+        "and respond with the status.\n"
+        "\n"
+        f"**Read:** `{name}_REGISTRY.json`, `README.md`, `STATUS.local.md`\n"
+        "**Run:** `git status`\n"
+        "\n"
+        "Then check the registry for agents and report status.\n"
+    )
+
+
+def _agents_md(name: str) -> str:
+    """Generate AGENTS.md content — Codex equivalent of CLAUDE.md."""
+    return (
+        f"# {name} — Agent Instructions\n"
+        "\n"
+        "This project uses AIPass, a multi-agent framework.\n"
+        "\n"
+        "## Key Concepts\n"
+        "\n"
+        "- **Project** — this directory. Contains a registry and one or more agents.\n"
+        "- **Agent** — a citizen that lives inside the project with its own identity, "
+        "memory, and code.\n"
+        f"- **Registry** — `{name}_REGISTRY.json` tracks all agents.\n"
+        "\n"
+        "## Getting Started\n"
+        "\n"
+        "Create your first agent:\n"
+        "```\n"
+        "aipass init agent <name>\n"
+        "```\n"
+        "\n"
+        "## Available Commands\n"
+        "\n"
+        "```\n"
+        "aipass init agent <name>           # Create a new agent\n"
+        "drone @spawn create <name>         # Create agent (alternative)\n"
+        "drone @seedgo audit <project>      # Run standards audit\n"
+        "drone systems                      # List all infrastructure\n"
+        "```\n"
+        "\n"
+        "## Startup\n"
+        "\n"
+        f"On startup, read: `{name}_REGISTRY.json`, `README.md`, `STATUS.local.md`\n"
+    )
+
+
+def _gemini_md(name: str) -> str:
+    """Generate GEMINI.md content — Gemini equivalent of CLAUDE.md."""
+    return (
+        f"# {name} — Project Instructions\n"
+        "\n"
+        "This project uses AIPass, a multi-agent framework.\n"
+        "\n"
+        "## Key Concepts\n"
+        "\n"
+        "- **Project** — this directory. Contains a registry and one or more agents.\n"
+        "- **Agent** — a citizen that lives inside the project with its own identity, "
+        "memory, and code.\n"
+        f"- **Registry** — `{name}_REGISTRY.json` tracks all agents.\n"
+        "\n"
+        "## Getting Started\n"
+        "\n"
+        "Create your first agent: `aipass init agent <name>`\n"
+        "\n"
+        "## Available Commands\n"
+        "\n"
+        "```\n"
+        "aipass init agent <name>           # Create a new agent\n"
+        "drone @spawn create <name>         # Create agent (alternative)\n"
+        "drone @seedgo audit <project>      # Run standards audit\n"
+        "drone systems                      # List all infrastructure\n"
+        "```\n"
+        "\n"
+        "## Startup\n"
+        "\n"
+        f"On startup, read: `{name}_REGISTRY.json`, `README.md`, `STATUS.local.md`\n"
+    )
+
+
+def _readme_md(name: str) -> str:
+    """Generate README.md content — real getting started guide."""
+    return (
+        f"# {name}\n"
+        "\n"
+        "An AIPass project.\n"
+        "\n"
+        "## Quick Start\n"
+        "\n"
+        "```bash\n"
+        "# 1. Create your first agent\n"
+        "aipass init agent my_agent\n"
+        "\n"
+        "# 2. Start a session\n"
+        "cd my_agent/\n"
+        "claude  # or your preferred AI CLI\n"
+        "\n"
+        "# 3. Check project status\n"
+        "cat STATUS.local.md\n"
+        "```\n"
+        "\n"
+        "## Project Structure\n"
+        "\n"
+        "```\n"
+        f"{name.lower()}/\n"
+        f"  {name}_REGISTRY.json    # Agent registry\n"
+        "  .aipass/                 # Prompts (injected per-turn)\n"
+        "  CLAUDE.md               # Claude Code instructions\n"
+        "  AGENTS.md               # Codex instructions\n"
+        "  GEMINI.md               # Gemini instructions\n"
+        "  STATUS.local.md         # Project status\n"
+        "  <agent_name>/           # Agent directories (created via aipass init agent)\n"
+        "```\n"
+        "\n"
+        "## What is AIPass?\n"
+        "\n"
+        "AIPass is a multi-agent framework where autonomous agents (citizens) "
+        "live in directories with persistent identity, memory, and communication.\n"
+        "\n"
+        "Each agent has:\n"
+        "- **Identity** — `.trinity/passport.json`\n"
+        "- **Memory** — `.trinity/local.json`, `observations.json`\n"
+        "- **Mailbox** — `.ai_mail.local/`\n"
+        "- **Code** — `apps/` with modules and handlers\n"
+        "\n"
+        "## Commands\n"
+        "\n"
+        "| Command | Description |\n"
+        "|---------|-------------|\n"
+        "| `aipass init agent <name>` | Create a new agent |\n"
+        "| `drone @spawn create <name>` | Create agent (alternative) |\n"
+        "| `drone @seedgo audit <project>` | Run standards audit |\n"
+        "| `drone @ai_mail inbox` | Check agent mailbox |\n"
+        "| `drone systems` | List infrastructure |\n"
+        "\n"
+        f"*Initialized with [AIPass](https://github.com/AIOSAI/AIPass) on "
+        f"{{date}}*\n"
+    )
+
+
+def _global_prompt_md(name: str) -> str:
+    """Generate .aipass/aipass_global_prompt.md — injected every turn."""
+    return (
+        f"# {name} — Project Context\n"
+        "<!-- Injected every turn via hook. -->\n"
+        "\n"
+        "## Terminology\n"
+        "\n"
+        "- **Project** — this directory. Contains a registry and agents.\n"
+        "- **Agent** — a citizen with identity (`.trinity/`), memory, mailbox, "
+        "and code (`apps/`).\n"
+        f"- **Registry** — `{name}_REGISTRY.json` tracks all agents.\n"
+        "\n"
+        "## Commands\n"
+        "\n"
+        "```\n"
+        "aipass init agent <name>           # Create a new agent\n"
+        "drone @spawn create <name>         # Create agent (alternative)\n"
+        "drone @seedgo audit <project>      # Standards audit\n"
+        "drone @ai_mail inbox               # Check mailbox\n"
+        "drone @flow create . \"Subject\"     # Create a plan\n"
+        "drone systems                      # List infrastructure\n"
+        "```\n"
+        "\n"
+        "## Patterns\n"
+        "\n"
+        "- **Communication** — agents communicate via `.ai_mail.local/`.\n"
+        "- **Standards** — run `drone @seedgo audit` to check compliance.\n"
+        "- **Identity** — agents have `.trinity/passport.json`. "
+        "Projects use the registry.\n"
+    )
+
+
+def _local_prompt_md(name: str) -> str:
+    """Generate .aipass/aipass_local_prompt.md — starter skeleton."""
+    return (
+        f"# {name} — Local Prompt\n"
+        "<!-- Injected every turn. Customize for your project. -->\n"
+        "\n"
+        "## Project Identity\n"
+        "\n"
+        f"- **Name:** {name}\n"
+        "- **Purpose:** (describe your project)\n"
+        "- **Status:** New\n"
+        "\n"
+        "## How You Work\n"
+        "\n"
+        "- Read the registry and STATUS.local.md on startup for context\n"
+        "- Check the registry for active agents\n"
+        "\n"
+        "## Key Files\n"
+        "\n"
+        f"- `{name}_REGISTRY.json` — agent registry\n"
+        "- `STATUS.local.md` — current status\n"
+    )
+
+
+def _gitignore() -> str:
+    """Generate .gitignore content — standard AIPass ignores."""
+    return (
+        "# AIPass local state\n"
+        ".trinity/\n"
+        ".ai_mail.local/\n"
+        "*.local.*\n"
+        "\n"
+        "# Plans (local working docs)\n"
+        "DPLAN-*\n"
+        "FPLAN-*\n"
+        "APLAN-*\n"
+        "TDPLAN-*\n"
+        "\n"
+        "# Logs\n"
+        "logs/\n"
+        "\n"
+        "# Python\n"
+        "__pycache__/\n"
+        "*.py[cod]\n"
+        "*.egg-info/\n"
+        "dist/\n"
+        "build/\n"
+        ".venv/\n"
+        "venv/\n"
+        "\n"
+        "# IDE\n"
+        ".vscode/\n"
+        ".idea/\n"
+        "\n"
+        "# OS\n"
+        ".DS_Store\n"
+        "Thumbs.db\n"
+        "\n"
+        "# Archives\n"
+        ".archive/\n"
+        "\n"
+        "# Disabled files\n"
+        "*(disabled)*\n"
+    )
+
+
+def _claude_settings() -> str:
+    """Generate .claude/settings.json — minimal hooks for prompt injection."""
+    return json.dumps(
+        {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {
+                        "matcher": "",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "cat .aipass/aipass_global_prompt.md 2>/dev/null || true",
+                            }
+                        ],
+                    }
+                ]
+            }
+        },
+        indent=2,
+        ensure_ascii=False,
+    ) + "\n"
+
+
 def init_project(target: Path, project_name: str | None = None) -> dict:
     """Initialize an AIPass project in the target directory.
 
@@ -53,7 +364,6 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
 
     Raises:
         ValueError: If project name is empty after sanitization
-        FileExistsError: If passport or registry already exists
     """
     target = target.resolve()
     if not target.exists():
@@ -71,185 +381,74 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     today = date.today().isoformat()
     created = []
 
-    # 1. Registry
+    # 1. Registry (skip if exists — init is re-runnable)
     registry_filename = f"{name}_REGISTRY.json"
     registry_path = target / registry_filename
     if registry_path.exists():
-        raise FileExistsError(f"Registry already exists: {registry_path}")
-
-    registry_data = {
-        "metadata": {
-            "id": registry_id,
-            "name": name,
-            "version": "1.0.0",
-            "created": today,
-            "last_updated": today,
-            "total_branches": 0,
-        },
-        "branches": [],
-    }
-    registry_path.write_text(
-        json.dumps(registry_data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    created.append(str(registry_path))
-
-    # 2. .trinity/
-    trinity_dir = target / ".trinity"
-    trinity_dir.mkdir(exist_ok=True)
-
-    passport = {
-        "document_metadata": {
-            "document_type": "project_identity",
-            "document_name": f"{name}.PASSPORT",
-            "version": "1.0.0",
-            "created": today,
-            "last_updated": today,
-        },
-        "identity": {
-            "project_name": name,
-            "role": "project_root",
-            "purpose": "",
-        },
-        "citizenship": {
-            "registered": True,
-            "registry_id": registry_id,
-            "registry_name": name,
-        },
-    }
-    passport_path = trinity_dir / "passport.json"
-    if passport_path.exists():
-        raise FileExistsError(
-            f"Passport already exists: {passport_path}. "
-            "Remove .trinity/passport.json to re-initialize."
-        )
-    passport_path.write_text(
-        json.dumps(passport, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    created.append(str(passport_path))
-
-    # local.json — session history with full schema
-    local_path = trinity_dir / "local.json"
-    if not local_path.exists():
-        local_data = {
-            "document_metadata": {
-                "document_type": "session_history",
-                "document_name": f"{name}.LOCAL",
+        # Read existing registry to get its ID
+        existing = json.loads(registry_path.read_text(encoding="utf-8"))
+        registry_id = existing["metadata"]["id"]
+    else:
+        registry_data = {
+            "metadata": {
+                "id": registry_id,
+                "name": name,
                 "version": "1.0.0",
-                "schema_version": "1.0.0",
                 "created": today,
                 "last_updated": today,
-                "managed_by": name.lower(),
-                "tags": ["session_tracking", "work_log"],
-                "limits": {
-                    "max_sessions": 20,
-                    "max_key_learnings": 25,
-                    "session_summary_max_chars": 150,
-                    "learning_value_max_chars": 200,
-                    "note": "Auto-rollover when max_lines exceeded",
-                    "max_lines": 600,
-                },
-                "status": {
-                    "health": "healthy",
-                    "last_health_check": today,
-                    "current_lines": 0,
-                },
+                "total_branches": 0,
             },
-            "key_learnings": {},
-            "sessions": [],
-            "active_tasks": {
-                "today_focus": today,
-                "recently_completed": [],
-            },
+            "branches": [],
         }
-        local_path.write_text(
-            json.dumps(local_data, indent=2, ensure_ascii=False) + "\n",
+        registry_path.write_text(
+            json.dumps(registry_data, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
-        created.append(str(local_path))
+        created.append(str(registry_path))
 
-    # observations.json — collaboration patterns with full schema
-    obs_path = trinity_dir / "observations.json"
-    if not obs_path.exists():
-        obs_data = {
-            "document_metadata": {
-                "document_type": "collaboration_patterns",
-                "document_name": f"{name}.OBSERVATIONS",
-                "version": "1.0.0",
-                "schema_version": "1.0.0",
-                "created": today,
-                "last_updated": today,
-                "managed_by": name.lower(),
-                "tags": ["collaboration", "patterns"],
-                "limits": {
-                    "max_lines": 600,
-                    "note": "Auto-rollover when max_lines exceeded",
-                },
-                "status": {
-                    "health": "healthy",
-                    "current_lines": 0,
-                    "last_health_check": today,
-                },
-            },
-            "guidelines": {
-                "purpose": "Capture collaboration patterns and experiential insights over time",
-                "chronological_order": "Newest entries at TOP, oldest at BOTTOM - NEVER reorder",
-            },
-            "observations": [],
-        }
-        obs_path.write_text(
-            json.dumps(obs_data, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
-        created.append(str(obs_path))
-
-    # 3. .aipass/
+    # 2. .aipass/
     aipass_dir = target / ".aipass"
     aipass_dir.mkdir(exist_ok=True)
 
+    global_prompt_path = aipass_dir / "aipass_global_prompt.md"
+    if not global_prompt_path.exists():
+        global_prompt_path.write_text(_global_prompt_md(name), encoding="utf-8")
+        created.append(str(global_prompt_path))
+
     prompt_path = aipass_dir / "aipass_local_prompt.md"
     if not prompt_path.exists():
-        prompt_path.write_text(
-            f"# {name} — Local Prompt\n\nInjected every turn. Add project-specific context here.\n",
-            encoding="utf-8",
-        )
+        prompt_path.write_text(_local_prompt_md(name), encoding="utf-8")
         created.append(str(prompt_path))
 
-    # 4. CLAUDE.md (project prompt — Claude Code reads this by default)
-    claude_md = target / "CLAUDE.md"
-    if not claude_md.exists():
-        claude_md.write_text(
-            f"# {name}\n\n"
-            "**User:** Name\n\n"
-            "## Startup\n\n"
-            "On any greeting, silently read these files from CWD and run the commands "
-            "— no narration, no announcing steps. Just do it and respond with the status.\n\n"
-            "**Read:** `.trinity/passport.json`, `.trinity/local.json`, "
-            "`.trinity/observations.json`, `README.md`, `STATUS.local.md`\n"
-            "**Run:** `git status`\n\n"
-            "## Memories\n\n"
-            "Update `.trinity/` at natural breakpoints, after milestones, and on `/memo`. "
-            "If compaction hits before you save, it's gone.\n",
-            encoding="utf-8",
-        )
-        created.append(str(claude_md))
+    # 3. CLAUDE.md
+    claude_md_path = target / "CLAUDE.md"
+    if not claude_md_path.exists():
+        claude_md_path.write_text(_claude_md(name), encoding="utf-8")
+        created.append(str(claude_md_path))
 
-    # 5. README.md
-    readme_md = target / "README.md"
-    if not readme_md.exists():
-        readme_md.write_text(
-            f"# {name}\n\n"
-            "## Getting Started\n\n"
-            "This project was initialized with `aipass init`.\n",
-            encoding="utf-8",
-        )
-        created.append(str(readme_md))
+    # 4. AGENTS.md (Codex)
+    agents_md_path = target / "AGENTS.md"
+    if not agents_md_path.exists():
+        agents_md_path.write_text(_agents_md(name), encoding="utf-8")
+        created.append(str(agents_md_path))
 
-    # 6. STATUS.local.md
-    status_md = target / "STATUS.local.md"
-    if not status_md.exists():
-        status_md.write_text(
+    # 5. GEMINI.md
+    gemini_md_path = target / "GEMINI.md"
+    if not gemini_md_path.exists():
+        gemini_md_path.write_text(_gemini_md(name), encoding="utf-8")
+        created.append(str(gemini_md_path))
+
+    # 6. README.md
+    readme_md_path = target / "README.md"
+    if not readme_md_path.exists():
+        readme_content = _readme_md(name).replace("{date}", today)
+        readme_md_path.write_text(readme_content, encoding="utf-8")
+        created.append(str(readme_md_path))
+
+    # 7. STATUS.local.md
+    status_md_path = target / "STATUS.local.md"
+    if not status_md_path.exists():
+        status_md_path.write_text(
             f"# {name}\n\n"
             "**State:** New\n"
             f"**Last update:** {today}\n\n"
@@ -258,7 +457,28 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
             "- None\n",
             encoding="utf-8",
         )
-        created.append(str(status_md))
+        created.append(str(status_md_path))
+
+    # 8. .gitignore
+    gitignore_path = target / ".gitignore"
+    if not gitignore_path.exists():
+        gitignore_path.write_text(_gitignore(), encoding="utf-8")
+        created.append(str(gitignore_path))
+
+    # 9. .claude/settings.json
+    claude_dir = target / ".claude"
+    claude_dir.mkdir(exist_ok=True)
+
+    settings_path = claude_dir / "settings.json"
+    if not settings_path.exists():
+        settings_path.write_text(_claude_settings(), encoding="utf-8")
+        created.append(str(settings_path))
+
+    # 10. hooks/ directory
+    hooks_dir = target / "hooks"
+    if not hooks_dir.exists():
+        hooks_dir.mkdir()
+        created.append(str(hooks_dir))
 
     return {
         "registry_id": registry_id,

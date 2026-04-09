@@ -9,6 +9,11 @@
       "entry_point": "aipass.cli.apps.cli",
       "description": "Universal Display & Output Service Provider",
       "version": "2.0.0"
+    },
+    "spawn": {
+      "entry_point": "aipass.spawn.apps.spawn",
+      "description": "Branch lifecycle — create, register, scaffold citizens",
+      "version": "1.0.0"
     }
   }
 }

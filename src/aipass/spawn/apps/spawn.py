@@ -55,7 +55,7 @@ def print_help():
     warning("--role", details="Agent role description")
     warning("--traits", details="Agent personality traits")
     warning("--purpose", details="Agent purpose (brief)")
-    warning("--template", details="Custom template directory")
+    warning("--template", details="Template class name (builder, birthright) or custom directory path")
     warning("--registry", details="Path to AIPASS_REGISTRY.json")
     warning("--dry-run", details="Preview changes without modifying files")
     warning("--trace", details="Enable verbose logging")
@@ -100,6 +100,12 @@ def handle_create(args):
 
     parsed = parser.parse_args(remaining_args)
 
+    # --template can be a class name (e.g. "builder") or a raw path
+    template_dir = parsed.template
+    if parsed.template and validate_class(parsed.template):
+        citizen_class = parsed.template
+        template_dir = None
+
     if dry_run:
         return _dry_run_create(parsed.target_path, citizen_class, parsed)
 
@@ -108,7 +114,7 @@ def handle_create(args):
         role=parsed.role,
         traits=parsed.traits,
         purpose=parsed.purpose,
-        template_dir=parsed.template,
+        template_dir=template_dir,
         registry_path=parsed.registry,
         citizen_class=citizen_class,
     )
