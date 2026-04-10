@@ -97,6 +97,7 @@ except ImportError:
 _branch_log_observer: Any = None
 _active_watcher: Any = None  # Reference to BranchLogWatcher for position persistence
 _seen_error_hashes: Set[str] = set()
+_fallback_error_counts: Dict[str, int] = {}  # Local count per hash when registry unavailable
 MAX_SEEN_HASHES = 2000  # Limit memory usage
 
 # Explicit mapping of system_logs filenames to their owning branch.
@@ -551,11 +552,43 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                         branch, module, e
                     )
 
-            # Fallback path: Medic v1 hash-based dedup
+            # Fallback path: retry lazy import of registry, else track count locally
             error_hash = _generate_error_hash(module, message)
 
-            if _is_duplicate_error(error_hash):
+            # Retry registry import — may have failed at module load but be available now
+            try:
+                from aipass.trigger.apps.handlers.error_registry import report as _lazy_report
+                result = _lazy_report(
+                    error_type=parsed['level'],
+                    message=message,
+                    component=branch,
+                    log_path=log_path,
+                    severity='medium'
+                )
+                error_count = result.get('count', 1)
+                if not result.get('is_new', False) and error_count != 2:
+                    return
+                if _fire_event is not None:
+                    _fire_event(
+                        'error_detected',
+                        branch=branch, module=module, message=message,
+                        log_path=log_path,
+                        error_hash=result.get('id', error_hash),
+                        timestamp=parsed['timestamp'],
+                        fingerprint=result.get('fingerprint', ''),
+                        registry_id=result.get('id', ''),
+                        first_seen=result.get('first_seen', ''),
+                        last_seen=result.get('last_seen', ''),
+                        count=error_count,
+                    )
+                    json_handler.log_operation("error_detected_in_log", {"branch": branch, "log_path": log_path})
                 return
+            except Exception:
+                pass
+
+            # Registry truly unavailable — track count locally, fire with count
+            _fallback_error_counts[error_hash] = _fallback_error_counts.get(error_hash, 0) + 1
+            local_count = _fallback_error_counts[error_hash]
 
             if _fire_event is not None:
                 _fire_event(
@@ -565,7 +598,8 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                     message=message,
                     log_path=log_path,
                     error_hash=error_hash,
-                    timestamp=parsed['timestamp']
+                    timestamp=parsed['timestamp'],
+                    count=local_count,
                 )
                 json_handler.log_operation("error_detected_in_log", {"branch": branch, "log_path": log_path})
             else:
