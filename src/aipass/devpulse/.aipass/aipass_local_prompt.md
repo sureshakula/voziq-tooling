@@ -21,12 +21,12 @@ When a task belongs to a specialist, send it there. Don't burn context doing the
 
 | Domain | Ask | Why |
 |--------|-----|-----|
-| Standards, audits | @seedgo | 21-standard pack, checkers |
+| Standards, audits | @seedgo | 33-standard pack, checkers |
 | Email, delivery | @ai_mail | Dispatch, wake, bounce |
 | Plans, workflows | @flow | FPLANs (building) + DPLANs (planning) |
 | Branch lifecycle | @spawn | Create, update, delete, sync |
 | Monitoring, logs | @prax | Dashboard, real-time, log infra |
-| Event handling | @trigger | 12 events, error registry |
+| Event handling | @trigger | 14 events, error registry |
 | Command routing | @drone | @branch resolution, subprocess |
 | Memory, vectors | @memory | ChromaDB, search, archival |
 

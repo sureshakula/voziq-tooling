@@ -4,16 +4,16 @@
 
 > The living record. What happened, what's changing, what matters.
 
-**Last updated:** 2026-04-09 | **Session:** 82 | **PRs merged:** 205
+**Last updated:** 2026-04-10 | **Session:** 84 | **PRs merged:** 185
 
 ---
 
 ## Current State
 
-- **10 core agents** operational (streamlined from 15 — backup, daemon, api, commons, skills split to standalone projects)
-- **4,900+ tests** system-wide
-- **205 PRs** merged
-- **82 sessions** of development
+- **11 core agents** operational (streamlined from 15 — backup, daemon, commons, skills split to standalone projects; api reinstated)
+- **3,500+ tests** system-wide
+- **185 PRs** merged
+- **84 sessions** of development
 - **Multi-CLI support** — Claude Code, Codex (GPT-5.4), Gemini all integrated with hooks, identity, skills
 - **Vera Studio** — standalone AI-driven brand studio for promotion (separate from devpulse construction)
 - **aipass init v2** — real templates, next steps, `aipass init agent` command
@@ -122,11 +122,11 @@ Every branch, every standard, 100%. PR #137 (167 files, +12,843 lines).
 ## System Numbers
 
 ```
-Branches:        15
+Branches:        11
 Standards:       33
-Tests:           4,900+
-PRs merged:      193
-Sessions:        76
+Tests:           3,500+
+PRs merged:      185
+Sessions:        84
 Diagnostic tools: 21
 CLIs supported:  3 (Claude Code, Codex, Gemini)
 ```

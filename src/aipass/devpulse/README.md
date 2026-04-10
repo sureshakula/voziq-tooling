@@ -11,7 +11,7 @@
 
 ## Overview
 
-DevPulse is the central coordination branch for AIPass. It plans, delegates, and tracks work across all 15 branches in the ecosystem. Think of it as the project manager — it doesn't build modules itself, but dispatches work to branch agents, monitors results, and maintains system-wide visibility.
+DevPulse is the central coordination branch for AIPass. It plans, delegates, and tracks work across all 11 branches in the ecosystem. Think of it as the project manager — it doesn't build modules itself, but dispatches work to branch agents, monitors results, and maintains system-wide visibility.
 
 ### What DevPulse Does
 - **Cross-branch orchestration** — Dispatch tasks to branches via AI Mail + wake
@@ -35,20 +35,15 @@ src/aipass/
 ├── cli/            # CLI framework — argument parsing, command registry
 ├── flow/           # Plan management — FPLANs, DPLANs, templates, tracking
 ├── ai_mail/        # Inter-branch comms — inbox, dispatch, wake
-├── api/            # API layer — OpenRouter, Google, usage tracking
+├── api/            # LLM access layer — OpenRouter, multi-provider, usage tracking
 ├── trigger/        # Event system — log watchers, event handlers
 ├── spawn/          # Branch lifecycle — create, update, delete, passport
-├── devpulse/       # Orchestration hub (you are here)
-├── daemon/         # Background scheduler — cron, plugins, monitoring
-├── backup/         # Backup & archival utilities
 ├── memory/         # Memory bank — ChromaDB vectors, rollover, search
+├── devpulse/       # Orchestration hub (you are here)
 └── __init__.py
-
-src/commons/        # Shared utilities — config, database, helpers
-src/skills/         # Skill system — discovery, registry, lifecycle
 ```
 
-**15 registered branches:** drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, devpulse, daemon, backup, memory, commons, skills
+**11 registered branches:** drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, memory, devpulse
 
 ## DevPulse Architecture
 
@@ -157,7 +152,7 @@ drone @spawn delete @branch      # Archive + deregister branch
 - `aipass.seedgo` — Standards verification + audit
 
 ### Coordinates
-- All 15 branches: drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, devpulse, daemon, backup, memory, commons, skills
+- All 11 branches: drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, memory, devpulse
 
 ---
 

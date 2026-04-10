@@ -33,15 +33,11 @@ BRANCHES = [
     ("cli",      "CLI Framework",      "Argument parsing & registry",    BLUE),
     ("flow",     "Plan Manager",       "FPLANs + DPLANs",               MAGENTA),
     ("ai_mail",  "Communications",     "Inter-branch email & dispatch",  CYAN),
-    ("spawn",    "Branch Lifecycle",   "Create, update, delete",         GREEN),
+    ("api",      "LLM Access Layer",   "OpenRouter, multi-provider",     GREEN),
     ("trigger",  "Event System",       "12 events, error registry",      YELLOW),
-    ("api",      "API Layer",          "External interfaces",            BLUE),
-    ("devpulse", "Orchestration Hub",  "You are here",                   MAGENTA),
-    ("memory",   "Memory Bank",        "ChromaDB vector search",         CYAN),
-    ("daemon",   "Background Sched",   "Cron, plugins, monitoring",      GREEN),
-    ("backup",   "Backup Utils",       "Snapshot & restore",             YELLOW),
-    ("commons",  "Shared Library",     "Cross-branch utilities",         BLUE),
-    ("skills",   "Skill Catalog",      "Reusable AI capabilities",       MAGENTA),
+    ("spawn",    "Branch Lifecycle",   "Create, update, delete",         BLUE),
+    ("memory",   "Memory Bank",        "ChromaDB vector search",         MAGENTA),
+    ("devpulse", "Orchestration Hub",  "You are here",                   CYAN),
 ]
 
 ACTIVITIES = [
@@ -104,7 +100,7 @@ def animate_startup():
     # Boot sequence
     steps = [
         ("Initializing drone router", 0.4),
-        ("Loading 15 branch identities", 0.3),
+        ("Loading 11 branch identities", 0.3),
         ("Connecting AI Mail network", 0.3),
         ("Mounting .trinity/ memories", 0.4),
         ("Starting Prax logging", 0.2),
@@ -202,7 +198,7 @@ def show_dispatch_demo():
 def show_stats():
     """Final stats box."""
     stats = [
-        f"{WHITE}Branches:    {CYAN}15 registered, 15 operational{RESET}",
+        f"{WHITE}Branches:    {CYAN}11 registered, 11 operational{RESET}",
         f"{WHITE}Standards:   {GREEN}21 seedgo checks active{RESET}",
         f"{WHITE}Sessions:    {YELLOW}32 completed (devpulse alone){RESET}",
         f"{WHITE}Architecture:{MAGENTA} Citizens + Agents + Dispatch{RESET}",
