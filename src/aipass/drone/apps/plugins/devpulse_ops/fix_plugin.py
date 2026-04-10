@@ -77,21 +77,56 @@ def fix_git_state(caller: str) -> dict:
                 actions.append(f"Failed to checkout main: {checkout.stderr.strip()}")
                 logger.error("fix_git_state: checkout main failed: %s", checkout.stderr.strip())
 
-        # Check 3: Diverged from origin
-        rev_list = subprocess.run(
-            ["git", "rev-list", "--left-right", "--count", "main...origin/main"],
+        # Check 3: Diverged from origin — fetch + merge
+        fetch = subprocess.run(
+            ["git", "fetch", "origin"],
             capture_output=True, text=True, cwd=str(repo_root),
         )
-        if rev_list.returncode == 0:
-            parts = rev_list.stdout.strip().split()
-            ahead = int(parts[0]) if len(parts) >= 1 else 0
-            behind = int(parts[1]) if len(parts) >= 2 else 0
-            if ahead > 0 and behind > 0:
-                actions.append(
-                    f"Diverged from origin (ahead={ahead}, behind={behind}). "
-                    "Run: drone @git smart-sync"
-                )
-                logger.warning("fix_git_state: diverged ahead=%d behind=%d", ahead, behind)
+        if fetch.returncode != 0:
+            actions.append(f"Fetch failed: {fetch.stderr.strip()}")
+            logger.error("fix_git_state: fetch failed: %s", fetch.stderr.strip())
+        else:
+            rev_list = subprocess.run(
+                ["git", "rev-list", "--left-right", "--count", "main...origin/main"],
+                capture_output=True, text=True, cwd=str(repo_root),
+            )
+            if rev_list.returncode == 0:
+                parts = rev_list.stdout.strip().split()
+                ahead = int(parts[0]) if len(parts) >= 1 else 0
+                behind = int(parts[1]) if len(parts) >= 2 else 0
+                if ahead > 0 and behind > 0:
+                    merge = subprocess.run(
+                        ["git", "merge", "origin/main", "--no-edit"],
+                        capture_output=True, text=True, cwd=str(repo_root),
+                    )
+                    if merge.returncode == 0:
+                        actions.append(
+                            f"Merged origin/main (was ahead={ahead}, behind={behind})"
+                        )
+                        logger.info("fix_git_state: merged origin/main ahead=%d behind=%d", ahead, behind)
+                    else:
+                        # Report conflict files
+                        diff = subprocess.run(
+                            ["git", "diff", "--name-only", "--diff-filter=U"],
+                            capture_output=True, text=True, cwd=str(repo_root),
+                        )
+                        conflict_files = diff.stdout.strip().splitlines() if diff.stdout.strip() else []
+                        # Abort the failed merge
+                        subprocess.run(
+                            ["git", "merge", "--abort"],
+                            capture_output=True, text=True, cwd=str(repo_root),
+                        )
+                        if conflict_files:
+                            actions.append(
+                                f"Merge conflict (ahead={ahead}, behind={behind}). "
+                                f"Conflicting files: {', '.join(conflict_files)}"
+                            )
+                        else:
+                            actions.append(
+                                f"Merge failed (ahead={ahead}, behind={behind}): "
+                                f"{merge.stderr.strip()}"
+                            )
+                        logger.warning("fix_git_state: merge conflict ahead=%d behind=%d", ahead, behind)
 
         # Check 4: Dirty index with no intent
         cached = subprocess.run(

@@ -243,12 +243,12 @@ class TestSmartSyncBehind:
         assert result["behind"] == 3
 
 
-class TestSmartSyncDivergedRebaseSuccess:
-    """smart_sync should rebase when diverged (behind > 0) and rebase succeeds."""
+class TestSmartSyncDivergedMergeSuccess:
+    """smart_sync should merge when diverged (ahead > 0 AND behind > 0)."""
 
     @patch("aipass.drone.apps.plugins.devpulse_ops.sync_plugin.find_repo_root")
     @patch("aipass.drone.apps.plugins.devpulse_ops.sync_plugin.subprocess.run")
-    def test_smart_sync_diverged_rebase_ok(
+    def test_smart_sync_diverged_merge_ok(
         self, mock_run: MagicMock, mock_root: MagicMock, tmp_path: Path
     ) -> None:
         mock_root.return_value = tmp_path
@@ -261,8 +261,8 @@ class TestSmartSyncDivergedRebaseSuccess:
                 proc.stdout = ""
             elif cmd[:3] == ["git", "rev-list", "--left-right"]:
                 proc.stdout = "2\t5\n"
-            elif cmd[:3] == ["git", "rebase", "origin/main"]:
-                proc.stdout = "Successfully rebased\n"
+            elif cmd[:2] == ["git", "merge"]:
+                proc.stdout = "Merge made by the 'ort' strategy.\n"
             else:
                 proc.stdout = ""
             return proc
@@ -272,17 +272,18 @@ class TestSmartSyncDivergedRebaseSuccess:
         result = smart_sync("devpulse")
 
         assert result["success"] is True
-        assert result["rebased"] is True
+        assert result.get("merged") is True
+        assert result["rebased"] is False
         assert result["ahead"] == 2
         assert result["behind"] == 5
 
 
-class TestSmartSyncRebaseConflict:
-    """smart_sync should abort rebase on conflict and return error."""
+class TestSmartSyncMergeConflict:
+    """smart_sync should abort merge on conflict when diverged."""
 
     @patch("aipass.drone.apps.plugins.devpulse_ops.sync_plugin.find_repo_root")
     @patch("aipass.drone.apps.plugins.devpulse_ops.sync_plugin.subprocess.run")
-    def test_smart_sync_rebase_conflict(
+    def test_smart_sync_merge_conflict(
         self, mock_run: MagicMock, mock_root: MagicMock, tmp_path: Path
     ) -> None:
         mock_root.return_value = tmp_path
@@ -296,11 +297,14 @@ class TestSmartSyncRebaseConflict:
             elif cmd[:3] == ["git", "rev-list", "--left-right"]:
                 proc.returncode = 0
                 proc.stdout = "1\t2\n"
-            elif cmd[:3] == ["git", "rebase", "origin/main"]:
+            elif cmd[:2] == ["git", "merge"] and "--abort" not in cmd:
                 proc.returncode = 1
                 proc.stdout = ""
-                proc.stderr = "CONFLICT"
-            elif cmd[:3] == ["git", "rebase", "--abort"]:
+                proc.stderr = "CONFLICT (content): Merge conflict"
+            elif cmd[:2] == ["git", "diff"]:
+                proc.returncode = 0
+                proc.stdout = "src/file1.py\nsrc/file2.py\n"
+            elif ["--abort"] == cmd[-1:]:
                 proc.returncode = 0
                 proc.stdout = ""
             else:
@@ -396,11 +400,11 @@ class TestFixDetachedHead:
 
 
 class TestFixDiverged:
-    """fix_git_state should report divergence and suggest smart-sync."""
+    """fix_git_state should fetch and merge when diverged."""
 
     @patch("aipass.drone.apps.plugins.devpulse_ops.fix_plugin.find_repo_root")
     @patch("aipass.drone.apps.plugins.devpulse_ops.fix_plugin.subprocess.run")
-    def test_fix_diverged_suggests_sync(
+    def test_fix_diverged_merges(
         self, mock_run: MagicMock, mock_root: MagicMock, tmp_path: Path
     ) -> None:
         mock_root.return_value = tmp_path
@@ -414,8 +418,12 @@ class TestFixDiverged:
             proc.stdout = ""
             if cmd[:3] == ["git", "symbolic-ref", "-q"]:
                 proc.stdout = "refs/heads/main\n"
+            elif cmd[:3] == ["git", "fetch", "origin"]:
+                proc.stdout = ""
             elif cmd[:3] == ["git", "rev-list", "--left-right"]:
                 proc.stdout = "3\t2\n"  # diverged
+            elif cmd[:2] == ["git", "merge"]:
+                proc.stdout = "Merge made by the 'ort' strategy.\n"
             elif cmd[:3] == ["git", "diff", "--cached"]:
                 proc.stdout = ""
             return proc
@@ -425,7 +433,7 @@ class TestFixDiverged:
         result = fix_git_state("devpulse")
 
         assert result["success"] is True
-        assert any("smart-sync" in a for a in result["actions_taken"])
+        assert any("merged" in a.lower() for a in result["actions_taken"])
 
 
 class TestFixCleanState:

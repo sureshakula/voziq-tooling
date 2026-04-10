@@ -283,19 +283,14 @@ class TestSyncHandler:
         registry.write_text("{}", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
 
-        mock_checkout = MagicMock()
-        mock_checkout.returncode = 0
-        mock_checkout.stdout = "Switched to branch 'main'"
-        mock_checkout.stderr = ""
-
-        mock_pull = MagicMock()
-        mock_pull.returncode = 0
-        mock_pull.stdout = "Already up to date."
-        mock_pull.stderr = ""
+        mock_checkout = MagicMock(returncode=0, stdout="Switched to branch 'main'", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_rev_list = MagicMock(returncode=0, stdout="0\t0\n", stderr="")
+        mock_pull = MagicMock(returncode=0, stdout="Already up to date.", stderr="")
 
         with patch(
             "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
-            side_effect=[mock_checkout, mock_pull],
+            side_effect=[mock_checkout, mock_fetch, mock_rev_list, mock_pull],
         ):
             result = sync_main()
 
@@ -328,19 +323,14 @@ class TestSyncHandler:
         registry.write_text("{}", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
 
-        mock_checkout = MagicMock()
-        mock_checkout.returncode = 0
-        mock_checkout.stdout = ""
-        mock_checkout.stderr = ""
-
-        mock_pull = MagicMock()
-        mock_pull.returncode = 1
-        mock_pull.stdout = ""
-        mock_pull.stderr = "fatal: unable to access remote"
+        mock_checkout = MagicMock(returncode=0, stdout="", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_rev_list = MagicMock(returncode=0, stdout="0\t1\n", stderr="")
+        mock_pull = MagicMock(returncode=1, stdout="", stderr="fatal: unable to access remote")
 
         with patch(
             "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
-            side_effect=[mock_checkout, mock_pull],
+            side_effect=[mock_checkout, mock_fetch, mock_rev_list, mock_pull],
         ):
             result = sync_main()
 
@@ -543,19 +533,14 @@ class TestGitModuleRouting:
         registry.write_text("{}", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
 
-        mock_checkout = MagicMock()
-        mock_checkout.returncode = 0
-        mock_checkout.stdout = ""
-        mock_checkout.stderr = ""
-
-        mock_pull = MagicMock()
-        mock_pull.returncode = 0
-        mock_pull.stdout = "Already up to date."
-        mock_pull.stderr = ""
+        mock_checkout = MagicMock(returncode=0, stdout="", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_rev_list = MagicMock(returncode=0, stdout="0\t0\n", stderr="")
+        mock_pull = MagicMock(returncode=0, stdout="Already up to date.", stderr="")
 
         with patch(
             "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
-            side_effect=[mock_checkout, mock_pull],
+            side_effect=[mock_checkout, mock_fetch, mock_rev_list, mock_pull],
         ):
             result = handle_command("sync")
 
