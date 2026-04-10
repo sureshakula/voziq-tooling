@@ -40,6 +40,7 @@ __all__ = [
 
 import logging
 import sys
+import threading
 from typing import Dict, Any
 
 # Stdlib logger for except-block compliance (seedgo requires variable named 'logger')
@@ -95,10 +96,15 @@ class SystemLogger:
     """Auto-routing logger that writes to calling module's log file"""
 
     _watcher_started = False
+    _watcher_lock = threading.Lock()
 
     def _ensure_watcher(self):
         """Lazy-start file watchers on first logger use"""
-        if not SystemLogger._watcher_started:
+        if SystemLogger._watcher_started:
+            return
+        with SystemLogger._watcher_lock:
+            if SystemLogger._watcher_started:
+                return  # Double-check after acquiring lock
             # Set flag FIRST to prevent recursion: trigger.fire() uses logger
             # internally, which would re-enter _ensure_watcher() before we return
             SystemLogger._watcher_started = True

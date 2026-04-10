@@ -105,33 +105,23 @@ def deduplicate_fragment(
     # Build prompt and call LLM
     messages = _build_dedup_prompt(new_fragment, existing_fragments)
 
-    # Direct OpenRouter API call via urllib (no cross-branch imports needed)
+    # Direct OpenRouter API call via urllib
     import urllib.request
     import urllib.error
-    from pathlib import Path
 
-    api_key = None
-    _aipass_root = _MEMORY_ROOT.parent  # memory/ -> aipass/
-    for env_path in [
-        Path.home() / ".secrets" / "aipass" / ".env",
-        _aipass_root / "api" / "apps" / ".env",
-        _aipass_root / "api" / ".env",
-    ]:
-        if env_path.exists():
-            with open(env_path, encoding="utf-8") as f:
-                for line in f:
-                    if line.strip().startswith("OPENROUTER_API_KEY="):
-                        api_key = line.strip().split("=", 1)[1].strip().strip('"').strip("'")
-                        break
-        if api_key:
-            break
+    # Load API key via api branch's key management
+    try:
+        from aipass.api.apps.handlers.auth.keys import get_api_key
+        api_key = get_api_key("openrouter")
+    except ImportError:
+        api_key = None
 
     if not api_key:
         return {
             'success': True,
             'action': 'ADD',
             'fragment': new_fragment,
-            'reason': 'No OpenRouter API key found, defaulting to ADD'
+            'reason': 'No OpenRouter API key found (api branch unavailable or key missing), defaulting to ADD'
         }
 
     payload = json.dumps({

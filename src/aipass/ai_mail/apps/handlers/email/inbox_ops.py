@@ -20,6 +20,18 @@ from typing import Dict
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
 
+# Lazy import for inbox file lock
+_inbox_lock = None
+
+
+def _get_inbox_lock():
+    """Lazy import inbox_lock context manager."""
+    global _inbox_lock
+    if _inbox_lock is None:
+        from aipass.ai_mail.apps.handlers.email.inbox_lock import inbox_lock
+        _inbox_lock = inbox_lock
+    return _inbox_lock
+
 
 
 def load_inbox(inbox_file: Path) -> Dict:
@@ -73,11 +85,12 @@ def load_inbox(inbox_file: Path) -> Dict:
             )
             migrated = True
 
-        # Persist migration
+        # Persist migration under lock to prevent concurrent write races
         if migrated:
             try:
-                with open(inbox_file, 'w', encoding='utf-8') as f:
-                    json.dump(inbox_data, f, indent=2, ensure_ascii=False)
+                with _get_inbox_lock()(inbox_file):
+                    with open(inbox_file, 'w', encoding='utf-8') as f:
+                        json.dump(inbox_data, f, indent=2, ensure_ascii=False)
             except Exception as e:
                 logger.warning("[inbox] Migration persist failed for %s: %s", inbox_file, e)
 

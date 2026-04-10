@@ -114,9 +114,10 @@ def _refresh_pid_cache() -> None:
     global _pid_cache_last_refresh
     import time as _time
     now = _time.time()
-    if now - _pid_cache_last_refresh < _PID_CACHE_TTL:
-        return
-    _pid_cache_last_refresh = now
+    with _pid_cache_lock:
+        if now - _pid_cache_last_refresh < _PID_CACHE_TTL:
+            return
+        _pid_cache_last_refresh = now
 
     try:
         from aipass.prax.apps.handlers.config.load import _find_repo_root
@@ -149,7 +150,7 @@ def _get_pid_for_branch(branch: str) -> Optional[int]:
 # =============================================================================
 
 # Global monitoring state
-_monitoring_active = False
+_stop_event = threading.Event()  # Thread-safe shutdown signal
 _event_queue: Optional[MonitoringQueue] = None
 _module_tracker: Optional[ModuleTracker] = None
 _display_thread: Optional[threading.Thread] = None
@@ -199,7 +200,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 
 def _run_monitor(args: List[str]) -> bool:
     """Launch Mission Control live monitoring."""
-    global _monitoring_active, _event_queue, _module_tracker
+    global _event_queue, _module_tracker
     global _display_thread, _file_watcher_thread, _log_watcher_thread
 
     json_handler.log_operation("monitor_started", {"args": args})
@@ -208,7 +209,7 @@ def _run_monitor(args: List[str]) -> bool:
     # Initialize monitoring subsystems
     _event_queue = MonitoringQueue()
     _module_tracker = ModuleTracker()
-    _monitoring_active = True
+    _stop_event.clear()
 
     _is_tty = sys.stdin.isatty()
 
@@ -256,15 +257,17 @@ def _start_threads():
 
 def _stop_threads():
     """Stop all monitoring threads"""
-    global _monitoring_active, _event_queue
+    global _event_queue
 
-    _monitoring_active = False
+    _stop_event.set()
 
     if _event_queue:
         _event_queue.stop()
 
-    # Give threads time to finish
-    time.sleep(0.5)
+    # Join all daemon threads with timeout
+    for t in (_display_thread, _file_watcher_thread, _log_watcher_thread):
+        if t is not None and t.is_alive():
+            t.join(timeout=2.0)
 
     logger.info("All monitoring threads stopped")
 
@@ -287,9 +290,9 @@ def _render_event(event) -> None:
 
 def _display_worker():
     """Display thread - pulls events from queue and displays them. No filtering."""
-    global _monitoring_active, _event_queue
+    global _event_queue
 
-    while _monitoring_active:
+    while not _stop_event.is_set():
         if not _event_queue:
             time.sleep(0.1)
             continue
@@ -408,7 +411,7 @@ def _start_observer_with_fallback(handler, watch_dirs):
 
 def _file_watcher_worker():
     """File watcher thread - watches filesystem changes and pushes to queue"""
-    global _monitoring_active, _event_queue
+    global _event_queue
 
     from aipass.prax.apps.handlers.monitoring.filesystem_handler import MonitoringFileHandler
 
@@ -437,7 +440,7 @@ def _file_watcher_worker():
         return
 
     try:
-        while _monitoring_active:
+        while not _stop_event.is_set():
             time.sleep(0.1)
     finally:
         observer.stop()
@@ -470,7 +473,7 @@ def _start_log_watcher_with_fallback(event_queue) -> bool:
 
 def _log_watcher_worker():
     """Log watcher thread - uses proper log_watcher.py with all improvements"""
-    global _monitoring_active, _event_queue
+    global _event_queue
 
     from aipass.prax.apps.handlers.monitoring.log_watcher import stop_log_watcher
 
@@ -482,7 +485,7 @@ def _log_watcher_worker():
         return
 
     try:
-        while _monitoring_active:
+        while not _stop_event.is_set():
             time.sleep(0.1)
     finally:
         stop_log_watcher()
@@ -502,13 +505,13 @@ def _handle_interactive_cmd(cmd: str, get_help_text) -> None:
 
 def _interactive_loop():
     """Interactive command loop - handles user input, or passive loop if no TTY"""
-    global _monitoring_active
+    global _event_queue
 
     # Non-TTY mode: just keep alive
     if not sys.stdin.isatty():
         logger.info("[monitor] No TTY detected - passive mode (Ctrl+C to stop)")
         try:
-            while _monitoring_active:
+            while not _stop_event.is_set():
                 time.sleep(0.5)
         except KeyboardInterrupt:
             logger.info("[monitor] Stopped by user (passive mode)")
@@ -520,7 +523,7 @@ def _interactive_loop():
         get_help_text
     )
 
-    while _monitoring_active:
+    while not _stop_event.is_set():
         try:
             user_input = input().strip()
             if not user_input:

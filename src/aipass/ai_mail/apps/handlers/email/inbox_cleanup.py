@@ -227,31 +227,32 @@ def mark_all_read_and_archive(branch_path: Path) -> Tuple[bool, str, int]:
     _migrate_deleted_json_if_exists(mailbox_path)
 
     try:
-        # Load inbox
-        with open(inbox_file, 'r', encoding='utf-8') as f:
-            inbox_data = json.load(f)
+        with _get_inbox_lock()(inbox_file):
+            # Load inbox
+            with open(inbox_file, 'r', encoding='utf-8') as f:
+                inbox_data = json.load(f)
 
-        messages = inbox_data.get("messages", [])
-        count = len(messages)
+            messages = inbox_data.get("messages", [])
+            count = len(messages)
 
-        if count == 0:
-            return True, "Inbox already empty", 0
+            if count == 0:
+                return True, "Inbox already empty", 0
 
-        # Mark all as read and save to deleted/ folder
-        for msg in messages:
-            msg["read"] = True
-            _save_to_deleted_folder(mailbox_path, msg)
+            # Mark all as read and save to deleted/ folder
+            for msg in messages:
+                msg["read"] = True
+                _save_to_deleted_folder(mailbox_path, msg)
 
-        # Clear inbox
-        inbox_data["messages"] = []
-        inbox_data["total_messages"] = 0
-        inbox_data["unread_count"] = 0
+            # Clear inbox
+            inbox_data["messages"] = []
+            inbox_data["total_messages"] = 0
+            inbox_data["unread_count"] = 0
 
-        # Save inbox
-        with open(inbox_file, 'w', encoding='utf-8') as f:
-            json.dump(inbox_data, f, indent=2, ensure_ascii=False)
+            # Save inbox
+            with open(inbox_file, 'w', encoding='utf-8') as f:
+                json.dump(inbox_data, f, indent=2, ensure_ascii=False)
 
-        # Update dashboard (all zeros - inbox cleared)
+        # Update dashboard (outside lock - not inbox.json)
         _update_dashboard(branch_path, 0, 0, 0)
 
         # Trigger auto-purge of deleted folder
@@ -315,37 +316,38 @@ def mark_as_opened(branch_path: Path, message_id: str) -> Tuple[bool, str, Optio
         return False, f"Inbox not found: {inbox_file}", None
 
     try:
-        with open(inbox_file, 'r', encoding='utf-8') as f:
-            inbox_data = json.load(f)
+        with _get_inbox_lock()(inbox_file):
+            with open(inbox_file, 'r', encoding='utf-8') as f:
+                inbox_data = json.load(f)
 
-        messages = inbox_data.get("messages", [])
-        target_msg = None
+            messages = inbox_data.get("messages", [])
+            target_msg = None
 
-        for msg in messages:
-            if msg.get("id") == message_id:
-                target_msg = msg
-                break
+            for msg in messages:
+                if msg.get("id") == message_id:
+                    target_msg = msg
+                    break
 
-        if target_msg is None:
-            return False, f"Message not found: {message_id}", None
+            if target_msg is None:
+                return False, f"Message not found: {message_id}", None
 
-        # Update status to opened (v2 schema)
-        target_msg["status"] = "opened"
-        # Keep backward compat
-        target_msg["read"] = True
+            # Update status to opened (v2 schema)
+            target_msg["status"] = "opened"
+            # Keep backward compat
+            target_msg["read"] = True
 
-        # Recalculate status counts (v2 schema)
-        new_count = sum(
-            1 for m in messages
-            if m.get("status") == "new" or (m.get("status") is None and not m.get("read", False))
-        )
-        opened_count = sum(1 for m in messages if m.get("status") == "opened")
-        inbox_data["unread_count"] = new_count
+            # Recalculate status counts (v2 schema)
+            new_count = sum(
+                1 for m in messages
+                if m.get("status") == "new" or (m.get("status") is None and not m.get("read", False))
+            )
+            opened_count = sum(1 for m in messages if m.get("status") == "opened")
+            inbox_data["unread_count"] = new_count
 
-        with open(inbox_file, 'w', encoding='utf-8') as f:
-            json.dump(inbox_data, f, indent=2, ensure_ascii=False)
+            with open(inbox_file, 'w', encoding='utf-8') as f:
+                json.dump(inbox_data, f, indent=2, ensure_ascii=False)
 
-        # Update dashboard
+        # Update dashboard (outside lock - not inbox.json)
         _update_dashboard(branch_path, new_count, opened_count, inbox_data["total_messages"])
 
         return True, f"Message {message_id} marked as opened", target_msg
@@ -379,48 +381,49 @@ def mark_as_closed_and_archive(branch_path: Path, message_id: str, skip_post_ops
     _migrate_deleted_json_if_exists(mailbox_path)
 
     try:
-        with open(inbox_file, 'r', encoding='utf-8') as f:
-            inbox_data = json.load(f)
+        with _get_inbox_lock()(inbox_file):
+            with open(inbox_file, 'r', encoding='utf-8') as f:
+                inbox_data = json.load(f)
 
-        messages = inbox_data.get("messages", [])
-        message_to_archive = None
-        message_index = None
+            messages = inbox_data.get("messages", [])
+            message_to_archive = None
+            message_index = None
 
-        for i, msg in enumerate(messages):
-            if msg.get("id") == message_id:
-                message_to_archive = msg
-                message_index = i
-                break
+            for i, msg in enumerate(messages):
+                if msg.get("id") == message_id:
+                    message_to_archive = msg
+                    message_index = i
+                    break
 
-        if message_to_archive is None:
-            return False, f"Message not found: {message_id}"
+            if message_to_archive is None:
+                return False, f"Message not found: {message_id}"
 
-        # Mark as closed (v2 schema)
-        message_to_archive["status"] = "closed"
-        message_to_archive["read"] = True  # backward compat
+            # Mark as closed (v2 schema)
+            message_to_archive["status"] = "closed"
+            message_to_archive["read"] = True  # backward compat
 
-        # Remove from inbox
-        messages.pop(message_index)
+            # Remove from inbox
+            messages.pop(message_index)
 
-        # Update inbox counts
-        inbox_data["messages"] = messages
-        inbox_data["total_messages"] = len(messages)
-        # v2 status counts
-        new_count = sum(
-            1 for m in messages
-            if m.get("status") == "new" or (m.get("status") is None and not m.get("read", False))
-        )
-        opened_count = sum(1 for m in messages if m.get("status") == "opened")
-        inbox_data["unread_count"] = new_count
+            # Update inbox counts
+            inbox_data["messages"] = messages
+            inbox_data["total_messages"] = len(messages)
+            # v2 status counts
+            new_count = sum(
+                1 for m in messages
+                if m.get("status") == "new" or (m.get("status") is None and not m.get("read", False))
+            )
+            opened_count = sum(1 for m in messages if m.get("status") == "opened")
+            inbox_data["unread_count"] = new_count
 
-        with open(inbox_file, 'w', encoding='utf-8') as f:
-            json.dump(inbox_data, f, indent=2, ensure_ascii=False)
+            with open(inbox_file, 'w', encoding='utf-8') as f:
+                json.dump(inbox_data, f, indent=2, ensure_ascii=False)
 
-        # Save to deleted/ folder (new pattern)
-        _save_to_deleted_folder(mailbox_path, message_to_archive)
+            # Save to deleted/ folder (inside lock to ensure consistency)
+            _save_to_deleted_folder(mailbox_path, message_to_archive)
 
         if not skip_post_ops:
-            # Update dashboard
+            # Update dashboard (outside lock - not inbox.json)
             _update_dashboard(branch_path, new_count, opened_count, inbox_data["total_messages"])
 
             # Trigger auto-purge of deleted folder
