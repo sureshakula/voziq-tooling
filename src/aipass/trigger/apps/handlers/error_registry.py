@@ -159,6 +159,17 @@ def _save_circuit_breaker_state() -> None:
         logger.warning("Failed to save circuit breaker state: %s", exc)
 
 
+def _restore_fingerprint_tracking(pf_data: dict) -> None:
+    """Restore per-fingerprint dispatch tracking from persisted data."""
+    global _fingerprint_dispatch_times, _fingerprint_dispatch_count
+    for fp, info in pf_data.items():
+        last = float(info.get('last_dispatch', 0.0))
+        count = int(info.get('count', 0))
+        if last > 0:
+            _fingerprint_dispatch_times[fp] = [last]
+        _fingerprint_dispatch_count[fp] = count
+
+
 def _load_circuit_breaker_state() -> CircuitBreakerState:
     """Load full circuit breaker state from trigger_cb_state.json.
 
@@ -168,31 +179,25 @@ def _load_circuit_breaker_state() -> CircuitBreakerState:
     Returns:
         CircuitBreakerState populated from disk or defaults.
     """
-    global _fingerprint_dispatch_times, _fingerprint_dispatch_count
     try:
-        if CB_STATE_FILE.exists():
-            raw = CB_STATE_FILE.read_text(encoding='utf-8').strip()
-            if not raw:
-                return CircuitBreakerState()
-            data = json.loads(raw)
-            cb_data = data.get('circuit_breaker')
-            if isinstance(cb_data, dict) and cb_data.get('state') in ('closed', 'open', 'half_open'):
-                breaker = CircuitBreakerState()
-                breaker.state = cb_data['state']
-                breaker.opened_at = float(cb_data.get('opened_at', 0.0))
-                breaker.cooldown_seconds = int(cb_data.get('cooldown_seconds', breaker.base_cooldown))
-                breaker.recent_errors = [float(t) for t in cb_data.get('recent_errors', [])]
-                breaker.summary_sent = bool(cb_data.get('summary_sent', False))
-                breaker.half_open_allow = bool(cb_data.get('half_open_allow', True))
-                # Restore per-fingerprint tracking
-                pf_data = data.get('per_fingerprint', {})
-                for fp, info in pf_data.items():
-                    last = float(info.get('last_dispatch', 0.0))
-                    count = int(info.get('count', 0))
-                    if last > 0:
-                        _fingerprint_dispatch_times[fp] = [last]
-                    _fingerprint_dispatch_count[fp] = count
-                return breaker
+        if not CB_STATE_FILE.exists():
+            return CircuitBreakerState()
+        raw = CB_STATE_FILE.read_text(encoding='utf-8').strip()
+        if not raw:
+            return CircuitBreakerState()
+        data = json.loads(raw)
+        cb_data = data.get('circuit_breaker')
+        if not isinstance(cb_data, dict) or cb_data.get('state') not in ('closed', 'open', 'half_open'):
+            return CircuitBreakerState()
+        breaker = CircuitBreakerState()
+        breaker.state = cb_data['state']
+        breaker.opened_at = float(cb_data.get('opened_at', 0.0))
+        breaker.cooldown_seconds = int(cb_data.get('cooldown_seconds', breaker.base_cooldown))
+        breaker.recent_errors = [float(t) for t in cb_data.get('recent_errors', [])]
+        breaker.summary_sent = bool(cb_data.get('summary_sent', False))
+        breaker.half_open_allow = bool(cb_data.get('half_open_allow', True))
+        _restore_fingerprint_tracking(data.get('per_fingerprint', {}))
+        return breaker
     except Exception as exc:
         logger.warning("Failed to load circuit breaker state: %s", exc)
     return CircuitBreakerState()
