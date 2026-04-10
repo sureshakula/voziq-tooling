@@ -235,51 +235,55 @@ def route_command(command: str, args: List[str], modules: List[Any]) -> bool:
 
 def main():
     """Main entry point - routes commands to modules"""
+    try:
+        # Parse arguments directly from sys.argv
+        args = sys.argv[1:]
 
-    # Parse arguments directly from sys.argv
-    args = sys.argv[1:]
+        # Show introspection when run without arguments
+        if len(args) == 0:
+            print_introspection()
+            json_handler.log_operation("api_introspection_displayed", {"trigger": "no_args"})
+            return 0
 
-    # Show introspection when run without arguments
-    if len(args) == 0:
-        print_introspection()
-        json_handler.log_operation("api_introspection_displayed", {"trigger": "no_args"})
-        return 0
+        # Show version
+        if args[0] in ['--version', '-V']:
+            console.print("API v1.0.0")
+            return 0
 
-    # Show version
-    if args[0] in ['--version', '-V']:
-        console.print("API v1.0.0")
-        return 0
+        # Show help for explicit help flags
+        if args[0] in ['--help', '-h', 'help']:
+            print_help()
+            json_handler.log_operation("api_help_displayed", {"trigger": args[0]})
+            return 0
 
-    # Show help for explicit help flags
-    if args[0] in ['--help', '-h', 'help']:
-        print_help()
-        json_handler.log_operation("api_help_displayed", {"trigger": args[0]})
-        return 0
+        # Discover modules
+        modules = discover_modules()
 
-    # Discover modules
-    modules = discover_modules()
+        if not modules:
+            logger.error("No modules found")
+            error("No modules found")
+            return 1
 
-    if not modules:
-        logger.error("No modules found")
-        error("No modules found")
-        return 1
+        # Extract command and remaining args (matching seedgo pattern)
+        command = args[0]
+        remaining_args = args[1:] if len(args) > 1 else []
 
-    # Extract command and remaining args (matching seedgo pattern)
-    command = args[0]
-    remaining_args = args[1:] if len(args) > 1 else []
+        # Log api command attempt
+        json_handler.log_operation(
+            "api_command_attempted",
+            {"command": command, "modules_discovered": len(modules)}
+        )
 
-    # Log api command attempt
-    json_handler.log_operation(
-        "api_command_attempted",
-        {"command": command, "modules_discovered": len(modules)}
-    )
+        # Route command to modules
+        if route_command(command, remaining_args, modules):
+            return 0
+        else:
+            logger.warning(f"Unknown command: {command}")
+            error(f"Unknown command: {command}", suggestion="Run 'drone @api --help' for available commands")
+            return 1
 
-    # Route command to modules
-    if route_command(command, remaining_args, modules):
-        return 0
-    else:
-        logger.warning(f"Unknown command: {command}")
-        error(f"Unknown command: {command}", suggestion="Run 'drone @api --help' for available commands")
+    except Exception as exc:
+        logger.error("[api] Unhandled error in main: %s", exc)
         return 1
 
 if __name__ == "__main__":
