@@ -13,9 +13,9 @@ Watches system_logs/ for log file changes.
 Detects ERROR/WARNING/INFO entries and fires appropriate events.
 
 Events fired:
-    - error_logged: When ERROR level log detected
+    - error_detected: When ERROR level log detected (Medic v2 pipeline via registry_report)
+    - error_logged: Monitoring-only event (no dispatch)
     - warning_logged: When WARNING level log detected
-    - log_entry: All log entries (for monitoring systems)
 
 Architecture:
     - Trigger OWNS all file watching (filesystem events)
@@ -257,7 +257,30 @@ class LogFileWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else o
             }
 
             if level == 'error':
-                trigger.fire('error_logged', **event_data)
+                # Route through Medic v2: registry_report() for dedup/count, then error_detected
+                try:
+                    from aipass.trigger.apps.handlers.error_registry import report as registry_report
+                    result = registry_report(
+                        error_type='ERROR',
+                        message=message,
+                        component=branch,
+                        log_path=log_file,
+                        severity='medium'
+                    )
+                    error_count = result.get('count', 1)
+                    trigger.fire('error_detected',
+                        branch=branch, module=module_name, message=message,
+                        log_path=log_file, error_hash=result.get('id', error_hash),
+                        timestamp=timestamp,
+                        fingerprint=result.get('fingerprint', ''),
+                        registry_id=result.get('id', ''),
+                        first_seen=result.get('first_seen', ''),
+                        last_seen=result.get('last_seen', ''),
+                        count=error_count,
+                    )
+                except Exception:
+                    # Registry unavailable — fire error_logged as monitoring-only fallback
+                    trigger.fire('error_logged', **event_data)
                 json_handler.log_operation("system_log_event", {"level": level, "module": module_name})
             elif level == 'warning':
                 trigger.fire('warning_logged', **event_data)

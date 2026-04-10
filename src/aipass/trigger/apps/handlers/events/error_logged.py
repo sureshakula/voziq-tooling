@@ -270,70 +270,13 @@ def handle_error_logged(
         # Resolve source_module from either parameter name
         effective_module = source_module or module_name or "unknown"
 
-        # --- Medic gating (FPLAN-0371 Phase 1) ---
-
-        # Gate 1: Global medic toggle
-        if not _is_medic_enabled():
-            _log_suppression("Medic OFF", branch, effective_module, message)
-            return
-
-        # Gate 2: Per-branch mute
-        if _is_branch_muted(branch):
-            _log_suppression("Branch muted", branch, effective_module, message)
-            return
-
-        # Gate 3: Convert branch name to email format
-        recipient = f"@{branch.lower()}"
-
-        # devpulse is protected from auto-triggering
-        if recipient == '@devpulse':
-            return
-
-        # Gate 4: Validate target branch exists in registry
-        registered_emails = _get_registered_emails()
-        if recipient not in registered_emails:
-            _log_suppression("Unknown branch skipped", branch, effective_module, message)
-            return
-
-        # Gate 5: Rate limiting (3 dispatches per 10 minutes per branch)
-        if _is_rate_limited(recipient):
-            _log_suppression("Rate limited", branch, effective_module, message)
-            return
-
-        # --- Dispatch ---
-
-        try:
-            from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
-        except ImportError:
-            return
-
-        effective_timestamp = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        effective_log_file = log_file or "unknown"
-
-        email_subject = f"[ERROR] {effective_module} - investigation needed"
-
-        notification_message = _build_notification_message(
-            error_hash=error_hash,
-            source_module=effective_module,
-            message=message,
-            timestamp=effective_timestamp,
-            log_file=effective_log_file
-        )
-
-        email_data = {
-            "from": "@trigger",
-            "from_name": "TRIGGER",
-            "to": recipient,
-            "subject": email_subject,
-            "message": f"⚡ DISPATCH TASK - READ THIS FIRST ⚡\n\n{notification_message}",
-            "timestamp": effective_timestamp,
-        }
-        deliver_email_to_branch(recipient, email_data)
-
-        # Record dispatch for rate limiting
-        _record_dispatch(recipient)
-
-        json_handler.log_operation("error_logged_event", {"success": True})
+        # Monitor-only: log the event for tracking, no dispatch.
+        # All dispatch now goes through error_detected.py (Medic v2).
+        json_handler.log_operation("error_logged_event", {
+            "branch": branch,
+            "module": effective_module,
+            "error_hash": error_hash,
+        })
 
     except Exception as exc:
         _log_warning(f"handle_error_logged failed: {exc}")
