@@ -27,6 +27,7 @@ Usage:
 """
 
 import json
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List
@@ -101,9 +102,15 @@ def _extract_flow_plans(registry: Dict[str, Any]) -> tuple[List[Dict], List[Dict
         if location != str(FLOW_ROOT):
             continue
 
+        # Extract plan prefix from file_path (e.g., DPLAN, FPLAN, TDPLAN)
+        file_path_str = plan_data.get("file_path", "")
+        filename = Path(file_path_str).name if file_path_str else ""
+        prefix_match = re.match(r'^([A-Z]+PLAN)', filename)
+        prefix = prefix_match.group(1) if prefix_match else "FPLAN"
+
         # Build plan entry
         plan_entry = {
-            "plan_id": f"FPLAN-{plan_num.zfill(4)}",
+            "plan_id": f"{prefix}-{plan_num.zfill(4)}",
             "subject": plan_data.get("subject", ""),
             "status": plan_data.get("status", "open"),
             "created": plan_data.get("created", ""),

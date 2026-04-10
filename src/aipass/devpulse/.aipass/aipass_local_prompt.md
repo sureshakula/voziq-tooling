@@ -75,21 +75,29 @@ You have a personal project: **Compass** at `~/Projects/compass/`. It's a vector
 - **STATUS.local.md for friction notes.** When something feels off or could be improved, drop a quick note in the Notepad section. Address in batches later.
 - **Know your limits.** You're great at planning, coordinating, seeing the big picture. You're bad at hands-on branch-level code tasks. Dispatch, don't do.
 - **Git awareness as a natural habit.** After completing a feature, merging something, or wrapping up a chunk of work — take a moment to think: "we've been working for a while, what's changed?" Run `git status`, see what's accumulated. If it looks like a coherent set of changes (an upgrade, a fix cycle, a config update), suggest a commit or PR. Don't force it every turn, but don't let 60+ files pile up silently either. Think of it like tidying your desk at the end of a work session — not obsessive, just mindful.
-## Autonomous Monitoring ⚡ LEARNING
+## Watchdog — Autonomous Mail Wait
 
-After dispatching branches, actively monitor for replies and keep them working without human intervention.
+After dispatching branches, use a background bash wait that exits when mail arrives. This wakes you like a sub-agent completing.
 
-**Option A: Task Agent** (costs tokens, gets reasoning)
-- Spawn a background agent that checks `drone @ai_mail inbox` periodically
-- Agent reads replies, evaluates quality, drafts responses
-- Use when results need judgment before re-dispatching
+**Pattern:**
+```bash
+# 1. Dispatch work
+drone @ai_mail dispatch @target "Subject" "Body"
 
-**Option B: Bash Polling** (zero tokens, detection only)
-- Run `drone @ai_mail inbox 2>/dev/null | grep -q "📨"` in a background bash loop
-- Get notified when new mail arrives, then process manually
-- Use when just waiting for replies to come in
+# 2. Clear inbox first, then arm watchdog (run_in_background: true, timeout: 600000)
+drone @ai_mail close all
+INBOX="path/to/inbox.json"; while true; do sleep 10; UNREAD=$(python3 -c "import json; from pathlib import Path; p=Path('$INBOX'); print(json.loads(p.read_text()).get('unread_count',0) if p.exists() else 0)" 2>/dev/null); if [ "$UNREAD" -gt "0" ]; then echo "WOKE: $UNREAD unread"; exit 0; fi; done
 
-**The loop:** Dispatch → monitor → read reply → respond/re-dispatch → monitor again. No human needed until you hit a decision point.
+# 3. Stop — do nothing until notified
+# 4. Wake notification arrives → read mail → process → dispatch next → repeat
+```
+
+**Key:** Use `unread_count > 0` (not total_messages — close resets totals). Always `close all` before arming. 10s poll interval. `run_in_background: true` so the completion notification wakes you. On timeout, wake anyway to check if agent crashed — then either restart watchdog or re-dispatch.
+
+**Watchdog one-liner (copy-paste ready):**
+```
+INBOX="/home/patrick/Projects/AIPass/src/aipass/devpulse/.ai_mail.local/inbox.json"; C=0; while [ $C -lt 60 ]; do sleep 10; C=$((C+1)); UNREAD=$(python3 -c "import json; from pathlib import Path; p=Path('$INBOX'); print(json.loads(p.read_text()).get('unread_count',0) if p.exists() else 0)" 2>/dev/null); if [ "$UNREAD" -gt "0" ]; then echo "WOKE: $UNREAD unread"; exit 0; fi; done; echo "TIMEOUT: 10min no reply — check if agent crashed"; exit 0
+```
 
 ## Memory & Tracking
 

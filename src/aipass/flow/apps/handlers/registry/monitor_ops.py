@@ -39,8 +39,8 @@ from aipass.flow.apps.handlers.json import json_handler
 
 MODULE_NAME = "registry_monitor"
 
-# PLAN file pattern
-PLAN_PATTERN = re.compile(r'^FPLAN-\d{4}\.md$')
+# PLAN file pattern — matches any plan prefix (FPLAN, DPLAN, APLAN, RPLAN, TDPLAN, etc.)
+PLAN_PATTERN = re.compile(r'^[A-Z]+PLAN-\d{4}\.md$')
 
 # Directories to ignore during monitoring
 IGNORE_FOLDERS = {
@@ -115,8 +115,8 @@ class PlanFileWatcher(FileSystemEventHandler):
         return PLAN_PATTERN.match(Path(file_path).name) is not None
 
     def _get_plan_number(self, file_path: Path) -> Optional[str]:
-        """Extract plan number from filename (e.g., FPLAN-0001.md -> 0001)"""
-        match = re.search(r'FPLAN-(\d{4})\.md$', file_path.name)
+        """Extract plan number from filename (e.g., FPLAN-0001.md -> 0001, DPLAN-0005.md -> 0005)"""
+        match = re.search(r'[A-Z]+PLAN-(\d{4})\.md$', file_path.name)
         return match.group(1) if match else None
 
     def _is_duplicate_event(self, event_type: str, plan_num: str) -> bool:
@@ -247,7 +247,7 @@ def scan_plan_files_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[
         for filename in files:
             if PLAN_PATTERN.match(filename):
                 file_path = Path(root) / filename
-                match = re.search(r'FPLAN-(\d{4})\.md$', filename)
+                match = re.search(r'[A-Z]+PLAN-(\d{4})\.md$', filename)
                 if match:
                     plan_number = match.group(1)
 
@@ -256,7 +256,7 @@ def scan_plan_files_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[
                         if plan_number not in duplicates:
                             duplicates[plan_number] = [plan_files[plan_number]]
                         duplicates[plan_number].append(file_path)
-                        logger.warning(f"[{MODULE_NAME}] Duplicate FPLAN-{plan_number} found: {file_path}")
+                        logger.warning(f"[{MODULE_NAME}] Duplicate plan {filename} found: {file_path}")
                     else:
                         plan_files[plan_number] = file_path
 
@@ -273,8 +273,11 @@ def scan_plan_files_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[
             # Keep first occurrence, renumber the rest
             for dup_path in paths[1:]:  # Skip first path (already in plan_files)
                 old_name = dup_path.name
+                # Preserve original plan prefix (FPLAN, DPLAN, TDPLAN, etc.)
+                prefix_match = re.match(r'^([A-Z]+PLAN)', old_name)
+                dup_prefix = prefix_match.group(1) if prefix_match else "FPLAN"
                 new_num = f"{next_available:04d}"
-                new_name = f"FPLAN-{new_num}.md"
+                new_name = f"{dup_prefix}-{new_num}.md"
                 new_path = dup_path.parent / new_name
 
                 try:
@@ -309,7 +312,7 @@ def scan_plan_files_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[
             # File exists but not in registry - fire created event
             if _fire_event('plan_file_created', path=str(file_path)):
                 added.append(plan_number)
-                logger.info(f"[{MODULE_NAME}] Fired plan_file_created for FPLAN-{plan_number}")
+                logger.info(f"[{MODULE_NAME}] Fired plan_file_created for {file_path.name}")
         else:
             # Check if location changed (file moved)
             current_path = plans[plan_number].get("file_path", "")
@@ -317,16 +320,17 @@ def scan_plan_files_impl(ecosystem_root: Path, load_registry: Callable[[], Dict[
                 # Fire moved event
                 if _fire_event('plan_file_moved', src_path=current_path, dest_path=str(file_path)):
                     updated.append(plan_number)
-                    logger.info(f"[{MODULE_NAME}] Fired plan_file_moved for FPLAN-{plan_number}")
+                    logger.info(f"[{MODULE_NAME}] Fired plan_file_moved for {file_path.name}")
 
     # Fire events for orphaned registry entries (in registry but file doesn't exist)
     for plan_number in list(plans.keys()):
         if plan_number not in plan_files:
             # Registry entry but no file - fire deleted event
-            file_path = plans[plan_number].get("file_path", f"FPLAN-{plan_number}.md")
-            if _fire_event('plan_file_deleted', path=file_path):
+            orphan_path = plans[plan_number].get("file_path", "")
+            orphan_name = Path(orphan_path).name if orphan_path else f"PLAN-{plan_number}.md"
+            if _fire_event('plan_file_deleted', path=orphan_path or f"PLAN-{plan_number}.md"):
                 removed.append(plan_number)
-                logger.info(f"[{MODULE_NAME}] Fired plan_file_deleted for FPLAN-{plan_number}")
+                logger.info(f"[{MODULE_NAME}] Fired plan_file_deleted for {orphan_name}")
 
     # Log event results
     if added or updated or removed or renumbered:

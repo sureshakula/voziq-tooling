@@ -42,6 +42,7 @@ Usage:
 """
 
 import json
+import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
@@ -245,7 +246,12 @@ def _filter_branch_plans(
             continue
 
         branch_total += 1
-        plan_id = f"FPLAN-{plan_num.zfill(4)}"
+        # Extract plan prefix from file_path (e.g., DPLAN, FPLAN, TDPLAN)
+        file_path = plan_data.get("file_path", "")
+        filename = Path(file_path).name if file_path else ""
+        prefix_match = re.match(r'^([A-Z]+PLAN)', filename)
+        prefix = prefix_match.group(1) if prefix_match else "FPLAN"
+        plan_id = f"{prefix}-{plan_num.zfill(4)}"
 
         if plan_data.get("status") == "open":
             active_plans.append({

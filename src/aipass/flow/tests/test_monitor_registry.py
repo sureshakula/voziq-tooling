@@ -131,21 +131,22 @@ class TestScanPlanFilesImpl:
         assert "0010" in result["added"]
 
     def test_ignores_non_plan_files(self, tmp_path):
-        """Non-FPLAN files should be ignored even if they look similar."""
+        """Non-plan files should be ignored even if they look similar."""
         mod = _import_monitor_ops()
-        # Valid plan file
+        # Valid plan files (any prefix: FPLAN, DPLAN, etc.)
         _make_plan_file(tmp_path, "0001")
+        (tmp_path / "DPLAN-0002.md").write_text("also a plan", encoding="utf-8")
         # Invalid files that should not match
-        (tmp_path / "DPLAN-0002.md").write_text("not a plan", encoding="utf-8")
         (tmp_path / "FPLAN-ABC.md").write_text("bad number", encoding="utf-8")
         (tmp_path / "README.md").write_text("readme", encoding="utf-8")
+        (tmp_path / "NOTES-0003.md").write_text("not a plan prefix", encoding="utf-8")
 
         with patch.object(mod, "_fire_event", return_value=True):
             result = mod.scan_plan_files_impl(
                 ecosystem_root=tmp_path,
                 load_registry=lambda: {"plans": {}},
             )
-        assert result["added"] == ["0001"]
+        assert sorted(result["added"]) == ["0001", "0002"]
 
     def test_skips_ignored_folders(self, tmp_path):
         """Directories in IGNORE_FOLDERS should be skipped."""
@@ -721,29 +722,35 @@ class TestPlanFileWatcherInternals:
     """Tests for PlanFileWatcher helper methods."""
 
     def test_is_plan_file_valid(self):
-        """Valid FPLAN filenames should return True."""
+        """Valid plan filenames (any prefix) should return True."""
         mod = _import_monitor_ops()
         watcher = mod.PlanFileWatcher()
         assert watcher._is_plan_file("/some/path/FPLAN-0001.md") is True
         assert watcher._is_plan_file("/some/path/FPLAN-9999.md") is True
+        assert watcher._is_plan_file("/some/path/DPLAN-0001.md") is True
+        assert watcher._is_plan_file("/some/path/APLAN-0042.md") is True
+        assert watcher._is_plan_file("/some/path/RPLAN-0100.md") is True
+        assert watcher._is_plan_file("/some/path/TDPLAN-0002.md") is True
 
     def test_is_plan_file_invalid(self):
         """Invalid filenames should return False."""
         mod = _import_monitor_ops()
         watcher = mod.PlanFileWatcher()
-        assert watcher._is_plan_file("/some/path/DPLAN-0001.md") is False
         assert watcher._is_plan_file("/some/path/FPLAN-ABC.md") is False
         assert watcher._is_plan_file("/some/path/FPLAN-00001.md") is False
         assert watcher._is_plan_file("/some/path/README.md") is False
         assert watcher._is_plan_file("/some/path/FPLAN-0001.txt") is False
+        assert watcher._is_plan_file("/some/path/plan-0001.md") is False
 
     def test_get_plan_number(self):
-        """Should extract the 4-digit number from FPLAN filename."""
+        """Should extract the 4-digit number from plan filename."""
         mod = _import_monitor_ops()
         watcher = mod.PlanFileWatcher()
         assert watcher._get_plan_number(Path("FPLAN-0042.md")) == "0042"
         assert watcher._get_plan_number(Path("FPLAN-0001.md")) == "0001"
         assert watcher._get_plan_number(Path("/deep/path/FPLAN-1234.md")) == "1234"
+        assert watcher._get_plan_number(Path("DPLAN-0005.md")) == "0005"
+        assert watcher._get_plan_number(Path("TDPLAN-0002.md")) == "0002"
 
     def test_get_plan_number_invalid(self):
         """Invalid filenames should return None."""
