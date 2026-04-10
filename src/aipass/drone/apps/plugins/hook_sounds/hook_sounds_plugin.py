@@ -18,6 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from aipass.prax import logger
+from aipass.cli.apps.modules import console
 from aipass.drone.apps.handlers.json import json_handler
 
 MUTE_FLAG = Path("/tmp/aipass-hooks-muted")
@@ -56,19 +57,19 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
 
     if command == "off":
         mute()
-        print("Hook sounds: MUTED")
+        console.print("Hook sounds: MUTED")
         return True
 
     if command == "on":
         unmute()
-        print("Hook sounds: ACTIVE")
+        console.print("Hook sounds: ACTIVE")
         return True
 
     # No command = show status
     if is_muted():
-        print("Hook sounds: MUTED (off)")
-        print(f"  Flag: {MUTE_FLAG}")
+        console.print("Hook sounds: MUTED (off)")
+        console.print(f"  Flag: {MUTE_FLAG}")
     else:
-        print("Hook sounds: ACTIVE (on)")
+        console.print("Hook sounds: ACTIVE (on)")
 
     return True

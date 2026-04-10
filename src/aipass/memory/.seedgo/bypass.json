@@ -493,6 +493,26 @@
     },
     {
       "file": "apps/handlers/symbolic/deduplicator.py",
+      "standard": "encapsulation",
+      "reason": "Cross-branch service call to api branch key management. api has no modules-level get_api_key() for external callers."
+    },
+    {
+      "file": "apps/handlers/symbolic/extractor.py",
+      "standard": "encapsulation",
+      "reason": "Cross-branch service call to api branch key management. api has no modules-level get_api_key() for external callers."
+    },
+    {
+      "file": "apps/handlers/symbolic/deduplicator.py",
+      "standard": "handlers",
+      "reason": "Cross-branch handler import for api key retrieval — api branch's canonical key interface is at handler level."
+    },
+    {
+      "file": "apps/handlers/symbolic/extractor.py",
+      "standard": "handlers",
+      "reason": "Cross-branch handler import for api key retrieval — api branch's canonical key interface is at handler level."
+    },
+    {
+      "file": "apps/handlers/symbolic/deduplicator.py",
       "standard": "deep_nesting",
       "reason": "Deduplication algorithm with nested comparison logic."
     },
