@@ -71,12 +71,12 @@ def recover_plan_from_backup(plan_key: str, load_registry: Any = None, save_regi
 
     # Search for any prefix matching the plan key (FPLAN-, DPLAN-, etc.)
     variants = list(processed_plans.glob(f"*-{plan_key}*.md")) if processed_plans.exists() else []
-    plan_file = processed_plans / f"FPLAN-{plan_key}.md"  # fallback default
+    plan_file = None  # No default -- use variant search
     if variants:
         # Sort by modification time, newest first
         variants.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         plan_file = variants[0]  # Use most recent backup
-    elif not plan_file.exists():
+    if plan_file is None or not plan_file.exists():
         return False, f"Plan {plan_key} not found in backups"
 
     # Read plan file to extract original location from header
@@ -209,7 +209,7 @@ def restore_plan_impl(
         exists, error_msg = validate_plan_exists(plan_key, registry)
         if not exists:
             # AUTO-RECOVERY: Try to recover from processed_plans
-            messages.append({"type": "warning", "text": f"FPLAN-{plan_key} not in registry - attempting recovery..."})
+            messages.append({"type": "warning", "text": f"PLAN-{plan_key} not in registry - attempting recovery..."})
             recovered, recovery_msg = recover_plan_from_backup_fn(plan_key)
 
             if recovered:
@@ -234,7 +234,7 @@ def restore_plan_impl(
 
         # 4. VALIDATE: Check plan is closed
         if plan_info.get("status") != "closed":
-            logger.warning(f"[{MODULE_NAME}] FPLAN-{plan_key} is already open")
+            logger.warning(f"[{MODULE_NAME}] Plan {plan_key} is already open")
             messages.append({"type": "error", "error_type": "already_open", "plan_key": plan_key})
             return {
                 "success": False,
@@ -268,7 +268,7 @@ def restore_plan_impl(
         plan_info.pop('memory_file', None)
 
         save_registry(registry)
-        logger.info(f"[{MODULE_NAME}] Restored FPLAN-{plan_key} to open status")
+        logger.info(f"[{MODULE_NAME}] Restored plan {plan_key} to open status")
 
         # 8. UPDATE DASHBOARDS: Sync dashboard files (handlers)
         dashboard_success = update_dashboard_local()

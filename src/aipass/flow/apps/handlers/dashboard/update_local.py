@@ -82,8 +82,32 @@ FLOW_ROOT = _PKG_ROOT / "flow"
 # CONFIGURATION
 # =============================================
 
-REGISTRY_FILE = FLOW_ROOT / "flow_json" / "fplan_registry.json"
+FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
+REGISTRY_FILE = FLOW_JSON_DIR / "fplan_registry.json"
 DASHBOARD_FILE = FLOW_ROOT / "DASHBOARD.local.json"
+
+
+# =============================================
+# PLAN TYPE HELPERS
+# =============================================
+
+
+def _get_all_registry_files() -> List[str]:
+    """Return per-type registry filenames via plan-type discovery."""
+    try:
+        from aipass.flow.apps.handlers.template.plan_type_loader import discover_plan_types
+
+        files: List[str] = []
+        for _key, config in discover_plan_types().items():
+            rf = config.get("registry_file")
+            if rf and rf not in files:
+                files.append(rf)
+        if files:
+            return files
+    except Exception as exc:
+        logger.warning("[update_local] Failed to discover plan types, falling back to default registry: %s", exc)
+    return [REGISTRY_FILE.name]
+
 
 # =============================================
 # HELPER FUNCTIONS
@@ -91,19 +115,31 @@ DASHBOARD_FILE = FLOW_ROOT / "DASHBOARD.local.json"
 
 def _read_registry() -> Optional[Dict[str, Any]]:
     """
-    Read fplan_registry.json.
+    Read all per-type plan registries and merge into a single dict.
 
     Returns:
-        Registry dict or None if error
+        Merged registry dict or None if no registries found
     """
-    try:
-        if not REGISTRY_FILE.exists():
-            return None
-        with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as exc:
-        logger.warning("Failed to read fplan registry '%s': %s", REGISTRY_FILE, exc)
+    merged: Dict[str, Any] = {"plans": {}, "next_number": 1}
+    found_any = False
+    for registry_file in _get_all_registry_files():
+        target = FLOW_JSON_DIR / registry_file
+        try:
+            if not target.exists():
+                continue
+            with open(target, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            found_any = True
+            for plan_num, plan_data in data.get("plans", {}).items():
+                merged["plans"][plan_num] = plan_data
+            nn = data.get("next_number", 1)
+            if nn > merged["next_number"]:
+                merged["next_number"] = nn
+        except Exception as exc:
+            logger.warning("Failed to read registry '%s': %s", target, exc)
+    if not found_any:
         return None
+    return merged
 
 
 def _extract_flow_plans(registry: Dict[str, Any]) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:

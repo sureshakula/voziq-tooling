@@ -110,17 +110,17 @@ def save_branch_registry(registry_path: Path, registry: Dict[str, Any]) -> bool:
 
 
 def extract_plan_number(plan_id: str) -> Optional[str]:
-    """Extract plan number from plan_id (e.g., 'FPLAN-0148' -> '0148')
+    """Extract plan number from plan_id (e.g., 'FPLAN-0148' -> '0148', 'DPLAN-0004' -> '0004')
 
     Args:
-        plan_id: Plan ID string (e.g., 'FPLAN-0148')
+        plan_id: Plan ID string with any prefix (e.g., 'FPLAN-0148', 'DPLAN-0004')
 
     Returns:
         Plan number string or None if invalid format
     """
-    if not plan_id or not plan_id.startswith("FPLAN-"):
+    if not plan_id or '-' not in plan_id:
         return None
-    return plan_id[6:]  # Skip 'FPLAN-' prefix
+    return plan_id.split('-', 1)[1]
 
 
 def auto_close_plan(registry_path: Path, plan_id: str, branch_name: str) -> bool:

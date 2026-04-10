@@ -54,8 +54,9 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 FLOW_ROOT = _PKG_ROOT / "flow"
 
-# Registry location
-REGISTRY_FILE = FLOW_ROOT / "flow_json" / "fplan_registry.json"
+# Registry location (fallback default)
+FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
+REGISTRY_FILE = FLOW_JSON_DIR / "fplan_registry.json"
 
 # Dashboard template path (package-relative)
 DASHBOARD_TEMPLATE_FILE = _PKG_ROOT / "devpulse" / "templates" / "DASHBOARD.template.json"
@@ -195,24 +196,55 @@ def _calculate_quick_status(sections: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # =============================================
+# PLAN TYPE HELPERS
+# =============================================
+
+
+def _get_all_registry_files() -> List[str]:
+    """Return per-type registry filenames via plan-type discovery."""
+    try:
+        from aipass.flow.apps.handlers.template.plan_type_loader import discover_plan_types
+
+        files: List[str] = []
+        for _key, config in discover_plan_types().items():
+            rf = config.get("registry_file")
+            if rf and rf not in files:
+                files.append(rf)
+        if files:
+            return files
+    except Exception as exc:
+        logger.warning("[push_branch_dashboard] Failed to discover plan types, falling back to default registry: %s", exc)
+    return [REGISTRY_FILE.name]
+
+
+# =============================================
 # HELPER FUNCTIONS
 # =============================================
 
 def _load_registry() -> Dict[str, Any]:
     """
-    Load fplan_registry.json.
+    Load all per-type plan registries and merge into a single dict.
 
     Returns:
-        Registry dict or empty structure if unavailable
+        Merged registry dict or empty structure if unavailable
     """
-    try:
-        if not REGISTRY_FILE.exists():
-            return {"plans": {}, "next_number": 1}
-        with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as exc:
-        logger.warning("Failed to load fplan registry '%s': %s", REGISTRY_FILE, exc)
-        return {"plans": {}, "next_number": 1}
+    merged: Dict[str, Any] = {"plans": {}, "next_number": 1}
+    for registry_file in _get_all_registry_files():
+        target = FLOW_JSON_DIR / registry_file
+        try:
+            if not target.exists():
+                continue
+            with open(target, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            for plan_num, plan_data in data.get("plans", {}).items():
+                merged["plans"][plan_num] = plan_data
+            # Keep the highest next_number across registries
+            nn = data.get("next_number", 1)
+            if nn > merged["next_number"]:
+                merged["next_number"] = nn
+        except Exception as exc:
+            logger.warning("Failed to load registry '%s': %s", target, exc)
+    return merged
 
 
 def _filter_branch_plans(

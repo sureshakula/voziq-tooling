@@ -14,6 +14,7 @@ Creates the file if it doesn't exist.
 """
 
 import json
+import re
 from pathlib import Path
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -40,7 +41,12 @@ def append_to_closed_plans(plan_key: str, plan_info: dict, plan_location: Path) 
         True on success, False on failure
     """
     try:
-        plan_id = f"FPLAN-{plan_key}"
+        # Extract prefix from plan_info's file_path (e.g., FPLAN, DPLAN)
+        file_path = plan_info.get("file_path", "")
+        filename = Path(file_path).name if file_path else ""
+        prefix_match = re.match(r'^([A-Z]+PLAN)', filename)
+        prefix = prefix_match.group(1) if prefix_match else "FPLAN"
+        plan_id = f"{prefix}-{plan_key}"
 
         # Extract date (YYYY-MM-DD) from the closed ISO timestamp
         closed_raw = plan_info.get("closed", "")
@@ -49,7 +55,7 @@ def append_to_closed_plans(plan_key: str, plan_info: dict, plan_location: Path) 
         # Build the entry
         entry = {
             "plan_id": plan_id,
-            "type": "FPLAN",
+            "type": prefix,
             "subject": plan_info.get("subject", ""),
             "date_closed": date_closed,
             "location": plan_info.get("relative_path", "")

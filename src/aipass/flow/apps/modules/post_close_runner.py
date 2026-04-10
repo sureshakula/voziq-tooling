@@ -93,18 +93,37 @@ def handle_command(command: str, args: list) -> bool:
 
 
 def _acquire_lock() -> bool:
-    """Try to acquire lock file. Returns True if acquired, False if another instance is running."""
-    if LOCK_FILE.exists():
+    """Try to acquire lock file. Returns True if acquired, False if another instance is running.
+
+    Uses atomic O_CREAT | O_EXCL to avoid TOCTOU race between existence check and write.
+    """
+    try:
+        fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+        return True
+    except FileExistsError:
+        # Lock file exists — check if owner process is alive
         try:
-            pid = int(LOCK_FILE.read_text().strip())
+            pid = int(LOCK_FILE.read_text(encoding="utf-8").strip())
             os.kill(pid, 0)  # Signal 0 = check if process exists
             logger.info(f"[{MODULE_NAME}] Another instance running (PID {pid}), exiting")
             return False
         except (ValueError, ProcessLookupError, PermissionError):
+            # Stale lock — remove and retry once
             logger.info(f"[{MODULE_NAME}] Stale lock found, taking over")
-
-    LOCK_FILE.write_text(str(os.getpid()))
-    return True
+            try:
+                LOCK_FILE.unlink()
+            except OSError:
+                return False
+            # Retry atomic creation
+            try:
+                fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, str(os.getpid()).encode())
+                os.close(fd)
+                return True
+            except FileExistsError:
+                return False  # Another process grabbed it
 
 
 def _release_lock():

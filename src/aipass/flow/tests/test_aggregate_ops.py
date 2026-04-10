@@ -152,9 +152,10 @@ class TestExtractPlanNumber:
         extract_plan_number = _import("extract_plan_number")
         assert extract_plan_number(None) is None
 
-    def test_wrong_prefix(self):
+    def test_other_prefix(self):
+        """Any PREFIX-number pattern is accepted (DPLAN, FPLAN, etc.)"""
         extract_plan_number = _import("extract_plan_number")
-        assert extract_plan_number("DPLAN-0001") is None
+        assert extract_plan_number("DPLAN-0001") == "0001"
 
     def test_no_dash(self):
         extract_plan_number = _import("extract_plan_number")

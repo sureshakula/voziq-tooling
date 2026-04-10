@@ -393,12 +393,14 @@ class TestAutoCloseOrphanedPlans:
 class TestGetClosedPlans:
     """Tests for get_closed_plans()."""
 
+    _SINGLE_REG = ["fplan_registry.json"]
+    _DISCOVERY_PATH = "aipass.flow.apps.handlers.plan.get_closed_plans._get_all_registry_files"
+    _LOAD_PATH = "aipass.flow.apps.handlers.plan.get_closed_plans.load_registry"
+
     def test_returns_only_closed_plans(self, mock_registry):
         _, registry = mock_registry
-        with patch(
-            "aipass.flow.apps.handlers.plan.get_closed_plans.load_registry",
-            return_value=registry,
-        ):
+        with patch(self._DISCOVERY_PATH, return_value=self._SINGLE_REG), \
+             patch(self._LOAD_PATH, return_value=registry):
             result = get_closed_plans()
 
         assert len(result) == 1
@@ -412,19 +414,15 @@ class TestGetClosedPlans:
                 "1": {"status": "open", "subject": "active"},
             }
         }
-        with patch(
-            "aipass.flow.apps.handlers.plan.get_closed_plans.load_registry",
-            return_value=registry,
-        ):
+        with patch(self._DISCOVERY_PATH, return_value=self._SINGLE_REG), \
+             patch(self._LOAD_PATH, return_value=registry):
             result = get_closed_plans()
 
         assert result == []
 
     def test_returns_empty_on_empty_registry(self):
-        with patch(
-            "aipass.flow.apps.handlers.plan.get_closed_plans.load_registry",
-            return_value={"plans": {}},
-        ):
+        with patch(self._DISCOVERY_PATH, return_value=self._SINGLE_REG), \
+             patch(self._LOAD_PATH, return_value={"plans": {}}):
             result = get_closed_plans()
 
         assert result == []
@@ -437,10 +435,8 @@ class TestGetClosedPlans:
                 "3": {"status": "open", "subject": "still going"},
             }
         }
-        with patch(
-            "aipass.flow.apps.handlers.plan.get_closed_plans.load_registry",
-            return_value=registry,
-        ):
+        with patch(self._DISCOVERY_PATH, return_value=self._SINGLE_REG), \
+             patch(self._LOAD_PATH, return_value=registry):
             result = get_closed_plans()
 
         assert len(result) == 2
@@ -449,10 +445,8 @@ class TestGetClosedPlans:
 
     def test_result_tuples_contain_plan_num_and_info(self, mock_registry):
         _, registry = mock_registry
-        with patch(
-            "aipass.flow.apps.handlers.plan.get_closed_plans.load_registry",
-            return_value=registry,
-        ):
+        with patch(self._DISCOVERY_PATH, return_value=self._SINGLE_REG), \
+             patch(self._LOAD_PATH, return_value=registry):
             result = get_closed_plans()
 
         for plan_num, plan_info in result:

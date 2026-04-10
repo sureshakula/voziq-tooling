@@ -49,6 +49,8 @@ from aipass.flow.apps.handlers.plan.aggregate_ops import aggregate_central_impl
 MODULE_NAME = "push_central"
 FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
 REGISTRY_FILE = FLOW_JSON_DIR / "fplan_registry.json"
+
+
 def _find_repo_root() -> Path:
     """Walk up from this file to find the repo root (contains AIPASS_REGISTRY.json)."""
     current = Path(__file__).resolve().parent
@@ -63,24 +65,53 @@ AI_CENTRAL_DIR = _REPO_ROOT / ".ai_central"
 CENTRAL_FILE = AI_CENTRAL_DIR / "PLANS.central.json"
 
 # =============================================
+# PLAN TYPE HELPERS
+# =============================================
+
+
+def _get_all_registry_files() -> List[str]:
+    """Return per-type registry filenames via plan-type discovery."""
+    try:
+        from aipass.flow.apps.handlers.template.plan_type_loader import discover_plan_types
+
+        files: List[str] = []
+        for _key, config in discover_plan_types().items():
+            rf = config.get("registry_file")
+            if rf and rf not in files:
+                files.append(rf)
+        if files:
+            return files
+    except Exception as exc:
+        logger.warning("[push_central] Failed to discover plan types, falling back to default registry: %s", exc)
+    return [REGISTRY_FILE.name]
+
+
+# =============================================
 # HELPER FUNCTIONS
 # =============================================
 
 def _load_registry() -> Dict[str, Any]:
-    """Load fplan_registry.json
+    """Load all per-type plan registries and merge into a single dict.
 
     Returns:
-        Registry dict or empty structure if file doesn't exist
+        Merged registry dict or empty structure if no files found
     """
-    if not REGISTRY_FILE.exists():
-        return {"plans": {}, "next_number": 1}
-
-    try:
-        with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as exc:
-        logger.warning("Failed to load fplan registry '%s': %s", REGISTRY_FILE, exc)
-        return {"plans": {}, "next_number": 1}
+    merged: Dict[str, Any] = {"plans": {}, "next_number": 1}
+    for registry_file in _get_all_registry_files():
+        target = FLOW_JSON_DIR / registry_file
+        try:
+            if not target.exists():
+                continue
+            with open(target, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            for plan_num, plan_data in data.get("plans", {}).items():
+                merged["plans"][plan_num] = plan_data
+            nn = data.get("next_number", 1)
+            if nn > merged["next_number"]:
+                merged["next_number"] = nn
+        except Exception as exc:
+            logger.warning("Failed to load registry '%s': %s", target, exc)
+    return merged
 
 
 def _extract_flow_plans(registry: Dict[str, Any]) -> tuple[List[Dict], List[Dict]]:
