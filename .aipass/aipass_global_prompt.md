@@ -158,6 +158,7 @@ If the conversation suddenly shifts to a topic, project, or domain that doesn't 
 - **No cross-branch file edits.** If you find an issue in another branch → email them.
 - **No bare imports.** Always `from aipass.{module}.apps.modules...`
 - **No hardcoded paths.** Use `Path(__file__).parents[N]` or drone for resolution.
+- **Never move, archive, or delete files with "patrick" in the name.** Patrick's personal files (audits, templates, notes) are off-limits. Don't reorganize them, don't archive them, don't touch them.
 - **No deleting files.** Tag with `(disabled)` and move to `.archive/`:
   - Rename the file: `my_handler.py` → `my_handler(disabled).py`. The `(disabled)` tag is gitignored — it blocks imports and keeps the file out of version control while preserving it locally.
   - If `.archive/` doesn't exist in the current directory, create it. Place `.archive/` next to the files being moved — if you're in `handlers/`, the archive goes in `handlers/.archive/`. If in `apps/`, it goes in `apps/.archive/`.
