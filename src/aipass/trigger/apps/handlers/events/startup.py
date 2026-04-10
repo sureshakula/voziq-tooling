@@ -56,7 +56,7 @@ def _load_trigger_data() -> Dict[str, Any]:
     """Load trigger_data.json with error_catchup section."""
     try:
         if TRIGGER_DATA_FILE.exists():
-            with open(TRIGGER_DATA_FILE, 'r') as f:
+            with open(TRIGGER_DATA_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if 'error_catchup' not in data:
                 data['error_catchup'] = {
@@ -103,7 +103,7 @@ def _log_suppression(reason: str) -> None:
     """
     try:
         SUPPRESSED_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(SUPPRESSED_LOG, 'a') as f:
+        with open(SUPPRESSED_LOG, 'a', encoding='utf-8') as f:
             f.write(f"{datetime.now().isoformat()} | error_catchup: {reason}\n")
     except Exception as exc:
         _log_warning(f"log suppression write failed: {exc}")
@@ -349,7 +349,7 @@ def _run_error_catchup(fire_event: Optional[Callable[..., None]] = None) -> None
 
         if errors and fire_event is not None:
             for error in errors:
-                fire_event('error_logged', **error)
+                fire_event('error_detected', **error)
 
         hash_list = list(processed_hashes)
         max_h = catchup.get('max_hashes', MAX_HASHES)

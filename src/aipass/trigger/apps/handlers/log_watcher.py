@@ -112,9 +112,9 @@ SYSTEM_LOGS_DIR = AIPASS_PKG_ROOT.parent.parent / "system_logs"
 # Known branch prefixes that appear in system_logs filenames (<prefix>_<module>.log).
 # Sorted longest-first so longer prefixes match before shorter ones.
 _SYSTEM_LOGS_BRANCH_PREFIXES: list = sorted([
-    'ai_mail', 'api', 'backup', 'cli', 'drone', 'flow',
-    'prax', 'trigger', 'seedgo', 'memory', 'The_Commons',
-    'aipass_os', 'aipass_business',
+    'ai_mail', 'api', 'cli', 'drone', 'flow',
+    'prax', 'trigger', 'seedgo', 'memory',
+    'spawn', 'devpulse',
 ], key=len, reverse=True)
 
 # Event fire callback (set by module, avoids handler importing from modules)

@@ -6,7 +6,7 @@ Event bus and error dispatch for AIPass. I detect errors, fingerprint them, gate
 ## Architecture
 ```
 trigger.py (entry point — auto-discovers modules/)
-├── core.py        → Event bus: fire/on/off/status (12 events, 12 handlers)
+├── core.py        → Event bus: fire/on/off/status (14 events, 14 handlers)
 ├── errors.py      → Error registry CLI: list/detail/suppress/resolve/stats/circuit-breaker
 ├── medic.py       → Medic toggle: on/off/status/mute/unmute
 ├── log_events.py  → Centralized log watcher (system_logs/)

@@ -170,7 +170,7 @@ def _log_suppression(reason: str, branch: str, source_module: str, message: str)
     """
     try:
         SUPPRESSED_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(SUPPRESSED_LOG, 'a') as f:
+        with open(SUPPRESSED_LOG, 'a', encoding='utf-8') as f:
             f.write(
                 f"{datetime.now().isoformat()} | "
                 f"{reason} - suppressed dispatch for {branch}: "

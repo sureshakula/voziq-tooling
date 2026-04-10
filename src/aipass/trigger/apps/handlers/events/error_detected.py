@@ -350,7 +350,7 @@ def _write_suppression_log(reason: str, branch: str, module: str, message: str) 
     try:
         suppressed_log = TRIGGER_ROOT / "logs" / "medic_suppressed.log"
         suppressed_log.parent.mkdir(parents=True, exist_ok=True)
-        with open(suppressed_log, 'a') as f:
+        with open(suppressed_log, 'a', encoding='utf-8') as f:
             f.write(
                 f"{datetime.now().isoformat()} | "
                 f"{reason} - {branch}: {module} - {message[:100]}\n"
@@ -364,7 +364,7 @@ def _write_rate_log(reason: str, detail: str) -> None:
     try:
         rate_log = TRIGGER_ROOT / "logs" / "rate_limited.log"
         rate_log.parent.mkdir(parents=True, exist_ok=True)
-        with open(rate_log, 'a') as f:
+        with open(rate_log, 'a', encoding='utf-8') as f:
             f.write(f"{datetime.now().isoformat()} | {reason}: {detail}\n")
     except Exception as exc:
         _log_warning(f"rate log write failed ({reason}): {exc}")
@@ -444,6 +444,10 @@ def handle_error_detected(
         if count < 2:
             _write_suppression_log(f"First occurrence (count={count}) - waiting for pattern", branch, module, message)
             return
+
+        # Record error for circuit breaker at detection time (not dispatch time)
+        if _REGISTRY_DISPATCH_AVAILABLE:
+            circuit_breaker_record_error()
 
         # Callback must be set by module layer before events fire
         if _send_email is None:
@@ -531,9 +535,8 @@ def handle_error_detected(
 
         # Record dispatch for tracking
         if _REGISTRY_DISPATCH_AVAILABLE and fingerprint:
-            # Medic v2: per-fingerprint dispatch tracking + circuit breaker
+            # Medic v2: per-fingerprint dispatch tracking
             registry_record_dispatch(fingerprint)
-            circuit_breaker_record_error()
         else:
             # Legacy: per-branch rate limiting
             _record_dispatch(recipient)

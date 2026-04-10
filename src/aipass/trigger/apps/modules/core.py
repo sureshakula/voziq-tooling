@@ -96,6 +96,7 @@ class Trigger:
     def _fire_to_handlers(cls, event: str, data: dict) -> None:
         """Fire a single event to its registered handlers."""
         handlers = cls._handlers.get(event, [])
+        data = dict(data)  # Copy to avoid mutating caller's dict
         data['fire_event'] = cls.fire
         for handler in handlers:
             try:

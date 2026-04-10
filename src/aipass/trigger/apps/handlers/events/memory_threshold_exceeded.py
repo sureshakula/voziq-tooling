@@ -134,9 +134,9 @@ def handle_memory_threshold_exceeded(
         if not branch or not file_name or line_count is None:
             return
 
-        # Import AI_Mail delivery
+        # Import AI_Mail delivery (modules-level API, not handler-level)
         try:
-            from aipass.ai_mail.apps.handlers.email.delivery import deliver_email_to_branch
+            from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
         except ImportError:
             return
 
