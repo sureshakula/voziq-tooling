@@ -131,6 +131,11 @@
       "reason": "False positive — _inbox_lock is a lazy-import function reference, not a module-level constant."
     },
     {
+      "file": "apps/handlers/email/inbox_ops.py",
+      "standard": "naming",
+      "reason": "False positive — _inbox_lock is a lazy-import function reference, not a module-level constant."
+    },
+    {
       "file": "apps/handlers/email/inbox_resolve.py",
       "standard": "naming",
       "reason": "False positive — target_branch, mailbox_path are local variables, not module-level constants."
