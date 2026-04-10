@@ -186,7 +186,7 @@ def regenerate_template_registry(target_dir):
             file_id = f"f{file_idx:03d}"
             try:
                 content = item.read_bytes()
-                content_hash = hashlib.sha256(content).hexdigest()[:16]
+                content_hash = hashlib.sha256(content).hexdigest()[:12]
             except (IOError, PermissionError) as e:
                 logger.error(f"[spawn] Failed to read file for hashing {item}: {e}")
                 content_hash = "unreadable"

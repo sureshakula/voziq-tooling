@@ -41,7 +41,7 @@ from aipass.drone.apps.modules import (
 from aipass.drone.apps.modules.resolver import branch_exists, get_branch_info, list_branches, resolve_branch
 from aipass.drone.apps.modules.router import route_all, route_command
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     # Core API

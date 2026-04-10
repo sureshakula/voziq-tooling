@@ -38,6 +38,10 @@ from aipass.drone.apps.modules.module_registry import (
 VERSION = "1.1.0"
 MODULES_DIR = Path(__file__).parent / "modules"
 
+# Interactive mode — commands/branches that bypass capture + timeout for live terminal output.
+INTERACTIVE_COMMANDS = ("monitor", "audit")
+INTERACTIVE_BRANCHES = ("cli",)
+
 
 # =============================================================================
 # AUTO-DISCOVERY
@@ -287,10 +291,7 @@ def _handle_custom_command(args: list[str]) -> int:
     cmd_args = list(cmd_data.get("args", [])) + remaining_args
     module_name = target.lstrip("@").lower()
 
-    # Interactive detection -- same logic as _handle_target
-    interactive_commands = ("monitor", "audit")
-    interactive_branches = ("cli",)
-    interactive = command in interactive_commands or module_name in interactive_branches
+    interactive = command in INTERACTIVE_COMMANDS or module_name in INTERACTIVE_BRANCHES
 
     try:
         result = route_command(
@@ -319,14 +320,9 @@ def _handle_target(args: List[str]) -> int:
     rest = args[1:]
     module_name = target.lstrip("@").lower()
 
-    # Interactive mode bypasses capture + timeout for human-facing output.
-    # Per-command: specific commands that need live terminal (progress bars, TUI).
-    # Per-branch: all commands from that branch get interactive mode (Rich CLI).
-    interactive_commands = ("monitor", "audit")
-    interactive_branches = ("cli",)
     first_cmd = rest[0] if rest and rest[0] != "--help" else None
     needs_interactive = (
-        first_cmd in interactive_commands or module_name in interactive_branches
+        first_cmd in INTERACTIVE_COMMANDS or module_name in INTERACTIVE_BRANCHES
     )
 
     # Route to internal module — unless command needs interactive terminal,
