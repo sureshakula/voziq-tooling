@@ -51,28 +51,28 @@ class MonitoringQueue:
         self.queue = PriorityQueue(maxsize=maxsize)
         self.recent_events = []  # For deduplication
         self.lock = threading.Lock()
-        self.running = True
+        self._stopped = threading.Event()
 
     def enqueue(self, event: MonitoringEvent) -> bool:
         """Add event to queue (thread-safe)"""
-        if not self.running:
+        if self._stopped.is_set():
             return False
 
         json_handler.log_operation("event_queued", {"event_type": event.event_type, "branch": event.branch})
 
-        # Simple deduplication
-        if not self._is_duplicate(event):
+        # Simple deduplication + queue put under single lock
+        with self.lock:
+            if self._is_duplicate(event):
+                return False
             try:
                 self.queue.put(event, block=False)
-                with self.lock:
-                    self.recent_events.append(event)
-                    if len(self.recent_events) > 100:
-                        self.recent_events.pop(0)
+                self.recent_events.append(event)
+                if len(self.recent_events) > 100:
+                    self.recent_events.pop(0)
                 return True
             except Exception as e:
                 logger.warning(f"[event_queue] Failed to enqueue event (type={event.event_type}, branch={event.branch}): {e}")
                 return False
-        return False
 
     def dequeue(self, timeout: float = 0.1) -> Optional[MonitoringEvent]:
         """Get next event from queue (thread-safe)"""
@@ -93,19 +93,18 @@ class MonitoringQueue:
 
     def stop(self):
         """Stop accepting new events"""
-        self.running = False
+        self._stopped.set()
         self.flush()
 
     def _is_duplicate(self, event: MonitoringEvent) -> bool:
-        """Check if event duplicates recent event"""
-        with self.lock:
-            for recent in self.recent_events[-10:]:
-                if (recent.event_type == event.event_type and
-                    recent.branch == event.branch and
-                    recent.action == event.action and
-                    recent.message == event.message and
-                    abs((event.timestamp - recent.timestamp).total_seconds()) < 1):
-                    return True
+        """Check if event duplicates recent event. Caller must hold self.lock."""
+        for recent in self.recent_events[-10:]:
+            if (recent.event_type == event.event_type and
+                recent.branch == event.branch and
+                recent.action == event.action and
+                recent.message == event.message and
+                abs((event.timestamp - recent.timestamp).total_seconds()) < 1):
+                return True
         return False
 
     def size(self) -> int:

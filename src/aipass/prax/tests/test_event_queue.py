@@ -454,5 +454,5 @@ class TestMonitoringQueue:
         q = MonitoringQueue()
         q.stop()
         q.stop()  # Should not raise
-        assert q.running is False
+        assert q._stopped.is_set()
         assert q.size() == 0

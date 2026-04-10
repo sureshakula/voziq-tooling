@@ -14,6 +14,7 @@ Handles dual logging (system-wide + branch-local) and terminal output.
 """
 
 import logging
+import threading
 logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Dict, Optional
@@ -40,6 +41,7 @@ from aipass.prax.apps.handlers.json import json_handler
 logger = logging.getLogger(__name__)
 _system_logger: Optional[logging.Logger] = None
 _captured_loggers: Dict[str, logging.Logger] = {}
+_captured_loggers_lock = threading.Lock()
 _terminal_output_enabled = False
 
 # Try to import terminal handler support
@@ -87,8 +89,9 @@ def setup_individual_logger(
     Returns:
         Configured logger instance
     """
-    if module_name in _captured_loggers:
-        return _captured_loggers[module_name]
+    with _captured_loggers_lock:
+        if module_name in _captured_loggers:
+            return _captured_loggers[module_name]
 
     # Log new logger creation
     if _system_logger:
@@ -146,8 +149,9 @@ def setup_individual_logger(
             terminal_handler = create_terminal_handler()  # type: ignore[misc]
             logger.addHandler(terminal_handler)
 
-    # Store for reuse
-    _captured_loggers[module_name] = logger
+    # Store for reuse (thread-safe)
+    with _captured_loggers_lock:
+        _captured_loggers[module_name] = logger
 
     return logger
 

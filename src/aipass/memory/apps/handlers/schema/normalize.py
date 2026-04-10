@@ -33,6 +33,15 @@ from aipass.memory.apps.handlers.json import json_handler
 logger = get_system_logger()
 
 
+def _find_repo_root() -> Path:
+    """Walk up from this file to find repo root (contains AIPASS_REGISTRY.json)."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        if (parent / "AIPASS_REGISTRY.json").exists():
+            return parent
+    return Path.cwd()
+
+
 def normalize_memory_file(file_path: Path, dry_run: bool = False) -> Dict[str, Any]:
     """
     Normalize schema for a single memory file.
@@ -148,7 +157,7 @@ def normalize_all_memory_files(dry_run: bool = False) -> Dict[str, Any]:
         Dict with statistics
     """
     # Read registry
-    registry_path = Path.home() / "AIPASS_REGISTRY.json"
+    registry_path = _find_repo_root() / "AIPASS_REGISTRY.json"
 
     if not registry_path.exists():
         return {'success': False, 'error': "AIPASS_REGISTRY.json not found"}

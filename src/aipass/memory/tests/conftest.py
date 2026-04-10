@@ -112,22 +112,22 @@ def sample_memory_data() -> dict:
 def sample_registry_data() -> dict:
     """Provides sample AIPASS_REGISTRY.json data."""
     return {
-        "branches": {
-            "test_branch": {
+        "branches": [
+            {
                 "name": "TEST_BRANCH",
                 "path": "src/aipass/test_branch",
                 "module": "aipass.test_branch",
                 "email": "@test_branch",
                 "status": "active"
             },
-            "memory": {
+            {
                 "name": "MEMORY",
                 "path": "src/aipass/memory",
                 "module": "aipass.memory",
                 "email": "@memory",
                 "status": "active"
             }
-        }
+        ]
     }
 
 

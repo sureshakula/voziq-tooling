@@ -48,6 +48,15 @@ from aipass.memory.apps.handlers.json.memory_files import (
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]
 CHROMA_SUBPROCESS_SCRIPT = _MEMORY_ROOT / "apps" / "handlers" / "storage" / "chroma_subprocess.py"
 
+def _find_repo_root() -> Path:
+    """Walk up from this file to find repo root (contains AIPASS_REGISTRY.json)."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        if (parent / "AIPASS_REGISTRY.json").exists():
+            return parent
+    return Path.cwd()
+
+
 # Defaults
 DEFAULT_MAX_LEARNINGS = 100
 DEFAULT_MAX_RECENTLY_COMPLETED = 20
@@ -973,7 +982,7 @@ def process_all_branches() -> Dict[str, Any]:
     Returns:
         Dict with processing summary
     """
-    registry_path = Path.home() / "AIPASS_REGISTRY.json"
+    registry_path = _find_repo_root() / "AIPASS_REGISTRY.json"
 
     if not registry_path.exists():
         return {'success': False, 'error': 'AIPASS_REGISTRY.json not found'}

@@ -31,7 +31,7 @@ from aipass.memory.apps.handlers.json import json_handler
 logger = get_system_logger()
 
 # Resolve paths relative to handler location
-_MEMORY_ROOT = Path(__file__).resolve().parents[3]
+_MEMORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 # =============================================================================

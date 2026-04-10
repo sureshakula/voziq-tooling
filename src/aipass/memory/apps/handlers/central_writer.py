@@ -35,7 +35,7 @@ logger = get_system_logger()
 # CONSTANTS
 # =============================================================================
 
-_MEMORY_ROOT = Path(__file__).resolve().parents[3]
+_MEMORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _find_repo_root() -> Path:
