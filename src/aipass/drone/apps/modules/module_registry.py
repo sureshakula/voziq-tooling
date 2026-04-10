@@ -27,6 +27,7 @@ from aipass.drone.apps.handlers.module_registry_handler import (
     get_module_help,
     get_module_introspective,
     register_module,
+    refresh_external_modules,
 )
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "get_module_help",
     "get_module_introspective",
     "register_module",
+    "refresh_external_modules",
 ]
 
 
