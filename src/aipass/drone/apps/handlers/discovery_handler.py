@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from aipass.prax import logger
 from aipass.prax.apps.modules.logger import system_logger
 from .exceptions import CommandExecutionError
 from aipass.drone.apps.handlers.json import json_handler

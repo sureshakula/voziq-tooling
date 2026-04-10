@@ -17,7 +17,6 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from aipass.prax import logger
 from aipass.prax.apps.modules.logger import system_logger
 from aipass.cli.apps.modules import console
 from aipass.drone.apps.handlers.executor import CommandResult

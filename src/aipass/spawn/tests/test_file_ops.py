@@ -381,7 +381,7 @@ class TestRegenerateTemplateRegistry:
 
         expected_hash = hashlib.sha256(
             content.encode("utf-8")
-        ).hexdigest()[:16]
+        ).hexdigest()[:12]
 
         # Find the file entry
         files = data["files"]

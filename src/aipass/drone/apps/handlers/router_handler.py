@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from aipass.prax import logger
 from aipass.prax.apps.modules.logger import system_logger
 from .exceptions import CommandExecutionError
 from .executor import CommandResult, execute_command

@@ -14,10 +14,13 @@ All implementation logic lives in apps/handlers/passport_ops.py.
 
 import argparse
 
+from pathlib import Path
+
 from aipass.cli.apps.modules import console, error, warning
 from aipass.prax import logger
 
 from aipass.spawn.apps.handlers.passport_ops import grant_passport
+from aipass.spawn.apps.handlers.registry import find_registry
 from aipass.spawn.apps.handlers.json import json_handler
 
 
@@ -58,6 +61,46 @@ def handle_command(command: str, args: list) -> bool:
     return handle_passport(args) == 0
 
 
+def _resolve_target(dirname: str) -> Path:
+    """Resolve a @dirname to a filesystem path.
+
+    Searches CWD, project root (via registry), and src/ subdirectories.
+    For new directories, defaults to CWD-relative.
+    """
+    # Absolute or home-relative path — use directly
+    if dirname.startswith("/") or dirname.startswith("~"):
+        return Path(dirname).expanduser()
+
+    # 1. CWD-relative
+    cwd_path = Path.cwd() / dirname
+    if cwd_path.exists():
+        return cwd_path
+
+    # 2. Project-relative via registry
+    try:
+        reg_path = find_registry()
+        project_root = reg_path.parent
+        for candidate in [
+            project_root / dirname,
+            project_root / "src" / dirname,
+        ]:
+            if candidate.exists():
+                return candidate
+        # Search src/*/dirname (e.g., src/aipass/target)
+        src_dir = project_root / "src"
+        if src_dir.is_dir():
+            for sub in src_dir.iterdir():
+                if sub.is_dir():
+                    candidate = sub / dirname
+                    if candidate.exists():
+                        return candidate
+    except Exception as exc:
+        logger.warning("[passport] Registry lookup failed during target resolution: %s", exc)
+
+    # 3. Default: CWD-relative (passport will create it if needed)
+    return cwd_path
+
+
 def handle_passport(args: list[str]) -> int:
     """Parse args and execute passport grant.
 
@@ -93,10 +136,8 @@ def handle_passport(args: list[str]) -> int:
     # Strip @ prefix if present
     target = parsed.target.lstrip("@")
 
-    # Resolve relative to src/aipass/ (standard branch location)
-    from pathlib import Path
-    aipass_root = Path(__file__).parents[3]  # modules -> apps -> spawn -> aipass
-    target_path = aipass_root / target
+    # Resolve target path — CWD-aware for external project support
+    target_path = _resolve_target(target)
 
     result = grant_passport(
         target_path=str(target_path),
