@@ -26,7 +26,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-from aipass.trigger.apps.config import TRIGGER_ROOT, AIPASS_PKG_ROOT
+from aipass.trigger.apps.config import TRIGGER_ROOT, AIPASS_PKG_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
 def _find_repo_root() -> Path:
@@ -71,10 +71,7 @@ def _load_registry() -> dict:
 
 def _save_registry(registry: dict) -> None:
     """Save registry to JSON file"""
-    import json
-    FLOW_JSON_DIR.mkdir(parents=True, exist_ok=True)
-    with open(REGISTRY_FILE, 'w', encoding='utf-8') as f:
-        json.dump(registry, f, indent=2)
+    atomic_write_json(REGISTRY_FILE, registry)
 
 
 def _get_plan_number(file_path: Path) -> Optional[str]:

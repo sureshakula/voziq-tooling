@@ -45,8 +45,10 @@ def _mock_infrastructure(monkeypatch):
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.handlers.json.json_handler", json_mod)
 
     # -- trigger config (TRIGGER_ROOT) --------------------------------------
+    from aipass.trigger.apps.config import atomic_write_json
     config_mod = MagicMock()
     config_mod.TRIGGER_ROOT = Path("/tmp/fake_trigger_root")
+    config_mod.atomic_write_json = atomic_write_json
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", config_mod)
 
     # -- Force re-import so mocks take effect -------------------------------

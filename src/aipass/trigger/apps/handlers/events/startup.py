@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Set
-from aipass.trigger.apps.config import TRIGGER_ROOT
+from aipass.trigger.apps.config import TRIGGER_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
 SYSTEM_LOGS_DIR = TRIGGER_ROOT.parent / "system_logs"
@@ -89,9 +89,7 @@ def _load_trigger_data() -> Dict[str, Any]:
 def _save_trigger_data(data: Dict[str, Any]) -> None:
     """Save trigger_data.json."""
     try:
-        TRIGGER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(TRIGGER_DATA_FILE, 'w') as f:
-            json.dump(data, f, indent=2)
+        atomic_write_json(TRIGGER_DATA_FILE, data)
     except Exception as exc:
         _log_warning(f"save trigger data failed: {exc}")
         return

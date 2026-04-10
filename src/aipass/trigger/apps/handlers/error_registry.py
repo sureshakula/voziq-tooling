@@ -45,7 +45,7 @@ from typing import Any, Dict, List, Optional
 
 
 from aipass.prax.apps.modules.logger import get_direct_logger
-from aipass.trigger.apps.config import TRIGGER_ROOT
+from aipass.trigger.apps.config import TRIGGER_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
 logger = get_direct_logger()
@@ -145,10 +145,7 @@ def _save_circuit_breaker_state() -> None:
             'opened_at': _circuit_breaker.opened_at,
             'cooldown_seconds': _circuit_breaker.cooldown_seconds,
         }
-        TRIGGER_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        TRIGGER_CONFIG_FILE.write_text(
-            json.dumps(data, indent=2), encoding='utf-8'
-        )
+        atomic_write_json(TRIGGER_CONFIG_FILE, data)
     except Exception as exc:
         logger.warning("Failed to save circuit breaker state: %s", exc)
 
@@ -193,9 +190,7 @@ def _clear_circuit_breaker_state() -> None:
             data = json.loads(raw)
             if 'circuit_breaker' in data:
                 del data['circuit_breaker']
-                TRIGGER_CONFIG_FILE.write_text(
-                    json.dumps(data, indent=2), encoding='utf-8'
-                )
+                atomic_write_json(TRIGGER_CONFIG_FILE, data)
     except Exception as exc:
         logger.warning("Failed to clear circuit breaker state: %s", exc)
 
@@ -535,10 +530,7 @@ def _save_registry(data: dict) -> bool:
     """
     try:
         data["metadata"]["last_updated"] = datetime.now().isoformat()
-        REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
-        REGISTRY_FILE.write_text(
-            json.dumps(data, indent=2), encoding='utf-8'
-        )
+        atomic_write_json(REGISTRY_FILE, data)
         return True
     except Exception as exc:
         logger.warning("Failed to save error registry to %s: %s", REGISTRY_FILE, exc)

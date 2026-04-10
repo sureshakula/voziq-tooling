@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from aipass.prax.apps.modules.logger import get_direct_logger
-from aipass.trigger.apps.config import TRIGGER_ROOT
+from aipass.trigger.apps.config import TRIGGER_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
 logger = get_direct_logger()
@@ -59,10 +59,7 @@ def write_config(data: dict) -> bool:
         True on success, False on failure
     """
     try:
-        TRIGGER_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        TRIGGER_CONFIG_FILE.write_text(
-            json.dumps(data, indent=2), encoding='utf-8'
-        )
+        atomic_write_json(TRIGGER_CONFIG_FILE, data)
         return True
     except Exception as exc:
         logger.warning("write_config failed: %s", exc)

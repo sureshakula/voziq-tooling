@@ -64,9 +64,11 @@ def _mock_infrastructure(monkeypatch):
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.handlers.log_watcher", mock_log_watcher)
 
     # -- trigger config -----------------------------------------------------
+    from aipass.trigger.apps.config import atomic_write_json
     mock_config = MagicMock()
     mock_config.TRIGGER_ROOT = "/fake/trigger"
     mock_config.AIPASS_PKG_ROOT = "/fake/aipass"
+    mock_config.atomic_write_json = atomic_write_json
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", mock_config)
 
     # -- CLI console --------------------------------------------------------
