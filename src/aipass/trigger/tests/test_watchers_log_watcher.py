@@ -51,8 +51,10 @@ def _mock_infrastructure(monkeypatch):
     )
 
     # -- trigger config (TRIGGER_ROOT) --------------------------------------
+    from aipass.trigger.apps.config import atomic_write_json
     mock_config = MagicMock()
     mock_config.TRIGGER_ROOT = Path("/tmp/fake_trigger_root")
+    mock_config.atomic_write_json = atomic_write_json
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", mock_config)
 
     # -- trigger core (trigger.fire) ----------------------------------------

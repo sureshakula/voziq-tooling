@@ -13,6 +13,9 @@ Provides package-relative paths for trigger data directories.
 Works in both pip-installed and development environments.
 """
 
+import json
+import os
+import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -34,6 +37,33 @@ def _log_warning(message: str) -> None:
 
 # AIPass package root: .../aipass/
 AIPASS_PKG_ROOT = TRIGGER_ROOT.parent
+
+
+def atomic_write_json(path: Path, data, indent: int = 2, ensure_ascii: bool = True, encoding: str = 'utf-8') -> None:
+    """Write JSON data to a file atomically using write-to-tmp + os.replace.
+
+    Prevents file corruption from process crashes mid-write by writing to
+    a temp file in the same directory first, then atomically renaming.
+
+    Args:
+        path: Target file path
+        data: JSON-serializable data
+        indent: JSON indent level
+        ensure_ascii: JSON ensure_ascii flag
+        encoding: File encoding
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w', encoding=encoding) as f:
+            json.dump(data, f, indent=indent, ensure_ascii=ensure_ascii)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def print_introspection():

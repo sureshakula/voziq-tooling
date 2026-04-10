@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 import inspect
 
+from aipass.trigger.apps.config import atomic_write_json
+
 # Infrastructure — redirect to temp dir during tests
 _test_log_dir = os.environ.get("AIPASS_TEST_LOG_DIR")
 if _test_log_dir:
@@ -132,8 +134,7 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
 
     template = _get_default_template(json_type, module_name)
 
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(template, f, indent=2, ensure_ascii=False)
+    atomic_write_json(json_path, template, ensure_ascii=False)
     return True
 
 
@@ -173,8 +174,7 @@ def save_json(module_name: str, json_type: str, data: Any) -> bool:
     if json_type == "data" and isinstance(data, dict):
         data["last_updated"] = datetime.now().date().isoformat()
 
-    with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    atomic_write_json(json_path, data, ensure_ascii=False)
     return True
 
 

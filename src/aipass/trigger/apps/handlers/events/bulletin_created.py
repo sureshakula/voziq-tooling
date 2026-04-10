@@ -25,7 +25,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
-from aipass.trigger.apps.config import TRIGGER_ROOT
+from aipass.trigger.apps.config import TRIGGER_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
 def _find_repo_root() -> Path:
@@ -158,7 +158,7 @@ def _save_dashboard(branch_path: Path, dashboard: Dict) -> bool:
     try:
         dashboard_path = branch_path / "DASHBOARD.local.json"
         dashboard["last_refreshed"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        dashboard_path.write_text(json.dumps(dashboard, indent=2))
+        atomic_write_json(dashboard_path, dashboard)
         return True
     except Exception as exc:
         _log_warning(f"save dashboard to {branch_path}: {exc}")

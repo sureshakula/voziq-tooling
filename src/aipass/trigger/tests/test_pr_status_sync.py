@@ -18,8 +18,10 @@ def _mock_infrastructure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     """Mock heavy infrastructure imports."""
     import sys
 
+    from aipass.trigger.apps.config import atomic_write_json
     mock_config = MagicMock()
     mock_config.TRIGGER_ROOT = tmp_path
+    mock_config.atomic_write_json = atomic_write_json
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", mock_config)
 
     mock_json_handler = MagicMock()

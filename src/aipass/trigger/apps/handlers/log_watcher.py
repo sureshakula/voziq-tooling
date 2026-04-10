@@ -29,7 +29,7 @@ import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Set, Optional, Callable
-from aipass.trigger.apps.config import TRIGGER_ROOT, AIPASS_PKG_ROOT
+from aipass.trigger.apps.config import TRIGGER_ROOT, AIPASS_PKG_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
 from aipass.prax.apps.modules.logger import get_direct_logger
@@ -150,10 +150,7 @@ def _save_seen_hashes() -> None:
         if TRIGGER_DATA_FILE.exists():
             data = json.loads(TRIGGER_DATA_FILE.read_text(encoding='utf-8'))
         data['seen_error_hashes'] = list(_seen_error_hashes)
-        TRIGGER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-        TRIGGER_DATA_FILE.write_text(
-            json.dumps(data, indent=2), encoding='utf-8'
-        )
+        atomic_write_json(TRIGGER_DATA_FILE, data)
     except Exception as exc:
         logger.warning("Failed to save seen hashes: %s", exc)
         return  # Write failure - hashes remain in memory only
@@ -195,10 +192,7 @@ def _save_log_positions(positions: Dict[str, int]) -> None:
         if TRIGGER_DATA_FILE.exists():
             data = json.loads(TRIGGER_DATA_FILE.read_text(encoding='utf-8'))
         data['log_positions'] = positions
-        TRIGGER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-        TRIGGER_DATA_FILE.write_text(
-            json.dumps(data, indent=2), encoding='utf-8'
-        )
+        atomic_write_json(TRIGGER_DATA_FILE, data)
     except Exception as exc:
         logger.warning("Failed to save log positions: %s", exc)
         return  # Write failure - positions remain in memory only

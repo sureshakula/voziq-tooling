@@ -46,8 +46,10 @@ def _mock_infrastructure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.handlers.json.json_handler", json_mod)
 
     # -- trigger config (TRIGGER_ROOT) --------------------------------------
+    from aipass.trigger.apps.config import atomic_write_json
     mock_config = MagicMock()
     mock_config.TRIGGER_ROOT = tmp_path
+    mock_config.atomic_write_json = atomic_write_json
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", mock_config)
 
     # Force re-import so the module picks up mocked sys.modules

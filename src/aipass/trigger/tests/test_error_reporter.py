@@ -63,7 +63,10 @@ def _mock_infrastructure(monkeypatch):
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.handlers.json.json_handler", json_mod)
 
     # -- trigger config (needed by error_registry import chain) -------------
-    monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", MagicMock())
+    from aipass.trigger.apps.config import atomic_write_json
+    config_mock = MagicMock()
+    config_mock.atomic_write_json = atomic_write_json
+    monkeypatch.setitem(sys.modules, "aipass.trigger.apps.config", config_mock)
 
     # -- Force re-import so mocks take effect -------------------------------
     monkeypatch.delitem(sys.modules, "aipass.trigger.apps.handlers.error_reporter", raising=False)
