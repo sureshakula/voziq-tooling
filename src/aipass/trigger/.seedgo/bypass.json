@@ -119,7 +119,7 @@
       "file": "apps/config.py",
       "standard": "error_handling",
       "lines": [
-        31
+        36
       ],
       "pattern": "except Exception: pass",
       "reason": "Meta-logging helper _log_warning() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
@@ -128,16 +128,16 @@
       "file": "apps/modules/core.py",
       "standard": "error_handling",
       "lines": [
-        160
+        61
       ],
-      "pattern": "except Exception: pass",
-      "reason": "Deferred event queue handler execution \u2014 logging would cause infinite recursion (logger fires events via trigger). Same as silent_catch bypass."
+      "pattern": "except ImportError",
+      "reason": "Handler import failure in _ensure_initialized — has logger.warning, not actually silent. Checker false positive on try block line."
     },
     {
       "file": "apps/handlers/json/json_handler.py",
       "standard": "error_handling",
       "lines": [
-        24
+        31
       ],
       "pattern": "except Exception: pass",
       "reason": "Meta-logging helper _log_warning() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
@@ -146,7 +146,7 @@
       "file": "apps/handlers/events/plan_file.py",
       "standard": "error_handling",
       "lines": [
-        58
+        59
       ],
       "pattern": "except Exception: pass",
       "reason": "Meta-logging helper _log_error() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
@@ -155,7 +155,7 @@
       "file": "apps/handlers/events/memory_threshold_exceeded.py",
       "standard": "error_handling",
       "lines": [
-        46
+        47
       ],
       "pattern": "except Exception: pass",
       "reason": "Meta-logging helper _log_warning() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
@@ -182,7 +182,7 @@
       "file": "apps/handlers/events/error_detected.py",
       "standard": "error_handling",
       "lines": [
-        54
+        53
       ],
       "pattern": "except Exception: pass",
       "reason": "Meta-logging helper _log_warning() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
