@@ -539,7 +539,7 @@
     {
       "file": "apps/handlers/learnings/manager.py",
       "standard": "unused_function",
-      "lines": [764],
+      "lines": [773],
       "reason": "Public API for learning extraction pipeline — called dynamically by symbolic extraction."
     },
     {
@@ -563,7 +563,7 @@
     {
       "file": "apps/handlers/symbolic/extractor.py",
       "standard": "unused_function",
-      "lines": [437],
+      "lines": [427],
       "reason": "LLM-based extraction function — called conditionally when API key is available."
     }
   ],
