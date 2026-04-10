@@ -377,6 +377,24 @@ def test_init_project_skips_existing_optional_files(tmp_path):
     assert md_content == "# Custom CLAUDE\n"
 
 
+def test_init_project_no_overwrite(tmp_path):
+    """Init does not overwrite existing files — re-runnable safety."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    # First run creates files
+    result1 = init_project(target, project_name="safe")
+    assert len(result1["created_files"]) > 0
+
+    # Second run creates nothing — all files skipped
+    result2 = init_project(target, project_name="safe")
+    assert len(result2["created_files"]) == 0
+
+    # Content from first run is preserved
+    claude_md = (target / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "SAFE" in claude_md
+
+
 def test_init_project_returns_dict(tmp_path):
     """init_project return value is a dict."""
     target = tmp_path / "proj"

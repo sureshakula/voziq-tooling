@@ -107,6 +107,21 @@
       "file": "apps/plugins/devpulse_ops/fix_plugin.py",
       "standard": "encapsulation",
       "reason": "Plugin imports lock_handler.find_repo_root() — drone-internal plugin, same branch."
+    },
+    {
+      "file": "apps/plugins/hook_sounds/hook_sounds_plugin.py",
+      "standard": "architecture",
+      "reason": "Plugin lives in apps/plugins/ — deliberately outside 3-layer structure (same pattern as devpulse_ops)."
+    },
+    {
+      "file": "apps/plugins/hook_sounds/hook_sounds_plugin.py",
+      "standard": "naming",
+      "reason": "Plugin filename convention: {plugin_name}_plugin.py inside {plugin_name}/ directory."
+    },
+    {
+      "file": "apps/plugins/hook_sounds/hook_sounds_plugin.py",
+      "standard": "trigger",
+      "reason": "Simple toggle plugin — creates/removes a flag file. No state changes that warrant trigger events."
     }
   ],
   "notes": {
