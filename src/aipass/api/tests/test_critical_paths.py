@@ -45,7 +45,7 @@ class TestGetApiKey:
             "config": {
                 "providers": {
                     "openrouter": {
-                        "api_key": "sk-or-v1-valid-key-that-is-long-enough"
+                        "api_key": "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"
                     }
                 }
             }
@@ -56,7 +56,7 @@ class TestGetApiKey:
 
         result = get_api_key("openrouter")
 
-        assert result == "sk-or-v1-valid-key-that-is-long-enough"
+        assert result == "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"
         mock_jh.log_operation.assert_called_once()
 
     @patch("aipass.api.apps.handlers.auth.keys.json_handler")
@@ -76,7 +76,7 @@ class TestGetApiKey:
         secrets_dir.mkdir(parents=True)
         env_file = secrets_dir / ".env"
         env_file.write_text(
-            "OPENROUTER_API_KEY=sk-or-v1-secret-key-long-enough-here\n",
+            "OPENROUTER_API_KEY=sk-or-v1-a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4\n",
             encoding="utf-8",
         )
 
@@ -85,7 +85,7 @@ class TestGetApiKey:
             mock_path_cls.home.return_value = tmp_path
             result = get_api_key("openrouter")
 
-        assert result == "sk-or-v1-secret-key-long-enough-here"
+        assert result == "sk-or-v1-a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
 
     @patch("aipass.api.apps.handlers.auth.keys.json_handler")
     @patch("aipass.api.apps.handlers.auth.keys.API_JSON_DIR")
@@ -146,7 +146,7 @@ class TestValidateKey:
         """Valid openrouter key with correct prefix and length passes."""
         from aipass.api.apps.handlers.auth.keys import validate_key
 
-        key = "sk-or-v1-abcdefghijklmnopqrst"
+        key = "sk-or-v1-abcdefghijklmnopqrstuvwxyz0123456"
         assert validate_key(key, "openrouter") is True
 
     def test_key_too_short(self):

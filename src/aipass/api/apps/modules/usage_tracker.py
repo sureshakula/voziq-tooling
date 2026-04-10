@@ -195,17 +195,20 @@ def track_usage(args: List[str]):
 
 
 def show_stats():
-    """Orchestrate statistics display workflow"""
+    """Orchestrate overall statistics display workflow (aggregate across all callers)"""
     header("Usage Statistics")
     console.print()
 
-    # Call handler for session summary
-    stats = aggregation.get_session_summary()
+    stats = aggregation.get_overall_stats()
 
     if stats:
         console.print(f"  Total Requests: {stats.get('total_requests', 0)}")
         console.print(f"  Total Cost: ${stats.get('total_cost', 0.0):.6f}")
         console.print(f"  Total Tokens: {stats.get('total_tokens', 0)}")
+        console.print(f"  Callers: {stats.get('callers', 0)}")
+        models = stats.get('models_used', [])
+        if models:
+            console.print(f"  Models Used: {', '.join(models)}")
     else:
         warning("No usage data available")
 
@@ -259,8 +262,15 @@ def cleanup_data(args: List[str]):
     # Navigate: usage_tracker.py -> modules/ -> apps/ -> api/
     API_JSON_DIR = Path(__file__).resolve().parent.parent.parent / "api_json"
     data_path = API_JSON_DIR / "usage_tracker_data.json"
-    if cleanup.cleanup_old_data(data_path, days):
-        success(f"Cleaned up data older than {days} days")
+
+    if not data_path.exists():
+        warning("No usage data file found — nothing to clean")
+        return
+
+    removed = cleanup.cleanup_old_data(data_path, days)
+
+    if removed > 0:
+        success(f"Cleaned up {removed} entries older than {days} days")
 
         # Fire trigger event
         try:
@@ -269,7 +279,7 @@ def cleanup_data(args: List[str]):
         except ImportError:
             logger.warning("Trigger module not available — skipping event fire")
     else:
-        error("Cleanup failed")
+        success(f"Nothing to clean — no entries older than {days} days")
 
 
 if __name__ == "__main__":

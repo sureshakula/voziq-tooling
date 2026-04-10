@@ -196,10 +196,12 @@ def test_show_stats_with_data(mock_agg, mock_header, mock_console, mock_warning)
     """show_stats prints stats when aggregation returns data."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_agg.get_session_summary.return_value = {
+    mock_agg.get_overall_stats.return_value = {
         "total_requests": 42,
         "total_cost": 0.123456,
         "total_tokens": 9001,
+        "callers": 3,
+        "models_used": ["anthropic/claude-3.5-sonnet"],
     }
 
     usage_tracker.show_stats()
@@ -221,7 +223,7 @@ def test_show_stats_no_data(mock_agg, mock_header, mock_console, mock_warning):
     """show_stats shows warning when no data available."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_agg.get_session_summary.return_value = {}
+    mock_agg.get_overall_stats.return_value = {}
 
     usage_tracker.show_stats()
 
@@ -360,45 +362,40 @@ def test_show_caller_usage_no_args(mock_agg, mock_header, mock_console, mock_err
 @patch(f"{PATCH_ROOT}.header")
 @patch(f"{PATCH_ROOT}.cleanup")
 def test_cleanup_success(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error):
-    """cleanup_data calls success() when handler returns truthy."""
+    """cleanup_data calls success() with count when handler returns > 0."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_cleanup_handler.cleanup_old_data.return_value = True
+    mock_cleanup_handler.cleanup_old_data.return_value = 5
 
+    # The data_path.exists() check needs to pass
     with patch(f"{PATCH_ROOT}.Path") as mock_path_cls:
-        mock_path_cls.__file__ = MagicMock()
-        # Let Path(__file__).resolve().parent chain work
-        mock_resolved = MagicMock()
-        mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__ = MagicMock()
+        mock_data_path = MagicMock()
+        mock_data_path.exists.return_value = True
+        mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_data_path
 
-        # Simpler approach: just let the real Path work -- it resolves against
-        # the actual source file, but cleanup_old_data is mocked anyway.
-        pass
-
-    # Call directly without patching Path -- cleanup handler is mocked
+    # Call directly -- cleanup handler is mocked, use real Path for API_JSON_DIR resolution
     usage_tracker.cleanup_data(["45"])
 
     mock_cleanup_handler.cleanup_old_data.assert_called_once()
-    mock_success.assert_called_once_with("Cleaned up data older than 45 days")
+    mock_success.assert_called_once_with("Cleaned up 5 entries older than 45 days")
     mock_error.assert_not_called()
 
 
-@patch(f"{PATCH_ROOT}.error")
+@patch(f"{PATCH_ROOT}.warning")
 @patch(f"{PATCH_ROOT}.success")
 @patch(f"{PATCH_ROOT}.console")
 @patch(f"{PATCH_ROOT}.header")
 @patch(f"{PATCH_ROOT}.cleanup")
-def test_cleanup_failure(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error):
-    """cleanup_data calls error() when handler returns falsy."""
+def test_cleanup_nothing_to_clean(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_warning):
+    """cleanup_data calls success() with 'nothing to clean' when handler returns 0."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_cleanup_handler.cleanup_old_data.return_value = False
+    mock_cleanup_handler.cleanup_old_data.return_value = 0
 
     usage_tracker.cleanup_data(["30"])
 
     mock_cleanup_handler.cleanup_old_data.assert_called_once()
-    mock_error.assert_called_once_with("Cleanup failed")
-    mock_success.assert_not_called()
+    mock_success.assert_called_once_with("Nothing to clean — no entries older than 30 days")
 
 
 @patch(f"{PATCH_ROOT}.error")
@@ -410,7 +407,7 @@ def test_cleanup_default_30_days(mock_cleanup_handler, mock_header, mock_console
     """cleanup_data defaults to 30 days when no args provided."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_cleanup_handler.cleanup_old_data.return_value = True
+    mock_cleanup_handler.cleanup_old_data.return_value = 3
 
     usage_tracker.cleanup_data([])
 
@@ -419,7 +416,7 @@ def test_cleanup_default_30_days(mock_cleanup_handler, mock_header, mock_console
     # Verify cleanup_old_data was called with days=30
     args, kwargs = mock_cleanup_handler.cleanup_old_data.call_args
     assert args[1] == 30
-    mock_success.assert_called_once_with("Cleaned up data older than 30 days")
+    mock_success.assert_called_once_with("Cleaned up 3 entries older than 30 days")
 
 
 @patch(f"{PATCH_ROOT}.error")
@@ -431,14 +428,14 @@ def test_cleanup_custom_days(mock_cleanup_handler, mock_header, mock_console, mo
     """cleanup_data parses custom days from args."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_cleanup_handler.cleanup_old_data.return_value = True
+    mock_cleanup_handler.cleanup_old_data.return_value = 7
 
     usage_tracker.cleanup_data(["90"])
 
     mock_header.assert_called_once_with("Cleanup Old Data (retain 90 days)")
     args, kwargs = mock_cleanup_handler.cleanup_old_data.call_args
     assert args[1] == 90
-    mock_success.assert_called_once_with("Cleaned up data older than 90 days")
+    mock_success.assert_called_once_with("Cleaned up 7 entries older than 90 days")
 
 
 # =============================================
@@ -454,7 +451,7 @@ def test_handle_command_propagates_exception(mock_console, mock_header, mock_jh,
     """handle_command re-raises exceptions from downstream handlers."""
     from aipass.api.apps.modules import usage_tracker
 
-    mock_agg.get_session_summary.side_effect = RuntimeError("handler failed")
+    mock_agg.get_overall_stats.side_effect = RuntimeError("handler failed")
 
     with pytest.raises(RuntimeError, match="handler failed"):
         usage_tracker.handle_command("stats", [])

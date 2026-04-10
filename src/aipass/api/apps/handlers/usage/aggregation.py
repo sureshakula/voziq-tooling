@@ -47,6 +47,63 @@ API_JSON_DIR = Path(__file__).resolve().parent.parent.parent.parent / "api_json"
 # AGGREGATION FUNCTIONS
 # =============================================
 
+def get_overall_stats() -> Dict[str, Any]:
+    """
+    Aggregate usage statistics across all callers.
+
+    Returns:
+        Dict with total_requests, total_cost, total_tokens, callers (count),
+        models_used (set of model names).
+        Returns empty dict {} if no data found.
+    """
+    try:
+        data_path = API_JSON_DIR / DATA_FILE
+        if not data_path.exists():
+            logger.info(f"[{MODULE_NAME}] No usage data file found")
+            return {}
+
+        with open(data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        if not data or "data" not in data:
+            logger.info(f"[{MODULE_NAME}] No usage data available")
+            return {}
+
+        usage_by_caller = data["data"].get("usage_by_caller", {})
+
+        if not usage_by_caller:
+            logger.info(f"[{MODULE_NAME}] No caller usage data found")
+            return {}
+
+        total_requests = 0
+        total_cost = 0.0
+        total_tokens = 0
+        models_used: set = set()
+
+        for caller_data in usage_by_caller.values():
+            total_requests += caller_data.get("requests", 0)
+            total_cost += caller_data.get("total_cost", 0.0)
+            total_tokens += caller_data.get("total_tokens", 0)
+            for model in caller_data.get("models_used", []):
+                models_used.add(model)
+
+        result = {
+            "total_requests": total_requests,
+            "total_cost": total_cost,
+            "total_tokens": total_tokens,
+            "callers": len(usage_by_caller),
+            "models_used": sorted(models_used),
+        }
+
+        logger.info(f"[{MODULE_NAME}] Overall stats: {total_requests} requests across {len(usage_by_caller)} callers")
+        json_handler.log_operation("get_overall_stats", {"total_requests": total_requests})
+        return result
+
+    except Exception as e:
+        logger.error(f"[{MODULE_NAME}] Failed to get overall stats: {e}")
+        return {}
+
+
 def get_caller_usage(caller: str) -> Dict[str, Any]:
     """
     Calculate usage statistics for specific caller

@@ -16,6 +16,7 @@ Functions:
 """
 
 # Infrastructure
+import os
 from pathlib import Path
 
 # Standard library
@@ -84,12 +85,16 @@ OPENAI_API_KEY=sk-your-openai-key-here
 """
 
     try:
-        # Ensure parent directory exists
+        # Ensure parent directory exists with restricted permissions (owner-only)
         env_path.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(env_path.parent, 0o700)
 
         # Write template
         with open(env_path, 'w', encoding='utf-8') as f:
             f.write(env_template)
+
+        # Restrict file permissions to owner-read/write only
+        os.chmod(env_path, 0o600)
 
         # Created .env template
         logger.info(f"Created .env template at {env_path}")

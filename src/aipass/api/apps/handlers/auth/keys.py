@@ -42,16 +42,16 @@ API_JSON_DIR = API_ROOT / "api_json"
 # Provider validation rules (embedded - no config dependency for core validation)
 VALIDATION_RULES = {
     "openrouter": {
-        "prefix": "sk-or-",
-        "min_length": 20
+        "prefix": "sk-or-v1-",
+        "min_length": 40
     },
     "openai": {
         "prefix": "sk-",
-        "min_length": 20
+        "min_length": 40
     },
     "anthropic": {
         "prefix": "sk-ant-",
-        "min_length": 20
+        "min_length": 40
     },
     # Generic fallback
     "generic": {

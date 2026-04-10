@@ -660,22 +660,22 @@ class TestGetValidationRulesAuthKeys:
     """Tests for auth.keys.get_validation_rules()."""
 
     def test_openrouter_rules(self):
-        """openrouter should have prefix 'sk-or-' and min_length 20."""
+        """openrouter should have prefix 'sk-or-v1-' and min_length 40."""
         rules = auth_keys.get_validation_rules("openrouter")
-        assert rules["prefix"] == "sk-or-"
-        assert rules["min_length"] == 20
+        assert rules["prefix"] == "sk-or-v1-"
+        assert rules["min_length"] == 40
 
     def test_openai_rules(self):
-        """openai should have prefix 'sk-' and min_length 20."""
+        """openai should have prefix 'sk-' and min_length 40."""
         rules = auth_keys.get_validation_rules("openai")
         assert rules["prefix"] == "sk-"
-        assert rules["min_length"] == 20
+        assert rules["min_length"] == 40
 
     def test_anthropic_rules(self):
-        """anthropic should have prefix 'sk-ant-' and min_length 20."""
+        """anthropic should have prefix 'sk-ant-' and min_length 40."""
         rules = auth_keys.get_validation_rules("anthropic")
         assert rules["prefix"] == "sk-ant-"
-        assert rules["min_length"] == 20
+        assert rules["min_length"] == 40
 
     def test_unknown_provider_falls_back_to_generic(self):
         """Unknown provider should fall back to generic rules."""

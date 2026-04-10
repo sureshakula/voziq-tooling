@@ -367,10 +367,9 @@ def get_cache_stats() -> Dict[str, Any]:
     Get statistics about the client cache.
 
     Returns:
-        Dict with cache size and keys
+        Dict with cache size info (keys are never exposed — they are raw API keys)
     """
     return {
         "cached_clients": len(_client_cache),
         "max_cache_size": MAX_CACHED_CLIENTS,
-        "cache_keys": list(_client_cache.keys())
     }

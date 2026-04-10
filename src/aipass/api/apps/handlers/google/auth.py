@@ -20,6 +20,7 @@ This is pure auth plumbing — no business logic.
 Consumers get authenticated credentials, they decide what to do with them.
 """
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -245,7 +246,9 @@ def validate_credentials(scopes: Optional[list] = None) -> bool:
 
 
 def _save_credentials(creds: "Credentials") -> None:
-    """Save credentials to the standard secrets path."""
+    """Save credentials to the standard secrets path with restricted permissions."""
     SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+    os.chmod(SECRETS_DIR, 0o700)
     with open(CREDS_PATH, "w", encoding="utf-8") as f:
         f.write(creds.to_json())
+    os.chmod(CREDS_PATH, 0o600)
