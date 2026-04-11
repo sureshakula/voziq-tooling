@@ -27,6 +27,7 @@ from aipass.spawn.apps.handlers.registry import (
     load_registry,
     save_registry,
     _branches_as_list,
+    fix_passport_registry_id,
 )
 from aipass.spawn.apps.handlers.meta_ops import (
     load_template_registry,
@@ -243,6 +244,17 @@ def sync_registry(fix: bool = False) -> dict:
                     spawn_rebuilt.append(name)
                     logger.info(f"[sync-registry] Rebuilt .spawn/ for: {name}")
 
+    # Fix registry_id mismatches in passports for all known branches
+    ids_fixed = []
+    if fix:
+        all_known = list(healthy) + list(unregistered_list)
+        for name in all_known:
+            branch_path = filesystem_branches.get(name)
+            if branch_path:
+                was_fixed = fix_passport_registry_id(branch_path, registry_path)
+                if was_fixed:
+                    ids_fixed.append(name)
+
     json_handler.log_operation("registry_scanned")
 
     return {
@@ -251,4 +263,5 @@ def sync_registry(fix: bool = False) -> dict:
         "healthy": healthy,
         "fixed": fixed,
         "spawn_rebuilt": spawn_rebuilt,
+        "ids_fixed": ids_fixed,
     }

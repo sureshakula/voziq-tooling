@@ -134,9 +134,12 @@ def _print_summary(result: dict) -> None:
         console.print("  [green]No unregistered branches[/green]")
 
     # Fix status
-    if fixed:
+    ids_fixed = result.get("ids_fixed", [])
+    if fixed or ids_fixed:
         console.print()
         console.print("  [green]Registry has been repaired.[/green]")
+        if ids_fixed:
+            console.print(f"  [green]Fixed registry_id in {len(ids_fixed)} passport(s): {', '.join(sorted(ids_fixed))}[/green]")
     elif stale or unregistered:
         console.print()
         console.print("  [dim]Run with --fix to auto-repair.[/dim]")

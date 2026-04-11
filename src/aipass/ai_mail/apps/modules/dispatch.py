@@ -39,14 +39,21 @@ COMMANDS:
   dispatch wake @branch               - Wake only (no email sent)
 
 DISPATCH (send + wake):
-  drone @ai_mail dispatch @branch "Subject" "Body"          # Send + continue wake
-  drone @ai_mail dispatch @branch "Subject" "Body" --fresh  # Send + fresh wake
+  drone @ai_mail dispatch @branch "Subject" "Body"                    # Send + continue wake
+  drone @ai_mail dispatch @branch "Subject" "Body" --fresh            # Send + fresh wake
+  drone @ai_mail dispatch @branch "Subject" "Body" --model opus       # Send + wake with Opus
   drone @ai_mail dispatch @branch "Subject" "Body" --no-memory-save
 
 WAKE ONLY:
-  drone @ai_mail dispatch wake @branch            # Wake with default inbox check
-  drone @ai_mail dispatch wake @branch "custom"   # Wake with custom prompt
-  drone wake @branch                              # Shortcut via drone
+  drone @ai_mail dispatch wake @branch                       # Wake with default inbox check
+  drone @ai_mail dispatch wake @branch "custom"              # Wake with custom prompt
+  drone @ai_mail dispatch wake @branch --model opus          # Wake with Opus model
+  drone wake @branch                                         # Shortcut via drone
+
+MODEL OPTIONS:
+  --model sonnet   Claude Sonnet 4.6 (default — cost-effective for most tasks)
+  --model opus     Claude Opus 4.6 (complex tasks needing deeper reasoning)
+  --model haiku    Claude Haiku 4.5 (fastest, simplest tasks)
 
 DAEMON:
   The daemon polls branch inboxes for --dispatch emails and spawns agents.
@@ -156,9 +163,10 @@ def _orchestrate_wake(args: List[str]) -> bool:
         console.print("  Or:    drone wake @branch [\"custom message\"]\n")
         return True
 
-    # Parse --fresh and --sender flags
+    # Parse --fresh, --sender, --model flags
     use_fresh = "--fresh" in args
     use_sender = "@devpulse"
+    use_model = None
     filtered = []
     i = 0
     while i < len(args):
@@ -167,6 +175,10 @@ def _orchestrate_wake(args: List[str]) -> bool:
             continue
         if args[i] == "--sender" and i + 1 < len(args):
             use_sender = args[i + 1]
+            i += 2
+            continue
+        if args[i] == "--model" and i + 1 < len(args):
+            use_model = args[i + 1]
             i += 2
             continue
         filtered.append(args[i])
@@ -184,7 +196,8 @@ def _orchestrate_wake(args: List[str]) -> bool:
 
     from aipass.ai_mail.apps.handlers.dispatch.wake import wake_branch
     dispatch_status, success = wake_branch(
-        branch_email, custom_message, fresh=use_fresh, sender=use_sender
+        branch_email, custom_message, fresh=use_fresh, sender=use_sender,
+        model=use_model
     )
 
     # Print step-by-step status
@@ -199,6 +212,7 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
     use_fresh = False
     no_memory_save = False
     from_branch = None
+    use_model = None
     filtered = []
     i = 0
     while i < len(args):
@@ -212,6 +226,10 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
             continue
         if args[i] == "--from" and i + 1 < len(args):
             from_branch = args[i + 1]
+            i += 2
+            continue
+        if args[i] == "--model" and i + 1 < len(args):
+            use_model = args[i + 1]
             i += 2
             continue
         filtered.append(args[i])
@@ -293,7 +311,8 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
     from aipass.ai_mail.apps.handlers.dispatch.wake import wake_branch
     dispatch_status, wake_ok = wake_branch(
         target, fresh=use_fresh,
-        sender=user_info.get("email_address", "@ai_mail")
+        sender=user_info.get("email_address", "@ai_mail"),
+        model=use_model
     )
     console.print(dispatch_status.format())
 
