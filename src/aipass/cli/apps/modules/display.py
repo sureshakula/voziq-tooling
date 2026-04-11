@@ -35,10 +35,14 @@ from aipass.cli.apps.handlers.json import json_handler
 # NOTE: Cannot import prax here — circular import (prax depends on cli)
 # Silent catches in this file are bypassed via .seedgo/bypass.json
 
+# Detect if output is a TTY (interactive terminal) vs piped/redirected
+# When piped, disable force_terminal to let Rich auto-detect and strip ANSI codes
+_IS_TTY = sys.stdout.isatty()
+
 # Initialize Rich console (lowercase follows service instance pattern)
-CONSOLE = Console(force_terminal=True)  # Internal constant — force_terminal ensures ANSI colors even when piped
+CONSOLE = Console(force_terminal=_IS_TTY)  # TTY=colors, piped=plain
 console = CONSOLE  # Primary export (lowercase service instance pattern)
-err_console = Console(stderr=True, force_terminal=True)  # Stderr console for error/warning output
+err_console = Console(stderr=True, force_terminal=sys.stderr.isatty())  # Stderr auto-detect
 
 # Trigger loaded lazily to avoid circular import
 _TRIGGER = None

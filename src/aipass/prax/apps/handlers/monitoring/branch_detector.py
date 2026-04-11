@@ -127,8 +127,8 @@ class BranchDetector:
                 for item in project_dir.iterdir():
                     if item.is_file() and item.name.endswith('_REGISTRY.json'):
                         return item.stem.replace('_REGISTRY', '')
-            except (OSError, PermissionError):
-                pass
+            except (OSError, PermissionError) as e:
+                logger.info(f"[branch_detector] Cannot read project dir {project_dir}: {e}")
             return project_part.upper()
         return project_part.upper()
 
@@ -198,15 +198,21 @@ class BranchDetector:
 
         # Internal AIPass: path contains -projects-aipass-src-aipass-
         if '-projects-aipass-src-aipass-' in folder_lower:
-            # Simple hyphen-to-slash decode works (no hyphens in AIPass branch names)
-            project_path = '/' + project_folder.replace('-', '/')
+            # Strip leading dash before decode — avoids double slash and preserves
+            # normalization that treats - and _ as equivalent (handles ai_mail→ai-mail).
+            name_part = project_folder[1:] if project_folder.startswith('-') else project_folder
+            project_path = '/' + name_part.replace('-', '/')
             for registered_path, branch_name in self.branch_map.items():
                 reg_norm = registered_path.replace('_', '/')
                 proj_norm = project_path.replace('_', '/')
                 if reg_norm == proj_norm or registered_path == project_path:
                     return f"AIPASS/{branch_name}{sub_suffix}"
-            # Fallback: last segment after aipass-
+            # Fallback: scan segments for known branch names (handles multi-word: ai_mail)
             segs = [s for s in project_folder.split('-') if s]
+            for n in range(min(3, len(segs)), 0, -1):
+                candidate = '_'.join(segs[-n:]).upper()
+                if candidate in self.known_branches:
+                    return f"AIPASS/{candidate}{sub_suffix}"
             if segs:
                 return f"AIPASS/{segs[-1].upper()}{sub_suffix}"
             return None
@@ -257,7 +263,7 @@ class BranchDetector:
         try:
             rel = path.relative_to(projects_base)
         except ValueError:
-            return None
+            return None  # Path is not under ~/Projects/
 
         parts = rel.parts
         if not parts:
