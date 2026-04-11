@@ -109,113 +109,118 @@ class BranchDetector:
         self.known_branches.update(fallback)
         logger.info(f"Using fallback branches: {fallback}")
 
-    def _detect_external_project(self, decoded_path: str) -> Optional[str]:
-        """Detect branch from an external AIPass project directory.
-
-        Looks for {PROJECT}_REGISTRY.json in the decoded path.
+    def _resolve_external_project_name(self, project_part: str) -> str:
+        """Resolve external project directory name to canonical name via _REGISTRY.json.
 
         Args:
-            decoded_path: Actual filesystem path decoded from Claude project folder
+            project_part: Directory name segment like 'Vera-Studio' or 'AIPL'
 
         Returns:
-            Project name in uppercase if registry found (e.g., 'VERA-STUDIO', 'AIPL')
+            Name from registry file stem (e.g., 'VERA-STUDIO') or uppercased dir name
         """
-        try:
-            project_dir = Path(decoded_path)
+        for base in [Path.home() / 'Projects']:
+            project_dir = base / project_part
             if not project_dir.exists():
-                return None
+                continue
+            try:
+                for item in project_dir.iterdir():
+                    if item.is_file() and item.name.endswith('_REGISTRY.json'):
+                        return item.stem.replace('_REGISTRY', '')
+            except (OSError, PermissionError):
+                pass
+            return project_part.upper()
+        return project_part.upper()
 
-            # Walk the directory tree looking for *_REGISTRY.json
-            for item in project_dir.iterdir():
-                if item.is_file() and item.name.endswith('_REGISTRY.json'):
-                    # Extract project name from filename
-                    # VERA-STUDIO_REGISTRY.json -> VERA-STUDIO
-                    project_name = item.stem.replace('_REGISTRY', '')
-                    return project_name
+    def _parse_external_project_path(self, encoded_folder: str) -> tuple:
+        """Parse encoded Claude project folder into (project_name, agent_name).
 
-            # If no registry found, use directory name as fallback
-            # /home/patrick/Projects/Vera-Studio -> VERA-STUDIO
-            return project_dir.name.upper().replace('-', '-')
-        except Exception:
-            return None
+        Handles hyphens in project names by splitting on -Projects- and -src-.
 
-    def _decode_claude_project_path(self, encoded_folder: str) -> Optional[str]:
-        """Decode Claude Code project folder name to actual filesystem path.
-
-        Claude encodes paths by replacing "/" with "-" and prepending "-".
-        But directory names with hyphens make simple decoding ambiguous.
-
-        Strategy: Try all possible decodings and return the project root
-        (closest parent with _REGISTRY.json).
-
-        Args:
-            encoded_folder: Folder name like "-home-patrick-Projects-Vera-Studio"
+        Examples:
+            -home-patrick-Projects-Vera-Studio -> ('VERA-STUDIO', None)
+            -home-patrick-Projects-AIPL-src-polyglot -> ('AIPL', 'POLYGLOT')
+            -home-patrick-Projects-Vera-Studio-src-vera -> ('VERA-STUDIO', 'VERA')
 
         Returns:
-            Project root directory path or None if no valid external project found
+            (project_name, agent_name) -- agent_name is None if no src subdir
+            Returns (None, None) if cannot parse.
         """
         if not encoded_folder.startswith('-'):
-            return None
+            return None, None
 
-        # Remove leading dash
-        name = encoded_folder[1:]
-        segments = name.split('-')
+        name = encoded_folder[1:]  # strip leading dash
 
-        # Try progressively joining segments from right to left
-        # This handles "Vera-Studio" which shouldn't be split
-        for i in range(len(segments)):
-            # Try path with i segments from left kept separate, rest joined
-            if i == 0:
-                path_parts = segments
-            else:
-                path_parts = segments[:i] + ['-'.join(segments[i:])]
+        # Find -Projects- boundary
+        sep = '-projects-'
+        idx = name.lower().find(sep)
+        if idx < 0:
+            return None, None
 
-            project_path = '/' + '/'.join(path_parts)
-            project_dir = Path(project_path)
+        # Everything after -projects- is our target
+        after = name[idx + len(sep):]
 
-            # Check if this path or any parent has a registry
-            if project_dir.exists():
-                # Walk up from this path looking for _REGISTRY.json
-                current = project_dir
-                while current != current.parent:
-                    try:
-                        for item in current.iterdir():
-                            if item.is_file() and item.name.endswith('_REGISTRY.json'):
-                                return str(current)
-                    except (OSError, PermissionError):
-                        pass
-                    current = current.parent
-                    # Stop at /home or root to avoid traversing too far
-                    if current.name == 'home' or str(current) == '/':
-                        break
+        # Split on -src- to separate project from agent subdirectory
+        src_sep = '-src-'
+        src_idx = after.lower().find(src_sep)
 
-        return None
+        if src_idx >= 0:
+            project_part = after[:src_idx]
+            agent_part = after[src_idx + len(src_sep):]
+        else:
+            project_part = after
+            agent_part = None
+
+        # Resolve project name via registry file on filesystem
+        project_name = self._resolve_external_project_name(project_part)
+
+        # Agent name: uppercase with hyphen preserved (polyglot -> POLYGLOT)
+        agent_name = agent_part.upper() if agent_part else None
+
+        return project_name, agent_name
 
     def _detect_from_claude_project(self, path_str: str) -> Optional[str]:
-        """Detect branch from Claude Code project path encoding."""
+        """Detect PROJECT/BRANCH label from Claude Code project path encoding.
+
+        Returns two-tier label (model suffix added by caller):
+        - Internal AIPass branches: 'AIPASS/DEVPULSE'
+        - External project with agent: 'AIPL/POLYGLOT'
+        - External project main session: 'VERA-STUDIO'
+        Sub-agents append ' SUB' to the agent/branch segment.
+        """
         projects_idx = path_str.index('.claude/projects/') + len('.claude/projects/')
         remaining = path_str[projects_idx:]
         project_folder = remaining.split('/')[0]
+        is_subagent = '/subagents/' in path_str
+        sub_suffix = ' SUB' if is_subagent else ''
 
-        # Try external project detection first (covers Vera-Studio, AIPL, etc.)
-        decoded_path = self._decode_claude_project_path(project_folder)
-        if decoded_path:
-            external_result = self._detect_external_project(decoded_path)
-            if external_result:
-                return external_result
+        folder_lower = project_folder.lower()
 
-        # Fallback: simple decoding for internal AIPass projects
-        if project_folder.startswith('-'):
-            project_path = '/' + project_folder[1:].replace('-', '/')
-        else:
+        # Internal AIPass: path contains -projects-aipass-src-aipass-
+        if '-projects-aipass-src-aipass-' in folder_lower:
+            # Simple hyphen-to-slash decode works (no hyphens in AIPass branch names)
             project_path = '/' + project_folder.replace('-', '/')
+            for registered_path, branch_name in self.branch_map.items():
+                reg_norm = registered_path.replace('_', '/')
+                proj_norm = project_path.replace('_', '/')
+                if reg_norm == proj_norm or registered_path == project_path:
+                    return f"AIPASS/{branch_name}{sub_suffix}"
+            # Fallback: last segment after aipass-
+            segs = [s for s in project_folder.split('-') if s]
+            if segs:
+                return f"AIPASS/{segs[-1].upper()}{sub_suffix}"
+            return None
 
-        for registered_path, branch_name in self.branch_map.items():
-            registered_normalized = registered_path.replace('_', '/')
-            project_normalized = project_path.replace('_', '/')
-            if registered_normalized == project_normalized or registered_path == project_path:
-                return branch_name
+        # External project
+        project_name, agent_name = self._parse_external_project_path(project_folder)
+        if project_name:
+            if agent_name:
+                return f"{project_name}/{agent_name}{sub_suffix}"
+            elif sub_suffix:
+                return f"{project_name}{sub_suffix}"
+            else:
+                return project_name
 
+        # Old fallback: segment scanning for known branch names
         segments = [s for s in project_folder.split('-') if s]
         if not segments:
             return None

@@ -64,8 +64,8 @@ SYMBOLS = {
     'info': 'ℹ️',
 }
 
-# Branch display width
-BRANCH_WIDTH = 8
+# Branch display width — wide enough for three-tier labels like AIPASS/DEVPULSE/OPUS
+BRANCH_WIDTH = 24
 
 # Level-based color mapping (simplified)
 LEVEL_COLORS = {
