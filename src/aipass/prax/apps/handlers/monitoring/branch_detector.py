@@ -263,7 +263,8 @@ class BranchDetector:
         try:
             rel = path.relative_to(projects_base)
         except ValueError:
-            return None  # Path is not under ~/Projects/
+            logger.info(f"[branch_detector] Path not under ~/Projects/: {path}")
+            return None
 
         parts = rel.parts
         if not parts:
@@ -286,8 +287,8 @@ class BranchDetector:
                     if item.is_file() and item.name.endswith('_REGISTRY.json'):
                         project_name = item.stem.replace('_REGISTRY', '')
                         break
-            except (OSError, PermissionError):
-                pass
+            except (OSError, PermissionError) as e:
+                logger.info(f"[branch_detector] Cannot scan project dir {project_dir}: {e}")
             if not project_name:
                 return None  # Not an external AIPass project
             self._external_project_cache[project_dir_name] = project_name
@@ -461,7 +462,7 @@ class BranchDetector:
             logger.info(f"Error detecting branch from log {log_file}: {e}")
             return 'UNKNOWN'
 
-    def detect_from_module(self, module_name: str) -> str:
+    def detect_from_module(self, dotted_name: str) -> str:
         """
         Detect branch from Python module name.
 
@@ -470,30 +471,30 @@ class BranchDetector:
         - seedgo.core.validator -> SEEDGO
 
         Args:
-            module_name: Python module dotted name
+            dotted_name: Python module dotted name (e.g. 'aipass.prax.apps')
 
         Returns:
             Branch name in uppercase
         """
         try:
             # Check cache
-            if module_name in self.module_map:
-                return self.module_map[module_name]
+            if dotted_name in self.module_map:
+                return self.module_map[dotted_name]
 
             # Split on dots and check first part
-            parts = module_name.split('.')
+            parts = dotted_name.split('.')
             if parts:
                 first_part = parts[0].upper()
 
                 if first_part in self.known_branches:
-                    self.module_map[module_name] = first_part
+                    self.module_map[dotted_name] = first_part
                     return first_part
 
-            logger.info(f"Could not detect branch from module: {module_name}")
+            logger.info(f"Could not detect branch from module: {dotted_name}")
             return 'UNKNOWN'
 
         except Exception as e:
-            logger.error(f"Error detecting branch from module {module_name}: {e}")
+            logger.error(f"Error detecting branch from module {dotted_name}: {e}")
             return 'UNKNOWN'
 
     def reload_registry(self):
