@@ -525,6 +525,192 @@ class TestAdoptExisting:
         entry = next(b for b in reg["branches"] if b["name"] == "SMART_AGENT")
         assert entry["description"] == "Process reports daily"
 
+    def test_adopt_existing_fixes_registry_id(self, tmp_path):
+        """Adoption fixes mismatched registry_id in passport."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        agent = tmp_path / "id_agent"
+        agent.mkdir()
+        (agent / ".trinity").mkdir()
+        (agent / ".trinity" / "passport.json").write_text(json.dumps({
+            "branch_info": {"branch_name": "id_agent"},
+            "identity": {"citizen_class": "builder", "purpose": "Test"},
+            "citizenship": {"registry_id": "old-uuid-1234"},
+        }))
+
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        reg_path.write_text(json.dumps({
+            "metadata": {
+                "id": "new-uuid-5678",
+                "version": "1.0.0",
+                "last_updated": "2026-04-11",
+                "total_branches": 0,
+            },
+            "branches": [],
+        }))
+
+        result = _spawn_agent(str(agent), registry_path=str(reg_path))
+
+        assert result["success"] is True
+        passport = json.loads((agent / ".trinity" / "passport.json").read_text())
+        assert passport["citizenship"]["registry_id"] == "new-uuid-5678"
+
+    def test_adopt_skips_registry_id_fix_when_already_correct(self, tmp_path):
+        """Adoption does not modify passport when registry_id already matches."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        agent = tmp_path / "matched_agent"
+        agent.mkdir()
+        (agent / ".trinity").mkdir()
+        (agent / ".trinity" / "passport.json").write_text(json.dumps({
+            "branch_info": {"branch_name": "matched_agent"},
+            "identity": {"citizen_class": "builder", "purpose": "Test"},
+            "citizenship": {"registry_id": "correct-uuid-9999"},
+        }))
+
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        reg_path.write_text(json.dumps({
+            "metadata": {
+                "id": "correct-uuid-9999",
+                "version": "1.0.0",
+                "last_updated": "2026-04-11",
+                "total_branches": 0,
+            },
+            "branches": [],
+        }))
+
+        # Get mtime before adoption to detect writes
+        before_mtime = (agent / ".trinity" / "passport.json").stat().st_mtime
+
+        result = _spawn_agent(str(agent), registry_path=str(reg_path))
+
+        assert result["success"] is True
+        after_mtime = (agent / ".trinity" / "passport.json").stat().st_mtime
+        # File should NOT have been rewritten (ids already match)
+        assert before_mtime == after_mtime
+
+
+# ---------------------------------------------------------------------------
+# FIX PASSPORT REGISTRY ID Tests
+# ---------------------------------------------------------------------------
+
+class TestFixPassportRegistryId:
+    """Tests for fix_passport_registry_id() in registry.py."""
+
+    def test_fixes_mismatched_id(self, tmp_path):
+        """Updates passport when registry_id doesn't match."""
+        from aipass.spawn.apps.handlers.registry import fix_passport_registry_id
+
+        branch = tmp_path / "myagent"
+        branch.mkdir()
+        (branch / ".trinity").mkdir()
+        (branch / ".trinity" / "passport.json").write_text(json.dumps({
+            "citizenship": {"registry_id": "old-id"},
+        }))
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(json.dumps({"metadata": {"id": "new-id"}, "branches": []}))
+
+        result = fix_passport_registry_id(branch, reg)
+
+        assert result is True
+        passport = json.loads((branch / ".trinity" / "passport.json").read_text())
+        assert passport["citizenship"]["registry_id"] == "new-id"
+
+    def test_skips_when_already_correct(self, tmp_path):
+        """Returns False when ids already match (no write needed)."""
+        from aipass.spawn.apps.handlers.registry import fix_passport_registry_id
+
+        branch = tmp_path / "myagent"
+        branch.mkdir()
+        (branch / ".trinity").mkdir()
+        (branch / ".trinity" / "passport.json").write_text(json.dumps({
+            "citizenship": {"registry_id": "same-id"},
+        }))
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(json.dumps({"metadata": {"id": "same-id"}, "branches": []}))
+
+        result = fix_passport_registry_id(branch, reg)
+
+        assert result is False
+
+    def test_handles_missing_passport(self, tmp_path):
+        """Returns False gracefully when passport doesn't exist."""
+        from aipass.spawn.apps.handlers.registry import fix_passport_registry_id
+
+        branch = tmp_path / "npassport"
+        branch.mkdir()
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(json.dumps({"metadata": {"id": "some-id"}, "branches": []}))
+
+        result = fix_passport_registry_id(branch, reg)
+        assert result is False
+
+    def test_handles_registry_with_no_id(self, tmp_path):
+        """Returns False when registry has no metadata.id."""
+        from aipass.spawn.apps.handlers.registry import fix_passport_registry_id
+
+        branch = tmp_path / "myagent"
+        branch.mkdir()
+        (branch / ".trinity").mkdir()
+        (branch / ".trinity" / "passport.json").write_text(json.dumps({
+            "citizenship": {"registry_id": "old-id"},
+        }))
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(json.dumps({"metadata": {}, "branches": []}))  # No id field
+
+        result = fix_passport_registry_id(branch, reg)
+        assert result is False
+
+    def test_sync_registry_fix_repairs_ids(self, tmp_path, monkeypatch):
+        """sync_registry --fix calls fix_passport_registry_id on healthy branches."""
+        from aipass.spawn.apps.handlers.sync_registry_ops import sync_registry
+
+        # Set up a project with one healthy branch that has wrong registry_id
+        project = tmp_path / "project"
+        project.mkdir()
+
+        reg_path = project / "TEST_REGISTRY.json"
+        reg_path.write_text(json.dumps({
+            "metadata": {
+                "id": "correct-uuid-abc",
+                "version": "1.0.0",
+                "last_updated": "2026-04-11",
+                "total_branches": 1,
+            },
+            "branches": [
+                {
+                    "name": "MYAGENT",
+                    "path": "myagent",
+                    "profile": "library",
+                    "description": "Test",
+                    "email": "@myagent",
+                    "status": "active",
+                    "created": "2026-04-11",
+                    "last_active": "2026-04-11",
+                }
+            ],
+        }))
+
+        agent_dir = project / "myagent"
+        agent_dir.mkdir()
+        (agent_dir / ".trinity").mkdir()
+        passport_path = agent_dir / ".trinity" / "passport.json"
+        passport_path.write_text(json.dumps({
+            "citizenship": {"registry_id": "old-stale-uuid"},
+        }))
+
+        monkeypatch.chdir(project)
+
+        result = sync_registry(fix=True)
+
+        assert "myagent" in result.get("ids_fixed", [])
+        passport = json.loads(passport_path.read_text())
+        assert passport["citizenship"]["registry_id"] == "correct-uuid-abc"
+
 
 # ---------------------------------------------------------------------------
 # SYNC TEMPLATES Tests

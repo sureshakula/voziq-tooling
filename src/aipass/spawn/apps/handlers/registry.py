@@ -12,6 +12,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.spawn.apps.handlers.json import json_handler
 
 
@@ -212,3 +213,57 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
     json_handler.log_operation("registry_updated", data={"branch": branch_name})
 
     return save_registry(registry_path, registry)
+
+
+def fix_passport_registry_id(branch_dir: Path, registry_path: Path) -> bool:
+    """Update passport.json registry_id if it doesn't match the current registry.
+
+    Call when adopting an existing agent or during sync-registry --fix to repair
+    registry_id mismatches caused by registry recreation.
+
+    Args:
+        branch_dir: Path to the branch directory (containing .trinity/passport.json)
+        registry_path: Path to the project registry (*_REGISTRY.json)
+
+    Returns:
+        True if passport was updated, False if already correct or failed.
+    """
+    passport_path = branch_dir / ".trinity" / "passport.json"
+    if not passport_path.exists():
+        return False
+    if not registry_path.exists():
+        return False
+
+    try:
+        registry_data = json_handler.read_json(registry_path)
+        if registry_data is None:
+            return False
+        current_id = registry_data.get("metadata", {}).get("id", "")
+    except Exception as e:
+        logger.warning("[registry] Cannot read registry_id from %s: %s", registry_path.name, e)
+        return False
+
+    if not current_id:
+        return False
+
+    try:
+        passport = json_handler.read_json(passport_path)
+        if passport is None:
+            return False
+        old_id = passport.get("citizenship", {}).get("registry_id", "")
+        if old_id == current_id:
+            return False  # Already correct, no update needed
+
+        passport.setdefault("citizenship", {})["registry_id"] = current_id
+        success = json_handler.write_json(passport_path, passport)
+        if success:
+            logger.info(
+                "[registry] Fixed registry_id for %s: %s → %s",
+                branch_dir.name,
+                old_id[:8] if old_id else "empty",
+                current_id[:8],
+            )
+        return success
+    except Exception as e:
+        logger.warning("[registry] Failed to fix registry_id for %s: %s", branch_dir.name, e)
+        return False

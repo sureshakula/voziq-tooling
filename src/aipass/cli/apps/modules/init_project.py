@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from aipass.cli.apps.handlers.init.bootstrap import init_project
+from aipass.cli.apps.handlers.init.bootstrap import init_project, update_project
 from aipass.cli.apps.modules.display import console, success, error, header
 from aipass.cli.apps.handlers.json import json_handler
 from aipass.prax.apps.modules.logger import system_logger as logger
@@ -55,6 +55,11 @@ def print_introspection():
         "init agent",
         "Create an agent in current project",
         "drone @cli aipass init agent my_agent",
+    )
+    table.add_row(
+        "init update",
+        "Refresh managed scaffold files",
+        "drone @cli aipass init update",
     )
 
     console.print(table)
@@ -93,6 +98,7 @@ def print_help():
     console.print("  [green]drone @cli aipass init /path[/green]            [dim]Bootstrap in target directory[/dim]")
     console.print("  [green]drone @cli aipass init /path MyProj[/green]     [dim]Bootstrap with custom name[/dim]")
     console.print("  [green]drone @cli aipass init agent <name>[/green]     [dim]Create an agent in current project[/dim]")
+    console.print("  [green]drone @cli aipass init update[/green]           [dim]Refresh managed scaffold files[/dim]")
     console.print("  [green]drone @cli aipass --help[/green]                [dim]This help message[/dim]")
     console.print()
     console.print("─" * 70)
@@ -159,6 +165,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command == "init":
         return _handle_init(args)
 
+    # Direct subcommand shortcut: command="update" → treated as 'init update'
+    if command == "update":
+        return _handle_init(["update"] + args)
+
     # Prefixed command: 'drone @cli aipass init' → command="aipass"
     if command != "aipass":
         return False
@@ -194,6 +204,10 @@ def _handle_init(args: List[str]) -> bool:
     if args and args[0] in ("--help", "-h", "help"):
         _print_init_help()
         return True
+
+    # Route 'init update' to update handler
+    if args and args[0] == "update":
+        return _handle_init_update(args[1:])
 
     # Route 'init agent <name>' to spawn
     if args and args[0] == "agent":
@@ -307,6 +321,95 @@ def _handle_init_agent(args: List[str]) -> bool:
         return True
 
 
+def _handle_init_update(args: List[str]) -> bool:
+    """Handle 'aipass init update' — refresh managed scaffold files."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich import box
+
+    if not args or args[0] in ("--help", "-h", "help"):
+        console.print()
+        header("aipass init update — Refresh Scaffold Files")
+        console.print("[dim]Updates managed prompt and config files with the latest templates[/dim]")
+        console.print()
+        console.print("[bold cyan]Usage:[/bold cyan]")
+        console.print("  [green]drone @cli aipass init update[/green]             [dim]Update current directory[/dim]")
+        console.print("  [green]drone @cli aipass init update /path/to/dir[/green]  [dim]Update target directory[/dim]")
+        console.print()
+        console.print("[bold cyan]What gets updated:[/bold cyan]")
+        console.print("  .aipass/aipass_global_prompt.md, .claude/settings.json")
+        console.print("  CLAUDE.md, AGENTS.md, GEMINI.md")
+        console.print()
+        console.print("[bold cyan]What is never touched:[/bold cyan]")
+        console.print("  *_REGISTRY.json, README.md, STATUS.local.md, .gitignore, hooks/, src/")
+        console.print()
+        console.print("[dim]Commands: init update, init update --help[/dim]")
+        console.print()
+        return True
+
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", os.getcwd())
+    target_arg = args[0]
+    target = Path(target_arg)
+    if not target.is_absolute():
+        target = Path(caller_cwd) / target
+
+    try:
+        result = update_project(target)
+    except ValueError as exc:
+        logger.warning("Init update validation error: %s", exc)
+        error(str(exc), suggestion="Run 'aipass init' first to create the project")
+        sys.exit(1)
+    except OSError as exc:
+        logger.error("Init update filesystem error: %s", exc)
+        error(f"Filesystem error: {exc}")
+        sys.exit(1)
+
+    # Display results
+    console.print()
+    header("Project Updated")
+
+    summary = (
+        f"[bold]{result['project_name']}[/bold]\n"
+        f"\n"
+        f"  [yellow]Target:[/yellow]   [dim]{result['target']}[/dim]\n"
+        f"  [yellow]Updated:[/yellow]  {len(result['updated_files'])} files\n"
+        f"  [yellow]Skipped:[/yellow]  {len(result['skipped_files'])} files"
+    )
+    console.print(Panel(summary, border_style="green", box=box.ROUNDED))
+
+    # Updated files table
+    updated_table = Table(
+        show_header=True, header_style="bold cyan", border_style="dim", title="Updated"
+    )
+    updated_table.add_column("#", style="green", width=3)
+    updated_table.add_column("File", style="yellow")
+    for i, f in enumerate(result["updated_files"], 1):
+        updated_table.add_row(str(i), f)
+    console.print(updated_table)
+
+    # Skipped files table
+    skipped_table = Table(
+        show_header=True, header_style="bold cyan", border_style="dim", title="Skipped"
+    )
+    skipped_table.add_column("#", style="dim", width=3)
+    skipped_table.add_column("File", style="dim")
+    for i, f in enumerate(result["skipped_files"], 1):
+        skipped_table.add_row(str(i), f)
+    console.print(skipped_table)
+    console.print()
+
+    success(f"Updated {len(result['updated_files'])} files")
+
+    json_handler.log_operation("aipass_init_update", {
+        "project_name": result["project_name"],
+        "target": result["target"],
+        "files_updated": len(result["updated_files"]),
+        "files_skipped": len(result["skipped_files"]),
+    })
+
+    return True
+
+
 def _print_init_help():
     """Display detailed help for the init subcommand."""
     from rich.panel import Panel
@@ -330,6 +433,8 @@ def _print_init_help():
     usage_table.add_row("drone @cli aipass init", "Initialize in current directory")
     usage_table.add_row("drone @cli aipass init /path/to/dir", "Initialize in target directory")
     usage_table.add_row("drone @cli aipass init /path MyProj", "Initialize with custom project name")
+    usage_table.add_row("drone @cli aipass init update", "Refresh managed scaffold files")
+    usage_table.add_row("drone @cli aipass init update /path", "Refresh scaffold in target directory")
     console.print(usage_table)
     console.print()
     console.print("─" * 70)

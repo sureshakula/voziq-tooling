@@ -434,3 +434,28 @@ def _fake_open_factory(real_status_path, mapping):
             return _real_open(mapping[path_str], *args, **kwargs)
         return _real_open(path, *args, **kwargs)
     return _fake_open
+
+
+# --- Model flag tests ---------------------------------------------------
+
+from aipass.ai_mail.apps.handlers.dispatch.wake import MODEL_MAP, DEFAULT_MODEL
+
+
+def test_model_map_has_expected_entries():
+    """MODEL_MAP should contain sonnet, opus, haiku shorthand mappings."""
+    assert "sonnet" in MODEL_MAP
+    assert "opus" in MODEL_MAP
+    assert "haiku" in MODEL_MAP
+    assert "claude-sonnet-4-6" in MODEL_MAP["sonnet"]
+    assert "claude-opus-4-6" in MODEL_MAP["opus"]
+
+
+def test_default_model_is_sonnet():
+    """Default model should be sonnet."""
+    assert DEFAULT_MODEL == "sonnet"
+
+
+def test_model_map_values_are_full_ids():
+    """All MODEL_MAP values should be full claude model IDs."""
+    for key, value in MODEL_MAP.items():
+        assert value.startswith("claude-"), f"{key} -> {value} doesn't start with 'claude-'"

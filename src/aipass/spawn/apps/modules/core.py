@@ -35,7 +35,7 @@ from aipass.spawn.apps.handlers.metadata import get_branch_name, normalize_branc
 from aipass.spawn.apps.handlers.placeholders import build_replacements_dict, validate_no_placeholders
 from aipass.spawn.apps.handlers.file_ops import copy_template, rename_placeholder_paths, regenerate_template_registry, ensure_directory
 from aipass.spawn.apps.handlers.meta_ops import load_template_registry, generate_branch_meta, save_branch_meta
-from aipass.spawn.apps.handlers.registry import find_registry, add_to_registry, get_next_citizen_number
+from aipass.spawn.apps.handlers.registry import find_registry, add_to_registry, get_next_citizen_number, fix_passport_registry_id
 from aipass.spawn.apps.handlers.class_registry import (
     get_template_dir as _get_template_dir,
     validate_class as validate_class,
@@ -230,9 +230,13 @@ def _spawn_agent(target_path, role="", traits="", purpose="", profile=None,
 def _adopt_existing(target, purpose, profile, registry_path):
     """Register an existing directory that already has a passport.
 
-    Used when 'aipass init agent' targets a directory the user already
+    Enhanced to also:
+    - Fix registry_id mismatch in passport (caused by registry recreation)
+    - Run template update to sync scaffolding files
+
+    Used when 'spawn create @existing' targets a directory the user already
     moved code into. Instead of failing with "Target already exists",
-    we register it in the project registry.
+    we register it and sync its template files.
 
     Args:
         target: Path to the existing directory with .trinity/passport.json
@@ -262,6 +266,9 @@ def _adopt_existing(target, purpose, profile, registry_path):
             logger.warning("Failed to read passport for purpose: %s", e)
             purpose = "Adopted agent"
 
+    # Fix registry_id in passport if it doesn't match the current registry
+    fix_passport_registry_id(target, reg_path)
+
     # Store path relative to registry location
     try:
         registry_branch_path = str(target.relative_to(reg_path.parent))
@@ -277,11 +284,24 @@ def _adopt_existing(target, purpose, profile, registry_path):
     json_handler.log_operation("branch_adopted", data={"branch": branch_upper})
     logger.info("[spawn] Adopted existing branch: %s (registered in %s)", branch_upper, reg_path.name)
 
+    # Run template update to sync scaffolding files.
+    # Preserves: .trinity/, .ai_mail.local/, memories, all .py files.
+    # Only adds missing template files and merges JSON configs.
+    update_additions = 0
+    try:
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+        update_result = update_branch(branch_lower)
+        update_additions = update_result.get("additions", 0)
+        if update_result.get("errors"):
+            logger.warning("[spawn] Template update had errors for %s: %s", branch_upper, update_result["errors"])
+    except Exception as exc:
+        logger.warning("[spawn] Template update failed for %s (adoption succeeded): %s", branch_upper, exc)
+
     return {
         "success": True,
         "branch_name": branch_upper,
         "path": str(target),
-        "files_copied": 0,
+        "files_copied": update_additions,
         "dirs_created": 0,
         "files_skipped": 0,
         "renamed": [],

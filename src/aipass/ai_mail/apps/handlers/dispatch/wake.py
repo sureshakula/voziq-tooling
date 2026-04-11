@@ -40,6 +40,14 @@ MONITOR_SCRIPT = Path(__file__).parent / "dispatch_monitor.py"
 # Default prompt when no custom message provided
 DEFAULT_PROMPT = "Hi. Check inbox, process new emails, update memories when done."
 
+# Model shorthand mapping
+MODEL_MAP = {
+    "sonnet": "claude-sonnet-4-6",
+    "opus": "claude-opus-4-6",
+    "haiku": "claude-haiku-4-5-20251001",
+}
+DEFAULT_MODEL = "sonnet"
+
 
 # ─── Status Step Tracking ───────────────────────────────
 
@@ -309,14 +317,24 @@ def resolve_branch(branch_email: str) -> Optional[Tuple[Path, str]]:
 
 def wake_branch(branch_email: str, custom_message: Optional[str] = None,
                 fresh: bool = False, auto: bool = False,
-                sender: str = "@devpulse") -> Tuple[DispatchStatus, bool]:
+                sender: str = "@devpulse",
+                model: Optional[str] = None) -> Tuple[DispatchStatus, bool]:
     """
     Spawn a Claude agent at the target branch with step-by-step status.
+
+    Args:
+        branch_email: Target branch email (e.g. "@flow")
+        custom_message: Optional custom prompt (replaces default inbox check)
+        fresh: If True, start fresh session instead of resuming
+        auto: If True, respect autonomous_pause (used by daemon)
+        sender: Return-to-sender for bounce emails
+        model: Model shorthand ("sonnet", "opus", "haiku") or full model ID.
+               Defaults to sonnet (claude-sonnet-4-6).
 
     Returns:
         Tuple of (DispatchStatus with all steps, overall success bool)
     """
-    json_handler.log_operation("wake_branch", {"branch": branch_email, "fresh": fresh, "auto": auto})
+    json_handler.log_operation("wake_branch", {"branch": branch_email, "fresh": fresh, "auto": auto, "model": model or DEFAULT_MODEL})
 
     status = DispatchStatus()
 
@@ -371,6 +389,9 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
     config = _load_config()
     max_turns = config.get("max_turns_per_wake", 100)
 
+    # Resolve model: shorthand -> full ID, or pass through if already a full ID
+    resolved_model = MODEL_MAP.get(model or DEFAULT_MODEL, model or MODEL_MAP[DEFAULT_MODEL])
+
     lock_file_path = str(branch_path / ".ai_mail.local" / ".dispatch.lock")
     if custom_message:
         prompt = f"Hi. {custom_message} "
@@ -382,6 +403,7 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
     if fresh:
         claude_cmd = [
             "claude", "-p", prompt,
+            "--model", resolved_model,
             "--max-turns", str(max_turns),
             "--permission-mode", "bypassPermissions",
             "--output-format", "json"
@@ -389,6 +411,7 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
     else:
         claude_cmd = [
             "claude", "-c", "-p", prompt,
+            "--model", resolved_model,
             "--max-turns", str(max_turns),
             "--permission-mode", "bypassPermissions",
             "--output-format", "json"
@@ -481,13 +504,14 @@ if __name__ == "__main__":
     args = sys.argv[1:]
 
     if not args or args[0] in ("--help", "-h"):
-        print("Usage: wake.py [--fresh] [--auto] [--sender @branch] @branch [\"optional message\"]")
+        print("Usage: wake.py [--fresh] [--auto] [--sender @branch] [--model sonnet|opus] @branch [\"optional message\"]")
         print("  Manually spawn a Claude agent at a branch (daemon not required)")
         print()
         print("Flags:")
         print("  --fresh          Start fresh session (claude -p) instead of resuming (claude -c -p)")
         print("  --auto           Respect autonomous_pause (used by daemon). Manual wake ignores it.")
         print("  --sender @branch Set return-to-sender for bounce emails (default: @devpulse)")
+        print("  --model NAME     Model to use: sonnet (default), opus, haiku, or full model ID")
         print()
         print("Output: Step-by-step status of the dispatch pipeline:")
         print("  ✅ resolve → @branch found at /path/to/branch")
@@ -508,11 +532,18 @@ if __name__ == "__main__":
     use_fresh = "--fresh" in args
     use_auto = "--auto" in args
     use_sender = "@devpulse"
+    use_model = None
 
     if "--sender" in args:
         idx = args.index("--sender")
         if idx + 1 < len(args):
             use_sender = args[idx + 1]
+            args = args[:idx] + args[idx + 2:]
+
+    if "--model" in args:
+        idx = args.index("--model")
+        if idx + 1 < len(args):
+            use_model = args[idx + 1]
             args = args[:idx] + args[idx + 2:]
 
     args = [a for a in args if a not in ("--fresh", "--auto")]
@@ -525,7 +556,8 @@ if __name__ == "__main__":
     message = args[1] if len(args) > 1 else None
 
     dispatch_status, success = wake_branch(
-        branch, message, fresh=use_fresh, auto=use_auto, sender=use_sender
+        branch, message, fresh=use_fresh, auto=use_auto, sender=use_sender,
+        model=use_model
     )
     print(dispatch_status.format())
     sys.exit(0 if success else 1)

@@ -331,6 +331,19 @@ def _claude_settings() -> str:
     ) + "\n"
 
 
+def _with_source(content: str, file_path: Path) -> str:
+    """Prepend a source header to AI prompt file content.
+
+    Args:
+        content: The file content to annotate.
+        file_path: The absolute path where the file will be written.
+
+    Returns:
+        Content with ``<!-- Source: {file_path} -->`` as the first line.
+    """
+    return f"<!-- Source: {file_path} -->\n{content}"
+
+
 def init_project(target: Path, project_name: str | None = None) -> dict:
     """Initialize an AIPass project in the target directory.
 
@@ -391,25 +404,37 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
 
     global_prompt_path = aipass_dir / "aipass_global_prompt.md"
     if not global_prompt_path.exists():
-        global_prompt_path.write_text(_global_prompt_md(name), encoding="utf-8")
+        global_prompt_path.write_text(
+            _with_source(_global_prompt_md(name), global_prompt_path),
+            encoding="utf-8",
+        )
         created.append(str(global_prompt_path))
 
     # 3. CLAUDE.md
     claude_md_path = target / "CLAUDE.md"
     if not claude_md_path.exists():
-        claude_md_path.write_text(_claude_md(name), encoding="utf-8")
+        claude_md_path.write_text(
+            _with_source(_claude_md(name), claude_md_path),
+            encoding="utf-8",
+        )
         created.append(str(claude_md_path))
 
     # 4. AGENTS.md (Codex)
     agents_md_path = target / "AGENTS.md"
     if not agents_md_path.exists():
-        agents_md_path.write_text(_agents_md(name), encoding="utf-8")
+        agents_md_path.write_text(
+            _with_source(_agents_md(name), agents_md_path),
+            encoding="utf-8",
+        )
         created.append(str(agents_md_path))
 
     # 5. GEMINI.md
     gemini_md_path = target / "GEMINI.md"
     if not gemini_md_path.exists():
-        gemini_md_path.write_text(_gemini_md(name), encoding="utf-8")
+        gemini_md_path.write_text(
+            _with_source(_gemini_md(name), gemini_md_path),
+            encoding="utf-8",
+        )
         created.append(str(gemini_md_path))
 
     # 6. README.md
@@ -466,4 +491,94 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         "project_name": name,
         "target": str(target),
         "created_files": created,
+    }
+
+
+def update_project(target: Path) -> dict:
+    """Update managed scaffold files in an existing AIPass project.
+
+    Overwrites managed prompt and config files with the latest templates while
+    leaving all user-owned files (registry, README, STATUS.local.md, .gitignore,
+    hooks/, src/) untouched.
+
+    Args:
+        target: Directory containing the AIPass project to update.
+
+    Returns:
+        dict with project_name, target, updated_files, skipped_files.
+
+    Raises:
+        ValueError: If no ``*_REGISTRY.json`` is found in target (not an AIPass
+            project or init has not been run yet).
+    """
+    target = target.resolve()
+
+    # Locate the project registry to confirm this is an AIPass project and
+    # derive the project name without parsing JSON (filename encodes the name).
+    registry_files = list(target.glob("*_REGISTRY.json"))
+    if not registry_files:
+        raise ValueError(
+            "No AIPass project found — run 'aipass init' first"
+        )
+    registry_path = registry_files[0]
+    name = registry_path.stem.replace("_REGISTRY", "")
+
+    updated: list[str] = []
+    skipped: list[str] = []
+
+    # Managed directories — create if missing (graceful recovery).
+    aipass_dir = target / ".aipass"
+    aipass_dir.mkdir(exist_ok=True)
+
+    claude_dir = target / ".claude"
+    claude_dir.mkdir(exist_ok=True)
+
+    # --- Managed files: always overwrite with latest templates ---
+
+    global_prompt_path = aipass_dir / "aipass_global_prompt.md"
+    global_prompt_path.write_text(
+        _with_source(_global_prompt_md(name), global_prompt_path),
+        encoding="utf-8",
+    )
+    updated.append(str(global_prompt_path))
+
+    settings_path = claude_dir / "settings.json"
+    settings_path.write_text(_claude_settings(), encoding="utf-8")
+    updated.append(str(settings_path))
+
+    claude_md_path = target / "CLAUDE.md"
+    claude_md_path.write_text(
+        _with_source(_claude_md(name), claude_md_path),
+        encoding="utf-8",
+    )
+    updated.append(str(claude_md_path))
+
+    agents_md_path = target / "AGENTS.md"
+    agents_md_path.write_text(
+        _with_source(_agents_md(name), agents_md_path),
+        encoding="utf-8",
+    )
+    updated.append(str(agents_md_path))
+
+    gemini_md_path = target / "GEMINI.md"
+    gemini_md_path.write_text(
+        _with_source(_gemini_md(name), gemini_md_path),
+        encoding="utf-8",
+    )
+    updated.append(str(gemini_md_path))
+
+    # --- User-owned files: always skip ---
+    for skip_name in (
+        str(registry_path),
+        str(target / "README.md"),
+        str(target / "STATUS.local.md"),
+        str(target / ".gitignore"),
+    ):
+        skipped.append(skip_name)
+
+    return {
+        "project_name": name,
+        "target": str(target),
+        "updated_files": updated,
+        "skipped_files": skipped,
     }
