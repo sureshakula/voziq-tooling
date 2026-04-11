@@ -37,7 +37,7 @@ from aipass.trigger.apps.handlers.json import json_handler
 # logger imported from aipass.prax
 
 # System logs directory (package-relative via config)
-SYSTEM_LOGS_DIR = TRIGGER_ROOT.parent.parent / "system_logs"
+SYSTEM_LOGS_DIR = TRIGGER_ROOT.parent.parent.parent / "system_logs"
 
 # Try to import watchdog
 try:

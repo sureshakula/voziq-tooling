@@ -26,7 +26,7 @@ from typing import Any, Callable, Dict, List, Optional, Set
 from aipass.trigger.apps.config import TRIGGER_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
-SYSTEM_LOGS_DIR = TRIGGER_ROOT.parent / "system_logs"
+SYSTEM_LOGS_DIR = TRIGGER_ROOT.parent.parent.parent / "system_logs"
 TRIGGER_DATA_FILE = TRIGGER_ROOT / "trigger_json" / "trigger_data.json"
 SUPPRESSED_LOG = TRIGGER_ROOT / "logs" / "medic_suppressed.log"
 
