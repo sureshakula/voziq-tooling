@@ -278,6 +278,28 @@ def test_init_project_claude_settings_content(tmp_path):
     assert "UserPromptSubmit" in data["hooks"]
 
 
+def test_init_project_settings_has_two_hooks(tmp_path):
+    """.claude/settings.json has both global and local prompt hooks."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    settings_path = target / ".claude" / "settings.json"
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    hooks = data["hooks"]["UserPromptSubmit"]
+    assert len(hooks) == 2, f"Expected 2 UserPromptSubmit hooks, got {len(hooks)}"
+
+    # First hook: global prompt
+    global_cmd = hooks[0]["hooks"][0]["command"]
+    assert "aipass_global_prompt.md" in global_cmd
+
+    # Second hook: local prompt walk-up
+    local_cmd = hooks[1]["hooks"][0]["command"]
+    assert "aipass_local_prompt.md" in local_cmd
+    assert "dirname" in local_cmd, "Local prompt hook should walk up with dirname"
+
+
 def test_init_project_global_prompt_content(tmp_path):
     """Global prompt contains project name and AIPass terminology."""
     target = tmp_path / "proj"

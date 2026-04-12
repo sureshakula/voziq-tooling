@@ -412,9 +412,23 @@ def _gitignore() -> str:
 def _claude_settings(aipass_home: str | None = None) -> str:
     """Generate .claude/settings.json — minimal hooks for prompt injection.
 
+    Installs two UserPromptSubmit hooks:
+    1. Global prompt — injects .aipass/aipass_global_prompt.md from CWD.
+    2. Local prompt  — walks up from CWD to find .aipass/aipass_local_prompt.md
+       (branch-level prompt, e.g. inside src/<agent>/).
+
     Args:
         aipass_home: Optional AIPass installation root to add as env.AIPASS_HOME.
     """
+    _local_prompt_cmd = (
+        "dir=$(pwd); "
+        "while [ \"$dir\" != \"/\" ]; do "
+        "if [ -f \"$dir/.aipass/aipass_local_prompt.md\" ]; then "
+        "cat \"$dir/.aipass/aipass_local_prompt.md\"; break; "
+        "fi; "
+        "dir=$(dirname \"$dir\"); "
+        "done"
+    )
     data: dict = {
         "hooks": {
             "UserPromptSubmit": [
@@ -426,7 +440,16 @@ def _claude_settings(aipass_home: str | None = None) -> str:
                             "command": "cat .aipass/aipass_global_prompt.md 2>/dev/null || true",
                         }
                     ],
-                }
+                },
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": _local_prompt_cmd,
+                        }
+                    ],
+                },
             ]
         }
     }

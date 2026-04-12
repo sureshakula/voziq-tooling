@@ -260,6 +260,12 @@ def _handle_init(args: List[str]) -> bool:
 
     success(f"Created {len(result['created_files'])} files")
 
+    if result.get("aipass_home"):
+        console.print()
+        console.print(f"[bold cyan]AIPASS_HOME:[/bold cyan] [yellow]{result['aipass_home']}[/yellow]")
+        console.print(f"[dim]For terminal usage, add to your shell profile:[/dim]")
+        console.print(f"  [green]export AIPASS_HOME={result['aipass_home']}[/green]")
+
     json_handler.log_operation("aipass_init", {
         "project_name": result["project_name"],
         "target": result["target"],
@@ -462,7 +468,7 @@ def _print_init_help():
     console.print("[bold cyan]WHAT IT CREATES:[/bold cyan]")
     console.print()
 
-    files_text = """[bold]Project scaffold (11 items):[/bold]
+    files_text = """[bold]Project scaffold (12 items):[/bold]
 
   [green]1.[/green]  [yellow]{NAME}_REGISTRY.json[/yellow]            Project registry with UUID
   [green]2.[/green]  [yellow].aipass/aipass_global_prompt.md[/yellow]  Global prompt (injected every turn)
@@ -472,9 +478,10 @@ def _print_init_help():
   [green]6.[/green]  [yellow]README.md[/yellow]                       Getting started guide
   [green]7.[/green]  [yellow]STATUS.local.md[/yellow]                 Project status
   [green]8.[/green]  [yellow].gitignore[/yellow]                      Standard AIPass ignores
-  [green]9.[/green]  [yellow].claude/settings.json[/yellow]           Claude Code hooks
+  [green]9.[/green]  [yellow].claude/settings.json[/yellow]           Claude Code hooks + AIPASS_HOME
   [green]10.[/green] [yellow]hooks/[/yellow]                          User hooks directory
-  [green]11.[/green] [yellow]src/[/yellow]                            Agent directories live here"""
+  [green]11.[/green] [yellow]src/[/yellow]                            Agent directories live here
+  [green]12.[/green] [yellow].ai_mail.local/inbox.json[/yellow]       Empty project mailbox"""
 
     console.print(Panel(files_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
     console.print()
