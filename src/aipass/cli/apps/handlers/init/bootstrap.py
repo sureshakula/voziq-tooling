@@ -21,6 +21,7 @@ Business logic for `aipass init`. Creates the project scaffold:
    9. .claude/settings.json           — Claude Code hooks configuration
   10. hooks/                          — directory for user hooks
   11. src/                            — directory where agents live
+  12. .ai_mail.local/inbox.json       — empty project mailbox
 
 Projects are NOT citizens — no .trinity/ directory. Identity lives in the
 registry JSON. Init is re-runnable: existing files are skipped, not errors.
@@ -31,11 +32,15 @@ RULES:
   - No hardcoded paths
 """
 
+import importlib.util
 import json
+import logging
 import re
 import uuid
 from datetime import date
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def _sanitize_name(raw: str) -> str:
@@ -45,6 +50,23 @@ def _sanitize_name(raw: str) -> str:
     underscores and strips leading/trailing underscores.
     """
     return re.sub(r"[^A-Z0-9_-]", "_", raw.upper()).strip("_")
+
+
+def _detect_aipass_home() -> str | None:
+    """Detect the AIPass installation root from the aipass package location.
+
+    Returns the parent of the src/ directory (the repo root).
+    Returns None if detection fails.
+    """
+    try:
+        spec = importlib.util.find_spec("aipass")
+        if spec and spec.origin:
+            # aipass/__init__.py lives at src/aipass/__init__.py
+            # parent = src/aipass/, parent.parent = src/, parent.parent.parent = AIPass root
+            return str(Path(spec.origin).resolve().parent.parent.parent)
+    except Exception as exc:
+        logger.info("AIPASS_HOME detection skipped: %s", exc)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -387,23 +409,40 @@ def _gitignore() -> str:
     )
 
 
-def _claude_settings() -> str:
-    """Generate .claude/settings.json — minimal hooks for prompt injection."""
+def _claude_settings(aipass_home: str | None = None) -> str:
+    """Generate .claude/settings.json — minimal hooks for prompt injection.
+
+    Args:
+        aipass_home: Optional AIPass installation root to add as env.AIPASS_HOME.
+    """
+    data: dict = {
+        "hooks": {
+            "UserPromptSubmit": [
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "cat .aipass/aipass_global_prompt.md 2>/dev/null || true",
+                        }
+                    ],
+                }
+            ]
+        }
+    }
+    if aipass_home:
+        data["env"] = {"AIPASS_HOME": aipass_home}
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+def _inbox_json() -> str:
+    """Generate .ai_mail.local/inbox.json — empty project mailbox structure."""
     return json.dumps(
         {
-            "hooks": {
-                "UserPromptSubmit": [
-                    {
-                        "matcher": "",
-                        "hooks": [
-                            {
-                                "type": "command",
-                                "command": "cat .aipass/aipass_global_prompt.md 2>/dev/null || true",
-                            }
-                        ],
-                    }
-                ]
-            }
+            "mailbox": "inbox",
+            "total_messages": 0,
+            "unread_count": 0,
+            "messages": [],
         },
         indent=2,
         ensure_ascii=False,
@@ -451,6 +490,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     registry_id = str(uuid.uuid4())
     today = date.today().isoformat()
     created = []
+    aipass_home = _detect_aipass_home()
 
     # 1. Registry (skip if exists — init is re-runnable)
     registry_filename = f"{name}_REGISTRY.json"
@@ -549,7 +589,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
 
     settings_path = claude_dir / "settings.json"
     if not settings_path.exists():
-        settings_path.write_text(_claude_settings(), encoding="utf-8")
+        settings_path.write_text(_claude_settings(aipass_home), encoding="utf-8")
         created.append(str(settings_path))
 
     # 10. hooks/ directory
@@ -564,12 +604,21 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         src_dir.mkdir()
         created.append(str(src_dir))
 
+    # 12. .ai_mail.local/inbox.json — empty project mailbox
+    mail_dir = target / ".ai_mail.local"
+    mail_dir.mkdir(exist_ok=True)
+    inbox_path = mail_dir / "inbox.json"
+    if not inbox_path.exists():
+        inbox_path.write_text(_inbox_json(), encoding="utf-8")
+        created.append(str(inbox_path))
+
     return {
         "registry_id": registry_id,
         "registry_file": registry_filename,
         "project_name": name,
         "target": str(target),
         "created_files": created,
+        "aipass_home": aipass_home,
     }
 
 
@@ -605,6 +654,7 @@ def update_project(target: Path) -> dict:
     updated: list[str] = []
     already_current: list[str] = []
     skipped: list[str] = []
+    aipass_home: str | None = None
 
     # Managed directories — create if missing (graceful recovery).
     aipass_dir = target / ".aipass"
@@ -623,13 +673,27 @@ def update_project(target: Path) -> dict:
     else:
         already_current.append(str(global_prompt_path))
 
+    # settings.json — smart merge: preserve existing AIPASS_HOME, detect if missing
     settings_path = claude_dir / "settings.json"
-    generated = _claude_settings()
-    if not settings_path.exists() or settings_path.read_text(encoding="utf-8") != generated:
-        settings_path.write_text(generated, encoding="utf-8")
+    if not settings_path.exists():
+        aipass_home = _detect_aipass_home()
+        settings_path.write_text(_claude_settings(aipass_home), encoding="utf-8")
         updated.append(str(settings_path))
     else:
-        already_current.append(str(settings_path))
+        existing_content = settings_path.read_text(encoding="utf-8")
+        try:
+            existing_env = json.loads(existing_content).get("env", {})
+        except json.JSONDecodeError as exc:
+            logger.info("settings.json parse failed, rebuilding: %s", exc)
+            existing_env = {}
+        # Preserve existing AIPASS_HOME; detect and add if missing
+        aipass_home = existing_env.get("AIPASS_HOME") or _detect_aipass_home()
+        generated = _claude_settings(aipass_home)
+        if existing_content != generated:
+            settings_path.write_text(generated, encoding="utf-8")
+            updated.append(str(settings_path))
+        else:
+            already_current.append(str(settings_path))
 
     claude_md_path = target / "CLAUDE.md"
     generated = _with_source(_claude_md(name), claude_md_path)
@@ -664,10 +728,21 @@ def update_project(target: Path) -> dict:
     ):
         skipped.append(skip_name)
 
+    # Mailbox — create if missing, never overwrite existing
+    mail_dir = target / ".ai_mail.local"
+    mail_dir.mkdir(exist_ok=True)
+    inbox_path = mail_dir / "inbox.json"
+    if not inbox_path.exists():
+        inbox_path.write_text(_inbox_json(), encoding="utf-8")
+        updated.append(str(inbox_path))
+    else:
+        skipped.append(str(inbox_path))
+
     return {
         "project_name": name,
         "target": str(target),
         "updated_files": updated,
         "already_current": already_current,
         "skipped_files": skipped,
+        "aipass_home": aipass_home,
     }

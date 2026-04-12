@@ -77,9 +77,9 @@ def _atomic_write_json(path: Path, data: Any) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
         os.replace(tmp_path, str(path))
-    except Exception as exc:
+    except BaseException as exc:
         logger.warning("_atomic_write_json: failed for %s: %s", path, exc)
-        # Clean up temp file on failure
+        # Clean up temp file on failure — BaseException covers KeyboardInterrupt
         try:
             os.unlink(tmp_path)
         except OSError as cleanup_exc:
@@ -310,34 +310,38 @@ def log_operation(
     if module_name is None:
         module_name = _get_caller_module_name()
 
-    ensure_module_jsons(module_name)
+    try:
+        ensure_module_jsons(module_name)
 
-    # Read rotation limit from config
-    config = load_json(module_name, "config")
-    max_entries = 100
-    if config and "config" in config:
-        max_entries = config["config"].get("max_log_entries", 100)
+        # Read rotation limit from config
+        config = load_json(module_name, "config")
+        max_entries = 100
+        if config and "config" in config:
+            max_entries = config["config"].get("max_log_entries", 100)
 
-    # Load existing log
-    log = load_json(module_name, "log")
-    if log is None:
-        log = []
+        # Load existing log
+        log = load_json(module_name, "log")
+        if log is None:
+            log = []
 
-    # Build entry
-    entry: dict[str, Any] = {
-        "timestamp": datetime.now().isoformat(),
-        "operation": operation,
-    }
-    if data:
-        entry["data"] = data
+        # Build entry
+        entry: dict[str, Any] = {
+            "timestamp": datetime.now().isoformat(),
+            "operation": operation,
+        }
+        if data:
+            entry["data"] = data
 
-    log.append(entry)
+        log.append(entry)
 
-    # FIFO rotation — keep only the most recent entries
-    if len(log) > max_entries:
-        log = log[-max_entries:]
+        # FIFO rotation — keep only the most recent entries
+        if len(log) > max_entries:
+            log = log[-max_entries:]
 
-    return save_json(module_name, "log", log)
+        return save_json(module_name, "log", log)
+    except Exception as exc:
+        logger.warning("log_operation: failed for %s/%s, skipping: %s", module_name, operation, exc)
+        return False
 
 
 def increment_counter(

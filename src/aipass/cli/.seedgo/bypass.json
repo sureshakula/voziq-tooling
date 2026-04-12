@@ -11,6 +11,21 @@
       "reason": "Pure Python bootstrap \u2014 no branch imports by design"
     },
     {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "silent_catch",
+      "reason": "Pure Python bootstrap \u2014 cannot import prax (circular: prax depends on cli). _detect_aipass_home() catches detection failures silently by design."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "error_handling",
+      "reason": "Same silent catch as silent_catch standard \u2014 already bypassed (pure Python, no prax import allowed)."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "log_visibility",
+      "reason": "Pure Python bootstrap \u2014 cannot import prax system_logger (circular: prax depends on cli). Uses stdlib logging as fallback."
+    },
+    {
       "file": "apps/modules/display.py",
       "standard": "silent_catch",
       "reason": "Circular import \u2014 display.py cannot import prax (prax depends on cli). Silent catches are ImportError guard for optional trigger and __main__ error handler."
