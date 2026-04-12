@@ -28,15 +28,6 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 
 logger = get_direct_logger()
 
-# Trigger integration (graceful fallback if unavailable)
-try:
-    from aipass.trigger.apps.modules.core import trigger
-    _trigger_available = True
-except ImportError as e:
-    logger.info(f"[monitor] trigger module not available, falling back: {e}")
-    trigger = None  # type: ignore[assignment]
-    _trigger_available = False
-
 # Monitoring subsystem imports
 from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent, MonitoringQueue
 from aipass.prax.apps.handlers.monitoring.branch_detector import detect_branch_from_path
@@ -80,10 +71,12 @@ class MonitoringFileHandler(FileSystemEventHandler):
     # -- public property so the module can swap queues after construction ------
     @property
     def event_queue(self) -> Optional[MonitoringQueue]:
+        """The monitoring event queue used to publish file events."""
         return self._event_queue
 
     @event_queue.setter
     def event_queue(self, queue: Optional[MonitoringQueue]):
+        """Replace the event queue (e.g. after handler construction)."""
         self._event_queue = queue
 
     # =========================================================================
@@ -91,49 +84,33 @@ class MonitoringFileHandler(FileSystemEventHandler):
     # =========================================================================
 
     def on_created(self, event):
+        """Handle file creation events."""
         if not event.is_directory:
             self._handle_event('created', event.src_path)
-            self._fire_trigger('file_created', path=event.src_path)
 
     def on_modified(self, event):
+        """Handle file modification events."""
         if not event.is_directory:
             self._handle_event('modified', event.src_path)
-            self._fire_trigger('file_modified', path=event.src_path)
 
     def on_deleted(self, event):
+        """Handle file deletion events."""
         if not event.is_directory:
             self._handle_event('deleted', event.src_path)
-            self._fire_trigger('file_deleted', path=event.src_path)
 
     def on_moved(self, event):
+        """Handle file move/rename events."""
         if not event.is_directory:
             # dest_path can be bytes or str, normalize to str for comparison
             dest_path_str = event.dest_path.decode() if isinstance(event.dest_path, bytes) else event.dest_path
             src_path_str = event.src_path.decode() if isinstance(event.src_path, bytes) else event.src_path
             if 'Trash' in dest_path_str or '.local/share/Trash' in dest_path_str:
-                # Moved to Trash = deletion
                 self._handle_event('deleted', src_path_str)
-                self._fire_trigger('file_deleted', path=src_path_str)
             elif '.tmp.' in src_path_str or src_path_str.endswith('.tmp'):
                 # Atomic write: tmp file moved to real file = modification
                 self._handle_event('modified', dest_path_str)
-                self._fire_trigger('file_modified', path=dest_path_str)
             else:
                 self._handle_event('moved', dest_path_str)
-                self._fire_trigger('file_moved', src_path=src_path_str, dest_path=dest_path_str)
-
-    # =========================================================================
-    # TRIGGER INTEGRATION
-    # =========================================================================
-
-    def _fire_trigger(self, event_name: str, **kwargs):
-        """Fire a trigger event for cross-module integration."""
-        if not _trigger_available:
-            return
-        try:
-            trigger.fire(event_name, **kwargs)  # type: ignore[union-attr]
-        except Exception as e:
-            logger.warning(f"[monitor] trigger.fire('{event_name}') failed: {e}")
 
     # =========================================================================
     # AGENT ACTIVITY PARSING (Claude Code JSONL sessions)
@@ -209,6 +186,16 @@ class MonitoringFileHandler(FileSystemEventHandler):
             idx = parts.index('aipass')
             if idx + 1 < len(parts):
                 return parts[idx + 1].upper()
+        # External project under ~/Projects/: use branch_detector for full label
+        # e.g. ~/Projects/AIPL/src/polyglot/ → AIPL/POLYGLOT
+        projects_base = Path.home() / 'Projects'
+        try:
+            Path(cwd).relative_to(projects_base)
+            result = detect_branch_from_path(cwd)
+            if result and result != 'UNKNOWN':
+                return result
+        except ValueError:
+            logger.info(f"[monitor] CWD not under ~/Projects/: {cwd}")
         # Fallback: check src/{name} for branches outside aipass namespace
         if 'src' in parts:
             idx = parts.index('src')

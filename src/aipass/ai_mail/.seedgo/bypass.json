@@ -68,7 +68,7 @@
     {
       "file": "apps/handlers/email/delivery.py",
       "standard": "handlers",
-      "reason": "Imports json_utils.json_handler (load_json, save_json) — shared handler utility for JSON I/O, same-branch cross-handler import. Also imports registry.read.get_all_branches — consolidated from dual implementation per DPLAN-0036."
+      "reason": "Imports json_utils.json_handler (load_json, save_json) — shared handler utility for JSON I/O, same-branch cross-handler import. Also imports registry.read.get_all_branches — consolidated from dual implementation per DPLAN-0036. Also lazy-imports email.contacts.register_contact inside _auto_register_contact() and _auto_register_sender() for post-delivery contact registration (DPLAN-0121 Phase 5)."
     },
     {
       "file": "apps/handlers/email/inbox_cleanup.py",
@@ -78,7 +78,7 @@
     {
       "file": "apps/handlers/email/reply.py",
       "standard": "handlers",
-      "reason": "Imports users.branch_detection.get_branch_info_from_registry and registry.read.get_all_branches — same-branch cross-handler imports for sender identity and branch listing on reply."
+      "reason": "Same-branch cross-handler lazy imports: users.branch_detection.get_branch_info_from_registry, registry.read.get_all_branches (sender identity + branch listing), email.delivery.deliver_email_to_branch, email.inbox_cleanup.mark_as_closed_and_archive (reply delivery + close). All lazy-imported inside functions to avoid circular imports."
     },
     {
       "file": "apps/handlers/email/send.py",
@@ -233,7 +233,62 @@
     {
       "file": "apps/handlers/users/branch_detection.py",
       "standard": "handlers",
-      "reason": "Imports paths.find_repo_root — shared utility consolidated from 8 copies per DPLAN-0036."
+      "reason": "Imports paths.find_repo_root — shared utility consolidated from 8 copies per DPLAN-0036. Also lazy-imports email.contacts.get_contact inside _get_contact_info() for contacts-first sender detection (DPLAN-0121 Phase 5)."
+    },
+    {
+      "file": "apps/handlers/email/contacts.py",
+      "standard": "handlers",
+      "reason": "Imports paths.find_repo_root — shared utility for CONTACTS_FILE path resolution. Same pattern as registry/read.py and other handlers per DPLAN-0036."
+    },
+    {
+      "file": "apps/handlers/email/identity.py",
+      "standard": "handlers",
+      "reason": "bootstrap_aipass_identities() lazy-imports registry.read.get_all_branches and paths.find_repo_root inside function body to avoid circular imports. Same cross-handler pattern as reply.py."
+    },
+    {
+      "file": "tests/test_delivery.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ directory — not subject to 3-layer app structure rule."
+    },
+    {
+      "file": "tests/test_delivery.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to exercise internal functions (_migrate_inbox_format, _is_private_branch_email, _resolve_reply_path). Module entry-point-only rule does not apply to tests."
+    },
+    {
+      "file": "tests/test_send_identity.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ directory — not subject to 3-layer app structure rule."
+    },
+    {
+      "file": "tests/test_send_identity.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to exercise internal detection functions. Module entry-point-only rule does not apply to tests."
+    },
+    {
+      "file": "tests/test_send_identity.py",
+      "standard": "documentation",
+      "reason": "Test helper functions (_load_active_source, fixtures) are private/internal — docstring requirement does not apply to test infrastructure."
+    },
+    {
+      "file": "tests/test_contacts.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ directory — not subject to 3-layer app structure rule."
+    },
+    {
+      "file": "tests/test_contacts.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to exercise internal functions (_load_contacts, get_contact, register_contact, all_contacts). Module entry-point-only rule does not apply to tests."
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ directory — not subject to 3-layer app structure rule."
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to exercise create_identity, read_identity. Module entry-point-only rule does not apply to tests."
     }
   ],
   "notes": {

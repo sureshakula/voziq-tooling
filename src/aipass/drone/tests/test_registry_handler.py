@@ -265,8 +265,12 @@ class TestLoadRegistry:
 
 class TestGetAllBranches:
 
+    @pytest.fixture(autouse=True)
+    def _isolate_home(self, monkeypatch):
+        """Prevent real AIPASS_HOME from leaking into test results."""
+        monkeypatch.delenv("AIPASS_HOME", raising=False)
+
     def test_returns_list_of_branch_dicts(self, registry_dir: Path):
-        """get_all_branches() returns a list of dicts for active branches."""
         reg = _minimal_registry()
         _write_registry(registry_dir, reg)
         set_registry_path(registry_dir / "AIPASS_REGISTRY.json")

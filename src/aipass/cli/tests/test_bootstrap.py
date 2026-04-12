@@ -91,6 +91,7 @@ def test_init_project_creates_all_expected_files(tmp_path):
         target / "STATUS.local.md",
         target / ".gitignore",
         target / ".claude" / "settings.json",
+        target / ".ai_mail.local" / "inbox.json",
     ]
     for f in expected_files:
         assert f.exists(), f"Expected file not created: {f}"
@@ -105,8 +106,8 @@ def test_init_project_creates_all_expected_files(tmp_path):
     # No local prompt at project level (belongs in agent dirs only)
     assert not (target / ".aipass" / "aipass_local_prompt.md").exists()
 
-    # 9 files + 2 directories = 11 created_files entries
-    assert len(result["created_files"]) == 11
+    # 10 files + 2 directories = 12 created_files entries
+    assert len(result["created_files"]) == 12
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -122,6 +123,7 @@ def test_init_project_return_dict_structure(tmp_path):
         "project_name",
         "target",
         "created_files",
+        "aipass_home",
     }
     assert result["project_name"] == "ALPHA"
     assert result["registry_file"] == "ALPHA_REGISTRY.json"
@@ -276,6 +278,28 @@ def test_init_project_claude_settings_content(tmp_path):
     assert "UserPromptSubmit" in data["hooks"]
 
 
+def test_init_project_settings_has_two_hooks(tmp_path):
+    """.claude/settings.json has both global and local prompt hooks."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="alpha")
+
+    settings_path = target / ".claude" / "settings.json"
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    hooks = data["hooks"]["UserPromptSubmit"]
+    assert len(hooks) == 2, f"Expected 2 UserPromptSubmit hooks, got {len(hooks)}"
+
+    # First hook: global prompt
+    global_cmd = hooks[0]["hooks"][0]["command"]
+    assert "aipass_global_prompt.md" in global_cmd
+
+    # Second hook: local prompt walk-up
+    local_cmd = hooks[1]["hooks"][0]["command"]
+    assert "aipass_local_prompt.md" in local_cmd
+    assert "dirname" in local_cmd, "Local prompt hook should walk up with dirname"
+
+
 def test_init_project_global_prompt_content(tmp_path):
     """Global prompt contains project name and AIPass terminology."""
     target = tmp_path / "proj"
@@ -312,7 +336,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) == 11
+    assert len(result["created_files"]) == 12
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -366,6 +390,10 @@ def test_init_project_skips_existing_optional_files(tmp_path):
 
     src_dir = target / "src"
     src_dir.mkdir()
+
+    mail_dir = target / ".ai_mail.local"
+    mail_dir.mkdir()
+    (mail_dir / "inbox.json").write_text("{}\n", encoding="utf-8")
 
     result = init_project(target, project_name="eta")
 
@@ -445,6 +473,7 @@ def test_update_project_return_dict_structure(tmp_path):
         "updated_files",
         "already_current",
         "skipped_files",
+        "aipass_home",
     }
     assert result["project_name"] == "UPD"
     assert result["target"] == str(target.resolve())
@@ -546,11 +575,148 @@ def test_update_project_creates_missing_managed_dirs(tmp_path):
 
 
 def test_update_project_skipped_files_count(tmp_path):
-    """update_project always skips exactly 4 user-owned files."""
+    """update_project skips 4 user-owned files + existing mailbox = 5 total."""
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="count")
 
     result = update_project(target)
 
-    assert len(result["skipped_files"]) == 4
+    # 4 user-owned (registry, README, STATUS, .gitignore) + inbox.json = 5
+    assert len(result["skipped_files"]) == 5
+
+
+# ---------------------------------------------------------------------------
+# DPLAN-0121: AIPASS_HOME + mailbox tests
+# ---------------------------------------------------------------------------
+
+
+def test_init_project_creates_mailbox(tmp_path):
+    """init_project creates .ai_mail.local/inbox.json."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="mail")
+
+    assert (target / ".ai_mail.local" / "inbox.json").exists()
+
+
+def test_init_project_mailbox_json_contents(tmp_path):
+    """inbox.json has valid empty mailbox structure."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="mail")
+
+    data = json.loads((target / ".ai_mail.local" / "inbox.json").read_text(encoding="utf-8"))
+    assert data["mailbox"] == "inbox"
+    assert data["total_messages"] == 0
+    assert data["unread_count"] == 0
+    assert data["messages"] == []
+
+
+def test_init_project_mailbox_not_overwritten_on_rerun(tmp_path):
+    """Re-running init skips existing inbox.json."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="mail")
+
+    inbox = target / ".ai_mail.local" / "inbox.json"
+    inbox.write_text('{"custom": true}\n', encoding="utf-8")
+
+    init_project(target, project_name="mail")
+
+    assert json.loads(inbox.read_text(encoding="utf-8")) == {"custom": True}
+
+
+def test_init_project_returns_aipass_home(tmp_path):
+    """init_project return dict includes aipass_home key."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="home")
+
+    assert "aipass_home" in result
+    assert result["aipass_home"] is None or isinstance(result["aipass_home"], str)
+
+
+def test_init_project_settings_has_aipass_home_when_detected(tmp_path):
+    """When AIPASS_HOME is detected, settings.json includes env.AIPASS_HOME."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="env")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    settings = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    assert "env" in settings
+    assert settings["env"]["AIPASS_HOME"] == result["aipass_home"]
+
+
+def test_update_project_creates_mailbox_if_missing(tmp_path):
+    """update_project creates inbox.json if it does not exist."""
+    import shutil
+
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="newmail")
+
+    # Remove the entire mailbox directory to simulate missing mailbox
+    shutil.rmtree(target / ".ai_mail.local")
+
+    result = update_project(target)
+
+    inbox = target / ".ai_mail.local" / "inbox.json"
+    assert inbox.exists()
+    assert str(inbox) in result["updated_files"]
+
+
+def test_update_project_skips_existing_mailbox(tmp_path):
+    """update_project never overwrites an existing inbox.json."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="keepmail")
+
+    inbox = target / ".ai_mail.local" / "inbox.json"
+    inbox.write_text(
+        '{"mailbox":"inbox","total_messages":5,"unread_count":2,"messages":["x"]}\n',
+        encoding="utf-8",
+    )
+
+    result = update_project(target)
+
+    assert str(inbox) in result["skipped_files"]
+    assert json.loads(inbox.read_text(encoding="utf-8"))["total_messages"] == 5
+
+
+def test_update_project_returns_aipass_home(tmp_path):
+    """update_project return dict includes aipass_home key."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="uhome")
+
+    result = update_project(target)
+
+    assert "aipass_home" in result
+    assert result["aipass_home"] is None or isinstance(result["aipass_home"], str)
+
+
+def test_update_project_adds_aipass_home_if_missing(tmp_path):
+    """update_project injects AIPASS_HOME into settings.json if env section is absent."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="addenv")
+
+    settings_path = target / ".claude" / "settings.json"
+    data = json.loads(settings_path.read_text(encoding="utf-8"))
+    data.pop("env", None)
+    settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    if result["aipass_home"] is not None:
+        new_data = json.loads(settings_path.read_text(encoding="utf-8"))
+        assert new_data.get("env", {}).get("AIPASS_HOME") == result["aipass_home"]
+        assert str(settings_path) in result["updated_files"]

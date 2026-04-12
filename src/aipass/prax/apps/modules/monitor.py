@@ -9,43 +9,16 @@
 """
 PRAX Monitor Module - Mission Control for Autonomous Branches
 
-Unified monitoring orchestrator that provides real-time visibility into:
-- File changes across all branches (file watcher)
-- Log events from all modules (log monitoring)
-- Branch activity and state changes
-- Module execution tracking
-- System health and status
-
-Purpose:
-    Single command interface for monitoring all autonomous branch activity.
-    Replaces fragmented monitoring with unified Mission Control console.
-    Enables multi-agent workflow visibility and coordination.
+Thin orchestration layer for real-time monitoring of file changes, log events,
+and agent activity across all AIPass branches. Delegates to handlers in
+apps/handlers/monitoring/ (unified_stream, branch_detector, event_queue, etc.)
 
 Usage:
     drone @prax monitor              # Show introspection
     drone @prax monitor run          # Monitor all branches
-    drone @prax monitor run seedgo,cli # Monitor specific branches
-
-Interactive Commands:
-    help                      # Show available commands
-    status                    # Display current monitoring state
-    filter [branches]         # Adjust branch filter
-    quit/exit                 # Stop monitoring
-
-Architecture:
-    This module is thin orchestration layer only. All implementation
-    delegated to specialized handlers in apps/handlers/monitoring/:
-
-    - unified_stream.py       → Terminal output formatting
-    - branch_detector.py      → Path-to-branch mapping
-    - interactive_filter.py   → Runtime filter adjustment
-    - monitoring_filters.py   → Event filtering logic
-    - event_queue.py          → Event buffering and deduplication
-    - module_tracker.py       → Module execution tracking
-    - filesystem_handler.py   → Real-time file change detection (FileSystemEventHandler)
-    - log_watcher.py          → Log stream processing
 """
 
+import signal
 import sys
 import argparse
 import threading
@@ -70,14 +43,8 @@ from aipass.prax.apps.handlers.monitoring import (
     ModuleTracker,            # module_tracker.py
 )
 from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent
-# NOTE: FileSystemEventHandler implementation lives in:
-#   aipass.prax.apps.handlers.monitoring.filesystem_handler.MonitoringFileHandler
-# It handles trigger events for file_created/file_deleted/file_modified/file_moved
+from aipass.prax.apps.modules.monitor_info import print_introspection as _print_introspection, print_help
 
-
-# =============================================================================
-# UTILITY FUNCTIONS
-# =============================================================================
 
 # =============================================================================
 # PID CACHE - Maps branch names to active agent PIDs from dispatch lock files
@@ -158,6 +125,11 @@ _file_watcher_thread: Optional[threading.Thread] = None
 _log_watcher_thread: Optional[threading.Thread] = None
 
 
+def print_introspection():
+    """Display module introspection - shows connected handlers and architecture."""
+    _print_introspection()
+
+
 # =============================================================================
 # CORE COMMAND HANDLER (Required for auto-discovery)
 # =============================================================================
@@ -227,13 +199,17 @@ def _run_monitor(args: List[str]) -> bool:
     # Start monitoring threads
     _start_threads()
 
-    # Enter interactive mode
-    _interactive_loop()
+    try:
+        _interactive_loop()
+    except KeyboardInterrupt:
+        logger.info("[monitor] KeyboardInterrupt escaped interactive loop")
+        console.print("\n[yellow]Monitoring stopped.[/yellow]")
 
-    # Cleanup on exit
     _stop_threads()
 
-    return True
+    # sys.exit(0) prevents drone's post-execution json_handler from running
+    # after the monitor exits, avoiding a json.load crash on Ctrl+C.
+    sys.exit(0)
 
 
 def _start_threads():
@@ -560,103 +536,7 @@ def _print_status():
     console.print()
 
 
-# =============================================================================
-# INTROSPECTION (Module metadata and handler connections)
-# =============================================================================
-
-def print_introspection():
-    """Display module introspection - shows connected handlers and architecture"""
-    console.print()
-    console.print("[bold cyan]PRAX Monitor Module[/bold cyan]")
-    console.print()
-    console.print("[yellow]Purpose:[/yellow]")
-    console.print("  Mission Control for autonomous branch monitoring")
-    console.print("  Unified console for file changes, logs, and module activity")
-    console.print()
-
-    console.print("[yellow]Connected Handlers (apps/handlers/monitoring/):[/yellow]")
-    console.print()
-    console.print("  [cyan]1. unified_stream.py[/cyan]")
-    console.print("     [dim]→ print_event() - Terminal output formatting[/dim]")
-    console.print()
-    console.print("  [cyan]2. branch_detector.py[/cyan]")
-    console.print("     [dim]→ detect_branch_from_path() - Path-to-branch mapping[/dim]")
-    console.print()
-    console.print("  [cyan]3. interactive_filter.py[/cyan]")
-    console.print("     [dim]→ FilterState, parse_command() - Runtime filtering[/dim]")
-    console.print()
-    console.print("  [cyan]4. monitoring_filters.py[/cyan]")
-    console.print("     [dim]→ should_monitor(), get_priority() - Event filtering[/dim]")
-    console.print()
-    console.print("  [cyan]5. event_queue.py[/cyan]")
-    console.print("     [dim]→ MonitoringEvent, MonitoringQueue - Event buffering[/dim]")
-    console.print()
-    console.print("  [cyan]6. module_tracker.py[/cyan]")
-    console.print("     [dim]→ ModuleTracker - Module execution tracking[/dim]")
-    console.print()
-    console.print("  [cyan]7. file watcher (threaded)[/cyan]")
-    console.print("     [dim]→ Real-time file change detection using watchdog[/dim]")
-    console.print("     [green]STATUS: Active - monitors ECOSYSTEM_ROOT recursively[/green]")
-    console.print()
-    console.print("  [cyan]8. log monitor (threaded)[/cyan]")
-    console.print("     [dim]→ Log stream processing from SYSTEM_LOGS_DIR[/dim]")
-    console.print("     [green]STATUS: Active - watches *.log files for new entries[/green]")
-    console.print()
-
-    console.print("[dim]Run 'drone @prax monitor --help' for usage[/dim]")
-    console.print()
-
-
-# =============================================================================
-# HELP OUTPUT (Drone-compliant command documentation)
-# =============================================================================
-
-def print_help():
-    """Drone-compliant help output - command syntax and examples"""
-    console.print()
-    console.print("[bold cyan]PRAX Monitor - Unified Branch Monitoring[/bold cyan]")
-    console.print()
-
-    console.print("[yellow]Commands:[/yellow]")
-    console.print()
-    console.print("  [cyan]drone @prax monitor[/cyan]")
-    console.print("    Show module introspection")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run[/cyan]")
-    console.print("    Start monitoring all branches")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run all[/cyan]")
-    console.print("    Explicit all-branches monitoring")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run [branches][/cyan]")
-    console.print("    Monitor specific branches (comma-separated)")
-    console.print("    Example: drone @prax monitor run seedgo,cli,flow")
-    console.print()
-    console.print("  [cyan]drone @prax monitor --help[/cyan]")
-    console.print("    Show this help")
-    console.print()
-
-    console.print("[yellow]Interactive Mode Commands:[/yellow]")
-    console.print()
-    console.print("  [cyan]help[/cyan]          Show available commands")
-    console.print("  [cyan]status[/cyan]        Display current monitoring state")
-    console.print("  [cyan]filter [branches][/cyan]  Adjust branch filter")
-    console.print("  [cyan]quit/exit[/cyan]     Stop monitoring")
-    console.print()
-
-    console.print("[yellow]Examples:[/yellow]")
-    console.print()
-    console.print("  [dim]# Monitor all branches[/dim]")
-    console.print("  $ drone @prax monitor run")
-    console.print()
-    console.print("  [dim]# Monitor specific branches[/dim]")
-    console.print("  $ drone @prax monitor run seedgo,cli,flow")
-    console.print()
-
-
-# =============================================================================
 # MAIN BLOCK (Standalone execution support)
-# =============================================================================
 
 if __name__ == "__main__":
     # Show introspection when run without arguments

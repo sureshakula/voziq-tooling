@@ -133,6 +133,12 @@ def send_reply(
             break
 
     if not target_branch:
+        # Fallback: cross-project delivery via reply_path stored at receive time
+        stored_reply_path = original_email.get("reply_path")
+        if stored_reply_path:
+            return _deliver_via_reply_path(
+                stored_reply_path, reply_email_data, from_branch_path, original_email
+            )
         return False, f"Could not find branch for {reply_destination}", None
 
     # Deliver the reply (pass email address, not path)
@@ -159,6 +165,78 @@ def send_reply(
             return True, f"Reply sent (warning: original not closed: {close_msg})", reply_id
 
     return True, f"Reply sent to {reply_destination}, original closed", reply_id
+
+
+def _deliver_via_reply_path(
+    reply_path: str,
+    reply_email_data: Dict,
+    from_branch_path: Path,
+    original_email: Dict,
+) -> Tuple[bool, str, Optional[str]]:
+    """Deliver reply directly to an external project's inbox via stored reply_path.
+
+    Used when the recipient is not in the AIPass registry (cross-project reply).
+    Writes directly to the inbox.json at the stored path, then saves to sent/
+    and closes the original.
+
+    Args:
+        reply_path: Absolute path to the target inbox.json (stored at receive time).
+        reply_email_data: The reply email dict to deliver.
+        from_branch_path: Path to the replying branch (for sent folder and close).
+        original_email: The original email being replied to (for close).
+
+    Returns:
+        Tuple of (success, message, reply_id or None)
+    """
+    inbox_file = Path(reply_path)
+    if not inbox_file.exists():
+        return False, f"reply_path inbox not found: {reply_path}", None
+
+    try:
+        with open(inbox_file, "r", encoding="utf-8") as f:
+            inbox_data = json.load(f)
+    except Exception as e:
+        logger.warning("[reply] _deliver_via_reply_path read failed %s: %s", reply_path, e)
+        return False, f"Failed to read target inbox: {e}", None
+
+    reply_id = str(uuid.uuid4())[:8]
+    reply_email_data["id"] = reply_id
+
+    inbox_data.setdefault("messages", []).insert(0, reply_email_data)
+    inbox_data["total_messages"] = len(inbox_data["messages"])
+    new_count = sum(1 for m in inbox_data["messages"]
+                    if m.get("status") == "new" or not m.get("read", False))
+    inbox_data["unread_count"] = new_count
+
+    try:
+        with open(inbox_file, "w", encoding="utf-8") as f:
+            json.dump(inbox_data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.warning("[reply] _deliver_via_reply_path write failed %s: %s", reply_path, e)
+        return False, f"Failed to write to target inbox: {e}", None
+
+    logger.info("[reply] Cross-project reply delivered to %s", reply_path)
+
+    # Save to sender's sent folder
+    sent_folder = from_branch_path / ".ai_mail.local" / "sent"
+    sent_folder.mkdir(parents=True, exist_ok=True)
+    sent_file = sent_folder / f"{reply_id}.json"
+    try:
+        with open(sent_file, "w", encoding="utf-8") as f:
+            json.dump(reply_email_data, f, indent=2)
+    except Exception as e:
+        logger.warning("[reply] failed to save sent copy: %s", e)
+
+    # Auto-close the original email
+    from aipass.ai_mail.apps.handlers.email.inbox_cleanup import mark_as_closed_and_archive
+    original_id = original_email.get("id")
+    if original_id:
+        close_success, close_msg = mark_as_closed_and_archive(from_branch_path, original_id)
+        if not close_success:
+            return True, f"Reply sent (warning: original not closed: {close_msg})", reply_id
+
+    destination = reply_email_data.get("to", reply_path)
+    return True, f"Reply sent to {destination} via reply_path, original closed", reply_id
 
 
 if __name__ == "__main__":

@@ -119,7 +119,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command in ("--help", "-h"):
         print_help()
         return True
-    valid = ["send", "email", "inbox", "view", "close", "reply", "sent", "contacts", "read"]
+    valid = ["send", "email", "inbox", "view", "close", "reply", "sent", "contacts", "read", "register"]
     if command not in valid:
         return False
     if args and args[0] in ['--help', '-h', 'help']:
@@ -131,6 +131,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         "inbox": handle_inbox, "view": handle_view,
         "close": handle_close, "reply": handle_reply, "read": handle_view,
         "sent": handle_sent, "contacts": handle_contacts,
+        "register": handle_register,
     }
     return dispatch[command](args)
 
@@ -220,10 +221,7 @@ def _send_direct(to_branch, subject, message, auto_execute=False,
             label = f"\\[dispatch: queued for daemon]" if auto_execute else ""
             console.print(f"[green]Email sent to {to_branch} {label}[/green]")
             if auto_execute:
-                try:
-                    trigger.fire('email_dispatched', to=to_branch, subject=subject)
-                except Exception as e:
-                    logger.warning("[email] trigger fire for email_dispatched failed: %s", e)
+                _fire_dispatch_trigger(to_branch, subject)
             return True
         else:
             error(f"Failed to deliver: {error_msg}")
@@ -237,6 +235,14 @@ def _send_direct(to_branch, subject, message, auto_execute=False,
         error(f"Error: {e}")
         dispatch_send_error(to_branch, subject, str(e), deliver_email_to_branch)
         return False
+
+
+def _fire_dispatch_trigger(to_branch: str, subject: str) -> None:
+    """Fire email_dispatched trigger event if auto_execute enabled."""
+    try:
+        trigger.fire('email_dispatched', to=to_branch, subject=subject)
+    except Exception as e:
+        logger.warning("[email] trigger fire for email_dispatched failed: %s", e)
 
 
 def _send_broadcast(subject, message, user_info, auto_execute, no_memory_save, reply_to, dispatched_to) -> bool:
@@ -312,11 +318,26 @@ def handle_view(args: List[str]) -> bool:
     """View email content and mark as opened."""
     json_handler.log_operation("view_email_initiated", {"args": args})
     if not args:
-        error("Usage: drone @ai_mail view <message_id>")
+        error("Usage: drone @ai_mail view <message_id> | drone @ai_mail view latest")
         return True
     try:
         branch_path = _resolve_branch_path()
-        success, message, email_data = mark_as_opened(branch_path, args[0])
+        message_id = args[0]
+
+        # Handle "latest" shortcut — get the most recent message ID
+        if message_id.lower() == "latest":
+            inbox_file = branch_path / ".ai_mail.local" / "inbox.json"
+            inbox_data = load_inbox(inbox_file)
+            if not inbox_data or not inbox_data.get("messages"):
+                error("Inbox is empty")
+                return True
+            # Get the most recent message (last in the list)
+            message_id = inbox_data["messages"][-1].get("id")
+            if not message_id:
+                error("Could not find latest message")
+                return True
+
+        success, message, email_data = mark_as_opened(branch_path, message_id)
         if not success or email_data is None:
             error(message)
             return True
@@ -449,6 +470,27 @@ def handle_contacts(args: List[str]) -> bool:
         logger.error(f"[email] Contacts view failed: {e}")
         error(f"Error: {e}")
         return True
+
+
+def handle_register(args: List[str]) -> bool:
+    """Register a branch in the contacts address book.
+
+    Usage: drone @ai_mail register @branch /path/to/inbox [project]
+    """
+    json_handler.log_operation("register_contact_initiated", {"args": args})
+    if len(args) < 2:
+        error("Usage: register @branch /path/to/inbox [project]")
+        return True
+    branch_name = args[0].lstrip("@")
+    inbox_path = args[1]
+    project = args[2] if len(args) > 2 else ""
+    from aipass.ai_mail.apps.handlers.email.contacts import register_contact
+    ok = register_contact(branch_name, project, inbox_path)
+    if ok:
+        console.print(f"[green]Registered @{branch_name} -> {inbox_path}[/green]")
+    else:
+        error(f"Failed to register @{branch_name}")
+    return True
 
 
 def print_introspection():

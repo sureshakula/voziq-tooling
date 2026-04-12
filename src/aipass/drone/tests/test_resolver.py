@@ -272,6 +272,11 @@ class TestGetBranchInfo:
 # ---------------------------------------------------------------------------
 
 class TestListBranches:
+    @pytest.fixture(autouse=True)
+    def _isolate_home(self, monkeypatch):
+        """Prevent real AIPASS_HOME from leaking into test results."""
+        monkeypatch.delenv("AIPASS_HOME", raising=False)
+
     def test_default_status_active(self, populated_registry):
         """Default status='active' should exclude archived branches."""
         result = list_branches()
@@ -355,6 +360,11 @@ class TestHandleCommand:
 
 class TestWithSampleRegistry:
     """Tests using the sample_registry fixture from conftest.py."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_home(self, monkeypatch):
+        """Prevent real AIPASS_HOME from leaking into test results."""
+        monkeypatch.delenv("AIPASS_HOME", raising=False)
 
     def test_resolve_via_sample(self, sample_registry):
         set_registry_path(sample_registry)

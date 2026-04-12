@@ -127,8 +127,8 @@ class BranchDetector:
                 for item in project_dir.iterdir():
                     if item.is_file() and item.name.endswith('_REGISTRY.json'):
                         return item.stem.replace('_REGISTRY', '')
-            except (OSError, PermissionError):
-                pass
+            except (OSError, PermissionError) as e:
+                logger.info(f"[branch_detector] Cannot read project dir {project_dir}: {e}")
             return project_part.upper()
         return project_part.upper()
 
@@ -198,15 +198,21 @@ class BranchDetector:
 
         # Internal AIPass: path contains -projects-aipass-src-aipass-
         if '-projects-aipass-src-aipass-' in folder_lower:
-            # Simple hyphen-to-slash decode works (no hyphens in AIPass branch names)
-            project_path = '/' + project_folder.replace('-', '/')
+            # Strip leading dash before decode — avoids double slash and preserves
+            # normalization that treats - and _ as equivalent (handles ai_mail→ai-mail).
+            name_part = project_folder[1:] if project_folder.startswith('-') else project_folder
+            project_path = '/' + name_part.replace('-', '/')
             for registered_path, branch_name in self.branch_map.items():
                 reg_norm = registered_path.replace('_', '/')
                 proj_norm = project_path.replace('_', '/')
                 if reg_norm == proj_norm or registered_path == project_path:
                     return f"AIPASS/{branch_name}{sub_suffix}"
-            # Fallback: last segment after aipass-
+            # Fallback: scan segments for known branch names (handles multi-word: ai_mail)
             segs = [s for s in project_folder.split('-') if s]
+            for n in range(min(3, len(segs)), 0, -1):
+                candidate = '_'.join(segs[-n:]).upper()
+                if candidate in self.known_branches:
+                    return f"AIPASS/{candidate}{sub_suffix}"
             if segs:
                 return f"AIPASS/{segs[-1].upper()}{sub_suffix}"
             return None
@@ -257,6 +263,7 @@ class BranchDetector:
         try:
             rel = path.relative_to(projects_base)
         except ValueError:
+            logger.info(f"[branch_detector] Path not under ~/Projects/: {path}")
             return None
 
         parts = rel.parts
@@ -280,8 +287,8 @@ class BranchDetector:
                     if item.is_file() and item.name.endswith('_REGISTRY.json'):
                         project_name = item.stem.replace('_REGISTRY', '')
                         break
-            except (OSError, PermissionError):
-                pass
+            except (OSError, PermissionError) as e:
+                logger.info(f"[branch_detector] Cannot scan project dir {project_dir}: {e}")
             if not project_name:
                 return None  # Not an external AIPass project
             self._external_project_cache[project_dir_name] = project_name
@@ -337,6 +344,26 @@ class BranchDetector:
             if path_str in self.log_map:
                 return self.log_map[path_str]
 
+            # Strategy 0: External AIPass project files get priority over bare registry lookups.
+            # AIPL branches (e.g. POLYGLOT) are registered in AIPASS_REGISTRY.json with
+            # absolute paths, so Strategy 2 would return bare 'POLYGLOT' before we can
+            # add the project prefix. Check external paths first to return 'AIPL/POLYGLOT TESTS'.
+            _repo_root = self._find_repo_root()
+            _projects_base = Path.home() / 'Projects'
+            _path_str_lower = path_str.lower()
+            _projects_str = str(_projects_base).lower()
+            _repo_str = str(_repo_root).lower()
+            _is_external = (
+                _path_str_lower.startswith(_projects_str + '/')
+                and not _path_str_lower.startswith(_repo_str + '/')
+            )
+
+            if _is_external:
+                result = self._detect_from_external_project_path(path)
+                if result:
+                    self.log_map[path_str] = result
+                    return result
+
             # Strategy 1: Exact match
             if path_str in self.branch_map:
                 result = self.branch_map[path_str]
@@ -351,11 +378,12 @@ class BranchDetector:
                     self.log_map[path_str] = result
                     return result
 
-            # Strategy 2.5: External AIPass project files (AIPL, Vera-Studio, etc.)
-            result = self._detect_from_external_project_path(path)
-            if result:
-                self.log_map[path_str] = result
-                return result
+            # Strategy 2.5: External AIPass project files (fallback for non-~/Projects/ paths)
+            if not _is_external:
+                result = self._detect_from_external_project_path(path)
+                if result:
+                    self.log_map[path_str] = result
+                    return result
 
             # Strategy 3: Claude Code project files
             if '.claude/projects/' in path_str:
@@ -430,8 +458,13 @@ class BranchDetector:
                     self.log_map[name] = branch_name
                     return branch_name
 
-            # Fallback: split on underscore for branches not in registry
-            # Log files follow pattern: branch_operation.log
+            # Full path: use path detection before falling back to stem splitting.
+            # This ensures ai_mail/logs/mail_*.log resolves to AI_MAIL via branch_map
+            # rather than returning a truncated stem like MAIL.
+            if '/' in log_file:
+                return self.detect_from_path(log_file)
+
+            # Bare filename: fallback to stem splitting
             if '_' in name:
                 parts = name.split('_')
                 first_part = parts[0].upper()
@@ -444,10 +477,6 @@ class BranchDetector:
                 self.log_map[name] = name_upper
                 return name_upper
 
-            # If we have a full path, try path detection
-            if '/' in log_file:
-                return self.detect_from_path(log_file)
-
             logger.info(f"Could not detect branch from log: {log_file}")
             return 'UNKNOWN'
 
@@ -455,7 +484,7 @@ class BranchDetector:
             logger.info(f"Error detecting branch from log {log_file}: {e}")
             return 'UNKNOWN'
 
-    def detect_from_module(self, module_name: str) -> str:
+    def detect_from_module(self, dotted_name: str) -> str:
         """
         Detect branch from Python module name.
 
@@ -464,30 +493,30 @@ class BranchDetector:
         - seedgo.core.validator -> SEEDGO
 
         Args:
-            module_name: Python module dotted name
+            dotted_name: Python module dotted name (e.g. 'aipass.prax.apps')
 
         Returns:
             Branch name in uppercase
         """
         try:
             # Check cache
-            if module_name in self.module_map:
-                return self.module_map[module_name]
+            if dotted_name in self.module_map:
+                return self.module_map[dotted_name]
 
             # Split on dots and check first part
-            parts = module_name.split('.')
+            parts = dotted_name.split('.')
             if parts:
                 first_part = parts[0].upper()
 
                 if first_part in self.known_branches:
-                    self.module_map[module_name] = first_part
+                    self.module_map[dotted_name] = first_part
                     return first_part
 
-            logger.info(f"Could not detect branch from module: {module_name}")
+            logger.info(f"Could not detect branch from module: {dotted_name}")
             return 'UNKNOWN'
 
         except Exception as e:
-            logger.error(f"Error detecting branch from module {module_name}: {e}")
+            logger.error(f"Error detecting branch from module {dotted_name}: {e}")
             return 'UNKNOWN'
 
     def reload_registry(self):

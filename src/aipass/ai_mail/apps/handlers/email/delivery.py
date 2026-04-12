@@ -14,6 +14,7 @@ Independent handler - no module dependencies.
 """
 
 import json
+import os
 import uuid
 import subprocess
 from pathlib import Path
@@ -30,6 +31,47 @@ _REPO_ROOT = find_repo_root()
 
 # Lazy imports to avoid circular dependencies
 _INBOX_LOCK = None
+
+
+def _auto_register_contact(email: str, branch_path: Path, inbox_file: Path) -> None:
+    """Auto-register a recipient in the contacts address book after successful delivery.
+
+    Non-critical: failures are logged and silently ignored.
+
+    Args:
+        email: Recipient email address (e.g., '@devpulse').
+        branch_path: Resolved path to the branch root directory.
+        inbox_file: Path to the branch's inbox.json file.
+    """
+    try:
+        from aipass.ai_mail.apps.handlers.email.contacts import register_contact
+        name_key = email.lstrip("@").lower()
+        register_contact(name_key, "AIPass", str(inbox_file))
+    except Exception as e:
+        logger.warning("[delivery] _auto_register_contact(%s) failed: %s", email, e)
+
+
+def _auto_register_sender(branch_name: str, caller_cwd: str) -> None:
+    """Auto-register a sender in contacts when called from an external project.
+
+    Walks up from caller_cwd to find .ai_mail.local/inbox.json.
+    Non-critical: failures are logged and silently ignored.
+
+    Args:
+        branch_name: Sender branch name or email (e.g., 'vera' or '@vera').
+        caller_cwd: Working directory of the calling project.
+    """
+    try:
+        candidate = Path(caller_cwd)
+        for path in [candidate] + list(candidate.parents)[:5]:
+            inbox_file = path / ".ai_mail.local" / "inbox.json"
+            if inbox_file.exists():
+                from aipass.ai_mail.apps.handlers.email.contacts import register_contact
+                name_key = branch_name.lstrip("@").lower()
+                register_contact(name_key, "", str(inbox_file))
+                return
+    except Exception as e:
+        logger.warning("[delivery] _auto_register_sender(%s) failed: %s", branch_name, e)
 
 
 def _get_inbox_lock():
@@ -128,6 +170,27 @@ def _is_private_branch_email(email: str) -> bool:
     except (json.JSONDecodeError, IOError) as e:
         logger.warning("[delivery] _is_private_branch_email(%s) failed: %s", email, e)
     return False
+
+
+def _resolve_reply_path() -> str:
+    """Detect the caller's ai_mail inbox path from AIPASS_CALLER_CWD env var.
+
+    Used to store a reply_path on delivered messages so cross-project replies
+    can bypass registry lookup and write directly to the sender's inbox.
+
+    Returns the absolute path to the caller's inbox.json, or empty string if
+    AIPASS_CALLER_CWD is not set or no inbox directory is found.
+    """
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    if not caller_cwd:
+        return ""
+    # Check the CWD itself and up to 5 parent directories for .ai_mail.local/
+    candidate = Path(caller_cwd)
+    for path in [candidate] + list(candidate.parents)[:5]:
+        inbox = path / ".ai_mail.local" / "inbox.json"
+        if inbox.exists():
+            return str(inbox)
+    return ""
 
 
 def deliver_email_to_branch(
@@ -251,6 +314,12 @@ def deliver_email_to_branch(
             if email_data.get('dispatched_to'):
                 message["dispatched_to"] = email_data['dispatched_to']
 
+            # Store reply_path for cross-project replies.
+            # Pass-through from email_data, or auto-detect from AIPASS_CALLER_CWD.
+            reply_path = email_data.get("reply_path") or _resolve_reply_path()
+            if reply_path:
+                message["reply_path"] = reply_path
+
             # Prepend message to inbox (newest first)
             inbox_data["messages"].insert(0, message)
             inbox_data["total_messages"] = len(inbox_data["messages"])
@@ -272,6 +341,15 @@ def deliver_email_to_branch(
     except OSError as e:
         logger.warning("[delivery] failed to acquire inbox lock for %s: %s", to_branch, e)
         return False, f"Failed to acquire inbox lock: {e}"
+
+    # Auto-register recipient in contacts for future fast lookup
+    _auto_register_contact(to_branch, branch_path, inbox_file)
+
+    # Auto-register sender if external project called with AIPASS_CALLER_BRANCH
+    caller_branch = os.environ.get("AIPASS_CALLER_BRANCH", "")
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    if caller_branch and caller_cwd:
+        _auto_register_sender(caller_branch, caller_cwd)
 
     # Send desktop notification for new email
     _send_desktop_notification(email_data['from'], to_branch, email_data['subject'], email_data.get('message', ''))
