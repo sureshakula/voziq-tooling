@@ -29,13 +29,13 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 logger = get_direct_logger()
 
 # Trigger integration (graceful fallback if unavailable)
+_trigger_available = False
 try:
     from aipass.trigger.apps.modules.core import trigger
     _trigger_available = True
 except ImportError as e:
     logger.info(f"[monitor] trigger module not available, falling back: {e}")
     trigger = None  # type: ignore[assignment]
-    _trigger_available = False
 
 # Monitoring subsystem imports
 from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent, MonitoringQueue
@@ -128,10 +128,11 @@ class MonitoringFileHandler(FileSystemEventHandler):
 
     def _fire_trigger(self, event_name: str, **kwargs):
         """Fire a trigger event for cross-module integration."""
-        if not _trigger_available:
-            return
         try:
-            trigger.fire(event_name, **kwargs)  # type: ignore[union-attr]
+            from aipass.trigger.apps.modules.core import trigger as _trigger
+            _trigger.fire(event_name, **kwargs)
+        except ImportError:
+            pass  # trigger not available — silently skip
         except Exception as e:
             logger.warning(f"[monitor] trigger.fire('{event_name}') failed: {e}")
 
@@ -209,6 +210,16 @@ class MonitoringFileHandler(FileSystemEventHandler):
             idx = parts.index('aipass')
             if idx + 1 < len(parts):
                 return parts[idx + 1].upper()
+        # External project under ~/Projects/: use branch_detector for full label
+        # e.g. ~/Projects/AIPL/src/polyglot/ → AIPL/POLYGLOT
+        projects_base = Path.home() / 'Projects'
+        try:
+            Path(cwd).relative_to(projects_base)
+            result = detect_branch_from_path(cwd)
+            if result and result != 'UNKNOWN':
+                return result
+        except ValueError:
+            logger.info(f"[monitor] CWD not under ~/Projects/: {cwd}")
         # Fallback: check src/{name} for branches outside aipass namespace
         if 'src' in parts:
             idx = parts.index('src')

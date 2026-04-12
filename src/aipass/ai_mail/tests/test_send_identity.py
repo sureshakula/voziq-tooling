@@ -41,6 +41,7 @@ from aipass.ai_mail.apps.handlers.users.branch_detection import (
     find_branch_root,
     get_branch_info_from_registry,
     _lookup_branch_by_name,
+    _find_caller_registry,
 )
 from aipass.ai_mail.apps.handlers.email.send import resolve_sender_info
 from aipass.ai_mail.apps.handlers.email.send_args import parse_send_args
@@ -634,3 +635,125 @@ class TestAntiRegression:
         assert result["reply_to"] == "@flow"
         assert result["recipients"] == ["@spawn"]
         assert result["mode"] == "direct"
+
+
+# ─── _find_caller_registry() tests ───────────────────────
+
+
+class TestFindCallerRegistry:
+    """Tests for the caller registry fallback used for external project branches."""
+
+    def test_returns_none_when_no_env(self, clean_env):
+        """Returns None when AIPASS_CALLER_CWD is not set."""
+        result = _find_caller_registry()
+        assert result is None
+
+    def test_returns_none_when_no_registry_in_tree(self, clean_env, tmp_path):
+        """Returns None when no AIPASS_REGISTRY.json found under AIPASS_CALLER_CWD."""
+        os.environ["AIPASS_CALLER_CWD"] = str(tmp_path)
+        result = _find_caller_registry()
+        assert result is None
+
+    def test_finds_registry_in_cwd(self, clean_env, tmp_path):
+        """Returns registry path when AIPASS_REGISTRY.json exists in caller CWD."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text('{"branches": []}', encoding="utf-8")
+
+        os.environ["AIPASS_CALLER_CWD"] = str(tmp_path)
+        with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH",
+                   tmp_path / "other" / "AIPASS_REGISTRY.json"):
+            result = _find_caller_registry()
+
+        assert result == registry
+
+    def test_finds_registry_in_parent(self, clean_env, tmp_path):
+        """Returns registry path when found in a parent directory of caller CWD."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text('{"branches": []}', encoding="utf-8")
+        nested = tmp_path / "src" / "vera"
+        nested.mkdir(parents=True)
+
+        os.environ["AIPASS_CALLER_CWD"] = str(nested)
+        with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH",
+                   tmp_path / "other" / "AIPASS_REGISTRY.json"):
+            result = _find_caller_registry()
+
+        assert result == registry
+
+    def test_skips_aipass_registry_itself(self, clean_env, tmp_path):
+        """Returns None when found registry is the same as BRANCH_REGISTRY_PATH."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text('{"branches": []}', encoding="utf-8")
+
+        os.environ["AIPASS_CALLER_CWD"] = str(tmp_path)
+        with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH", registry):
+            result = _find_caller_registry()
+
+        assert result is None
+
+
+# ─── Caller registry fallback tests ──────────────────────
+
+
+class TestCallerRegistryFallback:
+    """Tests for branch lookup fallback to external project registry."""
+
+    def test_lookup_by_name_falls_back_to_caller_registry(self, clean_env, tmp_path):
+        """_lookup_branch_by_name finds external branch via caller registry."""
+        caller_registry = tmp_path / "AIPASS_REGISTRY.json"
+        caller_registry.write_text(json.dumps({"branches": [
+            {"name": "VERA", "path": str(tmp_path / "vera"), "email": "@vera", "status": "active"}
+        ]}), encoding="utf-8")
+
+        empty_aipass = tmp_path / "other" / "AIPASS_REGISTRY.json"
+        empty_aipass.parent.mkdir(parents=True)
+        empty_aipass.write_text('{"branches": []}', encoding="utf-8")
+
+        os.environ["AIPASS_CALLER_CWD"] = str(tmp_path)
+        with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH", empty_aipass):
+            result = _lookup_branch_by_name("vera")
+
+        assert result is not None
+        assert result["email"] == "@vera"
+        assert result["name"] == "VERA"
+
+    def test_lookup_by_name_prefers_aipass_registry(self, clean_env, tmp_path):
+        """_lookup_branch_by_name returns AIPass result first when branch exists in both."""
+        aipass_registry = tmp_path / "AIPASS_REGISTRY.json"
+        aipass_registry.write_text(json.dumps({"branches": [
+            {"name": "SPAWN", "path": str(tmp_path / "spawn"), "email": "@spawn-aipass", "status": "active"}
+        ]}), encoding="utf-8")
+
+        caller_dir = tmp_path / "external"
+        caller_dir.mkdir()
+        caller_registry = caller_dir / "AIPASS_REGISTRY.json"
+        caller_registry.write_text(json.dumps({"branches": [
+            {"name": "SPAWN", "path": str(tmp_path / "other_spawn"), "email": "@spawn-external", "status": "active"}
+        ]}), encoding="utf-8")
+
+        os.environ["AIPASS_CALLER_CWD"] = str(caller_dir)
+        with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH", aipass_registry):
+            result = _lookup_branch_by_name("spawn")
+
+        assert result is not None
+        assert result["email"] == "@spawn-aipass"
+
+    def test_get_branch_info_falls_back_to_caller_registry(self, clean_env, tmp_path):
+        """get_branch_info_from_registry finds external branch path via caller registry."""
+        vera_dir = tmp_path / "vera_studio" / "src" / "vera"
+        vera_dir.mkdir(parents=True)
+
+        caller_registry = tmp_path / "vera_studio" / "AIPASS_REGISTRY.json"
+        caller_registry.write_text(json.dumps({"branches": [
+            {"name": "VERA", "path": str(vera_dir), "email": "@vera", "status": "active"}
+        ]}), encoding="utf-8")
+
+        empty_aipass = tmp_path / "AIPASS_REGISTRY.json"
+        empty_aipass.write_text('{"branches": []}', encoding="utf-8")
+
+        os.environ["AIPASS_CALLER_CWD"] = str(tmp_path / "vera_studio" / "src" / "vera")
+        with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH", empty_aipass):
+            result = get_branch_info_from_registry(vera_dir)
+
+        assert result is not None
+        assert result["email"] == "@vera"

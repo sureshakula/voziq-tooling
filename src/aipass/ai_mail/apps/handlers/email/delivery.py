@@ -14,6 +14,7 @@ Independent handler - no module dependencies.
 """
 
 import json
+import os
 import uuid
 import subprocess
 from pathlib import Path
@@ -128,6 +129,27 @@ def _is_private_branch_email(email: str) -> bool:
     except (json.JSONDecodeError, IOError) as e:
         logger.warning("[delivery] _is_private_branch_email(%s) failed: %s", email, e)
     return False
+
+
+def _resolve_reply_path() -> str:
+    """Detect the caller's ai_mail inbox path from AIPASS_CALLER_CWD env var.
+
+    Used to store a reply_path on delivered messages so cross-project replies
+    can bypass registry lookup and write directly to the sender's inbox.
+
+    Returns the absolute path to the caller's inbox.json, or empty string if
+    AIPASS_CALLER_CWD is not set or no inbox directory is found.
+    """
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    if not caller_cwd:
+        return ""
+    # Check the CWD itself and up to 5 parent directories for .ai_mail.local/
+    candidate = Path(caller_cwd)
+    for path in [candidate] + list(candidate.parents)[:5]:
+        inbox = path / ".ai_mail.local" / "inbox.json"
+        if inbox.exists():
+            return str(inbox)
+    return ""
 
 
 def deliver_email_to_branch(
@@ -250,6 +272,12 @@ def deliver_email_to_branch(
 
             if email_data.get('dispatched_to'):
                 message["dispatched_to"] = email_data['dispatched_to']
+
+            # Store reply_path for cross-project replies.
+            # Pass-through from email_data, or auto-detect from AIPASS_CALLER_CWD.
+            reply_path = email_data.get("reply_path") or _resolve_reply_path()
+            if reply_path:
+                message["reply_path"] = reply_path
 
             # Prepend message to inbox (newest first)
             inbox_data["messages"].insert(0, message)

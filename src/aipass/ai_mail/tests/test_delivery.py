@@ -19,6 +19,7 @@ import aipass.ai_mail.apps.handlers.email.delivery as delivery_mod
 from aipass.ai_mail.apps.handlers.email.delivery import (
     _migrate_inbox_format,
     _is_private_branch_email,
+    _resolve_reply_path,
     deliver_email_to_branch,
 )
 
@@ -429,3 +430,66 @@ def test_deliver_path_input_unresolvable(repo_root, noop_inbox_lock):
 
     assert success is False
     assert "Could not resolve path" in error
+
+
+# ---- _resolve_reply_path() tests ------------------------------
+
+
+def test_resolve_reply_path_no_env(monkeypatch):
+    """Returns empty string when AIPASS_CALLER_CWD is not set."""
+    monkeypatch.delenv("AIPASS_CALLER_CWD", raising=False)
+    assert _resolve_reply_path() == ""
+
+
+def test_resolve_reply_path_inbox_in_cwd(tmp_path, monkeypatch):
+    """Returns inbox path when .ai_mail.local/inbox.json exists in caller CWD."""
+    inbox_dir = tmp_path / ".ai_mail.local"
+    inbox_dir.mkdir(parents=True)
+    inbox_file = inbox_dir / "inbox.json"
+    inbox_file.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(tmp_path))
+    assert _resolve_reply_path() == str(inbox_file)
+
+
+def test_resolve_reply_path_inbox_in_parent(tmp_path, monkeypatch):
+    """Returns inbox path when .ai_mail.local/inbox.json exists in a parent of caller CWD."""
+    inbox_dir = tmp_path / ".ai_mail.local"
+    inbox_dir.mkdir(parents=True)
+    inbox_file = inbox_dir / "inbox.json"
+    inbox_file.write_text("{}", encoding="utf-8")
+
+    nested_cwd = tmp_path / "src" / "feature"
+    nested_cwd.mkdir(parents=True)
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(nested_cwd))
+
+    assert _resolve_reply_path() == str(inbox_file)
+
+
+def test_resolve_reply_path_no_inbox(tmp_path, monkeypatch):
+    """Returns empty string when no .ai_mail.local/inbox.json found in tree."""
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(tmp_path))
+    assert _resolve_reply_path() == ""
+
+
+def test_deliver_stores_reply_path_from_env(tmp_path, repo_root, noop_inbox_lock, monkeypatch):
+    """reply_path env detection is stored on delivered message."""
+    branches = _setup_branch(tmp_path)
+    caller_project = tmp_path / "external_project"
+    inbox_dir = caller_project / ".ai_mail.local"
+    inbox_dir.mkdir(parents=True)
+    inbox_file = inbox_dir / "inbox.json"
+    inbox_file.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(caller_project))
+
+    with patch.object(delivery_mod, "get_all_branches", return_value=branches):
+        success, _ = deliver_email_to_branch("@target", _make_email_data())
+
+    assert success is True
+    inbox_file_target = Path(branches[0]["path"]) / ".ai_mail.local" / "inbox.json"
+    with open(inbox_file_target, "r", encoding="utf-8") as f:
+        inbox = json.load(f)
+    msg = inbox["messages"][0]
+    assert "reply_path" in msg
+    assert msg["reply_path"] == str(inbox_file)

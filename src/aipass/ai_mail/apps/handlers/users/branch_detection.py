@@ -31,6 +31,31 @@ from aipass.ai_mail.apps.handlers.paths import find_repo_root
 BRANCH_REGISTRY_PATH = find_repo_root() / "AIPASS_REGISTRY.json"
 
 
+def _find_caller_registry() -> Optional[Path]:
+    """Find the caller's AIPASS_REGISTRY.json by walking up from AIPASS_CALLER_CWD.
+
+    Used to resolve external project branches that aren't in the AIPass registry.
+    Skips the AIPass registry itself to avoid redundant double-lookup.
+
+    Returns:
+        Path to the caller's registry file, or None if not found or same as main registry.
+    """
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    if not caller_cwd:
+        return None
+    candidate = Path(caller_cwd)
+    aipass_registry = BRANCH_REGISTRY_PATH.resolve()
+    for path in [candidate] + list(candidate.parents)[:10]:
+        registry = path / "AIPASS_REGISTRY.json"
+        if registry.exists():
+            try:
+                if registry.resolve() != aipass_registry:
+                    return registry
+            except Exception as e:
+                logger.warning("[identity] _find_caller_registry() resolve failed for %s: %s", registry, e)
+    return None
+
+
 def _get_branches_list(registry: dict) -> list:
     """Normalize branches from registry to a list of dicts.
 
@@ -111,23 +136,31 @@ def _lookup_branch_by_name(branch_name: str) -> Optional[Dict]:
     Returns:
         Dict with branch info from registry, or None if not found
     """
-    if not BRANCH_REGISTRY_PATH.exists():
-        return None
+    name_lower = branch_name.lower()
 
-    try:
-        with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
-            registry = json.load(f)
+    if BRANCH_REGISTRY_PATH.exists():
+        try:
+            with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+            for branch in _get_branches_list(registry):
+                if branch.get("name", "").lower() == name_lower:
+                    return branch
+        except Exception as e:
+            logger.warning("[identity] _lookup_branch_by_name(%s) failed: %s", branch_name, e)
 
-        name_lower = branch_name.lower()
-        for branch in _get_branches_list(registry):
-            if branch.get("name", "").lower() == name_lower:
-                return branch
+    # Fallback: caller's registry (external project branches not in AIPass registry)
+    caller_registry = _find_caller_registry()
+    if caller_registry:
+        try:
+            with open(caller_registry, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+            for branch in _get_branches_list(registry):
+                if branch.get("name", "").lower() == name_lower:
+                    return branch
+        except Exception as e:
+            logger.warning("[identity] _lookup_branch_by_name(%s) caller registry %s failed: %s", branch_name, caller_registry, e)
 
-        return None
-
-    except Exception as e:
-        logger.warning("[identity] _lookup_branch_by_name(%s) failed: %s", branch_name, e)
-        return None
+    return None
 
 
 def find_branch_root(start_path: Path) -> Optional[Path]:
@@ -170,32 +203,43 @@ def get_branch_info_from_registry(branch_path: Path) -> Optional[Dict]:
     Returns:
         Dict with branch info from registry, or None if not found
     """
-    if not BRANCH_REGISTRY_PATH.exists():
-        return None
+    branch_path_resolved = branch_path.resolve()
 
-    try:
-        with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
-            registry = json.load(f)
+    if BRANCH_REGISTRY_PATH.exists():
+        try:
+            with open(BRANCH_REGISTRY_PATH, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+            registry_dir = BRANCH_REGISTRY_PATH.parent
+            for branch in _get_branches_list(registry):
+                reg_path = Path(branch["path"])
+                if not reg_path.is_absolute():
+                    reg_path = (registry_dir / reg_path).resolve()
+                else:
+                    reg_path = reg_path.resolve()
+                if reg_path == branch_path_resolved:
+                    return branch
+        except Exception as e:
+            logger.warning("[identity] get_branch_info_from_registry(%s) failed: %s", branch_path, e)
 
-        registry_dir = BRANCH_REGISTRY_PATH.parent
-        branch_path_resolved = branch_path.resolve()
+    # Fallback: caller's registry (external project branches not in AIPass registry)
+    caller_registry = _find_caller_registry()
+    if caller_registry:
+        try:
+            with open(caller_registry, 'r', encoding='utf-8') as f:
+                registry = json.load(f)
+            registry_dir = caller_registry.parent
+            for branch in _get_branches_list(registry):
+                reg_path = Path(branch["path"])
+                if not reg_path.is_absolute():
+                    reg_path = (registry_dir / reg_path).resolve()
+                else:
+                    reg_path = reg_path.resolve()
+                if reg_path == branch_path_resolved:
+                    return branch
+        except Exception as e:
+            logger.warning("[identity] get_branch_info_from_registry(%s) caller registry failed: %s", branch_path, e)
 
-        # Search registry for matching path
-        for branch in _get_branches_list(registry):
-            reg_path = Path(branch["path"])
-            # Resolve relative paths against registry location, not CWD
-            if not reg_path.is_absolute():
-                reg_path = (registry_dir / reg_path).resolve()
-            else:
-                reg_path = reg_path.resolve()
-            if reg_path == branch_path_resolved:
-                return branch
-
-        return None
-
-    except Exception as e:
-        logger.warning("[identity] get_branch_info_from_registry(%s) failed: %s", branch_path, e)
-        return None
+    return None
 
 
 if __name__ == "__main__":

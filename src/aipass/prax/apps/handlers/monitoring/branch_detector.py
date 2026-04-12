@@ -437,8 +437,13 @@ class BranchDetector:
                     self.log_map[name] = branch_name
                     return branch_name
 
-            # Fallback: split on underscore for branches not in registry
-            # Log files follow pattern: branch_operation.log
+            # Full path: use path detection before falling back to stem splitting.
+            # This ensures ai_mail/logs/mail_*.log resolves to AI_MAIL via branch_map
+            # rather than returning a truncated stem like MAIL.
+            if '/' in log_file:
+                return self.detect_from_path(log_file)
+
+            # Bare filename: fallback to stem splitting
             if '_' in name:
                 parts = name.split('_')
                 first_part = parts[0].upper()
@@ -450,10 +455,6 @@ class BranchDetector:
             if name_upper in self.known_branches:
                 self.log_map[name] = name_upper
                 return name_upper
-
-            # If we have a full path, try path detection
-            if '/' in log_file:
-                return self.detect_from_path(log_file)
 
             logger.info(f"Could not detect branch from log: {log_file}")
             return 'UNKNOWN'

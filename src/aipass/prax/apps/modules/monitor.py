@@ -9,41 +9,13 @@
 """
 PRAX Monitor Module - Mission Control for Autonomous Branches
 
-Unified monitoring orchestrator that provides real-time visibility into:
-- File changes across all branches (file watcher)
-- Log events from all modules (log monitoring)
-- Branch activity and state changes
-- Module execution tracking
-- System health and status
-
-Purpose:
-    Single command interface for monitoring all autonomous branch activity.
-    Replaces fragmented monitoring with unified Mission Control console.
-    Enables multi-agent workflow visibility and coordination.
+Thin orchestration layer for real-time monitoring of file changes, log events,
+and agent activity across all AIPass branches. Delegates to handlers in
+apps/handlers/monitoring/ (unified_stream, branch_detector, event_queue, etc.)
 
 Usage:
     drone @prax monitor              # Show introspection
     drone @prax monitor run          # Monitor all branches
-    drone @prax monitor run seedgo,cli # Monitor specific branches
-
-Interactive Commands:
-    help                      # Show available commands
-    status                    # Display current monitoring state
-    filter [branches]         # Adjust branch filter
-    quit/exit                 # Stop monitoring
-
-Architecture:
-    This module is thin orchestration layer only. All implementation
-    delegated to specialized handlers in apps/handlers/monitoring/:
-
-    - unified_stream.py       → Terminal output formatting
-    - branch_detector.py      → Path-to-branch mapping
-    - interactive_filter.py   → Runtime filter adjustment
-    - monitoring_filters.py   → Event filtering logic
-    - event_queue.py          → Event buffering and deduplication
-    - module_tracker.py       → Module execution tracking
-    - filesystem_handler.py   → Real-time file change detection (FileSystemEventHandler)
-    - log_watcher.py          → Log stream processing
 """
 
 import signal
@@ -227,13 +199,17 @@ def _run_monitor(args: List[str]) -> bool:
     # Start monitoring threads
     _start_threads()
 
-    # Enter interactive mode
-    _interactive_loop()
+    try:
+        _interactive_loop()
+    except KeyboardInterrupt:
+        logger.info("[monitor] KeyboardInterrupt escaped interactive loop")
+        console.print("\n[yellow]Monitoring stopped.[/yellow]")
 
-    # Cleanup on exit
     _stop_threads()
 
-    return True
+    # sys.exit(0) prevents drone's post-execution json_handler from running
+    # after the monitor exits, avoiding a json.load crash on Ctrl+C.
+    sys.exit(0)
 
 
 def _start_threads():
