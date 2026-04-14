@@ -25,7 +25,7 @@
 - FINAL: 176 tests, all passing. Test coverage 6%→93%. Overall audit 99%.
 - Ready to PR
 
-## Questions for Patrick
+## Questions for the AIPass Developer
 (none yet)
 
 ## Notes

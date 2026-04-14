@@ -44,7 +44,7 @@ You are a citizen of AIPass. Your `.trinity/passport.json` defines who you are. 
 
 ## Security
 
-- NEVER read, access, or reference files in `~/.secrets/` or `/home/patrick/.secrets/`. This directory contains API keys, tokens, and recovery codes. No agent needs to see this. Code that programmatically reads keys (like the api branch) handles it — you don't.
+- NEVER read, access, or reference files in `~/.secrets/`. This directory contains API keys, tokens, and recovery codes. No agent needs to see this. Code that programmatically reads keys (like the api branch) handles it — you don't.
 - NEVER output credentials, tokens, or API keys in responses.
 
 ## Key Principles

@@ -184,7 +184,7 @@ python -m pytest src/aipass/<branch>/tests/
 
 If tests fail because `AIPASS_HOME` leaks the real registry into test results, that's a known pattern — the tests need `monkeypatch.delenv("AIPASS_HOME")`. See S90 notes for the fixture pattern.
 
-### `.claude/settings.json` has `/home/patrick/` paths
+### `.claude/settings.json` has hardcoded absolute paths
 
 You pulled an old clone. The hardcoded paths were removed in commit `867dad0` (April 5, 2026). Pull the latest main and re-run `setup.sh`, which generates the settings dynamically from your local repo root.
 

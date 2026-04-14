@@ -145,7 +145,7 @@ Defined in `settings.json` (this directory). These DO fire from subdirectories.
 
 **What:** Injects `# Current Time: Thursday, April 2 2026 — 11:24 AM` as its own system-reminder every turn.
 
-**Why:** Claude has no temporal awareness by default — doesn't know what time it is, how long a session has been running, or whether it's day/night. Patrick requested this in S71 as the first step toward autonomous scheduling, task duration estimation, and personal reminders. A year-old wishlist item finally built.
+**Why:** Claude has no temporal awareness by default — doesn't know what time it is, how long a session has been running, or whether it's day/night. The user requested this in S71 as the first step toward autonomous scheduling, task duration estimation, and personal reminders. A year-old wishlist item finally built.
 
 **How:** Pure inline shell — no script file. Added as a separate entry in `~/.claude/settings.json` UserPromptSubmit array so it gets its own system-reminder block (not buried in the 13.6KB global prompt output).
 
