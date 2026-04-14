@@ -102,15 +102,17 @@ def create_system_pr(description: str, caller: str) -> dict:
             return result
         lock_acquired = True
 
-        # Step 3: Stage any uncommitted tracked changes
-        subprocess.run(
-            ["git", "add", "-u"],
+        # Step 3: Sync STATUS.md before staging so the fresh state is committed
+        sync_result = subprocess.run(
+            ["drone", "@prax", "status", "sync"],
             capture_output=True, text=True, cwd=str(repo_root),
         )
+        if sync_result.returncode != 0:
+            logger.warning("create_system_pr: status sync failed (non-fatal): %s", sync_result.stderr.strip())
 
-        # Unstage STATUS.md — it's auto-synced by trigger events
+        # Stage all changes including untracked new files
         subprocess.run(
-            ["git", "reset", "HEAD", "STATUS.md"],
+            ["git", "add", "-A"],
             capture_output=True, text=True, cwd=str(repo_root),
         )
 
@@ -216,12 +218,9 @@ def create_system_pr(description: str, caller: str) -> dict:
         )
         logger.info(result["message"])
 
-        # Fire pr_created event (non-blocking — never fail the PR workflow)
-        try:
-            from aipass.trigger.apps.modules.core import trigger
-            trigger.fire("pr_created", branch=caller, pr_url=pr_url)
-        except Exception as exc:
-            logger.warning("trigger.fire('pr_created') failed: %s", exc)
+        # pr_created trigger intentionally skipped — firing it causes prax to
+        # re-sync STATUS.md post-commit, creating a perpetual dirty loop.
+        # Run `drone @prax status sync` manually if needed after a system-pr.
 
         return result
 

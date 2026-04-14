@@ -19,14 +19,14 @@ import sys
 from pathlib import Path
 from typing import List
 
+from rich.table import Table
 from rich.text import Text
 
 from aipass.prax import logger
 from aipass.cli.apps.modules import console, err_console
 from aipass.drone.apps.modules import BranchNotFoundError, CommandExecutionError, RegistryError
 from aipass.drone.apps.modules.discovery import get_help
-from aipass.drone.apps.modules.resolver import list_branches
-from aipass.drone.apps.handlers.registry_handler import get_all_branches
+from aipass.drone.apps.modules.resolver import get_all_branches, list_branches
 from aipass.drone.apps.modules.router import route_command
 from aipass.drone.apps.modules.module_registry import (
     is_module,
@@ -73,31 +73,35 @@ def _discover_modules() -> list[tuple[str, str]]:
 # =============================================================================
 
 def show_help() -> None:
-    """Display drone help."""
+    """Display drone help with Rich formatting."""
+    table = Table(show_header=False, box=None, pad_edge=False, show_edge=False)
+    table.add_column(style="cyan", no_wrap=True)
+    table.add_column(style="dim")
+
+    table.add_row("@target command [args]", "Route command to branch or module")
+    table.add_row("@target --help", "Show help for branch or module")
+    table.add_row("systems", "List registered branches and modules")
+    table.add_row("scan @target", "Discover available commands in a branch")
+    table.add_row("activate @target", "Register all commands from a branch")
+    table.add_row("list", "List registered custom commands")
+    table.add_row("remove <name>", "Remove a custom command")
+    table.add_row("hook-sounds on|off", "Toggle hook notification sounds")
+    table.add_row("--help", "Show this help")
+    table.add_row("--version", "Show version")
+
     console.print()
-    console.print("Drone - Command Router & Discovery")
+    console.print(f"[bold cyan]Drone[/bold cyan] [dim]v{VERSION}[/dim] — Command Router & Discovery")
     console.print()
-    console.print("Routes commands to AIPass branches and internal modules.")
+    console.print("[dim]Routes commands to registered AIPass branches and modules.[/dim]")
     console.print()
-    console.print("Usage:")
-    console.print("  drone @target command \\[args]   Route command to branch or module")
-    console.print("  drone @target --help           Show help for branch or module")
-    console.print("  drone systems                  List registered branches and modules")
-    console.print("  drone scan @target             Discover available commands in a branch")
-    console.print("  drone activate @target         Register all commands from a branch")
-    console.print("  drone list                     List registered custom commands")
-    console.print("  drone remove <name>            Remove a custom command")
-    console.print("  drone hook-sounds on|off       Toggle hook notification sounds")
-    console.print("  drone --help                   Show this help")
-    console.print("  drone --version                Show version")
+    console.print(table)
     console.print()
-    console.print("Examples:")
-    console.print("  drone @seedgo audit aipass")
-    console.print("  drone @seedgo list")
-    console.print("  drone @flow status")
-    console.print("  drone systems")
-    console.print("  drone activate @seedgo")
-    console.print("  drone audit                    (custom command shortcut)")
+    console.print("[bold]Examples:[/bold]")
+    console.print("  [green]drone @seedgo audit aipass[/green]")
+    console.print("  [green]drone @flow status[/green]")
+    console.print("  [green]drone systems[/green]")
+    console.print("  [green]drone activate @seedgo[/green]")
+    console.print("  [green]drone audit[/green]  [dim](custom shortcut)[/dim]")
     console.print()
 
 
