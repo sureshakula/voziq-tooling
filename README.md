@@ -38,6 +38,8 @@ Multi-agent frameworks tried to solve this. They run agents in parallel, spin up
 
 That's not a team. That's a room full of people wearing headphones.
 
+> *"Where else would AI presence exist except in memory? Code doesn't make AI aware — memory makes it possible."* — AIPass
+
 What's missing isn't more agents — it's *presence*. Agents that have identity, memory, and expertise. Agents that share a workspace, communicate through their own channels, and collaborate on the same files without stepping on each other. Not isolated workers running in parallel. A persistent society with operational rules — where the system gets smarter over time because every agent remembers, every interaction builds on the last, and nobody starts from zero.
 
 ## What AIPass Does
@@ -95,6 +97,8 @@ claude                                # Or: codex, gemini — your agent reads i
 
 That's it. Your agent has identity, memory, a mailbox, and knows what AIPass is. Say "hi" — it picks up where it left off. Come back tomorrow, it remembers.
 
+Your project automatically gets access to every AIPass service — dispatch work to specialists, create plans, run quality audits, send feedback to devpulse. Agents within your project can email each other. All through `drone @branch command`.
+
 ### Explore the full framework
 
 Clone the repo to see all 11 agents working together — the reference implementation:
@@ -113,6 +117,8 @@ claude                                # Talk to the orchestrator
 # Things you can do:
 drone @seedgo audit aipass              # Run 33 quality checks across all agents
 drone @flow create . "Add user auth"    # Create a work plan
+drone @ai_mail email @agent "Subject"   # Send mail between agents
+drone @devpulse feedback send "Note"    # Send feedback from any project
 drone systems                           # List every agent and what it does
 ```
 
@@ -217,10 +223,12 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 
 | Metric | Value |
 |--------|-------|
+| Version | 2.1.0 |
 | Agents | 11 |
 | Quality standards | 33 automated checks |
 | Tests | 3,500+ (across all agents) |
-| PRs merged | 185+ (created by agents, reviewed by human) |
+| PRs merged | 260+ (created by agents, reviewed by human) |
+| External projects | Full cross-project access (Vera Studio, AIPL, Compass) |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 

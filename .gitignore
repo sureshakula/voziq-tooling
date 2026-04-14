@@ -115,3 +115,4 @@ src/aipass/drone/apps/plugins/devpulse_ops/__pycache__/pr_plugin.cpython-312.pyc
 whiteboard.md
 README_ORIGINAL_DISABLED.md
 readme_history/
+src/aipass/trigger/trigger_data.lock
