@@ -149,12 +149,36 @@ class TestGetModuleLogsDir:
         assert result.name == "logs"
         assert result.exists()
 
-    def test_creates_logs_dir_for_new_branch(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+    def test_unknown_module_routes_to_system_logs_external(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+        """Unknown modules must NOT create dirs in ECOSYSTEM_ROOT (log-leak regression)."""
         load_mod = _fresh_import_load(monkeypatch, tmp_path)
-        result = load_mod.get_module_logs_dir("newbranch")
+        monkeypatch.setattr(load_mod, "_find_repo_root", lambda: tmp_path)
+        monkeypatch.delenv("AIPASS_CALLER_CWD", raising=False)
+        result = load_mod.get_module_logs_dir("unknown_branch")
+        # Must route to system_logs/external/, NOT create src/aipass/unknown_branch/
+        assert result == tmp_path / "system_logs" / "external" / "unknown_branch"
         assert result.exists()
         assert result.is_dir()
-        assert result.name == "logs"
+        # Verify ECOSYSTEM_ROOT is not polluted
+        assert not (tmp_path / "unknown_branch").exists()
+
+    def test_aipass_caller_cwd_routes_to_caller_project(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+        """Regression: AIPASS_CALLER_CWD directs logs to caller project root, not ECOSYSTEM_ROOT."""
+        load_mod = _fresh_import_load(monkeypatch, tmp_path)
+        monkeypatch.setattr(load_mod, "_find_repo_root", lambda: tmp_path)
+        # Set up a mock caller project with a .git marker
+        caller_project = tmp_path / "caller_project"
+        caller_project.mkdir()
+        (caller_project / ".git").mkdir()
+        caller_cwd = str(caller_project / "src" / "polyglot")
+        monkeypatch.setenv("AIPASS_CALLER_CWD", caller_cwd)
+        result = load_mod.get_module_logs_dir("polyglot")
+        # Must resolve to caller project's logs/, not ECOSYSTEM_ROOT
+        assert result == caller_project / "logs" / "polyglot"
+        assert result.exists()
+        assert result.is_dir()
+        # ECOSYSTEM_ROOT must not be polluted
+        assert not (tmp_path / "polyglot").exists()
 
 
 # =============================================
