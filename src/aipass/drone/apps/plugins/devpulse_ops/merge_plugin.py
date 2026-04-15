@@ -49,9 +49,21 @@ def merge_pr(pr_number: str, caller: str) -> dict:
             capture_output=True, text=True, cwd=str(repo_root),
         )
         if merge.returncode != 0:
-            result["message"] = f"Merge failed: {merge.stderr.strip()}"
-            logger.error(result["message"])
-            return result
+            merge_stderr = merge.stderr.strip()
+            # gh pr merge --delete-branch fails with non-zero if the local branch
+            # can't be deleted (e.g. checked out in a worktree). The GitHub-side
+            # merge + remote branch deletion already completed — only local
+            # cleanup failed. Treat this as a warning and continue.
+            if "cannot delete branch" in merge_stderr and "worktree" in merge_stderr:
+                logger.warning(
+                    "merge_pr: PR #%s merged but local branch cleanup skipped "
+                    "(branch in use by worktree): %s",
+                    pr_number, merge_stderr,
+                )
+            else:
+                result["message"] = f"Merge failed: {merge_stderr}"
+                logger.error(result["message"])
+                return result
 
         # Step 2: Sync local main
         pull = subprocess.run(
