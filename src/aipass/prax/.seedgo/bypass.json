@@ -3,9 +3,19 @@
     "version": "2.0.0",
     "created": "2026-03-07T22:43:24.315842",
     "description": "Standards bypass configuration for prax branch",
-    "last_updated": "2026-03-24"
+    "last_updated": "2026-04-14"
   },
   "bypass": [
+    {
+      "file": "tests/test_config.py",
+      "standard": "documentation",
+      "reason": "Test functions follow pytest naming conventions (test_*). Docstrings on test functions are non-standard in this codebase — only new tests added in DPLAN-0125 Track G have them. Pre-existing 36 functions comply with project test style."
+    },
+    {
+      "file": "tests/test_config.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/ by convention, not in the 3-layer apps/ structure. This is a false positive for the test directory."
+    },
     {
       "file": "apps/modules/logger.py",
       "standard": "cli",

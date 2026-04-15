@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: load.py
 # Description: Load Logging Configuration Handler
-# Version: 1.0.1
+# Version: 1.0.2
 # Created: 2025-11-07
-# Modified: 2026-03-09
+# Modified: 2026-04-14
 # =============================================
 
 """
@@ -27,12 +27,13 @@ Usage:
     max_lines = system_logs['max_lines']
 """
 
+import inspect
 import json
 import logging
 import os
 logger = logging.getLogger(__name__)
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from aipass.prax.apps.handlers.json import json_handler
 
@@ -78,26 +79,53 @@ def get_system_logs_dir() -> Path:
     return _system_logs_dir_cache
 
 
-def get_module_logs_dir(module_name: str) -> Path:
+def _warn_routing(module_name: str, destination: object) -> None:
+    """Log routing warning when a module's log path falls outside ECOSYSTEM_ROOT."""
+    try:
+        from aipass.prax.apps.modules.logger import get_direct_logger
+        get_direct_logger().warning(
+            "[get_module_logs_dir] '%s' not in ECOSYSTEM_ROOT; routing to %s",
+            module_name, destination,
+        )
+    except Exception as e:
+        logger.warning(
+            "[get_module_logs_dir] '%s' routing to %s (logger unavailable: %s)",
+            module_name, destination, e,
+        )
+
+
+def get_module_logs_dir(module_name: Optional[str] = None) -> Path:
     """Get the branch-root logs directory for a module.
 
     Checks ECOSYSTEM_ROOT (src/aipass/) first, then SRC_ROOT (src/) for
-    branches that live outside the aipass namespace (e.g., commons).
+    branches that live outside the aipass namespace (e.g., commons). For
+    cross-project dispatch, resolves paths relative to the caller's project
+    root via AIPASS_CALLER_CWD (set by drone, DPLAN-0121) instead of
+    ECOSYSTEM_ROOT. Falls back to system_logs/external/ for unknown modules —
+    never creates new directories inside the AIPass source tree.
+
     This is the primary local log directory resolver for the two-tier
     model (system_logs/ for central aggregation + branch-root logs/
     for local debugging).
 
     Args:
-        module_name: Module name (e.g., "flow", "prax", "commons")
+        module_name: Module name (e.g., "flow", "prax", "commons").
+                     Auto-detected from the calling module if not provided.
 
     Returns:
-        Path to the module's branch-root logs directory
+        Path to the module's logs directory
     """
+    # Auto-detect caller module name when not provided
+    if module_name is None:
+        frame = inspect.stack()[1]
+        module_name = Path(frame.filename).stem
+
     test_log_dir = os.environ.get("AIPASS_TEST_LOG_DIR")
     if test_log_dir:
         p = Path(test_log_dir) / module_name
         p.mkdir(parents=True, exist_ok=True)
         return p
+
     # Standard: src/aipass/{module}/logs
     branch_dir = ECOSYSTEM_ROOT / module_name
     if branch_dir.exists():
@@ -113,9 +141,29 @@ def get_module_logs_dir(module_name: str) -> Path:
         logs_dir.mkdir(parents=True, exist_ok=True)
         return logs_dir
 
-    # Default: create under ECOSYSTEM_ROOT (original behavior for new branches)
-    logs_dir = branch_dir / "logs"
+    # Cross-project dispatch: AIPASS_CALLER_CWD is set by drone router_handler
+    # (DPLAN-0121). Walk up from the caller's CWD to find the project root
+    # (.git or pyproject.toml), then log there rather than polluting ECOSYSTEM_ROOT
+    # with directories for unknown/external modules (e.g. AIPL polyglot agents).
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD")
+    if caller_cwd:
+        caller_path = Path(caller_cwd)
+        project_root = next(
+            (c for c in [caller_path, *caller_path.parents]
+             if (c / ".git").exists() or (c / "pyproject.toml").exists()),
+            None,
+        )
+        if project_root:
+            logs_dir = project_root / "logs" / module_name
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            _warn_routing(module_name, logs_dir)
+            return logs_dir
+
+    # Final safe fallback: system_logs/external/ — never create unknown directories
+    # inside the AIPass source tree. Fixes AIPL polyglot log leak (DPLAN-0125 Track G).
+    logs_dir = get_system_logs_dir() / "external" / module_name
     logs_dir.mkdir(parents=True, exist_ok=True)
+    _warn_routing(module_name, "system_logs/external/")
     return logs_dir
 
 # Config file
