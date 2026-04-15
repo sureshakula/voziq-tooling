@@ -59,7 +59,7 @@ Ported Codex and Gemini from Docker prototype into the AIPass repo. Created AGEN
 Proved all three CLIs (Claude Code, Codex gpt-5.4, Gemini flash-preview) work in same Docker container. Hooks, identity, drone, ai_mail, seedgo, sub-agents all functional. Commons discussion with genuine cross-model responses. Git fixed (squash-merge to regular merge). PR #188 merged.
 
 ### S74 — README Overhaul + Research Sprint (2026-04-05)
-Full README restructure: grouped branch tables with README links, collapsible setup sections, navigation. Compliance & Safety section added. AIPL token optimization research. 25 inbox messages processed from S73 night shift. Herald updated.
+Full README restructure: grouped branch tables with README links, collapsible setup sections, navigation. Compliance & Safety section added. Token optimization research. 25 inbox messages processed from S73 night shift. Herald updated.
 
 ### S73 — Night Shift: Test Coverage Push to 100% (2026-04-03)
 13 branches dispatched for 100% module test coverage. 3,745 to 4,865+ tests (+1,120 new). Coverage 69% to 88%. 7 branches at 100% module coverage. Seedgo: 16 tests fixed (assertions, isolation, trivially-true). 4 cross-test failures fixed. PR #181. 71 files (20 modified, 51 new test files).

@@ -228,7 +228,7 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | Quality standards | 33 automated checks |
 | Tests | 3,500+ (across all agents) |
 | PRs merged | 260+ (created by agents, reviewed by human) |
-| External projects | Full cross-project access (Vera Studio, AIPL) |
+| External projects | Full cross-project access (Vera Studio) |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 

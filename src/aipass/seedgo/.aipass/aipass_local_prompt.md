@@ -6,14 +6,32 @@ Standards compliance platform. Audits branches, queries standard content, manage
 ## Commands
 
 ```
-seedgo audit aipass                              # Audit all branches
+seedgo audit aipass                              # Audit all 11 agents (33 audit lines)
 seedgo audit aipass flow                         # Single branch
-seedgo standards_query aipass_standards cli       # Show standard content
-seedgo diagnostics                               # Pyright type errors
+seedgo standards_query aipass_standards cli      # Show standard content
+seedgo checklist <file>                          # Per-file standards check (hook consumer)
+seedgo diagnostics                               # Pyright type errors (runs via audit pipeline)
+seedgo proof aipass                              # Proof certification
+seedgo test_map @branch                          # Custom function test coverage
 seedgo readme update @branch                     # README auto-update
 ```
 
-All modules also accept their filename: `standards_audit`, `diagnostics_audit`, `readme_update`.
+All modules also accept their filename: `standards_audit`, `diagnostics_audit`, `readme_update`. Note: `proof`, `proof_query`, `test_map` currently not in `--help` output (known TODO).
+
+## Hook Ownership
+
+I own the hooks. Canonical runtime location is `~/.claude/hooks/` (Anthropic global level — hooks must work across all projects, not per-project). Project-level `.claude/` is settings only. Today's inventory:
+
+- **auto_fix_diagnostics.py** (PostToolUse Edit/Write/NotebookEdit) — runs py_compile + ruff + pattern checks + `drone @seedgo checklist` + pyright on edited file, surfaces errors in `additionalContext`, saves type errors to state file for the edit gate
+- **pre_edit_gate.py** (PreToolUse Edit/Write) — blocks edits to OTHER files while a type error exists in the current file (branch-scoped — cross-branch edits allowed)
+- **subagent_stop_gate.py** — SubagentStop gate. Built, NOT wired in settings.json as of 2026-04-14. Runs seedgo checklist on all modified .py files, blocks sub-agent stop until clean. This is the DevPass enforcement pattern. DPLAN-0131 discusses wiring it.
+- **branch_prompt_loader.py** (UserPromptSubmit) — injects `.aipass/aipass_local_prompt.md` when CWD is in a branch
+- **identity_injector.py** (UserPromptSubmit) — injects passport identity block
+- **email_notification.py** (UserPromptSubmit) — inbox banner
+- **pre_compact.py** (PreCompact manual+auto) — memory archival prep
+- Sounds (tool_use, stop, notification) — sound effects. Hook-sounds plugin itself is drone's territory.
+
+Three locations drift today: `~/.claude/hooks/` (runtime), `AIPass/.claude/hooks/` (project-level copies), `AIPass/.claude/global_hooks/` (orphaned drift — `auto_fix_diagnostics.py` is 35 lines behind). Consolidation is part of DPLAN-0131.
 
 ## Apps Layout (extra layer vs standard branch)
 

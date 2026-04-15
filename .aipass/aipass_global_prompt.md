@@ -1,6 +1,5 @@
 # AIPass — Project Context
 <!-- File: .aipass/aipass_global_prompt.md — Injected on every prompt via hook. Branch-specific context appears below when in a branch directory. -->
-<!-- Prompt style: AIPL format — see .aipass/PROMPT_STYLE.md -->
 
 AIPass multi-agent framework. Autonomous agents (citizens) live in branches with identity (.trinity/), memory, mailbox, and code (apps/). Orchestration via the `drone` command.
 
