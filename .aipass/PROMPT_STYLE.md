@@ -1,6 +1,6 @@
 # AIPass Prompt Style
 
-Reference format for `.aipass/aipass_global_prompt.md` and branch-level `.aipass/aipass_local_prompt.md` files. Original AIPass convention — not copied from any external source.
+Reference format for `.aipass/aipass_global_prompt.md` and branch-level `.aipass/aipass_local_prompt.md` files. 
 
 Goal: signal density over prose. Prompts are injected every turn — every line costs tokens. Terse reference beats conversational coaching.
 
@@ -39,7 +39,3 @@ These are not currently enforced by seedgo — per @seedgo's Track 5 recommendat
  - `.aipass/aipass_global_prompt.md` — canonical example of the format
  - Branch `.aipass/aipass_local_prompt.md` files — should follow the same rules
  - This file — reference for authoring new prompts or auditing existing ones
-
-# Origin
-
-The format was codified during DPLAN-0128 (2026-04-14). Track 4 verified the style is an original AIPass convention, not derived from Anthropic's Claude Code source prompts (which use hierarchical headers, bold emphasis, and conversational tone — different goals). Full provenance report: `src/aipass/devpulse/.trinity/night_shift_reports/aipl_format_provenance.md`.
