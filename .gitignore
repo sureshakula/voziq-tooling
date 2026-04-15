@@ -117,3 +117,10 @@ whiteboard.md
 README_ORIGINAL_DISABLED.md
 readme_history/
 src/aipass/trigger/trigger_data.lock
+
+# Private integrations — driver layer (@api) and wrapper layer (all branches)
+# Per DPLAN-0133. Contents are gitignored; only the scaffold README.md is tracked.
+# Drop project-specific code into src/aipass/{branch}/apps/integrations/{project}/
+# It stays local. Never appears in git.
+src/aipass/*/apps/integrations/**
+!src/aipass/*/apps/integrations/README.md

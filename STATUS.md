@@ -300,7 +300,7 @@
 
 ### Friction notes
 
-- **seedgo __init__.py false positive**: `imports: Failed` and `naming: invalid characters` fire on Python reserved filename. Need special-case in seedgo's naming standard and imports standard. Encountered in another project; likely also in AIPass repo. Open a seedgo standard PR when there's bandwidth.
+(none active — seedgo __init__.py false positive FIXED by @seedgo in PR #279, 2026-04-14)
 
 ### S92 (2026-04-14 ~12:45 PT) — PRE-COMPACT, system prompt reformat work in flight
 
