@@ -18,6 +18,7 @@ which handles agent lifecycle (cleanup, bounce emails on failure).
 
 import json
 import os
+import shutil
 import sys
 import subprocess
 import time
@@ -27,6 +28,28 @@ from typing import Optional, Tuple, List
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.paths import find_repo_root
+
+
+def _find_claude_bin() -> str:
+    """Locate the claude binary, checking known install locations if not on PATH.
+
+    Background processes (trigger Medic, prax watchdog) may have a restricted
+    PATH without ~/.local/bin. This resolves the absolute path directly.
+    """
+    found = shutil.which("claude")
+    if found:
+        return found
+    for candidate in [
+        Path.home() / ".local" / "bin" / "claude",
+        Path("/usr/local/bin/claude"),
+        Path("/usr/bin/claude"),
+    ]:
+        if candidate.exists():
+            return str(candidate)
+    return "claude"  # Last resort — will raise FileNotFoundError if not found
+
+
+_CLAUDE_BIN = _find_claude_bin()
 
 
 # Infrastructure paths
@@ -402,7 +425,7 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
 
     if fresh:
         claude_cmd = [
-            "claude", "-p", prompt,
+            _CLAUDE_BIN, "-p", prompt,
             "--model", resolved_model,
             "--max-turns", str(max_turns),
             "--permission-mode", "bypassPermissions",
@@ -410,7 +433,7 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
         ]
     else:
         claude_cmd = [
-            "claude", "-c", "-p", prompt,
+            _CLAUDE_BIN, "-c", "-p", prompt,
             "--model", resolved_model,
             "--max-turns", str(max_turns),
             "--permission-mode", "bypassPermissions",
@@ -443,6 +466,11 @@ def wake_branch(branch_email: str, custom_message: Optional[str] = None,
     venv_bin = str(_REPO_ROOT / ".venv" / "bin")
     if venv_bin not in spawn_env.get("PATH", ""):
         spawn_env["PATH"] = venv_bin + ":" + spawn_env.get("PATH", "")
+    # Guarantee ~/.local/bin is on PATH for pip-installed tools (e.g. claude)
+    # Background processes (trigger, prax watchdog) may have restricted PATH.
+    local_bin = str(Path.home() / ".local" / "bin")
+    if local_bin not in spawn_env.get("PATH", ""):
+        spawn_env["PATH"] = local_bin + ":" + spawn_env.get("PATH", "")
     for key in list(spawn_env.keys()):
         if key.startswith("CLAUDE") or key == "AIPASS_BOT_ID":
             spawn_env.pop(key)

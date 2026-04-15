@@ -10,6 +10,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# --- OS detection ---
+# Detect Windows (Git Bash / MSYS2 / Cygwin) — used throughout the script
+IS_WINDOWS=0
+case "${OSTYPE:-}" in
+    msys*|cygwin*|mingw*) IS_WINDOWS=1 ;;
+    *)
+        # Fallback: check uname if OSTYPE is unset
+        if uname -s 2>/dev/null | grep -qi "mingw\|msys\|cygwin"; then
+            IS_WINDOWS=1
+        fi
+        ;;
+esac
+
 echo "=== AIPass Setup ==="
 echo "Repo root: $SCRIPT_DIR"
 echo ""
@@ -40,7 +53,12 @@ echo "Creating virtual environment at .venv ..."
 python3 -m venv .venv
 
 # --- Activate and install ---
-source .venv/bin/activate
+# Activate venv (Scripts/ on Windows, bin/ on Linux/macOS)
+if [ "$IS_WINDOWS" -eq 1 ] && [ -f ".venv/Scripts/activate" ]; then
+    source .venv/Scripts/activate
+else
+    source .venv/bin/activate
+fi
 
 echo "Upgrading pip ..."
 pip install --upgrade pip --quiet
@@ -440,30 +458,43 @@ else
     echo "Skipping Gemini CLI (not installed)"
 fi
 
-# --- Create global symlinks for CLI tools ---
+# --- Create global symlinks for CLI tools (Linux/macOS only) ---
 echo ""
-echo "Creating global symlinks ..."
+if [ "$IS_WINDOWS" -eq 1 ]; then
+    echo "Windows detected — skipping symlink (ln/sudo not available on Windows)"
+    echo ""
+    echo "To use drone from any directory, add the venv to your PATH:"
+    echo "  PowerShell: \$env:PATH = \"$SCRIPT_DIR\\.venv\\Scripts;\" + \$env:PATH"
+    echo "  Git Bash:   export PATH=\"$SCRIPT_DIR/.venv/bin:\$PATH\""
+    echo "  (Add to ~/.bash_profile for Git Bash persistence)"
+else
+    echo "Creating global symlinks ..."
+    VENV_BIN="$SCRIPT_DIR/.venv/bin"
+    LOCAL_BIN="/usr/local/bin"
 
-VENV_BIN="$SCRIPT_DIR/.venv/bin"
-LOCAL_BIN="/usr/local/bin"
-
-for cmd in drone; do
-    if [ -f "$VENV_BIN/$cmd" ]; then
-        if sudo ln -sf "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd" 2>/dev/null; then
-            echo "  $LOCAL_BIN/$cmd -> $VENV_BIN/$cmd"
-        else
-            echo "  WARN: Could not create symlink for $cmd (try running with sudo)"
-            echo "  Manual fix: sudo ln -sf $VENV_BIN/$cmd $LOCAL_BIN/$cmd"
+    for cmd in drone; do
+        if [ -f "$VENV_BIN/$cmd" ]; then
+            if sudo ln -sf "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd" 2>/dev/null; then
+                echo "  $LOCAL_BIN/$cmd -> $VENV_BIN/$cmd"
+            else
+                echo "  WARN: Could not create symlink for $cmd (try running with sudo)"
+                echo "  Manual fix: sudo ln -sf $VENV_BIN/$cmd $LOCAL_BIN/$cmd"
+            fi
         fi
-    fi
-done
+    done
+fi
 
 # --- Result ---
 echo ""
 if [ "$FAIL" -eq 0 ]; then
     echo "=== Setup complete ==="
     echo ""
-    echo "drone is available globally via /usr/local/bin symlink."
+    if [ "$IS_WINDOWS" -eq 1 ]; then
+        echo "drone is available in .venv/Scripts/ (or .venv/bin/ for Git Bash)."
+        echo "Add the appropriate directory to your PATH (see above)."
+    else
+        echo "drone is available globally via /usr/local/bin symlink."
+    fi
     echo "seedgo is accessed via: drone @seedgo"
     echo "No venv activation needed for CLI commands."
     echo ""

@@ -26,6 +26,61 @@
       "reason": "Pure Python bootstrap \u2014 cannot import prax system_logger (circular: prax depends on cli). Uses stdlib logging as fallback."
     },
     {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "help_text",
+      "reason": "python3 reference is inside a shell command string assigned to _local_prompt_cmd \u2014 not help text, it is the cross-platform hook command itself."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "debug_print",
+      "reason": "print() reference is inside a shell command string assigned to _local_prompt_cmd \u2014 not a Python print() call, it is part of the inline python3 -c hook command."
+    },
+    {
+      "file": "tests/test_bootstrap.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by pytest convention \u2014 not subject to the 3-layer apps/ structure rule."
+    },
+    {
+      "file": "tests/test_bootstrap.py",
+      "standard": "encapsulation",
+      "reason": "Tests must import handlers directly to unit-test private functions (_sanitize_name, init_project). Using a module entry point would prevent unit testing."
+    },
+    {
+      "file": "tests/test_bootstrap.py",
+      "standard": "help_text",
+      "reason": "python3 reference is inside a pytest assertion string describing expected hook behavior \u2014 not help text, it is a test assertion message."
+    },
+    {
+      "file": "tests/test_bootstrap.py",
+      "standard": "meta",
+      "reason": "Test files use pytest docstring convention instead of AIPass META block headers."
+    },
+    {
+      "file": "setup.py",
+      "standard": "architecture",
+      "reason": "Repo-root cross-platform installer — not a branch module, intentionally lives outside apps/ structure."
+    },
+    {
+      "file": "setup.py",
+      "standard": "debug_print",
+      "reason": "All print() calls are intentional CLI installer output, not debug prints."
+    },
+    {
+      "file": "setup.py",
+      "standard": "documentation",
+      "reason": "main() is documented via the module-level docstring; installer entry points follow script convention."
+    },
+    {
+      "file": "setup.py",
+      "standard": "error_handling",
+      "reason": "except OSError: pass in step_secrets() is documented best-effort chmod on non-POSIX filesystems (Windows)."
+    },
+    {
+      "file": "setup.py",
+      "standard": "help_text",
+      "reason": "python3 reference on line 59 is a user-facing PATH instruction string printed to the terminal, not internal help text."
+    },
+    {
       "file": "apps/modules/display.py",
       "standard": "silent_catch",
       "reason": "Circular import \u2014 display.py cannot import prax (prax depends on cli). Silent catches are ImportError guard for optional trigger and __main__ error handler."

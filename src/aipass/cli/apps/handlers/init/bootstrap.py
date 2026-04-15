@@ -414,20 +414,20 @@ def _claude_settings(aipass_home: str | None = None) -> str:
 
     Installs two UserPromptSubmit hooks:
     1. Global prompt — injects .aipass/aipass_global_prompt.md from CWD.
-    2. Local prompt  — walks up from CWD to find .aipass/aipass_local_prompt.md
-       (branch-level prompt, e.g. inside src/<agent>/).
+    2. Local prompt  — walks up from CWD via pathlib.Path.parents to find
+       .aipass/aipass_local_prompt.md (cross-platform; works on Windows).
 
     Args:
         aipass_home: Optional AIPass installation root to add as env.AIPASS_HOME.
     """
     _local_prompt_cmd = (
-        "dir=$(pwd); "
-        "while [ \"$dir\" != \"/\" ]; do "
-        "if [ -f \"$dir/.aipass/aipass_local_prompt.md\" ]; then "
-        "cat \"$dir/.aipass/aipass_local_prompt.md\"; break; "
-        "fi; "
-        "dir=$(dirname \"$dir\"); "
-        "done"
+        'python3 -c "'
+        'from pathlib import Path; '
+        "p=next((x/'.aipass'/'aipass_local_prompt.md' "
+        'for x in [Path.cwd(),*Path.cwd().parents] '
+        "if (x/'.aipass'/'aipass_local_prompt.md').exists()),None); "
+        "p and print(p.read_text(encoding='utf-8'),end='')"
+        '"'
     )
     data: dict = {
         "hooks": {

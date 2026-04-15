@@ -297,7 +297,8 @@ def test_init_project_settings_has_two_hooks(tmp_path):
     # Second hook: local prompt walk-up
     local_cmd = hooks[1]["hooks"][0]["command"]
     assert "aipass_local_prompt.md" in local_cmd
-    assert "dirname" in local_cmd, "Local prompt hook should walk up with dirname"
+    assert "python3" in local_cmd, "Local prompt hook should use python3 for cross-platform support"
+    assert "parents" in local_cmd, "Local prompt hook should use pathlib.Path.parents for traversal"
 
 
 def test_init_project_global_prompt_content(tmp_path):

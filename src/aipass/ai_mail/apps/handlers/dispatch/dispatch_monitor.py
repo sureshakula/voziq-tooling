@@ -289,6 +289,11 @@ def main():
     venv_bin = str(_repo_root / ".venv" / "bin")
     if venv_bin not in spawn_env.get("PATH", ""):
         spawn_env["PATH"] = venv_bin + ":" + spawn_env.get("PATH", "")
+    # Guarantee ~/.local/bin is on PATH for pip-installed tools (e.g. claude)
+    # Background processes (trigger, prax watchdog) may have restricted PATH.
+    local_bin = str(Path.home() / ".local" / "bin")
+    if local_bin not in spawn_env.get("PATH", ""):
+        spawn_env["PATH"] = local_bin + ":" + spawn_env.get("PATH", "")
     for key in list(spawn_env.keys()):
         if key.startswith("CLAUDE") or key == "AIPASS_BOT_ID":
             spawn_env.pop(key)
