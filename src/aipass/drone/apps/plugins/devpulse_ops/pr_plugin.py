@@ -116,6 +116,13 @@ def create_system_pr(description: str, caller: str) -> dict:
             capture_output=True, text=True, cwd=str(repo_root),
         )
 
+        # Unstage .git_pr.lock — it is acquired (created) for this workflow
+        # and must never be committed. Belt-and-suspenders alongside .gitignore.
+        subprocess.run(
+            ["git", "reset", "HEAD", ".git_pr.lock"],
+            capture_output=True, text=True, cwd=str(repo_root),
+        )
+
         # Step 4: If anything is staged, commit it (normal commit on main)
         diff_check = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
