@@ -21,6 +21,7 @@ from aipass.ai_mail.apps.handlers.dispatch.wake import (
     _check_pid_alive,
     _read_session_type,
     _clean_zombies,
+    _find_claude_bin,
     resolve_branch,
     DispatchStatus,
 )
@@ -459,3 +460,106 @@ def test_model_map_values_are_full_ids():
     """All MODEL_MAP values should be full claude model IDs."""
     for key, value in MODEL_MAP.items():
         assert value.startswith("claude-"), f"{key} -> {value} doesn't start with 'claude-'"
+
+
+# --- _find_claude_bin tests ------------------------------------------
+
+
+class TestFindClaudeBin:
+    """Tests for _find_claude_bin() — resolves claude binary path."""
+
+    def test_uses_shutil_which_when_found(self, monkeypatch):
+        """Returns shutil.which result when claude is on PATH."""
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.shutil.which",
+            lambda _: "/usr/local/bin/claude",
+        )
+        result = _find_claude_bin()
+        assert result == "/usr/local/bin/claude"
+
+    def test_falls_back_to_local_bin(self, monkeypatch, tmp_path):
+        """Falls back to ~/.local/bin/claude when not on PATH."""
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.shutil.which",
+            lambda _: None,
+        )
+        fake_local_bin = tmp_path / ".local" / "bin"
+        fake_local_bin.mkdir(parents=True)
+        fake_claude = fake_local_bin / "claude"
+        fake_claude.touch()
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.Path.home",
+            lambda: tmp_path,
+        )
+        result = _find_claude_bin()
+        assert result == str(fake_claude)
+
+    def test_falls_back_to_name_when_not_found(self, monkeypatch, tmp_path):
+        """Returns bare 'claude' when no known location has the binary."""
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.shutil.which",
+            lambda _: None,
+        )
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.Path.home",
+            lambda: tmp_path,
+        )
+        result = _find_claude_bin()
+        assert result == "claude"
+
+
+class TestWakeBranchSpawnEnv:
+    """Ensure wake_branch() spawn_env includes ~/.local/bin for restricted-PATH envs."""
+
+    def test_spawn_env_includes_local_bin(self, tmp_path, monkeypatch):
+        """spawn_env PATH includes ~/.local/bin even when not in os.environ PATH."""
+        # Set up a minimal registry with one branch
+        branch_path = tmp_path / "src" / "aipass" / "testbranch"
+        branch_path.mkdir(parents=True)
+        (branch_path / ".ai_mail.local").mkdir()
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        import json
+        registry_file.write_text(json.dumps({
+            "branches": [{"name": "TESTBRANCH", "email": "@testbranch", "path": str(branch_path)}]
+        }), encoding="utf-8")
+
+        monkeypatch.setattr(wake_mod, "_REPO_ROOT", tmp_path)
+        monkeypatch.setattr(wake_mod, "BRANCH_REGISTRY", registry_file)
+        monkeypatch.setattr(wake_mod, "PAUSE_FILE", tmp_path / ".aipass" / "autonomous_pause")
+        monkeypatch.setattr(wake_mod, "CONFIG_FILE", tmp_path / "safety_config.json")
+        monkeypatch.setattr(wake_mod, "MONITOR_SCRIPT", tmp_path / "dispatch_monitor.py")
+        (tmp_path / "dispatch_monitor.py").touch()
+
+        # Strip ~/.local/bin from os.environ to simulate restricted PATH
+        from pathlib import Path as _Path
+        local_bin = str(_Path.home() / ".local" / "bin")
+        monkeypatch.setenv("PATH", "/usr/bin:/bin")
+
+        captured_envs: list = []
+
+        def fake_popen(cmd, **kwargs):
+            """Capture spawn_env without launching a real process."""
+            captured_envs.append(kwargs.get("env", {}))
+            class FakeProc:
+                pid = 99999
+            return FakeProc()
+
+        monkeypatch.setattr("subprocess.Popen", fake_popen)
+        monkeypatch.setattr(wake_mod, "_check_pid_alive", lambda pid: True)
+        monkeypatch.setattr(wake_mod, "_clean_zombies", lambda: 0)
+        monkeypatch.setattr(wake_mod, "_is_branch_occupied", lambda p: False)
+        monkeypatch.setattr(wake_mod, "_acquire_lock", lambda p, pid: (True, "ok"))
+        monkeypatch.setattr("aipass.ai_mail.apps.handlers.dispatch.wake.time.sleep", lambda _: None)
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.notify.send_notification",
+            lambda *a, **kw: None,
+            raising=False,
+        )
+
+        wake_mod.wake_branch("@testbranch", fresh=True)
+
+        assert captured_envs, "Popen was not called"
+        env = captured_envs[0]
+        assert local_bin in env.get("PATH", ""), (
+            f"~/.local/bin not in spawn_env PATH: {env.get('PATH', '')}"
+        )
