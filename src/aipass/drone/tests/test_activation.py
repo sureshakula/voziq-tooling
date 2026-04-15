@@ -408,6 +408,20 @@ class TestHandleCustomCommand:
         assert call_kwargs["interactive"] is True
 
     @patch("aipass.drone.apps.drone.route_command")
+    def test_watchdog_routes_interactive(self, mock_route: MagicMock) -> None:
+        """watchdog command should route with interactive=True (long-running poller)."""
+        from aipass.drone.apps.drone import _handle_target
+
+        mock_route.return_value = CommandResult(
+            stdout="", stderr="", exit_code=0, branch="devpulse", command="watchdog",
+        )
+
+        _handle_target(["@devpulse", "watchdog", "--help"])
+
+        call_kwargs = mock_route.call_args.kwargs
+        assert call_kwargs["interactive"] is True
+
+    @patch("aipass.drone.apps.drone.route_command")
     def test_propagates_exit_code(self, mock_route: MagicMock) -> None:
         """Should return the route_command exit code."""
         from aipass.drone.apps.drone import _handle_custom_command
