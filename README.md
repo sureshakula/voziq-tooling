@@ -242,7 +242,7 @@ For detailed session history, see [HERALD.md](HERALD.md).
 - At least one AI CLI: Claude Code (recommended), Codex, or Gemini CLI
 - `sudo` access (for global CLI symlinks)
 - API keys optional (OpenRouter/OpenAI — for optional add-on agents)
-- **Platforms:** Linux (fully tested), macOS (untested, should work), Windows via WSL2
+- **Platforms:** Linux (tested, primary dev environment), macOS (untested), Windows (native testing in progress — see [open issues](https://github.com/AIOSAI/AIPass/issues?q=is%3Aissue+is%3Aopen+Windows))
 
 ---
 
