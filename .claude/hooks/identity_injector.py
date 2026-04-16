@@ -60,8 +60,10 @@ def format_identity(data: dict) -> str:
     """Format branch_info + identity for injection."""
     lines = []
 
+    # Try branch_info first (enriched passports), fall back to identity block (setup.sh passports)
     branch = data.get("branch_info", {})
-    name = branch.get("branch_name", "UNKNOWN")
+    identity = data.get("identity", {})
+    name = branch.get("branch_name") or identity.get("name", "UNKNOWN")
     lines.append(f"# {name} Identity")
     lines.append(f"Path: {branch.get('path', 'unknown')}")
     lines.append(f"Email: {branch.get('email', 'unknown')}")

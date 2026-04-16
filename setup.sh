@@ -329,13 +329,21 @@ if [ -d "$SCRIPT_DIR/.claude/hooks" ]; then
     echo "Installing Claude Code hooks ..."
     mkdir -p "$HOME/.claude"
 
-    python3 - "$SCRIPT_DIR" "$CLAUDE_SETTINGS" << 'PYEOF'
+    # Determine python command for hooks — venv python on Windows, python3 on Unix
+    if [ "$IS_WINDOWS" -eq 1 ]; then
+        HOOK_PYTHON="$SCRIPT_DIR/.venv/Scripts/python.exe"
+    else
+        HOOK_PYTHON="python3"
+    fi
+
+    "$PYTHON" - "$SCRIPT_DIR" "$CLAUDE_SETTINGS" "$HOOK_PYTHON" << 'PYEOF'
 import json
 import sys
 from pathlib import Path
 
 repo_root = sys.argv[1]
 settings_path = Path(sys.argv[2])
+hook_python = sys.argv[3]
 hooks_dir = f"{repo_root}/.claude/hooks"
 
 # Load existing settings or start fresh
@@ -348,27 +356,27 @@ else:
 settings["hooks"] = {
     "UserPromptSubmit": [
         {"hooks": [{"type": "command", "command": f"cat {repo_root}/.aipass/aipass_global_prompt.md 2>/dev/null || true"}]},
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/branch_prompt_loader.py"}]},
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/identity_injector.py"}]},
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/email_notification.py"}]},
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/branch_prompt_loader.py"}]},
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/identity_injector.py"}]},
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/email_notification.py"}]},
     ],
     "PreToolUse": [
         {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
-         "hooks": [{"type": "command", "command": f"python3 {hooks_dir}/tool_use_sound.py"}]},
+         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/tool_use_sound.py"}]},
     ],
     "PostToolUse": [
         {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
-         "hooks": [{"type": "command", "command": f"python3 {hooks_dir}/auto_fix_diagnostics.py"}]},
+         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/auto_fix_diagnostics.py"}]},
     ],
     "Stop": [
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/stop_sound.py"}]},
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/stop_sound.py"}]},
     ],
     "Notification": [
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/notification_sound.py"}]},
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/notification_sound.py"}]},
     ],
     "PreCompact": [
-        {"matcher": "manual", "hooks": [{"type": "command", "command": f"python3 {hooks_dir}/pre_compact.py", "timeout": 60}]},
-        {"matcher": "auto", "hooks": [{"type": "command", "command": f"python3 {hooks_dir}/pre_compact.py", "timeout": 60}]},
+        {"matcher": "manual", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact.py", "timeout": 60}]},
+        {"matcher": "auto", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact.py", "timeout": 60}]},
     ],
 }
 
@@ -455,14 +463,14 @@ else:
 # Build hooks config with absolute paths (Gemini uses different event names)
 settings["hooks"] = {
     "SessionStart": [
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/session_start_identity.py", "timeout": 10}]}
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/session_start_identity.py", "timeout": 10}]}
     ],
     "BeforeModel": [
-        {"hooks": [{"type": "command", "command": f"python3 {hooks_dir}/prompt_inject.py", "timeout": 10}]}
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/prompt_inject.py", "timeout": 10}]}
     ],
     "BeforeTool": [
         {"matcher": "Edit|Write",
-         "hooks": [{"type": "command", "command": f"python3 {hooks_dir}/pre_edit_gate.py", "timeout": 5}]}
+         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_edit_gate.py", "timeout": 5}]}
     ],
 }
 
