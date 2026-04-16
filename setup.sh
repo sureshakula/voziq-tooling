@@ -27,44 +27,76 @@ echo "=== AIPass Setup ==="
 echo "Repo root: $SCRIPT_DIR"
 echo ""
 
-# --- Check python3 exists ---
-if ! command -v python3 &>/dev/null; then
-    echo "FAIL: python3 not found. Install Python 3.10+ and try again."
+# --- Strip broken venv from PATH (Windows: stale .venv/Scripts shadows real Python) ---
+if [ "$IS_WINDOWS" -eq 1 ]; then
+    export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '\.venv' | tr '\n' ':' | sed 's/:$//')
+    export PYTHONUTF8=1
+fi
+
+# --- Find working Python (#292: Windows python3 → MS Store alias) ---
+PYTHON=""
+# Try python3 first — verify it actually runs (not just exists on PATH)
+if command -v python3 &>/dev/null && python3 -c "import sys" &>/dev/null 2>&1; then
+    PYTHON="python3"
+# Fall back to python (Windows installs as 'python' not 'python3')
+elif command -v python &>/dev/null && python -c "import sys" &>/dev/null 2>&1; then
+    PYTHON="python"
+else
+    echo "FAIL: No working Python found. Install Python 3.10+ and try again."
+    echo "  Windows: install from python.org, NOT the Microsoft Store."
+    echo "  Then disable the Store alias: Settings > Apps > Advanced app settings > App execution aliases"
     exit 1
 fi
 
-PY_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-echo "Found python3 $PY_VERSION"
+PY_VERSION=$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+echo "Found $PYTHON $PY_VERSION"
 
 # --- Check minimum version ---
-PY_OK=$(python3 -c 'import sys; print(int(sys.version_info >= (3, 10)))')
+PY_OK=$($PYTHON -c 'import sys; print(int(sys.version_info >= (3, 10)))')
 if [ "$PY_OK" != "1" ]; then
     echo "FAIL: Python 3.10+ required, found $PY_VERSION"
     exit 1
 fi
 
 # --- Create venv ---
-if [ -d ".venv" ]; then
+if [ "$IS_WINDOWS" -eq 1 ] && [ -f ".venv/Scripts/python.exe" ]; then
+    # Windows: skip venv recreation if python.exe exists (rm -rf unreliable due to file locking)
+    echo "Existing .venv found — reusing (Windows file locking prevents clean removal)"
+elif [ -d ".venv" ]; then
     echo "Existing .venv found — removing it for a clean install."
     rm -rf .venv
 fi
 
-echo "Creating virtual environment at .venv ..."
-python3 -m venv .venv
+if [ ! -d ".venv" ]; then
+    echo "Creating virtual environment at .venv ..."
+    if [ "$IS_WINDOWS" -eq 1 ]; then
+        # Windows: create without pip, bootstrap manually to avoid subprocess path issues
+        $PYTHON -m venv --without-pip .venv
+    else
+        $PYTHON -m venv .venv
+    fi
+fi
 
 # --- Activate and install ---
-# Activate venv (Scripts/ on Windows, bin/ on Linux/macOS)
-if [ "$IS_WINDOWS" -eq 1 ] && [ -f ".venv/Scripts/activate" ]; then
+# Determine venv python path for explicit invocation
+if [ "$IS_WINDOWS" -eq 1 ] && [ -f ".venv/Scripts/python.exe" ]; then
     source .venv/Scripts/activate
+    VENV_PYTHON=".venv/Scripts/python.exe"
+    # Bootstrap pip if missing (--without-pip on Windows)
+    if ! "$VENV_PYTHON" -m pip --version &>/dev/null 2>&1; then
+        echo "Bootstrapping pip in venv ..."
+        "$VENV_PYTHON" -m ensurepip --default-pip --quiet 2>/dev/null || true
+    fi
 else
     source .venv/bin/activate
+    VENV_PYTHON="python3"
 fi
 
 echo "Upgrading pip ..."
-pip install --upgrade pip --quiet
+"$VENV_PYTHON" -m pip install --upgrade pip --quiet
 
 echo "Installing aipass in editable mode (with dev extras) ..."
-pip install -e ".[dev]" --quiet
+"$VENV_PYTHON" -m pip install -e ".[dev]" --quiet
 
 # --- Verify CLI entry points ---
 FAIL=0
