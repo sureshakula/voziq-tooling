@@ -181,13 +181,18 @@ def _resolve_pack_path(pack_name: str) -> Optional[Path]:
 
 def _load_bypass_for_file(file_path: str) -> list:
     """Load bypass rules for the branch containing file_path."""
+    from aipass.seedgo.apps.handlers.bypass.bypass_handler import REGISTRY_PATH
+
     branch = get_branch_from_path(file_path)
     if branch is None:
         return []
-    branch_path = branch.get("path", "")
-    if not branch_path:
+    raw_path = branch.get("path", "")
+    if not raw_path:
         return []
-    return load_bypass_rules(branch_path)
+    bp = Path(raw_path)
+    if not bp.is_absolute():
+        bp = (REGISTRY_PATH.parent / bp).resolve()
+    return load_bypass_rules(str(bp))
 
 
 def _format_failure(result: Dict) -> str:

@@ -94,11 +94,23 @@ def get_branch_from_path(file_path: str) -> Optional[Dict[str, Any]]:
 
         file_path = str(Path(file_path).resolve())
 
-        # Sort branches by path length (longest first) to match most specific
-        branches = sorted(registry.get("branches", []), key=lambda b: len(b.get("path", "")), reverse=True)
+        registry_dir = REGISTRY_PATH.parent
+
+        def _resolve(raw: str) -> str:
+            p = Path(raw)
+            if not p.is_absolute():
+                p = (registry_dir / p).resolve()
+            return str(p)
+
+        # Sort branches by resolved path length (longest first) to match most specific
+        branches = sorted(
+            registry.get("branches", []),
+            key=lambda b: len(_resolve(b.get("path", ""))),
+            reverse=True,
+        )
 
         for branch in branches:
-            branch_path = branch.get("path", "")
+            branch_path = _resolve(branch.get("path", ""))
             if file_path.startswith(branch_path + "/") or file_path == branch_path:
                 return branch
 
