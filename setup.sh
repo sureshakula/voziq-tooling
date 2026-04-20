@@ -440,7 +440,7 @@ bootstrap_branch "memory"   "$SCRIPT_DIR/src/aipass/memory"   "builder" "Vector 
 # NOTE: backup, daemon removed S82/S87. commons, skills moved to external repos.
 # Only the 11 core branches above should be bootstrapped.
 
-echo "  15 branches bootstrapped"
+echo "  11 branches bootstrapped"
 
 # --- Seed branch config files from .example defaults ---
 # Some branches need a config file that's gitignored (contains local state).
