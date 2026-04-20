@@ -444,6 +444,11 @@ def get_help(command: str | None = None) -> str:
         "  sync                   Checkout main and pull\n"
         "  lock                   Check lock status\n"
         "  unlock --force         Force-release the PR lock\n"
+        "\n"
+        "Policy: raw git commands are blocked for agents via .claude/settings.json:\n"
+        "  - git checkout* (any form) — use `drone @git sync` instead\n"
+        "  - git add -f* / --force*  — use scoped `drone @git pr` instead\n"
+        "Culturally also avoid: raw git commit/push, gh pr create. Go through drone.\n"
     )
 
 

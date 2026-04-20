@@ -34,7 +34,7 @@ When a task belongs to a specialist's DOMAIN, ask them. You can still investigat
 
 ## Git Workflow — Drone Only
 
-Never use raw git commands (git commit, git push, git checkout -b, gh pr create). Every time raw git is used, it causes divergence, rebase conflicts, and wasted time fixing the mess. Drone handles everything correctly.
+Never use raw git commands (git commit, git push, git checkout anything, gh pr create). `Bash(git checkout*)` and `Bash(git add -f*)` are denied system-wide in `.claude/settings.json`. Every time raw git is used, it causes divergence, rebase conflicts, and wasted time fixing the mess. Drone handles everything correctly.
 
 ```
 drone @git system-pr "description"   # System-wide PR (devpulse only) — commit, branch, push, PR, back to main

@@ -158,9 +158,11 @@ Always work on main. Edit files in your branch directory on the main branch. Whe
 
 `drone @git pr` does everything atomically: acquires a lock (so no other branch can PR simultaneously), creates a feature branch, stages only your files, commits with your Co-Authored-By signature, pushes, creates the PR on GitHub, returns to main, releases the lock.
 
-Blocked for you: `git checkout -b`, `git commit`, `git push`, `gh pr create`. Only devpulse and drone have raw git access.
+**Blocked system-wide via `.claude/settings.json` permission gate:** `git checkout*` (any form — switch, discard, new branch), `git add -f*`, `git add --force*`. These are denied for every agent including devpulse. Use `drone @git sync` to switch to main, `drone @git fix` to recover from broken states.
 
-Allowed read-only: `git status`, `git diff`, `git log`.
+**Culturally blocked (no permission gate yet, still don't use):** `git commit`, `git push`, `gh pr create`. Go through drone.
+
+**Allowed read-only:** `git status`, `git diff`, `git log`, `git stash` (safe transient save).
 
 Never merge. Only devpulse or the user merges PRs. If your PR gets feedback, fix it and run `drone @git pr` again.
 
