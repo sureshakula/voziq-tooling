@@ -94,7 +94,7 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
     if command == "status":
         return _handle_status()
     if command == "sync":
-        return _handle_sync()
+        return _handle_sync(args)
     if command == "lock":
         return _handle_lock()
     if command == "unlock":
@@ -263,7 +263,8 @@ def _handle_fix(args: list[str]) -> dict:
             "exit_code": 1,
         }
 
-    result = fix_git_state(caller)
+    dry_run = "--dry-run" in (args or [])
+    result = fix_git_state(caller, dry_run=dry_run)
 
     if result["success"]:
         return {
@@ -336,9 +337,10 @@ def _handle_status() -> dict:
     }
 
 
-def _handle_sync() -> dict:
+def _handle_sync(args: list[str]) -> dict:
     """Handle the sync subcommand."""
-    result = sync_handler.sync_main()
+    autostash = "--autostash" in args
+    result = sync_handler.sync_main(autostash=autostash)
 
     if result["success"]:
         return {
@@ -404,7 +406,12 @@ def get_help(command: str | None = None) -> str:
     if command == "status":
         return "git status — Show git status filtered to your branch directory\n"
     if command == "sync":
-        return "git sync — Checkout main and pull latest changes\n"
+        return (
+            "git sync [--autostash] — Checkout main and pull latest changes\n"
+            "  Options:\n"
+            "    --autostash   Stash local changes before pull and restore after.\n"
+            "                  Use when sync fails with 'unstaged changes' error.\n"
+        )
     if command == "lock":
         return "git lock — Check current lock status\n  Shows lock holder, age, stale/orphan detection.\n"
     if command == "unlock":
@@ -427,8 +434,21 @@ def get_help(command: str | None = None) -> str:
         )
     if command == "fix":
         return (
-            "git fix — Detect and fix common broken git states (devpulse only)\n"
-            "  Fixes stuck rebases, detached HEAD, diverged branches, dirty index.\n"
+            "git fix [--dry-run] — Detect and fix common broken git states (devpulse only)\n"
+            "\n"
+            "Detected states and actions:\n"
+            "  Stuck rebase   .git/rebase-merge or rebase-apply exists\n"
+            "                 → git rebase --abort\n"
+            "  Detached HEAD  HEAD is not on a named branch\n"
+            "                 → git checkout main\n"
+            "  Diverged       local main and origin/main have diverged\n"
+            "                 → git fetch + git merge origin/main --no-edit\n"
+            "  Dirty index    files are staged but not committed\n"
+            "                 → git reset HEAD  (unstages all)\n"
+            "\n"
+            "Options:\n"
+            "  --dry-run   Report detected states and proposed actions without\n"
+            "              executing any fixes. Safe to run anytime.\n"
         )
 
     return (

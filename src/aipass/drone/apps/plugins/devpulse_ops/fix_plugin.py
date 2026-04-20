@@ -85,7 +85,64 @@ def _fix_divergence(repo_root: Path, actions: list[str]) -> None:
     logger.warning("fix_git_state: merge conflict ahead=%d behind=%d", ahead, behind)
 
 
-def fix_git_state(caller: str) -> dict:
+def _detect_only(repo_root: Path, git_dir: Path) -> dict:
+    """Run all fix checks and report detected states without executing any fixes."""
+    detected: list[str] = []
+
+    if (git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists():
+        detected.append("Stuck rebase → would run: git rebase --abort")
+
+    sym_ref = subprocess.run(
+        ["git", "symbolic-ref", "-q", "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+    )
+    if sym_ref.returncode != 0:
+        detected.append("Detached HEAD → would run: git checkout main")
+
+    fetch = subprocess.run(
+        ["git", "fetch", "origin"],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+    )
+    if fetch.returncode == 0:
+        rev_list = subprocess.run(
+            ["git", "rev-list", "--left-right", "--count", "main...origin/main"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        if rev_list.returncode == 0:
+            parts = rev_list.stdout.strip().split()
+            ahead = int(parts[0]) if len(parts) >= 1 else 0
+            behind = int(parts[1]) if len(parts) >= 2 else 0
+            if ahead > 0 and behind > 0:
+                detected.append(
+                    f"Diverged from origin (ahead={ahead}, behind={behind})"
+                    " → would run: git merge origin/main --no-edit"
+                )
+
+    cached = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+    )
+    if cached.returncode == 0 and cached.stdout.strip():
+        n = len(cached.stdout.strip().splitlines())
+        detected.append(f"Dirty index ({n} staged file(s)) → would run: git reset HEAD")
+
+    if detected:
+        msg = "Dry run — would fix:\n  " + "\n  ".join(detected)
+    else:
+        msg = "Dry run — git state looks clean, nothing to fix"
+
+    return {"success": True, "actions_taken": [], "message": msg}
+
+
+def fix_git_state(caller: str, dry_run: bool = False) -> dict:
     """Detect and fix common broken git states.
 
     Checks are run in sequence; multiple fixes can happen in one call.
@@ -107,6 +164,9 @@ def fix_git_state(caller: str) -> dict:
     }
 
     try:
+        if dry_run:
+            return _detect_only(repo_root, git_dir)
+
         # Check 1: Stuck in rebase
         rebase_merge = git_dir / "rebase-merge"
         rebase_apply = git_dir / "rebase-apply"

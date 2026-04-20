@@ -357,6 +357,40 @@ def _handle_custom_command(args: list[str]) -> int:
     return result.exit_code
 
 
+def _read_inbox_message_id(inbox: Path, n: int) -> str | None:
+    """Return the ID of the Nth message (1-based) from inbox.json, or None."""
+    import json as _json
+
+    try:
+        data = _json.loads(inbox.read_text(encoding="utf-8"))
+        messages = data.get("messages", [])
+        if 1 <= n <= len(messages):
+            return messages[n - 1]["id"]
+    except Exception as exc:
+        logger.warning("Failed to resolve mail index %d: %s", n, exc)
+    return None
+
+
+def _resolve_mail_index(n: int) -> str:
+    """Translate a 1-based inbox list index to a message ID.
+
+    Walks up from CWD to find the branch's .ai_mail.local/inbox.json,
+    returns the ID of the Nth message (1-based). Falls back to str(n)
+    if the inbox cannot be found or index is out of range.
+    """
+    cwd = Path.cwd()
+    for parent in [cwd] + list(cwd.parents):
+        if not (parent / ".trinity" / "passport.json").exists():
+            continue
+        inbox = parent / ".ai_mail.local" / "inbox.json"
+        if inbox.exists():
+            msg_id = _read_inbox_message_id(inbox, n)
+            if msg_id is not None:
+                return msg_id
+        break
+    return str(n)
+
+
 def _handle_target(args: List[str]) -> int:
     """Handle `drone @target command [args]` or `drone @target --help`."""
     target = args[0]
@@ -413,6 +447,10 @@ def _handle_target(args: List[str]) -> int:
     # drone @branch command [args...]
     command = rest[0]
     cmd_args = rest[1:]
+
+    # B3: translate numeric inbox index to message ID for @ai_mail view N
+    if module_name == "ai_mail" and command == "view" and cmd_args and cmd_args[0].isdigit():
+        cmd_args = [_resolve_mail_index(int(cmd_args[0]))] + cmd_args[1:]
 
     # needs_interactive already computed above
     interactive = needs_interactive
