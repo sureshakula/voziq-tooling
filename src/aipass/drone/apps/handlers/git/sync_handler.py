@@ -22,13 +22,18 @@ from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.git.lock_handler import find_repo_root
 
 
-def sync_main() -> dict:
+def sync_main(autostash: bool = False) -> dict:
     """Checkout main and pull latest changes.
+
+    Args:
+        autostash: If True, stash local changes before pull and restore after.
+            Use when sync fails with 'unstaged changes' error.
 
     Returns:
         Dict with success (bool), message (str), and stdout (str).
     """
     repo_root = find_repo_root()
+    stashed = False
 
     try:
         checkout = subprocess.run(
@@ -42,6 +47,15 @@ def sync_main() -> dict:
             logger.error(msg)
             return {"success": False, "message": msg, "stdout": checkout.stdout}
 
+        if autostash:
+            stash = subprocess.run(
+                ["git", "stash"],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
+            stashed = "No local changes to save" not in stash.stdout
+
         # Fetch first to get latest remote state
         fetch = subprocess.run(
             ["git", "fetch", "origin"],
@@ -52,6 +66,13 @@ def sync_main() -> dict:
         if fetch.returncode != 0:
             msg = f"Failed to fetch: {fetch.stderr.strip()}"
             logger.error(msg)
+            if stashed:
+                subprocess.run(
+                    ["git", "stash", "pop"],
+                    capture_output=True,
+                    text=True,
+                    cwd=str(repo_root),
+                )
             return {"success": False, "message": msg, "stdout": ""}
 
         # Check divergence to choose strategy
@@ -78,6 +99,13 @@ def sync_main() -> dict:
             if result.returncode != 0:
                 msg = f"Merge conflict (ahead={ahead}, behind={behind}): {result.stderr.strip()}"
                 logger.error(msg)
+                if stashed:
+                    subprocess.run(
+                        ["git", "stash", "pop"],
+                        capture_output=True,
+                        text=True,
+                        cwd=str(repo_root),
+                    )
                 return {"success": False, "message": msg, "stdout": result.stdout}
             stdout = result.stdout.strip()
             msg = f"Synced main via merge (was ahead={ahead}, behind={behind}): {stdout}"
@@ -90,13 +118,39 @@ def sync_main() -> dict:
                 cwd=str(repo_root),
             )
             if result.returncode != 0:
-                msg = f"Failed to pull: {result.stderr.strip()}"
+                raw = result.stderr.strip()
+                msg = f"Failed to pull: {raw}"
+                if not autostash and ("unstaged changes" in raw or "uncommitted changes" in raw):
+                    msg += "\n  Tip: retry with 'drone @git sync --autostash' to stash local changes first"
                 logger.error(msg)
+                if stashed:
+                    subprocess.run(
+                        ["git", "stash", "pop"],
+                        capture_output=True,
+                        text=True,
+                        cwd=str(repo_root),
+                    )
                 return {"success": False, "message": msg, "stdout": result.stdout}
             stdout = result.stdout.strip()
             msg = f"Synced main: {stdout}"
 
-        json_handler.log_operation("sync_main", {"result": stdout, "ahead": ahead, "behind": behind})
+        if stashed:
+            pop = subprocess.run(
+                ["git", "stash", "pop"],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
+            if pop.returncode != 0:
+                logger.warning(
+                    "sync_main: autostash pop failed (manual restore may be needed): %s",
+                    pop.stderr.strip(),
+                )
+
+        json_handler.log_operation(
+            "sync_main",
+            {"result": stdout, "ahead": ahead, "behind": behind, "autostash": autostash},
+        )
         logger.info(msg)
         return {"success": True, "message": msg, "stdout": stdout}
 
