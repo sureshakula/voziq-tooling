@@ -43,7 +43,7 @@ from aipass.drone.apps.handlers.exceptions import (
 @pytest.fixture
 def registry_dir() -> Generator[Path, None, None]:
     """Isolated temp directory for registry tests; cleaned up after."""
-    d = Path(tempfile.mkdtemp(prefix="reg_test_"))
+    d = Path(tempfile.mkdtemp(prefix="reg_test_")).resolve()
     yield d
     shutil.rmtree(d, ignore_errors=True)
 
