@@ -8,6 +8,7 @@
       "EnterPlanMode",
       "Bash(git add -f*)",
       "Bash(git add --force*)",
+      "Bash(git checkout*)",
       "Read(/home/patrick/Patrick-Personal/**)",
       "Edit(/home/patrick/Patrick-Personal/**)",
       "Write(/home/patrick/Patrick-Personal/**)",
