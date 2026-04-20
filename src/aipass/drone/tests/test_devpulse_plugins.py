@@ -119,7 +119,7 @@ class TestAuthDenialFix:
 
 
 class TestMergePrHappyPath:
-    """merge_pr should squash-merge, pull, and return commit + title."""
+    """merge_pr should merge, pull, and return commit + title."""
 
     @patch("aipass.drone.apps.plugins.devpulse_ops.merge_plugin.find_repo_root")
     @patch("aipass.drone.apps.plugins.devpulse_ops.merge_plugin.subprocess.run")
@@ -496,7 +496,7 @@ class TestGitModuleRouting:
         from aipass.drone.apps.modules.git_module import get_help
 
         help_text = get_help("merge")
-        assert "squash" in help_text.lower() or "Squash" in help_text
+        assert "merge" in help_text.lower()
 
     def test_get_help_smart_sync_specific(self) -> None:
         from aipass.drone.apps.modules.git_module import get_help

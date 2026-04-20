@@ -1,14 +1,14 @@
 # =================== AIPass ====================
 # Name: merge_plugin.py
-# Description: Squash-merge a PR and sync local main
+# Description: Merge a PR and sync local main
 # Version: 1.0.0
 # Created: 2026-03-30
 # Modified: 2026-03-30
 # =============================================
 
-"""Squash-merge a PR and sync local main.
+"""Merge a PR and sync local main.
 
-Squash-merges the given PR number via ``gh``, deletes the remote branch,
+Merges the given PR number via ``gh``, deletes the remote branch,
 pulls to sync local main, and returns the merge commit hash and PR title.
 Only authorized callers (verified via :mod:`auth`) may invoke this.
 """
@@ -23,7 +23,7 @@ from aipass.drone.apps.handlers.git.lock_handler import find_repo_root
 
 
 def merge_pr(pr_number: str, caller: str) -> dict:
-    """Squash-merge a PR and sync local main.
+    """Merge a PR and sync local main.
 
     Args:
         pr_number: The PR number to merge (e.g. ``"42"``).
@@ -43,9 +43,9 @@ def merge_pr(pr_number: str, caller: str) -> dict:
     }
 
     try:
-        # Step 1: Squash-merge the PR
+        # Step 1: Merge the PR
         merge = subprocess.run(
-            ["gh", "pr", "merge", pr_number, "--squash", "--delete-branch"],
+            ["gh", "pr", "merge", pr_number, "--merge", "--delete-branch"],
             capture_output=True,
             text=True,
             cwd=str(repo_root),

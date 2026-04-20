@@ -11,9 +11,9 @@
 Creates PRs from local main commits that are ahead of origin/main.
 If there are uncommitted tracked changes, commits them first (like a
 normal commit), then creates a feature branch at main's current tip,
-pushes it, and opens a PR.  Local main is never moved — after squash-
-merge and pull, git detects the commits are already applied and skips
-them cleanly.
+pushes it, and opens a PR.  Local main is never moved — after the
+straight merge and pull, local commits are already in origin/main's
+ancestry via the merge commit, so git pull fast-forwards cleanly.
 
 Only authorized callers (verified via :mod:`auth`) may invoke this.
 """
@@ -59,8 +59,9 @@ def create_system_pr(description: str, caller: str) -> dict:
     (just a normal commit).  Then creates a feature branch at main's tip,
     pushes it, and opens a PR.  Local main is never artificially moved.
 
-    After GitHub squash-merges the PR, ``git pull --rebase`` detects that
-    the local commits are already applied and skips them cleanly.
+    After GitHub merges the PR, local commits are already in origin/main's
+    ancestry via the merge commit — ``git pull --rebase`` fast-forwards
+    cleanly without replaying any commits.
 
     Args:
         description: Short description for the PR title/commit.

@@ -127,6 +127,21 @@
       "file": "apps/plugins/hook_sounds/hook_sounds_plugin.py",
       "standard": "trigger",
       "reason": "Simple toggle plugin — creates/removes a flag file. No state changes that warrant trigger events."
+    },
+    {
+      "file": "tests/test_devpulse_plugins.py",
+      "standard": "architecture",
+      "reason": "Test file — intentionally outside 3-layer structure. tests/ is a peer of apps/, not part of it."
+    },
+    {
+      "file": "tests/test_devpulse_plugins.py",
+      "standard": "deep_nesting",
+      "reason": "Test mock side_effect closures are necessarily nested inside test methods. Refactoring to top-level breaks test locality."
+    },
+    {
+      "file": "tests/test_devpulse_plugins.py",
+      "standard": "documentation",
+      "reason": "Test methods and mock helpers in this file are pre-existing without docstrings. Class docstrings describe intent; per-method docs would be noise."
     }
   ],
   "notes": {

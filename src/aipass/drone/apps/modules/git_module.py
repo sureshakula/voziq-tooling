@@ -417,8 +417,8 @@ def get_help(command: str | None = None) -> str:
         )
     if command == "merge":
         return (
-            "git merge <PR#> — Squash-merge a PR and sync local main (devpulse only)\n"
-            "  Runs gh pr merge --squash --delete-branch, then git pull --rebase.\n"
+            "git merge <PR#> — Merge a PR and sync local main (devpulse only)\n"
+            "  Runs gh pr merge --merge --delete-branch, then git pull --rebase.\n"
         )
     if command == "smart-sync":
         return (
@@ -437,7 +437,7 @@ def get_help(command: str | None = None) -> str:
         "Commands:\n"
         "  pr <description>       Create a PR with scoped changes\n"
         "  system-pr <desc>       Create a system-wide PR (devpulse only)\n"
-        "  merge <PR#>            Squash-merge a PR (devpulse only)\n"
+        "  merge <PR#>            Merge a PR (devpulse only)\n"
         "  smart-sync             Fetch + rebase if behind (devpulse only)\n"
         "  fix                    Fix broken git states (devpulse only)\n"
         "  status                 Show git status for your branch\n"
@@ -462,7 +462,7 @@ def get_introspective() -> str:
         "  plugins/devpulse_ops/\n"
         "    - auth.py (verify_caller — passport-based authorization)\n"
         "    - pr_plugin.py (create_system_pr — system-wide PR workflow)\n"
-        "    - merge_plugin.py (merge_pr — squash-merge PR + sync)\n"
+        "    - merge_plugin.py (merge_pr — merge PR + sync)\n"
         "    - sync_plugin.py (smart_sync — fetch + rebase if behind)\n"
         "    - fix_plugin.py (fix_git_state — detect/fix broken states)\n"
         "\n"
