@@ -11,6 +11,11 @@
       "reason": "Test file lives in tests/ by convention — outside the 3-layer apps/ structure by design."
     },
     {
+      "file": "tests/test_hooks_probe.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — outside the 3-layer apps/ structure by design."
+    },
+    {
       "file": "tests/test_checkers_batch5.py",
       "standard": "encapsulation",
       "reason": "Unit tests must import handlers directly to test them in isolation. Same pattern as test_checkers_batch4.py."

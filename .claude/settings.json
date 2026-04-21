@@ -3,7 +3,11 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "allow": [],
+    "allow": [
+      "Write(.claude/hooks/probes/**)",
+      "Edit(.claude/hooks/probes/**)",
+      "Bash(mkdir*)"
+    ],
     "deny": [
       "EnterPlanMode",
       "Bash(git add -f*)",
