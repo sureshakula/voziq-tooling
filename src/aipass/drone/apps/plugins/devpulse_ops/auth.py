@@ -20,8 +20,9 @@ from pathlib import Path
 
 from aipass.prax import logger
 from aipass.drone.apps.handlers.json import json_handler
+from aipass.seedgo.apps.modules.permissions import TRUSTED_CROSS_WRITERS
 
-ALLOWED_CALLERS: list[str] = ["devpulse"]
+ALLOWED_CALLERS: list[str] = list(TRUSTED_CROSS_WRITERS)
 
 
 def verify_caller() -> str:
@@ -52,7 +53,7 @@ def verify_caller() -> str:
                     logger.error(msg)
                     raise PermissionError(msg)
                 if name not in ALLOWED_CALLERS:
-                    msg = f"Branch '{name}' is not authorized for system-pr. Allowed callers: {ALLOWED_CALLERS}"
+                    msg = f"Branch '{name}' is not authorized for system-pr. Trusted cross-writers: {ALLOWED_CALLERS}"
                     logger.error(msg)
                     raise PermissionError(msg)
                 json_handler.log_operation(

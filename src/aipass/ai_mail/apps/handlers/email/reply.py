@@ -20,6 +20,7 @@ from datetime import datetime
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
+from aipass.ai_mail.apps.handlers.email.delivery import deliver_to_inbox_file
 
 # Services imported in __main__ only (handlers should not display)
 
@@ -185,31 +186,12 @@ def _deliver_via_reply_path(
         Tuple of (success, message, reply_id or None)
     """
     inbox_file = Path(reply_path)
-    if not inbox_file.exists():
-        return False, f"reply_path inbox not found: {reply_path}", None
+    success, error_msg, reply_id = deliver_to_inbox_file(inbox_file, reply_email_data)
+    if not success:
+        logger.warning("[reply] _deliver_via_reply_path failed for %s: %s", reply_path, error_msg)
+        return False, f"Failed to deliver to reply_path: {error_msg}", None
 
-    try:
-        with open(inbox_file, "r", encoding="utf-8") as f:
-            inbox_data = json.load(f)
-    except Exception as e:
-        logger.warning("[reply] _deliver_via_reply_path read failed %s: %s", reply_path, e)
-        return False, f"Failed to read target inbox: {e}", None
-
-    reply_id = str(uuid.uuid4())[:8]
     reply_email_data["id"] = reply_id
-
-    inbox_data.setdefault("messages", []).insert(0, reply_email_data)
-    inbox_data["total_messages"] = len(inbox_data["messages"])
-    new_count = sum(1 for m in inbox_data["messages"] if m.get("status") == "new" or not m.get("read", False))
-    inbox_data["unread_count"] = new_count
-
-    try:
-        with open(inbox_file, "w", encoding="utf-8") as f:
-            json.dump(inbox_data, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        logger.warning("[reply] _deliver_via_reply_path write failed %s: %s", reply_path, e)
-        return False, f"Failed to write to target inbox: {e}", None
-
     logger.info("[reply] Cross-project reply delivered to %s", reply_path)
 
     # Save to sender's sent folder
