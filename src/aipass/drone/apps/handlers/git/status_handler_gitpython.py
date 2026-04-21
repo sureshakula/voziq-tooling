@@ -38,15 +38,22 @@ Design note (two-library split):
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aipass.prax import logger
 from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.git.lock_handler import find_repo_root
 
+if TYPE_CHECKING:
+    from git import Repo as GitRepo
+
 try:
     import git as _git_module
+
     _GITPYTHON_AVAILABLE = True
-except ImportError:
+except ImportError as exc:
+    logger.info("status_handler_gitpython: GitPython not installed (%s) — handler disabled", exc)
+    _git_module = None  # type: ignore[assignment]
     _GITPYTHON_AVAILABLE = False
 
 
@@ -69,13 +76,13 @@ _UNSTAGED_STATUS_MAP: dict[str, str] = {
 }
 
 
-def _collect_staged(repo: "_git_module.Repo", rel_prefix: str, rel_dir: str) -> list[dict]:
+def _collect_staged(repo: "GitRepo", rel_prefix: str, rel_dir: str) -> list[dict]:
     """Return staged changes that fall under the branch directory."""
     files: list[dict] = []
     try:
         staged_diffs = repo.head.commit.diff()
     except Exception as exc:  # empty repo or detached HEAD
-        logger.debug("status_handler_gitpython: could not get staged diffs: %s", exc)
+        logger.info("status_handler_gitpython: could not get staged diffs: %s", exc)
         return files
 
     for diff in staged_diffs:
@@ -84,12 +91,13 @@ def _collect_staged(repo: "_git_module.Repo", rel_prefix: str, rel_dir: str) -> 
             continue
         if not (path.startswith(rel_prefix) or path == rel_dir):
             continue
-        code = _STAGED_STATUS_MAP.get(diff.change_type, diff.change_type)
+        change_key = diff.change_type or ""
+        code = _STAGED_STATUS_MAP.get(change_key, change_key)
         files.append({"status": code, "path": path})
     return files
 
 
-def _collect_unstaged(repo: "_git_module.Repo", rel_prefix: str, rel_dir: str) -> list[dict]:
+def _collect_unstaged(repo: "GitRepo", rel_prefix: str, rel_dir: str) -> list[dict]:
     """Return unstaged working-tree changes that fall under the branch directory."""
     files: list[dict] = []
     for diff in repo.index.diff(None):
@@ -98,12 +106,13 @@ def _collect_unstaged(repo: "_git_module.Repo", rel_prefix: str, rel_dir: str) -
             continue
         if not (path.startswith(rel_prefix) or path == rel_dir):
             continue
-        code = _UNSTAGED_STATUS_MAP.get(diff.change_type, diff.change_type)
+        change_key = diff.change_type or ""
+        code = _UNSTAGED_STATUS_MAP.get(change_key, change_key)
         files.append({"status": code, "path": path})
     return files
 
 
-def _collect_untracked(repo: "_git_module.Repo", rel_prefix: str, rel_dir: str) -> list[dict]:
+def _collect_untracked(repo: "GitRepo", rel_prefix: str, rel_dir: str) -> list[dict]:
     """Return untracked files that fall under the branch directory."""
     files: list[dict] = []
     for upath in repo.untracked_files:
@@ -127,11 +136,8 @@ def get_branch_status(branch_dir: Path) -> dict:
             total  -- int count of changed files
             message -- human-readable summary string
     """
-    if not _GITPYTHON_AVAILABLE:
-        logger.error(
-            "status_handler_gitpython: GitPython is not installed. "
-            "Run: pip install gitpython"
-        )
+    if not _GITPYTHON_AVAILABLE or _git_module is None:
+        logger.error("status_handler_gitpython: GitPython is not installed. Run: pip install gitpython")
         return {
             "files": [],
             "total": 0,
