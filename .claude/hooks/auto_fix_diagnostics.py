@@ -12,10 +12,9 @@ Key behaviors:
 - Saves ruff lint AND pyright errors to state file for PreToolUse gate (hard block)
 - Surfaces ALL errors in additionalContext so Claude sees them
 
-Version: 5.3.0
+Version: 5.2.0
 
 CHANGELOG:
-  - v5.3.0 (2026-04-20): [SILENT-FIX] label + IDE fallback with loud announce.
   - v5.2.0 (2026-04-20): Save ruff lint errors to state file for hard-block enforcement.
                           Pre-edit gate now blocks on F401/lint just like type errors.
   - v5.1.0 (2026-04-19): Added ruff format --check to surface format drift.
@@ -177,15 +176,11 @@ def run_ruff_lint_structured(file_path: str) -> list[dict]:
         return []
 
 
-def run_pyright_check(file_path: str) -> tuple[list[dict], bool]:
-    """Run pyright on a single file. Returns (errors, fallback_needed).
-
-    fallback_needed is True when pyright is unavailable (FileNotFoundError).
-    Timeout and generic exceptions return ([], False) — silent.
-    """
+def run_pyright_check(file_path: str) -> list[dict]:
+    """Run pyright on a single file. Returns list of error dicts."""
     # Skip hook files - they don't follow project standards
     if '/.claude/hooks/' in file_path:
-        return [], False
+        return []
 
     try:
         result = subprocess.run(
@@ -198,7 +193,7 @@ def run_pyright_check(file_path: str) -> tuple[list[dict], bool]:
         try:
             data = json.loads(result.stdout)
         except (json.JSONDecodeError, ValueError):
-            return [], False
+            return []
 
         errors = []
         for diag in data.get("generalDiagnostics", []):
@@ -211,14 +206,14 @@ def run_pyright_check(file_path: str) -> tuple[list[dict], bool]:
                     "message": message[:100]
                 })
 
-        return errors[:10], False  # Max 10 errors
+        return errors[:10]  # Max 10 errors
 
     except FileNotFoundError:
-        return [], True  # pyright not installed — signal fallback needed
+        return []  # pyright not installed
     except subprocess.TimeoutExpired:
-        return [], False  # Timeout — don't block
+        return []  # Timeout — don't block
     except Exception:
-        return [], False
+        return []
 
 
 def save_diagnostics_state(file_path: str, errors: list[dict]):
@@ -343,7 +338,6 @@ def main():
         # Collect all errors
         errors = []
         file_type = ""
-        fallback_needed = False
 
         if file_path.endswith(".py"):
             file_type = "Python"
@@ -355,9 +349,7 @@ def main():
                 errors.append(f"SEEDGO: {v}")
 
             # Pyright type errors (single file)
-            type_errors, fallback_needed = run_pyright_check(file_path)
-            if fallback_needed:
-                print("[FALLBACK ENGAGED: IDE diagnostics — VS Code only]", file=sys.stderr, flush=True)
+            type_errors = run_pyright_check(file_path)
             for te in type_errors:
                 errors.append(f"TYPE: L{te['line']}: {te['message']}")
 
@@ -374,16 +366,17 @@ def main():
         # Build output
         if errors:
             error_text = "\n".join(f"  - {e}" for e in errors)
-            context = f"[SILENT-FIX] {len(errors)} error(s) in {Path(file_path).name}:\n{error_text}\n\nFix these silently — do not announce or explain, just fix and continue."
-            if fallback_needed:
-                context += "\n\n[FALLBACK] pyright unavailable — run mcp__ide__getDiagnostics to check type errors. VS Code only. Non-VS-Code users: this check is a no-op."
+            context = f"""[AUTO-FIX] {len(errors)} error(s) in {Path(file_path).name}:
+{error_text}
+
+Fix these errors in {Path(file_path).name} now. Do not skip or defer."""
 
             output = {
                 "hookSpecificOutput": {
                     "hookEventName": "PostToolUse",
                     "additionalContext": context
                 },
-                "systemMessage": f"[SILENT-FIX] {len(errors)} error(s) — fix before continuing"
+                "systemMessage": f"[AUTO-FIX] {len(errors)} error(s) — fix before continuing"
             }
             print(json.dumps(output))
         else:

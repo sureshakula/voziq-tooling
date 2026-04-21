@@ -86,13 +86,15 @@ def _is_applicable(checker, file_path: str) -> bool:
     Rules based on AUDIT_SCOPE:
       - "entry_point" (default) -> only apps/{name}.py files
       - "all_files"             -> any .py file
-      - "branch_level"          -> not applicable to single-file checks
+      - "branch_level"          -> normally skipped, but eligible if checker
+                                   also implements check_module() for per-file use
     """
     scope = getattr(checker, "AUDIT_SCOPE", "entry_point")
 
-    # Branch-level checkers need a branch path, not a single file
+    # Branch-level checkers skip per-file runs UNLESS they also implement
+    # check_module() for targeted single-file validation (e.g., ruff_check)
     if scope == "branch_level":
-        return False
+        return hasattr(checker, "check_module") and file_path.endswith(".py")
 
     # Only check_module() capable checkers
     if not hasattr(checker, "check_module"):

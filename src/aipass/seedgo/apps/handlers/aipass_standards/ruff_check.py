@@ -1,20 +1,24 @@
 # =================== AIPass ====================
 # Name: ruff_check.py
 # Description: Ruff Linter Standards Checker Handler
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-04-16
-# Modified: 2026-04-16
+# Modified: 2026-04-20
 # =============================================
 
 """
 Ruff Linter Standards Checker Handler
 
-Runs ruff against a branch's apps/ directory and scores based on violation
-count. Prevents ruff debt from silently re-accumulating after a cleanup.
+Two modes:
+- check_branch(): runs ruff across entire apps/ tree (used by audit pipeline,
+  AUDIT_SCOPE = branch_level, ADVISORY = always-passes)
+- check_module(): runs ruff on a single file (used by checklist/per-file hooks,
+  returns passed=False on violations so subagent_stop_gate can block)
 
-AUDIT_SCOPE: branch_level — runs once per branch, ruff walks the tree.
-ADVISORY: surfaces violations and score but always passes overall.
-          Promote to required once all branches are clean.
+AUDIT_SCOPE: branch_level — audit pipeline uses check_branch() once per branch.
+  Checkers that also implement check_module() are eligible for per-file checklist runs.
+ADVISORY: check_branch() surfaces violations but always passes (advisory score).
+          check_module() returns passed=False so checklist/hooks can block.
 """
 
 import json
@@ -93,6 +97,123 @@ def _score_from_count(count: int) -> int:
     if count <= 100:
         return 50
     return 25
+
+
+def _find_ruff_bypass_from_file(file_path: str) -> list:
+    """Walk up from file_path to find .seedgo/ruff_bypass.json at the branch root."""
+    fp = Path(file_path).resolve()
+    for parent in list(fp.parents):
+        candidate = parent / ".seedgo" / "ruff_bypass.json"
+        if candidate.exists():
+            try:
+                data = json.loads(candidate.read_text(encoding="utf-8"))
+                return data if isinstance(data, list) else []
+            except Exception as exc:
+                logger.warning("Failed to load ruff_bypass.json at %s: %s", candidate, exc)
+                return []
+        if (parent / ".git").exists():
+            break
+    return []
+
+
+def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
+    """Run ruff check on a single file.
+
+    Used by checklist mode and subagent_stop_gate for per-file enforcement.
+    Returns passed=False when violations exist so hooks can block.
+
+    Args:
+        module_path: Absolute path to the Python file to check.
+        bypass_rules: Standard bypass rules from .seedgo/bypass.json
+
+    Returns:
+        dict with passed, checks, score, standard keys.
+    """
+    fp = Path(module_path)
+
+    if is_bypassed(module_path, "ruff_check", bypass_rules=bypass_rules):
+        return {
+            "passed": True,
+            "checks": [{"name": "Ruff check", "passed": True, "message": "Standard bypassed via .seedgo/bypass.json"}],
+            "score": 100,
+            "standard": "RUFF_CHECK",
+        }
+
+    if shutil.which("ruff") is None:
+        return {
+            "passed": True,
+            "checks": [{"name": "Ruff check", "passed": True, "message": "ruff not installed — check skipped"}],
+            "score": 100,
+            "standard": "RUFF_CHECK",
+        }
+
+    ruff_bypass = _find_ruff_bypass_from_file(module_path)
+
+    try:
+        proc = subprocess.run(
+            ["ruff", "check", str(fp), "--output-format=json"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning("ruff check_module timed out on %s", module_path)
+        return {
+            "passed": True,
+            "checks": [{"name": "Ruff check", "passed": True, "message": "ruff check timed out — skipped"}],
+            "score": 100,
+            "standard": "RUFF_CHECK",
+        }
+    except Exception as exc:
+        logger.warning("ruff check_module failed on %s: %s", module_path, exc)
+        return {
+            "passed": True,
+            "checks": [{"name": "Ruff check", "passed": True, "message": f"ruff error — skipped: {exc}"}],
+            "score": 100,
+            "standard": "RUFF_CHECK",
+        }
+
+    violations: list = []
+    if proc.stdout.strip():
+        try:
+            violations = json.loads(proc.stdout)
+            if not isinstance(violations, list):
+                violations = []
+        except (json.JSONDecodeError, ValueError) as exc:
+            logger.warning("ruff JSON parse failed for %s: %s", module_path, exc)
+            violations = []
+
+    active = [v for v in violations if not _is_ruff_bypassed(v, ruff_bypass)]
+    count = len(active)
+
+    if count == 0:
+        json_handler.log_operation(
+            "check_completed",
+            {"file": module_path, "score": 100, "standard": "ruff_check"},
+        )
+        return {
+            "passed": True,
+            "checks": [{"name": "Ruff check", "passed": True, "message": "No ruff violations found"}],
+            "score": 100,
+            "standard": "RUFF_CHECK",
+        }
+
+    top = active[:5]
+    msgs = [f"{v.get('code', '?')} L{v.get('location', {}).get('row', '?')}: {v.get('message', '?')[:80]}" for v in top]
+    suffix = f" (and {count - 5} more)" if count > 5 else ""
+    detail = f"{count} violation(s) — " + "; ".join(msgs) + suffix
+
+    json_handler.log_operation(
+        "check_completed",
+        {"file": module_path, "score": 0, "standard": "ruff_check", "violations": count},
+    )
+
+    return {
+        "passed": False,
+        "checks": [{"name": "Ruff check", "passed": False, "message": detail}],
+        "score": 0,
+        "standard": "RUFF_CHECK",
+    }
 
 
 def check_branch(branch_path: str, bypass_rules: list | None = None) -> Dict:
