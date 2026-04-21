@@ -11,8 +11,6 @@
 import inspect
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestIsWakeBlocked:
     """Unit tests for is_wake_blocked() and WAKE_BLOCKLIST constant."""

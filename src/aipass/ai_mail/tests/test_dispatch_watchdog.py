@@ -11,7 +11,6 @@
 import json
 from unittest.mock import patch, MagicMock
 import pytest
-from pathlib import Path
 
 import aipass.ai_mail.apps.modules.dispatch as dispatch_mod
 

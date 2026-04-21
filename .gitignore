@@ -135,3 +135,4 @@ STATUS.local.md
 # It stays local. Never appears in git.
 src/aipass/*/apps/integrations/**
 !src/aipass/*/apps/integrations/README.md
+.coverage
