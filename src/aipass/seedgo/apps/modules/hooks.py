@@ -48,6 +48,9 @@ from aipass.cli.apps.modules import warning
 # JSON handler for tracking
 from aipass.seedgo.apps.handlers.json import json_handler
 
+# File handler — modules must not call open()/write_text() directly
+from aipass.seedgo.apps.handlers.file import write_text_safe
+
 # Extended subcommands (test + list)
 from aipass.seedgo.apps.modules.hooks_ext import cmd_hooks_list, cmd_hooks_test
 
@@ -206,10 +209,8 @@ def _cmd_probe_display(log_path: Path | None = None) -> None:
 def _run_headless_claude() -> int:
     """Spawn headless claude with a Read tool call. Returns exit code."""
     canary = Path("/tmp/probe_canary.txt")
-    try:
-        canary.write_text("probe canary 2026-04-20\n", encoding="utf-8")
-    except OSError as exc:
-        logger.info("hooks.py: could not write canary: %s", exc)
+    if not write_text_safe(canary, "probe canary 2026-04-20\n"):
+        logger.info("hooks.py: could not write canary")
 
     console.print("[dim]Spawning headless claude...[/dim]")
     # --permission-mode bypassPermissions is the AIPass-approved bypass flag
@@ -545,8 +546,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     if command != "hooks":
         return False
 
-    # No args or help -> introspection
-    if not args or args[0] in ("--help", "-h", "help"):
+    if not args:
+        print_introspection()
+        return True
+    if args[0] in ("--help", "-h", "help"):
         print_introspection()
         return True
 

@@ -17,16 +17,13 @@ Extended subcommands for hooks.py — split out to keep hooks.py under 700 lines
 
 import glob as _glob
 import json
-import re
-import subprocess
-import sys
-import time
 from pathlib import Path
 
 from aipass.prax import logger
 from aipass.cli import console
 from aipass.cli.apps.modules import warning
-from aipass.seedgo.apps.handlers.file import read_lines_safe
+from aipass.seedgo.apps.handlers.file import read_lines_safe, read_text_safe
+from aipass.seedgo.apps.handlers.hooks import run_pytest_file
 from aipass.seedgo.apps.handlers.json import json_handler
 from rich.table import Table
 
@@ -34,25 +31,6 @@ from rich.table import Table
 # =============================================================================
 # SUBCOMMAND: hooks test
 # =============================================================================
-
-
-def _parse_pytest_counts(stdout: str) -> tuple[int, int]:
-    """Parse passed/failed counts from pytest -q output. Returns (passed, failed)."""
-    passed = 0
-    failed = 0
-    for line in stdout.splitlines():
-        line = line.strip()
-        if "passed" in line or "failed" in line or "error" in line.lower():
-            m_passed = re.search(r"(\d+) passed", line)
-            m_failed = re.search(r"(\d+) failed", line)
-            m_error = re.search(r"(\d+) error", line)
-            if m_passed:
-                passed = int(m_passed.group(1))
-            if m_failed:
-                failed = int(m_failed.group(1))
-            if m_error:
-                failed += int(m_error.group(1))
-    return passed, failed
 
 
 def cmd_hooks_test(repo_root: Path) -> None:
@@ -82,16 +60,7 @@ def cmd_hooks_test(repo_root: Path) -> None:
 
     for tf in test_files:
         stem = Path(tf).stem
-        t0 = time.monotonic()
-        proc = subprocess.run(
-            [sys.executable, "-m", "pytest", tf, "--tb=no", "-q", "--no-header"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=str(repo_root),
-        )
-        duration = time.monotonic() - t0
-        passed, failed = _parse_pytest_counts(proc.stdout)
+        passed, failed, duration = run_pytest_file(Path(tf), repo_root)
         total_passed += passed
         total_failed += failed
         status = (
@@ -126,10 +95,14 @@ def read_settings_file(path: Path) -> dict:
     """Read and parse a settings.json file. Returns {} on failure."""
     if not path.exists():
         return {}
+    text = read_text_safe(path)
+    if text is None:
+        logger.info("hooks_ext.py: could not read %s", path)
+        return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(text)
     except Exception as exc:
-        logger.info("hooks_ext.py: could not read %s: %s", path, exc)
+        logger.info("hooks_ext.py: could not parse %s: %s", path, exc)
         return {}
 
 

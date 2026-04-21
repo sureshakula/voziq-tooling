@@ -33,3 +33,12 @@ def read_lines_safe(path: Path, n: int = 0, encoding: str = "utf-8") -> list[str
             return fh.readlines()
     except OSError:
         return []
+
+
+def write_text_safe(path: Path, text: str, encoding: str = "utf-8") -> bool:
+    """Write text to a file. Returns True on success, False on OSError."""
+    try:
+        path.write_text(text, encoding=encoding)
+        return True
+    except OSError:
+        return False
