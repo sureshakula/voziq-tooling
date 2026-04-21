@@ -57,7 +57,11 @@ Workflow:
 2. Make edits directly on main.
 3. When the work is ready to ship: `drone @git system-pr "description"`.
 4. That command commits + branches + pushes + PRs + returns you to main. One action.
-5. Devpulse reviews + merges with `drone @git merge <PR#>`.
+5. STOP. The user merges. Do not run `drone @git merge` unless the user explicitly tells you to merge a specific PR number in this session.
+
+Never merge. Ever. User-merges-only. Past PRs, your own PRs, closed PRs — none of them auto-qualify. You fix, you PR, you stop.
+
+Local files are source of truth. When you edit a file, the state on disk IS reality — you don't wait for a merge to act on what you see locally. This also means: if the truth is wrong, fix it locally, then PR.
 
 Why this matters: the AIPass repo has ONE shared HEAD across all branches. If any agent lingers on a non-main HEAD, every other agent's next edit lands on the wrong branch. Files get stranded. Work gets lost. Conflicts pile up. We've lived this pain — don't repeat it.
 

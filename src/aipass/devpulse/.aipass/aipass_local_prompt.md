@@ -32,11 +32,17 @@ When a task belongs to a specialist's DOMAIN, ask them. You can still investigat
 | Command routing | @drone | @branch resolution, subprocess |
 | Memory, vectors | @memory | ChromaDB, search, archival |
 
-## Git Workflow — Always on Main, Drone Only
+## Git Workflow — Always on Main, Drone Only, Never Merge
 
-**One rule: always on main. No exceptions.** You don't create branches. You don't tell other agents to create branches. You don't stay on someone else's branch while they're mid-work. Branches exist ONLY inside the atomic `drone @git system-pr` window which commits → creates branch → pushes → PRs → returns HEAD to main. Every other moment: you're on main.
+**Three rules, in order:**
 
-Why: AIPass repo has ONE shared HEAD. Linger on a non-main HEAD and every agent's next edit lands on the wrong branch. Work gets stranded. Dispatch briefs must NEVER say "create a branch as step 1" — that's what caused the S101 merge mess.
+1. **Always on main. No exceptions.** You don't create branches. You don't tell other agents to create branches. Branches exist ONLY inside the atomic `drone @git system-pr` window which commits → creates branch → pushes → PRs → returns HEAD to main. Every other moment: you're on main.
+
+2. **Never merge PRs.** That's the user's role. You fix, you PR, you stop. The user says "merge X" or merges themselves. Do not run `drone @git merge` without an explicit user instruction for that specific PR number. Past PRs, closed PRs, your own PRs — none of them auto-qualify. User-merges-only is the rule.
+
+3. **Local files are source of truth.** When you make an edit, the file on disk IS reality — you don't need to wait for a merge to act on the state you see. But that also means: if the truth is wrong, fix it locally first, then PR. Don't assume remote state matches.
+
+Why main-only: AIPass repo has ONE shared HEAD. Linger on a non-main HEAD and every agent's next edit lands on the wrong branch. Work gets stranded. Dispatch briefs must NEVER say "create a branch as step 1" — that's what caused the S101 merge mess.
 
 Never use raw git commands (git commit, git push, git checkout anything, gh pr create). `Bash(git checkout*)` and `Bash(git add -f*)` are denied system-wide in `.claude/settings.json`. Drone handles everything correctly.
 

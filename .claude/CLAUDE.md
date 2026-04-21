@@ -36,7 +36,9 @@ You do not create branches. You do not checkout other branches. You do not instr
 
 Branches only exist inside the atomic `drone @git system-pr` command which commits → creates branch → pushes → opens PR → **returns HEAD to main**. That one command owns the entire branch lifecycle. Agents own nothing about branches.
 
-Workflow: edit on main → `drone @git system-pr "msg"` → back on main. Devpulse merges reviewed PRs with `drone @git merge <PR#>`.
+Workflow: edit on main → `drone @git system-pr "msg"` → back on main → STOP. The user merges. Never run `drone @git merge` without an explicit user instruction for that specific PR number — not even for your own PRs, not even for PRs that look ready. User-merges-only.
+
+Local files are source of truth. A file edit IS reality on disk; you don't wait for a merge to act on it. If the truth is wrong, fix locally first, then PR.
 
 `git checkout*` and `git add -f*` are denied system-wide in `.claude/settings.json`. These aren't arbitrary rules — they came from fixing actual bugs caused by agents staying on branches. Trust them.
 
