@@ -378,6 +378,69 @@ def deliver_email_to_branch(
     return True, ""
 
 
+def deliver_to_inbox_file(inbox_file: Path, email_data: Dict) -> Tuple[bool, str, str]:
+    """Write *email_data* to an inbox.json file and fire a desktop notification.
+
+    Single canonical path for direct-path delivery (used by cross-project
+    reply.py to replace the raw-write backdoor).  Always fires notify-send.
+
+    Args:
+        inbox_file: Absolute path to the target inbox.json.
+        email_data: Dict with at minimum ``from``, ``to``, ``subject``,
+                    ``message``, ``timestamp``.  An ``id`` key is assigned
+                    internally if absent.
+
+    Returns:
+        ``(success, error_msg, reply_id)`` — ``reply_id`` is the 8-char hex
+        string assigned to the message (empty string on failure).
+    """
+    if not inbox_file.exists():
+        return False, f"inbox not found: {inbox_file}", ""
+
+    try:
+        with _get_inbox_lock()(inbox_file):
+            try:
+                with open(inbox_file, "r", encoding="utf-8") as fh:
+                    inbox_data = json.load(fh)
+            except Exception as exc:
+                logger.warning("[delivery] deliver_to_inbox_file read failed %s: %s", inbox_file, exc)
+                return False, f"Failed to read inbox: {exc}", ""
+
+            inbox_data = _migrate_inbox_format(inbox_data, inbox_file)
+
+            reply_id = str(uuid.uuid4())[:8]
+            email_data = dict(email_data)
+            email_data.setdefault("id", reply_id)
+            reply_id = email_data["id"]
+
+            inbox_data.setdefault("messages", []).insert(0, email_data)
+            inbox_data["total_messages"] = len(inbox_data["messages"])
+            inbox_data["unread_count"] = sum(
+                1
+                for m in inbox_data["messages"]
+                if m.get("status") == "new" or (m.get("status") is None and not m.get("read", False))
+            )
+
+            try:
+                with open(inbox_file, "w", encoding="utf-8") as fh:
+                    json.dump(inbox_data, fh, indent=2, ensure_ascii=False)
+            except Exception as exc:
+                logger.warning("[delivery] deliver_to_inbox_file write failed %s: %s", inbox_file, exc)
+                return False, f"Failed to write inbox: {exc}", ""
+
+    except OSError as exc:
+        logger.warning("[delivery] deliver_to_inbox_file lock failed %s: %s", inbox_file, exc)
+        return False, f"Failed to acquire inbox lock: {exc}", ""
+
+    _send_desktop_notification(
+        email_data.get("from", "@unknown"),
+        email_data.get("to", str(inbox_file)),
+        email_data.get("subject", ""),
+        email_data.get("message", ""),
+    )
+    return True, "", reply_id
+
+
 _NOTIFICATION_TIMESTAMPS: Dict[str, List[float]] = {}
 
 # Rate limit: max notifications per recipient within time window

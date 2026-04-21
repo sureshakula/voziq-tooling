@@ -136,3 +136,5 @@ STATUS.local.md
 src/aipass/*/apps/integrations/**
 !src/aipass/*/apps/integrations/README.md
 .coverage
+claude_4_7_transition_notes.md
+.claude/hooks/probes/last_ping.jsonl
