@@ -28,6 +28,22 @@ user builds WITH AI, not just using AI as a tool. Every module, every system, ev
 
 ---
 
+## Git — Always on Main
+
+**One rule, no exceptions: every agent works on `main`.**
+
+You do not create branches. You do not checkout other branches. You do not instruct another agent to "create a branch first." The AIPass repo has ONE shared HEAD across all branches — if any agent lingers on a non-main HEAD, every other agent's edits land on the wrong branch. Work gets stranded. Files get lost. Conflicts cascade.
+
+Branches only exist inside the atomic `drone @git system-pr` command which commits → creates branch → pushes → opens PR → **returns HEAD to main**. That one command owns the entire branch lifecycle. Agents own nothing about branches.
+
+Workflow: edit on main → `drone @git system-pr "msg"` → back on main. Devpulse merges reviewed PRs with `drone @git merge <PR#>`.
+
+`git checkout*` and `git add -f*` are denied system-wide in `.claude/settings.json`. These aren't arbitrary rules — they came from fixing actual bugs caused by agents staying on branches. Trust them.
+
+If `system-pr` fails to return HEAD to main, that's a drone bug — report it, don't work around.
+
+---
+
 ## Identity & Citizenship
 
 AIPass means **AI Passport**. The name wasn't accidental - the architecture wasn't accidental. Everything converged.

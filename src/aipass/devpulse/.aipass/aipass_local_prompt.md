@@ -32,9 +32,13 @@ When a task belongs to a specialist's DOMAIN, ask them. You can still investigat
 | Command routing | @drone | @branch resolution, subprocess |
 | Memory, vectors | @memory | ChromaDB, search, archival |
 
-## Git Workflow — Drone Only
+## Git Workflow — Always on Main, Drone Only
 
-Never use raw git commands (git commit, git push, git checkout anything, gh pr create). `Bash(git checkout*)` and `Bash(git add -f*)` are denied system-wide in `.claude/settings.json`. Every time raw git is used, it causes divergence, rebase conflicts, and wasted time fixing the mess. Drone handles everything correctly.
+**One rule: always on main. No exceptions.** You don't create branches. You don't tell other agents to create branches. You don't stay on someone else's branch while they're mid-work. Branches exist ONLY inside the atomic `drone @git system-pr` window which commits → creates branch → pushes → PRs → returns HEAD to main. Every other moment: you're on main.
+
+Why: AIPass repo has ONE shared HEAD. Linger on a non-main HEAD and every agent's next edit lands on the wrong branch. Work gets stranded. Dispatch briefs must NEVER say "create a branch as step 1" — that's what caused the S101 merge mess.
+
+Never use raw git commands (git commit, git push, git checkout anything, gh pr create). `Bash(git checkout*)` and `Bash(git add -f*)` are denied system-wide in `.claude/settings.json`. Drone handles everything correctly.
 
 ```
 drone @git system-pr "description"   # System-wide PR (devpulse only) — commit, branch, push, PR, back to main

@@ -46,6 +46,39 @@ Secrets live outside the repo at `~/.secrets/aipass/` — API keys, tokens, cred
  - `drone systems` — list all registered branches
  - `drone --help` — full drone reference
 
+# Git — Always on Main
+
+**ONE rule: every agent works on `main`. No exceptions.**
+
+You do not create branches. You do not `git checkout -b`. You do not tell another agent to "create a branch first." Branches only exist during the atomic window inside `drone @git system-pr` which: commits → creates branch → pushes → opens PR → **returns HEAD to main**. That command owns the branch lifecycle end to end. You own nothing about branches.
+
+Workflow:
+1. You're on main. Always.
+2. Make edits directly on main.
+3. When the work is ready to ship: `drone @git system-pr "description"`.
+4. That command commits + branches + pushes + PRs + returns you to main. One action.
+5. Devpulse reviews + merges with `drone @git merge <PR#>`.
+
+Why this matters: the AIPass repo has ONE shared HEAD across all branches. If any agent lingers on a non-main HEAD, every other agent's next edit lands on the wrong branch. Files get stranded. Work gets lost. Conflicts pile up. We've lived this pain — don't repeat it.
+
+Rules exist to help, not to control. These rules came from fixing actual bugs. Trust them.
+
+Allowed:
+ - `drone @git status` — what changed?
+ - `drone @git sync` — pull latest main
+ - `drone @git system-pr "msg"` — ship your work (devpulse only)
+ - `drone @git merge <PR#>` — squash-merge a reviewed PR (devpulse only)
+ - `drone @git smart-sync` — fetch + rebase (devpulse only)
+ - `drone @git fix` — repair broken git states (devpulse only)
+ - `git status`, `git diff`, `git log` — read-only, always fine
+
+Forbidden (denied system-wide in `.claude/settings.json`):
+ - `git checkout*` — any form, including `-b`, `-`, branch names
+ - `git add -f*` / `--force*`
+ - Culturally avoid `git commit`, `git push`, `gh pr create` directly — go through drone
+
+If `drone @git system-pr` fails to return HEAD to main, that's a drone bug — report it, don't work around it by staying on a branch.
+
 # aipass init
 
 `aipass init` bootstraps an AIPass project in any directory, inside or outside the repo. One command creates the registry, identity, memory, and local prompt so any folder becomes an AI-powered workspace with persistent memory and structure. Spawn can then add full agent scaffolding on top.
