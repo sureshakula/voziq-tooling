@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-PostToolUse Auto-fix Hook — Detects type errors and surfaces them for fixing.
+PostToolUse Auto-fix Hook — Detects errors and surfaces them for fixing.
 
 Two-hook system:
-  PostToolUse (this file) → runs pyright on edited file, saves errors to state
+  PostToolUse (this file) → runs pyright + ruff on edited file, saves errors to state
   PreToolUse (pre_edit_gate.py) → blocks edits to OTHER files until errors fixed
 
 Key behaviors:
-- Runs py_compile (syntax), ruff (lint), pyright (type errors) on edited file
+- Runs py_compile (syntax), ruff lint+format, pyright (type errors) on edited file
 - Runs seedgo checklist for AIPass standards
-- Saves type errors to state file for PreToolUse gate
+- Saves ruff lint AND pyright errors to state file for PreToolUse gate (hard block)
 - Surfaces ALL errors in additionalContext so Claude sees them
-- Smart batching per-file
 
-Version: 5.1.0
+Version: 5.2.0
 
 CHANGELOG:
+  - v5.2.0 (2026-04-20): Save ruff lint errors to state file for hard-block enforcement.
+                          Pre-edit gate now blocks on F401/lint just like type errors.
   - v5.1.0 (2026-04-19): Added ruff format --check to surface format drift.
   - v5.0.0 (2026-03-17): Replaced mcp__ide__getDiagnostics with direct pyright.
                           Added state file for PreToolUse gate integration.
@@ -143,6 +144,36 @@ def run_python_checks(file_path: str) -> list[str]:
         pass
 
     return errors
+
+
+
+def run_ruff_lint_structured(file_path: str) -> list[dict]:
+    """Run ruff check and return structured violations for the state file.
+
+    Returns list of {line, message} dicts — same format as pyright errors.
+    Only non-empty when ruff finds real violations (not format drift).
+    """
+    if '/.claude/hooks/' in file_path:
+        return []
+    try:
+        result = subprocess.run(
+            ["ruff", "check", "--select=E,F,W", "--output-format=json", file_path],
+            capture_output=True, text=True, timeout=10
+        )
+        if not result.stdout.strip():
+            return []
+        violations = json.loads(result.stdout)
+        if not isinstance(violations, list):
+            return []
+        errors = []
+        for v in violations[:10]:
+            line = v.get("location", {}).get("row", 0)
+            code = v.get("code", "?")
+            message = v.get("message", "unknown")[:100]
+            errors.append({"line": line, "message": f"{code}: {message}"})
+        return errors
+    except (FileNotFoundError, json.JSONDecodeError, subprocess.TimeoutExpired, Exception):
+        return []
 
 
 def run_pyright_check(file_path: str) -> list[dict]:
@@ -322,8 +353,9 @@ def main():
             for te in type_errors:
                 errors.append(f"TYPE: L{te['line']}: {te['message']}")
 
-            # Save type errors to state file for PreToolUse gate
-            save_diagnostics_state(file_path, type_errors)
+            # Save ruff lint + type errors to state file for PreToolUse gate (hard block)
+            ruff_lint_errors = run_ruff_lint_structured(file_path)
+            save_diagnostics_state(file_path, ruff_lint_errors + type_errors)
 
         elif file_path.endswith(".json"):
             file_type = "JSON"
