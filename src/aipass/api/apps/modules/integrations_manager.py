@@ -101,6 +101,19 @@ def _run_call(contract_name: str, args: List[str]) -> int:
     return 0
 
 
+def fetch_contracts() -> dict:
+    """Return contract listing result dict. Called from tests/test_integrations.py."""
+    return get_contracts(list_contracts())
+
+
+def call_contract(contract_name: str, args: list) -> dict:
+    """Resolve and invoke a contract driver. Called from tests/test_integrations.py."""
+    driver_fn = resolve(contract_name)
+    if driver_fn is None:
+        return {"result": None, "success": False, "error": f"contract '{contract_name}' not registered"}
+    return invoke(driver_fn, contract_name, args)
+
+
 def handle_command(command: str, args: List[str]) -> bool:
     """
     Handle integrations subcommands.
