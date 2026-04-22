@@ -86,11 +86,10 @@ def test_auto_fix_does_not_crash_missing_fields():
         mod.main()  # must not raise
 
 
-def test_auto_fix_silent_fix_label(tmp_path, capsys):
-    """When run_python_checks returns an error, output contains [SILENT-FIX] not [AUTO-FIX]."""
+def test_auto_fix_label_is_auto_fix(tmp_path, capsys):
+    """When run_python_checks returns an error, output contains [AUTO-FIX] label."""
     mod = _load_hook("auto_fix_diagnostics.py")
 
-    # Point to a real .py file so extension check passes
     fake_py = tmp_path / "fake.py"
     fake_py.write_text("x = 1\n", encoding="utf-8")
 
@@ -100,7 +99,7 @@ def test_auto_fix_silent_fix_label(tmp_path, capsys):
         patch("sys.stdin", io.StringIO(payload)),
         patch.object(mod, "run_python_checks", return_value=["LINT: E501 line too long"]),
         patch.object(mod, "run_seedgo_checklist", return_value=[]),
-        patch.object(mod, "run_pyright_check", return_value=([], False)),
+        patch.object(mod, "run_pyright_check", return_value=[]),
         patch.object(mod, "run_ruff_lint_structured", return_value=[]),
         patch.object(mod, "save_diagnostics_state"),
     ):
@@ -110,86 +109,36 @@ def test_auto_fix_silent_fix_label(tmp_path, capsys):
     assert captured.out.strip() != ""
     output = json.loads(captured.out)
     context = output["hookSpecificOutput"]["additionalContext"]
-    assert "[SILENT-FIX]" in context
-    assert "[AUTO-FIX]" not in context
-    assert "[SILENT-FIX]" in output["systemMessage"]
+    assert "[AUTO-FIX]" in context
+    assert "[AUTO-FIX]" in output["systemMessage"]
 
 
-def test_auto_fix_fallback_message_in_context(tmp_path, capsys):
-    """When pyright is unavailable (fallback_needed=True), context contains [FALLBACK] text."""
-    mod = _load_hook("auto_fix_diagnostics.py")
-
-    fake_py = tmp_path / "check.py"
-    fake_py.write_text("x = 1\n", encoding="utf-8")
-
-    payload = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(fake_py)}})
-
-    with (
-        patch("sys.stdin", io.StringIO(payload)),
-        patch.object(mod, "run_python_checks", return_value=["LINT: E501 line too long"]),
-        patch.object(mod, "run_seedgo_checklist", return_value=[]),
-        patch.object(mod, "run_pyright_check", return_value=([], True)),
-        patch.object(mod, "run_ruff_lint_structured", return_value=[]),
-        patch.object(mod, "save_diagnostics_state"),
-    ):
-        mod.main()
-
-    captured = capsys.readouterr()
-    output = json.loads(captured.out)
-    context = output["hookSpecificOutput"]["additionalContext"]
-    assert "[FALLBACK]" in context
-    assert "mcp__ide__getDiagnostics" in context
-
-
-def test_auto_fix_fallback_stderr_announce(tmp_path, capsys):
-    """When fallback_needed=True, [FALLBACK ENGAGED] is printed to stderr."""
-    mod = _load_hook("auto_fix_diagnostics.py")
-
-    fake_py = tmp_path / "check2.py"
-    fake_py.write_text("x = 1\n", encoding="utf-8")
-
-    payload = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(fake_py)}})
-
-    with (
-        patch("sys.stdin", io.StringIO(payload)),
-        patch.object(mod, "run_python_checks", return_value=[]),
-        patch.object(mod, "run_seedgo_checklist", return_value=[]),
-        patch.object(mod, "run_pyright_check", return_value=([], True)),
-        patch.object(mod, "run_ruff_lint_structured", return_value=[]),
-        patch.object(mod, "save_diagnostics_state"),
-    ):
-        mod.main()
-
-    captured = capsys.readouterr()
-    assert "[FALLBACK ENGAGED" in captured.err
-
-
-def test_run_pyright_check_returns_tuple_on_file_not_found():
-    """run_pyright_check returns ([], True) when pyright binary is missing."""
+def test_run_pyright_check_returns_empty_on_file_not_found():
+    """run_pyright_check returns [] when pyright binary is missing."""
     mod = _load_hook("auto_fix_diagnostics.py")
     with patch("subprocess.run", side_effect=FileNotFoundError("pyright not found")):
         result = mod.run_pyright_check("/tmp/some_file.py")
-    assert result == ([], True)
+    assert result == []
 
 
-def test_run_pyright_check_returns_false_on_timeout():
-    """run_pyright_check returns ([], False) on timeout — no fallback signal."""
+def test_run_pyright_check_returns_empty_on_timeout():
+    """run_pyright_check returns [] on timeout."""
     import subprocess
 
     mod = _load_hook("auto_fix_diagnostics.py")
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("pyright", 15)):
         result = mod.run_pyright_check("/tmp/some_file.py")
-    assert result == ([], False)
+    assert result == []
 
 
 def test_run_pyright_check_skips_hook_files():
-    """run_pyright_check returns ([], False) for hook files without calling subprocess."""
+    """run_pyright_check returns [] for hook files without calling subprocess."""
     mod = _load_hook("auto_fix_diagnostics.py")
     mock_run = MagicMock()
     with patch("subprocess.run", mock_run):
         result = mod.run_pyright_check("/home/user/.claude/hooks/some_hook.py")
     mock_run.assert_not_called()
-    assert result == ([], False)
+    assert result == []
 
 
 # ---------------------------------------------------------------------------

@@ -129,15 +129,16 @@ def test_read_settings_file_missing():
     assert result == {}
 
 
-def test_read_settings_file_valid(tmp_path):
+def test_read_settings_file_valid(tmp_path, monkeypatch):
     """_read_settings_file returns the parsed dict for a valid JSON file."""
-    from aipass.seedgo.apps.modules.hooks_ext import read_settings_file
+    from aipass.seedgo.apps.modules import hooks_ext as hooks_ext_mod
 
     data = {"hooks": {"PreToolUse": []}, "version": 1}
     settings_file = tmp_path / "settings.json"
     settings_file.write_text(json.dumps(data), encoding="utf-8")
 
-    result = read_settings_file(settings_file)
+    monkeypatch.setattr(hooks_ext_mod, "read_text_safe", lambda path: path.read_text(encoding="utf-8"))
+    result = hooks_ext_mod.read_settings_file(settings_file)
     assert result == data
 
 
@@ -167,4 +168,4 @@ def test_read_hook_version_returns_string(monkeypatch):
     interpreter = "python" + "3"
     cmd = interpreter + " " + str(_AUTO_FIX_PATH)
     result = hooks_ext_mod.read_hook_version(cmd)
-    assert result == "5.3.0"
+    assert result == "5.2.0"

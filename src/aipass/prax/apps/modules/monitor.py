@@ -42,7 +42,7 @@ from aipass.prax.apps.handlers.monitoring import (
     ModuleTracker,  # module_tracker.py
 )
 from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent
-from aipass.prax.apps.modules.monitor_info import print_introspection as _print_introspection, print_help
+from aipass.prax.apps.handlers.monitoring.monitor_info import print_introspection as _print_introspection, print_help
 
 
 # =============================================================================
