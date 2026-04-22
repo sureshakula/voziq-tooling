@@ -36,11 +36,70 @@ import importlib.util
 import json
 import logging
 import re
+import shutil
 import uuid
 from datetime import date
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+ENFORCEMENT_HOOKS = [
+    "auto_fix_diagnostics.py",
+    "pre_edit_gate.py",
+    "subagent_stop_gate.py",
+    "pre_compact.py",
+]
+
+INJECTOR_HOOKS = [
+    "branch_prompt_loader.py",
+    "email_notification.py",
+    "identity_injector.py",
+]
+
+HOOKS_TO_SHIP = ENFORCEMENT_HOOKS + INJECTOR_HOOKS
+
+HOOK_EVENTS: dict[str, str] = {
+    "auto_fix_diagnostics.py": "PostToolUse",
+    "pre_edit_gate.py": "PreToolUse",
+    "subagent_stop_gate.py": "Stop",
+    "pre_compact.py": "PreCompact",
+    "branch_prompt_loader.py": "UserPromptSubmit",
+    "email_notification.py": "UserPromptSubmit",
+    "identity_injector.py": "UserPromptSubmit",
+}
+
+
+def _ship_hooks(aipass_home: str, target: Path) -> list[str]:
+    """Copy enforcement + injector hooks from AIPass install to target project.
+
+    Copies each hook file from {aipass_home}/.claude/hooks/ to
+    {target}/.claude/hooks/. Skips audio hooks. Overwrites existing files
+    only if source content differs (idempotent re-sync).
+
+    Returns list of files written.
+    """
+    source_dir = Path(aipass_home) / ".claude" / "hooks"
+    if not source_dir.is_dir():
+        logger.info("No hooks directory at %s — skipping hook shipping", source_dir)
+        return []
+
+    dest_dir = target / ".claude" / "hooks"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    shipped: list[str] = []
+
+    for hook_name in HOOKS_TO_SHIP:
+        src = source_dir / hook_name
+        dst = dest_dir / hook_name
+        if not src.exists():
+            logger.info("Hook %s not found at %s — skipping", hook_name, src)
+            continue
+        src_content = src.read_bytes()
+        if dst.exists() and dst.read_bytes() == src_content:
+            continue
+        shutil.copy2(src, dst)
+        shipped.append(str(dst))
+
+    return shipped
 
 
 def _sanitize_name(raw: str) -> str:

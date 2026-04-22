@@ -68,6 +68,10 @@ seedgo/
 │   │   ├── checklist.py             # Per-file standards checklist (hook consumption)
 │   │   ├── seedgo_proof.py          # Proof orchestrator
 │   │   ├── proof_query.py           # Proof content query
+│   │   ├── hooks.py                 # Hook probe display and testing
+│   │   ├── hooks_ext.py             # Hook test + list subcommands (split from hooks.py)
+│   │   ├── inbox_audit.py           # Inbox message-ID validation (drone @seedgo audit inbox-ids)
+│   │   ├── permissions.py           # Shared trust list for hook + drone authorization
 │   │   ├── readme_update.py         # README generation
 │   │   └── test_map.py              # Custom function test coverage mapping
 │   └── handlers/
@@ -86,6 +90,7 @@ seedgo/
 │       ├── config/                  # Configuration handlers
 │       ├── diagnostics/             # Pyright integration
 │       ├── file/                    # File operations
+│       ├── hooks/                   # Hook test runner (subprocess execution)
 │       ├── json/                    # JSON tracking
 │       └── test_map/                # Function test coverage scanner
 ├── drone_adapter.py                 # Drone routing bridge
@@ -152,7 +157,7 @@ The `test_map` module and `test_map/` handler directory provide custom function-
 
 ---
 
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-22
 
 ---
 [← Back to AIPass](../../../README.md)

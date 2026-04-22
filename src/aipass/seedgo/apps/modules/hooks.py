@@ -52,7 +52,7 @@ from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.file import write_text_safe
 
 # Extended subcommands (test + list)
-from aipass.seedgo.apps.modules.hooks_ext import cmd_hooks_list, cmd_hooks_test
+from aipass.seedgo.apps.modules.hooks_ext import cmd_hooks_list, run_hooks_test
 
 # Rich output
 from rich.panel import Panel
@@ -465,7 +465,7 @@ def _write_matrix_report(report_path: Path, matrix_rows: list, entries: list) ->
 
 def _cmd_hooks_test() -> None:
     """Run hook test suite — delegates to hooks_ext."""
-    cmd_hooks_test(_get_repo_root())
+    run_hooks_test(_get_repo_root())
 
 
 def _cmd_hooks_list() -> None:
@@ -476,6 +476,11 @@ def _cmd_hooks_list() -> None:
 # =============================================================================
 # INTROSPECTION
 # =============================================================================
+
+
+def print_help() -> None:
+    """CLI --help entry point — delegates to print_introspection."""
+    print_introspection()
 
 
 def print_introspection() -> None:
@@ -550,7 +555,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         print_introspection()
         return True
     if args[0] in ("--help", "-h", "help"):
-        print_introspection()
+        print_help()
         return True
 
     subcommand = args[0]

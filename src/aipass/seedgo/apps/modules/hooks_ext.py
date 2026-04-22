@@ -33,7 +33,7 @@ from rich.table import Table
 # =============================================================================
 
 
-def cmd_hooks_test(repo_root: Path) -> None:
+def run_hooks_test(repo_root: Path) -> None:
     """Run hook test suite, display per-file pass/fail table."""
     pattern = str(repo_root / "src" / "aipass" / "seedgo" / "tests" / "test_hooks*.py")
     test_files = sorted(_glob.glob(pattern))
@@ -239,6 +239,9 @@ def print_introspection() -> None:
 def handle_command(command: str, args: list) -> bool:
     """Not a primary drone module — delegates to hooks.py for routing."""
     if not args:
+        print_introspection()
+        return True
+    if args[0] in ("--help", "-h", "help"):
         print_introspection()
         return True
     return False
