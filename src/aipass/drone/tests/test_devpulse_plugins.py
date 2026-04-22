@@ -47,15 +47,15 @@ def devpulse_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 @pytest.fixture()
 def seedgo_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Create a temp directory with a seedgo passport (unauthorized)."""
+    """Create a temp directory with an unauthorized branch passport."""
     trinity = tmp_path / ".trinity"
     trinity.mkdir()
     passport = trinity / "passport.json"
     passport.write_text(
         json.dumps(
             {
-                "branch_info": {"branch_name": "seedgo"},
-                "identity": {"name": "seedgo"},
+                "branch_info": {"branch_name": "citizen/unauthorized"},
+                "identity": {"name": "citizen/unauthorized"},
             }
         ),
         encoding="utf-8",
