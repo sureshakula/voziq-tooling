@@ -469,12 +469,15 @@ def _gitignore() -> str:
 
 
 def _claude_settings(aipass_home: str | None = None) -> str:
-    """Generate .claude/settings.json — minimal hooks for prompt injection.
+    """Generate .claude/settings.json — hooks for prompt injection + enforcement.
 
-    Installs two UserPromptSubmit hooks:
-    1. Global prompt — injects .aipass/aipass_global_prompt.md from CWD.
-    2. Local prompt  — walks up from CWD via pathlib.Path.parents to find
-       .aipass/aipass_local_prompt.md (cross-platform; works on Windows).
+    Wires all AIPass hooks into their respective event types:
+    - UserPromptSubmit: global/local prompt injection + branch_prompt_loader,
+      email_notification, identity_injector
+    - PostToolUse: auto_fix_diagnostics
+    - PreToolUse: pre_edit_gate
+    - Stop: subagent_stop_gate
+    - PreCompact: pre_compact
 
     Args:
         aipass_home: Optional AIPass installation root to add as env.AIPASS_HOME.
@@ -488,30 +491,38 @@ def _claude_settings(aipass_home: str | None = None) -> str:
         "p and print(p.read_text(encoding='utf-8'),end='')"
         '"'
     )
-    data: dict = {
-        "hooks": {
-            "UserPromptSubmit": [
-                {
-                    "matcher": "",
-                    "hooks": [
-                        {
-                            "type": "command",
-                            "command": "cat .aipass/aipass_global_prompt.md 2>/dev/null || true",
-                        }
-                    ],
-                },
-                {
-                    "matcher": "",
-                    "hooks": [
-                        {
-                            "type": "command",
-                            "command": _local_prompt_cmd,
-                        }
-                    ],
-                },
-            ]
+
+    event_hooks: dict[str, list] = {}
+    for hook_name, event in HOOK_EVENTS.items():
+        entry = {
+            "matcher": "",
+            "hooks": [{"type": "command", "command": f"python3 .claude/hooks/{hook_name}"}],
         }
-    }
+        event_hooks.setdefault(event, []).append(entry)
+
+    prompt_hooks = [
+        {
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": "cat .aipass/aipass_global_prompt.md 2>/dev/null || true",
+                }
+            ],
+        },
+        {
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": _local_prompt_cmd,
+                }
+            ],
+        },
+    ]
+    event_hooks["UserPromptSubmit"] = prompt_hooks + event_hooks.get("UserPromptSubmit", [])
+
+    data: dict = {"hooks": event_hooks}
     if aipass_home:
         data["env"] = {"AIPASS_HOME": aipass_home}
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
@@ -599,6 +610,48 @@ def _prep_md() -> str:
         "\n"
         "Ready to close out or /compact.\n"
         "```\n"
+    )
+
+
+def _memo_md() -> str:
+    """Generate .claude/commands/memo.md — /memo memory update slash command."""
+    return (
+        "# Memory Update\n"
+        "\n"
+        "Purpose: Update branch memory files after completing work this session.\n"
+        "\n"
+        "## Execution\n"
+        "\n"
+        "1. Read `.trinity/passport.json` first — re-absorb your identity, "
+        "role, and principles before writing memories\n"
+        "2. Review what was done this session (context, recent changes, key "
+        "decisions)\n"
+        "3. Update each file below as needed\n"
+        "4. Confirm completion — list files updated\n"
+        "\n"
+        "## Memory Roles\n"
+        "\n"
+        "Each memory file plays a distinct role. Update based on what actually "
+        "changed this session.\n"
+        "\n"
+        "- **`.trinity/passport.json`** — IDENTITY. Who you are: role, "
+        "capabilities, principles. Only update if identity genuinely evolved "
+        "this session. Don't touch it just to touch it.\n"
+        "- **`.trinity/local.json`** — YOUR MEMORY. Session history and "
+        "key_learnings. Add a session entry for significant work. Add "
+        "key_learnings for facts you'd need next time. Trim oldest sessions "
+        "if over 20.\n"
+        "- **`.trinity/observations.json`** — YOUR MEMORY OF THE USER. "
+        "Collaboration insights, preferences, friction points, flow states. "
+        "Skip entirely if nothing new about the user this session.\n"
+        "- **`STATUS.local.md`** — PUBLIC STATUS BEACON. Current work, known "
+        "issues, todos, notepad. Auto-synced to central STATUS.md on PR "
+        "events — this is how other branches see you. Keep Current Work "
+        "accurate and drop quick notes in the Notepad section.\n"
+        "\n"
+        "## If Relevant\n"
+        "\n"
+        "- **README.md** — Does it reflect current state? Update if stale.\n"
     )
 
 
@@ -762,6 +815,17 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         prep_path.write_text(_prep_md(), encoding="utf-8")
         created.append(str(prep_path))
 
+    # 9c. .claude/commands/memo.md — /memo memory update slash command
+    memo_path = commands_dir / "memo.md"
+    if not memo_path.exists():
+        memo_path.write_text(_memo_md(), encoding="utf-8")
+        created.append(str(memo_path))
+
+    # 9d. Ship enforcement + injector hooks from AIPass install
+    if aipass_home:
+        shipped = _ship_hooks(aipass_home, target)
+        created.extend(shipped)
+
     # 10. hooks/ directory
     hooks_dir = target / "hooks"
     if not hooks_dir.exists():
@@ -897,6 +961,21 @@ def update_project(target: Path) -> dict:
         updated.append(str(prep_path))
     else:
         already_current.append(str(prep_path))
+
+    # .claude/commands/memo.md — managed slash command, refresh to latest
+    memo_path = commands_dir / "memo.md"
+    generated = _memo_md()
+    if not memo_path.exists() or memo_path.read_text(encoding="utf-8") != generated:
+        memo_path.write_text(generated, encoding="utf-8")
+        updated.append(str(memo_path))
+    else:
+        already_current.append(str(memo_path))
+
+    # Re-sync enforcement + injector hooks from AIPass install
+    hook_home = aipass_home or _detect_aipass_home()
+    if hook_home:
+        shipped = _ship_hooks(hook_home, target)
+        updated.extend(shipped)
 
     # --- User-owned files: always skip ---
     for skip_name in (

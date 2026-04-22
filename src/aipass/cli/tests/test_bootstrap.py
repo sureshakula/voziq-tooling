@@ -90,6 +90,8 @@ def test_init_project_creates_all_expected_files(tmp_path):
         target / "STATUS.local.md",
         target / ".gitignore",
         target / ".claude" / "settings.json",
+        target / ".claude" / "commands" / "prep.md",
+        target / ".claude" / "commands" / "memo.md",
         target / ".ai_mail.local" / "inbox.json",
     ]
     for f in expected_files:
@@ -105,8 +107,8 @@ def test_init_project_creates_all_expected_files(tmp_path):
     # No local prompt at project level (belongs in agent dirs only)
     assert not (target / ".aipass" / "aipass_local_prompt.md").exists()
 
-    # 10 files + 2 directories = 12 created_files entries
-    assert len(result["created_files"]) == 12
+    # 12 files + 2 dirs + 7 shipped hooks (when AIPASS_HOME detected) = 21
+    assert len(result["created_files"]) == 21
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -277,8 +279,8 @@ def test_init_project_claude_settings_content(tmp_path):
     assert "UserPromptSubmit" in data["hooks"]
 
 
-def test_init_project_settings_has_two_hooks(tmp_path):
-    """.claude/settings.json has both global and local prompt hooks."""
+def test_init_project_settings_has_all_hooks(tmp_path):
+    """.claude/settings.json wires all hook event types."""
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -286,18 +288,26 @@ def test_init_project_settings_has_two_hooks(tmp_path):
 
     settings_path = target / ".claude" / "settings.json"
     data = json.loads(settings_path.read_text(encoding="utf-8"))
-    hooks = data["hooks"]["UserPromptSubmit"]
-    assert len(hooks) == 2, f"Expected 2 UserPromptSubmit hooks, got {len(hooks)}"
 
-    # First hook: global prompt
-    global_cmd = hooks[0]["hooks"][0]["command"]
-    assert "aipass_global_prompt.md" in global_cmd
+    # UserPromptSubmit: 2 prompt injectors + 3 hook files
+    ups_hooks = data["hooks"]["UserPromptSubmit"]
+    assert len(ups_hooks) == 5, f"Expected 5 UserPromptSubmit hooks, got {len(ups_hooks)}"
+    assert "aipass_global_prompt.md" in ups_hooks[0]["hooks"][0]["command"]
+    assert "aipass_local_prompt.md" in ups_hooks[1]["hooks"][0]["command"]
+    assert "branch_prompt_loader.py" in ups_hooks[2]["hooks"][0]["command"]
 
-    # Second hook: local prompt walk-up
-    local_cmd = hooks[1]["hooks"][0]["command"]
-    assert "aipass_local_prompt.md" in local_cmd
-    assert "python3" in local_cmd, "Local prompt hook should use python3 for cross-platform support"
-    assert "parents" in local_cmd, "Local prompt hook should use pathlib.Path.parents for traversal"
+    # Enforcement hooks wired to their event types
+    assert len(data["hooks"]["PostToolUse"]) == 1
+    assert "auto_fix_diagnostics.py" in data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+
+    assert len(data["hooks"]["PreToolUse"]) == 1
+    assert "pre_edit_gate.py" in data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+
+    assert len(data["hooks"]["Stop"]) == 1
+    assert "subagent_stop_gate.py" in data["hooks"]["Stop"][0]["hooks"][0]["command"]
+
+    assert len(data["hooks"]["PreCompact"]) == 1
+    assert "pre_compact.py" in data["hooks"]["PreCompact"][0]["hooks"][0]["command"]
 
 
 def test_init_project_global_prompt_content(tmp_path):
@@ -336,7 +346,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) == 12
+    assert len(result["created_files"]) == 21
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -395,8 +405,8 @@ def test_init_project_skips_existing_optional_files(tmp_path):
 
     result = init_project(target, project_name="eta")
 
-    # Only registry should be in created_files (everything else pre-existed)
-    assert len(result["created_files"]) == 1
+    # Registry + prep.md + memo.md + 7 shipped hooks = 10 (everything else pre-existed)
+    assert len(result["created_files"]) == 10
 
     # Verify pre-existing files were NOT overwritten
     md_content = (target / "CLAUDE.md").read_text(encoding="utf-8")
@@ -489,7 +499,7 @@ def test_update_project_already_current_after_init(tmp_path):
     result = update_project(target)
 
     assert len(result["updated_files"]) == 0
-    assert len(result["already_current"]) == 5
+    assert len(result["already_current"]) == 7
 
 
 def test_update_project_idempotent(tmp_path):
@@ -568,8 +578,8 @@ def test_update_project_creates_missing_managed_dirs(tmp_path):
 
     assert (target / ".aipass" / "aipass_global_prompt.md").exists()
     assert (target / ".claude" / "settings.json").exists()
-    # The 2 files inside deleted dirs are re-written; root files still match
-    assert len(result["updated_files"]) == 2
+    # Managed files in deleted dirs re-written (global_prompt, settings, prep, memo + 7 hooks)
+    assert len(result["updated_files"]) == 11
     assert len(result["already_current"]) == 3
 
 
@@ -719,3 +729,167 @@ def test_update_project_adds_aipass_home_if_missing(tmp_path):
         new_data = json.loads(settings_path.read_text(encoding="utf-8"))
         assert new_data.get("env", {}).get("AIPASS_HOME") == result["aipass_home"]
         assert str(settings_path) in result["updated_files"]
+
+
+# ---------------------------------------------------------------------------
+# DPLAN-0139: Hook shipping + /memo tests
+# ---------------------------------------------------------------------------
+
+
+def test_init_project_creates_memo_md(tmp_path):
+    """init_project creates .claude/commands/memo.md slash command."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="memo")
+
+    memo_path = target / ".claude" / "commands" / "memo.md"
+    assert memo_path.exists()
+    content = memo_path.read_text(encoding="utf-8")
+    assert "# Memory Update" in content
+    assert ".trinity/passport.json" in content
+    assert ".trinity/local.json" in content
+    assert "STATUS.local.md" in content
+
+
+def test_init_project_memo_not_overwritten_on_rerun(tmp_path):
+    """Re-running init skips existing memo.md."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="memo")
+
+    memo_path = target / ".claude" / "commands" / "memo.md"
+    memo_path.write_text("# Custom memo\n", encoding="utf-8")
+
+    init_project(target, project_name="memo")
+
+    assert memo_path.read_text(encoding="utf-8") == "# Custom memo\n"
+
+
+def test_update_project_refreshes_memo_md(tmp_path):
+    """update_project refreshes memo.md when content differs."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="umemo")
+
+    memo_path = target / ".claude" / "commands" / "memo.md"
+    memo_path.write_text("# Stale content\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert str(memo_path) in result["updated_files"]
+    assert "# Memory Update" in memo_path.read_text(encoding="utf-8")
+
+
+def test_update_project_memo_already_current(tmp_path):
+    """update_project reports memo.md as already_current when unchanged."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="memocur")
+
+    result = update_project(target)
+
+    memo_path = target / ".claude" / "commands" / "memo.md"
+    assert str(memo_path) in result["already_current"]
+
+
+def test_init_project_ships_hooks(tmp_path):
+    """init_project copies enforcement + injector hooks to target .claude/hooks/."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="hooks")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    hooks_dir = target / ".claude" / "hooks"
+    assert hooks_dir.is_dir()
+    for hook_name in [
+        "auto_fix_diagnostics.py",
+        "pre_edit_gate.py",
+        "subagent_stop_gate.py",
+        "pre_compact.py",
+        "branch_prompt_loader.py",
+        "email_notification.py",
+        "identity_injector.py",
+    ]:
+        assert (hooks_dir / hook_name).exists(), f"Hook {hook_name} not shipped"
+
+
+def test_init_project_hooks_not_shipped_without_aipass_home(tmp_path, monkeypatch):
+    """When AIPASS_HOME is not detectable, hooks are not shipped."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    monkeypatch.setattr(
+        "aipass.cli.apps.handlers.init.bootstrap._detect_aipass_home",
+        lambda: None,
+    )
+
+    init_project(target, project_name="nohooks")
+
+    hooks_dir = target / ".claude" / "hooks"
+    assert not hooks_dir.exists() or len(list(hooks_dir.iterdir())) == 0
+
+
+def test_init_project_no_audio_hooks_shipped(tmp_path):
+    """Audio hooks (notification_sound, tool_use_sound, stop_sound) are never shipped."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="noaudio")
+
+    hooks_dir = target / ".claude" / "hooks"
+    if hooks_dir.exists():
+        shipped = [f.name for f in hooks_dir.iterdir()]
+        assert "notification_sound.py" not in shipped
+        assert "tool_use_sound.py" not in shipped
+        assert "stop_sound.py" not in shipped
+
+
+def test_update_project_resyncs_hooks(tmp_path):
+    """update_project re-copies hooks when source differs from target."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    result = init_project(target, project_name="resync")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    hook_file = target / ".claude" / "hooks" / "auto_fix_diagnostics.py"
+    hook_file.write_text("# corrupted\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert str(hook_file) in result["updated_files"]
+    assert hook_file.read_text(encoding="utf-8") != "# corrupted\n"
+
+
+def test_init_project_hooks_idempotent_on_rerun(tmp_path):
+    """Re-running init does not re-ship hooks when content is identical."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result1 = init_project(target, project_name="idem")
+    result2 = init_project(target, project_name="idem")
+
+    if result1["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    hook_paths = [f for f in result1["created_files"] if ".claude/hooks/" in f]
+    assert len(hook_paths) == 7
+    hook_paths_rerun = [f for f in result2["created_files"] if ".claude/hooks/" in f]
+    assert len(hook_paths_rerun) == 0
+
+
+def test_init_project_settings_has_all_event_types(tmp_path):
+    """settings.json contains all 5 hook event types."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    init_project(target, project_name="events")
+
+    settings = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    expected_events = {"UserPromptSubmit", "PostToolUse", "PreToolUse", "Stop", "PreCompact"}
+    assert set(settings["hooks"].keys()) == expected_events
