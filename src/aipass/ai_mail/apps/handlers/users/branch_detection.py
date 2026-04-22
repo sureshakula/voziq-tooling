@@ -106,6 +106,22 @@ def _get_branches_list(registry: dict) -> list:
 # =============================================
 
 
+def _synthesize_external_branch(caller_branch: str) -> Optional[Dict]:
+    """Build a synthetic branch info dict from env vars for an external project."""
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    if not caller_cwd:
+        return None
+    cwd_path = Path(caller_cwd)
+    name_key = caller_branch.lstrip("@").lower()
+    return {
+        "name": name_key,
+        "path": str(cwd_path),
+        "email": f"@{name_key}",
+        "status": "active",
+        "type": "external",
+    }
+
+
 def detect_branch_from_pwd() -> Optional[Dict]:
     """
     Detect which branch is calling based on current working directory.
@@ -114,66 +130,29 @@ def detect_branch_from_pwd() -> Optional[Dict]:
     Then looks up branch info in AIPASS_REGISTRY.json.
 
     Returns:
-        Dict with branch info if detected:
-        {
-            "name": "SEEDGO",
-            "path": "src/aipass/seedgo",
-            "email": "@seedgo",
-            "display_name": "Seedgo (Standards Branch)",
-            ...
-        }
-        None if no branch detected
+        Dict with branch info if detected, or None.
     """
     json_handler.log_operation("detect_branch_from_pwd", {"cwd": str(Path.cwd())})
 
     try:
-        # Primary: use explicit branch name passed by drone (works in Docker + local)
         caller_branch = os.environ.get("AIPASS_CALLER_BRANCH")
         if caller_branch:
-            # Try contacts first (fastest, works for external projects)
             contact = _get_contact_info(caller_branch)
             if contact:
                 return contact
-            # Fall back to registry lookup
             branch_info = _lookup_branch_by_name(caller_branch)
             if branch_info:
                 return branch_info
-            # Last resort: synthesize from env vars (external project, first contact)
-            caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
-            if caller_cwd:
-                cwd_path = Path(caller_cwd)
-                name_key = caller_branch.lstrip("@").lower()
-                mailbox = cwd_path / ".ai_mail.local"
-                if not mailbox.exists():
-                    # Walk up to find project-level mailbox
-                    for parent in [cwd_path] + list(cwd_path.parents):
-                        candidate = parent / ".ai_mail.local"
-                        if candidate.exists():
-                            mailbox = candidate
-                            break
-                return {
-                    "name": name_key,
-                    "path": str(cwd_path),
-                    "email": f"@{name_key}",
-                    "status": "active",
-                    "type": "external",
-                }
+            return _synthesize_external_branch(caller_branch)
 
-        # Fallback: use caller's CWD for path-based detection (local only)
         caller_cwd = os.environ.get("AIPASS_CALLER_CWD")
         cwd = Path(caller_cwd) if caller_cwd else Path.cwd()
 
-        # Find branch root
         branch_root = find_branch_root(cwd)
         if not branch_root:
             return None
 
-        # Get branch info from registry
-        branch_info = get_branch_info_from_registry(branch_root)
-        if not branch_info:
-            return None
-
-        return branch_info
+        return get_branch_info_from_registry(branch_root)
 
     except Exception as e:
         logger.warning("[identity] detect_branch_from_pwd() failed: %s", e)

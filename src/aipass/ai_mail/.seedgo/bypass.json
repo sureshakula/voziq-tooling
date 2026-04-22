@@ -354,6 +354,11 @@
       "file": "tests/test_daemon.py",
       "standard": "encapsulation",
       "reason": "Unit tests must import daemon internals directly to verify behavior. Module entry-point-only rule does not apply to tests."
+    },
+    {
+      "file": "tests/test_daemon.py",
+      "standard": "documentation",
+      "reason": "mock_spawn_agent is a nested helper inside test methods, not a public function. AST checker misidentifies it."
     }
   ],
   "notes": {

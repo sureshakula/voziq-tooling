@@ -511,9 +511,9 @@ def test_is_protected_branch_empty_string():
 
 # ---- _has_test_token tests -----------------------------------
 
-from aipass.ai_mail.apps.handlers.dispatch.daemon import (  # noqa: E402
-    _has_test_token,
-    _auto_ack_test_email,
+from aipass.ai_mail.apps.handlers.dispatch.test_token import (  # noqa: E402
+    has_test_token as _has_test_token,
+    auto_ack_test_email as _auto_ack_test_email,
     scan_and_ack_test_emails,
     TEST_TOKEN,
 )
@@ -620,7 +620,7 @@ def test_scan_and_ack_test_emails_acks_matching(tmp_path):
     }
     (ai_mail_local / "inbox.json").write_text(json.dumps(inbox))
 
-    with patch("aipass.ai_mail.apps.handlers.dispatch.daemon._auto_ack_test_email", return_value=True) as mock_ack:
+    with patch("aipass.ai_mail.apps.handlers.dispatch.test_token.auto_ack_test_email", return_value=True) as mock_ack:
         count = scan_and_ack_test_emails(branch_path, "@testbranch")
 
     assert count == 1
@@ -639,7 +639,7 @@ def test_scan_and_ack_test_emails_skips_closed(tmp_path):
     }
     (ai_mail_local / "inbox.json").write_text(json.dumps(inbox))
 
-    with patch("aipass.ai_mail.apps.handlers.dispatch.daemon._auto_ack_test_email") as mock_ack:
+    with patch("aipass.ai_mail.apps.handlers.dispatch.test_token.auto_ack_test_email") as mock_ack:
         count = scan_and_ack_test_emails(branch_path, "@testbranch")
 
     assert count == 0
