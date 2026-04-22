@@ -94,10 +94,10 @@ class PythonFileWatcher(FileSystemEventHandler):
             save_module_registry(modules)
 
             # Fire trigger event for module discovery
-            if _HAS_TRIGGER:
+            if _HAS_TRIGGER and trigger is not None:
                 try:
                     trigger.fire(
-                        "module_discovered",  # type: ignore[union-attr]
+                        "module_discovered",
                         module_name=module_name,
                         file_path=str(py_file),
                         relative_path=str(relative_path),

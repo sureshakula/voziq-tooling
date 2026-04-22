@@ -68,6 +68,7 @@ seedgo/
 │   │   ├── checklist.py             # Per-file standards checklist (hook consumption)
 │   │   ├── seedgo_proof.py          # Proof orchestrator
 │   │   ├── proof_query.py           # Proof content query
+│   │   ├── hook_bridge.py            # Hook bridge installer (install/uninstall AIPass hooks)
 │   │   ├── hooks.py                 # Hook probe display and testing
 │   │   ├── hooks_ext.py             # Hook test + list subcommands (split from hooks.py)
 │   │   ├── inbox_audit.py           # Inbox message-ID validation (drone @seedgo audit inbox-ids)
@@ -90,7 +91,7 @@ seedgo/
 │       ├── config/                  # Configuration handlers
 │       ├── diagnostics/             # Pyright integration
 │       ├── file/                    # File operations
-│       ├── hooks/                   # Hook test runner (subprocess execution)
+│       ├── hooks/                   # Hook test runner + bridge installer
 │       ├── json/                    # JSON tracking
 │       └── test_map/                # Function test coverage scanner
 ├── drone_adapter.py                 # Drone routing bridge

@@ -408,7 +408,7 @@ class LogFileWatcher(FileSystemEventHandler):
         current_time = datetime.now()
 
         # Fire trigger event for ERROR level logs
-        if HAS_TRIGGER and level == "error":
+        if HAS_TRIGGER and trigger is not None and level == "error":
             # Extract module name from log line if possible
             module_name = "unknown"
             if " | " in log_line:
@@ -417,7 +417,7 @@ class LogFileWatcher(FileSystemEventHandler):
                     module_name = parts[1].strip()
 
             trigger.fire(
-                "error_detected",  # type: ignore[union-attr]
+                "error_detected",
                 branch=branch,
                 message=clean_message,
                 error_hash=_generate_error_hash(module_name, clean_message),

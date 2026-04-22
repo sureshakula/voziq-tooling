@@ -10,12 +10,13 @@ Provides list, view, clear, and summary operations for
 devpulse's personal feedback mailbox.
 """
 
-from rich.console import Console
 from rich.table import Table
 
 from aipass.devpulse.apps.handlers.feedback.storage import load_inbox, save_inbox
 
-console = Console(stderr=True)
+from aipass.cli.apps.modules import err_console
+
+console = err_console
 
 
 def list_messages() -> None:

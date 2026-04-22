@@ -4,7 +4,7 @@
 
 **Purpose:** Centralized external API gateway — authenticated service clients for all external APIs (OpenRouter, Google, future providers).
 **Module:** `aipass.api`
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-22
 
 ---
 
@@ -47,6 +47,8 @@ drone @api stats             # Display API usage statistics
 drone @api session           # Show session usage data
 drone @api caller-usage <caller>  # Show usage by caller module
 drone @api cleanup [days]    # Clean up old usage data *(not operational — fails with no data)*
+drone @api integrations list   # List registered integration contracts
+drone @api integrations call <contract> [args...]  # Call a registered contract
 drone @api --help            # Full help output
 drone @api --version         # Show version
 ```
@@ -88,7 +90,10 @@ api/
 │   │   ├── api_key.py             # Key retrieval and validation logic
 │   │   ├── openrouter_client.py   # OpenRouter API client
 │   │   ├── google_client.py       # Google API services (Drive, Calendar, etc.)
-│   │   └── usage_tracker.py       # Usage metrics tracking
+│   │   ├── usage_tracker.py       # Usage metrics tracking
+│   │   ├── bridge.py              # Generic contract registry (register/resolve)
+│   │   ├── integrations_manager.py # Integration contract orchestration
+│   │   └── registry.py            # Driver auto-discovery (load_drivers)
 │   └── handlers/
 │       ├── auth/
 │       │   ├── env.py             # Environment variable credential loading
@@ -106,6 +111,9 @@ api/
 │       │   ├── client.py          # OpenRouter client implementation
 │       │   ├── models.py          # Model discovery and listing
 │       │   └── provision.py       # Provider provisioning
+│       ├── integrations/
+│       │   ├── list.py            # List registered contracts handler
+│       │   └── call.py            # Call registered contract handler
 │       └── usage/
 │           ├── aggregation.py     # Usage data aggregation
 │           ├── cleanup.py         # Usage data cleanup
@@ -132,7 +140,7 @@ api/
 
 ---
 
-*Last Updated: 2026-04-07*
+*Last Updated: 2026-04-22*
 
 ---
 [← Back to AIPass](../../../README.md)

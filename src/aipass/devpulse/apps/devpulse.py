@@ -56,7 +56,8 @@ def discover_modules() -> list[Any]:
                     modules.append(module)
                 loaded = True
                 break
-            except (ImportError, ModuleNotFoundError):
+            except (ImportError, ModuleNotFoundError) as e:
+                logger.info(f"[DEVPULSE] Module {module_name} not found: {e}")
                 continue
             except Exception as e:
                 logger.error(f"[DEVPULSE] Failed to load module {module_name}: {e}")

@@ -15,8 +15,6 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from rich.console import Console
-
 from aipass.prax import logger
 from aipass.devpulse.apps.handlers.feedback.storage import (
     load_inbox,
@@ -24,7 +22,9 @@ from aipass.devpulse.apps.handlers.feedback.storage import (
     generate_id,
 )
 
-console = Console(stderr=True)
+from aipass.cli.apps.modules import err_console
+
+console = err_console
 
 # AIPass src/aipass/ directory (four levels up from compose.py)
 _AIPASS_ROOT = Path(__file__).resolve().parents[4]

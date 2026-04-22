@@ -10,8 +10,6 @@ Auto-discovered by devpulse.py via handle_command() convention.
 Routes feedback subcommands to the appropriate handler functions.
 """
 
-from rich.console import Console
-
 from aipass.devpulse.apps.handlers.feedback.inbox import (
     list_messages,
     view_message,
@@ -25,7 +23,10 @@ from aipass.devpulse.apps.handlers.feedback.compose import (
     _resolve_sender,
 )
 
-console = Console(stderr=True)
+from aipass.prax import logger
+from aipass.cli.apps.modules import err_console
+
+console = err_console
 
 HELP_TEXT = """\
 [bold cyan]feedback[/bold cyan] — DevPulse personal feedback mailbox
@@ -95,7 +96,7 @@ def handle_command(command: str, args: list[str]) -> bool:
 
     if subcommand == "clear":
         if not sub_args:
-            console.print("[red]Usage: feedback clear <id> | feedback clear --all[/red]")
+            logger.error("Usage: feedback clear <id> | feedback clear --all")
             return True
         if sub_args[0] == "--all":
             clear_all_read()

@@ -15,6 +15,7 @@ Bridge itself is stateless beyond the registry dict — no threading, no startup
 
 from typing import Callable
 
+from aipass.prax import logger  # noqa: F401
 from aipass.api.apps.handlers.json import json_handler
 from aipass.cli.apps.modules import console, header
 
