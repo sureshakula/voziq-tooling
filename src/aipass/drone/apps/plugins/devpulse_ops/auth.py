@@ -25,18 +25,10 @@ from aipass.seedgo.apps.modules.permissions import TRUSTED_CROSS_WRITERS
 ALLOWED_CALLERS: list[str] = list(TRUSTED_CROSS_WRITERS)
 
 
-def verify_caller() -> str:
-    """Verify the calling branch is authorized for devpulse operations.
+def _find_caller() -> str:
+    """Walk up from CWD to find passport.json and return branch name.
 
-    Walks up from CWD looking for ``.trinity/passport.json``, reads the
-    branch name, and checks it against :data:`ALLOWED_CALLERS`.
-
-    Returns:
-        The caller's branch name if authorized.
-
-    Raises:
-        PermissionError: If the caller is not in the allowed list or no
-            passport can be found.
+    Returns the branch name, or raises PermissionError if no passport found.
     """
     current = Path.cwd().resolve()
     for _ in range(10):
@@ -52,15 +44,6 @@ def verify_caller() -> str:
                     msg = f"Passport at {passport_path} has no branch_name"
                     logger.error(msg)
                     raise PermissionError(msg)
-                if name not in ALLOWED_CALLERS:
-                    msg = f"Branch '{name}' is not authorized for system-pr. Trusted cross-writers: {ALLOWED_CALLERS}"
-                    logger.error(msg)
-                    raise PermissionError(msg)
-                json_handler.log_operation(
-                    "devpulse_auth_verify",
-                    {"caller": name, "passport": str(passport_path)},
-                )
-                logger.info("Caller '%s' authorized for devpulse operations", name)
                 return name
             except PermissionError:
                 raise
@@ -75,3 +58,28 @@ def verify_caller() -> str:
     msg = "No .trinity/passport.json found in directory hierarchy — cannot verify caller"
     logger.error(msg)
     raise PermissionError(msg)
+
+
+def verify_caller() -> str:
+    """Verify the calling branch is authorized for devpulse operations.
+
+    system-pr, merge, smart-sync, fix are restricted to ALLOWED_CALLERS.
+    Other branches use drone @git pr for their own branch-scoped PRs.
+
+    Returns:
+        The caller's branch name if authorized.
+
+    Raises:
+        PermissionError: If the caller is not in ALLOWED_CALLERS.
+    """
+    name = _find_caller()
+    if name not in ALLOWED_CALLERS:
+        msg = f"Branch '{name}' is not authorized for this operation. Use 'drone @git pr' for branch-scoped PRs."
+        logger.error(msg)
+        raise PermissionError(msg)
+    json_handler.log_operation(
+        "devpulse_auth_verify",
+        {"caller": name, "passport": "verified"},
+    )
+    logger.info("Caller '%s' authorized for devpulse operations", name)
+    return name
