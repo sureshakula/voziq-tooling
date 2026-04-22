@@ -63,6 +63,9 @@ def clear() -> None:
 
 def handle_command(command: str, args: list) -> bool:
     """Bridge is a utility module — no drone commands. Always returns False."""
+    if args and args[0] in ("--help", "-h", "help"):
+        print_introspection()
+        return False
     if not args:
         print_introspection()
         return False

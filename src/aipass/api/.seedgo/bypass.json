@@ -89,6 +89,26 @@
       "file": "tests/test_integrations.py",
       "standard": "architecture",
       "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "apps/integrations/broken_driver/driver.py",
+      "standard": "architecture",
+      "reason": "Integration driver test fixture in gitignored apps/integrations/ — intentionally outside 3-layer structure per DPLAN-0133 architecture. Loaded via importlib.util.spec_from_file_location, not standard package import."
+    },
+    {
+      "file": "apps/integrations/stress_test/driver.py",
+      "standard": "architecture",
+      "reason": "Integration driver test fixture in gitignored apps/integrations/ — intentionally outside 3-layer structure per DPLAN-0133 architecture. Loaded via importlib.util.spec_from_file_location, not standard package import."
+    },
+    {
+      "file": "apps/integrations/no_register/driver.py",
+      "standard": "architecture",
+      "reason": "Integration driver test fixture in gitignored apps/integrations/ — intentionally outside 3-layer structure per DPLAN-0133 architecture. Loaded via importlib.util.spec_from_file_location, not standard package import."
+    },
+    {
+      "file": "apps/modules/integrations_manager.py",
+      "standard": "unused_function",
+      "reason": "fetch_contracts() and call_contract() are test API hooks called from tests/test_integrations.py. The unused_function checker excludes test dirs from its search corpus, so these appear unused despite being actively called. Encapsulation standard requires tests to go through modules, not import handlers directly — these functions serve that purpose."
     }
   ],
   "notes": {
