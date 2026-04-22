@@ -49,8 +49,8 @@ WAKE ONLY:
   drone wake @branch                                         # Shortcut via drone
 
 MODEL OPTIONS:
-  --model sonnet   Claude Sonnet 4.6 (default — cost-effective for most tasks)
-  --model opus     Claude Opus 4.6 (complex tasks needing deeper reasoning)
+  --model opus     Claude Opus 4.6 (default — full reasoning for all tasks)
+  --model sonnet   Claude Sonnet 4.6 (cost-effective for lighter tasks)
   --model haiku    Claude Haiku 4.5 (fastest, simplest tasks)
 
 DAEMON:
