@@ -162,8 +162,8 @@ class TestSendSourceFixEmail:
         reporter = _import_reporter()
 
         # Setting a sys.modules entry to None tells Python the import failed,
-        # causing ImportError on 'from aipass.ai_mail.apps.modules.email import ...'
-        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email", None)
+        # causing ImportError on 'from aipass.ai_mail.apps.modules.email_send import ...'
+        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email_send", None)
 
         entry = {
             "component": "flow",
