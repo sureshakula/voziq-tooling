@@ -48,13 +48,16 @@ Never use raw git commands (git commit, git push, git checkout anything, gh pr c
 
 ```
 drone @git system-pr "description"   # System-wide PR (devpulse only) — commit, branch, push, PR, back to main
-drone @git merge <PR#>               # Squash-merge a PR (devpulse only)
+drone @git pr "description"          # Branch-scoped PR (any branch) — dispatched agents use this
+drone @git merge <PR#>               # Merge a PR (devpulse only, user must request)
 drone @git smart-sync                # Fetch + rebase if behind (devpulse only)
 drone @git fix                       # Fix broken git states (devpulse only)
 drone @git status                    # What changed?
 drone @git sync                      # Pull latest main
 drone @git lock                      # Check PR lock status
 ```
+
+**Dispatch briefs must say `drone @git pr`, not `drone @git system-pr`.** system-pr is devpulse-only. Agents dispatched to branches use `drone @git pr` for their own branch-scoped PRs.
 
 Read-only git commands are fine: `git status`, `git diff`, `git log`.
 
