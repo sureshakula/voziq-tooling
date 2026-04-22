@@ -104,7 +104,9 @@ def _import_driver(driver_path: Path, project_name: str) -> None:
     # If no register() hook, driver is still loaded (might use bridge.register directly at module level)
 
 
-def reset() -> None:
-    """Reset loaded state. Intended for test teardown only."""
-    global _loaded
-    _loaded = False
+def handle_command(command: str, args: list) -> bool:
+    """Registry is a utility module — no drone commands. Always returns False."""
+    if not args:
+        print_introspection()
+        return False
+    return False

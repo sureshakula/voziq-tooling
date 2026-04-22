@@ -101,34 +101,6 @@ def _run_call(contract_name: str, args: List[str]) -> int:
     return 0
 
 
-def fetch_contracts() -> dict:
-    """
-    Return contract listing result dict from the list handler.
-
-    Returns:
-        dict with keys: contracts (list[str]), count (int), success (bool).
-    """
-    return get_contracts(list_contracts())
-
-
-def call_contract(contract_name: str, args: List[str]) -> dict:
-    """
-    Resolve and invoke a contract driver, returning a result dict.
-
-    Args:
-        contract_name: The contract name to look up in the bridge.
-        args: Arguments forwarded to the driver function.
-
-    Returns:
-        dict with keys: result (str | None), success (bool), error (str | None).
-        If contract not registered: success=False, error='not registered'.
-    """
-    driver_fn = resolve(contract_name)
-    if driver_fn is None:
-        return {"result": None, "success": False, "error": f"contract '{contract_name}' not registered"}
-    return invoke(driver_fn, contract_name, args)
-
-
 def handle_command(command: str, args: List[str]) -> bool:
     """
     Handle integrations subcommands.

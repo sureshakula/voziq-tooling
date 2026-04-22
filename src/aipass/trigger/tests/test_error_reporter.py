@@ -111,7 +111,7 @@ class TestSendSourceFixEmail:
         monkeypatch.setitem(sys.modules, "aipass.ai_mail", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules", MagicMock())
-        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email", email_mod)
+        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email_send", email_mod)
 
         entry = {
             "component": "flow",
@@ -185,7 +185,7 @@ class TestSendSourceFixEmail:
         monkeypatch.setitem(sys.modules, "aipass.ai_mail", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules", MagicMock())
-        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email", email_mod)
+        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email_send", email_mod)
 
         entry = {
             "component": "flow",
@@ -207,7 +207,7 @@ class TestSendSourceFixEmail:
         monkeypatch.setitem(sys.modules, "aipass.ai_mail", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules", MagicMock())
-        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email", email_mod)
+        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email_send", email_mod)
 
         entry = {
             "component": "flow",
@@ -238,7 +238,7 @@ class TestSendSourceFixEmail:
         monkeypatch.setitem(sys.modules, "aipass.ai_mail", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps", MagicMock())
         monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules", MagicMock())
-        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email", email_mod)
+        monkeypatch.setitem(sys.modules, "aipass.ai_mail.apps.modules.email_send", email_mod)
 
         entry = {
             "component": "api",

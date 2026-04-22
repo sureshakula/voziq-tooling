@@ -53,11 +53,12 @@ ai_mail/
 ├── apps/
 │   ├── ai_mail.py          # Entry point (auto-discovers modules)
 │   ├── modules/
-│   │   ├── email.py        # Send, inbox, view, reply, close, contacts
+│   │   ├── email.py        # Inbox, view, reply, close, contacts, routing
+│   │   ├── email_send.py   # Send orchestration (direct, interactive, broadcast)
 │   │   ├── dispatch.py     # Dispatch status, daemon, wake
 │   └── handlers/
 │       ├── email/           # Delivery, formatting, inbox ops, purge, reply
-│       ├── dispatch/        # Daemon, wake, dispatch_monitor, status
+│       ├── dispatch/        # Daemon, wake, dispatch_monitor, status, test_token
 │       ├── registry/        # Branch registry read
 │       ├── users/           # Branch detection, user lookup
 │       ├── json_utils/      # JSON I/O helpers (load_json, save_json)

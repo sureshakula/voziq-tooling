@@ -42,7 +42,7 @@ def send_source_fix_email(entry: dict) -> bool:
         True if email sent successfully
     """
     try:
-        from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
+        from aipass.ai_mail.apps.modules.email_send import deliver_email_to_branch
     except ImportError:
         logger.info("[ERRORS] Could not import deliver_email_to_branch - ai_mail not available")
         return False

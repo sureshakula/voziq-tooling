@@ -39,7 +39,7 @@ def setup_handlers():
 
     # Wire up email send callback for error_detected handler (avoids handler importing from modules)
     try:
-        from aipass.ai_mail.apps.modules.email import deliver_email_to_branch
+        from aipass.ai_mail.apps.modules.email_send import deliver_email_to_branch
         from datetime import datetime
 
         def _send_email_adapter(

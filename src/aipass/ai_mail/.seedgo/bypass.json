@@ -359,6 +359,16 @@
       "file": "tests/test_daemon.py",
       "standard": "documentation",
       "reason": "mock_spawn_agent is a nested helper inside test methods, not a public function. AST checker misidentifies it."
+    },
+    {
+      "file": "apps/modules/email_send.py",
+      "standard": "cli",
+      "reason": "Internal helper extracted from email.py for size compliance. Not a drone-routable command module — handle_send is called by email.py's handle_command()."
+    },
+    {
+      "file": "apps/modules/email_send.py",
+      "standard": "modules",
+      "reason": "Internal helper extracted from email.py for size compliance. Not a drone-routable command module — no handle_command() needed."
     }
   ],
   "notes": {
