@@ -362,6 +362,16 @@
       "reason": "Memory doesn't use all builder templates — branch has custom structure."
     },
     {
+      "file": "CLAUDE.md",
+      "standard": "architecture",
+      "reason": "Memory branch uses repo-level CLAUDE.md — no branch-specific CLAUDE.md needed."
+    },
+    {
+      "file": "apps/handlers/monitor/memory_watcher.py",
+      "standard": "architecture",
+      "reason": "704 lines — watcher coordinates file monitoring, rollover triggers, and health checks. Near 700 threshold but cohesive."
+    },
+    {
       "file": "handlers/learnings/manager.py",
       "standard": "dead_code",
       "reason": "Called dynamically via symbolic extraction pipeline — not statically imported from module layer."
@@ -539,31 +549,31 @@
     {
       "file": "apps/handlers/learnings/manager.py",
       "standard": "unused_function",
-      "lines": [773],
+      "lines": [759],
       "reason": "Public API for learning extraction pipeline — called dynamically by symbolic extraction."
     },
     {
       "file": "apps/handlers/search/vector_search.py",
       "standard": "unused_function",
-      "lines": [259],
+      "lines": [247],
       "reason": "Public API surface for vector search — legacy handler retained for direct-import consumers."
     },
     {
       "file": "apps/handlers/search/vector_search.py",
       "standard": "unused_function",
-      "lines": [337],
+      "lines": [316],
       "reason": "Public API surface for vector search — legacy handler retained for direct-import consumers."
     },
     {
       "file": "apps/handlers/search/vector_search.py",
       "standard": "unused_function",
-      "lines": [420],
+      "lines": [380],
       "reason": "Public API surface for vector search — legacy handler retained for direct-import consumers."
     },
     {
       "file": "apps/handlers/symbolic/extractor.py",
       "standard": "unused_function",
-      "lines": [427],
+      "lines": [455],
       "reason": "LLM-based extraction function — called conditionally when API key is available."
     },
     {

@@ -5,7 +5,7 @@
 **Purpose:** Central memory archive with semantic search, rollover, and archival across all AIPass branches.
 **Module:** `aipass.memory`
 **Created:** 2026-03-07
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-22
 **Citizen Class:** builder
 
 ---
