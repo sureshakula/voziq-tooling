@@ -537,31 +537,31 @@ class TestRetroactiveOwner:
     """Tests for retroactive owner assignment on legacy projects."""
 
     def test_retroactive_owner_on_legacy_agents(self, tmp_path):
-        """Creating a new agent in a project where no agent has owner sets the first one."""
+        """Creating a new agent in a project where no agent has owner sets the alphabetically first."""
         from aipass.spawn.apps.modules.core import _spawn_agent
 
         reg = tmp_path / "TEST_REGISTRY.json"
         reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
 
-        # Create two agents, then remove their owner field to simulate legacy
-        _spawn_agent(str(tmp_path / "old_a"), registry_path=str(reg))
-        _spawn_agent(str(tmp_path / "old_b"), registry_path=str(reg))
+        # Names chosen so legacy agents sort first alphabetically (alpha < beta < zeta)
+        _spawn_agent(str(tmp_path / "alpha"), registry_path=str(reg))
+        _spawn_agent(str(tmp_path / "beta"), registry_path=str(reg))
 
-        for name in ["old_a", "old_b"]:
+        for name in ["alpha", "beta"]:
             pp = tmp_path / name / ".trinity" / "passport.json"
             data = json.loads(pp.read_text())
             del data["citizenship"]["owner"]
             pp.write_text(json.dumps(data, indent=2))
 
-        # Create a third agent — should trigger retroactive fix
-        _spawn_agent(str(tmp_path / "new_c"), registry_path=str(reg))
+        # Create a third agent — triggers retroactive fix on alphabetically first
+        _spawn_agent(str(tmp_path / "zeta"), registry_path=str(reg))
 
-        pa = json.loads((tmp_path / "old_a" / ".trinity" / "passport.json").read_text())
-        pb = json.loads((tmp_path / "old_b" / ".trinity" / "passport.json").read_text())
-        pc = json.loads((tmp_path / "new_c" / ".trinity" / "passport.json").read_text())
+        pa = json.loads((tmp_path / "alpha" / ".trinity" / "passport.json").read_text())
+        pb = json.loads((tmp_path / "beta" / ".trinity" / "passport.json").read_text())
+        pz = json.loads((tmp_path / "zeta" / ".trinity" / "passport.json").read_text())
         assert pa["citizenship"]["owner"] is True
         assert pb["citizenship"].get("owner") is not True
-        assert pc["citizenship"]["owner"] is False
+        assert pz["citizenship"]["owner"] is False
 
     def test_no_retroactive_if_owner_exists(self, tmp_path):
         """If an existing agent already has owner:true, no retroactive change."""
