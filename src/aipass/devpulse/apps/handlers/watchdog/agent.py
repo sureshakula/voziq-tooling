@@ -51,28 +51,71 @@ def _find_repo_root(start: Path | None = None) -> Path | None:
     return None
 
 
-def _resolve_branch_path(agent_id: str) -> Path | None:
-    """Resolve an `@branch` token (or bare name) to its absolute branch path."""
-    repo_root = _find_repo_root()
-    if repo_root is None:
-        logger.warning("[watchdog.agent] AIPASS_REGISTRY.json not found")
-        return None
-
-    registry_file = repo_root / "AIPASS_REGISTRY.json"
+def _search_registry(registry_file: Path, target_email: str) -> Path | None:
+    """Search a single registry file for a branch matching target_email."""
     try:
         registry = json.loads(registry_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("[watchdog.agent] failed to read registry: %s", exc)
+        logger.warning("[watchdog.agent] failed to read registry %s: %s", registry_file, exc)
         return None
-
-    target = f"@{agent_id.lstrip('@').lower()}"
-    for branch in registry.get("branches", []):
-        if branch.get("email", "").lower() == target:
+    registry_dir = registry_file.parent
+    raw_branches = registry.get("branches", [])
+    if isinstance(raw_branches, dict):
+        raw_branches = list(raw_branches.values())
+    for branch in raw_branches:
+        if branch.get("email", "").lower() == target_email:
             raw_path = branch.get("path", "")
             path = Path(raw_path)
             if not path.is_absolute():
-                path = repo_root / path
+                path = registry_dir / path
             return path if path.exists() else None
+        name = branch.get("name", "").lower()
+        if f"@{name}" == target_email:
+            raw_path = branch.get("path", "")
+            path = Path(raw_path)
+            if not path.is_absolute():
+                path = registry_dir / path
+            return path if path.exists() else None
+    return None
+
+
+def _resolve_branch_path(agent_id: str) -> Path | None:
+    """Resolve an `@branch` token (or bare name) to its absolute branch path.
+
+    Checks the AIPass registry first, then scans external project registries
+    found via AIPASS_CALLER_CWD or known project paths.
+    """
+    target = f"@{agent_id.lstrip('@').lower()}"
+
+    repo_root = _find_repo_root()
+    if repo_root is not None:
+        registry_file = repo_root / "AIPASS_REGISTRY.json"
+        result = _search_registry(registry_file, target)
+        if result is not None:
+            return result
+
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    search_roots = []
+    if caller_cwd:
+        search_roots.append(Path(caller_cwd))
+    projects_dir = Path.home() / "Projects"
+    if projects_dir.is_dir():
+        search_roots.extend(sorted(projects_dir.iterdir()))
+
+    seen = set()
+    if repo_root:
+        seen.add((repo_root / "AIPASS_REGISTRY.json").resolve())
+    for root in search_roots:
+        if not root.is_dir():
+            continue
+        for reg in root.glob("*_REGISTRY.json"):
+            resolved = reg.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            result = _search_registry(reg, target)
+            if result is not None:
+                return result
     return None
 
 
