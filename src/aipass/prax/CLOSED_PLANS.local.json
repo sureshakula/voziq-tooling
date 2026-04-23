@@ -63,5 +63,28 @@
       "date_closed": "2026-04-10",
       "location": "prax"
     }
-  ]
+  ],
+  "document_metadata": {
+    "version": "2.0.0",
+    "schema_version": "2.0.0",
+    "document_type": "session_history",
+    "tags": [
+      "session_tracking",
+      "work_log",
+      "PRAX"
+    ],
+    "limits": {
+      "max_sessions": 20,
+      "max_key_learnings": 25,
+      "session_summary_max_chars": 150,
+      "learning_value_max_chars": 200,
+      "note": "Auto-rollover to @memory when limits exceeded. Oldest entries trimmed first."
+    },
+    "status": {
+      "health": "healthy",
+      "last_health_check": "2026-04-22",
+      "current_lines": 0
+    }
+  },
+  "key_learnings": {}
 }

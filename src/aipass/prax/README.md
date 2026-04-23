@@ -2,31 +2,20 @@
 
 # PRAX
 
-**Purpose:** System-wide logging, real-time monitoring, and dashboard for AIPass.
+**Purpose:** System-wide logging, real-time monitoring, and dashboard infrastructure for AIPass.
 **Module:** `aipass.prax`
+**Version:** 2.0.0
 **Last Updated:** 2026-04-22
 
 ---
 
 ## Overview
 
-Prax auto-routes log output from any module to per-module log files and provides a live monitoring console (Mission Control) that shows file changes, log events, and command execution across all branches. Monitors Claude Code, Codex, and Gemini CLI sessions.
+Prax is the logging and monitoring backbone of the AIPass ecosystem. Any branch imports `logger` and gets automatic log routing — prax detects the caller via stack introspection and writes to the correct per-module log file. No configuration needed.
 
-## Commands
+On top of logging, prax provides Mission Control (a real-time terminal console for file changes, log events, and agent activity), a log audit system, a dashboard infrastructure, and cross-branch STATUS.md synchronization.
 
-```bash
-drone @prax monitor run                         # Launch Mission Control
-drone @prax status                              # System health status
-drone @prax log-audit audit                     # Audit log file sizes
-drone @prax dashboard                           # Show dashboard
-drone @prax --help                              # Full help
-```
-
-## Usage
-
-### Logging
-
-**Canonical import (use this):**
+## Quick Start
 
 ```python
 from aipass.prax import logger
@@ -36,9 +25,79 @@ logger.warning("Disk usage high")
 logger.error("Connection failed")
 ```
 
-This is Pattern A — the recommended way for all branches. Logs auto-route via two-tier placement: `system_logs/<branch>_<module>.log` (central aggregation) and `<branch>/logs/` (branch-local). No configuration needed — prax detects the caller via stack introspection.
+Logs auto-route via two-tier placement:
+- `system_logs/<branch>_<module>.log` — central aggregation at the repo root
+- `<branch>/logs/<module>.log` — branch-local debugging
 
-For prax handlers that need to bypass the event pipeline (watchdog threads, import-chain files):
+## Commands
+
+```bash
+drone @prax                              # Show discovered modules
+drone @prax --help                       # Full command list
+drone @prax --version                    # Version string
+```
+
+### Monitor — Mission Control
+
+```bash
+drone @prax monitor                      # Show monitor architecture
+drone @prax monitor run                  # Launch Mission Control (all branches)
+drone @prax monitor run seedgo,cli       # Monitor specific branches
+drone @prax monitor --help               # Monitor usage
+```
+
+Real-time unified console showing:
+- File changes, log events, drone commands, agent activity
+- **Caller attribution** — `CALLER → TARGET` for drone commands
+- **Model tags** — `[BRANCH/model]` (e.g., `[DEVPULSE/opus]`, `[DEVPULSE/gpt-5.4]`)
+- **Multi-CLI** — Claude Code (JSONL), Codex (JSONL), Gemini (JSON) session monitoring
+- **Polling fallback** — automatic fallback when inotify watches are exhausted
+- **Soft start** — only shows new activity after launch (seeks to EOF on startup)
+
+Interactive commands inside the monitor: `help`, `status`, `quit`/`exit`.
+
+### Status
+
+```bash
+drone @prax status                       # System health (modules, loggers, watcher state)
+drone @prax status sync                  # Build STATUS.md from all branch STATUS.local.md
+drone @prax status --help                # Status usage
+```
+
+### Log Audit
+
+```bash
+drone @prax log-audit                    # Show audit module info
+drone @prax log-audit audit              # Scan system_logs/ for health + oversized files
+drone @prax log-audit enforce            # Truncate oversized logs to 1000 lines
+drone @prax log-audit --help             # Audit usage
+```
+
+### Dashboard
+
+```bash
+drone @prax dashboard                    # Show dashboard sections
+drone @prax dashboard refresh --all      # Refresh all branch dashboards from centrals
+drone @prax dashboard refresh @flow      # Refresh a specific branch
+drone @prax dashboard status             # Show dashboard status
+drone @prax dashboard push-template      # Push template to all branches
+drone @prax dashboard diff-template      # Diff template vs branch dashboards
+drone @prax dashboard --help             # Dashboard usage
+```
+
+## Logging API
+
+### Pattern A — Canonical (use this)
+
+```python
+from aipass.prax import logger
+
+logger.info("Processing started")
+```
+
+This works from any branch. Prax detects the caller via stack introspection and routes to the correct log file. If prax fails to import, a NullLogger fallback prevents crashes.
+
+### Pattern B — Direct Logger (for prax internals)
 
 ```python
 from aipass.prax.apps.modules.logger import get_direct_logger
@@ -47,94 +106,112 @@ logger = get_direct_logger()
 logger.info("Direct log entry")
 ```
 
-### Mission Control
+Use this in prax handler files that run in watchdog threads or sit in the import chain. Resolves module/branch at creation time, bypassing the runtime event pipeline.
 
-Real-time monitoring console for watching system activity across all branches and CLI tools.
+### Programmatic Dashboard API
 
-```bash
-drone @prax monitor run
+```python
+from aipass.prax.apps.modules.dashboard import write_section
+
+write_section(branch_path, "ai_mail", {"new": 3, "total": 5})
 ```
-
-Features:
-- File changes, log events, drone commands, agent activity — all in one console
-- **Caller attribution** — shows `CALLER → TARGET` for drone commands
-- **Model tags** — shows `[BRANCH/model]` (e.g., `[DEVPULSE/opus]`, `[DEVPULSE/gpt-5.4]`)
-- **Multi-CLI** — monitors Claude Code (JSONL), Codex (JSONL), Gemini (JSON) sessions
-- **Polling fallback** — when inotify is exhausted, falls back to PollingObserver automatically
-- **Interactive filtering** *(not operational)* — `watch`, `filter` commands are deferred
-
-Interactive commands inside the monitor:
-
-```
-help              # Show available commands
-status            # Display current monitoring state
-quit/exit         # Stop monitoring
-```
-
-### CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `drone @prax monitor run` | Launch Mission Control |
-| `drone @prax monitor` | Show monitor introspection |
-| `drone @prax status` | Show system status (modules, loggers, watcher state) |
-| `drone @prax status sync` | Sync STATUS.md from all branch STATUS.local.md |
-| `drone @prax log-audit audit` | Audit log file sizes and health |
-| `drone @prax log-audit enforce` | Truncate oversized logs |
-| `drone @prax dashboard` | Show system dashboard |
-| `drone @prax dashboard refresh --all` | Refresh dashboard data from centrals |
 
 ## Architecture
 
 ```
 prax/
+├── __init__.py                        # Public API: exports `logger` (NullLogger fallback)
 ├── apps/
-│   ├── prax.py                    # Entry point (CLI)
-│   ├── modules/
-│   │   ├── logger.py              # SystemLogger (public API)
-│   │   ├── monitor.py             # Mission Control
-│   │   ├── dashboard.py           # System dashboard
-│   │   ├── status.py              # System status / STATUS sync
-│   │   └── log_audit.py           # Log file audit
-│   └── handlers/
-│       ├── central/               # Central file reader
-│       ├── config/                # Configuration loading
-│       ├── dashboard/             # Dashboard refresh and operations
-│       ├── discovery/             # Module scanning and filtering
-│       ├── json/                  # JSON operations handler
-│       ├── json_templates/        # JSON template definitions
-│       ├── logging/               # Log setup, rotation, introspection
-│       ├── monitoring/            # Event queue, branch detection, stream output
-│       ├── registry/              # Module registry management
-│       ├── status/                # STATUS sync handler
-│       └── watcher/               # File and log watchers
-├── templates/                     # Dashboard templates
-├── tests/                         # Test suite (375 tests)
-└── tools/                         # Standalone utilities (inbox_watchdog.py)
+│   ├── prax.py                        # Entry point — auto-discovers modules, routes commands
+│   ├── modules/                       # Business logic (5 command modules)
+│   │   ├── logger.py                  # SystemLogger — auto-routing, two-tier logging
+│   │   ├── monitor.py                 # Mission Control — 3-thread real-time monitoring
+│   │   ├── dashboard.py               # Dashboard — template management, refresh, write-through
+│   │   ├── status.py                  # System status — health display, STATUS.md sync
+│   │   └── log_audit.py              # Log audit — scan, health summary, enforce limits
+│   └── handlers/                      # Implementation details (11 handler directories)
+│       ├── central/                   # Central file reader (.ai_central/*.central.json)
+│       ├── config/                    # Path resolution, log config, ignore patterns
+│       ├── dashboard/                 # Refresh, operations, template push/diff, agent status
+│       ├── discovery/                 # Module scanning, filtering, file watcher for new .py
+│       ├── json/                      # Auto-creating JSON handler (config/data/log per module)
+│       ├── json_templates/            # Default JSON templates for auto-creation
+│       ├── logging/                   # Setup, rotation, introspection, override, direct logger
+│       ├── monitoring/                # Event queue, branch detector, stream output, log watcher
+│       ├── registry/                  # Module registry load/save
+│       ├── status/                    # STATUS.md sync handler
+│       └── watcher/                   # Background system watchers
+├── prax_json/                         # Auto-created per-module config/data/log files
+├── templates/                         # Dashboard template schema (DASHBOARD.template.json)
+├── tests/                             # 375 tests across 16 files
+└── tools/                             # Standalone utilities (inbox_watchdog.py, verify_branch.py)
+```
+
+### Design Pattern
+
+The entry point (`prax.py`) has zero business logic — it auto-discovers modules in `apps/modules/` and routes commands. Each module is a thin orchestrator over its handlers. Handlers are never imported by external branches.
+
+### Command Routing
+
+```
+drone @prax monitor run
+  → prax.py discovers modules (glob apps/modules/*.py)
+  → calls monitor.handle_command("monitor", ["run"])
+  → monitor.py delegates to handlers/monitoring/*
 ```
 
 ## How It Works
 
-1. **Auto-routing** — When any module calls `logger.info()`, prax inspects the call stack to identify the caller and routes the log entry to the appropriate file.
-2. **Two-tier logging** — Each log entry goes to both `system_logs/` (central aggregation) and `<branch>/logs/` (branch-local), both with rotation.
-3. **Mission Control** — A multi-threaded monitoring console (display, file watcher, log watcher). Falls back to polling when inotify is exhausted. Shows caller attribution and model tags.
-4. **Multi-CLI monitoring** — Watches Claude Code JSONL, Codex JSONL, and Gemini JSON session files for agent activity (thinking, tool use, responses).
-5. **Dashboard** — Aggregates data from central files and branch status into per-branch dashboard views.
+1. **Auto-routing** — `logger.info()` inspects the call stack to identify the caller's module, branch, and file path, then routes the log entry to the correct per-module log file.
+2. **Two-tier logging** — Each log entry goes to both `system_logs/` (central, all branches) and `<branch>/logs/` (branch-local), both with size-based rotation.
+3. **Self-healing** — Auto-creates missing log directories, falls back to `system_logs/external/` for unknown modules, provides NullLogger if prax itself fails to import.
+4. **Mission Control** — Three threads: display worker (pulls from event queue), file watcher (watchdog on branch `apps/` dirs), log watcher (tails `system_logs/*.log`). Falls back to polling when inotify is exhausted.
+5. **Multi-CLI monitoring** — Watches Claude Code JSONL, Codex JSONL, and Gemini JSON session files. Extracts agent activity (thinking, tool use, responses) with model detection and branch resolution.
+6. **Dashboard** — Template-based per-branch dashboard files. Refreshes from central files (`*.central.json`). Write-through API for services to update sections directly.
+7. **STATUS sync** — Scans all branch `STATUS.local.md` files, extracts State/Last update fields, builds aggregated `STATUS.md` at the repo root.
 
----
+## Tests
+
+375 tests across 16 files, covering all major components:
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| test_logger_module.py | 40 | Logger init, routing, lifecycle |
+| test_monitoring_filters.py | 39 | Event filtering rules |
+| test_config.py | 38 | Config loading, path resolution |
+| test_event_queue.py | 35 | Thread-safe event buffering |
+| test_log_watcher.py | 35 | Log file tailing |
+| test_logging.py | 33 | Core logging system |
+| test_discovery.py | 25 | Module scanning |
+| test_operations.py | 24 | Dashboard operations |
+| test_watcher.py | 23 | File watcher behavior |
+| test_registry.py | 22 | Module registry |
+| test_json_handler.py | 18 | JSON auto-creation |
+| test_central.py | 14 | Central reader |
+| test_monitor_module.py | 11 | Monitor commands |
+| test_log_audit.py | 10 | Log audit |
+| test_status.py | 8 | Status commands |
+
+90/136 public functions tested (66%).
 
 ## Integration Points
 
 ### Depends On
 - `aipass.cli` — Console output, headers, success/error formatting
 - `aipass.drone` — Caller attribution via `[CALLER:BRANCH]` log markers
-- Python stdlib (`pathlib`, `importlib`, `argparse`, `logging`)
+- `aipass.trigger` — Optional event firing (module_discovered, error_detected)
 - `watchdog` — File system monitoring (inotify + polling fallback)
+- Python stdlib (`pathlib`, `logging`, `threading`, `argparse`, `importlib`)
 
 ### Provides To
-- All 11 branches — Unified logging via `from aipass.prax import logger`
+- All branches — Unified logging via `from aipass.prax import logger`
 - All branches — Real-time monitoring via Mission Control
-- System — STATUS.md sync, dashboard infrastructure
+- All branches — Per-branch dashboard files
+- System — `STATUS.md` sync, log audit enforcement
+
+## Known Issues
+- **inotify exhaustion** — System often near `max_user_watches` limit. Monitor uses polling fallback (functional but slower).
+- **Interactive filtering deferred** — `watch`/`filter` commands in Mission Control are not operational.
 
 ---
 
