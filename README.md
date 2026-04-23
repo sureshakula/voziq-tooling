@@ -264,12 +264,13 @@ No cloud accounts, no external services, no cleanup beyond your local filesystem
 
 ### Remove a single agent
 
-Delete the agent's directory under `src/` and remove its entry from the registry JSON file:
+Use spawn's delete command to cleanly archive and deregister:
 
 ```bash
-rm -rf src/agent_name/
-# Then edit *_REGISTRY.json to remove the agent's entry
+drone @spawn delete @agent_name
 ```
+
+This archives the agent's directory and removes it from the registry.
 
 </details>
 
