@@ -316,6 +316,7 @@ class TestReadRegistry:
 
         # Point _REPO_ROOT at our tmp_path
         monkeypatch.setattr(detector, "_REPO_ROOT", tmp_path)
+        monkeypatch.setattr(detector, "_find_caller_registries", lambda: [])
 
         result = detector._read_registry()
 
@@ -329,6 +330,7 @@ class TestReadRegistry:
 
         # Point _REPO_ROOT at a directory with no registry file
         monkeypatch.setattr(detector, "_REPO_ROOT", tmp_path)
+        monkeypatch.setattr(detector, "_find_caller_registries", lambda: [])
 
         result = detector._read_registry()
 
@@ -341,6 +343,7 @@ class TestReadRegistry:
         from aipass.memory.apps.handlers.monitor import detector
 
         monkeypatch.setattr(detector, "_REPO_ROOT", tmp_path)
+        monkeypatch.setattr(detector, "_find_caller_registries", lambda: [])
 
         result = detector._read_registry()
 
@@ -358,6 +361,7 @@ class TestReadRegistry:
         from aipass.memory.apps.handlers.monitor import detector
 
         monkeypatch.setattr(detector, "_REPO_ROOT", tmp_path)
+        monkeypatch.setattr(detector, "_find_caller_registries", lambda: [])
 
         result = detector._read_registry()
 
@@ -373,6 +377,7 @@ class TestReadRegistry:
         from aipass.memory.apps.handlers.monitor import detector
 
         monkeypatch.setattr(detector, "_REPO_ROOT", tmp_path)
+        monkeypatch.setattr(detector, "_find_caller_registries", lambda: [])
 
         result = detector._read_registry()
 

@@ -429,19 +429,9 @@ def _find_repo_root() -> Path:
     return Path.cwd()
 
 
-def _get_branch_paths() -> list[Path]:
-    """
-    Get all branch paths from AIPASS_REGISTRY.json (silent - no logging).
-
-    Registry paths are relative — resolved against repo root.
-
-    Returns:
-        List of Path objects for each branch
-    """
+def _paths_from_registry(registry_path: Path, root: Path) -> list[Path]:
+    """Read branch paths from a single registry file."""
     import json
-
-    repo_root = _find_repo_root()
-    registry_path = repo_root / "AIPASS_REGISTRY.json"
 
     if not registry_path.exists():
         return []
@@ -456,14 +446,47 @@ def _get_branch_paths() -> list[Path]:
                 raw_path = branch.get("path", "")
                 branch_path = Path(raw_path)
                 if not branch_path.is_absolute():
-                    branch_path = repo_root / raw_path
+                    branch_path = root / raw_path
                 if branch_path.exists():
                     paths.append(branch_path)
 
             return paths
     except Exception as e:
-        logger.warning(f"[memory_watcher] Failed to read branch paths from registry: {e}")
+        logger.warning(f"[memory_watcher] Failed to read registry {registry_path}: {e}")
         return []
+
+
+def _get_branch_paths() -> list[Path]:
+    """
+    Get all branch paths from AIPass registry + external project registries.
+
+    Returns:
+        List of Path objects for each branch
+    """
+    import os
+
+    repo_root = _find_repo_root()
+    paths = _paths_from_registry(repo_root / "AIPASS_REGISTRY.json", repo_root)
+    seen = {p.resolve() for p in paths}
+
+    caller_cwd = (
+        Path(os.environ.get("AIPASS_CALLER_CWD", "")).resolve() if os.environ.get("AIPASS_CALLER_CWD") else Path.cwd()
+    )
+    aipass_registry = (repo_root / "AIPASS_REGISTRY.json").resolve()
+
+    found_external = False
+    for parent in [caller_cwd] + list(caller_cwd.parents):
+        for reg in parent.glob("*_REGISTRY.json"):
+            if reg.resolve() != aipass_registry:
+                found_external = True
+                for p in _paths_from_registry(reg, reg.parent):
+                    if p.resolve() not in seen:
+                        paths.append(p)
+                        seen.add(p.resolve())
+        if found_external:
+            break
+
+    return paths
 
 
 def _is_memory_file(file_path: Path) -> bool:
