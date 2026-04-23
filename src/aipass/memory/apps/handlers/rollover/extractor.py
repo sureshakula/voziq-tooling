@@ -280,8 +280,8 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     max_sessions = limits.get("max_sessions")
     if max_sessions is not None:
         sessions = data.get("sessions", [])
-        if isinstance(sessions, list) and len(sessions) > max_sessions:
-            excess = len(sessions) - max_sessions
+        if isinstance(sessions, list) and len(sessions) >= max_sessions:
+            excess = max(len(sessions) - max_sessions, 1)
             extracted_sessions = sessions[-excess:]  # oldest from end
             data["sessions"] = sessions[:-excess]  # keep newest
             all_extracted.extend(extracted_sessions)
@@ -290,8 +290,8 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     max_key_learnings = limits.get("max_key_learnings")
     if max_key_learnings is not None:
         key_learnings = data.get("key_learnings", {})
-        if isinstance(key_learnings, dict) and len(key_learnings) > max_key_learnings:
-            excess = len(key_learnings) - max_key_learnings
+        if isinstance(key_learnings, dict) and len(key_learnings) >= max_key_learnings:
+            excess = max(len(key_learnings) - max_key_learnings, 1)
             keys_list = list(key_learnings.keys())
             keys_to_extract = keys_list[:excess]  # oldest (first inserted)
             for k in keys_to_extract:
@@ -302,8 +302,8 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     max_observations = limits.get("max_observations")
     if max_observations is not None:
         observations = data.get("observations", [])
-        if isinstance(observations, list) and len(observations) > max_observations:
-            excess = len(observations) - max_observations
+        if isinstance(observations, list) and len(observations) >= max_observations:
+            excess = max(len(observations) - max_observations, 1)
             extracted_obs = observations[-excess:]
             data["observations"] = observations[:-excess]
             all_extracted.extend(extracted_obs)
