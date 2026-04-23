@@ -1,4 +1,4 @@
-[![Status](https://img.shields.io/badge/status-beta-yellow)](HERALD.md)
+[![Status](https://img.shields.io/badge/status-beta-yellow)](#project-status)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/aipass)](https://pypi.org/project/aipass/)
@@ -231,8 +231,6 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | External projects | Full cross-project access (Vera Studio) |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
-
-For detailed session history, see [HERALD.md](HERALD.md).
 
 ---
 

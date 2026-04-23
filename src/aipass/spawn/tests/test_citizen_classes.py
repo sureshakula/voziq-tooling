@@ -13,6 +13,8 @@ class-aware update, and backward compatibility.
 """
 
 import json
+import unittest.mock
+
 import pytest
 from pathlib import Path
 
@@ -444,3 +446,163 @@ class TestMultiAgentCoexistence:
             passport = json.loads((tmp_path / name / ".trinity" / "passport.json").read_text())
             assert passport["branch_info"]["branch_name"] == name.upper()
             assert passport["identity"]["citizen_class"] == "builder"
+
+
+class TestPassportOwnerField:
+    """Tests verifying the owner field in passport.json."""
+
+    def test_first_agent_is_owner(self, tmp_path):
+        """First agent created in a project gets owner: true."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        _spawn_agent(str(tmp_path / "first"), registry_path=str(reg))
+
+        passport = json.loads((tmp_path / "first" / ".trinity" / "passport.json").read_text())
+        assert passport["citizenship"]["owner"] is True
+
+    def test_second_agent_not_owner(self, tmp_path):
+        """Second agent created in a project gets owner: false."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        _spawn_agent(str(tmp_path / "first"), registry_path=str(reg))
+        _spawn_agent(str(tmp_path / "second"), registry_path=str(reg))
+
+        p1 = json.loads((tmp_path / "first" / ".trinity" / "passport.json").read_text())
+        p2 = json.loads((tmp_path / "second" / ".trinity" / "passport.json").read_text())
+        assert p1["citizenship"]["owner"] is True
+        assert p2["citizenship"]["owner"] is False
+
+    def test_third_agent_not_owner(self, tmp_path):
+        """Third agent also gets owner: false."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        for name in ["alpha", "beta", "gamma"]:
+            _spawn_agent(str(tmp_path / name), registry_path=str(reg))
+
+        passports = {}
+        for name in ["alpha", "beta", "gamma"]:
+            passports[name] = json.loads((tmp_path / name / ".trinity" / "passport.json").read_text())
+
+        assert passports["alpha"]["citizenship"]["owner"] is True
+        assert passports["beta"]["citizenship"]["owner"] is False
+        assert passports["gamma"]["citizenship"]["owner"] is False
+
+    def test_birthright_first_agent_is_owner(self, tmp_path):
+        """First birthright agent gets owner: true."""
+        from aipass.spawn.apps.handlers.passport_ops import grant_passport
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        target = tmp_path / "citizen"
+        target.mkdir()
+        with unittest.mock.patch("aipass.spawn.apps.handlers.passport_ops.find_registry", return_value=reg):
+            grant_passport(str(target))
+
+        passport = json.loads((target / ".trinity" / "passport.json").read_text())
+        assert passport["citizenship"]["owner"] is True
+
+    def test_birthright_second_agent_not_owner(self, tmp_path):
+        """Second birthright agent gets owner: false."""
+        from aipass.spawn.apps.handlers.passport_ops import grant_passport
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        first = tmp_path / "first"
+        first.mkdir()
+        second = tmp_path / "second"
+        second.mkdir()
+
+        with unittest.mock.patch("aipass.spawn.apps.handlers.passport_ops.find_registry", return_value=reg):
+            grant_passport(str(first))
+            grant_passport(str(second))
+
+        p1 = json.loads((first / ".trinity" / "passport.json").read_text())
+        p2 = json.loads((second / ".trinity" / "passport.json").read_text())
+        assert p1["citizenship"]["owner"] is True
+        assert p2["citizenship"]["owner"] is False
+
+
+class TestRetroactiveOwner:
+    """Tests for retroactive owner assignment on legacy projects."""
+
+    def test_retroactive_owner_on_legacy_agents(self, tmp_path):
+        """Creating a new agent in a project where no agent has owner sets the first one."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        # Create two agents, then remove their owner field to simulate legacy
+        _spawn_agent(str(tmp_path / "old_a"), registry_path=str(reg))
+        _spawn_agent(str(tmp_path / "old_b"), registry_path=str(reg))
+
+        for name in ["old_a", "old_b"]:
+            pp = tmp_path / name / ".trinity" / "passport.json"
+            data = json.loads(pp.read_text())
+            del data["citizenship"]["owner"]
+            pp.write_text(json.dumps(data, indent=2))
+
+        # Create a third agent — should trigger retroactive fix
+        _spawn_agent(str(tmp_path / "new_c"), registry_path=str(reg))
+
+        pa = json.loads((tmp_path / "old_a" / ".trinity" / "passport.json").read_text())
+        pb = json.loads((tmp_path / "old_b" / ".trinity" / "passport.json").read_text())
+        pc = json.loads((tmp_path / "new_c" / ".trinity" / "passport.json").read_text())
+        assert pa["citizenship"]["owner"] is True
+        assert pb["citizenship"].get("owner") is not True
+        assert pc["citizenship"]["owner"] is False
+
+    def test_no_retroactive_if_owner_exists(self, tmp_path):
+        """If an existing agent already has owner:true, no retroactive change."""
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        _spawn_agent(str(tmp_path / "first"), registry_path=str(reg))
+        _spawn_agent(str(tmp_path / "second"), registry_path=str(reg))
+        _spawn_agent(str(tmp_path / "third"), registry_path=str(reg))
+
+        p1 = json.loads((tmp_path / "first" / ".trinity" / "passport.json").read_text())
+        p2 = json.loads((tmp_path / "second" / ".trinity" / "passport.json").read_text())
+        p3 = json.loads((tmp_path / "third" / ".trinity" / "passport.json").read_text())
+        assert p1["citizenship"]["owner"] is True
+        assert p2["citizenship"]["owner"] is False
+        assert p3["citizenship"]["owner"] is False
+
+    def test_ensure_project_has_owner_direct(self, tmp_path):
+        """Direct call to ensure_project_has_owner fixes a legacy project."""
+        from aipass.spawn.apps.handlers.registry import ensure_project_has_owner
+        from aipass.spawn.apps.modules.core import _spawn_agent
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+
+        _spawn_agent(str(tmp_path / "agent_x"), registry_path=str(reg))
+        _spawn_agent(str(tmp_path / "agent_y"), registry_path=str(reg))
+
+        # Strip owner from both
+        for name in ["agent_x", "agent_y"]:
+            pp = tmp_path / name / ".trinity" / "passport.json"
+            data = json.loads(pp.read_text())
+            data["citizenship"].pop("owner", None)
+            pp.write_text(json.dumps(data, indent=2))
+
+        result = ensure_project_has_owner(reg)
+        assert result is True
+
+        px = json.loads((tmp_path / "agent_x" / ".trinity" / "passport.json").read_text())
+        py = json.loads((tmp_path / "agent_y" / ".trinity" / "passport.json").read_text())
+        assert px["citizenship"]["owner"] is True
+        assert py["citizenship"].get("owner") is not True

@@ -265,3 +265,34 @@ def fix_passport_registry_id(branch_dir: Path, registry_path: Path) -> bool:
     except Exception as e:
         logger.warning("[registry] Failed to fix registry_id for %s: %s", branch_dir.name, e)
         return False
+
+
+def ensure_project_has_owner(registry_path):
+    """If no agent in the project has owner:true, assign it to the earliest-created agent."""
+    registry_path = Path(registry_path)
+    reg_data = load_registry(registry_path)
+    branches = _branches_as_list(reg_data.get("branches", []))
+    if not branches:
+        return False
+
+    registry_root = registry_path.parent
+    for branch in branches:
+        branch_path = registry_root / branch.get("path", "")
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if passport_path.exists():
+            passport = json_handler.read_json(passport_path)
+            if passport and passport.get("citizenship", {}).get("owner") is True:
+                return False
+
+    by_created = sorted(branches, key=lambda b: b.get("created", "9999-99-99"))
+    for branch in by_created:
+        branch_path = registry_root / branch.get("path", "")
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if passport_path.exists():
+            passport = json_handler.read_json(passport_path)
+            if passport:
+                passport.setdefault("citizenship", {})["owner"] = True
+                json_handler.write_json(passport_path, passport)
+                logger.info("[registry] Retroactively set owner=true on %s", branch.get("name", "?"))
+                return True
+    return False

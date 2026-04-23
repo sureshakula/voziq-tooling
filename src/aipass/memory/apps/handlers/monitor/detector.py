@@ -46,6 +46,25 @@ def _find_repo_root() -> Path:
 _REPO_ROOT = _find_repo_root()
 
 
+def _find_caller_registries() -> List[Path]:
+    """Find project registries reachable from CWD (for external projects)."""
+    import os
+
+    caller_cwd = (
+        Path(os.environ.get("AIPASS_CALLER_CWD", "")).resolve() if os.environ.get("AIPASS_CALLER_CWD") else Path.cwd()
+    )
+    aipass_registry = (_REPO_ROOT / "AIPASS_REGISTRY.json").resolve()
+
+    registries = []
+    for parent in [caller_cwd] + list(caller_cwd.parents):
+        for reg in parent.glob("*_REGISTRY.json"):
+            if reg.resolve() != aipass_registry:
+                registries.append(reg)
+        if registries:
+            break
+    return registries
+
+
 # =============================================================================
 # DATA STRUCTURES
 # =============================================================================
@@ -74,17 +93,8 @@ class RolloverTrigger:
 # =============================================================================
 
 
-def _read_registry() -> List[Dict[str, Any]]:
-    """
-    Read AIPASS_REGISTRY.json from repo root.
-
-    Registry paths are relative — resolved against repo root.
-
-    Returns:
-        List of branch dictionaries with absolute paths
-    """
-    registry_path = _REPO_ROOT / "AIPASS_REGISTRY.json"
-
+def _read_single_registry(registry_path: Path, root: Path) -> List[Dict[str, Any]]:
+    """Read branches from a single registry file, resolving paths against root."""
     if not registry_path.exists():
         return []
 
@@ -93,18 +103,38 @@ def _read_registry() -> List[Dict[str, Any]]:
             data = json.load(f)
             branches = data.get("branches", [])
 
-            # Resolve relative paths against repo root
             for branch in branches:
                 raw_path = branch.get("path", "")
                 resolved = Path(raw_path)
                 if not resolved.is_absolute():
-                    resolved = _REPO_ROOT / raw_path
+                    resolved = root / raw_path
                 branch["path"] = str(resolved)
 
             return branches
     except Exception as e:
-        logger.warning(f"[detector] Failed to read registry: {e}")
+        logger.warning(f"[detector] Failed to read registry {registry_path}: {e}")
         return []
+
+
+def _read_registry() -> List[Dict[str, Any]]:
+    """
+    Read all project registries (AIPass + external projects from caller CWD).
+
+    Registry paths are relative — resolved against their respective project root.
+
+    Returns:
+        List of branch dictionaries with absolute paths
+    """
+    branches = _read_single_registry(_REPO_ROOT / "AIPASS_REGISTRY.json", _REPO_ROOT)
+
+    seen_paths = {b.get("path") for b in branches}
+    for reg_path in _find_caller_registries():
+        for branch in _read_single_registry(reg_path, reg_path.parent):
+            if branch.get("path") not in seen_paths:
+                branches.append(branch)
+                seen_paths.add(branch.get("path"))
+
+    return branches
 
 
 def _get_memory_file_path(branch: Dict, memory_type: str) -> Path | None:

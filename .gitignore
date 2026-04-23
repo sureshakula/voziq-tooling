@@ -1,6 +1,9 @@
 # Virtual environment
 .venv/
 
+# Herald (session history — parked)
+HERALD.md
+
 # Python
 __pycache__/
 *.pyc

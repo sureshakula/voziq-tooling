@@ -46,6 +46,7 @@ from aipass.spawn.apps.handlers.registry import (
     add_to_registry,
     get_next_citizen_number,
     fix_passport_registry_id,
+    ensure_project_has_owner,
 )
 from aipass.spawn.apps.handlers.class_registry import (
     get_template_dir as _get_template_dir,
@@ -217,6 +218,14 @@ def _spawn_agent(
     # Step 2: Rename any {{BRANCH}} dirs/files that weren't caught by path replacement
     renamed = rename_placeholder_paths(target, folder_name)
 
+    # Step 2b: Set owner field — first agent in the project is the owner
+    passport_path = target / ".trinity" / "passport.json"
+    if passport_path.exists():
+        passport_data = json_handler.read_json(passport_path)
+        if passport_data:
+            passport_data.setdefault("citizenship", {})["owner"] = citizen_number == 1
+            json_handler.write_json(passport_path, passport_data)
+
     # Step 3: Regenerate .template_registry.json with fresh hashes
     regenerate_template_registry(target)
 
@@ -242,7 +251,10 @@ def _spawn_agent(
         purpose or "New agent - purpose TBD",
     )
 
-    # Step 5: Validate no unreplaced placeholders
+    # Step 5: Ensure at least one agent in the project is the owner
+    ensure_project_has_owner(reg_path)
+
+    # Step 6: Validate no unreplaced placeholders
     issues = validate_no_placeholders(target)
 
     json_handler.log_operation("branch_created", data={"branch": branch_upper})
