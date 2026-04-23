@@ -31,16 +31,20 @@ from aipass.seedgo.apps.handlers.json import json_handler
 
 
 def _find_registry() -> Path:
-    """Find AIPASS_REGISTRY.json by walking up from this file's location."""
+    """Find *_REGISTRY.json — CWD-first for external project support, then __file__ fallback."""
+    cwd = Path.cwd()
+    for parent in [cwd] + list(cwd.parents):
+        matches = sorted(parent.glob("*_REGISTRY.json"))
+        if matches:
+            return matches[0]
     current = Path(__file__).resolve().parent
     for parent in [current] + list(current.parents):
-        candidate = parent / "AIPASS_REGISTRY.json"
-        if candidate.exists():
-            return candidate
+        matches = sorted(parent.glob("*_REGISTRY.json"))
+        if matches:
+            return matches[0]
     return Path.cwd() / "AIPASS_REGISTRY.json"
 
 
-REGISTRY_PATH = _find_registry()
 # Generator lives in same handlers/standards/ directory as this file
 GENERATOR_PATH = Path(__file__).resolve().parent / "readme_generator.py"
 
@@ -69,14 +73,15 @@ def resolve_branch(branch_arg: str) -> Optional[Dict]:
     Returns:
         Branch dict from registry, or None if not found
     """
-    if not REGISTRY_PATH.exists():
+    registry_path = _find_registry()
+    if not registry_path.exists():
         return None
 
     try:
-        content = REGISTRY_PATH.read_text(encoding="utf-8")
+        content = registry_path.read_text(encoding="utf-8")
         registry = json.loads(content)
     except (json.JSONDecodeError, OSError):
-        logger.info("Cannot read registry for branch resolution: %s", REGISTRY_PATH)
+        logger.info("Cannot read registry for branch resolution: %s", registry_path)
         return None
 
     # Strip @ prefix and normalize
@@ -101,15 +106,16 @@ def get_all_branches() -> List[Dict]:
     Returns:
         List of branch dicts, or empty list on failure
     """
-    if not REGISTRY_PATH.exists():
+    registry_path = _find_registry()
+    if not registry_path.exists():
         return []
 
     try:
-        content = REGISTRY_PATH.read_text(encoding="utf-8")
+        content = registry_path.read_text(encoding="utf-8")
         registry = json.loads(content)
         return registry.get("branches", [])
     except (json.JSONDecodeError, OSError):
-        logger.info("Cannot read registry for branch listing: %s", REGISTRY_PATH)
+        logger.info("Cannot read registry for branch listing: %s", registry_path)
         return []
 
 

@@ -21,12 +21,17 @@ from aipass.seedgo.apps.handlers.json import json_handler
 
 
 def _find_registry() -> Path:
-    """Find AIPASS_REGISTRY.json by walking up from this file's location."""
+    """Find *_REGISTRY.json — CWD-first for external project support, then __file__ fallback."""
+    cwd = Path.cwd()
+    for parent in [cwd] + list(cwd.parents):
+        matches = sorted(parent.glob("*_REGISTRY.json"))
+        if matches:
+            return matches[0]
     current = Path(__file__).resolve().parent
     for parent in [current] + list(current.parents):
-        candidate = parent / "AIPASS_REGISTRY.json"
-        if candidate.exists():
-            return candidate
+        matches = sorted(parent.glob("*_REGISTRY.json"))
+        if matches:
+            return matches[0]
     return Path.cwd() / "AIPASS_REGISTRY.json"
 
 

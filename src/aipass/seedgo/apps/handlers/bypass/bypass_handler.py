@@ -57,16 +57,18 @@ BYPASS_TEMPLATE = {
 
 
 def _find_registry() -> Path:
-    """Find AIPASS_REGISTRY.json by walking up from this file's location."""
+    """Find *_REGISTRY.json — CWD-first for external project support, then __file__ fallback."""
+    cwd = Path.cwd()
+    for parent in [cwd] + list(cwd.parents):
+        matches = sorted(parent.glob("*_REGISTRY.json"))
+        if matches:
+            return matches[0]
     current = Path(__file__).resolve().parent
     for parent in [current] + list(current.parents):
-        candidate = parent / "AIPASS_REGISTRY.json"
-        if candidate.exists():
-            return candidate
+        matches = sorted(parent.glob("*_REGISTRY.json"))
+        if matches:
+            return matches[0]
     return Path.cwd() / "AIPASS_REGISTRY.json"
-
-
-REGISTRY_PATH = _find_registry()
 
 
 # =============================================================================
@@ -85,16 +87,17 @@ def get_branch_from_path(file_path: str) -> Optional[Dict[str, Any]]:
         Branch dict with name, path, etc. or None if not in a branch
     """
     try:
-        if not REGISTRY_PATH.exists():
+        registry_path = _find_registry()
+        if not registry_path.exists():
             logger.warning("[bypass_handler] AIPASS_REGISTRY.json not found")
             return None
 
-        with open(REGISTRY_PATH, "r", encoding="utf-8") as f:
+        with open(registry_path, "r", encoding="utf-8") as f:
             registry = json.load(f)
 
         file_path = str(Path(file_path).resolve())
 
-        registry_dir = REGISTRY_PATH.parent
+        registry_dir = registry_path.parent
 
         def _resolve(raw: str) -> str:
             p = Path(raw)
