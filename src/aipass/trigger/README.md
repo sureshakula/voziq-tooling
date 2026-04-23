@@ -2,37 +2,46 @@
 
 # Trigger
 
-**Purpose:** Event bus for AIPass. Branches fire events, registered handlers react. Decouples producers from consumers — the module that detects a condition doesn't need to know what should happen next.
+**Purpose:** Event bus and error dispatch for AIPass. Branches fire events, registered handlers react. Medic watches logs for errors, fingerprints them, gates dispatch through an 8-stage pipeline, and notifies the responsible branch.
 **Module:** `aipass.trigger`
+**Version:** 2.2.0
 **Last Updated:** 2026-04-22
 
-## Commands / Usage
+## Commands
 
 ```bash
-drone @trigger fire <event> [data]              # Fire an event
-drone @trigger list                             # List registered events
-drone @trigger status                           # Event bus status
-drone @trigger --help                           # Full help
+drone @trigger                              # Introspection (modules, version)
+drone @trigger --help                       # Full command listing
+drone @trigger --version                    # Version string
+
+# Event bus
+drone @trigger fire <event> [key=val ...]   # Fire an event with optional data
+drone @trigger list                         # List all registered events + handlers
+drone @trigger status                       # Event bus and medic state
+
+# Error registry
+drone @trigger errors list                  # View tracked errors
+drone @trigger errors stats                 # Registry stats + circuit breaker
+drone @trigger errors circuit-breaker       # Circuit breaker state
+drone @trigger errors detail <fingerprint>  # Single error detail
+drone @trigger errors --help                # Error subcommand help
+
+# Medic (error dispatch control)
+drone @trigger medic on                     # Enable auto-dispatch
+drone @trigger medic off                    # Disable auto-dispatch
+drone @trigger medic status                 # Medic state + suppression stats
+drone @trigger medic mute @branch           # Suppress dispatch to a branch
+drone @trigger medic unmute @branch         # Resume dispatch to a branch
+drone @trigger medic --help                 # Medic subcommand help
+
+# Log watchers
+drone @trigger branch_log_events status     # Branch log watcher state
+drone @trigger branch_log_events --help     # Branch watcher help
+drone @trigger log_events status            # System log watcher state
+drone @trigger log_events --help            # System watcher help
 ```
 
-## Usage
-
-### CLI (via drone)
-
-```bash
-drone @trigger --help                    # Show available commands
-drone @trigger medic on                  # Enable error auto-dispatch
-drone @trigger medic off                 # Disable error auto-dispatch
-drone @trigger medic status              # Show medic state
-drone @trigger medic mute @branch        # Suppress errors from a branch
-drone @trigger medic unmute @branch      # Resume errors from a branch
-drone @trigger errors list               # List tracked errors
-drone @trigger errors stats              # Error registry statistics
-drone @trigger errors circuit-breaker    # Circuit breaker state
-drone @trigger --version                 # Show version
-```
-
-### Python API
+## Python API
 
 ```python
 from aipass.trigger.apps.modules.core import Trigger
@@ -41,20 +50,19 @@ from aipass.trigger.apps.modules.core import Trigger
 Trigger.fire("plan_file_created", path="/path/to/FPLAN-0042.md")
 
 # Register a handler
-def on_plan_file_created(**data):
+def on_plan_created(**data):
     print(f"Plan created at {data['path']}")
 
-Trigger.on("plan_file_created", on_plan_file_created)
+Trigger.on("plan_file_created", on_plan_created)
 
 # Remove a handler
-Trigger.off("plan_file_created", on_plan_file_created)
+Trigger.off("plan_file_created", on_plan_created)
 ```
-
-### Cross-branch error reporting
 
 ```python
 from aipass.trigger.apps.modules.errors import report_error
 
+# Cross-branch error reporting
 result = report_error(
     branch="api",
     error_type="ConnectionError",
@@ -66,66 +74,133 @@ result = report_error(
 
 ## Events
 
-14 events registered via `handlers/events/registry.py`. All fire through `Trigger.fire()`.
+14 events registered via `handlers/events/registry.py` on first `Trigger.fire()`. All fire through the event bus.
 
-| Event | Handler | Fired when | Action |
-|-------|---------|------------|--------|
-| `startup` | `startup.py` | Branch session starts | Error catch-up scan, memory rollover check |
-| `error_detected` | `error_detected.py` | Error registered in log watcher (Medic v2) | 8-gate dispatch pipeline, sends fix-it email to affected branch |
-| `error_logged` | `error_logged.py` | Error detected in system logs (legacy) | Rate-limited notification with medic gating |
-| `warning_logged` | `warning_logged.py` | Warning detected in system logs | Logged for monitoring, no dispatch |
-| `plan_file_created` | `plan_file.py` | New PLAN file detected in filesystem | Updates Flow's PLAN_REGISTRY.json |
-| `plan_file_deleted` | `plan_file.py` | PLAN file removed from filesystem | Marks plan as deleted in registry |
-| `plan_file_moved` | `plan_file.py` | PLAN file moved or renamed | Updates registry location |
-| `bulletin_created` | `bulletin_created.py` | New system bulletin posted | Propagates to all branch dashboards |
-| `memory_threshold_exceeded` | `memory_threshold_exceeded.py` | Memory file approaches line limit (600 lines) | Sends compression notification to branch |
-| `memory_template_updated` | `memory_template_updated.py` | Memory template modified | Pushes template updates to branches |
-| `memory_saved` | `memory.py` | Memory file saved | Placeholder for future rollover trigger |
+| Event | Handler | Trigger | Action |
+|-------|---------|---------|--------|
+| `startup` | `startup.py` | Branch session starts | Error catch-up scan across log files, memory rollover check |
+| `error_detected` | `error_detected.py` | Error registered via log watcher or `report_error()` | Full 8-gate Medic dispatch — emails fix-it to affected branch + `wake_branch()` |
+| `error_logged` | `error_logged.py` | System log error (fallback path) | Monitor-only: logs the event, no dispatch |
+| `warning_logged` | `warning_logged.py` | Warning in system logs | Logged for monitoring, no dispatch |
+| `plan_file_created` | `plan_file.py` | New PLAN file detected | Updates Flow's PLAN_REGISTRY.json |
+| `plan_file_deleted` | `plan_file.py` | PLAN file removed | Marks plan as deleted in registry |
+| `plan_file_moved` | `plan_file.py` | PLAN file relocated | Updates registry location |
+| `bulletin_created` | `bulletin_created.py` | New system bulletin posted | Propagates to branch dashboards |
+| `memory_threshold_exceeded` | `memory_threshold_exceeded.py` | Memory file near limit (600 lines) | Emails compression notification to branch |
+| `memory_template_updated` | `memory_template_updated.py` | Memory template changed | Pushes template updates to branches |
+| `memory_saved` | `memory.py` | Memory file written | Placeholder for future rollover trigger |
 | `cli_header_displayed` | `cli.py` | CLI displays headers | Registration hook |
 | `pr_created` | `pr_status_sync.py` | PR opened on GitHub | Runs `drone @prax status sync` (fire-and-forget) |
 | `pr_merged` | `pr_status_sync.py` | PR merged on GitHub | Runs `drone @prax status sync` (fire-and-forget) |
 
 ## Medic
 
-Built-in error monitoring subsystem. Watches logs for errors, fingerprints them via SHA1, deduplicates, and dispatches fix-it notifications to the responsible branch. Includes circuit breaker, per-branch rate limiting, and mute controls.
+Error monitoring subsystem. Watches branch and system logs for errors, fingerprints them via SHA1, deduplicates, and dispatches fix-it notifications to the responsible branch.
+
+**Dispatch pipeline (8 gates):**
+
+1. **Medic enabled** — global on/off toggle
+2. **Branch not muted** — per-branch suppression
+3. **Count >= 2** — first occurrence suppressed, dispatch on recurrence
+4. **Not DEV_CENTRAL** — devpulse protected from self-dispatch
+5. **Branch in registry** — target must be a registered citizen
+6. **Circuit breaker closed** — trips after 10 errors in 60s, 300s cooldown
+7. **Per-fingerprint backoff** — exponential backoff per unique error
+8. **Rate limit** — prevents dispatch floods
+
+On successful dispatch: sends email via `deliver_email_to_branch()` then calls `wake_branch()` to spawn an agent in the target branch immediately.
+
+**Persistent log watching** runs as a systemd user service (`trigger-log-watcher.service`). Starts both branch and system watchers, handles SIGTERM/SIGINT for clean shutdown.
+
+```bash
+systemctl --user status trigger-log-watcher    # Check watcher service
+systemctl --user restart trigger-log-watcher   # Restart watcher
+```
+
+## Error Registry
+
+SHA1 fingerprinting for error deduplication. Tracks: fingerprint, branch, error type, message, count, first/last seen, dispatch history, source fix status.
+
+**Circuit breaker:** Trips after 10 errors within 60 seconds. Rejects all dispatch while open. Auto-resets after 300s cooldown. State persists across restarts in `trigger_cb_state.json`.
+
+**Per-fingerprint tracking:** Each unique error has independent exponential backoff and dispatch count. State persists across restarts.
 
 ## Architecture
 
 ```
 trigger/
 ├── apps/
-│   ├── trigger.py             # Entry point (auto-discovers modules)
-│   ├── log_watcher_service.py # Persistent watcher process (systemd)
+│   ├── trigger.py                  # Entry point (auto-discovers modules/)
+│   ├── config.py                   # Constants, atomic_write_json, json_file_lock
+│   ├── log_watcher_service.py      # Persistent watcher daemon (systemd)
 │   ├── modules/
-│   │   ├── core.py            # Event bus (Trigger.fire/on/off)
-│   │   ├── errors.py          # Error registry + cross-branch API
-│   │   ├── medic.py           # Error monitoring commands
-│   │   ├── branch_log_events.py  # Branch-level log event handling
-│   │   └── log_events.py     # System-wide log event processing
+│   │   ├── core.py                 # Event bus: Trigger.fire/on/off/status
+│   │   ├── errors.py               # Error registry CLI: list/stats/circuit-breaker
+│   │   ├── medic.py                # Medic toggle: on/off/status/mute/unmute
+│   │   ├── branch_log_events.py    # Branch log watcher CLI: start/stop/status
+│   │   └── log_events.py           # System log watcher CLI: start/stop/status
 │   └── handlers/
-│       ├── events/            # One handler per event type
-│       ├── log_watcher.py     # Branch log watcher (watchdog)
-│       ├── error_registry.py  # SHA1 fingerprinting + circuit breaker
-│       ├── error_reporter.py  # Cross-branch error API
-│       └── medic_state.py     # Medic persistence (trigger_config.json)
-└── tests/
+│       ├── error_registry.py       # SHA1 fingerprinting, circuit breaker, backoff
+│       ├── error_reporter.py       # report_error() API + source fix emails
+│       ├── log_watcher.py          # Branch log watcher (watchdog, position tracking)
+│       ├── medic_state.py          # Medic config persistence (trigger_config.json)
+│       ├── json/
+│       │   └── json_handler.py     # JSON structure logging
+│       ├── events/
+│       │   ├── registry.py         # Auto-registers all 14 event handlers
+│       │   ├── startup.py          # Startup catch-up scan
+│       │   ├── error_detected.py   # 8-gate Medic dispatch
+│       │   ├── error_logged.py     # Monitor-only (no dispatch)
+│       │   ├── warning_logged.py   # Warning monitor
+│       │   ├── plan_file.py        # Plan lifecycle events
+│       │   ├── bulletin_created.py # Bulletin propagation
+│       │   ├── memory_threshold_exceeded.py
+│       │   ├── memory_template_updated.py
+│       │   ├── memory.py           # memory_saved placeholder
+│       │   ├── cli.py              # cli_header_displayed hook
+│       │   └── pr_status_sync.py   # PR → prax status sync
+│       └── watchers/
+│           └── log_watcher.py      # System log watcher (system_logs/ dir)
+├── tests/                          # 367 tests across 12 modules
+├── trigger_json/                   # Runtime state files
+│   ├── trigger_config.json         # Medic state, muted branches
+│   ├── error_registry.json         # All tracked errors
+│   └── trigger_cb_state.json       # Circuit breaker persistence
+└── trigger_data.json               # Log watcher positions + dedup hashes
 ```
 
-**Note:** `branch_log_events` and `log_events` are auto-discovered modules that handle log-based event detection at branch and system levels respectively.
+## Data Safety
 
----
+- **Atomic writes:** All JSON state files use `config.atomic_write_json()` — writes to a temp file in the same directory, then `os.replace()` for atomic rename. No partial writes on crash.
+- **File locking:** All read-modify-write cycles wrapped in `config.json_file_lock()` using `fcntl.flock` with `.lock` sidecar files. Prevents concurrent corruption from watcher + CLI.
+- **Circuit breaker persistence:** Trip state, recent errors, per-fingerprint tracking all survive restarts via `trigger_cb_state.json`.
 
 ## Integration Points
 
 ### Depends On
 - `aipass.prax` — Logging via `system_logger`
-- `aipass.cli` — Console output and header formatting
-- Python stdlib (`sys`, `pathlib`, `importlib`)
+- `aipass.cli` — Console output and formatting
+- `aipass.ai_mail` — `deliver_email_to_branch()` for dispatch emails (lazy import, graceful fallback)
+- `aipass.memory` — `run_rollover()` check on startup (lazy import)
 
 ### Provides To
-- All modules — event bus (`Trigger.fire`, `Trigger.on`, `Trigger.off`)
-- All modules — cross-branch error reporting (`report_error`)
-- All modules — medic error monitoring and dispatch
+- All branches — Event bus (`Trigger.fire`, `Trigger.on`, `Trigger.off`)
+- All branches — Cross-branch error reporting (`report_error()`)
+- All branches — Automated error dispatch via Medic
+
+## Testing
+
+367 tests across 12 test modules, all passing. Coverage: 55/76 public functions (72%).
+
+```bash
+cd src/aipass/trigger && pytest    # Run all tests
+```
+
+Test files: `test_core`, `test_errors`, `test_medic`, `test_error_registry`, `test_error_reporter`, `test_medic_state`, `test_log_watcher`, `test_watchers_log_watcher`, `test_branch_log_events`, `test_log_events`, `test_json_handler`, `test_pr_status_sync`
+
+## Compliance
+
+Seedgo: 100% (34/34 standards). Zero type errors. All categories at 100%.
 
 ---
 
