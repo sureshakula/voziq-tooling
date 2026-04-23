@@ -380,6 +380,14 @@ def update_project(target: Path) -> dict:
     """
     target = target.resolve()
 
+    # Guard: refuse to update the AIPass source repo itself. The source repo
+    # has hand-maintained production files that must not be overwritten with
+    # generic templates. External projects created via `aipass init` are fine.
+    if (target / "src" / "aipass").is_dir() and (target / "pyproject.toml").exists():
+        raise ValueError(
+            "Cannot update the AIPass source repository — its files are hand-maintained, not template-generated"
+        )
+
     # Locate the project registry to confirm this is an AIPass project and
     # derive the project name without parsing JSON (filename encodes the name).
     registry_files = list(target.glob("*_REGISTRY.json"))
