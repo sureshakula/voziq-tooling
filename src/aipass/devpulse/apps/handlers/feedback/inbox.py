@@ -1,7 +1,10 @@
-# META
-# module: devpulse.feedback
-# description: Inbox operations — list, view, clear feedback messages
-# END META
+# =================== AIPass ====================
+# Name: inbox.py
+# Description: Inbox operations — list, view, clear feedback messages
+# Version: 1.0.0
+# Created: 2026-04-11
+# Modified: 2026-04-11
+# =============================================
 
 """
 Feedback Inbox — reading and managing feedback messages.

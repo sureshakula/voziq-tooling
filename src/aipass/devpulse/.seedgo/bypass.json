@@ -160,6 +160,26 @@
       "standard": "unused_function",
       "file": "apps/handlers/watchdog/schedule.py",
       "reason": "format_wait() has 5 passing tests. Public utility for schedule display — not called in production yet but tested and documented for upcoming schedule status output."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "apps/handlers/feedback/storage.py",
+      "reason": "Same-branch handler import. Manager branch has no apps/handlers/__init__.py inspect.stack guard."
+    },
+    {
+      "standard": "json_structure",
+      "file": "apps/handlers/feedback/storage.py",
+      "reason": "Devpulse is a manager branch with no json_handler. Storage handler uses json directly for local feedback inbox persistence."
+    },
+    {
+      "standard": "naming",
+      "file": "apps/handlers/watchdog/registry.py",
+      "reason": "_FileLock uses Python's _PrivateClass convention (underscore prefix + PascalCase). Checker pattern ^[A-Z] doesn't account for private class prefix."
+    },
+    {
+      "standard": "imports",
+      "file": "apps/handlers/feedback/compose.py",
+      "reason": "_AIPASS_ROOT used as fallback for ai_mail inbox resolution when CWD-based lookup fails. Feedback channel only works between dev-install branches — pip users don't have cross-branch communication. Real fix is registry-based path resolution (same class as DPLAN-0149 pip install gaps)."
     }
   ],
   "notes": {
