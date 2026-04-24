@@ -18,6 +18,7 @@ build/-
 
 # Secrets
 .env
+.devpulse_secret.md
 
 # API keys never leave ~/.secrets/ — gitleaks + pre-commit enforce this
 

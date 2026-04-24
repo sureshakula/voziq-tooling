@@ -18,3 +18,8 @@ python3 "$REPO/.claude/hooks/identity_injector.py" 2>/dev/null
 # 4. Email notification
 python3 "$REPO/.claude/hooks/email_notification.py" 2>/dev/null
 
+# 5. Secret prompt (devpulse only — gitignored, silent when missing)
+case "$PWD" in
+  *devpulse*) cat "$REPO/src/aipass/devpulse/.devpulse_secret.md" 2>/dev/null || true ;;
+esac
+

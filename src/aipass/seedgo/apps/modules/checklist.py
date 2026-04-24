@@ -183,8 +183,6 @@ def _resolve_pack_path(pack_name: str) -> Optional[Path]:
 
 def _load_bypass_for_file(file_path: str) -> list:
     """Load bypass rules for the branch containing file_path."""
-    from aipass.seedgo.apps.handlers.bypass.bypass_handler import REGISTRY_PATH
-
     branch = get_branch_from_path(file_path)
     if branch is None:
         return []
@@ -193,7 +191,10 @@ def _load_bypass_for_file(file_path: str) -> list:
         return []
     bp = Path(raw_path)
     if not bp.is_absolute():
-        bp = (REGISTRY_PATH.parent / bp).resolve()
+        from aipass.seedgo.apps.handlers.bypass.bypass_handler import _find_registry
+
+        registry_path = _find_registry()
+        bp = (registry_path.parent / bp).resolve()
     return load_bypass_rules(str(bp))
 
 
