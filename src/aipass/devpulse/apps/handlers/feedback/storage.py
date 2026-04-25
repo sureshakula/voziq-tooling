@@ -1,7 +1,10 @@
-# META
-# module: devpulse.feedback
-# description: JSON persistence layer for feedback inbox
-# END META
+# =================== AIPass ====================
+# Name: storage.py
+# Description: JSON persistence layer for feedback inbox
+# Version: 1.0.0
+# Created: 2026-04-11
+# Modified: 2026-04-11
+# =============================================
 
 """
 Feedback Storage — JSON persistence for devpulse feedback inbox.

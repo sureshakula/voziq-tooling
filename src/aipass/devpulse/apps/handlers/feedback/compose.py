@@ -1,7 +1,10 @@
-# META
-# module: devpulse.feedback
-# description: Compose operations — send feedback and reply to messages
-# END META
+# =================== AIPass ====================
+# Name: compose.py
+# Description: Compose operations — send feedback and reply to messages
+# Version: 1.0.0
+# Created: 2026-04-11
+# Modified: 2026-04-11
+# =============================================
 
 """
 Feedback Compose — sending and replying to feedback messages.
