@@ -41,6 +41,19 @@ def _silence_json_handler():
 
 MOD = "aipass.ai_mail.apps.modules.dispatch"
 
+# Source modules for lazy imports inside _orchestrate_dispatch_send
+_H_SEND = "aipass.ai_mail.apps.handlers.email.send"
+_H_CREATE = "aipass.ai_mail.apps.handlers.email.create"
+_H_DELIVERY = "aipass.ai_mail.apps.handlers.email.delivery"
+_H_HEADER = "aipass.ai_mail.apps.handlers.email.header"
+_H_ERR = "aipass.ai_mail.apps.handlers.email.error_dispatch"
+_H_DASH = "aipass.ai_mail.apps.handlers.email.dashboard_sync"
+_H_USERS = "aipass.ai_mail.apps.handlers.users.user"
+_H_REG = "aipass.ai_mail.apps.handlers.registry.read"
+_H_CENTRAL = "aipass.ai_mail.apps.handlers.central_writer"
+_H_WAKE = "aipass.ai_mail.apps.handlers.dispatch.wake"
+_H_TRIGGER = "aipass.trigger.apps.modules.core"
+
 
 def _mock_console(printed: list[str]) -> MagicMock:
     """Create a mock console that appends all print calls to *printed*."""
@@ -631,33 +644,38 @@ class TestOrchestrateWake:
 # ===========================================================================
 
 
-def _send_patches(overrides: dict | None = None):
-    """Return a dict of default patch targets for _orchestrate_dispatch_send.
+def _send_patches(overrides: dict | None = None) -> ExitStack:
+    """Return an ExitStack applying all default patches for _orchestrate_dispatch_send.
 
-    Call with overrides to replace specific mocks.
+    Call with overrides to replace specific mock values.
+    The caller must use the returned stack as a context manager.
     """
     mock_status = MagicMock()
     mock_status.format.return_value = "WAKE OK"
 
     defaults = {
-        f"{MOD}.resolve_sender_info": MagicMock(return_value={"email_address": "@ai_mail"}),
-        f"{MOD}.prepend_dispatch_header": MagicMock(return_value="[DISPATCH] Body"),
-        f"{MOD}.send_to_single": MagicMock(return_value=(True, None)),
-        f"{MOD}.on_email_delivered": MagicMock(),
-        f"{MOD}.push_dashboard_update": MagicMock(),
-        f"{MOD}.get_current_user": MagicMock(return_value={"name": "test"}),
-        f"{MOD}.get_branch_by_email": MagicMock(return_value={"email": "@target"}),
-        f"{MOD}.update_central": MagicMock(),
-        f"{MOD}.create_email_file": MagicMock(),
-        f"{MOD}.load_email_file": MagicMock(),
-        f"{MOD}.deliver_email_to_branch": MagicMock(),
-        f"{MOD}.dispatch_send_error": MagicMock(),
-        "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch": MagicMock(return_value=(mock_status, True)),
-        "aipass.trigger.apps.modules.core.trigger": MagicMock(),
+        f"{_H_SEND}.resolve_sender_info": MagicMock(return_value={"email_address": "@ai_mail"}),
+        f"{_H_HEADER}.prepend_dispatch_header": MagicMock(return_value="[DISPATCH] Body"),
+        f"{_H_SEND}.send_to_single": MagicMock(return_value=(True, None)),
+        f"{_H_ERR}.on_email_delivered": MagicMock(),
+        f"{_H_DASH}.push_dashboard_update": MagicMock(),
+        f"{_H_USERS}.get_current_user": MagicMock(return_value={"name": "test"}),
+        f"{_H_REG}.get_branch_by_email": MagicMock(return_value={"email": "@target"}),
+        f"{_H_CENTRAL}.update_central": MagicMock(),
+        f"{_H_CREATE}.create_email_file": MagicMock(),
+        f"{_H_CREATE}.load_email_file": MagicMock(),
+        f"{_H_DELIVERY}.deliver_email_to_branch": MagicMock(),
+        f"{_H_ERR}.dispatch_send_error": MagicMock(),
+        f"{_H_WAKE}.wake_branch": MagicMock(return_value=(mock_status, True)),
+        f"{_H_TRIGGER}.trigger": MagicMock(),
     }
     if overrides:
         defaults.update(overrides)
-    return defaults
+
+    stack = ExitStack()
+    for target, mock_obj in defaults.items():
+        stack.enter_context(patch(target, mock_obj))
+    return stack
 
 
 class TestOrchestrateDispatchSend:
@@ -682,7 +700,7 @@ class TestOrchestrateDispatchSend:
         monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
 
         patches = _send_patches()
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -704,11 +722,11 @@ class TestOrchestrateDispatchSend:
         mock_dispatch_err = MagicMock(side_effect=lambda *a: dispatch_error_calls.append(a))
         patches = _send_patches(
             {
-                f"{MOD}.send_to_single": MagicMock(return_value=(False, "Branch not found")),
-                f"{MOD}.dispatch_send_error": mock_dispatch_err,
+                f"{_H_SEND}.send_to_single": MagicMock(return_value=(False, "Branch not found")),
+                f"{_H_ERR}.dispatch_send_error": mock_dispatch_err,
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -733,7 +751,7 @@ class TestOrchestrateDispatchSend:
                 "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch": MagicMock(return_value=(mock_status, False)),
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -762,7 +780,7 @@ class TestOrchestrateDispatchSend:
                 "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch": MagicMock(side_effect=mock_wake),
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -786,10 +804,10 @@ class TestOrchestrateDispatchSend:
 
         patches = _send_patches(
             {
-                f"{MOD}.resolve_sender_info": MagicMock(side_effect=tracking_resolve),
+                f"{_H_SEND}.resolve_sender_info": MagicMock(side_effect=tracking_resolve),
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -818,7 +836,7 @@ class TestOrchestrateDispatchSend:
                 "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch": MagicMock(side_effect=mock_wake),
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -842,10 +860,10 @@ class TestOrchestrateDispatchSend:
 
         patches = _send_patches(
             {
-                f"{MOD}.prepend_dispatch_header": MagicMock(side_effect=tracking_header),
+                f"{_H_HEADER}.prepend_dispatch_header": MagicMock(side_effect=tracking_header),
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -868,7 +886,7 @@ class TestOrchestrateDispatchSend:
                 "aipass.trigger.apps.modules.core.trigger": mock_trigger,
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )
@@ -886,10 +904,10 @@ class TestOrchestrateDispatchSend:
 
         patches = _send_patches(
             {
-                f"{MOD}.resolve_sender_info": MagicMock(side_effect=RuntimeError("boom")),
+                f"{_H_SEND}.resolve_sender_info": MagicMock(side_effect=RuntimeError("boom")),
             }
         )
-        with patch.multiple("", **{k: v for k, v in patches.items()}):
+        with patches:
             from aipass.ai_mail.apps.modules.dispatch import (
                 _orchestrate_dispatch_send,
             )

@@ -369,6 +369,11 @@
       "file": "tests/test_email_module.py",
       "standard": "architecture",
       "reason": "Test file lives in tests/ directory — not subject to 3-layer app structure rule."
+    },
+    {
+      "file": "tests/test_dispatch_module.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ directory — not subject to 3-layer app structure rule."
     }
   ],
   "notes": {
