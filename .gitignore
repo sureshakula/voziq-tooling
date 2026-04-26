@@ -30,6 +30,7 @@ TDPLAN-*.md
 # AIPass runtime state (local to each installation)
 AIPASS_REGISTRY.json
 .trinity/
+!src/aipass/spawn/templates/*/.trinity/
 .ai_mail.local/
 ai_mail.local/
 .feedback.local/
