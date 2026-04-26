@@ -391,6 +391,38 @@
       "standard": "silent_catch",
       "lines": [233],
       "reason": "Timestamp format parsing loop — tries multiple datetime formats, ValueError is expected control flow on non-matching formats."
+    },
+    {
+      "file": "tests/test_log_watcher_service.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_log_watcher.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_log_watcher.py",
+      "standard": "encapsulation",
+      "lines": [82],
+      "pattern": "handler imported directly",
+      "reason": "Test helper _import_log_watcher() must import the handler module directly to test it. All trigger test files follow this pattern."
+    },
+    {
+      "file": "tests/test_log_watcher.py",
+      "standard": "log_structure",
+      "lines": [133, 310, 316],
+      "pattern": "hardcoded log paths",
+      "reason": "Test assertions use hardcoded log path strings as fixture data to verify path-detection logic. These are not production paths."
+    },
+    {
+      "file": "tests/test_trigger_entry.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     }
   ],
   "notes": {

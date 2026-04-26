@@ -8,6 +8,7 @@
 # Modified: 2026-04-03
 # =============================================
 
+import json
 import sys
 import hashlib
 from datetime import datetime, timedelta
@@ -491,6 +492,7 @@ class TestOnModified:
     """Tests for BranchLogWatcher.on_modified."""
 
     def test_skips_directory_events(self):
+        """Directory events are ignored by on_modified."""
         lw = _import_log_watcher()
         watcher = lw.BranchLogWatcher()
         watcher._read_new_lines = MagicMock()
@@ -501,6 +503,7 @@ class TestOnModified:
         watcher._read_new_lines.assert_not_called()
 
     def test_skips_excluded_files(self):
+        """Files that fail _should_process are not read."""
         lw = _import_log_watcher()
         watcher = lw.BranchLogWatcher()
         watcher._should_process = MagicMock(return_value=False)
@@ -512,6 +515,7 @@ class TestOnModified:
         watcher._read_new_lines.assert_not_called()
 
     def test_processes_valid_file(self):
+        """Valid log file triggers _read_new_lines with correct path."""
         lw = _import_log_watcher()
         watcher = lw.BranchLogWatcher()
         watcher._should_process = MagicMock(return_value=True)
@@ -523,6 +527,7 @@ class TestOnModified:
         watcher._read_new_lines.assert_called_once_with("/some/branch/logs/core.log")
 
     def test_handles_read_exception(self):
+        """IOError during _read_new_lines is handled without raising."""
         lw = _import_log_watcher()
         watcher = lw.BranchLogWatcher()
         watcher._should_process = MagicMock(return_value=True)
@@ -542,6 +547,7 @@ class TestInitializePositions:
     """Tests for BranchLogWatcher.initialize_positions."""
 
     def test_snaps_to_eof_when_no_persisted(self, tmp_path):
+        """Without persisted positions, snaps all log files to EOF."""
         lw = _import_log_watcher()
         lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
         lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
@@ -555,6 +561,7 @@ class TestInitializePositions:
         assert watcher.log_positions[str(log_file)] == log_file.stat().st_size
 
     def test_uses_persisted_position_when_valid(self, tmp_path):
+        """Restores a persisted position that is within current file size."""
         lw = _import_log_watcher()
         lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
         lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
@@ -569,6 +576,7 @@ class TestInitializePositions:
         assert watcher.log_positions[str(log_file)] == saved_pos
 
     def test_snaps_to_eof_when_persisted_beyond_size(self, tmp_path):
+        """Resets to EOF when persisted position exceeds current file size."""
         lw = _import_log_watcher()
         lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
         lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
@@ -582,6 +590,7 @@ class TestInitializePositions:
         assert watcher.log_positions[str(log_file)] == log_file.stat().st_size
 
     def test_skips_branches_without_logs_dir(self, tmp_path):
+        """Branch directories without a logs/ subdirectory are skipped."""
         lw = _import_log_watcher()
         lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
         lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
@@ -592,6 +601,7 @@ class TestInitializePositions:
         assert len(watcher.log_positions) == 0
 
     def test_initializes_system_logs(self, tmp_path):
+        """System log files are initialized to EOF during position setup."""
         lw = _import_log_watcher()
         lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
         (tmp_path / "aipass").mkdir(parents=True)
