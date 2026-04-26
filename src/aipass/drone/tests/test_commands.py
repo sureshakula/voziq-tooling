@@ -430,3 +430,45 @@ class TestModuleOrchestrator:
         result = handle_command("unknown_sub", ["arg"])
 
         assert result is False
+
+
+# ===================================================================
+# 8. list_all module function
+# ===================================================================
+
+
+class TestListAll:
+    """Tests for the list_all() module-level function."""
+
+    def test_list_all_empty(self, isolated_registry: Path) -> None:
+        """list_all returns empty list when no commands registered."""
+        from aipass.drone.apps.modules.commands import list_all
+
+        result = list_all()
+        assert result == []
+
+    def test_list_all_returns_sorted(self, isolated_registry: Path) -> None:
+        """list_all returns commands sorted by name."""
+        ops.add_command("zebra", "@t", "c1")
+        ops.add_command("alpha", "@t", "c2")
+        ops.add_command("middle", "@t", "c3")
+
+        from aipass.drone.apps.modules.commands import list_all
+
+        result = list_all()
+        names = [c["name"] for c in result]
+        assert names == ["alpha", "middle", "zebra"]
+
+    def test_list_all_returns_all_fields(self, isolated_registry: Path) -> None:
+        """list_all returns full command dicts with expected keys."""
+        ops.add_command("audit", "@seedgo", "audit", ["aipass"], "Run audit", "seedgo")
+
+        from aipass.drone.apps.modules.commands import list_all
+
+        result = list_all()
+        assert len(result) == 1
+        cmd = result[0]
+        assert cmd["name"] == "audit"
+        assert cmd["target"] == "@seedgo"
+        assert cmd["command"] == "audit"
+        assert cmd["args"] == ["aipass"]
