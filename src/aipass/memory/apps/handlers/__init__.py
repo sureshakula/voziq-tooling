@@ -113,3 +113,10 @@ def _guard_branch_access():
 
 # Run guard at import time
 _guard_branch_access()
+
+# Python 3.10 mock.patch compatibility — subpackages must be importable as
+# attributes for mock._dot_lookup to resolve dotted paths.
+from . import monitor  # noqa: F401, E402
+from . import symbolic  # noqa: F401, E402
+from . import rollover  # noqa: F401, E402
+from . import schema  # noqa: F401, E402
