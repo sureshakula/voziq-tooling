@@ -97,6 +97,8 @@ claude                                # Or: codex, gemini — your agent reads i
 
 That's it. Your agent has identity, memory, a mailbox, and knows what AIPass is. Say "hi" — it picks up where it left off. Come back tomorrow, it remembers.
 
+> **Need help?** [Ask in Discussions](https://github.com/AIOSAI/AIPass/discussions) or [file feedback](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml) — both take 30 seconds.
+
 Your project automatically gets access to every AIPass service — dispatch work to specialists, create plans, run quality audits, send feedback to devpulse. Agents within your project can email each other. All through `drone @branch command`.
 
 ### Explore the full framework

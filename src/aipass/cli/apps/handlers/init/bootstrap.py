@@ -74,16 +74,23 @@ HOOK_EVENTS: dict[str, str] = {
 def _ship_hooks(aipass_home: str, target: Path) -> list[str]:
     """Copy enforcement + injector hooks from AIPass install to target project.
 
-    Copies each hook file from {aipass_home}/.claude/hooks/ to
-    {target}/.claude/hooks/. Skips audio hooks. Overwrites existing files
-    only if source content differs (idempotent re-sync).
+    Copies each hook file to {target}/.claude/hooks/. Looks for hooks in two
+    locations (first match wins):
+      1. {aipass_home}/.claude/hooks/  — dev install (git clone)
+      2. aipass/_hooks/                — pip install (wheel-bundled)
 
-    Returns list of files written.
+    Skips audio hooks. Overwrites existing files only if source content
+    differs (idempotent re-sync). Returns list of files written.
     """
     source_dir = Path(aipass_home) / ".claude" / "hooks"
     if not source_dir.is_dir():
-        logger.info("No hooks directory at %s — skipping hook shipping", source_dir)
-        return []
+        # Fallback: pip install bundles hooks at aipass/_hooks/ inside the package
+        package_hooks = Path(__file__).resolve().parents[4] / "_hooks"
+        if package_hooks.is_dir():
+            source_dir = package_hooks
+        else:
+            logger.info("No hooks directory at %s or %s — skipping", source_dir, package_hooks)
+            return []
 
     dest_dir = target / ".claude" / "hooks"
     dest_dir.mkdir(parents=True, exist_ok=True)
