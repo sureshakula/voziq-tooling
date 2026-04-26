@@ -761,3 +761,1143 @@ def test_poll_cycle_absolute_path_unchanged(tmp_path, monkeypatch):
     assert len(spawned_paths) == 1
     assert spawned_paths[0].is_absolute()
     assert spawned_paths[0] == branch_dir
+
+
+# ---- Additional imports for new tests --------------------------------
+
+import os
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open
+
+from aipass.ai_mail.apps.handlers.dispatch.daemon import (
+    _notify_telegram,
+    _handle_signal,
+    _set_session_name,
+    _check_lock,
+    _acquire_lock,
+    poll_cycle,
+    _write_pid_file,
+    _remove_pid_file,
+    _read_session_type,
+    _is_branch_occupied,
+    spawn_agent,
+    run_daemon,
+)
+
+
+# ---- _notify_telegram tests ------------------------------------
+
+
+def test_notify_telegram_success(tmp_path, monkeypatch):
+    """Successful Telegram notification returns True."""
+    config_file = tmp_path / "scheduler_config.json"
+    config_file.write_text(
+        json.dumps({"telegram_bot_token": "fake-token", "telegram_chat_id": "12345"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(daemon_mod, "SCHEDULER_CONFIG", config_file)
+
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"ok": True}).encode("utf-8")
+    mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+    mock_resp.__exit__ = MagicMock(return_value=False)
+
+    with patch("aipass.ai_mail.apps.handlers.dispatch.daemon.urlopen", return_value=mock_resp):
+        result = _notify_telegram("Test message")
+
+    assert result is True
+
+
+def test_notify_telegram_config_missing(tmp_path, monkeypatch):
+    """Missing scheduler config returns False."""
+    monkeypatch.setattr(daemon_mod, "SCHEDULER_CONFIG", tmp_path / "nonexistent.json")
+
+    result = _notify_telegram("Test message")
+
+    assert result is False
+
+
+def test_notify_telegram_config_decode_error(tmp_path, monkeypatch):
+    """Corrupt scheduler config returns False."""
+    config_file = tmp_path / "scheduler_config.json"
+    config_file.write_text("{bad json!", encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "SCHEDULER_CONFIG", config_file)
+
+    result = _notify_telegram("Test message")
+
+    assert result is False
+
+
+def test_notify_telegram_config_missing_key(tmp_path, monkeypatch):
+    """Config missing required keys returns False."""
+    config_file = tmp_path / "scheduler_config.json"
+    config_file.write_text(json.dumps({"telegram_bot_token": "tok"}), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "SCHEDULER_CONFIG", config_file)
+
+    result = _notify_telegram("Test message")
+
+    assert result is False
+
+
+def test_notify_telegram_url_error(tmp_path, monkeypatch):
+    """URLError during sending returns False."""
+    from urllib.error import URLError
+
+    config_file = tmp_path / "scheduler_config.json"
+    config_file.write_text(
+        json.dumps({"telegram_bot_token": "fake-token", "telegram_chat_id": "12345"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(daemon_mod, "SCHEDULER_CONFIG", config_file)
+
+    with patch(
+        "aipass.ai_mail.apps.handlers.dispatch.daemon.urlopen",
+        side_effect=URLError("connection refused"),
+    ):
+        result = _notify_telegram("Test message")
+
+    assert result is False
+
+
+# ---- _handle_signal tests --------------------------------------
+
+
+def test_handle_signal_sets_shutdown(monkeypatch):
+    """Calling _handle_signal sets SHUTDOWN to True."""
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    _handle_signal(15, None)
+
+    assert daemon_mod.SHUTDOWN is True
+
+
+# ---- _set_session_name tests ------------------------------------
+
+
+def test_set_session_name_success(tmp_path, monkeypatch):
+    """Writes custom-title entry to most recent JSONL file."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    # Redirect ~/.claude/projects to tmp_path so no real filesystem side effects
+    fake_home = tmp_path / "fakehome"
+    encoded_cwd = str(branch_path).replace("/", "-")
+    projects_dir = fake_home / ".claude" / "projects" / encoded_cwd
+    projects_dir.mkdir(parents=True)
+    jsonl_file = projects_dir / "session123.jsonl"
+    jsonl_file.write_text('{"type":"init"}\n', encoding="utf-8")
+
+    _orig_expanduser = Path.expanduser
+
+    def _fake_expanduser(self):
+        if str(self).startswith("~"):
+            return fake_home / str(self)[2:]
+        return _orig_expanduser(self)
+
+    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
+
+    result = _set_session_name(branch_path, "TEST-daemon")
+
+    assert result is True
+    content = jsonl_file.read_text(encoding="utf-8")
+    assert "custom-title" in content
+    assert "TEST-daemon" in content
+
+
+def test_set_session_name_no_projects_dir(tmp_path, monkeypatch):
+    """Returns False when projects dir does not exist."""
+    branch_path = tmp_path / "nonexistent_branch_xyz_test"
+    fake_home = tmp_path / "fakehome"
+
+    _orig_expanduser = Path.expanduser
+
+    def _fake_expanduser(self):
+        if str(self).startswith("~"):
+            return fake_home / str(self)[2:]
+        return _orig_expanduser(self)
+
+    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
+
+    result = _set_session_name(branch_path, "TEST-daemon")
+
+    assert result is False
+
+
+def test_set_session_name_no_jsonl_files(tmp_path, monkeypatch):
+    """Returns False when projects dir exists but has no JSONL files."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    fake_home = tmp_path / "fakehome"
+    encoded_cwd = str(branch_path).replace("/", "-")
+    projects_dir = fake_home / ".claude" / "projects" / encoded_cwd
+    projects_dir.mkdir(parents=True)
+
+    _orig_expanduser = Path.expanduser
+
+    def _fake_expanduser(self):
+        if str(self).startswith("~"):
+            return fake_home / str(self)[2:]
+        return _orig_expanduser(self)
+
+    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
+
+    result = _set_session_name(branch_path, "TEST-daemon")
+
+    assert result is False
+
+
+def test_set_session_name_oserror_on_write(tmp_path, monkeypatch):
+    """Returns False on OSError when writing to JSONL file."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    fake_home = tmp_path / "fakehome"
+    encoded_cwd = str(branch_path).replace("/", "-")
+    projects_dir = fake_home / ".claude" / "projects" / encoded_cwd
+    projects_dir.mkdir(parents=True)
+    jsonl_file = projects_dir / "session456.jsonl"
+    jsonl_file.write_text('{"type":"init"}\n', encoding="utf-8")
+
+    _orig_expanduser = Path.expanduser
+
+    def _fake_expanduser(self):
+        if str(self).startswith("~"):
+            return fake_home / str(self)[2:]
+        return _orig_expanduser(self)
+
+    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
+
+    with patch("builtins.open", side_effect=OSError("disk full")):
+        result = _set_session_name(branch_path, "TEST-daemon")
+
+    assert result is False
+
+
+# ---- _check_lock tests -----------------------------------------
+
+
+def test_check_lock_no_file(tmp_path):
+    """No lock file returns None."""
+    result = _check_lock(tmp_path)
+
+    assert result is None
+
+
+def test_check_lock_alive_pid(tmp_path, monkeypatch):
+    """Lock with alive PID returns lock data."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    lock_data = {"pid": 99999, "timestamp": datetime.now().isoformat()}
+    lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
+
+    monkeypatch.setattr(os, "kill", lambda pid, sig: None)
+
+    result = _check_lock(tmp_path)
+
+    assert result is not None
+    assert result["pid"] == 99999
+
+
+def test_check_lock_dead_pid(tmp_path, monkeypatch):
+    """Lock with dead PID (ProcessLookupError) is cleaned up."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    lock_data = {"pid": 99999, "timestamp": datetime.now().isoformat()}
+    lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
+
+    def _raise_process_lookup(pid, sig):
+        raise ProcessLookupError("No such process")
+
+    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+
+    result = _check_lock(tmp_path)
+
+    assert result is None
+    assert not lock_file.exists()
+
+
+def test_check_lock_permission_error(tmp_path, monkeypatch):
+    """Lock with PermissionError on kill returns lock data (process exists)."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    lock_data = {"pid": 99999, "timestamp": datetime.now().isoformat()}
+    lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
+
+    def _raise_permission(pid, sig):
+        raise PermissionError("Operation not permitted")
+
+    monkeypatch.setattr(os, "kill", _raise_permission)
+
+    result = _check_lock(tmp_path)
+
+    assert result is not None
+    assert result["pid"] == 99999
+
+
+def test_check_lock_stale_over_10min_removed(tmp_path, monkeypatch):
+    """Stale lock older than 10 minutes with dead PID is removed."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    old_time = (datetime.now() - timedelta(minutes=15)).isoformat()
+    lock_data = {"pid": 99999, "timestamp": old_time}
+    lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
+
+    def _raise_process_lookup(pid, sig):
+        raise ProcessLookupError("No such process")
+
+    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+
+    result = _check_lock(tmp_path)
+
+    assert result is None
+    assert not lock_file.exists()
+
+
+def test_check_lock_stale_under_10min_dead_pid_removed(tmp_path, monkeypatch):
+    """Stale lock under 10 minutes with dead PID is also removed."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    recent_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+    lock_data = {"pid": 99999, "timestamp": recent_time}
+    lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
+
+    def _raise_process_lookup(pid, sig):
+        raise ProcessLookupError("No such process")
+
+    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+
+    result = _check_lock(tmp_path)
+
+    assert result is None
+    assert not lock_file.exists()
+
+
+def test_check_lock_corrupt_json_removed(tmp_path):
+    """Corrupt lock file is removed and returns None."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    lock_file.write_text("{bad json!!", encoding="utf-8")
+
+    result = _check_lock(tmp_path)
+
+    assert result is None
+    assert not lock_file.exists()
+
+
+def test_check_lock_unparseable_timestamp(tmp_path, monkeypatch):
+    """Lock with unparseable timestamp and dead PID is removed."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    lock_data = {"pid": 99999, "timestamp": "not-a-timestamp"}
+    lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
+
+    def _raise_process_lookup(pid, sig):
+        raise ProcessLookupError("No such process")
+
+    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+
+    result = _check_lock(tmp_path)
+
+    assert result is None
+    assert not lock_file.exists()
+
+
+# ---- _acquire_lock tests ----------------------------------------
+
+
+def test_acquire_lock_success(tmp_path):
+    """New lock file is created atomically."""
+    acquired, msg = _acquire_lock(tmp_path, 12345)
+
+    assert acquired is True
+    assert msg == "Lock acquired"
+    lock_file = tmp_path / ".ai_mail.local" / ".dispatch.lock"
+    assert lock_file.exists()
+    data = json.loads(lock_file.read_text(encoding="utf-8"))
+    assert data["pid"] == 12345
+
+
+def test_acquire_lock_file_exists_error(tmp_path):
+    """FileExistsError when lock already present returns (False, message)."""
+    lock_dir = tmp_path / ".ai_mail.local"
+    lock_dir.mkdir(parents=True)
+    lock_file = lock_dir / ".dispatch.lock"
+    lock_file.write_text('{"pid": 111}', encoding="utf-8")
+
+    acquired, msg = _acquire_lock(tmp_path, 22222)
+
+    assert acquired is False
+    assert "already exists" in msg
+
+
+def test_acquire_lock_oserror(tmp_path):
+    """OSError during lock creation returns (False, message)."""
+    with patch("os.open", side_effect=OSError("Permission denied")):
+        acquired, msg = _acquire_lock(tmp_path, 12345)
+
+    assert acquired is False
+    assert "Lock failed" in msg
+
+
+# ---- _write_pid_file tests --------------------------------------
+
+
+def test_write_pid_file_no_existing(tmp_path, monkeypatch):
+    """No existing PID file: writes current PID and returns True."""
+    pid_file = tmp_path / "daemon.pid"
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    result = _write_pid_file()
+
+    assert result is True
+    assert pid_file.exists()
+    assert int(pid_file.read_text().strip()) == os.getpid()
+
+
+def test_write_pid_file_existing_alive_pid(tmp_path, monkeypatch):
+    """Existing PID file with alive process returns False."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    result = _write_pid_file()
+
+    assert result is False
+
+
+def test_write_pid_file_existing_dead_pid(tmp_path, monkeypatch):
+    """Existing PID file with dead process: takes over and returns True."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text("999999", encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    def _kill_stub(pid, sig):
+        if pid == 999999:
+            raise ProcessLookupError("No such process")
+
+    monkeypatch.setattr(os, "kill", _kill_stub)
+
+    result = _write_pid_file()
+
+    assert result is True
+    assert int(pid_file.read_text().strip()) == os.getpid()
+
+
+def test_write_pid_file_existing_permission_error(tmp_path, monkeypatch):
+    """Existing PID file with PermissionError on kill returns False."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text("888888", encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    def _raise_permission(pid, sig):
+        raise PermissionError("Operation not permitted")
+
+    monkeypatch.setattr(os, "kill", _raise_permission)
+
+    result = _write_pid_file()
+
+    assert result is False
+
+
+def test_write_pid_file_corrupt_pid_file(tmp_path, monkeypatch):
+    """Corrupt PID file is handled gracefully and overwritten."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text("not-a-number", encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    result = _write_pid_file()
+
+    assert result is True
+    assert int(pid_file.read_text().strip()) == os.getpid()
+
+
+# ---- _remove_pid_file tests ------------------------------------
+
+
+def test_remove_pid_file_matching_pid(tmp_path, monkeypatch):
+    """PID file with matching PID is removed."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    _remove_pid_file()
+
+    assert not pid_file.exists()
+
+
+def test_remove_pid_file_different_pid(tmp_path, monkeypatch):
+    """PID file with different PID is left alone."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text("999999", encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    _remove_pid_file()
+
+    assert pid_file.exists()
+    assert pid_file.read_text().strip() == "999999"
+
+
+def test_remove_pid_file_missing(tmp_path, monkeypatch):
+    """Missing PID file does not raise errors."""
+    pid_file = tmp_path / "daemon.pid"
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    _remove_pid_file()
+
+    assert not pid_file.exists()
+
+
+def test_remove_pid_file_corrupt(tmp_path, monkeypatch):
+    """Corrupt PID file is removed."""
+    pid_file = tmp_path / "daemon.pid"
+    pid_file.write_text("not-a-number", encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    _remove_pid_file()
+
+    assert not pid_file.exists()
+
+
+# ---- _read_session_type tests -----------------------------------
+
+
+def test_read_session_type_found(monkeypatch):
+    """Returns the AIPASS_SESSION_TYPE value when found in /proc."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    environ_data = b"HOME=/home/user\0AIPASS_SESSION_TYPE=daemon\0PATH=/usr/bin"
+
+    with patch("builtins.open", mock_open(read_data=environ_data)):
+        result = _read_session_type("12345")
+
+    assert result == "daemon"
+
+
+def test_read_session_type_not_found(monkeypatch):
+    """Returns 'interactive' when AIPASS_SESSION_TYPE is not in environ."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    environ_data = b"HOME=/home/user\0PATH=/usr/bin"
+
+    with patch("builtins.open", mock_open(read_data=environ_data)):
+        result = _read_session_type("12345")
+
+    assert result == "interactive"
+
+
+def test_read_session_type_non_linux(monkeypatch):
+    """Returns 'interactive' on non-Linux platforms."""
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    result = _read_session_type("12345")
+
+    assert result == "interactive"
+
+
+def test_read_session_type_oserror(monkeypatch):
+    """Returns 'interactive' on OSError when reading /proc."""
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    with patch("builtins.open", side_effect=OSError("No such file")):
+        result = _read_session_type("12345")
+
+    assert result == "interactive"
+
+
+# ---- _is_branch_occupied tests -----------------------------------
+
+
+def test_is_branch_occupied_no_claude_processes(tmp_path):
+    """Returns False when pgrep finds no claude processes."""
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+
+    with patch(
+        "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.run",
+        return_value=mock_result,
+    ):
+        result = _is_branch_occupied(tmp_path)
+
+    assert result is False
+
+
+def test_is_branch_occupied_claude_in_different_dir(tmp_path, monkeypatch):
+    """Returns False when claude runs in a different directory."""
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "12345\n"
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.run",
+            return_value=mock_result,
+        ),
+        patch("os.readlink", return_value="/some/other/dir"),
+    ):
+        result = _is_branch_occupied(tmp_path)
+
+    assert result is False
+
+
+def test_is_branch_occupied_claude_in_same_dir_interactive(tmp_path, monkeypatch):
+    """Returns True when interactive claude session runs in same directory."""
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "12345\n"
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.run",
+            return_value=mock_result,
+        ),
+        patch("os.readlink", return_value=str(tmp_path.resolve())),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._read_session_type",
+            return_value="interactive",
+        ),
+    ):
+        result = _is_branch_occupied(tmp_path)
+
+    assert result is True
+
+
+def test_is_branch_occupied_claude_in_same_dir_daemon(tmp_path, monkeypatch):
+    """Returns False when daemon claude session runs in same directory."""
+    monkeypatch.setattr(sys, "platform", "linux")
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "12345\n"
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.run",
+            return_value=mock_result,
+        ),
+        patch("os.readlink", return_value=str(tmp_path.resolve())),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._read_session_type",
+            return_value="daemon",
+        ),
+    ):
+        result = _is_branch_occupied(tmp_path)
+
+    assert result is False
+
+
+def test_is_branch_occupied_pgrep_failure(tmp_path):
+    """Returns False when pgrep raises an exception."""
+    with patch(
+        "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.run",
+        side_effect=Exception("pgrep unavailable"),
+    ):
+        result = _is_branch_occupied(tmp_path)
+
+    assert result is False
+
+
+# ---- spawn_agent tests ------------------------------------------
+
+
+def test_spawn_agent_success(tmp_path):
+    """Successful spawn returns True and increments state counts."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    message = {"from": "@devpulse", "id": "msg1", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    mock_process = MagicMock()
+    mock_process.pid = 54321
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            return_value=mock_process,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
+            return_value=True,
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
+            return_value=True,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        result = spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    assert result is True
+    assert state["daily_counts"]["@testbranch"] == 1
+    assert state["session_cycles"][str(branch_path)] == 1
+
+
+def test_spawn_agent_exception(tmp_path):
+    """Spawn failure returns False."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    message = {"from": "@devpulse", "id": "msg1", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            side_effect=OSError("command not found"),
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
+            return_value=True,
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
+            return_value=True,
+        ),
+    ):
+        result = spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    assert result is False
+
+
+def test_spawn_agent_strips_claude_env_vars(tmp_path, monkeypatch):
+    """Spawn strips CLAUDE* and AIPASS_BOT_ID env vars from child."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    monkeypatch.setenv("CLAUDE_API_KEY", "secret")
+    monkeypatch.setenv("CLAUDE_MODEL", "opus")
+    monkeypatch.setenv("AIPASS_BOT_ID", "bot123")
+
+    message = {"from": "@devpulse", "id": "msg1", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    captured_env = {}
+
+    def capture_popen(*args, **kwargs):
+        captured_env.update(kwargs.get("env", {}))
+        mock_proc = MagicMock()
+        mock_proc.pid = 11111
+        return mock_proc
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            side_effect=capture_popen,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
+            return_value=True,
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
+            return_value=True,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        result = spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    assert result is True
+    assert "CLAUDE_API_KEY" not in captured_env
+    assert "CLAUDE_MODEL" not in captured_env
+    assert "AIPASS_BOT_ID" not in captured_env
+    assert captured_env.get("AIPASS_SPAWNED") == "1"
+    assert captured_env.get("AIPASS_SESSION_TYPE") == "daemon"
+
+
+def test_spawn_agent_sets_session_name(tmp_path):
+    """Spawn calls _set_session_name with correct branch name."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    message = {"from": "@devpulse", "id": "msg1", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    mock_process = MagicMock()
+    mock_process.pid = 54321
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            return_value=mock_process,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
+            return_value=True,
+        ) as mock_ssn,
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
+            return_value=True,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    mock_ssn.assert_called_once_with(branch_path, "TESTBRANCH-daemon")
+
+
+# ---- run_daemon tests -------------------------------------------
+
+
+def test_run_daemon_kill_switch_pauses(tmp_path, monkeypatch):
+    """Kill switch active causes daemon to pause and loop, then SHUTDOWN exits."""
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", tmp_path / "daemon.pid")
+    monkeypatch.setattr(daemon_mod, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
+
+    call_count = {"n": 0}
+
+    def fake_is_kill_switch(config):
+        call_count["n"] += 1
+        if call_count["n"] >= 2:
+            daemon_mod.SHUTDOWN = True
+        return True
+
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._write_pid_file",
+            return_value=True,
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon._remove_pid_file"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
+            return_value=True,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.load_config",
+            return_value={
+                "poll_interval_seconds": 0,
+                "kill_switch_path": "/tmp/nope",
+                "max_turns_per_wake": 10,
+                "max_dispatches_per_branch_per_day": 5,
+                "autonomous_branches": [],
+            },
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.is_kill_switch_active",
+            side_effect=fake_is_kill_switch,
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.time.sleep"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.os.waitpid",
+            side_effect=ChildProcessError,
+        ),
+    ):
+        run_daemon()
+
+    assert call_count["n"] >= 2
+
+
+def test_run_daemon_shutdown_exits_loop(tmp_path, monkeypatch):
+    """SHUTDOWN=True exits the main loop."""
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", tmp_path / "daemon.pid")
+    monkeypatch.setattr(daemon_mod, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", True)
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._write_pid_file",
+            return_value=True,
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon._remove_pid_file"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
+            return_value=True,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.load_config",
+            return_value={
+                "poll_interval_seconds": 0,
+                "kill_switch_path": "/tmp/nope",
+                "max_turns_per_wake": 10,
+                "max_dispatches_per_branch_per_day": 5,
+                "autonomous_branches": [],
+            },
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.poll_cycle",
+            return_value=0,
+        ) as mock_poll,
+    ):
+        run_daemon()
+
+    mock_poll.assert_not_called()
+
+
+def test_run_daemon_write_pid_failure_returns_early(tmp_path, monkeypatch):
+    """Failed _write_pid_file causes run_daemon to return early."""
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", tmp_path / "daemon.pid")
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._write_pid_file",
+            return_value=False,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.load_config",
+        ) as mock_config,
+    ):
+        run_daemon()
+
+    mock_config.assert_not_called()
+
+
+# ---- poll_cycle edge case tests -----------------------------------
+
+
+def test_poll_cycle_shutdown_breaks_loop(tmp_path, monkeypatch):
+    """SHUTDOWN=True breaks the poll loop mid-iteration."""
+    repo_root = tmp_path / "repo"
+    branch1 = repo_root / "branch1"
+    branch2 = repo_root / "branch2"
+    branch1.mkdir(parents=True)
+    branch2.mkdir(parents=True)
+
+    registry = {
+        "branches": [
+            {"email": "@branch1", "path": str(branch1)},
+            {"email": "@branch2", "path": str(branch2)},
+        ]
+    }
+    reg_file = repo_root / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+    monkeypatch.setattr(daemon_mod, "_REPO_ROOT", repo_root)
+
+    def shutdown_on_scan(branch_path, branch_email):
+        daemon_mod.SHUTDOWN = True
+        return 0
+
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    config = {"autonomous_branches": [], "max_dispatches_per_branch_per_day": 10}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.scan_and_ack_test_emails",
+            side_effect=shutdown_on_scan,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._check_lock",
+            return_value=None,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.check_inbox_for_dispatch",
+            return_value=None,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.spawn_agent",
+        ) as mock_spawn,
+    ):
+        poll_cycle(config, state)
+
+    mock_spawn.assert_not_called()
+
+
+def test_poll_cycle_protected_branch_skipped(tmp_path, monkeypatch):
+    """Protected branch (@devpulse) is skipped in poll cycle."""
+    repo_root = tmp_path / "repo"
+    branch_dir = repo_root / "devpulse"
+    branch_dir.mkdir(parents=True)
+
+    registry = {"branches": [{"email": "@devpulse", "path": str(branch_dir)}]}
+    reg_file = repo_root / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+    monkeypatch.setattr(daemon_mod, "_REPO_ROOT", repo_root)
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    config = {"autonomous_branches": [], "max_dispatches_per_branch_per_day": 10}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.scan_and_ack_test_emails",
+        ) as mock_scan,
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.spawn_agent",
+        ) as mock_spawn,
+    ):
+        result = poll_cycle(config, state)
+
+    assert result == 0
+    mock_scan.assert_not_called()
+    mock_spawn.assert_not_called()
+
+
+def test_poll_cycle_daily_limit_reached(tmp_path, monkeypatch):
+    """Branch at daily limit is skipped."""
+    repo_root = tmp_path / "repo"
+    branch_dir = repo_root / "flow"
+    branch_dir.mkdir(parents=True)
+
+    registry = {"branches": [{"email": "@flow", "path": str(branch_dir)}]}
+    reg_file = repo_root / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+    monkeypatch.setattr(daemon_mod, "_REPO_ROOT", repo_root)
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    config = {"autonomous_branches": [], "max_dispatches_per_branch_per_day": 3}
+    state = {"daily_counts": {"@flow": 3}, "session_cycles": {}}
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.scan_and_ack_test_emails",
+        ) as mock_scan,
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.spawn_agent",
+        ) as mock_spawn,
+    ):
+        result = poll_cycle(config, state)
+
+    assert result == 0
+    mock_scan.assert_not_called()
+    mock_spawn.assert_not_called()
+
+
+def test_poll_cycle_branch_occupied_skipped(tmp_path, monkeypatch):
+    """Occupied branch is skipped even if dispatch email exists."""
+    repo_root = tmp_path / "repo"
+    branch_dir = repo_root / "flow"
+    branch_dir.mkdir(parents=True)
+    (branch_dir / ".ai_mail.local").mkdir()
+    inbox = {
+        "messages": [
+            {
+                "id": "d1",
+                "status": "new",
+                "from": "@devpulse",
+                "subject": "task",
+                "auto_execute": True,
+            }
+        ]
+    }
+    (branch_dir / ".ai_mail.local" / "inbox.json").write_text(json.dumps(inbox), encoding="utf-8")
+
+    registry = {"branches": [{"email": "@flow", "path": str(branch_dir)}]}
+    reg_file = repo_root / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+    monkeypatch.setattr(daemon_mod, "_REPO_ROOT", repo_root)
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    config = {"autonomous_branches": [], "max_dispatches_per_branch_per_day": 10}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.scan_and_ack_test_emails",
+            return_value=0,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._check_lock",
+            return_value=None,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._is_branch_occupied",
+            return_value=True,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.spawn_agent",
+        ) as mock_spawn,
+    ):
+        result = poll_cycle(config, state)
+
+    assert result == 0
+    mock_spawn.assert_not_called()
+
+
+def test_poll_cycle_spawn_failure_not_counted(tmp_path, monkeypatch):
+    """Spawn failure does not increment spawned count."""
+    repo_root = tmp_path / "repo"
+    branch_dir = repo_root / "flow"
+    branch_dir.mkdir(parents=True)
+    (branch_dir / ".ai_mail.local").mkdir()
+    inbox = {
+        "messages": [
+            {
+                "id": "d1",
+                "status": "new",
+                "from": "@devpulse",
+                "subject": "task",
+                "auto_execute": True,
+            }
+        ]
+    }
+    (branch_dir / ".ai_mail.local" / "inbox.json").write_text(json.dumps(inbox), encoding="utf-8")
+
+    registry = {"branches": [{"email": "@flow", "path": str(branch_dir)}]}
+    reg_file = repo_root / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+    monkeypatch.setattr(daemon_mod, "_REPO_ROOT", repo_root)
+    monkeypatch.setattr(daemon_mod, "SHUTDOWN", False)
+
+    config = {"autonomous_branches": [], "max_dispatches_per_branch_per_day": 10}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.scan_and_ack_test_emails",
+            return_value=0,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._check_lock",
+            return_value=None,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._is_branch_occupied",
+            return_value=False,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.spawn_agent",
+            return_value=False,
+        ),
+    ):
+        result = poll_cycle(config, state)
+
+    assert result == 0

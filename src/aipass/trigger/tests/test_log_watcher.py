@@ -614,3 +614,657 @@ class TestInitializePositions:
         watcher = lw.BranchLogWatcher()
         watcher.initialize_positions()
         assert watcher.log_positions[str(log_file)] == log_file.stat().st_size
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _load_seen_hashes
+# ---------------------------------------------------------------------------
+
+
+class TestLoadSeenHashes:
+    """Tests for _load_seen_hashes persistence."""
+
+    def test_loads_from_existing_file(self, tmp_path):
+        """Loads hashes from a valid trigger_data.json file."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(
+            json.dumps({"seen_error_hashes": ["aaa", "bbb"]}),
+            encoding="utf-8",
+        )
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._seen_error_hashes = set()
+        lw._load_seen_hashes()
+        assert lw._seen_error_hashes == {"aaa", "bbb"}
+
+    def test_handles_missing_file(self, tmp_path):
+        """Missing file leaves _seen_error_hashes unchanged (no crash)."""
+        lw = _import_log_watcher()
+        lw.TRIGGER_DATA_FILE = tmp_path / "nonexistent.json"
+        lw._seen_error_hashes = {"existing"}
+        lw._load_seen_hashes()
+        assert lw._seen_error_hashes == {"existing"}
+
+    def test_handles_corrupt_json(self, tmp_path):
+        """Corrupt JSON resets _seen_error_hashes to empty set."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text("{invalid json", encoding="utf-8")
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._seen_error_hashes = {"leftovers"}
+        lw._load_seen_hashes()
+        assert lw._seen_error_hashes == set()
+
+    def test_handles_missing_key(self, tmp_path):
+        """File exists but has no seen_error_hashes key -- loads empty."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(json.dumps({"other_key": 1}), encoding="utf-8")
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._seen_error_hashes = {"old"}
+        lw._load_seen_hashes()
+        assert lw._seen_error_hashes == set()
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _save_seen_hashes
+# ---------------------------------------------------------------------------
+
+
+class TestSaveSeenHashes:
+    """Tests for _save_seen_hashes persistence."""
+
+    def test_saves_to_new_file(self, tmp_path):
+        """Creates trigger_data.json when it does not exist yet."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._seen_error_hashes = {"hash1", "hash2"}
+        lw._save_seen_hashes()
+        written = json.loads(data_file.read_text(encoding="utf-8"))
+        assert set(written["seen_error_hashes"]) == {"hash1", "hash2"}
+
+    def test_merges_with_existing_data(self, tmp_path):
+        """Preserves other keys already in trigger_data.json."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(
+            json.dumps({"log_positions": {"/a.log": 100}}),
+            encoding="utf-8",
+        )
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._seen_error_hashes = {"x"}
+        lw._save_seen_hashes()
+        written = json.loads(data_file.read_text(encoding="utf-8"))
+        assert written["log_positions"] == {"/a.log": 100}
+        assert written["seen_error_hashes"] == ["x"]
+
+    def test_handles_write_error(self, tmp_path):
+        """Write failure logs warning but does not raise."""
+        lw = _import_log_watcher()
+        bad_path = tmp_path / "nope" / "nope" / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = bad_path
+        lw._seen_error_hashes = {"z"}
+        with patch.object(lw, "atomic_write_json", side_effect=PermissionError("denied")):
+            lw._save_seen_hashes()
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _load_log_positions
+# ---------------------------------------------------------------------------
+
+
+class TestLoadLogPositions:
+    """Tests for _load_log_positions persistence."""
+
+    def test_loads_positions_from_file(self, tmp_path):
+        """Returns positions dict when trigger_data.json has log_positions."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(
+            json.dumps({"log_positions": {"/a.log": 42, "/b.log": 99}}),
+            encoding="utf-8",
+        )
+        lw.TRIGGER_DATA_FILE = data_file
+        result = lw._load_log_positions()
+        assert result == {"/a.log": 42, "/b.log": 99}
+
+    def test_returns_empty_for_missing_file(self, tmp_path):
+        """Returns empty dict when file does not exist."""
+        lw = _import_log_watcher()
+        lw.TRIGGER_DATA_FILE = tmp_path / "nonexistent.json"
+        assert lw._load_log_positions() == {}
+
+    def test_returns_empty_for_corrupt_json(self, tmp_path):
+        """Returns empty dict when file has corrupt JSON."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text("not json!", encoding="utf-8")
+        lw.TRIGGER_DATA_FILE = data_file
+        assert lw._load_log_positions() == {}
+
+    def test_returns_empty_when_positions_not_dict(self, tmp_path):
+        """Returns empty dict when log_positions is not a dict."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(
+            json.dumps({"log_positions": "not_a_dict"}),
+            encoding="utf-8",
+        )
+        lw.TRIGGER_DATA_FILE = data_file
+        assert lw._load_log_positions() == {}
+
+    def test_coerces_values_to_int(self, tmp_path):
+        """String position values are coerced to int."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(
+            json.dumps({"log_positions": {"/x.log": "123"}}),
+            encoding="utf-8",
+        )
+        lw.TRIGGER_DATA_FILE = data_file
+        result = lw._load_log_positions()
+        assert result["/x.log"] == 123
+        assert isinstance(result["/x.log"], int)
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _save_log_positions
+# ---------------------------------------------------------------------------
+
+
+class TestSaveLogPositions:
+    """Tests for _save_log_positions persistence."""
+
+    def test_saves_positions_to_new_file(self, tmp_path):
+        """Creates file with log_positions key."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._save_log_positions({"/a.log": 50})
+        written = json.loads(data_file.read_text(encoding="utf-8"))
+        assert written["log_positions"] == {"/a.log": 50}
+
+    def test_merges_with_existing_data(self, tmp_path):
+        """Preserves other keys in trigger_data.json."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        data_file.write_text(
+            json.dumps({"seen_error_hashes": ["abc"]}),
+            encoding="utf-8",
+        )
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._save_log_positions({"/b.log": 77})
+        written = json.loads(data_file.read_text(encoding="utf-8"))
+        assert written["seen_error_hashes"] == ["abc"]
+        assert written["log_positions"] == {"/b.log": 77}
+
+    def test_handles_write_error(self, tmp_path):
+        """Write failure logs warning but does not raise."""
+        lw = _import_log_watcher()
+        lw.TRIGGER_DATA_FILE = tmp_path / "trigger_data.json"
+        with patch.object(lw, "atomic_write_json", side_effect=OSError("disk full")):
+            lw._save_log_positions({"/c.log": 10})
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _is_stale_entry (additional format coverage)
+# ---------------------------------------------------------------------------
+
+
+class TestIsStaleEntryFormats:
+    """Additional format coverage for _is_stale_entry."""
+
+    def test_iso_format_with_microseconds_fresh(self):
+        """ISO format with microseconds: T separator and dot microseconds."""
+        lw = _import_log_watcher()
+        recent = datetime.now() - timedelta(seconds=5)
+        ts = recent.strftime("%Y-%m-%dT%H:%M:%S.%f")
+        assert lw._is_stale_entry(ts) is False
+
+    def test_iso_format_simple_stale(self):
+        """ISO format without microseconds, stale timestamp."""
+        lw = _import_log_watcher()
+        old = datetime.now() - timedelta(seconds=600)
+        ts = old.strftime("%Y-%m-%dT%H:%M:%S")
+        assert lw._is_stale_entry(ts) is True
+
+    def test_simple_format_no_microseconds_fresh(self):
+        """Simple YYYY-MM-DD HH:MM:SS format, fresh."""
+        lw = _import_log_watcher()
+        recent = datetime.now() - timedelta(seconds=2)
+        ts = recent.strftime("%Y-%m-%d %H:%M:%S")
+        assert lw._is_stale_entry(ts) is False
+
+    def test_whitespace_stripped(self):
+        """Leading/trailing whitespace is stripped before parsing."""
+        lw = _import_log_watcher()
+        recent = datetime.now() - timedelta(seconds=5)
+        ts = "  " + recent.strftime("%Y-%m-%d %H:%M:%S.%f") + "  "
+        assert lw._is_stale_entry(ts) is False
+
+    def test_empty_string_returns_true(self):
+        """Empty string is unparseable and treated as stale."""
+        lw = _import_log_watcher()
+        assert lw._is_stale_entry("") is True
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _detect_branch_from_path (additional edge cases)
+# ---------------------------------------------------------------------------
+
+
+class TestDetectBranchFromPathEdgeCases:
+    """Additional edge cases for _detect_branch_from_path."""
+
+    def test_pycache_directory_ignored(self):
+        """__pycache__ after aipass/ is not treated as a branch."""
+        lw = _import_log_watcher()
+        path = str(Path("/home/user/src") / "aipass" / "__pycache__" / "logs" / "something.log")
+        assert lw._detect_branch_from_path(path) == "UNKNOWN"
+
+    def test_system_logs_unknown_file(self):
+        """Unknown file in system_logs returns UNKNOWN."""
+        lw = _import_log_watcher()
+        path = str(lw.SYSTEM_LOGS_DIR / "completely_random.log")
+        assert lw._detect_branch_from_path(path) == "UNKNOWN"
+
+    def test_multiple_aipass_segments(self):
+        """First valid aipass/branch/logs/ match wins."""
+        lw = _import_log_watcher()
+        path = str(Path("/src") / "aipass" / "trigger" / "logs" / "inner.log")
+        assert lw._detect_branch_from_path(path) == "TRIGGER"
+
+    def test_aipass_without_logs_subdir(self):
+        """aipass/branch without /logs/ segment returns UNKNOWN."""
+        lw = _import_log_watcher()
+        path = str(Path("/src") / "aipass" / "drone" / "core.log")
+        assert lw._detect_branch_from_path(path) == "UNKNOWN"
+
+    def test_system_logs_ai_mail_prefix(self):
+        """Multi-word prefix (ai_mail) is matched correctly."""
+        lw = _import_log_watcher()
+        path = str(lw.SYSTEM_LOGS_DIR / "ai_mail_delivery.log")
+        assert lw._detect_branch_from_path(path) == "AI_MAIL"
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _parse_prax_log_line (additional edge cases)
+# ---------------------------------------------------------------------------
+
+
+class TestParsePraxLogLineEdgeCases:
+    """Additional edge cases for _parse_prax_log_line."""
+
+    def test_dash_format_critical(self):
+        """Dash format with CRITICAL level is accepted."""
+        lw = _import_log_watcher()
+        line = "2026-04-26 10:00:00,100 - core - CRITICAL - System down"
+        result = lw._parse_prax_log_line(line)
+        assert result is not None
+        assert result["level"] == "CRITICAL"
+        assert result["module"] == "core"
+        assert result["message"] == "System down"
+
+    def test_dash_format_info_returns_none(self):
+        """Dash format with INFO level returns None."""
+        lw = _import_log_watcher()
+        line = "2026-04-26 10:00:00,100 - core - INFO - All is well"
+        assert lw._parse_prax_log_line(line) is None
+
+    def test_pipe_format_too_few_parts(self):
+        """Pipe format with fewer than 4 parts returns None."""
+        lw = _import_log_watcher()
+        line = "2026-04-26 10:00:00 | only_two_parts"
+        assert lw._parse_prax_log_line(line) is None
+
+    def test_dash_format_too_few_parts(self):
+        """Dash format with fewer than 4 parts returns None."""
+        lw = _import_log_watcher()
+        line = "2026-04-26 - module_only"
+        assert lw._parse_prax_log_line(line) is None
+
+    def test_pipe_format_warning_level_returns_none(self):
+        """Pipe format with WARNING level (not error) returns None."""
+        lw = _import_log_watcher()
+        line = "2026-04-26 10:00:00 | mod | WARNING | caution"
+        assert lw._parse_prax_log_line(line) is None
+
+    def test_dash_format_debug_level_returns_none(self):
+        """Dash format with DEBUG level returns None."""
+        lw = _import_log_watcher()
+        line = "2026-04-26 10:00:00,100 - mod - DEBUG - tracing"
+        assert lw._parse_prax_log_line(line) is None
+
+
+# ---------------------------------------------------------------------------
+# Tests -- BranchLogWatcher._should_process (additional edge cases)
+# ---------------------------------------------------------------------------
+
+
+class TestShouldProcessEdgeCases:
+    """Additional edge cases for BranchLogWatcher._should_process."""
+
+    def test_excluded_file_case_insensitive(self):
+        """Exclusion matching is case-insensitive."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        path = str(Path("/src") / "aipass" / "flow" / "logs" / "DISPATCH.LOG")
+        assert watcher._should_process(path) is False
+
+    def test_non_log_extension_py(self):
+        """.py file is rejected."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        path = str(Path("/src") / "aipass" / "flow" / "logs" / "handler.py")
+        assert watcher._should_process(path) is False
+
+    def test_excluded_trigger_log_watcher(self):
+        """trigger_log_watcher.log is excluded (self-referential)."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        path = str(Path("/src") / "aipass" / "trigger" / "logs" / "trigger_log_watcher.log")
+        assert watcher._should_process(path) is False
+
+    def test_excluded_medic_suppressed(self):
+        """medic_suppressed.log is excluded."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        path = str(Path("/src") / "aipass" / "flow" / "logs" / "medic_suppressed.log")
+        assert watcher._should_process(path) is False
+
+
+# ---------------------------------------------------------------------------
+# Tests -- BranchLogWatcher._read_new_lines (deeper coverage)
+# ---------------------------------------------------------------------------
+
+
+class TestReadNewLinesDeeper:
+    """Deeper coverage for BranchLogWatcher._read_new_lines."""
+
+    def test_no_read_when_size_unchanged(self, tmp_path):
+        """When file size equals last position, no reading occurs."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        log_file = tmp_path / "unchanged.log"
+        log_file.write_text("content\n", encoding="utf-8")
+        file_path = str(log_file)
+        current_size = log_file.stat().st_size
+        watcher.log_positions[file_path] = current_size
+
+        watcher._process_log_line = MagicMock()
+        with patch.object(lw, "_save_log_positions"):
+            watcher._read_new_lines(file_path)
+
+        watcher._process_log_line.assert_not_called()
+        assert watcher.log_positions[file_path] == current_size
+
+    def test_position_save_interval_triggers_save(self, tmp_path):
+        """_save_log_positions is called when counter hits interval."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        log_file = tmp_path / "interval.log"
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        log_file.write_text(f"{now} | mod | ERROR | fail\n", encoding="utf-8")
+        file_path = str(log_file)
+        watcher.log_positions[file_path] = 0
+        watcher._position_save_counter = watcher._POSITION_SAVE_INTERVAL - 1
+
+        with patch.object(lw, "_save_log_positions") as mock_save:
+            watcher._read_new_lines(file_path)
+            mock_save.assert_called_once()
+        assert watcher._position_save_counter == 0
+
+    def test_position_save_interval_not_reached(self, tmp_path):
+        """_save_log_positions is NOT called when counter is below interval."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        log_file = tmp_path / "notsaved.log"
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        log_file.write_text(f"{now} | mod | ERROR | fail\n", encoding="utf-8")
+        file_path = str(log_file)
+        watcher.log_positions[file_path] = 0
+        watcher._position_save_counter = 0
+
+        with patch.object(lw, "_save_log_positions") as mock_save:
+            watcher._read_new_lines(file_path)
+            mock_save.assert_not_called()
+
+    def test_blank_lines_are_skipped(self, tmp_path):
+        """Blank lines in new content do not trigger _process_log_line."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        log_file = tmp_path / "blanks.log"
+        log_file.write_text("\n\n\n", encoding="utf-8")
+        file_path = str(log_file)
+        watcher.log_positions[file_path] = 0
+
+        watcher._process_log_line = MagicMock()
+        with patch.object(lw, "_save_log_positions"):
+            watcher._read_new_lines(file_path)
+        watcher._process_log_line.assert_not_called()
+
+    def test_file_truncated_resets_position(self, tmp_path):
+        """When file is smaller than stored position, resets to 0."""
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        log_file = tmp_path / "truncated.log"
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        log_file.write_text(f"{now} | mod | ERROR | after rotation\n", encoding="utf-8")
+        file_path = str(log_file)
+        watcher.log_positions[file_path] = 99999
+
+        watcher._process_log_line = MagicMock()
+        with patch.object(lw, "_save_log_positions"):
+            watcher._read_new_lines(file_path)
+
+        watcher._process_log_line.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Tests -- BranchLogWatcher._process_log_line (deeper coverage)
+# ---------------------------------------------------------------------------
+
+_BRANCH_LOG_PATH = str(Path("/src") / "aipass" / "flow" / "logs" / "flow.log")
+
+
+class TestProcessLogLineDeeper:
+    """Deeper coverage for BranchLogWatcher._process_log_line."""
+
+    def _make_error_line(self, message: str = "Something broke") -> str:
+        """Build a fresh ERROR line with current timestamp."""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        return f"{now} | test_mod | ERROR | {message}"
+
+    def test_non_error_line_returns_early(self):
+        """INFO-level line parsed as None, no event fired."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        watcher = lw.BranchLogWatcher()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        watcher._process_log_line(f"{now} | mod | INFO | Fine", "/a.log")
+        fire.assert_not_called()
+
+    def test_semantic_exclusion_error_hash(self):
+        """Line containing 'error_hash' in message is skipped."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        watcher = lw.BranchLogWatcher()
+        line = self._make_error_line("Processed error error_hash=abc123")
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+        fire.assert_not_called()
+
+    def test_semantic_exclusion_fingerprint(self):
+        """Line containing 'fingerprint' in message is skipped."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        watcher = lw.BranchLogWatcher()
+        line = self._make_error_line("Error with fingerprint=xyz789")
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+        fire.assert_not_called()
+
+    def test_semantic_exclusion_registry_id(self):
+        """Line containing 'registry_id' in message is skipped."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        watcher = lw.BranchLogWatcher()
+        line = self._make_error_line("Logged with registry_id=r001")
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+        fire.assert_not_called()
+
+    def test_stale_entry_skipped(self):
+        """Line with old timestamp is skipped."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        watcher = lw.BranchLogWatcher()
+        old = (datetime.now() - timedelta(seconds=600)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        line = f"{old} | mod | ERROR | Old error"
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+        fire.assert_not_called()
+
+    def test_registry_path_fires_event_with_registry_data(self):
+        """Registry available: fires event with registry metadata."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        lw._REGISTRY_AVAILABLE = True
+
+        mock_report = MagicMock(
+            return_value={
+                "is_new": True,
+                "count": 1,
+                "id": "reg123",
+                "fingerprint": "fp456",
+                "first_seen": "2026-04-26",
+                "last_seen": "2026-04-26",
+            }
+        )
+        lw.registry_report = mock_report
+
+        watcher = lw.BranchLogWatcher()
+        line = self._make_error_line("DB connection lost")
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+
+        fire.assert_called_once()
+        call_kwargs = fire.call_args[1]
+        assert call_kwargs["branch"] == "FLOW"
+        assert call_kwargs["message"] == "DB connection lost"
+        assert call_kwargs["registry_id"] == "reg123"
+        assert call_kwargs["fingerprint"] == "fp456"
+        assert call_kwargs["count"] == 1
+
+    def test_registry_path_fire_event_none_logs_warning(self):
+        """Registry available but _fire_event is None: logs warning."""
+        lw = _import_log_watcher()
+        lw._fire_event = None
+        lw._REGISTRY_AVAILABLE = True
+
+        mock_report = MagicMock(
+            return_value={
+                "is_new": True,
+                "count": 1,
+                "id": "reg999",
+            }
+        )
+        lw.registry_report = mock_report
+
+        watcher = lw.BranchLogWatcher()
+        line = self._make_error_line("No callback set")
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+
+    def test_registry_report_exception_falls_to_fallback(self):
+        """Registry report raises: falls through to fallback path."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        lw._REGISTRY_AVAILABLE = True
+
+        lw.registry_report = MagicMock(side_effect=RuntimeError("registry down"))
+
+        with patch.dict(
+            sys.modules,
+            {"aipass.trigger.apps.handlers.error_registry": None},
+        ):
+            watcher = lw.BranchLogWatcher()
+            lw._fallback_error_counts.clear()
+            line = self._make_error_line("Fallback triggered")
+            watcher._process_log_line(line, _BRANCH_LOG_PATH)
+
+        fire.assert_called_once()
+        call_kwargs = fire.call_args[1]
+        assert call_kwargs["message"] == "Fallback triggered"
+        assert call_kwargs["count"] == 1
+
+    def test_fallback_lazy_import_succeeds(self):
+        """Fallback path: lazy import succeeds, fires event."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        lw._REGISTRY_AVAILABLE = False
+
+        watcher = lw.BranchLogWatcher()
+        line = self._make_error_line("Lazy import works")
+        watcher._process_log_line(line, _BRANCH_LOG_PATH)
+
+        fire.assert_called_once()
+        call_kwargs = fire.call_args[1]
+        assert call_kwargs["message"] == "Lazy import works"
+
+    def test_local_count_tracking_increments(self):
+        """Local count path: repeated errors increment counter."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        lw._REGISTRY_AVAILABLE = True
+        lw.registry_report = MagicMock(side_effect=RuntimeError("registry down"))
+        lw._fallback_error_counts.clear()
+
+        with patch.dict(
+            sys.modules,
+            {"aipass.trigger.apps.handlers.error_registry": None},
+        ):
+            watcher = lw.BranchLogWatcher()
+            line = self._make_error_line("Repeated failure")
+            watcher._process_log_line(line, _BRANCH_LOG_PATH)
+            watcher._process_log_line(line, _BRANCH_LOG_PATH)
+
+        assert fire.call_count == 2
+        second_call = fire.call_args_list[1][1]
+        assert second_call["count"] == 2
+
+    def test_local_count_fire_event_none_logs_warning(self):
+        """Local count with _fire_event=None: logs warning, no crash."""
+        lw = _import_log_watcher()
+        lw._fire_event = None
+        lw._REGISTRY_AVAILABLE = True
+        lw.registry_report = MagicMock(side_effect=RuntimeError("registry down"))
+        lw._fallback_error_counts.clear()
+
+        with patch.dict(
+            sys.modules,
+            {"aipass.trigger.apps.handlers.error_registry": None},
+        ):
+            watcher = lw.BranchLogWatcher()
+            line = self._make_error_line("No callback at all")
+            watcher._process_log_line(line, _BRANCH_LOG_PATH)
+
+    def test_outer_exception_handler_catches_unexpected(self):
+        """Outer try/except catches unexpected errors without raising."""
+        lw = _import_log_watcher()
+        fire = MagicMock()
+        lw.set_event_callback(fire)
+        watcher = lw.BranchLogWatcher()
+
+        with patch.object(
+            lw,
+            "_parse_prax_log_line",
+            side_effect=TypeError("boom"),
+        ):
+            watcher._process_log_line("any line", "/any/path.log")
+
+        fire.assert_not_called()

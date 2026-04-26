@@ -1085,8 +1085,10 @@ class TestCollectPyFiles:
         """Files matching ignore patterns are excluded."""
         import sys
 
+        # Use a unique pattern that will NOT collide with the pytest tmp_path
+        # directory name (which includes the test function name).
         mock_ign = sys.modules["aipass.seedgo.apps.handlers.bypass"].ignore_handler
-        mock_ign.get_audit_ignore_patterns.return_value = ["test_"]
+        mock_ign.get_audit_ignore_patterns.return_value = ["xskip_"]
 
         from aipass.seedgo.apps.handlers.audit.branch_audit import (
             _collect_py_files,
@@ -1095,11 +1097,11 @@ class TestCollectPyFiles:
         apps_dir = tmp_path / "apps"
         apps_dir.mkdir()
         (apps_dir / "module.py").write_text("pass", encoding="utf-8")
-        (apps_dir / "test_module.py").write_text("pass", encoding="utf-8")
+        (apps_dir / "xskip_bad.py").write_text("pass", encoding="utf-8")
         result = _collect_py_files(tmp_path)
         names = [f["name"] for f in result]
         assert "module.py" in names
-        assert "test_module.py" not in names
+        assert "xskip_bad.py" not in names
 
 
 class TestExtractBranchLevelViolations:
