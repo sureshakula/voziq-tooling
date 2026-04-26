@@ -201,6 +201,8 @@ Always work on main. Edit files in your branch directory on the main branch. Whe
 
 **Allowed read-only:** `git status`, `git diff`, `git log`, `git stash` (safe transient save).
 
+**If `drone @git pr` fails because the PR lock is held**, wait 30 seconds and retry. Keep retrying until the lock clears — do not skip the PR step, do not commit directly to main, do not give up. The lock means another agent is mid-PR; it will release shortly. `drone @git lock` shows the current lock state.
+
 Never merge. Only devpulse or the user merges PRs. If your PR gets feedback, fix it and run `drone @git pr` again.
 
 Local main is always ahead of origin — that's normal. `drone @git pr` commits on local main first, then pushes a feature branch for the PR. Don't `git pull` to fix it. The user merges and pulls when they choose.
