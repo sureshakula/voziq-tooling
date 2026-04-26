@@ -40,19 +40,22 @@ def _load_ops():
 
 
 class TestGetDashboardPath:
-    """Tests for get_dashboard_path — pure path joining."""
+    """Tests for get_dashboard_path -- pure path joining."""
 
     def test_returns_dashboard_path_from_path_input(self, tmp_path):
+        """Result is branch_path / DASHBOARD.local.json."""
         ops = _load_ops()
         result = ops.get_dashboard_path(tmp_path)
         assert result == tmp_path / "DASHBOARD.local.json"
 
     def test_returns_path_type(self, tmp_path):
+        """Return value is a pathlib.Path instance."""
         ops = _load_ops()
         result = ops.get_dashboard_path(tmp_path)
         assert isinstance(result, Path)
 
     def test_works_with_nested_branch_path(self, tmp_path):
+        """Deeply nested branch paths still resolve correctly."""
         ops = _load_ops()
         nested = tmp_path / "src" / "aipass" / "flow"
         result = ops.get_dashboard_path(nested)
@@ -65,9 +68,10 @@ class TestGetDashboardPath:
 
 
 class TestLoadDashboard:
-    """Tests for load_dashboard — file I/O with fallback to template."""
+    """Tests for load_dashboard -- file I/O with fallback to template."""
 
     def _make_template(self):
+        """Build a minimal dashboard template for test use."""
         return {
             "branch": "TEMPLATE",
             "last_updated": "",
@@ -78,6 +82,7 @@ class TestLoadDashboard:
         }
 
     def test_loads_existing_dashboard(self, tmp_path):
+        """Existing dashboard file is loaded and returned as dict."""
         ops = _load_ops()
         branch_dir = tmp_path / "mybranch"
         branch_dir.mkdir()
@@ -93,6 +98,7 @@ class TestLoadDashboard:
         assert result["sections"]["flow"]["active_plans"] == 5
 
     def test_returns_template_when_file_missing(self, tmp_path):
+        """Missing dashboard file triggers template fallback with branch name set."""
         ops = _load_ops()
         branch_dir = tmp_path / "nobranch"
         branch_dir.mkdir()
@@ -104,6 +110,7 @@ class TestLoadDashboard:
         assert "sections" in result
 
     def test_returns_template_on_corrupted_json(self, tmp_path):
+        """Corrupted JSON falls back to template."""
         ops = _load_ops()
         branch_dir = tmp_path / "broken"
         branch_dir.mkdir()
@@ -115,6 +122,7 @@ class TestLoadDashboard:
         assert result["sections"] == template["sections"]
 
     def test_returns_template_on_empty_file(self, tmp_path):
+        """Empty file is treated as missing and falls back to template."""
         ops = _load_ops()
         branch_dir = tmp_path / "empty"
         branch_dir.mkdir()
@@ -138,6 +146,7 @@ class TestLoadDashboard:
         assert result["sections"] == template["sections"]
 
     def test_adds_sections_when_missing_from_existing_file(self, tmp_path):
+        """Valid JSON dict missing the sections key gets sections from template."""
         ops = _load_ops()
         branch_dir = tmp_path / "nosections"
         branch_dir.mkdir()
@@ -159,9 +168,10 @@ class TestLoadDashboard:
 
 
 class TestSaveDashboard:
-    """Tests for save_dashboard — file write with timestamp update."""
+    """Tests for save_dashboard -- file write with timestamp update."""
 
     def test_creates_dashboard_file(self, tmp_path):
+        """Dashboard file is created on disk."""
         ops = _load_ops()
         branch_dir = tmp_path / "savebranch"
         branch_dir.mkdir()
@@ -172,6 +182,7 @@ class TestSaveDashboard:
         assert (branch_dir / "DASHBOARD.local.json").exists()
 
     def test_writes_valid_json(self, tmp_path):
+        """Written file contains valid, parseable JSON."""
         ops = _load_ops()
         branch_dir = tmp_path / "jsoncheck"
         branch_dir.mkdir()
@@ -184,6 +195,7 @@ class TestSaveDashboard:
         assert loaded["sections"]["flow"]["active_plans"] == 3
 
     def test_sets_last_updated_timestamp(self, tmp_path):
+        """Saved file contains a non-empty ISO-format last_updated timestamp."""
         ops = _load_ops()
         branch_dir = tmp_path / "timestamp"
         branch_dir.mkdir()
@@ -197,6 +209,7 @@ class TestSaveDashboard:
         assert "T" in content["last_updated"]
 
     def test_returns_true_on_success(self, tmp_path):
+        """Return value is True on successful save."""
         ops = _load_ops()
         branch_dir = tmp_path / "retval"
         branch_dir.mkdir()
@@ -211,9 +224,10 @@ class TestSaveDashboard:
 
 
 class TestWriteSection:
-    """Tests for write_section — orchestration of load/update/save."""
+    """Tests for write_section -- orchestration of load/update/save."""
 
     def test_creates_dashboard_if_none_exists(self, tmp_path):
+        """A new dashboard file is created when none exists."""
         ops = _load_ops()
         branch_dir = tmp_path / "newbranch"
         branch_dir.mkdir()
@@ -226,6 +240,7 @@ class TestWriteSection:
         assert data["sections"]["flow"]["active_plans"] == 2
 
     def test_updates_existing_section(self, tmp_path):
+        """An existing section is replaced with new data."""
         ops = _load_ops()
         branch_dir = tmp_path / "updatebranch"
         branch_dir.mkdir()
@@ -245,6 +260,7 @@ class TestWriteSection:
         assert data["sections"]["flow"]["active_plans"] == 7
 
     def test_preserves_other_sections(self, tmp_path):
+        """Sections not being updated remain untouched."""
         ops = _load_ops()
         branch_dir = tmp_path / "preserve"
         branch_dir.mkdir()
@@ -264,6 +280,7 @@ class TestWriteSection:
         assert data["sections"]["ai_mail"]["opened"] == 1
 
     def test_adds_last_updated_to_section(self, tmp_path):
+        """Section data gets an ISO last_updated timestamp added."""
         ops = _load_ops()
         branch_dir = tmp_path / "sectstamp"
         branch_dir.mkdir()
@@ -274,6 +291,7 @@ class TestWriteSection:
         assert "T" in data["sections"]["flow"]["last_updated"]
 
     def test_returns_false_on_error(self, tmp_path):
+        """Non-writable path returns False instead of raising."""
         ops = _load_ops()
         # Pass a path that does not exist and cannot be written to
         nonexistent = tmp_path / "no" / "such" / "deep" / "branch"
@@ -288,9 +306,10 @@ class TestWriteSection:
 
 
 class TestCalculateQuickStatusStandalone:
-    """Tests for _calculate_quick_status_standalone — pure calculation."""
+    """Tests for _calculate_quick_status_standalone -- pure calculation."""
 
     def test_empty_sections_returns_defaults(self):
+        """Empty sections produce zeroed counters and 'All clear' summary."""
         ops = _load_ops()
         result = ops._calculate_quick_status_standalone({})
         assert result["new_mail"] == 0
@@ -301,6 +320,7 @@ class TestCalculateQuickStatusStandalone:
         assert result["summary"] == "All clear"
 
     def test_new_mail_triggers_action_required(self):
+        """New mail count > 0 sets action_required to True."""
         ops = _load_ops()
         sections = {"ai_mail": {"new": 3, "opened": 0}}
         result = ops._calculate_quick_status_standalone(sections)
@@ -309,6 +329,7 @@ class TestCalculateQuickStatusStandalone:
         assert "3 new emails" in result["summary"]
 
     def test_active_plans_triggers_action_required(self):
+        """Active plans > 0 sets action_required to True."""
         ops = _load_ops()
         sections = {"flow": {"active_plans": 2}}
         result = ops._calculate_quick_status_standalone(sections)
@@ -317,6 +338,7 @@ class TestCalculateQuickStatusStandalone:
         assert "2 active plans" in result["summary"]
 
     def test_commons_mentions_triggers_action_required(self):
+        """Commons mentions > 0 sets action_required to True."""
         ops = _load_ops()
         sections = {"commons_activity": {"mentions": 5}}
         result = ops._calculate_quick_status_standalone(sections)
@@ -325,6 +347,7 @@ class TestCalculateQuickStatusStandalone:
         assert "5 mentions" in result["summary"]
 
     def test_combined_summary_includes_all_parts(self):
+        """Summary string includes all active counts."""
         ops = _load_ops()
         sections = {
             "ai_mail": {"new": 2, "opened": 1},
@@ -339,7 +362,7 @@ class TestCalculateQuickStatusStandalone:
         assert "4 mentions" in result["summary"]
 
     def test_unread_field_falls_back_from_new(self):
-        """ai_mail may use 'unread' instead of 'new' — code checks both."""
+        """ai_mail may use 'unread' instead of 'new' -- code checks both."""
         ops = _load_ops()
         sections = {"ai_mail": {"unread": 7}}
         result = ops._calculate_quick_status_standalone(sections)
@@ -353,9 +376,9 @@ class TestCalculateQuickStatusStandalone:
 
 
 class TestCreateFreshDashboard:
-    """Tests for create_fresh_dashboard — creates dashboard from template or hardcoded fallback."""
+    """Tests for create_fresh_dashboard -- template or hardcoded fallback."""
 
-    def test_fallback_hardcoded_when_no_template_file(self, tmp_path: Path) -> None:
+    def test_fallback_hardcoded_when_no_template_file(self, tmp_path):
         """When template file does not exist, returns hardcoded dashboard."""
         ops = _load_ops()
         fake_prax = tmp_path / "prax"
@@ -381,7 +404,7 @@ class TestCreateFreshDashboard:
         finally:
             ops._PRAX_ROOT = original
 
-    def test_loads_from_template_file(self, tmp_path: Path) -> None:
+    def test_loads_from_template_file(self, tmp_path):
         """When template file exists, uses it and replaces placeholders."""
         ops = _load_ops()
         fake_prax = tmp_path / "prax"
@@ -412,7 +435,7 @@ class TestCreateFreshDashboard:
         finally:
             ops._PRAX_ROOT = original
 
-    def test_falls_back_on_corrupted_template(self, tmp_path: Path) -> None:
+    def test_falls_back_on_corrupted_template(self, tmp_path):
         """If template JSON is invalid, falls back to hardcoded structure."""
         ops = _load_ops()
         fake_prax = tmp_path / "prax"
@@ -436,14 +459,14 @@ class TestCreateFreshDashboard:
 
 
 # =============================================
-# update_section (operations.py — legacy interface)
+# update_section (operations.py -- legacy interface)
 # =============================================
 
 
 class TestUpdateSectionLegacy:
-    """Tests for update_section — legacy interface with template and status func."""
+    """Tests for update_section -- legacy interface with template and status func."""
 
-    def test_updates_section_and_calls_status_func(self, tmp_path: Path) -> None:
+    def test_updates_section_and_calls_status_func(self, tmp_path):
         """Section is written and calculate_status_func is invoked with live data."""
         ops = _load_ops()
         branch_dir = tmp_path / "testbranch"
@@ -455,7 +478,8 @@ class TestUpdateSectionLegacy:
         }
         status_called_with: dict[str, object] = {}
 
-        def mock_status(sections: dict[str, object]) -> dict[str, object]:
+        def mock_status(sections):
+            """Capture sections passed to status calculator."""
             status_called_with.update(sections)
             return {"action_required": True, "summary": "test"}
 
@@ -470,7 +494,8 @@ class TestUpdateSectionLegacy:
         assert data["sections"]["ai_mail"]["new"] == 5
         assert data["quick_status"]["action_required"] is True
 
-    def test_creates_sections_dict_if_missing(self, tmp_path: Path) -> None:
+    def test_creates_sections_dict_if_missing(self, tmp_path):
+        """Dashboard without sections key gets one created during update."""
         ops = _load_ops()
         branch_dir = tmp_path / "nosections"
         branch_dir.mkdir()
@@ -507,7 +532,6 @@ REFRESH_MODULE_PATH = "aipass.prax.apps.handlers.dashboard.refresh"
 def _load_refresh() -> types.ModuleType:
     """Import (or reimport) the refresh module under active mocks."""
     sys.modules.pop(REFRESH_MODULE_PATH, None)
-    # Also ensure dependent modules are reimported
     sys.modules.pop("aipass.prax.apps.handlers.dashboard.operations", None)
     import aipass.prax.apps.handlers.dashboard.refresh as mod
 
@@ -516,9 +540,10 @@ def _load_refresh() -> types.ModuleType:
 
 
 class TestRefreshAllDashboards:
-    """Tests for refresh_all_dashboards — orchestrates full refresh from centrals."""
+    """Tests for refresh_all_dashboards -- full refresh from centrals."""
 
-    def test_returns_success_when_all_branches_updated(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_success_when_all_branches_updated(self, tmp_path, monkeypatch):
+        """Status is 'success' when every branch refreshes without error."""
         mod = _load_refresh()
         branch1 = tmp_path / "branch1"
         branch1.mkdir()
@@ -543,11 +568,13 @@ class TestRefreshAllDashboards:
         assert result["branches_failed"] == 0
         assert result["errors"] == []
 
-    def test_returns_error_when_branch_paths_fail(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_error_when_branch_paths_fail(self, monkeypatch):
+        """Status is 'error' when loading branch paths raises."""
         mod = _load_refresh()
         monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
 
-        def _raise() -> list[Path]:
+        def _raise():
+            """Simulate registry load failure."""
             raise RuntimeError("registry gone")
 
         monkeypatch.setattr(mod, "_load_branch_paths", _raise)
@@ -558,7 +585,8 @@ class TestRefreshAllDashboards:
         assert len(result["errors"]) == 1
         assert "registry gone" in result["errors"][0]
 
-    def test_partial_status_on_mixed_success_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_partial_status_on_mixed_success_failure(self, tmp_path, monkeypatch):
+        """Status is 'partial' when some branches succeed and some fail."""
         mod = _load_refresh()
         good_branch = tmp_path / "good"
         good_branch.mkdir()
@@ -568,7 +596,8 @@ class TestRefreshAllDashboards:
         monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
         monkeypatch.setattr(mod, "_load_branch_paths", lambda: [good_branch, bad_branch])
 
-        def flaky_create(bp: Path) -> dict[str, object]:
+        def flaky_create(bp):
+            """Succeed for 'good', raise for 'bad'."""
             if bp.name == "bad":
                 raise RuntimeError("simulated failure")
             return {
@@ -591,9 +620,10 @@ class TestRefreshAllDashboards:
 
 
 class TestRefreshSingleDashboard:
-    """Tests for refresh_single_dashboard — refreshes one branch."""
+    """Tests for refresh_single_dashboard -- refreshes one branch."""
 
-    def test_returns_success_for_valid_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_success_for_valid_branch(self, tmp_path, monkeypatch):
+        """Successful refresh returns status 'success' with branch name."""
         mod = _load_refresh()
         branch_dir = tmp_path / "flow"
         branch_dir.mkdir()
@@ -613,14 +643,16 @@ class TestRefreshSingleDashboard:
         assert result["status"] == "success"
         assert result["branch"] == "FLOW"
 
-    def test_returns_error_on_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_error_on_exception(self, tmp_path, monkeypatch):
+        """Exception during refresh returns status 'error' with message."""
         mod = _load_refresh()
         branch_dir = tmp_path / "failing"
         branch_dir.mkdir()
 
         monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
 
-        def _raise(bp: Path) -> dict[str, object]:
+        def _raise(bp):
+            """Always raise to simulate failure."""
             raise RuntimeError("boom")
 
         monkeypatch.setattr(mod, "create_fresh_dashboard", _raise)
@@ -648,9 +680,10 @@ def _load_status() -> types.ModuleType:
 
 
 class TestGetBranchPaths:
-    """Tests for get_branch_paths — reads registry and returns branch paths."""
+    """Tests for get_branch_paths -- reads registry and returns branch paths."""
 
-    def test_returns_paths_from_registry(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_paths_from_registry(self, tmp_path, monkeypatch):
+        """All branch paths from registry are returned as Path objects."""
         mod = _load_status()
         registry_data = {
             "branches": [
@@ -668,14 +701,16 @@ class TestGetBranchPaths:
         assert len(result) == 2
         assert all(isinstance(p, Path) for p in result)
 
-    def test_raises_when_registry_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_raises_when_registry_missing(self, tmp_path, monkeypatch):
+        """FileNotFoundError raised when AIPASS_REGISTRY.json does not exist."""
         mod = _load_status()
         monkeypatch.setattr(mod, "AIPASS_REGISTRY", tmp_path / "nonexistent_registry.json")
 
         with pytest.raises(FileNotFoundError):
             mod.get_branch_paths()
 
-    def test_handles_relative_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_handles_relative_paths(self, tmp_path, monkeypatch):
+        """Relative paths in registry are resolved against repo root."""
         mod = _load_status()
         registry_data = {
             "branches": [
@@ -699,9 +734,10 @@ class TestGetBranchPaths:
 
 
 class TestResolveBranchPath:
-    """Tests for resolve_branch_path — resolves @branch ref to filesystem path."""
+    """Tests for resolve_branch_path -- resolves @branch ref to filesystem path."""
 
-    def test_resolves_existing_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_resolves_existing_branch(self, tmp_path, monkeypatch):
+        """Existing branch reference resolves to its directory path."""
         mod = _load_status()
         branch_dir = tmp_path / "flow"
         branch_dir.mkdir()
@@ -719,7 +755,8 @@ class TestResolveBranchPath:
         result = mod.resolve_branch_path("@flow")
         assert result == branch_dir
 
-    def test_strips_at_sign_and_is_case_insensitive(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_strips_at_sign_and_is_case_insensitive(self, tmp_path, monkeypatch):
+        """Leading @ is stripped and comparison is case-insensitive."""
         mod = _load_status()
         branch_dir = tmp_path / "vera"
         branch_dir.mkdir()
@@ -737,7 +774,8 @@ class TestResolveBranchPath:
         result = mod.resolve_branch_path("@vera")
         assert result == branch_dir
 
-    def test_raises_when_branch_not_in_registry(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_raises_when_branch_not_in_registry(self, tmp_path, monkeypatch):
+        """FileNotFoundError raised when branch name is not in registry."""
         mod = _load_status()
         registry_data: dict[str, list[object]] = {"branches": []}
         registry_file = tmp_path / "AIPASS_REGISTRY.json"
@@ -749,7 +787,8 @@ class TestResolveBranchPath:
         with pytest.raises(FileNotFoundError, match="not found in registry"):
             mod.resolve_branch_path("@nonexistent")
 
-    def test_raises_when_path_does_not_exist(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_raises_when_path_does_not_exist(self, tmp_path, monkeypatch):
+        """FileNotFoundError raised when branch directory does not exist."""
         mod = _load_status()
         registry_data = {
             "branches": [
@@ -765,7 +804,8 @@ class TestResolveBranchPath:
         with pytest.raises(FileNotFoundError, match="does not exist"):
             mod.resolve_branch_path("@ghost")
 
-    def test_raises_when_registry_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_raises_when_registry_missing(self, tmp_path, monkeypatch):
+        """FileNotFoundError raised when AIPASS_REGISTRY.json is missing."""
         mod = _load_status()
         monkeypatch.setattr(mod, "AIPASS_REGISTRY", tmp_path / "nonexistent_registry.json")
 
@@ -790,17 +830,29 @@ def _load_differ() -> types.ModuleType:
 
 
 class TestDiffDashboardTemplate:
-    """Tests for diff_dashboard_template — compares template vs branch dashboards."""
+    """Tests for diff_dashboard_template -- compares template vs dashboards."""
 
-    def _make_template(self) -> dict[str, object]:
+    def _make_template(self):
+        """Build a full dashboard template dict for diff tests."""
         return {
             "_warning": "AUTO-GENERATED",
             "branch": "{{BRANCHNAME}}",
             "sections": {
-                "ai_mail": {"managed_by": "ai_mail", "new": 0, "last_updated": ""},
-                "flow": {"managed_by": "flow", "active_plans": 0, "last_updated": ""},
+                "ai_mail": {
+                    "managed_by": "ai_mail",
+                    "new": 0,
+                    "last_updated": "",
+                },
+                "flow": {
+                    "managed_by": "flow",
+                    "active_plans": 0,
+                    "last_updated": "",
+                },
                 "memory": {"managed_by": "memory", "last_updated": ""},
-                "commons_activity": {"managed_by": "the_commons", "last_updated": ""},
+                "commons_activity": {
+                    "managed_by": "the_commons",
+                    "last_updated": "",
+                },
             },
             "quick_status": {
                 "new_mail": 0,
@@ -812,7 +864,8 @@ class TestDiffDashboardTemplate:
             },
         }
 
-    def test_returns_error_when_template_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_error_when_template_missing(self, tmp_path, monkeypatch):
+        """Error dict returned when template file does not exist."""
         mod = _load_differ()
         monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "nofile.json")
 
@@ -820,16 +873,15 @@ class TestDiffDashboardTemplate:
         assert "error" in result
         assert "not found" in result["error"]
 
-    def test_reports_up_to_date_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_reports_up_to_date_branch(self, tmp_path, monkeypatch):
+        """Branch matching template schema reports status 'up_to_date'."""
         mod = _load_differ()
 
-        # Create template file
         template = self._make_template()
         template_file = tmp_path / "template.json"
         template_file.write_text(json.dumps(template), encoding="utf-8")
         monkeypatch.setattr(mod, "TEMPLATE_FILE", template_file)
 
-        # Create registry
         branch_dir = tmp_path / "flow"
         branch_dir.mkdir()
         registry_data = {
@@ -842,15 +894,25 @@ class TestDiffDashboardTemplate:
         monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        # Create a dashboard that is up to date
         dashboard = {
             "_warning": "AUTO-GENERATED",
             "branch": "FLOW",
             "sections": {
-                "ai_mail": {"managed_by": "ai_mail", "new": 0, "last_updated": "2026-01-01"},
-                "flow": {"managed_by": "flow", "active_plans": 0, "last_updated": "2026-01-01"},
+                "ai_mail": {
+                    "managed_by": "ai_mail",
+                    "new": 0,
+                    "last_updated": "2026-01-01",
+                },
+                "flow": {
+                    "managed_by": "flow",
+                    "active_plans": 0,
+                    "last_updated": "2026-01-01",
+                },
                 "memory": {"managed_by": "memory", "last_updated": "2026-01-01"},
-                "commons_activity": {"managed_by": "the_commons", "last_updated": "2026-01-01"},
+                "commons_activity": {
+                    "managed_by": "the_commons",
+                    "last_updated": "2026-01-01",
+                },
             },
             "quick_status": {
                 "new_mail": 0,
@@ -867,7 +929,8 @@ class TestDiffDashboardTemplate:
         assert result["summary"]["up_to_date"] == 1
         assert result["summary"]["needs_update"] == 0
 
-    def test_reports_missing_dashboard(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_reports_missing_dashboard(self, tmp_path, monkeypatch):
+        """Branch without a DASHBOARD.local.json reports status 'missing'."""
         mod = _load_differ()
 
         template = self._make_template()
@@ -879,7 +942,11 @@ class TestDiffDashboardTemplate:
         branch_dir.mkdir()
         registry_data = {
             "branches": [
-                {"name": "NOBRANCH", "path": str(branch_dir), "status": "active"},
+                {
+                    "name": "NOBRANCH",
+                    "path": str(branch_dir),
+                    "status": "active",
+                },
             ]
         }
         registry_file = tmp_path / "AIPASS_REGISTRY.json"
@@ -890,7 +957,8 @@ class TestDiffDashboardTemplate:
         result = mod.diff_dashboard_template()
         assert result["summary"]["missing"] == 1
 
-    def test_detects_deprecated_sections(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_detects_deprecated_sections(self, tmp_path, monkeypatch):
+        """Deprecated sections in dashboard are flagged for removal."""
         mod = _load_differ()
 
         template = self._make_template()
@@ -902,7 +970,11 @@ class TestDiffDashboardTemplate:
         branch_dir.mkdir()
         registry_data = {
             "branches": [
-                {"name": "OLDBRANCH", "path": str(branch_dir), "status": "active"},
+                {
+                    "name": "OLDBRANCH",
+                    "path": str(branch_dir),
+                    "status": "active",
+                },
             ]
         }
         registry_file = tmp_path / "AIPASS_REGISTRY.json"
@@ -910,7 +982,6 @@ class TestDiffDashboardTemplate:
         monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        # Dashboard with deprecated section
         dashboard = {
             "_warning": "AUTO-GENERATED",
             "branch": "OLDBRANCH",
@@ -937,7 +1008,8 @@ class TestDiffDashboardTemplate:
         branch_diff = result["branches"][0]
         assert any("bulletin_board" in r for r in branch_diff["removals"])
 
-    def test_filters_to_single_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_filters_to_single_branch(self, tmp_path, monkeypatch):
+        """When branch_name is given, only that branch is diffed."""
         mod = _load_differ()
 
         template = self._make_template()
@@ -982,23 +1054,33 @@ def _load_pusher() -> types.ModuleType:
 
 
 class TestPushDashboardTemplate:
-    """Tests for push_dashboard_template — pushes template to all branches."""
+    """Tests for push_dashboard_template -- pushes template to all branches."""
 
-    def _setup_template_and_registry(
-        self,
-        tmp_path: Path,
-        mod: types.ModuleType,
-        monkeypatch: pytest.MonkeyPatch,
-        branches: list[str],
-    ) -> dict[str, object]:
-        """Helper: create template file, registry, and branch dirs."""
+    def _setup_template_and_registry(self, tmp_path, mod, monkeypatch, branches):
+        """Create template file, registry, and branch dirs for push tests."""
         template = {
             "_warning": "AUTO-GENERATED",
             "branch": "{{BRANCHNAME}}",
             "sections": {
-                "ai_mail": {"managed_by": "ai_mail", "new": 0, "opened": 0, "total": 0, "last_updated": ""},
-                "flow": {"managed_by": "flow", "active_plans": 0, "recently_closed": [], "last_updated": ""},
-                "memory": {"managed_by": "memory", "vectors_stored": 0, "notes": {}, "last_updated": ""},
+                "ai_mail": {
+                    "managed_by": "ai_mail",
+                    "new": 0,
+                    "opened": 0,
+                    "total": 0,
+                    "last_updated": "",
+                },
+                "flow": {
+                    "managed_by": "flow",
+                    "active_plans": 0,
+                    "recently_closed": [],
+                    "last_updated": "",
+                },
+                "memory": {
+                    "managed_by": "memory",
+                    "vectors_stored": 0,
+                    "notes": {},
+                    "last_updated": "",
+                },
                 "commons_activity": {
                     "managed_by": "the_commons",
                     "mentions": 0,
@@ -1029,7 +1111,8 @@ class TestPushDashboardTemplate:
 
         return template
 
-    def test_creates_dashboards_for_branches_without_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_creates_dashboards_for_branches_without_one(self, tmp_path, monkeypatch):
+        """Branches with no dashboard get one created from template."""
         mod = _load_pusher()
         self._setup_template_and_registry(tmp_path, mod, monkeypatch, ["flow", "ai_mail"])
 
@@ -1039,7 +1122,8 @@ class TestPushDashboardTemplate:
         assert (tmp_path / "flow" / "DASHBOARD.local.json").exists()
         assert (tmp_path / "ai_mail" / "DASHBOARD.local.json").exists()
 
-    def test_dry_run_does_not_write_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_dry_run_does_not_write_files(self, tmp_path, monkeypatch):
+        """Dry run reports changes but does not create files on disk."""
         mod = _load_pusher()
         self._setup_template_and_registry(tmp_path, mod, monkeypatch, ["flow"])
 
@@ -1049,21 +1133,30 @@ class TestPushDashboardTemplate:
         # File should NOT be created in dry run
         assert not (tmp_path / "flow" / "DASHBOARD.local.json").exists()
 
-    def test_updates_existing_dashboard_with_structural_changes(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_updates_existing_dashboard_with_structural_changes(self, tmp_path, monkeypatch):
+        """Deprecated sections are removed and warning header is updated."""
         mod = _load_pusher()
         self._setup_template_and_registry(tmp_path, mod, monkeypatch, ["flow"])
 
-        # Pre-create a dashboard with a deprecated section
         existing = {
             "_warning": "OLD WARNING",
             "branch": "FLOW",
             "sections": {
-                "ai_mail": {"managed_by": "ai_mail", "new": 3, "last_updated": "2026-01-01"},
-                "flow": {"managed_by": "flow", "active_plans": 2, "last_updated": "2026-01-01"},
+                "ai_mail": {
+                    "managed_by": "ai_mail",
+                    "new": 3,
+                    "last_updated": "2026-01-01",
+                },
+                "flow": {
+                    "managed_by": "flow",
+                    "active_plans": 2,
+                    "last_updated": "2026-01-01",
+                },
                 "memory": {"managed_by": "memory", "last_updated": "2026-01-01"},
-                "commons_activity": {"managed_by": "the_commons", "last_updated": "2026-01-01"},
+                "commons_activity": {
+                    "managed_by": "the_commons",
+                    "last_updated": "2026-01-01",
+                },
                 "bulletin_board": {"posts": 5},
             },
             "quick_status": {"pending_bulletins": 3},
@@ -1075,16 +1168,13 @@ class TestPushDashboardTemplate:
         assert result["branches_created"] == 0
 
         data = json.loads((tmp_path / "flow" / "DASHBOARD.local.json").read_text(encoding="utf-8"))
-        # Deprecated section removed
         assert "bulletin_board" not in data["sections"]
-        # Deprecated quick_status key removed
         assert "pending_bulletins" not in data.get("quick_status", {})
-        # Warning header updated
         assert data["_warning"] == "AUTO-GENERATED"
-        # Existing data preserved
         assert data["sections"]["ai_mail"]["new"] == 3
 
-    def test_returns_error_when_template_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_error_when_template_missing(self, tmp_path, monkeypatch):
+        """Missing template file returns success=False with error message."""
         mod = _load_pusher()
         monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "no_template.json")
 
@@ -1099,9 +1189,10 @@ class TestPushDashboardTemplate:
 
 
 class TestGetTemplateStatus:
-    """Tests for get_template_status — reads version file and template existence."""
+    """Tests for get_template_status -- version file and template existence."""
 
-    def test_returns_status_when_version_file_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_status_when_version_file_exists(self, tmp_path, monkeypatch):
+        """Version data is populated from existing .dashboard_version.json."""
         mod = _load_pusher()
         version_data = {
             "version": "3.0.0",
@@ -1123,7 +1214,8 @@ class TestGetTemplateStatus:
         assert result["last_push_branches"] == ["FLOW", "AI_MAIL"]
         assert result["template_exists"] is True
 
-    def test_returns_defaults_when_no_version_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_defaults_when_no_version_file(self, tmp_path, monkeypatch):
+        """Missing version file returns None defaults and template_exists=False."""
         mod = _load_pusher()
         monkeypatch.setattr(mod, "VERSION_FILE", tmp_path / "nonexistent_version.json")
         monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "also_nonexistent.json")
@@ -1144,7 +1236,6 @@ DASHBOARD_MODULE_PATH = "aipass.prax.apps.modules.dashboard"
 
 def _load_dashboard_module() -> types.ModuleType:
     """Import (or reimport) the dashboard module under active mocks."""
-    # Ensure handler dependencies are also cleared for fresh import
     for mod_key in list(sys.modules.keys()):
         if mod_key.startswith("aipass.prax.apps.handlers.dashboard"):
             sys.modules.pop(mod_key, None)
@@ -1158,7 +1249,8 @@ def _load_dashboard_module() -> types.ModuleType:
 class TestDashboardModuleUpdateSection:
     """Tests for dashboard.py module-level update_section wrapper."""
 
-    def test_delegates_to_handler_update_section(self, tmp_path: Path) -> None:
+    def test_delegates_to_handler_update_section(self, tmp_path):
+        """Module wrapper calls handler and writes section to disk."""
         mod = _load_dashboard_module()
         branch_dir = tmp_path / "wrapper_branch"
         branch_dir.mkdir()
@@ -1168,9 +1260,9 @@ class TestDashboardModuleUpdateSection:
         data = json.loads((branch_dir / "DASHBOARD.local.json").read_text(encoding="utf-8"))
         assert data["sections"]["flow"]["active_plans"] == 3
 
-    def test_returns_false_on_handler_error(self, tmp_path: Path) -> None:
+    def test_returns_false_on_handler_error(self, tmp_path):
+        """Non-writable path causes wrapper to return False."""
         mod = _load_dashboard_module()
-        # A deeply nested nonexistent path should trigger an error
         bad_path = tmp_path / "no" / "such" / "deep" / "branch"
 
         result = mod.update_section(bad_path, "flow", {"active_plans": 1})
@@ -1185,7 +1277,8 @@ class TestDashboardModuleUpdateSection:
 class TestPrintStatus:
     """Tests for print_status -- CLI status display."""
 
-    def test_prints_branch_dashboard_status(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_prints_branch_dashboard_status(self, tmp_path, monkeypatch):
+        """Status output runs without error for mixed dashboard states."""
         mod = _load_dashboard_module()
 
         branch1 = tmp_path / "flow"
@@ -1199,10 +1292,12 @@ class TestPrintStatus:
         # Should not raise
         mod.print_status()
 
-    def test_handles_error_loading_branches(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_handles_error_loading_branches(self, monkeypatch):
+        """Exception from get_branch_paths is caught and logged."""
         mod = _load_dashboard_module()
 
-        def raise_error() -> list[Path]:
+        def raise_error():
+            """Simulate registry load failure."""
             raise RuntimeError("registry not found")
 
         monkeypatch.setattr(mod, "get_branch_paths", raise_error)
@@ -1218,7 +1313,8 @@ class TestPrintStatus:
 class TestPrintTemplate:
     """Tests for print_template -- CLI template display."""
 
-    def test_prints_template_without_error(self) -> None:
+    def test_prints_template_without_error(self):
+        """Template JSON is printed to console without raising."""
         mod = _load_dashboard_module()
         # Should not raise
         mod.print_template()

@@ -480,3 +480,127 @@ class TestStartStopStatus:
         assert status["stale_threshold_seconds"] == 300
         assert isinstance(status["excluded_files"], list)
         assert len(status["excluded_files"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# Tests -- on_modified
+# ---------------------------------------------------------------------------
+
+
+class TestOnModified:
+    """Tests for BranchLogWatcher.on_modified."""
+
+    def test_skips_directory_events(self):
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = True
+        event.src_path = "/some/dir"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_not_called()
+
+    def test_skips_excluded_files(self):
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        watcher._should_process = MagicMock(return_value=False)
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/some/excluded.log"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_not_called()
+
+    def test_processes_valid_file(self):
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        watcher._should_process = MagicMock(return_value=True)
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/some/branch/logs/core.log"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_called_once_with("/some/branch/logs/core.log")
+
+    def test_handles_read_exception(self):
+        lw = _import_log_watcher()
+        watcher = lw.BranchLogWatcher()
+        watcher._should_process = MagicMock(return_value=True)
+        watcher._read_new_lines = MagicMock(side_effect=IOError("disk error"))
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/some/core.log"
+        watcher.on_modified(event)
+
+
+# ---------------------------------------------------------------------------
+# Tests -- initialize_positions
+# ---------------------------------------------------------------------------
+
+
+class TestInitializePositions:
+    """Tests for BranchLogWatcher.initialize_positions."""
+
+    def test_snaps_to_eof_when_no_persisted(self, tmp_path):
+        lw = _import_log_watcher()
+        lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
+        lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
+        lw._load_log_positions = MagicMock(return_value={})
+        branch_logs = tmp_path / "aipass" / "flow" / "logs"
+        branch_logs.mkdir(parents=True)
+        log_file = branch_logs / "core.log"
+        log_file.write_text("line1\nline2\n")
+        watcher = lw.BranchLogWatcher()
+        watcher.initialize_positions()
+        assert watcher.log_positions[str(log_file)] == log_file.stat().st_size
+
+    def test_uses_persisted_position_when_valid(self, tmp_path):
+        lw = _import_log_watcher()
+        lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
+        lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
+        branch_logs = tmp_path / "aipass" / "flow" / "logs"
+        branch_logs.mkdir(parents=True)
+        log_file = branch_logs / "core.log"
+        log_file.write_text("line1\nline2\n")
+        saved_pos = 5
+        lw._load_log_positions = MagicMock(return_value={str(log_file): saved_pos})
+        watcher = lw.BranchLogWatcher()
+        watcher.initialize_positions()
+        assert watcher.log_positions[str(log_file)] == saved_pos
+
+    def test_snaps_to_eof_when_persisted_beyond_size(self, tmp_path):
+        lw = _import_log_watcher()
+        lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
+        lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
+        branch_logs = tmp_path / "aipass" / "flow" / "logs"
+        branch_logs.mkdir(parents=True)
+        log_file = branch_logs / "core.log"
+        log_file.write_text("short")
+        lw._load_log_positions = MagicMock(return_value={str(log_file): 999999})
+        watcher = lw.BranchLogWatcher()
+        watcher.initialize_positions()
+        assert watcher.log_positions[str(log_file)] == log_file.stat().st_size
+
+    def test_skips_branches_without_logs_dir(self, tmp_path):
+        lw = _import_log_watcher()
+        lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
+        lw.SYSTEM_LOGS_DIR = tmp_path / "system_logs"
+        lw._load_log_positions = MagicMock(return_value={})
+        (tmp_path / "aipass" / "nologs").mkdir(parents=True)
+        watcher = lw.BranchLogWatcher()
+        watcher.initialize_positions()
+        assert len(watcher.log_positions) == 0
+
+    def test_initializes_system_logs(self, tmp_path):
+        lw = _import_log_watcher()
+        lw.AIPASS_PKG_ROOT = tmp_path / "aipass"
+        (tmp_path / "aipass").mkdir(parents=True)
+        sys_logs = tmp_path / "system_logs"
+        sys_logs.mkdir()
+        lw.SYSTEM_LOGS_DIR = sys_logs
+        log_file = sys_logs / "app.log"
+        log_file.write_text("data here\n")
+        lw._load_log_positions = MagicMock(return_value={})
+        watcher = lw.BranchLogWatcher()
+        watcher.initialize_positions()
+        assert watcher.log_positions[str(log_file)] == log_file.stat().st_size

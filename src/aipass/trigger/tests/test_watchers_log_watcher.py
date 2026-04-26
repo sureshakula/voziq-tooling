@@ -353,3 +353,117 @@ class TestStartStopActive:
         mock_obs.is_alive.return_value = False
         wlw._log_observer = mock_obs
         assert wlw.is_log_watcher_active() is False
+
+
+# ---------------------------------------------------------------------------
+# Tests -- on_modified
+# ---------------------------------------------------------------------------
+
+
+class TestWatcherOnModified:
+    """Tests for LogFileWatcher.on_modified."""
+
+    def test_skips_directory_events(self):
+        wlw = _import_watchers_lw()
+        watcher = wlw.LogFileWatcher()
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = True
+        event.src_path = "/some/dir"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_not_called()
+
+    def test_skips_non_log_files(self):
+        wlw = _import_watchers_lw()
+        wlw.SYSTEM_LOGS_DIR = Path("/fake/system_logs")
+        watcher = wlw.LogFileWatcher()
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/fake/system_logs/data.txt"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_not_called()
+
+    def test_skips_files_outside_system_logs(self):
+        wlw = _import_watchers_lw()
+        wlw.SYSTEM_LOGS_DIR = Path("/fake/system_logs")
+        watcher = wlw.LogFileWatcher()
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/other/place/app.log"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_not_called()
+
+    def test_processes_valid_log_file(self):
+        wlw = _import_watchers_lw()
+        wlw.SYSTEM_LOGS_DIR = Path("/fake/system_logs")
+        watcher = wlw.LogFileWatcher()
+        watcher._read_new_lines = MagicMock()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/fake/system_logs/app.log"
+        watcher.on_modified(event)
+        watcher._read_new_lines.assert_called_once_with("/fake/system_logs/app.log")
+
+    def test_handles_read_exception(self):
+        wlw = _import_watchers_lw()
+        wlw.SYSTEM_LOGS_DIR = Path("/fake/system_logs")
+        watcher = wlw.LogFileWatcher()
+        watcher._read_new_lines = MagicMock(side_effect=IOError("disk error"))
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/fake/system_logs/app.log"
+        watcher.on_modified(event)
+
+
+# ---------------------------------------------------------------------------
+# Tests -- initialize_positions
+# ---------------------------------------------------------------------------
+
+
+class TestWatcherInitializePositions:
+    """Tests for LogFileWatcher.initialize_positions."""
+
+    def test_initializes_to_eof(self, tmp_path):
+        wlw = _import_watchers_lw()
+        sys_logs = tmp_path / "system_logs"
+        sys_logs.mkdir()
+        wlw.SYSTEM_LOGS_DIR = sys_logs
+        log_file = sys_logs / "app.log"
+        log_file.write_text("test data\n")
+        watcher = wlw.LogFileWatcher()
+        watcher.initialize_positions()
+        assert watcher.log_positions[str(log_file)] == log_file.stat().st_size
+
+    def test_handles_missing_dir(self, tmp_path):
+        wlw = _import_watchers_lw()
+        wlw.SYSTEM_LOGS_DIR = tmp_path / "nonexistent"
+        watcher = wlw.LogFileWatcher()
+        watcher.initialize_positions()
+        assert len(watcher.log_positions) == 0
+
+    def test_multiple_files(self, tmp_path):
+        wlw = _import_watchers_lw()
+        sys_logs = tmp_path / "system_logs"
+        sys_logs.mkdir()
+        wlw.SYSTEM_LOGS_DIR = sys_logs
+        f1 = sys_logs / "a.log"
+        f2 = sys_logs / "b.log"
+        f1.write_text("aaa")
+        f2.write_text("bbbbb")
+        watcher = wlw.LogFileWatcher()
+        watcher.initialize_positions()
+        assert watcher.log_positions[str(f1)] == 3
+        assert watcher.log_positions[str(f2)] == 5
+
+    def test_ignores_non_log_files(self, tmp_path):
+        wlw = _import_watchers_lw()
+        sys_logs = tmp_path / "system_logs"
+        sys_logs.mkdir()
+        wlw.SYSTEM_LOGS_DIR = sys_logs
+        (sys_logs / "data.txt").write_text("not a log")
+        (sys_logs / "real.log").write_text("log data")
+        watcher = wlw.LogFileWatcher()
+        watcher.initialize_positions()
+        assert len(watcher.log_positions) == 1
