@@ -29,6 +29,20 @@ from aipass.drone.apps.handlers.git.lock_handler import (
 )
 
 
+def _resolve_git_branch(branch_name: str, branch_dir: Path) -> str:
+    """Read git_branch from passport if available, else fall back to citizen/{name}."""
+    passport_path = branch_dir / ".trinity" / "passport.json"
+    if passport_path.is_file():
+        try:
+            data = _json.loads(passport_path.read_text())
+            git_branch = data.get("branch_info", {}).get("git_branch", "")
+            if git_branch:
+                return git_branch
+        except (ValueError, OSError) as exc:
+            logger.warning("Failed to read git_branch from passport %s: %s", passport_path, exc)
+    return f"citizen/{branch_name}"
+
+
 def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
     """Execute the full PR creation workflow.
 
@@ -57,7 +71,7 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
         Dict with success, pr_url, feature_branch, and message.
     """
     repo_root = find_repo_root()
-    feature_branch = f"citizen/{branch_name}"
+    feature_branch = _resolve_git_branch(branch_name, branch_dir)
     lock_acquired = False
 
     result = {

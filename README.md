@@ -229,9 +229,10 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | Version | 2.1.0 |
 | Agents | 11 |
 | Quality standards | 33 automated checks |
-| Tests | 3,500+ (across all agents) |
-| PRs merged | 260+ (created by agents, reviewed by human) |
-| External projects | Full cross-project access (Vera Studio) |
+| Tests | 6,500+ (across all agents) |
+| PRs merged | 470+ (created by agents, reviewed by human) |
+| Code coverage | 75% ([codecov](https://codecov.io/gh/AIOSAI/AIPass)) |
+| CI | Green (0 failures) |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 

@@ -20,8 +20,10 @@ Only authorized callers (verified via :mod:`auth`) may invoke this.
 
 from __future__ import annotations
 
+import json as _json
 import re
 import subprocess
+from pathlib import Path
 
 from aipass.prax import logger
 from aipass.drone.apps.handlers.json import json_handler
@@ -52,6 +54,20 @@ def slugify(description: str) -> str:
     return slug[:50]
 
 
+def _resolve_system_git_branch(caller: str, repo_root: Path) -> str:
+    """Read git_branch from the caller's passport, else fall back to system/{caller}-{slug}."""
+    for trinity_dir in repo_root.rglob(f"src/aipass/{caller}/.trinity/passport.json"):
+        try:
+            data = _json.loads(trinity_dir.read_text())
+            git_branch = data.get("branch_info", {}).get("git_branch", "")
+            if git_branch:
+                return git_branch
+        except (ValueError, OSError) as exc:
+            logger.warning("Failed to read git_branch from %s: %s", trinity_dir, exc)
+        break
+    return ""
+
+
 def create_system_pr(description: str, caller: str) -> dict:
     """Execute the system-wide PR creation workflow.
 
@@ -72,7 +88,8 @@ def create_system_pr(description: str, caller: str) -> dict:
     """
     repo_root = find_repo_root()
     slug = slugify(description)
-    feature_branch = f"system/{caller}-{slug}"
+    passport_branch = _resolve_system_git_branch(caller, repo_root)
+    feature_branch = passport_branch if passport_branch else f"system/{caller}-{slug}"
     lock_acquired = False
 
     result: dict = {

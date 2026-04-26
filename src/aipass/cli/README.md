@@ -6,10 +6,12 @@
 **Module:** `aipass.cli`
 **Version:** 2.0.0
 **Seedgo:** 100% (34/34 standards)
-**Tests:** 171 passing (6 files, 5/5 modules covered)
-**Last Updated:** 2026-04-22
+**Tests:** 203 passing (6 files, 5/5 modules covered)
+**Last Updated:** 2026-04-26
 
 ## Usage
+
+Import display functions from `aipass.cli` and call them to produce consistent Rich-formatted terminal output across all branches.
 
 ### Display Functions
 
@@ -146,12 +148,12 @@ cli/
 │       ├── json/
 │       │   └── json_handler.py # JSON lifecycle (CRUD, validation, rotation)
 │       └── templates/          # Empty — placeholder from scaffold
-├── tests/                      # 171 tests across 6 files
-│   ├── test_bootstrap.py       # 60 tests — init/update/hooks/memo/mailbox
+├── tests/                      # 203 tests across 6 files
+│   ├── test_bootstrap.py       # 72 tests — init/update/hooks/memo/mailbox/scaffold
 │   ├── test_json_handler.py    # 35 tests — CRUD, validation, rotation
 │   ├── test_display.py         # 28 tests — all display functions + routing
+│   ├── test_init_project.py    # 34 tests — command routing, agent, update, output
 │   ├── test_templates.py       # 19 tests — operation templates + routing
-│   ├── test_init_project.py    # 14 tests — command routing, error handling
 │   └── test_integration.py     # 8 tests — main() flow, entry points
 ├── cli_json/                   # Auto-created JSON (config, data, log)
 ├── logs/                       # Branch-level logs
@@ -201,7 +203,7 @@ json_handler.ensure_module_jsons("cli")  # Create all 3 if missing
 
 ---
 
-*Last Updated: 2026-04-22*
+*Last Updated: 2026-04-26*
 
 ---
 [← Back to AIPass](../../../README.md)
