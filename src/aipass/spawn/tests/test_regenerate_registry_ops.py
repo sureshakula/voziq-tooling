@@ -17,6 +17,7 @@ from aipass.spawn.apps.handlers.regenerate_registry_ops import (
     _scan_template_directory,
     _next_id,
 )
+from aipass.spawn.apps.modules.regenerate_registry import handle_regenerate_registry
 
 
 # =============================================================================
@@ -555,3 +556,31 @@ class TestScanTemplateDirectoryOrdering:
         # Directories should also be in sorted order
         dir_paths = [entry["path"] for entry in directories.values()]
         assert dir_paths == sorted(dir_paths)
+
+
+class TestHandleRegenerateRegistry:
+    """Tests for handle_regenerate_registry() CLI handler."""
+
+    def test_default_regenerates_builder(self):
+        result = handle_regenerate_registry([])
+        assert result == 0
+
+    def test_explicit_builder(self):
+        result = handle_regenerate_registry(["builder"])
+        assert result == 0
+
+    def test_explicit_birthright(self):
+        result = handle_regenerate_registry(["birthright"])
+        assert result == 0
+
+    def test_all_flag(self):
+        result = handle_regenerate_registry(["--all"])
+        assert result == 0
+
+    def test_help_flag(self):
+        result = handle_regenerate_registry(["--help"])
+        assert result == 0
+
+    def test_unknown_class_returns_error(self):
+        result = handle_regenerate_registry(["nonexistent_class"])
+        assert result == 1

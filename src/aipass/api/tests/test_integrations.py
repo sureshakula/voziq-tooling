@@ -171,6 +171,29 @@ class TestFetchContracts:
         assert result["contracts"] == ["alpha", "beta"]
         assert result["count"] == 2
 
+    def test_get_contracts_returns_expected_shape(self):
+        """get_contracts() result dict has contracts, count, and success keys."""
+        bridge.register("shaped", lambda: None)
+        result = fetch_contracts()
+        assert isinstance(result["contracts"], list)
+        assert isinstance(result["count"], int)
+        assert isinstance(result["success"], bool)
+        assert result["count"] == len(result["contracts"])
+
+    def test_get_contracts_handles_logging_failure(self):
+        """get_contracts() returns graceful failure when json_handler raises."""
+        from unittest.mock import patch
+
+        bridge.register("test_logging", lambda: None)
+        with patch(
+            "aipass.api.apps.handlers.integrations.list.json_handler.log_operation",
+            side_effect=RuntimeError("log broke"),
+        ):
+            result = fetch_contracts()
+        assert result["success"] is False
+        assert result["contracts"] == []
+        assert result["count"] == 0
+
 
 # ---------------------------------------------------------------------------
 # TestCallContract

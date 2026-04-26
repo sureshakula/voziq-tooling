@@ -15,8 +15,12 @@ from pathlib import Path
 
 from aipass.spawn import spawn_agent
 from aipass.spawn.apps.handlers.metadata import get_branch_name, normalize_branch_name, detect_profile
-from aipass.spawn.apps.handlers.placeholders import build_replacements_dict, validate_no_placeholders
-from aipass.spawn.apps.handlers.registry import load_registry, add_to_registry
+from aipass.spawn.apps.handlers.placeholders import (
+    build_replacements_dict,
+    replace_placeholders,
+    validate_no_placeholders,
+)
+from aipass.spawn.apps.handlers.registry import load_registry, add_to_registry, save_registry, get_next_citizen_number
 
 
 @pytest.fixture
@@ -129,3 +133,90 @@ class TestSpawnAgent:
         data = json.loads(reg_file.read_text())
         assert data["metadata"]["generated"] is True
         assert len(data["files"]) > 0
+
+
+class TestReplacePlaceholders:
+    """Tests for replace_placeholders()."""
+
+    def test_basic_replacement(self):
+        content = "Hello {{NAME}}, welcome to {{PROJECT}}."
+        result = replace_placeholders(content, {"NAME": "Alice", "PROJECT": "AIPass"})
+        assert result == "Hello Alice, welcome to AIPass."
+
+    def test_no_placeholders(self):
+        content = "No placeholders here."
+        result = replace_placeholders(content, {"FOO": "bar"})
+        assert result == "No placeholders here."
+
+    def test_multiple_occurrences(self):
+        content = "{{X}} and {{X}} again"
+        result = replace_placeholders(content, {"X": "val"})
+        assert result == "val and val again"
+
+    def test_empty_replacements(self):
+        content = "{{STAYS}} intact"
+        result = replace_placeholders(content, {})
+        assert result == "{{STAYS}} intact"
+
+    def test_value_coercion_to_string(self):
+        result = replace_placeholders("number={{N}}", {"N": 42})
+        assert result == "number=42"
+
+
+class TestSaveRegistry:
+    """Tests for save_registry()."""
+
+    def test_saves_and_sorts_branches(self, tmp_path):
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        data = {
+            "metadata": {"version": "1.0.0", "total_branches": 2},
+            "branches": [
+                {"name": "ZEBRA", "path": "zebra"},
+                {"name": "ALPHA", "path": "alpha"},
+            ],
+        }
+        save_registry(reg_path, data)
+        saved = json.loads(reg_path.read_text())
+        assert saved["branches"][0]["name"] == "ALPHA"
+        assert saved["branches"][1]["name"] == "ZEBRA"
+
+    def test_updates_timestamp(self, tmp_path):
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        data = {
+            "metadata": {"version": "1.0.0", "last_updated": "2020-01-01", "total_branches": 0},
+            "branches": [],
+        }
+        save_registry(reg_path, data)
+        saved = json.loads(reg_path.read_text())
+        assert saved["metadata"]["last_updated"] != "2020-01-01"
+
+    def test_handles_dict_branches(self, tmp_path):
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        data = {
+            "metadata": {"version": "1.0.0", "total_branches": 1},
+            "branches": {"MY_AGENT": {"name": "MY_AGENT", "path": "my_agent"}},
+        }
+        save_registry(reg_path, data)
+        saved = json.loads(reg_path.read_text())
+        assert isinstance(saved["branches"], list)
+        assert saved["branches"][0]["name"] == "MY_AGENT"
+
+
+class TestGetNextCitizenNumber:
+    """Tests for get_next_citizen_number()."""
+
+    def test_empty_registry(self, tmp_path):
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        reg_path.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
+        assert get_next_citizen_number(reg_path) == 1
+
+    def test_with_existing_branches(self, tmp_path):
+        reg_path = tmp_path / "TEST_REGISTRY.json"
+        reg_path.write_text(
+            '{"metadata":{"version":"1.0.0","total_branches":2},"branches":[{"name":"A"},{"name":"B"}]}'
+        )
+        assert get_next_citizen_number(reg_path) == 3
+
+    def test_missing_registry(self, tmp_path):
+        reg_path = tmp_path / "NONEXISTENT_REGISTRY.json"
+        assert get_next_citizen_number(reg_path) == 1
