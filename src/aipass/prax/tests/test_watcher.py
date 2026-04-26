@@ -47,10 +47,10 @@ class TestBranchFileHandler:
         ):
             import importlib
 
-            if "aipass.prax.apps.handlers.watcher.monitor" in sys.modules:
-                mod = importlib.reload(sys.modules["aipass.prax.apps.handlers.watcher.monitor"])
-            else:
-                mod = importlib.import_module("aipass.prax.apps.handlers.watcher.monitor")
+            for key in list(sys.modules):
+                if key.startswith("aipass.prax.apps.handlers.watcher"):
+                    sys.modules.pop(key, None)
+            mod = importlib.import_module("aipass.prax.apps.handlers.watcher.monitor")
 
         callback = MagicMock()
         handler = mod.BranchFileHandler("TEST", callback)
@@ -181,10 +181,10 @@ class TestStartStopMonitoring:
         ):
             import importlib
 
-            if "aipass.prax.apps.handlers.watcher.monitor" in sys.modules:
-                mod = importlib.reload(sys.modules["aipass.prax.apps.handlers.watcher.monitor"])
-            else:
-                mod = importlib.import_module("aipass.prax.apps.handlers.watcher.monitor")
+            for key in list(sys.modules):
+                if key.startswith("aipass.prax.apps.handlers.watcher"):
+                    sys.modules.pop(key, None)
+            mod = importlib.import_module("aipass.prax.apps.handlers.watcher.monitor")
 
         # Force WATCHDOG_AVAILABLE = True and Observer to be our mock
         setattr(mod, "WATCHDOG_AVAILABLE", True)
