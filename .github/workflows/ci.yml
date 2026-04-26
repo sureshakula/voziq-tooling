@@ -34,7 +34,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - run: coverage run -m pytest -v --tb=short --rootdir=.
-      - run: coverage report --fail-under=70
 
   coverage:
     name: coverage
