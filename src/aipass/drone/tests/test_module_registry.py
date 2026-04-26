@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
 # Module path prefix for patching
 # ---------------------------------------------------------------------------
 _MOD = "aipass.drone.apps.modules.module_registry"
+_HANDLER = "aipass.drone.apps.handlers.module_registry_handler"
 
 
 # ---------------------------------------------------------------------------
@@ -396,3 +397,323 @@ class TestHandleCommandUnknown:
         mock_jh.log_operation.assert_called_once_with(
             "handle_command", {"module": "module_registry", "command": "bogus"}
         )
+
+
+# ===========================================================================
+# 7. refresh_external_modules (handler-level)
+# ===========================================================================
+
+
+class TestRefreshExternalModules:
+    """refresh_external_modules() reloads from routing_config.json."""
+
+    def test_refresh_reloads_config(self) -> None:
+        """After refresh, _EXTERNAL_MODULES reflects current config."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original = dict(mrh._EXTERNAL_MODULES)
+        with patch.object(mrh, "_load_external_modules", return_value={}):
+            mrh.refresh_external_modules()
+            assert mrh._EXTERNAL_MODULES == {}
+        mrh._EXTERNAL_MODULES = original
+
+    def test_refresh_picks_up_new_module(self) -> None:
+        """A module added to config appears after refresh."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+        from aipass.drone.apps.handlers.module_registry_handler import (
+            _ExternalModuleConfig,
+        )
+
+        original = dict(mrh._EXTERNAL_MODULES)
+        fake = {"newmod": _ExternalModuleConfig("newmod", "some.entry", "New", "1.0")}
+        with patch.object(mrh, "_load_external_modules", return_value=fake):
+            mrh.refresh_external_modules()
+            assert "newmod" in mrh._EXTERNAL_MODULES
+        mrh._EXTERNAL_MODULES = original
+
+
+# ===========================================================================
+# 8. route_module_command (handler-level)
+# ===========================================================================
+
+
+class TestRouteModuleCommand:
+    """route_module_command() routes to external or internal modules."""
+
+    def test_routes_external_module_via_capture(self) -> None:
+        """External modules route through capture_main."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+        from aipass.drone.apps.handlers.module_registry_handler import (
+            _ExternalModuleConfig,
+        )
+
+        original_ext = dict(mrh._EXTERNAL_MODULES)
+        mrh._EXTERNAL_MODULES["testext"] = _ExternalModuleConfig("testext", "fake.entry", "Test external", "1.0")
+        try:
+            with (
+                patch(
+                    f"{_HANDLER}.capture_main",
+                    return_value={
+                        "stdout": "ok",
+                        "stderr": "",
+                        "exit_code": 0,
+                    },
+                ) as mock_cap,
+                patch(f"{_HANDLER}.json_handler"),
+            ):
+                result = mrh.route_module_command("testext", "run", ["--flag"])
+            assert result["stdout"] == "ok"
+            assert result["exit_code"] == 0
+            mock_cap.assert_called_once_with("fake.entry", "testext", "run", ["--flag"])
+        finally:
+            mrh._EXTERNAL_MODULES = original_ext
+
+    def test_routes_internal_module_via_import(self) -> None:
+        """Internal modules route through importlib + handle_command."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        mrh._INTERNAL_MODULES["fakeint"] = "fake.internal.mod"
+        try:
+            mock_mod = MagicMock()
+            mock_mod.handle_command.return_value = {
+                "stdout": "done",
+                "stderr": "",
+                "exit_code": 0,
+            }
+            with (
+                patch(
+                    f"{_HANDLER}.importlib.import_module",
+                    return_value=mock_mod,
+                ),
+                patch(f"{_HANDLER}.json_handler"),
+            ):
+                result = mrh.route_module_command("fakeint", "status")
+            assert result["stdout"] == "done"
+            mock_mod.handle_command.assert_called_once_with("status", None)
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_internal_bool_true_converted_to_dict(self) -> None:
+        """Internal module returning True converts to dict with exit_code 0."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        mrh._INTERNAL_MODULES["boolmod"] = "fake.bool.mod"
+        try:
+            mock_mod = MagicMock()
+            mock_mod.handle_command.return_value = True
+            with (
+                patch(
+                    f"{_HANDLER}.importlib.import_module",
+                    return_value=mock_mod,
+                ),
+                patch(f"{_HANDLER}.json_handler"),
+            ):
+                result = mrh.route_module_command("boolmod", "check")
+            assert result["exit_code"] == 0
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_internal_bool_false_converted_to_exit_code_1(self) -> None:
+        """Internal module returning False gets exit_code 1."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        mrh._INTERNAL_MODULES["failmod"] = "fake.fail.mod"
+        try:
+            mock_mod = MagicMock()
+            mock_mod.handle_command.return_value = False
+            with (
+                patch(
+                    f"{_HANDLER}.importlib.import_module",
+                    return_value=mock_mod,
+                ),
+                patch(f"{_HANDLER}.json_handler"),
+            ):
+                result = mrh.route_module_command("failmod", "broken")
+            assert result["exit_code"] == 1
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_logs_operation_for_external(self) -> None:
+        """External module routing logs via json_handler."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+        from aipass.drone.apps.handlers.module_registry_handler import (
+            _ExternalModuleConfig,
+        )
+
+        original_ext = dict(mrh._EXTERNAL_MODULES)
+        mrh._EXTERNAL_MODULES["logext"] = _ExternalModuleConfig("logext", "fake.entry", "Log test", "1.0")
+        try:
+            with (
+                patch(
+                    f"{_HANDLER}.capture_main",
+                    return_value={
+                        "stdout": "",
+                        "stderr": "",
+                        "exit_code": 0,
+                    },
+                ),
+                patch(f"{_HANDLER}.json_handler") as mock_jh,
+            ):
+                mrh.route_module_command("logext", "ping")
+            mock_jh.log_operation.assert_called_once_with(
+                "route_module_command", {"module": "logext", "command": "ping"}
+            )
+        finally:
+            mrh._EXTERNAL_MODULES = original_ext
+
+
+# ===========================================================================
+# 9. get_module_help (handler-level)
+# ===========================================================================
+
+
+class TestGetModuleHelp:
+    """get_module_help() retrieves help text from modules."""
+
+    def test_external_module_help_no_command(self) -> None:
+        """External module help without command captures --help output."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+        from aipass.drone.apps.handlers.module_registry_handler import (
+            _ExternalModuleConfig,
+        )
+
+        original_ext = dict(mrh._EXTERNAL_MODULES)
+        mrh._EXTERNAL_MODULES["helpext"] = _ExternalModuleConfig("helpext", "fake.entry", "Help test", "1.0")
+        try:
+            with patch(
+                f"{_HANDLER}.capture_main",
+                return_value={
+                    "stdout": "Usage: helpext",
+                    "stderr": "",
+                },
+            ) as mock_cap:
+                result = mrh.get_module_help("helpext")
+            assert result == "Usage: helpext"
+            mock_cap.assert_called_once_with("fake.entry", "helpext", "--help")
+        finally:
+            mrh._EXTERNAL_MODULES = original_ext
+
+    def test_external_module_help_with_command(self) -> None:
+        """External module help with command passes command + --help."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+        from aipass.drone.apps.handlers.module_registry_handler import (
+            _ExternalModuleConfig,
+        )
+
+        original_ext = dict(mrh._EXTERNAL_MODULES)
+        mrh._EXTERNAL_MODULES["helpext2"] = _ExternalModuleConfig("helpext2", "fake.entry", "Help test", "1.0")
+        try:
+            with patch(
+                f"{_HANDLER}.capture_main",
+                return_value={"stdout": "Sub help", "stderr": ""},
+            ) as mock_cap:
+                result = mrh.get_module_help("helpext2", "subcmd")
+            assert result == "Sub help"
+            mock_cap.assert_called_once_with("fake.entry", "helpext2", "subcmd", ["--help"])
+        finally:
+            mrh._EXTERNAL_MODULES = original_ext
+
+    def test_internal_module_help(self) -> None:
+        """Internal module help calls get_help() on the module."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        mrh._INTERNAL_MODULES["helpint"] = "fake.help.mod"
+        try:
+            mock_mod = MagicMock()
+            mock_mod.get_help.return_value = "Internal help text"
+            with patch(
+                f"{_HANDLER}.importlib.import_module",
+                return_value=mock_mod,
+            ):
+                result = mrh.get_module_help("helpint", "status")
+            assert result == "Internal help text"
+            mock_mod.get_help.assert_called_once_with("status")
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_internal_module_without_get_help(self) -> None:
+        """Internal module without get_help() returns empty string."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        mrh._INTERNAL_MODULES["nohelp"] = "fake.nohelp.mod"
+        try:
+            mock_mod = MagicMock(spec=[])
+            with patch(
+                f"{_HANDLER}.importlib.import_module",
+                return_value=mock_mod,
+            ):
+                result = mrh.get_module_help("nohelp")
+            assert result == ""
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_unknown_module_returns_empty(self) -> None:
+        """Unknown module name returns empty string."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        result = mrh.get_module_help("nonexistent_mod_xyz")
+        assert result == ""
+
+    def test_import_error_returns_empty(self) -> None:
+        """ImportError during internal module load returns empty string."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        mrh._INTERNAL_MODULES["broken"] = "fake.broken.mod"
+        try:
+            with patch(
+                f"{_HANDLER}.importlib.import_module",
+                side_effect=ImportError("nope"),
+            ):
+                result = mrh.get_module_help("broken")
+            assert result == ""
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+
+# ===========================================================================
+# 10. register_module (handler-level)
+# ===========================================================================
+
+
+class TestRegisterModule:
+    """register_module() adds internal modules dynamically."""
+
+    def test_register_adds_to_internal(self) -> None:
+        """register_module makes the module available."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        try:
+            mrh.register_module("dynamic", "aipass.dynamic.mod")
+            assert mrh._INTERNAL_MODULES["dynamic"] == "aipass.dynamic.mod"
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_register_overwrites_existing(self) -> None:
+        """Registering an existing name overwrites the adapter path."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        try:
+            mrh.register_module("overwrite", "path.v1")
+            mrh.register_module("overwrite", "path.v2")
+            assert mrh._INTERNAL_MODULES["overwrite"] == "path.v2"
+        finally:
+            mrh._INTERNAL_MODULES = original_int
+
+    def test_registered_module_appears_in_list(self) -> None:
+        """A dynamically registered module appears in list_modules()."""
+        import aipass.drone.apps.handlers.module_registry_handler as mrh
+
+        original_int = dict(mrh._INTERNAL_MODULES)
+        try:
+            mrh.register_module("newdyn", "aipass.newdyn.mod")
+            assert "newdyn" in mrh.list_modules()
+        finally:
+            mrh._INTERNAL_MODULES = original_int

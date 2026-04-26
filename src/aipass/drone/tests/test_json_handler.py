@@ -684,3 +684,85 @@ def test_log_operation_survives_empty_log_file(tmp_path: Path) -> None:  # JH-04
     data = json.loads(log_path.read_text(encoding="utf-8"))
     assert len(data) == 1, "Should have exactly one log entry after recovery"
     assert data[0]["operation"] == "test_op"
+
+
+# ===========================================================================
+# 9. increment_counter
+# ===========================================================================
+
+
+class TestIncrementCounter:
+    """Tests for increment_counter()."""
+
+    def test_increment_creates_counter(self, tmp_path: Path) -> None:
+        """Incrementing a non-existent counter creates it at the given amount."""
+        json_handler.ensure_module_jsons("incr_test")
+        result = json_handler.increment_counter("incr_test", "hits")
+        assert result is True
+        data = json_handler.load_json("incr_test", "data")
+        assert data["hits"] == 1
+
+    def test_increment_adds_to_existing(self, tmp_path: Path) -> None:
+        """Incrementing an existing counter adds to its current value."""
+        json_handler.ensure_module_jsons("incr_test2")
+        json_handler.increment_counter("incr_test2", "hits")
+        json_handler.increment_counter("incr_test2", "hits")
+        json_handler.increment_counter("incr_test2", "hits", amount=5)
+        data = json_handler.load_json("incr_test2", "data")
+        assert data["hits"] == 7
+
+    def test_increment_custom_amount(self, tmp_path: Path) -> None:
+        """Custom amount parameter is respected."""
+        json_handler.ensure_module_jsons("incr_test3")
+        result = json_handler.increment_counter("incr_test3", "visits", amount=42)
+        assert result is True
+        data = json_handler.load_json("incr_test3", "data")
+        assert data["visits"] == 42
+
+    def test_increment_returns_false_on_load_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns False when data file cannot be loaded."""
+        json_handler.ensure_module_jsons("incr_fail")
+        monkeypatch.setattr(json_handler, "load_json", lambda *a, **kw: None)
+        result = json_handler.increment_counter("incr_fail", "hits")
+        assert result is False
+
+
+# ===========================================================================
+# 10. update_data_metrics
+# ===========================================================================
+
+
+class TestUpdateDataMetrics:
+    """Tests for update_data_metrics()."""
+
+    def test_update_single_metric(self, tmp_path: Path) -> None:
+        """Updating a single metric writes it to the data file."""
+        json_handler.ensure_module_jsons("metric_test")
+        result = json_handler.update_data_metrics("metric_test", uptime=99.5)
+        assert result is True
+        data = json_handler.load_json("metric_test", "data")
+        assert data["uptime"] == 99.5
+
+    def test_update_multiple_metrics(self, tmp_path: Path) -> None:
+        """Multiple keyword arguments are all written."""
+        json_handler.ensure_module_jsons("metric_test2")
+        json_handler.update_data_metrics("metric_test2", cpu=80, memory=60, disk=45)
+        data = json_handler.load_json("metric_test2", "data")
+        assert data["cpu"] == 80
+        assert data["memory"] == 60
+        assert data["disk"] == 45
+
+    def test_update_overwrites_existing(self, tmp_path: Path) -> None:
+        """Existing keys are overwritten by new values."""
+        json_handler.ensure_module_jsons("metric_test3")
+        json_handler.update_data_metrics("metric_test3", score=10)
+        json_handler.update_data_metrics("metric_test3", score=20)
+        data = json_handler.load_json("metric_test3", "data")
+        assert data["score"] == 20
+
+    def test_update_returns_false_on_load_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns False when data file cannot be loaded."""
+        json_handler.ensure_module_jsons("metric_fail")
+        monkeypatch.setattr(json_handler, "load_json", lambda *a, **kw: None)
+        result = json_handler.update_data_metrics("metric_fail", x=1)
+        assert result is False
