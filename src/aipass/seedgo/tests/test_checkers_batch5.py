@@ -45,6 +45,19 @@ def _ruff_proc(violations: list, returncode: int = 1) -> MagicMock:
     return proc
 
 
+def _fmt_proc(unformatted_files: list[str] | None = None) -> MagicMock:
+    """Build a fake subprocess.CompletedProcess for ruff format --check."""
+    proc = MagicMock()
+    if unformatted_files:
+        proc.stdout = "\n".join(unformatted_files) + "\n"
+        proc.returncode = 1
+    else:
+        proc.stdout = ""
+        proc.returncode = 0
+    proc.stderr = ""
+    return proc
+
+
 def _make_violation(filename: str, code: str = "F401", row: int = 1) -> dict:
     return {
         "filename": filename,
@@ -139,11 +152,14 @@ class TestCheckBranch:
         """Branch with zero ruff violations scores 100."""
         branch = _make_branch(tmp_path)
         clean_proc = _ruff_proc([], returncode=0)
+        fmt_clean = _fmt_proc()
         with patch(
-            "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.shutil.which", return_value="/usr/bin/ruff"
+            "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.shutil.which",
+            return_value="/usr/bin/ruff",
         ):
             with patch(
-                "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.subprocess.run", return_value=clean_proc
+                "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.subprocess.run",
+                side_effect=[clean_proc, fmt_clean],
             ):
                 result = check_branch(str(branch))
         assert result["score"] == 100
@@ -156,10 +172,15 @@ class TestCheckBranch:
         branch = _make_branch(tmp_path)
         violations = [_make_violation(str(branch / "apps" / "modules" / "x.py"), "F401", i) for i in range(10)]
         proc = _ruff_proc(violations, returncode=1)
+        fmt_clean = _fmt_proc()
         with patch(
-            "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.shutil.which", return_value="/usr/bin/ruff"
+            "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.shutil.which",
+            return_value="/usr/bin/ruff",
         ):
-            with patch("aipass.seedgo.apps.handlers.aipass_standards.ruff_check.subprocess.run", return_value=proc):
+            with patch(
+                "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.subprocess.run",
+                side_effect=[proc, fmt_clean],
+            ):
                 result = check_branch(str(branch))
         assert result["score"] == 85  # 10 violations → 6–20 band
         assert result["passed"] is True  # advisory: always True
@@ -192,14 +213,19 @@ class TestCheckBranch:
             _make_violation(v_path, "E501", 10),
         ]
         proc = _ruff_proc(violations, returncode=1)
+        fmt_clean = _fmt_proc()
         # Bypass the F401
         bypass_file = branch / ".seedgo" / "ruff_bypass.json"
         bypass_file.parent.mkdir(parents=True, exist_ok=True)
         bypass_file.write_text(json.dumps([{"file": "thing.py", "code": "F401"}]))
         with patch(
-            "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.shutil.which", return_value="/usr/bin/ruff"
+            "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.shutil.which",
+            return_value="/usr/bin/ruff",
         ):
-            with patch("aipass.seedgo.apps.handlers.aipass_standards.ruff_check.subprocess.run", return_value=proc):
+            with patch(
+                "aipass.seedgo.apps.handlers.aipass_standards.ruff_check.subprocess.run",
+                side_effect=[proc, fmt_clean],
+            ):
                 result = check_branch(str(branch))
         # Only 1 active violation (E501), score should be 95
         assert result["score"] == 95

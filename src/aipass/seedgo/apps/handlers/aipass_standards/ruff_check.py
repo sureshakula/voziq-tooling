@@ -1,13 +1,15 @@
 # =================== AIPass ====================
 # Name: ruff_check.py
-# Description: Ruff Linter Standards Checker Handler
-# Version: 1.1.0
+# Description: Ruff Linter & Formatter Standards Checker Handler
+# Version: 1.2.0
 # Created: 2026-04-16
-# Modified: 2026-04-20
+# Modified: 2026-04-26
 # =============================================
 
 """
-Ruff Linter Standards Checker Handler
+Ruff Linter & Formatter Standards Checker Handler
+
+Runs both ``ruff check`` (lint) and ``ruff format --check`` (formatting).
 
 Two modes:
 - check_branch(): runs ruff across entire apps/ tree (used by audit pipeline,
@@ -186,32 +188,60 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     active = [v for v in violations if not _is_ruff_bypassed(v, ruff_bypass)]
     count = len(active)
 
-    if count == 0:
-        json_handler.log_operation(
-            "check_completed",
-            {"file": module_path, "score": 100, "standard": "ruff_check"},
-        )
-        return {
-            "passed": True,
-            "checks": [{"name": "Ruff check", "passed": True, "message": "No ruff violations found"}],
-            "score": 100,
-            "standard": "RUFF_CHECK",
-        }
+    checks: list[dict] = []
+    passed = True
 
-    top = active[:5]
-    msgs = [f"{v.get('code', '?')} L{v.get('location', {}).get('row', '?')}: {v.get('message', '?')[:80]}" for v in top]
-    suffix = f" (and {count - 5} more)" if count > 5 else ""
-    detail = f"{count} violation(s) — " + "; ".join(msgs) + suffix
+    if count == 0:
+        checks.append({"name": "Ruff lint", "passed": True, "message": "No ruff violations found"})
+    else:
+        top = active[:5]
+        msgs = [
+            f"{v.get('code', '?')} L{v.get('location', {}).get('row', '?')}: {v.get('message', '?')[:80]}" for v in top
+        ]
+        suffix = f" (and {count - 5} more)" if count > 5 else ""
+        detail = f"{count} violation(s) — " + "; ".join(msgs) + suffix
+        checks.append({"name": "Ruff lint", "passed": False, "message": detail})
+        passed = False
+
+    # --- ruff format --check ---
+    needs_format = False
+    try:
+        fmt_proc = subprocess.run(
+            ["ruff", "format", "--check", str(fp)],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if fmt_proc.returncode != 0:
+            needs_format = True
+    except subprocess.TimeoutExpired:
+        logger.warning("ruff format --check timed out on %s", module_path)
+    except Exception as exc:
+        logger.warning("ruff format --check failed on %s: %s", module_path, exc)
+
+    if needs_format:
+        checks.append({"name": "Ruff format", "passed": False, "message": f"{fp.name} needs ruff format"})
+        passed = False
+    else:
+        checks.append({"name": "Ruff format", "passed": True, "message": "File is formatted"})
+
+    score = 100 if passed else 0
 
     json_handler.log_operation(
         "check_completed",
-        {"file": module_path, "score": 0, "standard": "ruff_check", "violations": count},
+        {
+            "file": module_path,
+            "score": score,
+            "standard": "ruff_check",
+            "violations": count,
+            "needs_format": needs_format,
+        },
     )
 
     return {
-        "passed": False,
-        "checks": [{"name": "Ruff check", "passed": False, "message": detail}],
-        "score": 0,
+        "passed": passed,
+        "checks": checks,
+        "score": score,
         "standard": "RUFF_CHECK",
     }
 
@@ -320,9 +350,10 @@ def check_branch(branch_path: str, bypass_rules: list | None = None) -> Dict:
     count = len(active)
     score = _score_from_count(count)
 
+    checks: list[dict] = []
+
     if count == 0:
-        message = "No ruff violations found"
-        check_passed = True
+        checks.append({"name": "Ruff lint", "passed": True, "message": "No ruff violations found"})
     else:
         top = active[:5]
         codes = ", ".join(
@@ -331,16 +362,55 @@ def check_branch(branch_path: str, bypass_rules: list | None = None) -> Dict:
         )
         suffix = f" (and {count - 5} more)" if count > 5 else ""
         message = f"{count} violation(s) — {codes}{suffix}"
-        check_passed = False
+        checks.append({"name": "Ruff lint", "passed": False, "message": message})
+
+    # --- ruff format --check (advisory) ---
+    fmt_files: list[str] = []
+    try:
+        fmt_proc = subprocess.run(
+            ["ruff", "format", "--check", str(scan_target)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if fmt_proc.returncode != 0 and fmt_proc.stdout.strip():
+            fmt_files = [line.strip() for line in fmt_proc.stdout.strip().splitlines() if line.strip()]
+    except subprocess.TimeoutExpired:
+        logger.warning("ruff format --check timed out on branch %s", branch_path)
+    except Exception as exc:
+        logger.warning("ruff format --check failed on branch %s: %s", branch_path, exc)
+
+    fmt_count = len(fmt_files)
+    if fmt_count == 0:
+        checks.append({"name": "Ruff format", "passed": True, "message": "All files formatted"})
+    else:
+        names = ", ".join(Path(f).name for f in fmt_files[:5])
+        fmt_suffix = f" (and {fmt_count - 5} more)" if fmt_count > 5 else ""
+        checks.append(
+            {
+                "name": "Ruff format",
+                "passed": False,
+                "message": f"{fmt_count} file(s) need formatting — {names}{fmt_suffix}",
+            }
+        )
+        # Penalise score: subtract 2 points per unformatted file, floor at 25
+        score = max(25, score - fmt_count * 2)
 
     json_handler.log_operation(
         "check_completed",
-        {"branch": branch_path, "score": score, "standard": "ruff_check", "violations": count, "advisory": True},
+        {
+            "branch": branch_path,
+            "score": score,
+            "standard": "ruff_check",
+            "violations": count,
+            "format_violations": fmt_count,
+            "advisory": True,
+        },
     )
 
     return {
         "passed": True,  # Advisory: never blocks the audit
-        "checks": [{"name": "Ruff check", "passed": check_passed, "message": message}],
+        "checks": checks,
         "score": score,
         "standard": "RUFF_CHECK",
         "advisory": True,
