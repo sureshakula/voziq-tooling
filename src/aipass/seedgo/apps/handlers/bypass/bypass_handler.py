@@ -170,13 +170,18 @@ def load_bypass_rules(branch_path: str) -> List[Dict[str, Any]]:
 
     try:
         if bypass_file.exists():
-            with open(bypass_file, "r", encoding="utf-8") as f:
-                config = json.load(f)
+            content = bypass_file.read_text(encoding="utf-8").strip()
+            if not content:
+                logger.warning("[bypass_handler] Empty bypass.json at %s — skipping", bypass_file)
+                return []
+            config = json.loads(content)
             rules = config.get("bypass", [])
             json_handler.log_operation("bypass_rules_loaded", {"branch": branch_path, "count": len(rules)})
             return rules
+    except json.JSONDecodeError as e:
+        logger.warning("[bypass_handler] Corrupt bypass.json at %s: %s — skipping", bypass_file, e)
     except Exception as e:
-        logger.error(f"[bypass_handler] Error loading bypass rules: {e}")
+        logger.error("[bypass_handler] Error loading bypass rules: %s", e)
 
     return []
 
