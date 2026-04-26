@@ -16,7 +16,10 @@ to ensure the mocked dependencies are in place.
 import importlib
 import json
 import sys
+import types
 from pathlib import Path
+
+import pytest
 
 
 MODULE_PATH = "aipass.prax.apps.handlers.dashboard.operations"
@@ -342,3 +345,880 @@ class TestCalculateQuickStatusStandalone:
         result = ops._calculate_quick_status_standalone(sections)
         assert result["new_mail"] == 7
         assert result["action_required"] is True
+
+
+# =============================================
+# create_fresh_dashboard (operations.py)
+# =============================================
+
+
+class TestCreateFreshDashboard:
+    """Tests for create_fresh_dashboard — creates dashboard from template or hardcoded fallback."""
+
+    def test_fallback_hardcoded_when_no_template_file(self, tmp_path: Path) -> None:
+        """When template file does not exist, returns hardcoded dashboard."""
+        ops = _load_ops()
+        fake_prax = tmp_path / "prax"
+        fake_prax.mkdir()
+        original = ops._PRAX_ROOT
+        ops._PRAX_ROOT = fake_prax
+
+        try:
+            branch_dir = tmp_path / "mybranch"
+            branch_dir.mkdir()
+            result = ops.create_fresh_dashboard(branch_dir)
+
+            assert result["branch"] == "MYBRANCH"
+            assert "last_updated" in result
+            assert result["last_updated"] != ""
+            assert "_warning" in result
+            assert "sections" in result
+            assert "ai_mail" in result["sections"]
+            assert "flow" in result["sections"]
+            assert "memory" in result["sections"]
+            assert "commons_activity" in result["sections"]
+            assert result["quick_status"]["action_required"] is False
+        finally:
+            ops._PRAX_ROOT = original
+
+    def test_loads_from_template_file(self, tmp_path: Path) -> None:
+        """When template file exists, uses it and replaces placeholders."""
+        ops = _load_ops()
+        fake_prax = tmp_path / "prax"
+        templates_dir = fake_prax / "templates"
+        templates_dir.mkdir(parents=True)
+
+        template_data = {
+            "_warning": "AUTO-GENERATED",
+            "branch": "{{BRANCHNAME}}",
+            "last_updated": "",
+            "sections": {
+                "ai_mail": {"managed_by": "ai_mail", "new": 0},
+            },
+            "quick_status": {"action_required": False},
+        }
+        (templates_dir / "DASHBOARD.template.json").write_text(json.dumps(template_data), encoding="utf-8")
+
+        original = ops._PRAX_ROOT
+        ops._PRAX_ROOT = fake_prax
+        try:
+            branch_dir = tmp_path / "flow"
+            branch_dir.mkdir()
+            result = ops.create_fresh_dashboard(branch_dir)
+
+            assert result["branch"] == "FLOW"
+            assert result["last_updated"] != ""
+            assert result["sections"]["ai_mail"]["new"] == 0
+        finally:
+            ops._PRAX_ROOT = original
+
+    def test_falls_back_on_corrupted_template(self, tmp_path: Path) -> None:
+        """If template JSON is invalid, falls back to hardcoded structure."""
+        ops = _load_ops()
+        fake_prax = tmp_path / "prax"
+        templates_dir = fake_prax / "templates"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "DASHBOARD.template.json").write_text("{bad json!!", encoding="utf-8")
+
+        original = ops._PRAX_ROOT
+        ops._PRAX_ROOT = fake_prax
+        try:
+            branch_dir = tmp_path / "broken"
+            branch_dir.mkdir()
+            result = ops.create_fresh_dashboard(branch_dir)
+
+            # Should still return a valid hardcoded dashboard
+            assert result["branch"] == "BROKEN"
+            assert "sections" in result
+            assert "_warning" in result
+        finally:
+            ops._PRAX_ROOT = original
+
+
+# =============================================
+# update_section (operations.py — legacy interface)
+# =============================================
+
+
+class TestUpdateSectionLegacy:
+    """Tests for update_section — legacy interface with template and status func."""
+
+    def test_updates_section_and_calls_status_func(self, tmp_path: Path) -> None:
+        """Section is written and calculate_status_func is invoked with live data."""
+        ops = _load_ops()
+        branch_dir = tmp_path / "testbranch"
+        branch_dir.mkdir()
+        template = {
+            "branch": "",
+            "last_updated": "",
+            "sections": {"ai_mail": {"new": 0}},
+        }
+        status_called_with: dict[str, object] = {}
+
+        def mock_status(sections: dict[str, object]) -> dict[str, object]:
+            status_called_with.update(sections)
+            return {"action_required": True, "summary": "test"}
+
+        result = ops.update_section(branch_dir, "ai_mail", {"new": 5}, template, mock_status)
+        assert result is True
+        # Verify status function was called with sections containing our data
+        assert "ai_mail" in status_called_with
+        assert status_called_with["ai_mail"]["new"] == 5  # type: ignore[union-attr]
+
+        # Verify the file was written
+        data = json.loads((branch_dir / "DASHBOARD.local.json").read_text(encoding="utf-8"))
+        assert data["sections"]["ai_mail"]["new"] == 5
+        assert data["quick_status"]["action_required"] is True
+
+    def test_creates_sections_dict_if_missing(self, tmp_path: Path) -> None:
+        ops = _load_ops()
+        branch_dir = tmp_path / "nosections"
+        branch_dir.mkdir()
+        # Pre-populate dashboard without sections key
+        (branch_dir / "DASHBOARD.local.json").write_text(
+            json.dumps({"branch": "NOSECTIONS", "last_updated": ""}),
+            encoding="utf-8",
+        )
+        template = {
+            "branch": "",
+            "last_updated": "",
+            "sections": {},
+        }
+
+        result = ops.update_section(
+            branch_dir,
+            "flow",
+            {"active_plans": 2},
+            template,
+            lambda s: {"action_required": False},
+        )
+        assert result is True
+        data = json.loads((branch_dir / "DASHBOARD.local.json").read_text(encoding="utf-8"))
+        assert data["sections"]["flow"]["active_plans"] == 2
+
+
+# =============================================
+# refresh_all_dashboards (refresh.py)
+# =============================================
+
+REFRESH_MODULE_PATH = "aipass.prax.apps.handlers.dashboard.refresh"
+
+
+def _load_refresh() -> types.ModuleType:
+    """Import (or reimport) the refresh module under active mocks."""
+    sys.modules.pop(REFRESH_MODULE_PATH, None)
+    # Also ensure dependent modules are reimported
+    sys.modules.pop("aipass.prax.apps.handlers.dashboard.operations", None)
+    import aipass.prax.apps.handlers.dashboard.refresh as mod
+
+    importlib.reload(mod)
+    return mod
+
+
+class TestRefreshAllDashboards:
+    """Tests for refresh_all_dashboards — orchestrates full refresh from centrals."""
+
+    def test_returns_success_when_all_branches_updated(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_refresh()
+        branch1 = tmp_path / "branch1"
+        branch1.mkdir()
+        branch2 = tmp_path / "branch2"
+        branch2.mkdir()
+
+        monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
+        monkeypatch.setattr(mod, "_load_branch_paths", lambda: [branch1, branch2])
+        monkeypatch.setattr(
+            mod,
+            "create_fresh_dashboard",
+            lambda bp: {
+                "branch": bp.name.upper(),
+                "sections": {},
+                "quick_status": {},
+            },
+        )
+
+        result = mod.refresh_all_dashboards()
+        assert result["status"] == "success"
+        assert result["branches_updated"] == 2
+        assert result["branches_failed"] == 0
+        assert result["errors"] == []
+
+    def test_returns_error_when_branch_paths_fail(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_refresh()
+        monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
+
+        def _raise() -> list[Path]:
+            raise RuntimeError("registry gone")
+
+        monkeypatch.setattr(mod, "_load_branch_paths", _raise)
+
+        result = mod.refresh_all_dashboards()
+        assert result["status"] == "error"
+        assert result["branches_updated"] == 0
+        assert len(result["errors"]) == 1
+        assert "registry gone" in result["errors"][0]
+
+    def test_partial_status_on_mixed_success_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_refresh()
+        good_branch = tmp_path / "good"
+        good_branch.mkdir()
+        bad_branch = tmp_path / "bad"
+        bad_branch.mkdir()
+
+        monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
+        monkeypatch.setattr(mod, "_load_branch_paths", lambda: [good_branch, bad_branch])
+
+        def flaky_create(bp: Path) -> dict[str, object]:
+            if bp.name == "bad":
+                raise RuntimeError("simulated failure")
+            return {
+                "branch": bp.name.upper(),
+                "sections": {},
+                "quick_status": {},
+            }
+
+        monkeypatch.setattr(mod, "create_fresh_dashboard", flaky_create)
+
+        result = mod.refresh_all_dashboards()
+        assert result["status"] == "partial"
+        assert result["branches_updated"] == 1
+        assert result["branches_failed"] == 1
+
+
+# =============================================
+# refresh_single_dashboard (refresh.py)
+# =============================================
+
+
+class TestRefreshSingleDashboard:
+    """Tests for refresh_single_dashboard — refreshes one branch."""
+
+    def test_returns_success_for_valid_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_refresh()
+        branch_dir = tmp_path / "flow"
+        branch_dir.mkdir()
+
+        monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
+        monkeypatch.setattr(
+            mod,
+            "create_fresh_dashboard",
+            lambda bp: {
+                "branch": bp.name.upper(),
+                "sections": {},
+                "quick_status": {},
+            },
+        )
+
+        result = mod.refresh_single_dashboard(branch_dir)
+        assert result["status"] == "success"
+        assert result["branch"] == "FLOW"
+
+    def test_returns_error_on_exception(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_refresh()
+        branch_dir = tmp_path / "failing"
+        branch_dir.mkdir()
+
+        monkeypatch.setattr(mod, "read_all_centrals", lambda: {})
+
+        def _raise(bp: Path) -> dict[str, object]:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(mod, "create_fresh_dashboard", _raise)
+
+        result = mod.refresh_single_dashboard(branch_dir)
+        assert result["status"] == "error"
+        assert result["branch"] == "FAILING"
+        assert "boom" in result["error"]
+
+
+# =============================================
+# get_branch_paths (status.py)
+# =============================================
+
+STATUS_MODULE_PATH = "aipass.prax.apps.handlers.dashboard.status"
+
+
+def _load_status() -> types.ModuleType:
+    """Import (or reimport) the status module under active mocks."""
+    sys.modules.pop(STATUS_MODULE_PATH, None)
+    import aipass.prax.apps.handlers.dashboard.status as mod
+
+    importlib.reload(mod)
+    return mod
+
+
+class TestGetBranchPaths:
+    """Tests for get_branch_paths — reads registry and returns branch paths."""
+
+    def test_returns_paths_from_registry(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        registry_data = {
+            "branches": [
+                {"name": "flow", "path": str(tmp_path / "flow")},
+                {"name": "ai_mail", "path": str(tmp_path / "ai_mail")},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        result = mod.get_branch_paths()
+        assert len(result) == 2
+        assert all(isinstance(p, Path) for p in result)
+
+    def test_raises_when_registry_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", tmp_path / "nonexistent_registry.json")
+
+        with pytest.raises(FileNotFoundError):
+            mod.get_branch_paths()
+
+    def test_handles_relative_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        registry_data = {
+            "branches": [
+                {"name": "flow", "path": "src/aipass/flow"},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        result = mod.get_branch_paths()
+        assert len(result) == 1
+        assert result[0] == tmp_path / "src" / "aipass" / "flow"
+
+
+# =============================================
+# resolve_branch_path (status.py)
+# =============================================
+
+
+class TestResolveBranchPath:
+    """Tests for resolve_branch_path — resolves @branch ref to filesystem path."""
+
+    def test_resolves_existing_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        branch_dir = tmp_path / "flow"
+        branch_dir.mkdir()
+        registry_data = {
+            "branches": [
+                {"name": "flow", "path": str(branch_dir)},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        result = mod.resolve_branch_path("@flow")
+        assert result == branch_dir
+
+    def test_strips_at_sign_and_is_case_insensitive(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        branch_dir = tmp_path / "vera"
+        branch_dir.mkdir()
+        registry_data = {
+            "branches": [
+                {"name": "VERA", "path": str(branch_dir)},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        result = mod.resolve_branch_path("@vera")
+        assert result == branch_dir
+
+    def test_raises_when_branch_not_in_registry(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        registry_data: dict[str, list[object]] = {"branches": []}
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        with pytest.raises(FileNotFoundError, match="not found in registry"):
+            mod.resolve_branch_path("@nonexistent")
+
+    def test_raises_when_path_does_not_exist(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        registry_data = {
+            "branches": [
+                {"name": "ghost", "path": str(tmp_path / "ghost")},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        with pytest.raises(FileNotFoundError, match="does not exist"):
+            mod.resolve_branch_path("@ghost")
+
+    def test_raises_when_registry_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_status()
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", tmp_path / "nonexistent_registry.json")
+
+        with pytest.raises(FileNotFoundError, match="AIPASS_REGISTRY"):
+            mod.resolve_branch_path("@flow")
+
+
+# =============================================
+# diff_dashboard_template (template_differ.py)
+# =============================================
+
+DIFFER_MODULE_PATH = "aipass.prax.apps.handlers.dashboard.template_differ"
+
+
+def _load_differ() -> types.ModuleType:
+    """Import (or reimport) the template_differ module under active mocks."""
+    sys.modules.pop(DIFFER_MODULE_PATH, None)
+    import aipass.prax.apps.handlers.dashboard.template_differ as mod
+
+    importlib.reload(mod)
+    return mod
+
+
+class TestDiffDashboardTemplate:
+    """Tests for diff_dashboard_template — compares template vs branch dashboards."""
+
+    def _make_template(self) -> dict[str, object]:
+        return {
+            "_warning": "AUTO-GENERATED",
+            "branch": "{{BRANCHNAME}}",
+            "sections": {
+                "ai_mail": {"managed_by": "ai_mail", "new": 0, "last_updated": ""},
+                "flow": {"managed_by": "flow", "active_plans": 0, "last_updated": ""},
+                "memory": {"managed_by": "memory", "last_updated": ""},
+                "commons_activity": {"managed_by": "the_commons", "last_updated": ""},
+            },
+            "quick_status": {
+                "new_mail": 0,
+                "opened_mail": 0,
+                "active_plans": 0,
+                "commons_mentions": 0,
+                "action_required": False,
+                "summary": "",
+            },
+        }
+
+    def test_returns_error_when_template_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_differ()
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "nofile.json")
+
+        result = mod.diff_dashboard_template()
+        assert "error" in result
+        assert "not found" in result["error"]
+
+    def test_reports_up_to_date_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_differ()
+
+        # Create template file
+        template = self._make_template()
+        template_file = tmp_path / "template.json"
+        template_file.write_text(json.dumps(template), encoding="utf-8")
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", template_file)
+
+        # Create registry
+        branch_dir = tmp_path / "flow"
+        branch_dir.mkdir()
+        registry_data = {
+            "branches": [
+                {"name": "FLOW", "path": str(branch_dir), "status": "active"},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        # Create a dashboard that is up to date
+        dashboard = {
+            "_warning": "AUTO-GENERATED",
+            "branch": "FLOW",
+            "sections": {
+                "ai_mail": {"managed_by": "ai_mail", "new": 0, "last_updated": "2026-01-01"},
+                "flow": {"managed_by": "flow", "active_plans": 0, "last_updated": "2026-01-01"},
+                "memory": {"managed_by": "memory", "last_updated": "2026-01-01"},
+                "commons_activity": {"managed_by": "the_commons", "last_updated": "2026-01-01"},
+            },
+            "quick_status": {
+                "new_mail": 0,
+                "opened_mail": 0,
+                "active_plans": 0,
+                "commons_mentions": 0,
+                "action_required": False,
+                "summary": "",
+            },
+        }
+        (branch_dir / "DASHBOARD.local.json").write_text(json.dumps(dashboard), encoding="utf-8")
+
+        result = mod.diff_dashboard_template()
+        assert result["summary"]["up_to_date"] == 1
+        assert result["summary"]["needs_update"] == 0
+
+    def test_reports_missing_dashboard(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_differ()
+
+        template = self._make_template()
+        template_file = tmp_path / "template.json"
+        template_file.write_text(json.dumps(template), encoding="utf-8")
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", template_file)
+
+        branch_dir = tmp_path / "nobranch"
+        branch_dir.mkdir()
+        registry_data = {
+            "branches": [
+                {"name": "NOBRANCH", "path": str(branch_dir), "status": "active"},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        result = mod.diff_dashboard_template()
+        assert result["summary"]["missing"] == 1
+
+    def test_detects_deprecated_sections(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_differ()
+
+        template = self._make_template()
+        template_file = tmp_path / "template.json"
+        template_file.write_text(json.dumps(template), encoding="utf-8")
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", template_file)
+
+        branch_dir = tmp_path / "oldbranch"
+        branch_dir.mkdir()
+        registry_data = {
+            "branches": [
+                {"name": "OLDBRANCH", "path": str(branch_dir), "status": "active"},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        # Dashboard with deprecated section
+        dashboard = {
+            "_warning": "AUTO-GENERATED",
+            "branch": "OLDBRANCH",
+            "sections": {
+                "ai_mail": {"new": 0, "last_updated": ""},
+                "flow": {"active_plans": 0, "last_updated": ""},
+                "memory": {"last_updated": ""},
+                "commons_activity": {"last_updated": ""},
+                "bulletin_board": {"posts": 0, "last_updated": ""},
+            },
+            "quick_status": {
+                "new_mail": 0,
+                "opened_mail": 0,
+                "active_plans": 0,
+                "commons_mentions": 0,
+                "action_required": False,
+                "summary": "",
+            },
+        }
+        (branch_dir / "DASHBOARD.local.json").write_text(json.dumps(dashboard), encoding="utf-8")
+
+        result = mod.diff_dashboard_template()
+        assert result["summary"]["needs_update"] == 1
+        branch_diff = result["branches"][0]
+        assert any("bulletin_board" in r for r in branch_diff["removals"])
+
+    def test_filters_to_single_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_differ()
+
+        template = self._make_template()
+        template_file = tmp_path / "template.json"
+        template_file.write_text(json.dumps(template), encoding="utf-8")
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", template_file)
+
+        branch1 = tmp_path / "flow"
+        branch1.mkdir()
+        branch2 = tmp_path / "ai_mail"
+        branch2.mkdir()
+        registry_data = {
+            "branches": [
+                {"name": "FLOW", "path": str(branch1), "status": "active"},
+                {"name": "AI_MAIL", "path": str(branch2), "status": "active"},
+            ]
+        }
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        result = mod.diff_dashboard_template(branch_name="FLOW")
+        assert len(result["branches"]) == 1
+        assert result["branches"][0]["branch"] == "FLOW"
+
+
+# =============================================
+# push_dashboard_template (template_pusher.py)
+# =============================================
+
+PUSHER_MODULE_PATH = "aipass.prax.apps.handlers.dashboard.template_pusher"
+
+
+def _load_pusher() -> types.ModuleType:
+    """Import (or reimport) the template_pusher module under active mocks."""
+    sys.modules.pop(PUSHER_MODULE_PATH, None)
+    import aipass.prax.apps.handlers.dashboard.template_pusher as mod
+
+    importlib.reload(mod)
+    return mod
+
+
+class TestPushDashboardTemplate:
+    """Tests for push_dashboard_template — pushes template to all branches."""
+
+    def _setup_template_and_registry(
+        self,
+        tmp_path: Path,
+        mod: types.ModuleType,
+        monkeypatch: pytest.MonkeyPatch,
+        branches: list[str],
+    ) -> dict[str, object]:
+        """Helper: create template file, registry, and branch dirs."""
+        template = {
+            "_warning": "AUTO-GENERATED",
+            "branch": "{{BRANCHNAME}}",
+            "sections": {
+                "ai_mail": {"managed_by": "ai_mail", "new": 0, "opened": 0, "total": 0, "last_updated": ""},
+                "flow": {"managed_by": "flow", "active_plans": 0, "recently_closed": [], "last_updated": ""},
+                "memory": {"managed_by": "memory", "vectors_stored": 0, "notes": {}, "last_updated": ""},
+                "commons_activity": {
+                    "managed_by": "the_commons",
+                    "mentions": 0,
+                    "new_posts_since_last_visit": 0,
+                    "new_comments_since_last_visit": 0,
+                    "last_updated": "",
+                },
+            },
+            "quick_status": {},
+        }
+        template_file = tmp_path / "template.json"
+        template_file.write_text(json.dumps(template), encoding="utf-8")
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", template_file)
+
+        version_file = tmp_path / ".dashboard_version.json"
+        monkeypatch.setattr(mod, "VERSION_FILE", version_file)
+
+        branch_entries = []
+        for name in branches:
+            d = tmp_path / name
+            d.mkdir(exist_ok=True)
+            branch_entries.append({"name": name.upper(), "path": str(d), "status": "active"})
+
+        registry_file = tmp_path / "AIPASS_REGISTRY.json"
+        registry_file.write_text(json.dumps({"branches": branch_entries}), encoding="utf-8")
+        monkeypatch.setattr(mod, "AIPASS_REGISTRY", registry_file)
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
+
+        return template
+
+    def test_creates_dashboards_for_branches_without_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_pusher()
+        self._setup_template_and_registry(tmp_path, mod, monkeypatch, ["flow", "ai_mail"])
+
+        result = mod.push_dashboard_template(dry_run=False)
+        assert result["success"] is True
+        assert result["branches_created"] == 2
+        assert (tmp_path / "flow" / "DASHBOARD.local.json").exists()
+        assert (tmp_path / "ai_mail" / "DASHBOARD.local.json").exists()
+
+    def test_dry_run_does_not_write_files(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_pusher()
+        self._setup_template_and_registry(tmp_path, mod, monkeypatch, ["flow"])
+
+        result = mod.push_dashboard_template(dry_run=True)
+        assert result["dry_run"] is True
+        assert result["branches_created"] == 1
+        # File should NOT be created in dry run
+        assert not (tmp_path / "flow" / "DASHBOARD.local.json").exists()
+
+    def test_updates_existing_dashboard_with_structural_changes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mod = _load_pusher()
+        self._setup_template_and_registry(tmp_path, mod, monkeypatch, ["flow"])
+
+        # Pre-create a dashboard with a deprecated section
+        existing = {
+            "_warning": "OLD WARNING",
+            "branch": "FLOW",
+            "sections": {
+                "ai_mail": {"managed_by": "ai_mail", "new": 3, "last_updated": "2026-01-01"},
+                "flow": {"managed_by": "flow", "active_plans": 2, "last_updated": "2026-01-01"},
+                "memory": {"managed_by": "memory", "last_updated": "2026-01-01"},
+                "commons_activity": {"managed_by": "the_commons", "last_updated": "2026-01-01"},
+                "bulletin_board": {"posts": 5},
+            },
+            "quick_status": {"pending_bulletins": 3},
+        }
+        (tmp_path / "flow" / "DASHBOARD.local.json").write_text(json.dumps(existing), encoding="utf-8")
+
+        result = mod.push_dashboard_template(dry_run=False)
+        assert result["branches_updated"] == 1
+        assert result["branches_created"] == 0
+
+        data = json.loads((tmp_path / "flow" / "DASHBOARD.local.json").read_text(encoding="utf-8"))
+        # Deprecated section removed
+        assert "bulletin_board" not in data["sections"]
+        # Deprecated quick_status key removed
+        assert "pending_bulletins" not in data.get("quick_status", {})
+        # Warning header updated
+        assert data["_warning"] == "AUTO-GENERATED"
+        # Existing data preserved
+        assert data["sections"]["ai_mail"]["new"] == 3
+
+    def test_returns_error_when_template_missing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_pusher()
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "no_template.json")
+
+        result = mod.push_dashboard_template()
+        assert result["success"] is False
+        assert len(result["errors"]) > 0
+
+
+# =============================================
+# get_template_status (template_pusher.py)
+# =============================================
+
+
+class TestGetTemplateStatus:
+    """Tests for get_template_status — reads version file and template existence."""
+
+    def test_returns_status_when_version_file_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_pusher()
+        version_data = {
+            "version": "3.0.0",
+            "last_updated": "2026-03-01",
+            "updated_by": "prax",
+            "changes": ["added commons"],
+            "last_push": "2026-03-02 10:00:00",
+            "last_push_branches": ["FLOW", "AI_MAIL"],
+        }
+        version_file = tmp_path / ".dashboard_version.json"
+        version_file.write_text(json.dumps(version_data), encoding="utf-8")
+        monkeypatch.setattr(mod, "VERSION_FILE", version_file)
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "exists.json")
+        (tmp_path / "exists.json").write_text("{}", encoding="utf-8")
+
+        result = mod.get_template_status()
+        assert result["version"] == "3.0.0"
+        assert result["last_push"] == "2026-03-02 10:00:00"
+        assert result["last_push_branches"] == ["FLOW", "AI_MAIL"]
+        assert result["template_exists"] is True
+
+    def test_returns_defaults_when_no_version_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_pusher()
+        monkeypatch.setattr(mod, "VERSION_FILE", tmp_path / "nonexistent_version.json")
+        monkeypatch.setattr(mod, "TEMPLATE_FILE", tmp_path / "also_nonexistent.json")
+
+        result = mod.get_template_status()
+        assert result["version"] is None
+        assert result["last_push"] is None
+        assert result["last_push_branches"] == []
+        assert result["template_exists"] is False
+
+
+# =============================================
+# update_section (dashboard.py module wrapper)
+# =============================================
+
+DASHBOARD_MODULE_PATH = "aipass.prax.apps.modules.dashboard"
+
+
+def _load_dashboard_module() -> types.ModuleType:
+    """Import (or reimport) the dashboard module under active mocks."""
+    # Ensure handler dependencies are also cleared for fresh import
+    for mod_key in list(sys.modules.keys()):
+        if mod_key.startswith("aipass.prax.apps.handlers.dashboard"):
+            sys.modules.pop(mod_key, None)
+    sys.modules.pop(DASHBOARD_MODULE_PATH, None)
+    import aipass.prax.apps.modules.dashboard as mod
+
+    importlib.reload(mod)
+    return mod
+
+
+class TestDashboardModuleUpdateSection:
+    """Tests for dashboard.py module-level update_section wrapper."""
+
+    def test_delegates_to_handler_update_section(self, tmp_path: Path) -> None:
+        mod = _load_dashboard_module()
+        branch_dir = tmp_path / "wrapper_branch"
+        branch_dir.mkdir()
+
+        result = mod.update_section(branch_dir, "flow", {"active_plans": 3})
+        assert result is True
+        data = json.loads((branch_dir / "DASHBOARD.local.json").read_text(encoding="utf-8"))
+        assert data["sections"]["flow"]["active_plans"] == 3
+
+    def test_returns_false_on_handler_error(self, tmp_path: Path) -> None:
+        mod = _load_dashboard_module()
+        # A deeply nested nonexistent path should trigger an error
+        bad_path = tmp_path / "no" / "such" / "deep" / "branch"
+
+        result = mod.update_section(bad_path, "flow", {"active_plans": 1})
+        assert result is False
+
+
+# =============================================
+# print_status (dashboard.py)
+# =============================================
+
+
+class TestPrintStatus:
+    """Tests for print_status -- CLI status display."""
+
+    def test_prints_branch_dashboard_status(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_dashboard_module()
+
+        branch1 = tmp_path / "flow"
+        branch1.mkdir()
+        (branch1 / "DASHBOARD.local.json").write_text("{}", encoding="utf-8")
+        branch2 = tmp_path / "ai_mail"
+        branch2.mkdir()
+
+        monkeypatch.setattr(mod, "get_branch_paths", lambda: [branch1, branch2])
+
+        # Should not raise
+        mod.print_status()
+
+    def test_handles_error_loading_branches(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        mod = _load_dashboard_module()
+
+        def raise_error() -> list[Path]:
+            raise RuntimeError("registry not found")
+
+        monkeypatch.setattr(mod, "get_branch_paths", raise_error)
+        # Should not raise, just log/print error
+        mod.print_status()
+
+
+# =============================================
+# print_template (dashboard.py)
+# =============================================
+
+
+class TestPrintTemplate:
+    """Tests for print_template -- CLI template display."""
+
+    def test_prints_template_without_error(self) -> None:
+        mod = _load_dashboard_module()
+        # Should not raise
+        mod.print_template()

@@ -33,7 +33,10 @@ def json_handler(tmp_path, monkeypatch):
 
 
 class TestDefaultFactory:
+    """Tests for _get_default_template factory."""
+
     def test_config_template_has_required_keys(self, json_handler):
+        """Config template contains module_name, version, and config keys."""
         result = json_handler._get_default_template("config", "test_mod")
         assert isinstance(result, dict)
         assert "module_name" in result
@@ -42,17 +45,20 @@ class TestDefaultFactory:
         assert result["module_name"] == "test_mod"
 
     def test_data_template_has_required_keys(self, json_handler):
+        """Data template contains created and last_updated keys."""
         result = json_handler._get_default_template("data", "test_mod")
         assert isinstance(result, dict)
         assert "created" in result
         assert "last_updated" in result
 
     def test_log_template_returns_list(self, json_handler):
+        """Log template returns an empty list."""
         result = json_handler._get_default_template("log", "test_mod")
         assert isinstance(result, list)
         assert len(result) == 0
 
     def test_unknown_type_raises(self, json_handler):
+        """Unknown json_type raises ValueError."""
         with pytest.raises(ValueError, match="Unknown json_type"):
             json_handler._get_default_template("bogus", "test_mod")
 
@@ -63,23 +69,31 @@ class TestDefaultFactory:
 
 
 class TestValidate:
+    """Tests for validate_json_structure."""
+
     def test_valid_config(self, json_handler):
+        """Valid config dict with all required keys passes validation."""
         data = {"module_name": "x", "version": "1.0", "config": {}}
         assert json_handler.validate_json_structure(data, "config") is True
 
     def test_invalid_config_missing_key(self, json_handler):
+        """Config dict missing required keys fails validation."""
         assert json_handler.validate_json_structure({"module_name": "x"}, "config") is False
 
     def test_config_non_dict(self, json_handler):
+        """Non-dict input fails config validation."""
         assert json_handler.validate_json_structure([], "config") is False
 
     def test_valid_data(self, json_handler):
+        """Data dict with created and last_updated passes validation."""
         assert json_handler.validate_json_structure({"created": "x", "last_updated": "y"}, "data") is True
 
     def test_valid_log(self, json_handler):
+        """List passes log validation."""
         assert json_handler.validate_json_structure([], "log") is True
 
     def test_unknown_type(self, json_handler):
+        """Unknown json_type returns False."""
         assert json_handler.validate_json_structure({}, "bogus") is False
 
 
@@ -89,11 +103,15 @@ class TestValidate:
 
 
 class TestGetPath:
+    """Tests for get_json_path."""
+
     def test_returns_path_object(self, json_handler):
+        """Return type is a Path instance."""
         result = json_handler.get_json_path("mymod", "config")
         assert isinstance(result, Path)
 
     def test_path_contains_module_and_type(self, json_handler):
+        """Filename encodes module name and json type."""
         result = json_handler.get_json_path("mymod", "data")
         assert result.name == "mymod_data.json"
 
@@ -109,7 +127,10 @@ class TestGetPath:
 
 
 class TestEnsureExists:
+    """Tests for ensure_json_exists."""
+
     def test_creates_config_file(self, json_handler, tmp_path):
+        """Creates a config JSON file on disk."""
         assert json_handler.ensure_json_exists("newmod", "config") is True
         path = tmp_path / "newmod_config.json"
         assert path.exists()
@@ -146,12 +167,16 @@ class TestEnsureExists:
 
 
 class TestLoad:
+    """Tests for load_json."""
+
     def test_load_auto_creates_and_returns(self, json_handler):
+        """Auto-creates missing file and returns default template."""
         result = json_handler.load_json("loadtest", "config")
         assert isinstance(result, dict)
         assert result["module_name"] == "loadtest"
 
     def test_load_log_returns_list(self, json_handler):
+        """Log type returns a list."""
         result = json_handler.load_json("loadtest", "log")
         assert isinstance(result, list)
 
@@ -170,7 +195,10 @@ class TestLoad:
 
 
 class TestSave:
+    """Tests for save_json."""
+
     def test_save_valid_data(self, json_handler, tmp_path):
+        """Saves valid data dict to disk."""
         json_handler.ensure_json_exists("smod", "data")
         data = {"created": "2026-01-01", "last_updated": "2026-01-01", "extra": 42}
         assert json_handler.save_json("smod", "data", data) is True
@@ -194,13 +222,17 @@ class TestSave:
 
 
 class TestEnsureModule:
+    """Tests for ensure_module_jsons."""
+
     def test_creates_all_three(self, json_handler, tmp_path):
+        """Creates config, data, and log JSON files."""
         json_handler.ensure_module_jsons("trio")
         assert (tmp_path / "trio_config.json").exists()
         assert (tmp_path / "trio_data.json").exists()
         assert (tmp_path / "trio_log.json").exists()
 
     def test_returns_true(self, json_handler):
+        """Returns True on success."""
         assert json_handler.ensure_module_jsons("rt") is True
 
 
@@ -210,7 +242,10 @@ class TestEnsureModule:
 
 
 class TestLogOperation:
+    """Tests for log_operation."""
+
     def test_log_operation_appends_entry(self, json_handler, tmp_path):
+        """Appends a log entry with operation name."""
         json_handler.log_operation("test_op", {"key": "val"}, module_name="logmod")
         log = json.loads((tmp_path / "logmod_log.json").read_text())
         assert len(log) >= 1
@@ -240,3 +275,75 @@ class TestLogOperation:
         monkeypatch.setattr(mod, "TRIGGER_JSON_DIR", new_dir)
         mod.ensure_json_exists("reimp", "config")
         assert (new_dir / "reimp_config.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# increment_counter
+# ---------------------------------------------------------------------------
+
+
+class TestIncrementCounter:
+    """Tests for increment_counter."""
+
+    def test_creates_and_increments_new_counter(self, json_handler, tmp_path):
+        """Counter starts at 0, gets incremented to 1."""
+        json_handler.increment_counter("incmod", "hits")
+        data = json.loads((tmp_path / "incmod_data.json").read_text(encoding="utf-8"))
+        assert data["hits"] == 1
+
+    def test_increments_existing_counter(self, json_handler, tmp_path):
+        """Pre-set counter at 5, increment brings it to 6."""
+        json_handler.ensure_module_jsons("incmod2")
+        data = json_handler.load_json("incmod2", "data")
+        data["visits"] = 5
+        json_handler.save_json("incmod2", "data", data)
+
+        json_handler.increment_counter("incmod2", "visits")
+        reloaded = json.loads((tmp_path / "incmod2_data.json").read_text(encoding="utf-8"))
+        assert reloaded["visits"] == 6
+
+    def test_custom_amount(self, json_handler, tmp_path):
+        """Increment by 10."""
+        json_handler.increment_counter("incmod3", "score", amount=10)
+        data = json.loads((tmp_path / "incmod3_data.json").read_text(encoding="utf-8"))
+        assert data["score"] == 10
+
+    def test_returns_true_on_success(self, json_handler):
+        """Return value is True on success."""
+        result = json_handler.increment_counter("incmod4", "counter")
+        assert result is True
+
+
+# ---------------------------------------------------------------------------
+# update_data_metrics
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateDataMetrics:
+    """Tests for update_data_metrics."""
+
+    def test_sets_single_metric(self, json_handler, tmp_path):
+        """Update one key."""
+        json_handler.update_data_metrics("metmod", uptime=99.5)
+        data = json.loads((tmp_path / "metmod_data.json").read_text(encoding="utf-8"))
+        assert data["uptime"] == 99.5
+
+    def test_sets_multiple_metrics(self, json_handler, tmp_path):
+        """Update several keys at once."""
+        json_handler.update_data_metrics("metmod2", cpu=0.8, mem=512, ok=True)
+        data = json.loads((tmp_path / "metmod2_data.json").read_text(encoding="utf-8"))
+        assert data["cpu"] == 0.8
+        assert data["mem"] == 512
+        assert data["ok"] is True
+
+    def test_overwrites_existing(self, json_handler, tmp_path):
+        """Set a key, then update it to a new value."""
+        json_handler.update_data_metrics("metmod3", version="1.0")
+        json_handler.update_data_metrics("metmod3", version="2.0")
+        data = json.loads((tmp_path / "metmod3_data.json").read_text(encoding="utf-8"))
+        assert data["version"] == "2.0"
+
+    def test_returns_true_on_success(self, json_handler):
+        """Return value is True on success."""
+        result = json_handler.update_data_metrics("metmod4", status="ok")
+        assert result is True
