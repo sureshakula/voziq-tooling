@@ -17,3 +17,5 @@ Provides core application modules, handlers, and extension system for CLI branch
 Usage:
     from aipass.cli.apps import handlers
 """
+
+from . import handlers  # noqa: F401

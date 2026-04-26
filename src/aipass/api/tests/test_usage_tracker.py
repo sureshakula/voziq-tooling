@@ -356,24 +356,21 @@ def test_show_caller_usage_no_args(mock_agg, mock_header, mock_console, mock_err
 # =============================================
 
 
+@patch(f"{PATCH_ROOT}.Path")
 @patch(f"{PATCH_ROOT}.error")
 @patch(f"{PATCH_ROOT}.success")
 @patch(f"{PATCH_ROOT}.console")
 @patch(f"{PATCH_ROOT}.header")
 @patch(f"{PATCH_ROOT}.cleanup")
-def test_cleanup_success(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error):
+def test_cleanup_success(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error, mock_path_cls):
     """cleanup_data calls success() with count when handler returns > 0."""
     from aipass.api.apps.modules import usage_tracker
 
     mock_cleanup_handler.cleanup_old_data.return_value = 5
+    mock_data_path = MagicMock()
+    mock_data_path.exists.return_value = True
+    mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_data_path
 
-    # The data_path.exists() check needs to pass
-    with patch(f"{PATCH_ROOT}.Path") as mock_path_cls:
-        mock_data_path = MagicMock()
-        mock_data_path.exists.return_value = True
-        mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_data_path
-
-    # Call directly -- cleanup handler is mocked, use real Path for API_JSON_DIR resolution
     usage_tracker.cleanup_data(["45"])
 
     mock_cleanup_handler.cleanup_old_data.assert_called_once()
@@ -381,16 +378,22 @@ def test_cleanup_success(mock_cleanup_handler, mock_header, mock_console, mock_s
     mock_error.assert_not_called()
 
 
+@patch(f"{PATCH_ROOT}.Path")
 @patch(f"{PATCH_ROOT}.warning")
 @patch(f"{PATCH_ROOT}.success")
 @patch(f"{PATCH_ROOT}.console")
 @patch(f"{PATCH_ROOT}.header")
 @patch(f"{PATCH_ROOT}.cleanup")
-def test_cleanup_nothing_to_clean(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_warning):
+def test_cleanup_nothing_to_clean(
+    mock_cleanup_handler, mock_header, mock_console, mock_success, mock_warning, mock_path_cls
+):
     """cleanup_data calls success() with 'nothing to clean' when handler returns 0."""
     from aipass.api.apps.modules import usage_tracker
 
     mock_cleanup_handler.cleanup_old_data.return_value = 0
+    mock_data_path = MagicMock()
+    mock_data_path.exists.return_value = True
+    mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_data_path
 
     usage_tracker.cleanup_data(["30"])
 
@@ -398,37 +401,45 @@ def test_cleanup_nothing_to_clean(mock_cleanup_handler, mock_header, mock_consol
     mock_success.assert_called_once_with("Nothing to clean — no entries older than 30 days")
 
 
+@patch(f"{PATCH_ROOT}.Path")
 @patch(f"{PATCH_ROOT}.error")
 @patch(f"{PATCH_ROOT}.success")
 @patch(f"{PATCH_ROOT}.console")
 @patch(f"{PATCH_ROOT}.header")
 @patch(f"{PATCH_ROOT}.cleanup")
-def test_cleanup_default_30_days(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error):
+def test_cleanup_default_30_days(
+    mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error, mock_path_cls
+):
     """cleanup_data defaults to 30 days when no args provided."""
     from aipass.api.apps.modules import usage_tracker
 
     mock_cleanup_handler.cleanup_old_data.return_value = 3
+    mock_data_path = MagicMock()
+    mock_data_path.exists.return_value = True
+    mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_data_path
 
     usage_tracker.cleanup_data([])
 
-    # Verify the header shows 30 days
     mock_header.assert_called_once_with("Cleanup Old Data (retain 30 days)")
-    # Verify cleanup_old_data was called with days=30
     args, kwargs = mock_cleanup_handler.cleanup_old_data.call_args
     assert args[1] == 30
     mock_success.assert_called_once_with("Cleaned up 3 entries older than 30 days")
 
 
+@patch(f"{PATCH_ROOT}.Path")
 @patch(f"{PATCH_ROOT}.error")
 @patch(f"{PATCH_ROOT}.success")
 @patch(f"{PATCH_ROOT}.console")
 @patch(f"{PATCH_ROOT}.header")
 @patch(f"{PATCH_ROOT}.cleanup")
-def test_cleanup_custom_days(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error):
+def test_cleanup_custom_days(mock_cleanup_handler, mock_header, mock_console, mock_success, mock_error, mock_path_cls):
     """cleanup_data parses custom days from args."""
     from aipass.api.apps.modules import usage_tracker
 
     mock_cleanup_handler.cleanup_old_data.return_value = 7
+    mock_data_path = MagicMock()
+    mock_data_path.exists.return_value = True
+    mock_path_cls.return_value.resolve.return_value.parent.parent.parent.__truediv__.return_value.__truediv__.return_value = mock_data_path
 
     usage_tracker.cleanup_data(["90"])
 
