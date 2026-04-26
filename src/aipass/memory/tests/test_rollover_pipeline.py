@@ -936,30 +936,23 @@ class TestUpdateAllMemoryFiles:
     def test_updates_existing_files(self, monkeypatch, tmp_path):
         lc, mocks = _import_line_counter(monkeypatch)
 
-        # Create a real memory file
         file_path = tmp_path / "local.json"
         file_path.write_text('{\n  "test": true\n}\n', encoding="utf-8")
 
         branch = {"name": "TEST", "path": str(tmp_path)}
-
-        mock_read_registry = MagicMock(return_value=[branch])
 
         def mock_get_path(b, mem_type):
             if mem_type == "local":
                 return file_path
             return None
 
-        with (
-            patch(
-                "aipass.memory.apps.handlers.monitor.detector._read_registry",
-                mock_read_registry,
-            ),
-            patch(
-                "aipass.memory.apps.handlers.monitor.detector._get_memory_file_path",
-                mock_get_path,
-            ),
-        ):
-            result = lc.update_all_memory_files()
+        import importlib
+
+        detector = importlib.import_module("aipass.memory.apps.handlers.monitor.detector")
+        monkeypatch.setattr(detector, "_read_registry", lambda: [branch])
+        monkeypatch.setattr(detector, "_get_memory_file_path", mock_get_path)
+
+        result = lc.update_all_memory_files()
 
         assert result["success"] is True
         assert result["updated"] >= 1
@@ -967,7 +960,6 @@ class TestUpdateAllMemoryFiles:
     def test_tracks_failures(self, monkeypatch, tmp_path):
         lc, mocks = _import_line_counter(monkeypatch)
 
-        # Make update_metadata fail
         mocks["memory_files"].update_metadata.return_value = {"success": False, "error": "write error"}
 
         file_path = tmp_path / "local.json"
@@ -975,24 +967,18 @@ class TestUpdateAllMemoryFiles:
 
         branch = {"name": "TEST", "path": str(tmp_path)}
 
-        mock_read_registry = MagicMock(return_value=[branch])
-
         def mock_get_path(b, mem_type):
             if mem_type == "local":
                 return file_path
             return None
 
-        with (
-            patch(
-                "aipass.memory.apps.handlers.monitor.detector._read_registry",
-                mock_read_registry,
-            ),
-            patch(
-                "aipass.memory.apps.handlers.monitor.detector._get_memory_file_path",
-                mock_get_path,
-            ),
-        ):
-            result = lc.update_all_memory_files()
+        import importlib
+
+        detector = importlib.import_module("aipass.memory.apps.handlers.monitor.detector")
+        monkeypatch.setattr(detector, "_read_registry", lambda: [branch])
+        monkeypatch.setattr(detector, "_get_memory_file_path", mock_get_path)
+
+        result = lc.update_all_memory_files()
 
         assert result["success"] is True
         assert result["failed"] >= 1
