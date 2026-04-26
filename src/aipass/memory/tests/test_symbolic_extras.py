@@ -1177,6 +1177,13 @@ class TestDeleteFragment:
         s = _import_storage()
         client = _mock_chroma_client()
 
+        # Re-import chroma_client so mock.patch and the code resolve to the
+        # same module object.  The autouse fixture deletes it from sys.modules;
+        # on Python 3.10 mock._dot_lookup finds a stale parent attribute.
+        import importlib
+
+        importlib.import_module("aipass.memory.apps.handlers.symbolic.chroma_client")
+
         with patch(
             "aipass.memory.apps.handlers.symbolic.chroma_client.get_client",
             return_value=client,
@@ -1192,6 +1199,10 @@ class TestDeleteFragment:
         s = _import_storage()
         client = _mock_chroma_client()
         client.get_or_create_collection.side_effect = RuntimeError("db locked")
+
+        import importlib
+
+        importlib.import_module("aipass.memory.apps.handlers.symbolic.chroma_client")
 
         with patch(
             "aipass.memory.apps.handlers.symbolic.chroma_client.get_client",
