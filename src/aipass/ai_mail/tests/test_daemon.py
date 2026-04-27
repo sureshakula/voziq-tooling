@@ -1335,6 +1335,128 @@ def test_spawn_agent_strips_claude_env_vars(tmp_path, monkeypatch):
     assert captured_env.get("AIPASS_SESSION_TYPE") == "daemon"
 
 
+def test_spawn_agent_prompt_includes_reply_id(tmp_path):
+    """Prompt includes explicit reply command with the dispatch email ID."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    message = {"from": "@devpulse", "id": "abc12345", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    captured_cmd = []
+
+    def capture_popen(cmd, *args, **kwargs):
+        captured_cmd.extend(cmd)
+        mock_proc = MagicMock()
+        mock_proc.pid = 99999
+        return mock_proc
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            side_effect=capture_popen,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    prompt_idx = captured_cmd.index("-p") + 1
+    prompt = captured_cmd[prompt_idx]
+    assert "drone @ai_mail reply abc12345" in prompt
+    assert "required" in prompt.lower()
+
+
+def test_spawn_agent_prompt_includes_sender(tmp_path):
+    """Prompt includes sender address from the dispatch email."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    message = {"from": "@devpulse", "id": "abc12345", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    captured_cmd = []
+
+    def capture_popen(cmd, *args, **kwargs):
+        captured_cmd.extend(cmd)
+        mock_proc = MagicMock()
+        mock_proc.pid = 99999
+        return mock_proc
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            side_effect=capture_popen,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    prompt_idx = captured_cmd.index("-p") + 1
+    prompt = captured_cmd[prompt_idx]
+    assert "@devpulse" in prompt
+
+
+def test_spawn_agent_prompt_fallback_without_id(tmp_path):
+    """Without a valid ID, prompt uses generic reply instruction."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    message = {"from": "@devpulse", "id": "", "subject": "Test task"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    captured_cmd = []
+
+    def capture_popen(cmd, *args, **kwargs):
+        captured_cmd.extend(cmd)
+        mock_proc = MagicMock()
+        mock_proc.pid = 99999
+        return mock_proc
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            side_effect=capture_popen,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    prompt_idx = captured_cmd.index("-p") + 1
+    prompt = captured_cmd[prompt_idx]
+    assert "reply <id>" in prompt
+    assert "required" in prompt.lower()
+
+
 # ---- run_daemon tests -------------------------------------------
 
 

@@ -313,9 +313,25 @@ def spawn_agent(
 
     lock_file_path = str(branch_path / ".ai_mail.local" / ".dispatch.lock")
 
-    # Prompt — never interpolate sender-controlled content into the prompt.
-    # The agent reads inbox.json as data, not as instructions (DPLAN-0155 M1).
-    prompt = "Hi. Check your inbox for new dispatch emails and execute the task. Send confirmation when done."
+    # Prompt — only interpolate system-generated metadata (id, sender email).
+    # Free-form fields (subject, body) stay in inbox.json (DPLAN-0155 M1).
+    msg_id = message.get("id", "")
+    safe_id = msg_id if msg_id.isalnum() and len(msg_id) <= 12 else ""
+    sender_addr = message.get("from", "")
+    safe_sender = sender_addr if sender_addr.startswith("@") and sender_addr[1:].replace("_", "").isalnum() else ""
+
+    if safe_id:
+        reply_cmd = f'drone @ai_mail reply {safe_id} "your results summary"'
+        reply_instr = f" When done, reply via: {reply_cmd}. This is required — do not skip the reply step."
+    else:
+        reply_instr = (
+            " When done, reply to the dispatch email via drone @ai_mail reply <id> with your results."
+            " This is required — do not skip the reply step."
+        )
+
+    sender_note = f" Dispatch from {safe_sender}." if safe_sender else ""
+
+    prompt = "Hi. Check inbox, process new emails, update memories when done." + sender_note + reply_instr
 
     claude_cmd = [
         "claude",
