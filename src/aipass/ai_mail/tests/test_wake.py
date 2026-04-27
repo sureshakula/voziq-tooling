@@ -1024,21 +1024,15 @@ class TestWakeBranch:
         assert ok is False
         assert any(s[0] == "fail" and "RuntimeError" in s[2] for s in status.steps)
 
-    # --- post-spawn: lock acquisition failure ---
+    # --- pre-spawn: lock acquisition failure (DPLAN-0155) ---
 
-    def test_lock_acquisition_fails_after_spawn_warns(self, tmp_path, monkeypatch):
-        """Lock fails after spawn -> warn step but still succeeds."""
+    def test_lock_acquisition_fails_before_spawn(self, tmp_path, monkeypatch):
+        """Lock fails before spawn -> fail step, returns False (DPLAN-0155 lock-before-spawn)."""
         _make_wake_fixtures(tmp_path, monkeypatch)
         _patch_wake_deps(monkeypatch, _acquire_lock=lambda p, pid: (False, "Lock file already exists"))
-        monkeypatch.setattr("subprocess.Popen", lambda *a, **kw: _FakeProc())
-        monkeypatch.setattr(
-            "aipass.ai_mail.apps.handlers.notify.send_notification",
-            lambda *a, **kw: None,
-            raising=False,
-        )
         status, ok = wake_branch("@testbranch")
-        assert ok is True
-        assert any(s[0] == "warn" and "lock-acquire" in s[1] for s in status.steps)
+        assert ok is False
+        assert any(s[0] == "fail" and "lock-acquire" in s[1] for s in status.steps)
 
     # --- alive check fails ---
 
