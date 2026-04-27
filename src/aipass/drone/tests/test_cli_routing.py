@@ -751,16 +751,16 @@ class TestReadInboxMessageId:
     """_read_inbox_message_id() edge cases."""
 
     def test_valid_index(self, tmp_path: Path) -> None:
-        """Returns message ID for valid index."""
+        """Returns message ID for valid display-order index (reversed from array)."""
         inbox = tmp_path / "inbox.json"
         inbox.write_text(
-            json.dumps({"messages": [{"id": "abc123"}, {"id": "def456"}]}),
+            json.dumps({"messages": [{"id": "newest"}, {"id": "oldest"}]}),
             encoding="utf-8",
         )
         from aipass.drone.apps.drone import _read_inbox_message_id
 
-        assert _read_inbox_message_id(inbox, 1) == "abc123"
-        assert _read_inbox_message_id(inbox, 2) == "def456"
+        assert _read_inbox_message_id(inbox, 1) == "oldest"
+        assert _read_inbox_message_id(inbox, 2) == "newest"
 
     def test_out_of_range(self, tmp_path: Path) -> None:
         """Returns None for out-of-range index."""

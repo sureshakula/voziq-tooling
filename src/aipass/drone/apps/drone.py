@@ -358,14 +358,18 @@ def _handle_custom_command(args: list[str]) -> int:
 
 
 def _read_inbox_message_id(inbox: Path, n: int) -> str | None:
-    """Return the ID of the Nth message (1-based) from inbox.json, or None."""
+    """Return the ID of the Nth message (1-based, display order) from inbox.json.
+
+    The inbox display reverses the array (oldest first), so display position 1
+    is the last element in the JSON array, not the first.
+    """
     import json as _json
 
     try:
         data = _json.loads(inbox.read_text(encoding="utf-8"))
         messages = data.get("messages", [])
         if 1 <= n <= len(messages):
-            return messages[n - 1]["id"]
+            return messages[len(messages) - n]["id"]
     except Exception as exc:
         logger.warning("Failed to resolve mail index %d: %s", n, exc)
     return None
