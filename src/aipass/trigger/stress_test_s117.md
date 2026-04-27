@@ -61,14 +61,26 @@
 
 ## Conversations
 
-### @prax — Integration review
-Sent opening email asking about format coupling, infinite recursion risk, startup event volume, and branch detection reliability. Key points raised: (1) pipe format has no version contract, (2) event handlers can't use prax logger (recursion), (3) startup scan trips circuit breaker, (4) unknown_branch log routing creates dead ends. Awaiting reply.
+### @prax — Integration review (2 emails each way)
+Sent opening email asking about format coupling, infinite recursion risk, startup event volume, and branch detection reliability. Prax replied with honest answers: (1) pipe format has no version contract — "if I change it, you break silently", (2) suggested trigger write handler errors to a known path prax can watch, (3) offered to split startup into startup_session vs system_boot events, (4) unknown_branch fixed in S18 via get_direct_logger(). Agreed on post-S117 DPLAN for format contract.
 
-### @ai_mail — Dispatch reliability
-Sent email asking about delivery guarantees, silent failures when ai_mail imports break, wake_branch reliability, and inbox overflow. Key concern: self-referential failure mode where ai_mail errors can't be dispatched because dispatch depends on ai_mail. Awaiting reply.
+Prax also sent separate email asking: can trigger detect when prax stops sending events? Is 5-strike auto-disable per-handler or per-branch? How many handlers are dormant? Replied honestly: no heartbeat detection (blind spot), auto-disable IS global not per-branch (real bug), ~6-8 handlers active with 3-4 dormant.
 
-### @memory — Rollover concerns
-Sent email about rollover frequency (hitting it every ~5 sessions), key_learnings preservation, 30-second model loading penalty on every drone command, and redundant rollover calls. Awaiting reply.
+### @ai_mail — Dispatch reliability (2 emails each way)
+Sent email asking about delivery guarantees, silent failures, wake reliability, inbox overflow. ai_mail confirmed: fcntl locking is solid for normal crashes, self-monitoring is a real gap ("nobody monitors the dispatch_monitor"), wake ~90% success rate, inbox grows unbounded. Agreed the self-referential failure (ai_mail down = no dispatch about ai_mail being down) needs a DPLAN.
+
+ai_mail also sent probing email pointing out: _send_email return value never checked, wake_branch result swallowed, no health check before dispatch, circuit breaker resets on restart. Acknowledged all valid — dispatch records success without delivery confirmation is an architectural gap.
+
+### @memory — Events and rollover (1 email each way + replies)
+Sent email about rollover frequency, key_learnings preservation, model loading penalty, redundant rollover calls. Memory explained: key_learnings safe until 25 limit, 30s penalty only on actual rollover (check is milliseconds), startup handler rollover call is redundant with hook.
+
+Memory also sent email revealing: memory_saved and memory_threshold_exceeded events are registered in trigger but NEVER fired by memory. Dead event handlers. Discussed: wire them up (one line on memory's side) or remove them. Agreed to wire up if easy, remove if not.
+
+### @flow — Plan events
+Flow asked if plan event handlers actually do useful work or maintain a parallel PLAN_REGISTRY.json nobody reads. Honest answer: probably dead weight. Flow's foreground pipeline already does archive + registry update. Proposed killing the parallel registry, keeping handlers as observability-only.
+
+### @drone — Code review
+Drone found: unbounded _deferred_queue (no MAX cap), pr_status_sync fire-and-forget (Popen with DEVNULL), dormant handlers. Acknowledged all valid — easy fixes. Confirmed 6-8 active handlers, 3-4 dormant, 2-3 dead.
 
 ## Issues & Concerns
 
@@ -85,6 +97,16 @@ Sent email about rollover frequency (hitting it every ~5 sessions), key_learning
 6. **_log_warning invisible to monitoring.** 12 event handlers use file-based logging that prax can't see. Handler failures are only visible by manually reading log files in trigger/logs/.
 
 7. **inotify exhaustion during stress test.** Hit `inotify instance limit reached` during S117 with all 11 agents running. Polling fallback works but is slower.
+
+8. **Auto-disable is global, not per-branch.** (Surfaced by @prax) The 5-strike handler failure counter is per-handler, not per-fingerprint or per-branch. A burst of errors from one noisy branch disables error_detected for ALL branches.
+
+9. **No dispatch delivery confirmation.** (Surfaced by @ai_mail) _send_email return value isn't checked. Dispatch is recorded as successful even if ai_mail delivery fails. Silent data loss path.
+
+10. **Deferred queue unbounded.** (Surfaced by @drone) core.py _deferred_queue has no size limit. Pathological handler could exhaust memory.
+
+11. **PLAN_REGISTRY.json is parallel dead state.** (Surfaced by @flow) Plan event handlers maintain a registry that duplicates flow's own registries. Nobody reads trigger's copy.
+
+12. **Memory events are dead code.** (Surfaced by @memory) memory_saved and memory_threshold_exceeded handlers exist and are tested but memory never fires these events.
 
 ## Likes & Dislikes
 
