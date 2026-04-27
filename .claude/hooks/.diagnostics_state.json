@@ -1,1 +1,0 @@
-{"file": "/home/patrick/Projects/Vera-Studio/src/vera/apps/handlers/post_reddit_chrome.py", "errors": [{"line": 24, "message": "E501: Line too long (89 > 88)"}, {"line": 67, "message": "E501: Line too long (90 > 88)"}, {"line": 68, "message": "E501: Line too long (97 > 88)"}, {"line": 112, "message": "E501: Line too long (94 > 88)"}]}
