@@ -767,13 +767,11 @@ def test_poll_cycle_absolute_path_unchanged(tmp_path, monkeypatch):
 
 import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock, mock_open
 
 from aipass.ai_mail.apps.handlers.dispatch.daemon import (
     _notify_telegram,
     _handle_signal,
-    _set_session_name,
     _check_lock,
     _acquire_lock,
     poll_cycle,
@@ -870,106 +868,6 @@ def test_handle_signal_sets_shutdown(monkeypatch):
     _handle_signal(15, None)
 
     assert daemon_mod.SHUTDOWN is True
-
-
-# ---- _set_session_name tests ------------------------------------
-
-
-def test_set_session_name_success(tmp_path, monkeypatch):
-    """Writes custom-title entry to most recent JSONL file."""
-    branch_path = tmp_path / "branch"
-    branch_path.mkdir()
-    # Redirect ~/.claude/projects to tmp_path so no real filesystem side effects
-    fake_home = tmp_path / "fakehome"
-    encoded_cwd = str(branch_path).replace("/", "-")
-    projects_dir = fake_home / ".claude" / "projects" / encoded_cwd
-    projects_dir.mkdir(parents=True)
-    jsonl_file = projects_dir / "session123.jsonl"
-    jsonl_file.write_text('{"type":"init"}\n', encoding="utf-8")
-
-    _orig_expanduser = Path.expanduser
-
-    def _fake_expanduser(self):
-        if str(self).startswith("~"):
-            return fake_home / str(self)[2:]
-        return _orig_expanduser(self)
-
-    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
-
-    result = _set_session_name(branch_path, "TEST-daemon")
-
-    assert result is True
-    content = jsonl_file.read_text(encoding="utf-8")
-    assert "custom-title" in content
-    assert "TEST-daemon" in content
-
-
-def test_set_session_name_no_projects_dir(tmp_path, monkeypatch):
-    """Returns False when projects dir does not exist."""
-    branch_path = tmp_path / "nonexistent_branch_xyz_test"
-    fake_home = tmp_path / "fakehome"
-
-    _orig_expanduser = Path.expanduser
-
-    def _fake_expanduser(self):
-        if str(self).startswith("~"):
-            return fake_home / str(self)[2:]
-        return _orig_expanduser(self)
-
-    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
-
-    result = _set_session_name(branch_path, "TEST-daemon")
-
-    assert result is False
-
-
-def test_set_session_name_no_jsonl_files(tmp_path, monkeypatch):
-    """Returns False when projects dir exists but has no JSONL files."""
-    branch_path = tmp_path / "branch"
-    branch_path.mkdir()
-    fake_home = tmp_path / "fakehome"
-    encoded_cwd = str(branch_path).replace("/", "-")
-    projects_dir = fake_home / ".claude" / "projects" / encoded_cwd
-    projects_dir.mkdir(parents=True)
-
-    _orig_expanduser = Path.expanduser
-
-    def _fake_expanduser(self):
-        if str(self).startswith("~"):
-            return fake_home / str(self)[2:]
-        return _orig_expanduser(self)
-
-    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
-
-    result = _set_session_name(branch_path, "TEST-daemon")
-
-    assert result is False
-
-
-def test_set_session_name_oserror_on_write(tmp_path, monkeypatch):
-    """Returns False on OSError when writing to JSONL file."""
-    branch_path = tmp_path / "branch"
-    branch_path.mkdir()
-    fake_home = tmp_path / "fakehome"
-    encoded_cwd = str(branch_path).replace("/", "-")
-    projects_dir = fake_home / ".claude" / "projects" / encoded_cwd
-    projects_dir.mkdir(parents=True)
-    jsonl_file = projects_dir / "session456.jsonl"
-    jsonl_file.write_text('{"type":"init"}\n', encoding="utf-8")
-
-    _orig_expanduser = Path.expanduser
-
-    def _fake_expanduser(self):
-        if str(self).startswith("~"):
-            return fake_home / str(self)[2:]
-        return _orig_expanduser(self)
-
-    monkeypatch.setattr(Path, "expanduser", _fake_expanduser)
-
-    with patch("builtins.open", side_effect=OSError("disk full")):
-        result = _set_session_name(branch_path, "TEST-daemon")
-
-    assert result is False
 
 
 # ---- _check_lock tests -----------------------------------------
@@ -1430,10 +1328,6 @@ def test_spawn_agent_success(tmp_path):
             "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
             return_value=(True, "Lock acquired"),
         ),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
-            return_value=True,
-        ),
         patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
         patch(
             "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
@@ -1465,10 +1359,6 @@ def test_spawn_agent_exception(tmp_path):
         patch(
             "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
             side_effect=OSError("command not found"),
-        ),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
-            return_value=True,
         ),
         patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
         patch(
@@ -1512,10 +1402,6 @@ def test_spawn_agent_strips_claude_env_vars(tmp_path, monkeypatch):
             "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
             return_value=(True, "Lock acquired"),
         ),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
-            return_value=True,
-        ),
         patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
         patch(
             "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
@@ -1534,47 +1420,6 @@ def test_spawn_agent_strips_claude_env_vars(tmp_path, monkeypatch):
     assert "AIPASS_BOT_ID" not in captured_env
     assert captured_env.get("AIPASS_SPAWNED") == "1"
     assert captured_env.get("AIPASS_SESSION_TYPE") == "daemon"
-
-
-def test_spawn_agent_sets_session_name(tmp_path):
-    """Spawn calls _set_session_name with correct branch name."""
-    branch_path = tmp_path / "branch"
-    branch_path.mkdir()
-    (branch_path / "logs").mkdir()
-
-    message = {"from": "@devpulse", "id": "msg1", "subject": "Test task"}
-    config = {"max_turns_per_wake": 50}
-    state = {"daily_counts": {}, "session_cycles": {}}
-
-    mock_process = MagicMock()
-    mock_process.pid = 54321
-
-    with (
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
-            return_value=mock_process,
-        ),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
-            return_value=(True, "Lock acquired"),
-        ),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon._set_session_name",
-            return_value=True,
-        ) as mock_ssn,
-        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon._notify_telegram",
-            return_value=True,
-        ),
-        patch(
-            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
-            create=True,
-        ),
-    ):
-        spawn_agent(branch_path, "@testbranch", message, config, state)
-
-    mock_ssn.assert_called_once_with(branch_path, "TESTBRANCH-daemon")
 
 
 # ---- run_daemon tests -------------------------------------------

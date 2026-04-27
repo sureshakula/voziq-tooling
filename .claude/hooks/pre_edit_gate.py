@@ -59,16 +59,39 @@ def main():
         # ------------------------------------------------------------------
         fp = Path(file_path)
         if fp.name == "inbox.json" and ".ai_mail.local" in fp.parts:
-            _block(
-                "Direct writes to inbox.json are blocked.\n"
-                "Use: drone @ai_mail email @<branch> \"Subject\" \"Body\""
-            )
+            _block('Direct writes to inbox.json are blocked.\nUse: drone @ai_mail email @<branch> "Subject" "Body"')
+
+        # ------------------------------------------------------------------
+        # Rule 1.5: Dispatched-agent path confinement (DPLAN-0155 M3)
+        # Daemon-spawned agents can only write inside their own branch dir.
+        # Breaks the prompt-injection amplifier chain — even if injected,
+        # a dispatched agent cannot write to other agents' inboxes or code.
+        # ------------------------------------------------------------------
+        cwd = input_data.get("cwd", "") or os.getcwd()
+        cwd_branch = _get_branch(cwd)
+
+        session_type = os.environ.get("AIPASS_SESSION_TYPE", "interactive")
+        if session_type == "daemon" and cwd_branch:
+            target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp))
+            if target_branch and target_branch != cwd_branch:
+                _block(
+                    f"Dispatched agent confined to own branch: '{cwd_branch}' "
+                    f"cannot write to '{target_branch}' in daemon mode."
+                )
+            repo_root = None
+            for parent in Path(cwd).parents:
+                if (parent / ".git").exists():
+                    repo_root = parent
+                    break
+            if repo_root and not target_branch:
+                allowed_prefix = str(repo_root / "src" / "aipass" / cwd_branch)
+                resolved = str(fp.resolve()) if not fp.is_absolute() else str(fp)
+                if not resolved.startswith(allowed_prefix):
+                    _block(f"Dispatched agent restricted to {allowed_prefix}. Cannot write to: {file_path}")
 
         # ------------------------------------------------------------------
         # Rule 2: Cross-branch write enforcement
         # ------------------------------------------------------------------
-        cwd = input_data.get("cwd", "") or os.getcwd()
-        cwd_branch = _get_branch(cwd)
         target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp))
 
         if cwd_branch and target_branch and cwd_branch != target_branch:
@@ -115,10 +138,7 @@ def main():
             return
 
         error_summary = "\n".join(f"  L{e['line']}: {e['message']}" for e in errors[:5])
-        _block(
-            f"Fix {len(errors)} error(s) in {Path(errored_file).name} before editing other files:\n"
-            f"{error_summary}"
-        )
+        _block(f"Fix {len(errors)} error(s) in {Path(errored_file).name} before editing other files:\n{error_summary}")
 
     except Exception:
         pass  # Silent fail → allow

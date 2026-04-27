@@ -117,31 +117,6 @@ def _write_json(filepath: Path, data: Dict[str, Any]) -> bool:
         return False
 
 
-def _set_session_name(branch_path: Path, name: str) -> bool:
-    """Write custom-title to the most recent Claude session JSONL for a branch.
-
-    Claude stores sessions at ~/.claude/projects/{encoded-cwd}/*.jsonl.
-    Writing a custom-title entry makes the session identifiable in /resume picker.
-    """
-    encoded_cwd = str(branch_path).replace("/", "-")
-    projects_dir = Path("~/.claude/projects").expanduser() / encoded_cwd
-    if not projects_dir.exists():
-        return False
-    jsonl_files = sorted(projects_dir.glob("*.jsonl"), key=lambda f: f.stat().st_mtime, reverse=True)
-    if not jsonl_files:
-        return False
-    latest = jsonl_files[0]
-    session_id = latest.stem
-    entry = json.dumps({"type": "custom-title", "customTitle": name, "sessionId": session_id})
-    try:
-        with open(latest, "a", encoding="utf-8") as f:
-            f.write(entry + "\n")
-        return True
-    except OSError as e:
-        logger.warning("[daemon] Failed to write session name for %s: %s", branch_path, e)
-        return False
-
-
 def _check_lock(branch_path: Path) -> Optional[Dict[str, Any]]:
     """Check if branch has an active dispatch lock. Returns lock data or None."""
     lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
@@ -362,14 +337,14 @@ def spawn_agent(
         True if monitor was spawned successfully
     """
     sender = message.get("from", "unknown")
-    msg_id = message.get("id", "unknown")
     subject = message.get("subject", "")
     max_turns = config.get("max_turns_per_wake", 100)
 
     lock_file_path = str(branch_path / ".ai_mail.local" / ".dispatch.lock")
 
-    # Prompt — no lock cleanup instruction (dispatch_monitor handles it)
-    prompt = f"Hi. Check inbox for task from {sender} (message ID: {msg_id}). Execute it. Send confirmation when done."
+    # Prompt — never interpolate sender-controlled content into the prompt.
+    # The agent reads inbox.json as data, not as instructions (DPLAN-0155 M1).
+    prompt = "Hi. Check your inbox for new dispatch emails and execute the task. Send confirmation when done."
 
     claude_cmd = [
         "claude",
@@ -408,10 +383,6 @@ def spawn_agent(
     for key in list(spawn_env.keys()):
         if key.startswith("CLAUDE") or key == "AIPASS_BOT_ID":
             spawn_env.pop(key)
-
-    # Set session name for /resume picker (daemon always uses -c resume)
-    spawn_branch_name = branch_email.lstrip("@").upper()
-    _set_session_name(branch_path, f"{spawn_branch_name}-daemon")
 
     try:
         process = subprocess.Popen(

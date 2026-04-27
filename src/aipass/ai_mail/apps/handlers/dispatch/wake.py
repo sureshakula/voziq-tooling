@@ -210,27 +210,6 @@ def _load_config() -> dict:
     return config
 
 
-def _set_session_name(branch_path: Path, name: str) -> bool:
-    """Write custom-title to the most recent Claude session JSONL for a branch."""
-    encoded_cwd = str(branch_path).replace("/", "-")
-    projects_dir = Path("~/.claude/projects").expanduser() / encoded_cwd
-    if not projects_dir.exists():
-        return False
-    jsonl_files = sorted(projects_dir.glob("*.jsonl"), key=lambda f: f.stat().st_mtime, reverse=True)
-    if not jsonl_files:
-        return False
-    latest = jsonl_files[0]
-    session_id = latest.stem
-    entry = json.dumps({"type": "custom-title", "customTitle": name, "sessionId": session_id})
-    try:
-        with open(latest, "a", encoding="utf-8") as f:
-            f.write(entry + "\n")
-        return True
-    except OSError as e:
-        logger.warning("[wake] Failed to write session name for %s: %s", branch_path, e)
-        return False
-
-
 def _read_session_type(pid_str: str) -> str:
     """Read AIPASS_SESSION_TYPE from /proc/{pid}/environ. Returns 'interactive' if unset."""
     if sys.platform != "linux":
@@ -475,12 +454,6 @@ def wake_branch(
             "--output-format",
             "json",
         ]
-
-    # Set session name for /resume picker
-    branch_name = email.lstrip("@").upper()
-    session_label = f"{branch_name}-dispatched"
-    if not fresh:
-        _set_session_name(branch_path, session_label)
 
     # Step 7: Spawn via dispatch_monitor
     log_dir = branch_path / "logs"

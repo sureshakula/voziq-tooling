@@ -32,6 +32,10 @@ from aipass.drone.apps.handlers.git.lock_handler import (
     find_repo_root,
     release_lock,
 )
+from aipass.drone.apps.handlers.git.pr_handler import (
+    _is_permission_error,
+    _FORK_RECOVERY,
+)
 
 
 def slugify(description: str) -> str:
@@ -212,7 +216,11 @@ def create_system_pr(description: str, caller: str) -> dict:
             cwd=str(repo_root),
         )
         if push.returncode != 0:
-            result["message"] = f"Push failed: {push.stderr.strip()}"
+            stderr = push.stderr.strip()
+            if _is_permission_error(stderr):
+                result["message"] = _FORK_RECOVERY.format(branch=feature_branch)
+            else:
+                result["message"] = f"Push failed: {stderr}"
             logger.error(result["message"])
             return result
 

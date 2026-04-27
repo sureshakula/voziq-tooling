@@ -9,20 +9,33 @@ Version: 1.0.0
 """
 
 import json
+import os
 import sys
 import subprocess
 from pathlib import Path
 
-AIPASS_ROOT = Path.home() / "Projects" / "AIPass"
+
+def _find_repo_root() -> Path | None:
+    """Walk up from CWD or AIPASS_HOME to find the git repo root."""
+    for start in (os.environ.get("AIPASS_HOME", ""), os.getcwd()):
+        p = Path(start)
+        while p != p.parent:
+            if (p / ".git").exists():
+                return p
+            p = p.parent
+    return None
+
+
+AIPASS_ROOT = _find_repo_root()
 
 
 def get_modified_py_files() -> list[str]:
     """Get Python files modified in the working tree (unstaged + staged)."""
+    if AIPASS_ROOT is None:
+        return []
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD"],
-            capture_output=True, text=True, timeout=5,
-            cwd=str(AIPASS_ROOT)
+            ["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, timeout=5, cwd=str(AIPASS_ROOT)
         )
         files = []
         for line in result.stdout.strip().split("\n"):
@@ -38,13 +51,17 @@ def get_modified_py_files() -> list[str]:
 
 def run_seedgo_checklist(file_path: str) -> list[str]:
     """Run seedgo checklist on a single file."""
+    if AIPASS_ROOT is None:
+        return []
     if "/.claude/" in file_path:
         return []
     try:
         result = subprocess.run(
             ["drone", "@seedgo", "checklist", file_path],
-            capture_output=True, text=True, timeout=15,
-            cwd=str(AIPASS_ROOT)
+            capture_output=True,
+            text=True,
+            timeout=15,
+            cwd=str(AIPASS_ROOT),
         )
         if result.returncode != 0:
             return []
@@ -86,10 +103,7 @@ def main():
                 lines.append(f"    - {v}")
         lines.append("\nFix these violations before finishing.")
 
-        output = {
-            "decision": "block",
-            "reason": "\n".join(lines)
-        }
+        output = {"decision": "block", "reason": "\n".join(lines)}
         print(json.dumps(output))
 
     except Exception:

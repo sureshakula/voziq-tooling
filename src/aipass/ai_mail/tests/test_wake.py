@@ -29,7 +29,6 @@ from aipass.ai_mail.apps.handlers.dispatch.wake import (
     DEFAULT_MODEL,
     _acquire_lock,
     _load_config,
-    _set_session_name,
     _is_branch_occupied,
     wake_branch,
 )
@@ -708,84 +707,6 @@ class TestLoadConfig:
         monkeypatch.setattr(wake_mod, "CONFIG_FILE", config_file)
         result = _load_config()
         assert result["max_turns_per_wake"] == 50
-
-
-# --- _set_session_name tests --------------------------------------------
-
-
-class TestSetSessionName:
-    """Tests for _set_session_name() — writes custom-title to Claude session JSONL."""
-
-    def test_success_appends_entry(self, tmp_path, monkeypatch):
-        """Creates expected JSON entry in the most recent session JSONL."""
-        encoded_cwd = str(tmp_path).replace("/", "-")
-        projects_dir = tmp_path / ".claude" / "projects" / encoded_cwd
-        projects_dir.mkdir(parents=True)
-        session_file = projects_dir / "abc123.jsonl"
-        session_file.write_text("", encoding="utf-8")
-        monkeypatch.setattr(
-            "aipass.ai_mail.apps.handlers.dispatch.wake.Path.expanduser",
-            lambda self: tmp_path / ".claude" / "projects" if str(self).endswith("projects") else self,
-        )
-        # We need to mock expanduser properly — override the whole projects_dir lookup
-        monkeypatch.setattr(
-            _Path,
-            "expanduser",
-            lambda self: tmp_path / str(self).lstrip("~/"),
-        )
-        result = _set_session_name(tmp_path, "TEST-dispatched")
-        assert result is True
-        content = session_file.read_text(encoding="utf-8")
-        entry = json.loads(content.strip())
-        assert entry["type"] == "custom-title"
-        assert entry["customTitle"] == "TEST-dispatched"
-        assert entry["sessionId"] == "abc123"
-
-    def test_no_projects_dir_returns_false(self, tmp_path, monkeypatch):
-        """Returns False when ~/.claude/projects/{encoded} does not exist."""
-        monkeypatch.setattr(
-            _Path,
-            "expanduser",
-            lambda self: tmp_path / str(self).lstrip("~/"),
-        )
-        result = _set_session_name(tmp_path, "TEST-dispatched")
-        assert result is False
-
-    def test_no_jsonl_files_returns_false(self, tmp_path, monkeypatch):
-        """Returns False when projects dir exists but has no .jsonl files."""
-        encoded_cwd = str(tmp_path).replace("/", "-")
-        projects_dir = tmp_path / ".claude" / "projects" / encoded_cwd
-        projects_dir.mkdir(parents=True)
-        monkeypatch.setattr(
-            _Path,
-            "expanduser",
-            lambda self: tmp_path / str(self).lstrip("~/"),
-        )
-        result = _set_session_name(tmp_path, "TEST-dispatched")
-        assert result is False
-
-    def test_os_error_on_write_returns_false(self, tmp_path, monkeypatch):
-        """Returns False when write to JSONL file raises OSError."""
-        encoded_cwd = str(tmp_path).replace("/", "-")
-        projects_dir = tmp_path / ".claude" / "projects" / encoded_cwd
-        projects_dir.mkdir(parents=True)
-        session_file = projects_dir / "abc123.jsonl"
-        session_file.write_text("", encoding="utf-8")
-        monkeypatch.setattr(
-            _Path,
-            "expanduser",
-            lambda self: tmp_path / str(self).lstrip("~/"),
-        )
-
-        def _fail_open(path, *args, **kwargs):
-            path_str = str(path)
-            if path_str.endswith(".jsonl") and "a" in args:
-                raise OSError("permission denied")
-            return _REAL_OPEN(path, *args, **kwargs)
-
-        monkeypatch.setattr("builtins.open", _fail_open)
-        result = _set_session_name(tmp_path, "TEST-dispatched")
-        assert result is False
 
 
 # --- _is_branch_occupied tests ------------------------------------------

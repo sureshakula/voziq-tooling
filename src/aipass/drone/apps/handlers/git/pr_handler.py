@@ -29,6 +29,24 @@ from aipass.drone.apps.handlers.git.lock_handler import (
 )
 
 
+def _is_permission_error(stderr: str) -> bool:
+    """Check if a push failure is a permission/auth error (fork scenario)."""
+    indicators = ["403", "permission", "denied", "could not read Username"]
+    lower = stderr.lower()
+    return any(ind.lower() in lower for ind in indicators)
+
+
+_FORK_RECOVERY = """
+Push failed due to insufficient permissions. You may be working on a fork.
+
+To contribute from a fork:
+  1. Create a fork:        gh repo fork AIOSAI/AIPass --remote=false --clone=false
+  2. Add fork as remote:   git remote add fork <your-fork-url>
+  3. Push to your fork:    git push -u fork {branch}
+  4. Open cross-repo PR:   gh pr create -R AIOSAI/AIPass -H <your-user>:{branch} -B main
+"""
+
+
 def _resolve_git_branch(branch_name: str, branch_dir: Path) -> str:
     """Read git_branch from passport if available, else fall back to citizen/{name}."""
     passport_path = branch_dir / ".trinity" / "passport.json"
@@ -173,7 +191,11 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             cwd=str(repo_root),
         )
         if push.returncode != 0:
-            result["message"] = f"Push failed: {push.stderr.strip()}"
+            stderr = push.stderr.strip()
+            if _is_permission_error(stderr):
+                result["message"] = _FORK_RECOVERY.format(branch=feature_branch)
+            else:
+                result["message"] = f"Push failed: {stderr}"
             logger.error(result["message"])
             return result
 
