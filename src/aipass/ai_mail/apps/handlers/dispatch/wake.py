@@ -480,6 +480,13 @@ def wake_branch(
         if key.startswith("CLAUDE") or key == "AIPASS_BOT_ID":
             spawn_env.pop(key)
 
+    # Acquire lock BEFORE spawn to prevent TOCTOU race (DPLAN-0155 Phase 5).
+    acquired, lock_msg = _acquire_lock(branch_path, os.getpid())
+    if not acquired:
+        status.fail("lock-acquire", f"Lock failed: {lock_msg}")
+        return status, False
+    status.ok("lock-acquire", "Dispatch lock acquired")
+
     try:
         process = subprocess.Popen(
             monitor_cmd,
@@ -491,23 +498,27 @@ def wake_branch(
         )
 
         monitor_pid = process.pid
+
+        # Update lock with real monitor PID
+        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+        lock_data = {"pid": monitor_pid, "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"), "branch": str(branch_path)}
+        with open(lock_file, "w", encoding="utf-8") as f:
+            json.dump(lock_data, f, indent=2)
+
         status.ok("spawn", f"Monitor started (PID {monitor_pid})")
 
     except FileNotFoundError as e:
+        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+        lock_file.unlink(missing_ok=True)
         logger.warning("[wake] Spawn failed — script not found: %s", e)
         status.fail("spawn", "Python or monitor script not found")
         return status, False
     except Exception as e:
+        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+        lock_file.unlink(missing_ok=True)
         logger.warning("[wake] Spawn failed for %s: %s", branch_email, e)
         status.fail("spawn", f"{type(e).__name__}: {e}")
         return status, False
-
-    # Step 8: Acquire lock (with monitor PID — stays alive as long as agent)
-    acquired, lock_msg = _acquire_lock(branch_path, monitor_pid)
-    if not acquired:
-        status.warn("lock-acquire", f"Lock failed: {lock_msg}")
-    else:
-        status.ok("lock-acquire", "Dispatch lock acquired")
 
     # Step 9: Liveness check (brief wait then verify)
     time.sleep(2)

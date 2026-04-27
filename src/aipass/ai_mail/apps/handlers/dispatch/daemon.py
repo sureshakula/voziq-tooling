@@ -384,6 +384,13 @@ def spawn_agent(
         if key.startswith("CLAUDE") or key == "AIPASS_BOT_ID":
             spawn_env.pop(key)
 
+    # Acquire lock BEFORE spawn to prevent TOCTOU race (DPLAN-0155 Phase 5).
+    # Use current PID as placeholder; overwrite with monitor PID after spawn.
+    acquired, lock_msg = _acquire_lock(branch_path, os.getpid())
+    if not acquired:
+        logger.info(f"Lock acquisition failed for {branch_email}: {lock_msg}")
+        return False
+
     try:
         process = subprocess.Popen(
             monitor_cmd,
@@ -396,10 +403,10 @@ def spawn_agent(
 
         monitor_pid = process.pid
 
-        # Lock PID = monitor PID (stays alive as long as claude does)
-        acquired, lock_msg = _acquire_lock(branch_path, monitor_pid)
-        if not acquired:
-            logger.info(f"Lock acquisition failed after spawn for {branch_email}: {lock_msg}")
+        # Update lock with real monitor PID
+        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+        lock_data = {"pid": monitor_pid, "timestamp": datetime.now().isoformat(), "branch": str(branch_path)}
+        _write_json(lock_file, lock_data)
 
         # Track session cycles for rotation
         cycles = state.get("session_cycles", {})
@@ -428,6 +435,9 @@ def spawn_agent(
         return True
 
     except Exception as e:
+        # Release lock on spawn failure so branch isn't stuck locked
+        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+        lock_file.unlink(missing_ok=True)
         logger.info(f"SPAWN FAILED {branch_email}: {e}")
         log_dispatch(branch_email, None, "failed", error_msg=str(e))
         _notify_telegram(f"[Dispatch FAILED] {branch_email}\n{type(e).__name__}: {e}")
