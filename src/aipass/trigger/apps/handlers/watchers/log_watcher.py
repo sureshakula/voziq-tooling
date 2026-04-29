@@ -281,8 +281,16 @@ class LogFileWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else o
                         count=error_count,
                     )
                 except Exception as exc:
-                    logger.warning("Registry unavailable, falling back to error_logged: %s", exc)
-                    trigger.fire("error_logged", **event_data)
+                    logger.warning("Registry unavailable, falling back to error_detected: %s", exc)
+                    trigger.fire(
+                        "error_detected",
+                        branch=branch,
+                        module=module_name,
+                        message=message,
+                        log_path=log_file,
+                        error_hash=error_hash,
+                        timestamp=timestamp,
+                    )
                 json_handler.log_operation("system_log_event", {"level": level, "module": module_name})
             elif level == "warning":
                 trigger.fire("warning_logged", **event_data)

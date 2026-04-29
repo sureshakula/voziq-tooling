@@ -31,11 +31,9 @@ def setup_handlers():
     """Register all event handlers on startup"""
     from aipass.trigger.apps.modules.core import trigger
     from .startup import handle_startup
-    from .memory import handle_memory_saved
     from .cli import handle_cli_header_displayed
     from .plan_file import handle_plan_file_created, handle_plan_file_deleted, handle_plan_file_moved
     from .error_detected import handle_error_detected, set_send_email_callback
-    from .error_logged import handle_error_logged
 
     # Wire up email send callback for error_detected handler (avoids handler importing from modules)
     try:
@@ -64,21 +62,17 @@ def setup_handlers():
         _log_warning("ai_mail not available — error notifications won't send")
     from .warning_logged import handle_warning_logged
     from .bulletin_created import handle_bulletin_created
-    from .memory_threshold_exceeded import handle_memory_threshold_exceeded
     from .memory_template_updated import handle_memory_template_updated
     from .pr_status_sync import handle_pr_created, handle_pr_merged
 
     trigger.on("startup", handle_startup)
-    trigger.on("memory_saved", handle_memory_saved)
     trigger.on("cli_header_displayed", handle_cli_header_displayed)
     trigger.on("plan_file_created", handle_plan_file_created)
     trigger.on("plan_file_deleted", handle_plan_file_deleted)
     trigger.on("plan_file_moved", handle_plan_file_moved)
     trigger.on("error_detected", handle_error_detected)
-    trigger.on("error_logged", handle_error_logged)
     trigger.on("warning_logged", handle_warning_logged)
     trigger.on("bulletin_created", handle_bulletin_created)
-    trigger.on("memory_threshold_exceeded", handle_memory_threshold_exceeded)
     trigger.on("memory_template_updated", handle_memory_template_updated)
     trigger.on("pr_created", handle_pr_created)
     trigger.on("pr_merged", handle_pr_merged)

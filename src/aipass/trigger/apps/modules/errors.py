@@ -36,6 +36,7 @@ from aipass.trigger.apps.handlers.error_registry import (
     get_circuit_breaker_status,
     circuit_breaker_reset,
     update_source_fix_status,
+    purge_stale,
 )
 from aipass.trigger.apps.handlers.error_reporter import (  # noqa: F401
     report_error,
@@ -67,6 +68,7 @@ def print_introspection():
     console.print("    - error_registry.py (get_circuit_breaker_status — circuit breaker state)")
     console.print("    - error_registry.py (circuit_breaker_reset — reset circuit breaker)")
     console.print("    - error_registry.py (update_source_fix_status — update fix tracking)")
+    console.print("    - error_registry.py (purge_stale — remove entries older than N days)")
     console.print("    - error_reporter.py (report_error — cross-branch push error reporting)")
     console.print("    - error_reporter.py (send_source_fix_email — notify branch to fix error)")
     console.print()
@@ -132,6 +134,7 @@ def print_help() -> None:
     console.print("  [bold]suppress[/bold] <id> [reason]  Mark error as suppressed")
     console.print("  [bold]resolve[/bold] <id>        Mark error as resolved")
     console.print("  [bold]clear-resolved[/bold]      Purge old resolved entries [dim](--days=7)[/dim]")
+    console.print("  [bold]purge[/bold]              Purge stale entries [dim](--days=30)[/dim]")
     console.print("  [bold]stats[/bold]               Summary statistics + circuit breaker state")
     console.print("  [bold]circuit-breaker[/bold]      Show or reset circuit breaker [dim](reset)[/dim]")
     console.print("  [bold]help[/bold]               Show this help")
@@ -178,6 +181,7 @@ def handle_command(command: str, args: list) -> bool:
         "suppress": _cmd_suppress,
         "resolve": _cmd_resolve,
         "clear-resolved": _cmd_clear_resolved,
+        "purge": _cmd_purge,
         "stats": _cmd_stats,
         "circuit-breaker": _cmd_circuit_breaker,
     }
@@ -285,7 +289,10 @@ def _cmd_detail(console, args: list) -> bool:
         f"  [bold]First Seen:[/bold]      {entry.get('first_seen', '?')}",
         f"  [bold]Last Seen:[/bold]       {entry.get('last_seen', '?')}",
         f"  [bold]Log Path:[/bold]        {entry.get('log_path', 'N/A') or 'N/A'}",
-        f"  [bold]Fix Status:[/bold]      [{_FIX_STATUS_COLORS.get(entry.get('source_fix_status', 'none'), 'white')}]{entry.get('source_fix_status', 'none')}[/{_FIX_STATUS_COLORS.get(entry.get('source_fix_status', 'none'), 'white')}]",
+        f"  [bold]Fix Status:[/bold]      "
+        f"[{_FIX_STATUS_COLORS.get(entry.get('source_fix_status', 'none'), 'white')}]"
+        f"{entry.get('source_fix_status', 'none')}"
+        f"[/{_FIX_STATUS_COLORS.get(entry.get('source_fix_status', 'none'), 'white')}]",
     ]
     if entry.get("suppress_reason"):
         lines.append(f"  [bold]Suppress Reason:[/bold] {entry['suppress_reason']}")
@@ -367,6 +374,16 @@ def _cmd_clear_resolved(console, args: list) -> bool:
         console.print(f"[green]Cleared {removed} resolved error(s)[/green] older than {days} days")
     else:
         console.print(f"[dim]No resolved errors older than {days} days to clear[/dim]")
+    return True
+
+
+def _cmd_purge(console, args: list) -> bool:
+    """Purge entries older than N days. Usage: purge [--days=30]"""
+    parsed = _parse_args(args)
+    days = int(parsed.get("days", "30"))
+    removed = purge_stale(days=days)
+    console.print(f"Purged {removed} entries older than {days} days")
+    json_handler.log_operation("error_purge", {"days": days, "removed": removed})
     return True
 
 

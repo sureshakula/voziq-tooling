@@ -81,6 +81,8 @@ def trigger_cls():
     Trigger._deferred_queue = []
     Trigger._draining_deferred = False
     Trigger._log_watcher_started = False
+    Trigger._handler_failures = {}
+    Trigger._disabled_handlers = set()
     return Trigger
 
 
@@ -458,3 +460,107 @@ def test_fire_event_kwarg_always_overwritten(trigger_cls):
     assert callback != "custom_value"
     assert callable(callback)
     assert getattr(callback, "__qualname__", "") == "Trigger.fire"
+
+
+# ---------------------------------------------------------------------------
+# Tests -- per-(handler, branch) auto-disable
+# ---------------------------------------------------------------------------
+
+
+def test_handler_disabled_after_threshold_failures(trigger_cls):
+    """A handler that fails 5 times for the same branch gets disabled for that branch."""
+    fail_handler = MagicMock(side_effect=RuntimeError("boom"))
+    trigger_cls.on("error_detected", fail_handler)
+
+    for _ in range(trigger_cls._HANDLER_FAILURE_THRESHOLD):
+        trigger_cls.fire("error_detected", branch="DRONE")
+
+    # Handler should be disabled for DRONE now
+    assert (fail_handler, "DRONE") in trigger_cls._disabled_handlers
+
+    # Fire again -- handler should NOT be called beyond the threshold invocations
+    fail_handler.reset_mock()
+    trigger_cls.fire("error_detected", branch="DRONE")
+    fail_handler.assert_not_called()
+
+
+def test_handler_disabled_for_one_branch_still_fires_for_another(trigger_cls):
+    """Disabling a handler for branch A does not disable it for branch B."""
+    call_count = 0
+
+    def flaky_handler(**kwargs):
+        """Raise only when branch is DRONE."""
+        nonlocal call_count
+        call_count += 1
+        if kwargs.get("branch") == "DRONE":
+            raise RuntimeError("noisy branch")
+
+    trigger_cls.on("error_detected", flaky_handler)
+
+    # Fail 5 times from DRONE to trigger auto-disable
+    for _ in range(trigger_cls._HANDLER_FAILURE_THRESHOLD):
+        trigger_cls.fire("error_detected", branch="DRONE")
+
+    assert (flaky_handler, "DRONE") in trigger_cls._disabled_handlers
+
+    # Fire from a different branch -- handler should still execute
+    call_count = 0
+    trigger_cls.fire("error_detected", branch="MEMORY")
+
+    assert call_count == 1
+    assert (flaky_handler, "MEMORY") not in trigger_cls._disabled_handlers
+
+
+def test_handler_failure_count_resets_on_success(trigger_cls):
+    """A successful call resets the failure counter for that (handler, branch)."""
+    attempt = 0
+
+    def sometimes_fails(**kwargs):
+        """Raise on the first 3 attempts, succeed on the 4th."""
+        nonlocal attempt
+        attempt += 1
+        if attempt <= 3:
+            raise RuntimeError("transient")
+
+    trigger_cls.on("check", sometimes_fails)
+
+    # Fail 3 times
+    for _ in range(3):
+        trigger_cls.fire("check", branch="API")
+
+    assert trigger_cls._handler_failures.get((sometimes_fails, "API")) == 3
+
+    # Succeed once -- counter should reset
+    trigger_cls.fire("check", branch="API")
+    assert (sometimes_fails, "API") not in trigger_cls._handler_failures
+
+
+def test_handler_failure_uses_global_when_no_branch(trigger_cls):
+    """When no branch is in data, the key uses '__global__' as the branch."""
+    fail_handler = MagicMock(side_effect=RuntimeError("boom"))
+    trigger_cls.on("some_event", fail_handler)
+
+    trigger_cls.fire("some_event")
+
+    assert (fail_handler, "__global__") in trigger_cls._handler_failures
+
+
+def test_different_branches_have_independent_failure_counts(trigger_cls):
+    """Failure counts are tracked independently per branch."""
+    fail_handler = MagicMock(side_effect=RuntimeError("boom"))
+    trigger_cls.on("error_detected", fail_handler)
+
+    # Fail 3 times from DRONE
+    for _ in range(3):
+        trigger_cls.fire("error_detected", branch="DRONE")
+
+    # Fail 2 times from MEMORY
+    for _ in range(2):
+        trigger_cls.fire("error_detected", branch="MEMORY")
+
+    assert trigger_cls._handler_failures[(fail_handler, "DRONE")] == 3
+    assert trigger_cls._handler_failures[(fail_handler, "MEMORY")] == 2
+
+    # Neither should be disabled yet (threshold is 5)
+    assert (fail_handler, "DRONE") not in trigger_cls._disabled_handlers
+    assert (fail_handler, "MEMORY") not in trigger_cls._disabled_handlers

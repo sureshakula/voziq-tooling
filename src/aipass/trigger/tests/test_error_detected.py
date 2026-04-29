@@ -332,6 +332,30 @@ class TestHandleErrorDetectedHappyPath:
             fingerprint="fpX",
         )
 
+    def test_does_not_record_dispatch_when_send_fails(self) -> None:
+        """When _send_email returns False, dispatch is not recorded."""
+        mod = _import_module()
+        send = _setup_happy_path(mod)
+        send.return_value = False
+        from aipass.trigger.apps.handlers.json import json_handler
+
+        json_handler.log_operation.reset_mock()  # type: ignore[union-attr]
+
+        mod.handle_error_detected(
+            branch="flow",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_fail",
+        )
+
+        # Email was attempted
+        send.assert_called_once()
+        # But nothing after it should have run
+        json_handler.log_operation.assert_not_called()  # type: ignore[union-attr]
+        mod.registry_record_dispatch.assert_not_called()  # type: ignore[attr-defined]
+
 
 # ---------------------------------------------------------------------------
 # Fallback stubs (when error_registry import fails)

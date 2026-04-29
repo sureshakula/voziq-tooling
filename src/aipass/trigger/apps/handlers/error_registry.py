@@ -776,6 +776,40 @@ def clear_resolved(days: int = 7) -> int:
         return 0
 
 
+def purge_stale(days: int = 30) -> int:
+    """Remove entries whose last_seen is older than N days regardless of status.
+
+    Args:
+        days: Age threshold in days (default: 30)
+
+    Returns:
+        Count of removed entries
+    """
+    try:
+        registry = _load_registry()
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+        removed = 0
+
+        fingerprints_to_remove = []
+        for fp, entry in registry["errors"].items():
+            last_seen = entry.get("last_seen", "")
+            if last_seen and last_seen < cutoff:
+                fingerprints_to_remove.append(fp)
+
+        for fp in fingerprints_to_remove:
+            del registry["errors"][fp]
+            removed += 1
+
+        if removed > 0:
+            _save_registry(registry)
+
+        return removed
+
+    except Exception as exc:
+        logger.warning("Failed to purge stale entries: %s", exc)
+        return 0
+
+
 def get_stats() -> dict:
     """Get summary statistics from the error registry.
 

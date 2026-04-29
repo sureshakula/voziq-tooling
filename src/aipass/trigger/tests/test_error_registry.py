@@ -920,3 +920,95 @@ class TestEmptyJsonResilience:
         assert isinstance(result, dict)
         assert result["is_new"] is True
         assert result["count"] == 1
+
+
+# ===========================================================================
+# 16. purge_stale
+# ===========================================================================
+
+
+def test_purge_stale_removes_old_entries(tmp_path: Path) -> None:
+    """purge_stale removes entries older than N days regardless of status."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+
+    er.report("ImportError", "old error", "FLOW")
+    er.report("IOError", "another old error", "BACKUP")
+
+    # Backdate last_seen to 60 days ago
+    registry_file = tmp_path / "trigger_json" / "error_registry.json"
+    data = json.loads(registry_file.read_text(encoding="utf-8"))
+    for entry in data["errors"].values():
+        entry["last_seen"] = "2025-01-01T00:00:00"
+    registry_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    removed = er.purge_stale(days=30)
+    assert removed == 2
+
+    data_after = json.loads(registry_file.read_text(encoding="utf-8"))
+    assert len(data_after["errors"]) == 0
+
+
+def test_purge_stale_keeps_recent_entries(tmp_path: Path) -> None:
+    """purge_stale keeps entries newer than the cutoff."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+
+    er.report("ImportError", "recent error", "FLOW")
+
+    # last_seen is set to now by report(), so it should survive a 30-day cutoff
+    removed = er.purge_stale(days=30)
+    assert removed == 0
+
+
+def test_purge_stale_ignores_status(tmp_path: Path) -> None:
+    """purge_stale removes old entries regardless of status (new, suppressed, etc.)."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+
+    er.report("ImportError", "old new error", "FLOW")
+    r2 = er.report("IOError", "old suppressed error", "BACKUP")
+    er.update_status(r2["fingerprint"], "suppressed", reason="known")
+
+    # Backdate both entries
+    registry_file = tmp_path / "trigger_json" / "error_registry.json"
+    data = json.loads(registry_file.read_text(encoding="utf-8"))
+    for entry in data["errors"].values():
+        entry["last_seen"] = "2025-01-01T00:00:00"
+    registry_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    removed = er.purge_stale(days=30)
+    assert removed == 2
+
+
+def test_purge_stale_returns_zero_on_empty_registry(tmp_path: Path) -> None:
+    """purge_stale returns 0 when registry is empty."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+
+    removed = er.purge_stale(days=30)
+    assert removed == 0
+
+
+def test_purge_stale_custom_days(tmp_path: Path) -> None:
+    """purge_stale respects custom days parameter."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+
+    er.report("ImportError", "semi-old error", "FLOW")
+
+    # Backdate to 10 days ago
+    registry_file = tmp_path / "trigger_json" / "error_registry.json"
+    data = json.loads(registry_file.read_text(encoding="utf-8"))
+    from datetime import datetime, timedelta
+
+    ten_days_ago = (datetime.now() - timedelta(days=10)).isoformat()
+    for entry in data["errors"].values():
+        entry["last_seen"] = ten_days_ago
+    registry_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    # 30-day cutoff should keep it
+    assert er.purge_stale(days=30) == 0
+
+    # 7-day cutoff should remove it
+    assert er.purge_stale(days=7) == 1

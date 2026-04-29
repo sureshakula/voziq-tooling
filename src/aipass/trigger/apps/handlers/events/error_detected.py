@@ -512,7 +512,7 @@ def handle_error_detected(
         )
 
         # Send via callback (set by module layer, trigger isn't a branch so PWD detection fails)
-        _send_email(
+        sent = _send_email(
             to_branch=recipient,
             subject=email_subject,
             message=notification_message,
@@ -520,6 +520,10 @@ def handle_error_detected(
             reply_to="@devpulse",
             from_branch="@trigger",
         )
+
+        if not sent:
+            _log_warning(f"Email delivery failed for {recipient} (fingerprint={fingerprint})")
+            return
 
         # Wake the target branch so the email is processed immediately
         try:

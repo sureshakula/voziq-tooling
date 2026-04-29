@@ -48,8 +48,8 @@ class Trigger:
     _deferred_queue = []  # Queue for events fired during handling
     _draining_deferred = False  # Prevents nested deferred processing
     _log_watcher_started = False  # Lazy-start flag for log watcher
-    _handler_failures = {}  # handler -> consecutive failure count
-    _disabled_handlers = set()  # handlers auto-disabled after repeated failures
+    _handler_failures = {}  # (handler, branch) -> consecutive failure count
+    _disabled_handlers = set()  # (handler, branch) tuples auto-disabled
     _HANDLER_FAILURE_THRESHOLD = 5  # consecutive failures before auto-disable
 
     @classmethod
@@ -102,20 +102,22 @@ class Trigger:
         handlers = cls._handlers.get(event, [])
         data = dict(data)  # Copy to avoid mutating caller's dict
         data["fire_event"] = cls.fire
+        branch = data.get("branch", "__global__")
         for handler in handlers:
-            if handler in cls._disabled_handlers:
+            key = (handler, branch)
+            if key in cls._disabled_handlers:
                 continue
             try:
                 handler(**data)
-                cls._handler_failures.pop(handler, None)  # Reset on success
+                cls._handler_failures.pop(key, None)  # Reset on success
             except Exception as e:
-                count = cls._handler_failures.get(handler, 0) + 1
-                cls._handler_failures[handler] = count
+                count = cls._handler_failures.get(key, 0) + 1
+                cls._handler_failures[key] = count
                 if count >= cls._HANDLER_FAILURE_THRESHOLD:
-                    cls._disabled_handlers.add(handler)
+                    cls._disabled_handlers.add(key)
                     logger.error(
                         f"[TRIGGER] Handler {getattr(handler, '__name__', handler)} "
-                        f"disabled after {count} consecutive failures"
+                        f"disabled for branch '{branch}' after {count} consecutive failures"
                     )
                 else:
                     logger.error(f"[TRIGGER] Handler error for {event}: {e}")

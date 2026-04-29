@@ -423,6 +423,57 @@
       "standard": "architecture",
       "pattern": "3-layer structure",
       "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_error_detected.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_error_detected.py",
+      "standard": "encapsulation",
+      "lines": [72],
+      "pattern": "handler imported directly",
+      "reason": "Test helper _import_module() must import the handler module directly to test it. All trigger test files follow this pattern."
+    },
+    {
+      "file": "tests/test_event_handlers.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_event_handlers.py",
+      "standard": "encapsulation",
+      "lines": [51],
+      "pattern": "handler imported directly",
+      "reason": "Test helper _import_cli() must import the handler module directly to test it. All trigger test files follow this pattern."
+    },
+    {
+      "file": "tests/test_core.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_core.py",
+      "standard": "documentation",
+      "pattern": "public functions missing docstrings",
+      "reason": "Test helper functions (capture_handler, etc.) are internal test utilities, not public API. Docstrings on test fixtures add noise without value."
+    },
+    {
+      "file": "tests/test_error_registry.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_error_registry.py",
+      "standard": "encapsulation",
+      "lines": [63],
+      "pattern": "handler imported directly",
+      "reason": "Test helper _import_registry() must import the handler module directly to test it. All trigger test files follow this pattern."
     }
   ],
   "notes": {
