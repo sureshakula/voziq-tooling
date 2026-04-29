@@ -82,6 +82,11 @@
       "reason": "Same-branch cross-handler import (allowed per architecture standard). Diagnostics handler imports bypass/ignore_handler for audit ignore patterns."
     },
     {
+      "file": "apps/handlers/aipass_standards/",
+      "standard": "handlers",
+      "reason": "All 33 checkers import is_bypassed from bypass/utils.py — shared utility extracted from 33 duplicate copies (DPLAN-0159 A2). Same-branch cross-handler import, intentional."
+    },
+    {
       "file": "apps/handlers/aipass_standards/cli_check.py",
       "standard": "debug_print",
       "reason": "print() appears in string patterns/regex, not as executable code"

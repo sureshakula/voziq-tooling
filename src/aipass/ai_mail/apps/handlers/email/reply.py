@@ -164,6 +164,30 @@ def send_reply(from_branch_path: Path, original_email: Dict, reply_message: str)
     return True, f"Reply sent to {reply_destination}, original closed", reply_id
 
 
+def _validate_reply_path(reply_path: str) -> Tuple[bool, str]:
+    """Validate that reply_path points to a legitimate inbox.json.
+
+    Checks: (a) path resolves, (b) ends with .ai_mail.local/inbox.json,
+    (c) an AIPASS_REGISTRY.json exists in an ancestor directory.
+    """
+    try:
+        path = Path(reply_path).resolve()
+    except (OSError, ValueError) as e:
+        logger.warning("[reply] _validate_reply_path resolution failed: %s", e)
+        return False, f"Path resolution failed: {e}"
+
+    if path.name != "inbox.json" or path.parent.name != ".ai_mail.local":
+        return False, f"Path does not end with .ai_mail.local/inbox.json: {path}"
+
+    for parent in path.parents:
+        if (parent / "AIPASS_REGISTRY.json").exists():
+            return True, ""
+        if parent == parent.parent:
+            break
+
+    return False, f"No AIPASS_REGISTRY.json found in ancestors of {path}"
+
+
 def _deliver_via_reply_path(
     reply_path: str,
     reply_email_data: Dict,
@@ -185,7 +209,12 @@ def _deliver_via_reply_path(
     Returns:
         Tuple of (success, message, reply_id or None)
     """
-    inbox_file = Path(reply_path)
+    valid, reason = _validate_reply_path(reply_path)
+    if not valid:
+        logger.warning("[reply] reply_path rejected: %s", reason)
+        return False, f"Invalid reply_path: {reason}", None
+
+    inbox_file = Path(reply_path).resolve()
     success, error_msg, reply_id = deliver_to_inbox_file(inbox_file, reply_email_data)
     if not success:
         logger.warning("[reply] _deliver_via_reply_path failed for %s: %s", reply_path, error_msg)

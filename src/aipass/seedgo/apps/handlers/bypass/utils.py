@@ -1,0 +1,52 @@
+# =================== AIPass ====================
+# Name: utils.py
+# Description: Shared bypass checking utility for standards checkers
+# Version: 1.0.0
+# Created: 2026-04-27
+# Modified: 2026-04-27
+# =============================================
+
+"""Shared bypass checking utility for standards checkers."""
+
+from aipass.seedgo.apps.handlers.json import json_handler
+
+
+def is_bypassed(
+    file_path: str,
+    standard: str,
+    line: int | None = None,
+    bypass_rules: list | None = None,
+) -> bool:
+    """Check if a violation should be bypassed.
+
+    Args:
+        file_path: Path to the file being checked
+        standard: Standard name (e.g., 'cli', 'imports')
+        line: Optional specific line number of the violation
+        bypass_rules: List of bypass rules from .seedgo/bypass.json
+
+    Returns:
+        True if this violation should be bypassed
+    """
+    if not bypass_rules:
+        return False
+    for rule in bypass_rules:
+        if rule.get("standard") and rule.get("standard") != standard:
+            continue
+        rule_file = rule.get("file", "")
+        if rule_file and rule_file not in file_path:
+            continue
+        rule_lines = rule.get("lines", [])
+        if rule_lines and line is not None and line not in rule_lines:
+            continue
+        json_handler.log_operation(
+            "bypass_matched",
+            {
+                "file": file_path,
+                "standard": standard,
+                "line": line,
+                "rule_file": rule_file,
+            },
+        )
+        return True
+    return False

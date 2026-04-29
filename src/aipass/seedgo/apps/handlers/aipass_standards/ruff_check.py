@@ -31,23 +31,10 @@ from typing import Dict
 
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
+from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
 
 AUDIT_SCOPE = "branch_level"
 ADVISORY = True
-
-
-def is_bypassed(file_path: str, standard: str, bypass_rules: list | None = None) -> bool:
-    """Check if a violation should be bypassed via standard bypass.json rules."""
-    if not bypass_rules:
-        return False
-    for rule in bypass_rules:
-        if rule.get("standard") and rule.get("standard") != standard:
-            continue
-        rule_file = rule.get("file", "")
-        if rule_file and rule_file not in file_path:
-            continue
-        return True
-    return False
 
 
 def _load_ruff_bypass(branch_path: Path) -> list:

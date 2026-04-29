@@ -201,28 +201,45 @@ def is_kill_switch_active(config: Dict[str, Any]) -> bool:
 
 
 def _write_pid_file() -> bool:
-    """Write current PID to daemon.pid. Returns False if another daemon is running."""
-    if DAEMON_PID_FILE.exists():
-        try:
-            old_pid = int(DAEMON_PID_FILE.read_text().strip())
-            try:
-                os.kill(old_pid, 0)
-                # Process exists — another daemon is running
-                logger.info(f"Another daemon already running (PID {old_pid}). Exiting.")
-                return False
-            except ProcessLookupError:
-                # Stale PID file — process is dead, we can take over
-                logger.info(f"Removing stale PID file (PID {old_pid} is dead)")
-            except PermissionError:
-                # Process exists but we can't signal it
-                logger.info(f"Another daemon already running (PID {old_pid}, permission denied). Exiting.")
-                return False
-        except (ValueError, OSError):
-            logger.info("Corrupt PID file — removing")
-
+    """Write current PID to daemon.pid atomically. Returns False if another daemon is running."""
     DAEMON_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-    DAEMON_PID_FILE.write_text(str(os.getpid()))
-    return True
+    try:
+        fd = os.open(str(DAEMON_PID_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        try:
+            os.write(fd, str(os.getpid()).encode("utf-8"))
+        finally:
+            os.close(fd)
+        return True
+    except FileExistsError:
+        logger.info("[daemon] PID file already exists, checking owner")
+
+    # PID file exists — check if the owning process is alive
+    try:
+        old_pid = int(DAEMON_PID_FILE.read_text().strip())
+        try:
+            os.kill(old_pid, 0)
+            logger.info(f"Another daemon already running (PID {old_pid}). Exiting.")
+            return False
+        except ProcessLookupError:
+            logger.info(f"Removing stale PID file (PID {old_pid} is dead)")
+        except PermissionError:
+            logger.info(f"Another daemon already running (PID {old_pid}, permission denied). Exiting.")
+            return False
+    except (ValueError, OSError):
+        logger.info("Corrupt PID file — removing")
+
+    # Stale or corrupt — remove and retry atomically
+    DAEMON_PID_FILE.unlink(missing_ok=True)
+    try:
+        fd = os.open(str(DAEMON_PID_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        try:
+            os.write(fd, str(os.getpid()).encode("utf-8"))
+        finally:
+            os.close(fd)
+        return True
+    except FileExistsError:
+        logger.info("Another daemon raced us for the PID file. Exiting.")
+        return False
 
 
 def _remove_pid_file() -> None:
@@ -243,6 +260,17 @@ def get_registered_branches() -> list:
     if data is None:
         return []
     return data.get("branches", [])
+
+
+def _is_registered_sender(sender: str) -> bool:
+    """Check if sender email exists in the branch registry (DPLAN-0159 S2)."""
+    registry = _read_json(BRANCH_REGISTRY)
+    if registry is None:
+        return True  # fail open if registry unreadable
+    for branch in registry.get("branches", []):
+        if branch.get("email") == sender:
+            return True
+    return False
 
 
 def check_inbox_for_dispatch(branch_path: Path) -> Optional[Dict[str, Any]]:
@@ -310,6 +338,10 @@ def spawn_agent(
     sender = message.get("from", "unknown")
     subject = message.get("subject", "")
     max_turns = config.get("max_turns_per_wake", 100)
+
+    if message.get("auto_execute") and not _is_registered_sender(sender):
+        logger.warning("[daemon] Dispatch from unregistered sender %s — rejecting", sender)
+        return False
 
     lock_file_path = str(branch_path / ".ai_mail.local" / ".dispatch.lock")
 

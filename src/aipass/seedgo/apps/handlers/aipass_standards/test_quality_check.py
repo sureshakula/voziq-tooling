@@ -28,6 +28,7 @@ from pathlib import Path
 
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
+from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
 
 AUDIT_SCOPE = "branch_level"
 
@@ -173,28 +174,6 @@ TOTAL_ITEMS = _PATTERN_ITEMS + _MODULE_COVERAGE_ITEMS
 # =============================================
 # BYPASS HELPER
 # =============================================
-
-
-def is_bypassed(
-    file_path: str,
-    standard: str,
-    line: int | None = None,
-    bypass_rules: list | None = None,
-) -> bool:
-    """Check if a violation should be bypassed."""
-    if not bypass_rules:
-        return False
-    for rule in bypass_rules:
-        if rule.get("standard") and rule.get("standard") != standard:
-            continue
-        rule_file = rule.get("file", "")
-        if rule_file and rule_file not in file_path:
-            continue
-        rule_lines = rule.get("lines", [])
-        if rule_lines and line is not None and line not in rule_lines:
-            continue
-        return True
-    return False
 
 
 # =============================================
