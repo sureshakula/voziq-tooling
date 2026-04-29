@@ -773,6 +773,7 @@ from aipass.ai_mail.apps.handlers.dispatch.daemon import (
     _handle_signal,
     _check_lock,
     _acquire_lock,
+    _is_registered_sender,
     poll_cycle,
     _write_pid_file,
     _remove_pid_file,
@@ -1773,3 +1774,170 @@ def test_poll_cycle_spawn_failure_not_counted(tmp_path, monkeypatch):
         result = poll_cycle(config, state)
 
     assert result == 0
+
+
+# ---- _is_registered_sender tests (DPLAN-0159 S2) ----------------
+
+
+def test_is_registered_sender_found(tmp_path, monkeypatch):
+    """Registered sender returns True."""
+    registry = {"branches": [{"email": "@flow"}, {"email": "@backup"}]}
+    reg_file = tmp_path / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+
+    assert _is_registered_sender("@flow") is True
+
+
+def test_is_registered_sender_not_found(tmp_path, monkeypatch):
+    """Unregistered sender returns False."""
+    registry = {"branches": [{"email": "@flow"}]}
+    reg_file = tmp_path / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+
+    assert _is_registered_sender("@evil") is False
+
+
+def test_is_registered_sender_missing_registry(tmp_path, monkeypatch):
+    """Missing registry fails open (returns True)."""
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", tmp_path / "missing.json")
+
+    assert _is_registered_sender("@anyone") is True
+
+
+def test_is_registered_sender_empty_branches(tmp_path, monkeypatch):
+    """Empty branches list returns False for any sender."""
+    registry = {"branches": []}
+    reg_file = tmp_path / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+
+    assert _is_registered_sender("@flow") is False
+
+
+# ---- spawn_agent sender auth tests (DPLAN-0159 S2) ----------------
+
+
+def test_spawn_agent_rejects_unregistered_auto_execute(tmp_path, monkeypatch):
+    """Auto-execute dispatch from unregistered sender is rejected."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+
+    registry = {"branches": [{"email": "@flow"}]}
+    reg_file = tmp_path / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+
+    message = {"from": "@forged", "id": "msg1", "subject": "Fake", "auto_execute": True}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    result = spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    assert result is False
+
+
+def test_spawn_agent_allows_registered_auto_execute(tmp_path, monkeypatch):
+    """Auto-execute dispatch from registered sender proceeds to spawn."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    registry = {"branches": [{"email": "@devpulse"}, {"email": "@flow"}]}
+    reg_file = tmp_path / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+
+    message = {"from": "@devpulse", "id": "msg1", "subject": "Task", "auto_execute": True}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    mock_process = MagicMock()
+    mock_process.pid = 54321
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            return_value=mock_process,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        result = spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    assert result is True
+
+
+def test_spawn_agent_no_auth_check_without_auto_execute(tmp_path, monkeypatch):
+    """Non-auto_execute email skips sender auth check."""
+    branch_path = tmp_path / "branch"
+    branch_path.mkdir()
+    (branch_path / "logs").mkdir()
+
+    registry = {"branches": []}
+    reg_file = tmp_path / "AIPASS_REGISTRY.json"
+    reg_file.write_text(json.dumps(registry), encoding="utf-8")
+    monkeypatch.setattr(daemon_mod, "BRANCH_REGISTRY", reg_file)
+
+    message = {"from": "@unknown", "id": "msg1", "subject": "Manual"}
+    config = {"max_turns_per_wake": 50}
+    state = {"daily_counts": {}, "session_cycles": {}}
+
+    mock_process = MagicMock()
+    mock_process.pid = 54321
+
+    with (
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.subprocess.Popen",
+            return_value=mock_process,
+        ),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon._acquire_lock",
+            return_value=(True, "Lock acquired"),
+        ),
+        patch("aipass.ai_mail.apps.handlers.dispatch.daemon.log_dispatch"),
+        patch(
+            "aipass.ai_mail.apps.handlers.dispatch.daemon.send_notification",
+            create=True,
+        ),
+    ):
+        result = spawn_agent(branch_path, "@testbranch", message, config, state)
+
+    assert result is True
+
+
+# ---- _write_pid_file atomic tests (DPLAN-0159 S5) ----------------
+
+
+def test_write_pid_file_atomic_no_existing(tmp_path, monkeypatch):
+    """Atomic creation succeeds when no PID file exists."""
+    pid_file = tmp_path / "daemon.pid"
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    result = _write_pid_file()
+
+    assert result is True
+    assert pid_file.exists()
+    assert int(pid_file.read_text().strip()) == os.getpid()
+
+
+def test_write_pid_file_atomic_race_second_loses(tmp_path, monkeypatch):
+    """Second daemon loses the race when both try O_CREAT|O_EXCL."""
+    pid_file = tmp_path / "daemon.pid"
+    monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
+
+    # First daemon wins
+    pid_file.write_text(str(os.getpid()), encoding="utf-8")
+
+    # Second daemon: file exists, owner is alive → returns False
+    result = _write_pid_file()
+
+    assert result is False

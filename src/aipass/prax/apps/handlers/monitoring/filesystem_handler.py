@@ -130,8 +130,20 @@ class MonitoringFileHandler(FileSystemEventHandler):
             return f"⚡ Bash: {desc[:120]}"
         if tool_name in ("Grep", "Glob"):
             return f"🔍 {tool_name}: {inp.get('pattern', '')[:80]}"
-        if tool_name == "Task":
+        if tool_name in ("Task", "Agent"):
             return f"🚀 Agent: {inp.get('description', '')[:80]}"
+        if tool_name == "WebFetch":
+            return f"🌐 WebFetch: {inp.get('url', '')[:80]}"
+        if tool_name == "WebSearch":
+            return f"🔍 WebSearch: {inp.get('query', '')[:80]}"
+        if tool_name == "Monitor":
+            return f"⚡ Monitor: {inp.get('command', '')[:120]}"
+        if tool_name == "Skill":
+            return f"🎯 Skill: {inp.get('skill', '')[:80]}"
+        if tool_name == "NotebookEdit":
+            fp = inp.get("notebook_path", "")
+            short = fp.split("/")[-1] if "/" in fp else fp
+            return f"🔧 NotebookEdit: {short}"
         return f"🔧 {tool_name}"
 
     @staticmethod
