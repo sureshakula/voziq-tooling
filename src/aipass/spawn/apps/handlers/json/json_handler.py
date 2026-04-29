@@ -14,6 +14,8 @@ for the three-JSON system (config, data, log).
 
 import inspect
 import json
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -42,10 +44,24 @@ def read_json(file_path: Path) -> Optional[dict]:
 
 
 def write_json(file_path: Path, data: Any, indent: int = 2) -> bool:
-    """Write data to a JSON file."""
+    """Write data to a JSON file atomically (temp file + os.replace)."""
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(json.dumps(data, indent=indent) + "\n", encoding="utf-8")
+        content = json.dumps(data, indent=indent) + "\n"
+        fd, tmp_path = tempfile.mkstemp(dir=file_path.parent, suffix=".tmp")
+        closed = False
+        try:
+            os.write(fd, content.encode("utf-8"))
+            os.fsync(fd)
+            os.close(fd)
+            closed = True
+            os.replace(tmp_path, file_path)
+        except BaseException:
+            if not closed:
+                os.close(fd)
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
         return True
     except OSError as e:
         logger.error("Failed to write JSON to %s: %s", file_path, e)

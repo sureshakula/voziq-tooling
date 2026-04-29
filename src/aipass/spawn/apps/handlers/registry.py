@@ -8,6 +8,7 @@
 
 """*_REGISTRY.json discovery and CRUD operations."""
 
+import fcntl
 import os
 from datetime import datetime
 from pathlib import Path
@@ -161,9 +162,25 @@ def get_next_citizen_number(registry_path):
     return len(_branches_as_list(branches)) + 1
 
 
+def _validate_path_containment(branch_path, registry_path):
+    """Reject paths that escape the project root (directory containing the registry)."""
+    registry_root = Path(registry_path).resolve().parent
+    bp = Path(branch_path)
+    resolved = (registry_root / bp).resolve() if not bp.is_absolute() else bp.resolve()
+    try:
+        resolved.relative_to(registry_root)
+        return True
+    except ValueError:
+        logger.warning("[registry] Path %s is outside project root %s", resolved, registry_root)
+        return False
+
+
 def add_to_registry(registry_path, branch_name, branch_path, profile, email, purpose=""):
     """
     Add a new branch entry to the registry.
+
+    Uses file locking (fcntl.LOCK_EX) around the entire read-modify-write
+    cycle to prevent corruption from concurrent spawns.
 
     Args:
         registry_path: Path to AIPASS_REGISTRY.json
@@ -176,41 +193,54 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
     Returns:
         True if added, False if already exists or error
     """
-    registry = load_registry(registry_path)
-    branches = registry.get("branches", [])
+    registry_path = Path(registry_path)
 
-    # Check for duplicates — handle both dict and list formats
-    if isinstance(branches, dict):
-        if branch_name in branches:
-            return False
-    else:
-        for branch in branches:
-            if branch.get("name") == branch_name:
+    if not _validate_path_containment(branch_path, registry_path):
+        logger.error("[registry] Path containment violation: %s escapes project root", branch_path)
+        return False
+
+    lock_path = registry_path.parent / f".{registry_path.stem}.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = open(lock_path, "w", encoding="utf-8")  # noqa: SIM115
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+        registry = load_registry(registry_path)
+        branches = registry.get("branches", [])
+
+        if isinstance(branches, dict):
+            if branch_name in branches:
                 return False
+        else:
+            for branch in branches:
+                if branch.get("name") == branch_name:
+                    return False
 
-    today = datetime.now().strftime("%Y-%m-%d")
-    entry = {
-        "name": branch_name,
-        "path": str(branch_path),
-        "profile": profile,
-        "description": purpose or "New agent - purpose TBD",
-        "email": email,
-        "status": "active",
-        "created": today,
-        "last_active": today,
-    }
+        today = datetime.now().strftime("%Y-%m-%d")
+        entry = {
+            "name": branch_name,
+            "path": str(branch_path),
+            "profile": profile,
+            "description": purpose or "New agent - purpose TBD",
+            "email": email,
+            "status": "active",
+            "created": today,
+            "last_active": today,
+        }
 
-    # Add entry — handle both dict and list formats
-    if isinstance(branches, dict):
-        branches[branch_name] = entry
-    else:
-        branches.append(entry)
-    registry["branches"] = branches
-    registry["metadata"]["total_branches"] = len(_branches_as_list(branches))
+        if isinstance(branches, dict):
+            branches[branch_name] = entry
+        else:
+            branches.append(entry)
+        registry["branches"] = branches
+        registry["metadata"]["total_branches"] = len(_branches_as_list(branches))
 
-    json_handler.log_operation("registry_updated", data={"branch": branch_name})
+        json_handler.log_operation("registry_updated", data={"branch": branch_name})
 
-    return save_registry(registry_path, registry)
+        return save_registry(registry_path, registry)
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        lock_fd.close()
 
 
 def fix_passport_registry_id(branch_dir: Path, registry_path: Path) -> bool:

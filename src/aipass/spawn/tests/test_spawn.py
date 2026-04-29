@@ -20,7 +20,13 @@ from aipass.spawn.apps.handlers.placeholders import (
     replace_placeholders,
     validate_no_placeholders,
 )
-from aipass.spawn.apps.handlers.registry import load_registry, add_to_registry, save_registry, get_next_citizen_number
+from aipass.spawn.apps.handlers.registry import (
+    load_registry,
+    add_to_registry,
+    save_registry,
+    get_next_citizen_number,
+    _validate_path_containment,
+)
 
 
 @pytest.fixture
@@ -78,16 +84,20 @@ class TestRegistry:
         assert data["metadata"]["total_branches"] == 0
         assert data["branches"] == []
 
-    def test_add_and_load(self, tmp_registry):
-        result = add_to_registry(tmp_registry, "TEST", "/tmp/test", "Workshop", "@test", "A test")
+    def test_add_and_load(self, tmp_path, tmp_registry):
+        branch_path = tmp_path / "test"
+        branch_path.mkdir()
+        result = add_to_registry(tmp_registry, "TEST", str(branch_path), "Workshop", "@test", "A test")
         assert result is True
         data = load_registry(tmp_registry)
         assert len(data["branches"]) == 1
         assert data["branches"][0]["name"] == "TEST"
 
-    def test_no_duplicates(self, tmp_registry):
-        add_to_registry(tmp_registry, "X", "/tmp/x", "W", "@x")
-        result = add_to_registry(tmp_registry, "X", "/tmp/x", "W", "@x")
+    def test_no_duplicates(self, tmp_path, tmp_registry):
+        branch_path = tmp_path / "x"
+        branch_path.mkdir()
+        add_to_registry(tmp_registry, "X", str(branch_path), "W", "@x")
+        result = add_to_registry(tmp_registry, "X", str(branch_path), "W", "@x")
         assert result is False
 
 
@@ -220,3 +230,48 @@ class TestGetNextCitizenNumber:
     def test_missing_registry(self, tmp_path):
         reg_path = tmp_path / "NONEXISTENT_REGISTRY.json"
         assert get_next_citizen_number(reg_path) == 1
+
+
+class TestPathContainment:
+    """Tests for _validate_path_containment()."""
+
+    def test_contained_path_accepted(self, tmp_path):
+        reg = tmp_path / "TEST_REGISTRY.json"
+        branch = tmp_path / "my_agent"
+        assert _validate_path_containment(str(branch), reg) is True
+
+    def test_escaped_path_rejected(self, tmp_path):
+        reg = tmp_path / "TEST_REGISTRY.json"
+        assert _validate_path_containment("/tmp/evil", reg) is False
+
+    def test_traversal_attack_rejected(self, tmp_path):
+        reg = tmp_path / "TEST_REGISTRY.json"
+        branch = str(tmp_path / ".." / ".." / "tmp" / "evil")
+        assert _validate_path_containment(branch, reg) is False
+
+
+class TestAtomicWriteAndLocking:
+    """Tests for atomic writes and file locking in registry operations."""
+
+    def test_add_to_registry_creates_lock_file(self, tmp_path):
+        reg = tmp_path / "TEST_REGISTRY.json"
+        branch = tmp_path / "agent_a"
+        branch.mkdir()
+        add_to_registry(reg, "AGENT_A", str(branch), "W", "@a")
+        lock = tmp_path / ".TEST_REGISTRY.lock"
+        assert lock.exists()
+
+    def test_atomic_write_not_corrupted(self, tmp_path):
+        reg = tmp_path / "TEST_REGISTRY.json"
+        branch = tmp_path / "agent_b"
+        branch.mkdir()
+        add_to_registry(reg, "AGENT_B", str(branch), "W", "@b")
+        data = json.loads(reg.read_text())
+        assert data["branches"][0]["name"] == "AGENT_B"
+
+    def test_path_containment_blocks_add(self, tmp_path):
+        reg = tmp_path / "TEST_REGISTRY.json"
+        result = add_to_registry(reg, "EVIL", "/tmp/evil", "W", "@evil")
+        assert result is False
+        data = json.loads(reg.read_text()) if reg.exists() else {"branches": []}
+        assert len(data.get("branches", [])) == 0

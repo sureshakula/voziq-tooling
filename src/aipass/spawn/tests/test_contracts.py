@@ -45,7 +45,7 @@ class TestExceptionContracts:
     def test_invalid_write_caught(self, tmp_path):
         """write_json catches OSError and returns False, never raises."""
         f = tmp_path / "test.json"
-        with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+        with patch("os.write", side_effect=OSError("disk full")):
             result = write_json(f, {"data": True})
         assert result is False
 
