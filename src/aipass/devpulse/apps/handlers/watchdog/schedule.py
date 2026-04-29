@@ -116,16 +116,17 @@ def format_wait(target: datetime, now: datetime) -> str:
 
 
 def _run_command(command: str) -> dict:
-    """Execute ``command`` via the shell, capturing stdout/stderr/exit code.
+    """Execute ``command``, capturing stdout/stderr/exit code.
 
     Never raises on non-zero exit — the caller wants the exit code, not an
     exception. FileNotFoundError / OSError are caught and mapped to a
     non-zero synthetic exit code so callers always get a stable shape.
     """
+    import shlex
+
     try:
         completed = subprocess.run(
-            command,
-            shell=True,
+            shlex.split(command),
             capture_output=True,
             text=True,
             check=False,
