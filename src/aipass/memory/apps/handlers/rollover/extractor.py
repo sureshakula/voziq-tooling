@@ -387,7 +387,7 @@ def extract_items(file_path: Path, percentage: int | None = None) -> Dict[str, A
     max_lines = data.get("document_metadata", {}).get("limits", {}).get("max_lines", 600)
 
     # Check if under limit
-    if current_lines <= max_lines:
+    if current_lines < max_lines:
         return {"success": True, "skipped": True, "message": f"File under limit ({current_lines}/{max_lines} lines)"}
 
     # Calculate extraction amount (simulate actual line reduction)

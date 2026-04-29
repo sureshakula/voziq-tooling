@@ -617,6 +617,41 @@ class TestExtractWithMetadata:
             assert "branch" in entry["_metadata"]
             assert "extracted_at" in entry["_metadata"]
 
+    def test_v1_extracts_at_exactly_max_lines(self, monkeypatch, tmp_path):
+        """v1 file at exactly max_lines should extract, not skip."""
+        ext, mocks = _import_extractor(monkeypatch)
+
+        observations = [
+            {"date": f"2026-01-{i:02d}", "session": i, "entries": [{"title": f"obs {i}"}]} for i in range(1, 11)
+        ]
+        data = {
+            "document_metadata": {
+                "schema_version": "1.0.0",
+                "limits": {"max_lines": 50},
+                "status": {},
+            },
+            "observations": observations,
+        }
+        file_path = tmp_path / "DEVPULSE.observations.json"
+        content = json.dumps(data, indent=2)
+        file_path.write_text(content, encoding="utf-8")
+        actual_lines = len(content.splitlines())
+
+        data["document_metadata"]["limits"]["max_lines"] = actual_lines
+
+        file_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        mocks["memory_files"].read_memory_file_data.return_value = data
+
+        def fake_write(fp, d):
+            fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
+
+        monkeypatch.setattr(ext, "_write_memory_file", fake_write)
+
+        result = ext.extract_items(file_path)
+        assert result["success"] is True
+        assert result.get("skipped") is not True
+        assert result["extracted_count"] > 0
+
     def test_skipped_result_passes_through(self, monkeypatch, tmp_path):
         """When extract_items returns skipped (under limit), extract_with_metadata passes it."""
         ext, mocks = _import_extractor(monkeypatch)
