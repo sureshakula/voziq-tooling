@@ -122,9 +122,8 @@ def print_help():
   [green]7.[/green]  [yellow]STATUS.local.md[/yellow]                 Project status
   [green]8.[/green]  [yellow].gitignore[/yellow]                      Standard AIPass ignores
   [green]9.[/green]  [yellow].claude/settings.json[/yellow]           Claude Code hooks + AIPASS_HOME
-  [green]10.[/green] [yellow]hooks/[/yellow]                          User hooks directory
-  [green]11.[/green] [yellow]src/[/yellow]                            Agent directories live here
-  [green]12.[/green] [yellow].ai_mail.local/inbox.json[/yellow]       Empty project mailbox"""
+  [green]10.[/green] [yellow]src/[/yellow]                            Agent directories live here
+  [green]11.[/green] [yellow].ai_mail.local/inbox.json[/yellow]       Empty project mailbox"""
 
     console.print(Panel(files_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
     console.print()
@@ -354,7 +353,7 @@ def _handle_init_update(args: List[str]) -> bool:
         console.print("  CLAUDE.md, AGENTS.md, GEMINI.md")
         console.print()
         console.print("[bold cyan]What is never touched:[/bold cyan]")
-        console.print("  *_REGISTRY.json, README.md, STATUS.local.md, .gitignore, hooks/, src/")
+        console.print("  *_REGISTRY.json, README.md, STATUS.local.md, .gitignore, src/")
         console.print()
         console.print("[dim]Commands: init update, init update --help[/dim]")
         console.print()
@@ -482,9 +481,8 @@ def _print_init_help():
   [green]7.[/green]  [yellow]STATUS.local.md[/yellow]                 Project status
   [green]8.[/green]  [yellow].gitignore[/yellow]                      Standard AIPass ignores
   [green]9.[/green]  [yellow].claude/settings.json[/yellow]           Claude Code hooks + AIPASS_HOME
-  [green]10.[/green] [yellow]hooks/[/yellow]                          User hooks directory
-  [green]11.[/green] [yellow]src/[/yellow]                            Agent directories live here
-  [green]12.[/green] [yellow].ai_mail.local/inbox.json[/yellow]       Empty project mailbox"""
+  [green]10.[/green] [yellow]src/[/yellow]                            Agent directories live here
+  [green]11.[/green] [yellow].ai_mail.local/inbox.json[/yellow]       Empty project mailbox"""
 
     console.print(Panel(files_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
     console.print()

@@ -99,8 +99,7 @@ def test_init_project_creates_all_expected_files(tmp_path):
     for f in expected_files:
         assert f.exists(), f"Expected file not created: {f}"
 
-    # hooks/ and src/ are directories, not files
-    assert (target / "hooks").is_dir(), "Expected hooks/ directory"
+    # src/ is a directory, not a file
     assert (target / "src").is_dir(), "Expected src/ directory"
 
     # No .trinity/ should be created (projects are not citizens)
@@ -109,8 +108,8 @@ def test_init_project_creates_all_expected_files(tmp_path):
     # No local prompt at project level (belongs in agent dirs only)
     assert not (target / ".aipass" / "aipass_local_prompt.md").exists()
 
-    # 12 files + 2 dirs + 7 shipped hooks (when AIPASS_HOME detected) = 21
-    assert len(result["created_files"]) == 21
+    # 11 items + 2 commands + 7 shipped hooks (when AIPASS_HOME detected) = 20
+    assert len(result["created_files"]) == 20
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -348,7 +347,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) == 21
+    assert len(result["created_files"]) == 20
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -394,9 +393,6 @@ def test_init_project_skips_existing_optional_files(tmp_path):
     claude_dir = target / ".claude"
     claude_dir.mkdir()
     (claude_dir / "settings.json").write_text("{}\n", encoding="utf-8")
-
-    hooks_dir = target / "hooks"
-    hooks_dir.mkdir()
 
     src_dir = target / "src"
     src_dir.mkdir()

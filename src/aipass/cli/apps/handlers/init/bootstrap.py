@@ -19,9 +19,8 @@ Business logic for `aipass init`. Creates the project scaffold:
    7. STATUS.local.md                 — project status
    8. .gitignore                      — standard AIPass ignores
    9. .claude/settings.json           — Claude Code hooks configuration
-  10. hooks/                          — directory for user hooks
-  11. src/                            — directory where agents live
-  12. .ai_mail.local/inbox.json       — empty project mailbox
+  10. src/                            — directory where agents live
+  11. .ai_mail.local/inbox.json       — empty project mailbox
 
 Projects are NOT citizens — no .trinity/ directory. Identity lives in the
 registry JSON. Init is re-runnable: existing files are skipped, not errors.
@@ -338,13 +337,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         shipped = _ship_hooks(aipass_home, target)
         created.extend(shipped)
 
-    # 10. hooks/ directory
-    hooks_dir = target / "hooks"
-    if not hooks_dir.exists():
-        hooks_dir.mkdir()
-        created.append(str(hooks_dir))
-
-    # 11. src/ directory (where agents live)
+    # 10. src/ directory (where agents live)
     src_dir = target / "src"
     if not src_dir.exists():
         src_dir.mkdir()
@@ -373,7 +366,7 @@ def update_project(target: Path) -> dict:
 
     Overwrites managed prompt and config files with the latest templates while
     leaving all user-owned files (registry, README, STATUS.local.md, .gitignore,
-    hooks/, src/) untouched.
+    src/) untouched.
 
     Args:
         target: Directory containing the AIPass project to update.
