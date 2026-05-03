@@ -364,23 +364,6 @@ def _run_error_catchup(fire_event: Optional[Callable[..., None]] = None) -> None
         return
 
 
-def _run_memory_check() -> None:
-    """Run memory rollover check if available.
-
-    Uses memory's public modules API to avoid cross-branch handler guard.
-    Silent failure - handlers cannot use logger or print.
-    """
-    try:
-        from aipass.memory.apps.modules.rollover import run_rollover
-
-        run_rollover()
-    except ImportError:
-        return  # Memory not available
-    except Exception as exc:
-        _log_warning(f"memory check failed: {exc}")
-        return
-
-
 def handle_startup(**kwargs: Any) -> None:
     """Run startup checks - replaces Prax logger's hardcoded calls.
 
@@ -390,6 +373,3 @@ def handle_startup(**kwargs: Any) -> None:
     # Error catch-up (scan for missed errors)
     fire_event = kwargs.get("fire_event")
     _run_error_catchup(fire_event)
-
-    # Memory rollover check
-    _run_memory_check()

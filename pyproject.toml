@@ -46,6 +46,7 @@ trinity = [
 memory = [
     "numpy>=2.0",
     "chromadb>=1.0",
+    "sentence-transformers>=2.0",
 ]
 seedgo = []
 dev = [

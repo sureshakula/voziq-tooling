@@ -181,7 +181,6 @@ trigger/
 - `aipass.prax` — Logging via `system_logger`
 - `aipass.cli` — Console output and formatting
 - `aipass.ai_mail` — `deliver_email_to_branch()` for dispatch emails (lazy import, graceful fallback)
-- `aipass.memory` — `run_rollover()` check on startup (lazy import)
 
 ### Provides To
 - All branches — Event bus (`Trigger.fire`, `Trigger.on`, `Trigger.off`)
