@@ -42,7 +42,9 @@ def _fork_recovery_message(branch: str, repo_root: str = ".") -> str:
     try:
         r = subprocess.run(
             ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
-            capture_output=True, text=True, cwd=repo_root,
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
         )
         if r.returncode == 0 and r.stdout.strip():
             origin = r.stdout.strip()
@@ -53,7 +55,8 @@ def _fork_recovery_message(branch: str, repo_root: str = ".") -> str:
     try:
         r = subprocess.run(
             ["gh", "api", "user", "-q", ".login"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if r.returncode == 0 and r.stdout.strip():
             gh_user = r.stdout.strip()
@@ -64,7 +67,7 @@ def _fork_recovery_message(branch: str, repo_root: str = ".") -> str:
 
 To contribute from a fork:
   1. Create a fork:        gh repo fork {origin} --remote=false --clone=false
-  2. Add fork as remote:   git remote add fork https://github.com/{gh_user}/{origin.split('/')[-1]}.git
+  2. Add fork as remote:   git remote add fork https://github.com/{gh_user}/{origin.split("/")[-1]}.git
   3. Push to your fork:    git push -u fork {branch}
   4. Open cross-repo PR:   gh pr create -R {origin} -H {gh_user}:{branch} -B main
 """
