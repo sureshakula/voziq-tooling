@@ -5,7 +5,7 @@
 **Purpose:** Central memory archive — vector search, rollover, and memory management for all AIPass branches.
 **Module:** `aipass.memory`
 **Created:** 2026-03-07
-**Last Updated:** 2026-04-22
+**Last Updated:** 2026-05-02
 **Citizen Class:** builder
 
 ---

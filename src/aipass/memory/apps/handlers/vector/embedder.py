@@ -126,7 +126,7 @@ class EmbeddingService:
         )
 
         # Restore original order
-        ordered_embeddings = [None] * len(texts)
+        ordered_embeddings: List[Any] = [None] * len(texts)
         for original_idx, sorted_idx in enumerate(sorted_indices):
             ordered_embeddings[sorted_idx] = embeddings[original_idx]
 
