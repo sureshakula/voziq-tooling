@@ -143,3 +143,6 @@ src/aipass/*/apps/integrations/**
 .coverage
 claude_4_7_transition_notes.md
 .claude/hooks/probes/last_ping.jsonl
+*.bak
+src/aipass/drone/apps/plugins/devpulse_ops/__pycache__/auth.cpython-312.pyc
+src/aipass/drone/apps/plugins/devpulse_ops/__pycache__/__init__.cpython-312.pyc
