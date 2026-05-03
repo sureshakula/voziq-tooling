@@ -143,8 +143,7 @@ prax/
 │       └── watcher/                   # Background system watchers
 ├── prax_json/                         # Auto-created per-module config/data/log files
 ├── templates/                         # Dashboard template schema (DASHBOARD.template.json)
-├── tests/                             # 375 tests across 16 files
-└── tools/                             # Standalone utilities (inbox_watchdog.py, verify_branch.py)
+└── tests/                             # 911 tests across 16 files
 ```
 
 ### Design Pattern

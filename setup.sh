@@ -133,6 +133,19 @@ if [ "$PY_OK" != "1" ]; then
     fi
 fi
 
+# --- Check ensurepip (Debian/Ubuntu split it into python3-venv apt package) ---
+if ! $PYTHON -c 'import ensurepip' &>/dev/null 2>&1; then
+    echo ""
+    echo "FAIL: ensurepip is unavailable for $PYTHON."
+    echo "  Without it, 'python3 -m venv' creates a broken venv (no pip, no activate)."
+    echo ""
+    echo "  Debian/Ubuntu:  sudo apt install python3-venv python3-pip"
+    echo "  Fedora/RHEL:    sudo dnf install python3-pip"
+    echo "  Arch:           (included in base python — file a bug if you hit this)"
+    echo ""
+    exit 1
+fi
+
 # --- Create venv ---
 if [ "$IS_WINDOWS" -eq 1 ] && [ -f ".venv/Scripts/python.exe" ]; then
     # Windows: skip venv recreation if python.exe exists (rm -rf unreliable due to file locking)

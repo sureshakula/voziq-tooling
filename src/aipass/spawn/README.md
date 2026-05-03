@@ -139,9 +139,7 @@ spawn/
 │           └── json_handler.py          # Standard JSON I/O, operation logging, 7 API functions
 ├── templates/
 │   ├── builder/                         # Full scaffold template (45 files, 24 dirs)
-│   ├── birthright/                      # Minimal template
-│   └── .archive/
-│       └── agent_mock_branch/           # Reference implementation
+│   └── birthright/                      # Minimal template
 ├── tests/                               # 13 test files, 253 tests
 ├── spawn_json/                          # JSON tracking directory
 ├── tools/                               # Branch verification utilities
