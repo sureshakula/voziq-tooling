@@ -544,6 +544,8 @@ settings["hooks"] = {
     "PreToolUse": [
         {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
          "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/tool_use_sound.py"}]},
+        {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
+         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_edit_gate.py"}]},
     ],
     "PostToolUse": [
         {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
@@ -554,6 +556,9 @@ settings["hooks"] = {
     ],
     "Notification": [
         {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/notification_sound.py"}]},
+    ],
+    "SubagentStop": [
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/subagent_stop_gate.py"}]},
     ],
     "PreCompact": [
         {"matcher": "manual", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact.py", "timeout": 60}]},
