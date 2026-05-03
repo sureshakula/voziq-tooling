@@ -253,6 +253,7 @@ if [ ! -d "$SECRETS_DIR" ]; then
     echo "Creating secrets directory at $SECRETS_DIR ..."
     mkdir -p "$SECRETS_DIR"
     chmod 700 "$HOME/.secrets"
+    chmod 700 "$SECRETS_DIR"
     echo "  ~/.secrets/aipass/ ... created"
 else
     echo "Secrets directory already exists — skipping"
@@ -569,6 +570,24 @@ msys = os.environ.get("MSYSTEM", "") + os.environ.get("OSTYPE", "")
 if "MSYS" in msys or "msys" in msys or "MINGW" in msys:
     env_block["PYTHONUTF8"] = "1"
 settings["env"] = env_block
+
+# Deny rules — hard-block tool access to secrets
+permissions = settings.get("permissions", {})
+deny = permissions.get("deny", [])
+secrets_deny = [
+    "Read(~/.secrets/**)",
+    "Read(/home/*/.secrets/**)",
+    "Bash(cat *~/.secrets*)",
+    "Bash(less *~/.secrets*)",
+    "Bash(head *~/.secrets*)",
+    "Bash(tail *~/.secrets*)",
+    "Bash(*~/.secrets*)",
+]
+for rule in secrets_deny:
+    if rule not in deny:
+        deny.append(rule)
+permissions["deny"] = deny
+settings["permissions"] = permissions
 
 settings_path.write_text(json.dumps(settings, indent=2) + "\n")
 print(f"  hooks -> {settings_path}")
