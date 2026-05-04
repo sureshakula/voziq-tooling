@@ -27,6 +27,9 @@ _spec.loader.exec_module(_mod)
 
 BLOCKED_GIT_RE = _mod.BLOCKED_GIT_RE
 BLOCKED_GIT_STASH_RE = _mod.BLOCKED_GIT_STASH_RE
+BLOCKED_GIT_BRANCH_RE = _mod.BLOCKED_GIT_BRANCH_RE
+BLOCKED_GIT_TAG_RE = _mod.BLOCKED_GIT_TAG_RE
+BLOCKED_GIT_REMOTE_RE = _mod.BLOCKED_GIT_REMOTE_RE
 BLOCKED_GH_RE = _mod.BLOCKED_GH_RE
 BLOCKED_GH_API_RE = _mod.BLOCKED_GH_API_RE
 BLOCKED_EDIT_PATTERNS = _mod.BLOCKED_EDIT_PATTERNS
@@ -44,7 +47,6 @@ class TestGitWriteBlocking:
         "git reset HEAD~1",
         "git checkout -b new-branch",
         "git switch -c new-branch",
-        "git branch -D old",
         "git cherry-pick abc123",
         "git revert HEAD",
         "git rm file.txt",
@@ -52,7 +54,6 @@ class TestGitWriteBlocking:
         "git restore --staged file.py",
         "git clean -fd",
         "git config user.name 'x'",
-        "git tag v1.0",
     ])
     def test_blocks_write_verbs(self, cmd):
         """Each blocked git verb triggers the regex."""
@@ -67,6 +68,44 @@ class TestGitWriteBlocking:
     def test_blocks_stash_destructive(self, cmd):
         """Destructive stash subcommands are blocked."""
         assert BLOCKED_GIT_STASH_RE.search(cmd), f"Should block: {cmd}"
+
+    @pytest.mark.parametrize("cmd", [
+        "git branch -D old",
+        "git branch -d old",
+        "git branch -m old new",
+        "git branch -M old new",
+        "git branch -c old new",
+        "git branch --delete old",
+        "git branch --move old new",
+        "git branch --copy old new",
+        "git branch --force old",
+        "git branch --set-upstream-to=origin/main",
+        "git branch --unset-upstream",
+    ])
+    def test_blocks_branch_destructive(self, cmd):
+        """Destructive branch subcommands are blocked."""
+        assert BLOCKED_GIT_BRANCH_RE.search(cmd), f"Should block: {cmd}"
+
+    @pytest.mark.parametrize("cmd", [
+        "git tag -d v1.0",
+        "git tag --delete v1.0",
+        "git tag -f v1.0",
+        "git tag --force v1.0",
+    ])
+    def test_blocks_tag_destructive(self, cmd):
+        """Destructive tag operations are blocked."""
+        assert BLOCKED_GIT_TAG_RE.search(cmd), f"Should block: {cmd}"
+
+    @pytest.mark.parametrize("cmd", [
+        "git remote add origin url",
+        "git remote remove origin",
+        "git remote rename old new",
+        "git remote set-url origin url",
+        "git remote prune origin",
+    ])
+    def test_blocks_remote_destructive(self, cmd):
+        """Destructive remote operations are blocked."""
+        assert BLOCKED_GIT_REMOTE_RE.search(cmd), f"Should block: {cmd}"
 
 
 class TestLongFormFlagBypass:
@@ -135,11 +174,26 @@ class TestReadOnlyAllowed:
         "git remote -v",
         "git blame file.py",
         "git shortlog -sn",
+        "git branch",
+        "git branch -r",
+        "git branch -a",
+        "git branch --list",
+        "git branch -v",
+        "git branch --show-current",
+        "git branch --contains abc123",
+        "git tag",
+        "git tag -l",
+        "git tag --list",
+        "git remote",
+        "git remote show origin",
     ])
     def test_allows_read_only(self, cmd):
         """Read-only git subcommands must pass through."""
         assert not BLOCKED_GIT_RE.search(cmd), f"Should allow: {cmd}"
         assert not BLOCKED_GIT_STASH_RE.search(cmd), f"Should allow: {cmd}"
+        assert not BLOCKED_GIT_BRANCH_RE.search(cmd), f"Should allow: {cmd}"
+        assert not BLOCKED_GIT_TAG_RE.search(cmd), f"Should allow: {cmd}"
+        assert not BLOCKED_GIT_REMOTE_RE.search(cmd), f"Should allow: {cmd}"
 
 
 class TestDroneNotBlocked:

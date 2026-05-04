@@ -312,6 +312,16 @@ def global_prompt_md(name: str) -> str:
         "Projects use the registry.\n"
         "- **Memory** — update `.trinity/local.json` at session end. "
         "Memory is presence.\n"
+        "\n"
+        "## Maintenance\n"
+        "\n"
+        "- **Upgrade scaffold**: `drone @cli aipass init update` refreshes "
+        "managed project files (hooks, prompts, settings) to latest templates.\n"
+        "- **Entry point**: each agent's `apps/{name}.py` auto-configures "
+        "`sys.path` and `AIPASS_BRANCH_NAME` env var. If prax logs to "
+        "`unknown_branch/`, check that these are set.\n"
+        "- **Standalone projects** use `src/{name}/` layout (not `src/aipass/{name}/`). "
+        "Module discovery adapts automatically.\n"
     )
 
 
