@@ -19,7 +19,9 @@ from pathlib import Path
 
 import pytest
 
-HOOK_PATH = Path.home() / ".claude" / "hooks" / "git_gate.py"
+_USER_HOOK = Path.home() / ".claude" / "hooks" / "git_gate.py"
+_REPO_HOOK = Path(__file__).resolve().parents[4] / ".claude" / "hooks" / "git_gate.py"
+HOOK_PATH = _USER_HOOK if _USER_HOOK.is_file() else _REPO_HOOK
 
 _spec = importlib.util.spec_from_file_location("git_gate", HOOK_PATH)
 _mod = importlib.util.module_from_spec(_spec)
