@@ -180,6 +180,11 @@
       "standard": "imports",
       "file": "apps/handlers/feedback/compose.py",
       "reason": "_AIPASS_ROOT used as fallback for ai_mail inbox resolution when CWD-based lookup fails. Feedback channel only works between dev-install branches — pip users don't have cross-branch communication. Real fix is registry-based path resolution (same class as DPLAN-0149 pip install gaps)."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "tests/test_git_gate.py",
+      "reason": "Test imports git_gate.py from ~/.claude/hooks/ via importlib.util.spec_from_file_location. git_gate is a user-level hook (not a branch module), so no aipass package path exists. No cross-branch handler import — this is outside the branch tree entirely."
     }
   ],
   "notes": {

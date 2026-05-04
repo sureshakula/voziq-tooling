@@ -552,6 +552,8 @@ settings["hooks"] = {
     "PostToolUse": [
         {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
          "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/auto_fix_diagnostics.py"}]},
+        {"matcher": "Bash",
+         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/auto_watchdog.py"}]},
     ],
     "Stop": [
         {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/stop_sound.py"}]},
@@ -834,15 +836,31 @@ elif [ "$IS_MACOS" -eq 1 ]; then
 else
     echo "Creating global symlinks ..."
     VENV_BIN="$SCRIPT_DIR/.venv/bin"
-    LOCAL_BIN="/usr/local/bin"
+    LINUX_SYMLINK_DIR=""
 
     for cmd in drone; do
         if [ -f "$VENV_BIN/$cmd" ]; then
-            if sudo ln -sf "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd" 2>/dev/null; then
-                echo "  $LOCAL_BIN/$cmd -> $VENV_BIN/$cmd"
+            if sudo ln -sf "$VENV_BIN/$cmd" "/usr/local/bin/$cmd" 2>/dev/null; then
+                echo "  /usr/local/bin/$cmd -> $VENV_BIN/$cmd"
+                LINUX_SYMLINK_DIR="/usr/local/bin"
             else
-                echo "  WARN: Could not create symlink for $cmd (try running with sudo)"
-                echo "  Manual fix: sudo ln -sf $VENV_BIN/$cmd $LOCAL_BIN/$cmd"
+                # Fallback: user-local bin (no sudo needed)
+                LOCAL_BIN="$HOME/.local/bin"
+                mkdir -p "$LOCAL_BIN"
+                if ln -sf "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"; then
+                    echo "  /usr/local/bin failed (no sudo) — using $LOCAL_BIN/$cmd instead"
+                    LINUX_SYMLINK_DIR="$LOCAL_BIN"
+                    # Ensure ~/.local/bin is on PATH
+                    PROFILE="${HOME}/.bashrc"
+                    if ! grep -q '\.local/bin' "$PROFILE" 2>/dev/null; then
+                        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$PROFILE"
+                        echo "  ~/.local/bin added to PATH in $PROFILE"
+                    fi
+                    export PATH="$HOME/.local/bin:$PATH"
+                else
+                    echo "  WARN: Could not create symlink for $cmd"
+                    echo "  Manual fix: ln -sf $VENV_BIN/$cmd $LOCAL_BIN/$cmd"
+                fi
             fi
         fi
     done
@@ -858,8 +876,10 @@ if [ "$FAIL" -eq 0 ]; then
         echo "Add the appropriate directory to your PATH (see above)."
     elif [ "$IS_MACOS" -eq 1 ]; then
         echo "drone is available via ~/.local/bin symlink (on PATH)."
-    else
+    elif [ "$LINUX_SYMLINK_DIR" = "/usr/local/bin" ]; then
         echo "drone is available globally via /usr/local/bin symlink."
+    else
+        echo "drone is available via ~/.local/bin symlink (on PATH)."
     fi
     echo "seedgo is accessed via: drone @seedgo"
     echo "No venv activation needed for CLI commands."

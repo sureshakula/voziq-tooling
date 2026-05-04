@@ -27,7 +27,7 @@ BLOCKED_GIT_VERBS = (
 )
 
 BLOCKED_GIT_RE = re.compile(
-    r"(?<![@\w/.])git\s+(?:-[A-Za-z0-9_=]+(?:\s+[^\s]+)?\s+)*"
+    r"(?<![@\w/.])git\s+(?:--?[A-Za-z][A-Za-z0-9_-]*(?:[= ][^\s]+)?\s+)*"
     r"(" + "|".join(BLOCKED_GIT_VERBS) + r")\b"
 )
 
@@ -106,8 +106,8 @@ def main():
                 return
             # Strip quoted strings before matching — text inside "..." or '...' is data
             # (PR descriptions, commit messages, examples in docs), not code to enforce.
-            scan = re.sub(r'"[^"]*"', '""', cmd)
-            scan = re.sub(r"\'[^\']*\'", "\'\'", scan)
+            scan = re.sub(r'"(?:[^"\\]|\\.)*"', '""', cmd)
+            scan = re.sub(r"'(?:[^'\\]|\\.)*'", "''", scan)
             if BLOCKED_GIT_STASH_RE.search(scan) or BLOCKED_GIT_RE.search(scan):
                 _block(GIT_REDIRECT)
             if BLOCKED_GH_API_RE.search(scan) or BLOCKED_GH_RE.search(scan):
