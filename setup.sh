@@ -546,6 +546,8 @@ settings["hooks"] = {
          "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/tool_use_sound.py"}]},
         {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
          "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_edit_gate.py"}]},
+        {"matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit",
+         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/git_gate.py"}]},
     ],
     "PostToolUse": [
         {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
