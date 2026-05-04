@@ -7,18 +7,34 @@ Auto-discovery architecture:
 - No manual imports or routing needed
 """
 
-import sys
 import importlib
+import os
+import sys
 from pathlib import Path
 from typing import List, Any
 
-from aipass.prax import logger
+PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+os.environ.setdefault("AIPASS_BRANCH_NAME", "{{BRANCH}}")
+
+from aipass.prax import logger  # noqa: E402
 
 # =============================================================================
 # MODULE DISCOVERY
 # =============================================================================
 
 MODULES_DIR = Path(__file__).parent / "modules"
+
+
+def _module_import_path(stem: str) -> str:
+    """Return the correct import path for a module, handling both layouts."""
+    try:
+        importlib.import_module(f"aipass.{{BRANCH}}.apps.modules.{stem}")
+        return f"aipass.{{BRANCH}}.apps.modules.{stem}"
+    except ImportError:
+        return f"apps.modules.{stem}"
 
 
 def discover_modules() -> List[Any]:
@@ -32,7 +48,7 @@ def discover_modules() -> List[Any]:
         if file_path.name.startswith("_"):
             continue
 
-        module_name = f"aipass.{{BRANCH}}.apps.modules.{file_path.stem}"
+        module_name = _module_import_path(file_path.stem)
 
         try:
             module = importlib.import_module(module_name)

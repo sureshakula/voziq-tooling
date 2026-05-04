@@ -1,0 +1,39 @@
+# Backup System ignore patterns (gitignore-style)
+# Lines starting with # are comments. Blank lines are ignored.
+
+# Backup system's own directory
+.backup_system/
+
+# Version control
+.git/
+.svn/
+.hg/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.tox/
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+
+# Logs
+*.log
