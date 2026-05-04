@@ -230,7 +230,7 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | Agents | 11 |
 | Quality standards | 33 automated checks |
 | Tests | 6,500+ (across all agents) |
-| PRs merged | 470+ (created by agents, reviewed by human) |
+| PRs merged | 510+ (created by agents, reviewed by human) |
 | Code coverage | 75% ([codecov](https://codecov.io/gh/AIOSAI/AIPass)) |
 | CI | Green (0 failures) |
 
@@ -243,7 +243,7 @@ Each agent documents its own operational status in its branch README — what wo
 - Python 3.10+
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 - Linux or WSL (primary supported platforms)
-- `sudo` access (for global CLI symlinks)
+- `sudo` access optional (for `/usr/local/bin` symlinks — falls back to `~/.local/bin` without sudo)
 - API keys optional (OpenRouter/OpenAI — for optional add-on agents)
 
 ## Roadmap

@@ -77,11 +77,14 @@ Allowed:
  - `drone @git merge <PR#>` — squash-merge a reviewed PR (devpulse only)
  - `drone @git smart-sync` — fetch + rebase (devpulse only)
  - `drone @git fix` — repair broken git states (devpulse only)
- - `git status`, `git diff`, `git log` — read-only, always fine
+ - `git status`, `git diff`, `git log`, `git branch` (list), `git tag` (list), `git remote` (list/show) — read-only, always fine
 
 Mechanically blocked by the `git_gate.py` PreToolUse hook (applies to ALL sessions including dispatched agents — bypassPermissions does not skip hooks):
- - All raw `git` write verbs: `commit`, `push`, `pull`, `merge`, `rebase`, `reset`, `checkout`, `switch`, `branch`, `cherry-pick`, `revert`, `rm`, `mv`, `restore`, `clean`, `config`, `tag`, `stash drop|clear|pop|apply`
- - All raw `gh` write subcommands (`pr`, `issue`, `repo`, `release`, `workflow`, `run`, `cache`, `secret`, `variable`, `gist`) and any `gh api` call
+ - All raw `git` write verbs: `commit`, `push`, `pull`, `merge`, `rebase`, `reset`, `checkout`, `switch`, `cherry-pick`, `revert`, `rm`, `mv`, `restore`, `clean`, `config`, `stash drop|clear|pop|apply`
+ - Destructive `git branch` flags only (`-d`, `-D`, `-m`, `-M`, `--delete`, `--move`, `--set-upstream-to`, `--unset-upstream`). Read-only branch listing is allowed.
+ - Destructive `git tag` flags only (`-d`, `--delete`, `-f`, `--force`). Tag listing is allowed.
+ - Destructive `git remote` subcommands (`add`, `remove`, `rename`, `set-url`, `prune`). Remote listing/show is allowed.
+ - All raw `gh` write subcommands (`pr`, `issue`, `repo`, `release`, `workflow`, `run`, `cache`, `secret`, `variable`, `gist`) and any `gh api` call. Exception: project owners with `citizenship.owner: true` in their passport bypass gh blocking.
  - Edits to `**/.claude/settings*.json`, `**/.claude/hooks/**`, `**/.git/hooks/**` (the enforcement layer itself)
  - Use `drone @git pr "msg"` instead. Drone calls git via Python subprocess so its operations don't pass through this hook.
 
@@ -203,7 +206,7 @@ Always work on main. Edit files in your branch directory on the main branch. Whe
 
 **Mechanically blocked via `.git/hooks/pre-commit`:** `git commit` is rejected on any branch except main (also catches detached HEAD). `git push`, `gh pr create` — go through drone.
 
-**Allowed read-only:** `git status`, `git diff`, `git log`, `git stash` (safe transient save).
+**Allowed read-only:** `git status`, `git diff`, `git log`, `git branch` (list), `git tag` (list), `git remote` (list/show), `git stash` (safe transient save).
 
 **If `drone @git pr` fails because the PR lock is held**, wait 30 seconds and retry. Keep retrying until the lock clears — do not skip the PR step, do not commit directly to main, do not give up. The lock means another agent is mid-PR; it will release shortly. `drone @git lock` shows the current lock state.
 
