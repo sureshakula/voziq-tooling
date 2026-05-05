@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+dist/
+build/
+*.log
+*.tmp
+*.swp
+
+# Local runtime state
+.ai_mail.local/
+logs/
+DASHBOARD.local.json
+docs.local/
+tools/aipass-dev
+stress_test_s117.md
