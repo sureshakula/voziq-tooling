@@ -7,6 +7,7 @@ Finds the branch root by walking up from CWD looking for apps/ or *.id.json.
 
 Version: 1.0.0
 """
+
 import json
 from pathlib import Path
 

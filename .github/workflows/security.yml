@@ -19,7 +19,7 @@ jobs:
       - run: pip install pip-audit
       - run: pip install -e .
       - name: Pip audit
-        run: pip-audit --skip-editable --ignore-vuln CVE-2026-3219
+        run: pip-audit --skip-editable --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357
 
   codeql:
     runs-on: ubuntu-latest

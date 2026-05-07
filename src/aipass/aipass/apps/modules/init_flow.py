@@ -71,6 +71,7 @@ def _get_local_json_path() -> Path:
     """Always resolve .trinity/local.json from CWD (user's project)."""
     return Path.cwd() / ".trinity" / "local.json"
 
+
 CLI_CHOICES = ["claude", "codex", "gemini", "other"]
 # Flag variants for CLI launch — these are user-facing config values, not code-level flags
 FLAG_CHOICES = ["default", "skip-permissions"]
@@ -206,7 +207,9 @@ def stage_1_welcome(dry_run: bool = False) -> Dict[str, Any]:
     console.print("Let's walk through setup together. This takes about 5 minutes.")
     if shutil.which("drone"):
         console.print()
-        console.print("[dim]Tip: Open another terminal and run [cyan]drone @prax monitor run[/cyan] to watch activity live.[/dim]")
+        console.print(
+            "[dim]Tip: Open another terminal and run [cyan]drone @prax monitor run[/cyan] to watch activity live.[/dim]"
+        )
     if dry_run:
         console.print("[yellow]\\[dry-run][/yellow] No state will be written, no subprocesses launched.")
     console.print()
@@ -476,12 +479,16 @@ def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
     aipass_registry = _BRANCH_ROOT.parent / "AIPASS_REGISTRY.json"
     if not aipass_registry.exists():
         console.print(f"[dim]  Found {len(branches)} agent(s) in this project.[/dim]")
-        console.print("[dim]  Ping requires a running session — your agents will be reachable after handoff (next step).[/dim]")
+        console.print(
+            "[dim]  Ping requires a running session — your agents will be reachable after handoff (next step).[/dim]"
+        )
         _save_stage(9, {"results": {}, "skipped_standalone": True}, dry_run=dry_run)
         return {"ping_results": {}}
 
     console.print(f"[dim]  Found {len(branches)} agent(s). Checking reachability...[/dim]")
-    console.print("[dim]  (Agents with a running session will auto-ack; new agents will time out — that's normal.)[/dim]")
+    console.print(
+        "[dim]  (Agents with a running session will auto-ack; new agents will time out — that's normal.)[/dim]"
+    )
 
     results = ping_sweep.sweep_all_branches(timeout=10)
 

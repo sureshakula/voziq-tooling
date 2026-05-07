@@ -8,6 +8,7 @@ AI sees branch-specific context.
 
 Version: 1.0.0
 """
+
 from pathlib import Path
 
 

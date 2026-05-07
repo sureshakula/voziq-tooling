@@ -7,6 +7,7 @@ a notification if any exist.
 
 Version: 1.0.0
 """
+
 import json
 from pathlib import Path
 
@@ -86,7 +87,9 @@ def main():
     new_count = count_new_emails(branch_root)
     if new_count > 0:
         plural = "s" if new_count != 1 else ""
-        print(f"You have {new_count} new email{plural} - check with: drone @ai_mail inbox | then: drone @ai_mail view <id> | close with: drone @ai_mail close <id>")
+        print(
+            f"You have {new_count} new email{plural} - check with: drone @ai_mail inbox | then: drone @ai_mail view <id> | close with: drone @ai_mail close <id>"
+        )
 
 
 if __name__ == "__main__":
