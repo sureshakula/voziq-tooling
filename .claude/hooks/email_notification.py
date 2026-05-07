@@ -117,4 +117,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hook_log import run_and_log
+
+    run_and_log("UserPromptSubmit", "provider", __file__, main)

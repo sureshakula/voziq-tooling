@@ -536,7 +536,7 @@ else:
 # Build hooks config with absolute paths
 settings["hooks"] = {
     "UserPromptSubmit": [
-        {"hooks": [{"type": "command", "command": f"cat {repo_root}/.aipass/aipass_global_prompt.md 2>/dev/null || true"}]},
+        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/global_prompt_loader.py"}]},
         {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/branch_prompt_loader.py"}]},
         {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/identity_injector.py"}]},
         {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/email_notification.py"}]},
@@ -574,6 +574,8 @@ settings["hooks"] = {
 import os
 env_block = settings.get("env", {})
 env_block["AIPASS_HOME"] = repo_root
+env_block["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
+env_block["CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"] = "1"
 # Windows: force UTF-8 for Rich output in hook processes
 msys = os.environ.get("MSYSTEM", "") + os.environ.get("OSTYPE", "")
 if "MSYS" in msys or "msys" in msys or "MINGW" in msys:
@@ -585,17 +587,58 @@ permissions = settings.get("permissions", {})
 deny = permissions.get("deny", [])
 secrets_deny = [
     "Read(~/.secrets/**)",
-    "Read(/home/*/.secrets/**)",
-    "Bash(cat *~/.secrets*)",
-    "Bash(less *~/.secrets*)",
-    "Bash(head *~/.secrets*)",
-    "Bash(tail *~/.secrets*)",
-    "Bash(*~/.secrets*)",
+    f"Read({os.path.expanduser('~')}/.secrets/**)",
+    "Bash(cat ~/.secrets/*)",
+    f"Bash(cat {os.path.expanduser('~')}/.secrets/*)",
+    "Bash(head ~/.secrets/*)",
+    f"Bash(head {os.path.expanduser('~')}/.secrets/*)",
+    "Bash(tail ~/.secrets/*)",
+    f"Bash(tail {os.path.expanduser('~')}/.secrets/*)",
+    "Bash(less ~/.secrets/*)",
+    f"Bash(less {os.path.expanduser('~')}/.secrets/*)",
 ]
-for rule in secrets_deny:
+git_deny = [
+    "Bash(git reset --hard*)",
+    "Bash(git push --force*)",
+    "Bash(git push -f *)",
+    "Bash(git rebase*)",
+    "Bash(git clean*)",
+    "Bash(rm -rf*)",
+    "Bash(git reset*)",
+    "Bash(git merge*)",
+    "Bash(git config*)",
+    "Bash(git checkout -- *)",
+    "Bash(git checkout .*)",
+    "Bash(git restore --staged*)",
+    "Bash(git restore .*)",
+    "Bash(git branch -D*)",
+    "Bash(git stash drop*)",
+    "Bash(git stash clear*)",
+    "Bash(rm -r *)",
+    "Bash(git checkout -b*)",
+    "Bash(git switch -c*)",
+    "Bash(git switch --create*)",
+    "Bash(git commit*)",
+    "Bash(git push*)",
+]
+for rule in secrets_deny + git_deny:
     if rule not in deny:
         deny.append(rule)
 permissions["deny"] = deny
+
+ask = permissions.get("ask", [])
+home = os.path.expanduser("~")
+ask_rules = [
+    f"Edit({home}/.claude/**)",
+    f"Write({home}/.claude/**)",
+    "Edit(~/.claude/**)",
+    "Write(~/.claude/**)",
+]
+for rule in ask_rules:
+    if rule not in ask:
+        ask.append(rule)
+permissions["ask"] = ask
+
 settings["permissions"] = permissions
 
 settings_path.write_text(json.dumps(settings, indent=2) + "\n")

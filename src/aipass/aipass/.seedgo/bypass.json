@@ -125,6 +125,26 @@
       "file": "tests/test_ping_sweep.py",
       "standard": "encapsulation",
       "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "debug_print",
+      "reason": "The print() on line 159 is inside a generated shell command string (python3 -c), not a bare print call in this module's code."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "help_text",
+      "reason": "The python3 references are in generated shell commands (settings.json hook entries), not in user-facing help text."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "json_structure",
+      "reason": "bootstrap.py is Pure Python only (no module/prax/cli imports) by design — it must work during initial project setup before any AIPass services exist."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "log_visibility",
+      "reason": "bootstrap.py is Pure Python only (no module/prax/cli imports) by design — stdlib getLogger is correct here. prax system_logger requires AIPass to be installed, which hasn't happened at bootstrap time."
     }
   ]
 }

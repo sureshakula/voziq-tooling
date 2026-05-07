@@ -46,18 +46,10 @@ def main() -> None:
         pass
 
     # --- Extract fields ---
-    tool = (
-        payload.get("tool_name")
-        or payload.get("hook_event_name")
-        or ""
-    )
+    tool = payload.get("tool_name") or payload.get("hook_event_name") or ""
     cwd = payload.get("cwd") or os.getcwd()
 
-    agent_id = (
-        os.environ.get("CLAUDE_CODE_SESSION_ID")
-        or os.environ.get("CLAUDE_SESSION_ID")
-        or "unknown"
-    )
+    agent_id = os.environ.get("CLAUDE_CODE_SESSION_ID") or os.environ.get("CLAUDE_SESSION_ID") or "unknown"
     cli_version = os.environ.get("CLAUDE_CODE_VERSION", "unknown")
     env_has_claude_project_dir = bool(os.environ.get("CLAUDE_PROJECT_DIR"))
     env_has_aipass_home = bool(os.environ.get("AIPASS_HOME"))

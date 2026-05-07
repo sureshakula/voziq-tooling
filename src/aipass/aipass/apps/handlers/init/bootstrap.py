@@ -44,25 +44,24 @@ from aipass.aipass.apps.handlers.init import scaffold_content as sc
 
 logger = logging.getLogger(__name__)
 
-ENFORCEMENT_HOOKS = [
-    "auto_fix_diagnostics.py",
-    "pre_edit_gate.py",
-    "subagent_stop_gate.py",
-    "pre_compact.py",
-]
-
-INJECTOR_HOOKS = [
+PROJECT_HOOKS = [
     "branch_prompt_loader.py",
     "email_notification.py",
     "identity_injector.py",
+    "pre_compact.py",
 ]
 
-HOOKS_TO_SHIP = ENFORCEMENT_HOOKS + INJECTOR_HOOKS
+# These are shipped as reference copies but NOT wired in project settings.json
+# because PreToolUse/PostToolUse/SubagentStop only fire from provider settings.
+PROVIDER_ONLY_HOOKS = [
+    "auto_fix_diagnostics.py",
+    "pre_edit_gate.py",
+    "subagent_stop_gate.py",
+]
+
+HOOKS_TO_SHIP = PROJECT_HOOKS + PROVIDER_ONLY_HOOKS
 
 HOOK_EVENTS: dict[str, str] = {
-    "auto_fix_diagnostics.py": "PostToolUse",
-    "pre_edit_gate.py": "PreToolUse",
-    "subagent_stop_gate.py": "Stop",
     "pre_compact.py": "PreCompact",
     "branch_prompt_loader.py": "UserPromptSubmit",
     "email_notification.py": "UserPromptSubmit",
@@ -137,15 +136,16 @@ def _detect_aipass_home() -> str | None:
 
 
 def _claude_settings(aipass_home: str | None = None) -> str:
-    """Generate .claude/settings.json — hooks for prompt injection + enforcement.
+    """Generate .claude/settings.json — hooks for prompt injection at project level.
 
-    Wires all AIPass hooks into their respective event types:
+    Only wires hooks that fire from project-level settings:
     - UserPromptSubmit: global/local prompt injection + branch_prompt_loader,
       email_notification, identity_injector
-    - PostToolUse: auto_fix_diagnostics
-    - PreToolUse: pre_edit_gate
-    - Stop: subagent_stop_gate
     - PreCompact: pre_compact
+
+    PreToolUse/PostToolUse/SubagentStop hooks are NOT wired here — they only
+    fire from provider settings (~/.claude/settings.json). The scripts are
+    still shipped as reference copies. Provider wiring is handled by setup.sh.
 
     Args:
         aipass_home: Optional AIPass installation root to add as env.AIPASS_HOME.

@@ -165,4 +165,7 @@ Context just compacted. Below is your live state. Use it to continue seamlessly.
 
 
 if __name__ == "__main__":
-    main()
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hook_log import run_and_log
+
+    run_and_log("PreCompact", "provider", __file__, main)

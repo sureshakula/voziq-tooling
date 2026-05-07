@@ -21,9 +21,21 @@ import sys
 from pathlib import Path
 
 BLOCKED_GIT_VERBS = (
-    "commit", "push", "pull", "merge", "rebase", "reset",
-    "checkout", "switch", "cherry-pick", "revert",
-    "rm", "mv", "restore", "clean", "config",
+    "commit",
+    "push",
+    "pull",
+    "merge",
+    "rebase",
+    "reset",
+    "checkout",
+    "switch",
+    "cherry-pick",
+    "revert",
+    "rm",
+    "mv",
+    "restore",
+    "clean",
+    "config",
 )
 
 BLOCKED_GIT_RE = re.compile(
@@ -31,25 +43,19 @@ BLOCKED_GIT_RE = re.compile(
     r"(" + "|".join(BLOCKED_GIT_VERBS) + r")\b"
 )
 
-BLOCKED_GIT_STASH_RE = re.compile(
-    r"(?<![@\w/.])git\s+stash\s+(drop|clear|pop|apply)\b"
-)
+BLOCKED_GIT_STASH_RE = re.compile(r"(?<![@\w/.])git\s+stash\s+(drop|clear|pop|apply)\b")
 
 BLOCKED_GIT_BRANCH_RE = re.compile(
     r"(?<![@\w/.])git\s+branch\s+.*(-[dDmMcC]\b|--delete|--move|--copy|--force|--set-upstream-to|--unset-upstream)"
 )
 
-BLOCKED_GIT_TAG_RE = re.compile(
-    r"(?<![@\w/.])git\s+tag\s+.*(-d\b|--delete|--force|-f\b)"
-)
+BLOCKED_GIT_TAG_RE = re.compile(r"(?<![@\w/.])git\s+tag\s+.*(-d\b|--delete|--force|-f\b)")
 
 BLOCKED_GIT_REMOTE_RE = re.compile(
     r"(?<![@\w/.])git\s+remote\s+(add|remove|rename|set-url|set-branches|set-head|prune)\b"
 )
 
-BLOCKED_GH_API_RE = re.compile(
-    r"(?<![@\w/.])gh\s+api\b"
-)
+BLOCKED_GH_API_RE = re.compile(r"(?<![@\w/.])gh\s+api\b")
 
 BLOCKED_GH_RE = re.compile(
     r"(?<![@\w/.])gh\s+(pr|issue|repo|release|workflow|run|cache|secret|variable|gist)"
@@ -136,9 +142,13 @@ def main():
             # (PR descriptions, commit messages, examples in docs), not code to enforce.
             scan = re.sub(r'"(?:[^"\\]|\\.)*"', '""', cmd)
             scan = re.sub(r"'(?:[^'\\]|\\.)*'", "''", scan)
-            if (BLOCKED_GIT_RE.search(scan) or BLOCKED_GIT_STASH_RE.search(scan)
-                    or BLOCKED_GIT_BRANCH_RE.search(scan) or BLOCKED_GIT_TAG_RE.search(scan)
-                    or BLOCKED_GIT_REMOTE_RE.search(scan)):
+            if (
+                BLOCKED_GIT_RE.search(scan)
+                or BLOCKED_GIT_STASH_RE.search(scan)
+                or BLOCKED_GIT_BRANCH_RE.search(scan)
+                or BLOCKED_GIT_TAG_RE.search(scan)
+                or BLOCKED_GIT_REMOTE_RE.search(scan)
+            ):
                 _block(GIT_REDIRECT)
             if BLOCKED_GH_API_RE.search(scan) or BLOCKED_GH_RE.search(scan):
                 if not (_cwd_branch(cwd) in TRUSTED_HOOK_EDITORS or _is_project_owner(cwd)):
@@ -163,4 +173,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hook_log import run_and_log
+
+    run_and_log("PreToolUse", "provider", __file__, main)

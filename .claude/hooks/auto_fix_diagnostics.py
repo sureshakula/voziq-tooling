@@ -37,35 +37,32 @@ SKIP_EXTENSIONS = {".md", ".txt", ".log", ".csv", ".html"}
 
 # AIPass-specific Python patterns to check
 PYTHON_PATTERNS = {
-    "bad_optional": {
-        "pattern": ": str = None",
-        "message": "Optional param should use 'str | None = None' pattern"
-    },
+    "bad_optional": {"pattern": ": str = None", "message": "Optional param should use 'str | None = None' pattern"},
     "logger_debug": {
         "pattern": "logger.debug(",
-        "message": "Use logger.info for SystemLogger (logger.debug not supported)"
+        "message": "Use logger.info for SystemLogger (logger.debug not supported)",
     },
     "return_error_msg": {
         "pattern": "return error_msg",
-        "message": "Return None for error states, not error_msg string"
+        "message": "Return None for error states, not error_msg string",
     },
     "open_no_encoding": {
         "pattern": "open(",
         "requires_missing": "encoding=",
-        "message": "open() without encoding='utf-8'"
+        "message": "open() without encoding='utf-8'",
     },
     "log_not_log_operation": {
         "pattern": ".log(",
-        "message": "Use log_operation() with success/error params, not .log()"
+        "message": "Use log_operation() with success/error params, not .log()",
     },
     "dict_none_no_check": {
         "pattern": "Dict | None",
-        "message": "Dict | None return: Add None check before using (if result is None: return)"
-    }
+        "message": "Dict | None return: Add None check before using (if result is None: return)",
+    },
 }
 
 # JSON-specific patterns for emoji corruption
-JSON_CORRUPTION_CHARS = ['\ufffd', '\x00']
+JSON_CORRUPTION_CHARS = ["\ufffd", "\x00"]
 
 
 def run_python_checks(file_path: str) -> list[str]:
@@ -75,10 +72,7 @@ def run_python_checks(file_path: str) -> list[str]:
     # 1. Syntax check with py_compile
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "py_compile", file_path],
-            capture_output=True,
-            text=True,
-            timeout=5
+            [sys.executable, "-m", "py_compile", file_path], capture_output=True, text=True, timeout=5
         )
         if result.returncode != 0:
             errors.append(f"SYNTAX: {result.stderr.strip()}")
@@ -91,7 +85,7 @@ def run_python_checks(file_path: str) -> list[str]:
             ["ruff", "check", "--select=E,F,W", "--output-format=text", file_path],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         if result.stdout.strip():
             for line in result.stdout.strip().split("\n")[:5]:
@@ -103,12 +97,7 @@ def run_python_checks(file_path: str) -> list[str]:
 
     # 3. Ruff format check — detect format drift
     try:
-        result = subprocess.run(
-            ["ruff", "format", "--check", file_path],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        result = subprocess.run(["ruff", "format", "--check", file_path], capture_output=True, text=True, timeout=10)
         if result.returncode != 0:
             errors.append(f"FORMAT: {Path(file_path).name} needs ruff format (run: ruff format {Path(file_path).name})")
     except FileNotFoundError:
@@ -146,19 +135,20 @@ def run_python_checks(file_path: str) -> list[str]:
     return errors
 
 
-
 def run_ruff_lint_structured(file_path: str) -> list[dict]:
     """Run ruff check and return structured violations for the state file.
 
     Returns list of {line, message} dicts — same format as pyright errors.
     Only non-empty when ruff finds real violations (not format drift).
     """
-    if '/.claude/hooks/' in file_path:
+    if "/.claude/hooks/" in file_path:
         return []
     try:
         result = subprocess.run(
             ["ruff", "check", "--select=E,F,W", "--output-format=json", file_path],
-            capture_output=True, text=True, timeout=10
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if not result.stdout.strip():
             return []
@@ -179,15 +169,12 @@ def run_ruff_lint_structured(file_path: str) -> list[dict]:
 def run_pyright_check(file_path: str) -> list[dict]:
     """Run pyright on a single file. Returns list of error dicts."""
     # Skip hook files - they don't follow project standards
-    if '/.claude/hooks/' in file_path:
+    if "/.claude/hooks/" in file_path:
         return []
 
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pyright", "--outputjson", file_path],
-            capture_output=True,
-            text=True,
-            timeout=15
+            [sys.executable, "-m", "pyright", "--outputjson", file_path], capture_output=True, text=True, timeout=15
         )
 
         try:
@@ -201,10 +188,7 @@ def run_pyright_check(file_path: str) -> list[dict]:
             if severity == "error":
                 line = diag.get("range", {}).get("start", {}).get("line", 0)
                 message = diag.get("message", "Unknown error")
-                errors.append({
-                    "line": line,
-                    "message": message[:100]
-                })
+                errors.append({"line": line, "message": message[:100]})
 
         return errors[:10]  # Max 10 errors
 
@@ -220,10 +204,7 @@ def save_diagnostics_state(file_path: str, errors: list[dict]):
     """Save type errors to state file for PreToolUse gate."""
     try:
         if errors:
-            state = {
-                "file": str(Path(file_path).resolve()),
-                "errors": errors
-            }
+            state = {"file": str(Path(file_path).resolve()), "errors": errors}
             STATE_FILE.write_text(json.dumps(state), encoding="utf-8")
         else:
             # No errors — clear the state
@@ -249,11 +230,11 @@ def run_json_checks(file_path: str) -> list[str]:
             data = json.loads(content)
 
             if isinstance(data, dict):
-                for key in ['allowed_emojis', 'emojis', 'emoji_list']:
+                for key in ["allowed_emojis", "emojis", "emoji_list"]:
                     if key in data and isinstance(data[key], list):
                         for item in data[key]:
                             if isinstance(item, str) and len(item) == 1:
-                                if ord(item) < 128 and item not in '\u2713\u2717':
+                                if ord(item) < 128 and item not in "\u2713\u2717":
                                     errors.append(f"EMOJI CORRUPTION: Suspicious char '{item}' in {key}")
                                     break
 
@@ -268,7 +249,7 @@ def run_json_checks(file_path: str) -> list[str]:
 
 def run_seedgo_checklist(file_path: str) -> list[str]:
     """Run seedgo standards checklist — returns violations only."""
-    if '/.claude/hooks/' in file_path:
+    if "/.claude/hooks/" in file_path:
         return []
 
     try:
@@ -277,7 +258,7 @@ def run_seedgo_checklist(file_path: str) -> list[str]:
             capture_output=True,
             text=True,
             timeout=15,
-            cwd=str(Path.home() / "Projects" / "AIPass")
+            cwd=str(Path.home() / "Projects" / "AIPass"),
         )
 
         if result.returncode != 0:
@@ -372,17 +353,12 @@ def main():
 Fix these errors in {Path(file_path).name} now. Do not skip or defer."""
 
             output = {
-                "hookSpecificOutput": {
-                    "hookEventName": "PostToolUse",
-                    "additionalContext": context
-                },
-                "systemMessage": f"[AUTO-FIX] {len(errors)} error(s) — fix before continuing"
+                "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": context},
+                "systemMessage": f"[AUTO-FIX] {len(errors)} error(s) — fix before continuing",
             }
             print(json.dumps(output))
         else:
-            output = {
-                "systemMessage": "[diagnostics] ok"
-            }
+            output = {"systemMessage": "[diagnostics] ok"}
             print(json.dumps(output))
 
     except Exception:
@@ -390,4 +366,7 @@ Fix these errors in {Path(file_path).name} now. Do not skip or defer."""
 
 
 if __name__ == "__main__":
-    main()
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from hook_log import run_and_log
+
+    run_and_log("PostToolUse", "provider", __file__, main)

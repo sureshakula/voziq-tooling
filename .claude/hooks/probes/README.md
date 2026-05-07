@@ -1,4 +1,9 @@
-# Hook Probe Suite
+# Hook Probe Suite (Legacy)
+
+> **Note:** The probe suite predates the `hook_log.py` always-on logger (S132, DPLAN-0167).
+> For most hook debugging, use `hook_report.py` and `hook_test.py` in the parent directory
+> instead — they cover all hooks automatically without manual wiring. The probes below remain
+> useful for one-off event investigation when you need to enable/disable individual events.
 
 This directory contains ping-response probe scripts for each Claude Code hook event type.
 Probes are **opt-in** — they are never auto-wired. See below for how to enable them.
@@ -10,8 +15,6 @@ Probes are **opt-in** — they are never auto-wired. See below for how to enable
 Each `probe_*.py` script in this directory is a passive observer for one Claude Code hook event.
 When enabled in `settings.json`, a probe fires on its event, records a structured entry to
 `last_ping.jsonl`, and exits 0 immediately — it never blocks execution.
-
-The log is used by `drone @seedgo hooks probe` to display event tables and generate reports.
 
 ---
 
