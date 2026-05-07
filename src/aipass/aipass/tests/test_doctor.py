@@ -284,10 +284,16 @@ class TestDoctorHandleCommand:
         assert handle_command("help", []) is False
         assert handle_command("init", ["--verbose"]) is False
 
-    def test_no_args_calls_introspection(self, capsys) -> None:
-        """No args triggers print_introspection (returns True)."""
-        with patch("aipass.aipass.apps.modules.doctor.print_introspection") as mock_intro:
+    def test_no_args_runs_doctor(self) -> None:
+        """No args runs run_doctor (returns True when 0 errors)."""
+        with patch("aipass.aipass.apps.modules.doctor.run_doctor", return_value=0):
             result = handle_command("doctor", [])
+        assert result is True
+
+    def test_info_flag_calls_introspection(self) -> None:
+        """--info flag triggers print_introspection (returns True)."""
+        with patch("aipass.aipass.apps.modules.doctor.print_introspection") as mock_intro:
+            result = handle_command("doctor", ["--info"])
         assert result is True
         mock_intro.assert_called_once()
 

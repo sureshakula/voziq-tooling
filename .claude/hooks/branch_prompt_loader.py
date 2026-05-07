@@ -6,9 +6,33 @@ Injects branch-specific prompts based on CWD. When working in a branch
 directory, loads .aipass/aipass_local_prompt.md and outputs it so the
 AI sees branch-specific context.
 
-Version: 1.0.0
+When CWD is inside a project that has its own UserPromptSubmit hooks
+(e.g. a standalone aipass-init project), this provider-level hook exits
+silently to avoid double-firing.
+
+Version: 1.1.0
 """
+
+import json
 from pathlib import Path
+
+
+def _project_has_own_hooks() -> bool:
+    """Check if CWD is inside a project with its own UserPromptSubmit hooks."""
+    search = Path.cwd()
+    home = Path.home()
+    while search != home and search.parent != search:
+        settings = search / ".claude" / "settings.json"
+        if settings.exists():
+            try:
+                data = json.loads(settings.read_text(encoding="utf-8"))
+                ups = data.get("hooks", {}).get("UserPromptSubmit", [])
+                if ups:
+                    return True
+            except (json.JSONDecodeError, OSError):
+                pass
+        search = search.parent
+    return False
 
 
 def find_branch_root() -> Path | None:
@@ -38,6 +62,9 @@ def find_branch_root() -> Path | None:
 
 
 def main():
+    if _project_has_own_hooks():
+        return
+
     branch_root = find_branch_root()
 
     if branch_root:
