@@ -37,7 +37,7 @@ def _get_branch(file_path: str) -> str:
 
 
 def _block(reason: str) -> None:
-    print(json.dumps({"decision": "block", "reason": reason}))
+    print(json.dumps({"decision": "block", "reason": reason}))  # lgtm[py/clear-text-logging-sensitive-data]
     sys.exit(2)
 
 

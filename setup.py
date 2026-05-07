@@ -109,7 +109,7 @@ def step_secrets() -> None:
             secrets_dir.chmod(0o700)
         except OSError:
             pass  # Best-effort on non-POSIX filesystems
-    print(f"  Created: {secrets_dir}")
+    print(f"  Created: {secrets_dir}")  # lgtm[py/clear-text-logging-sensitive-data]
 
 
 def step_env() -> None:
