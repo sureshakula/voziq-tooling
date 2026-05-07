@@ -292,7 +292,7 @@ def test_init_project_claude_settings_content(tmp_path):
 
 
 def test_init_project_settings_has_all_hooks(tmp_path):
-    """.claude/settings.json wires all hook event types."""
+    """.claude/settings.json wires project-compatible hook event types."""
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -308,18 +308,14 @@ def test_init_project_settings_has_all_hooks(tmp_path):
     assert "aipass_local_prompt.md" in ups_hooks[1]["hooks"][0]["command"]
     assert "branch_prompt_loader.py" in ups_hooks[2]["hooks"][0]["command"]
 
-    # Enforcement hooks wired to their event types
-    assert len(data["hooks"]["PostToolUse"]) == 1
-    assert "auto_fix_diagnostics.py" in data["hooks"]["PostToolUse"][0]["hooks"][0]["command"]
-
-    assert len(data["hooks"]["PreToolUse"]) == 1
-    assert "pre_edit_gate.py" in data["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-
-    assert len(data["hooks"]["Stop"]) == 1
-    assert "subagent_stop_gate.py" in data["hooks"]["Stop"][0]["hooks"][0]["command"]
-
+    # PreCompact fires from project level
     assert len(data["hooks"]["PreCompact"]) == 1
     assert "pre_compact.py" in data["hooks"]["PreCompact"][0]["hooks"][0]["command"]
+
+    # PreToolUse, PostToolUse, Stop are provider-only — NOT in project settings
+    assert "PreToolUse" not in data["hooks"]
+    assert "PostToolUse" not in data["hooks"]
+    assert "Stop" not in data["hooks"]
 
 
 def test_init_project_global_prompt_content(tmp_path):
@@ -893,14 +889,14 @@ def test_init_project_hooks_idempotent_on_rerun(tmp_path):
 
 
 def test_init_project_settings_has_all_event_types(tmp_path):
-    """settings.json contains all 5 hook event types."""
+    """settings.json contains only project-compatible hook event types."""
     target = tmp_path / "proj"
     target.mkdir()
 
     init_project(target, project_name="events")
 
     settings = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
-    expected_events = {"UserPromptSubmit", "PostToolUse", "PreToolUse", "Stop", "PreCompact"}
+    expected_events = {"UserPromptSubmit", "PreCompact"}
     assert set(settings["hooks"].keys()) == expected_events
 
 
