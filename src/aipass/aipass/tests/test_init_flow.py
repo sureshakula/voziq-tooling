@@ -46,10 +46,10 @@ from aipass.aipass.apps.modules.init_flow import (
 
 @pytest.fixture
 def tmp_local_json(tmp_path: Path) -> Generator[Path, None, None]:
-    """Patch _LOCAL_JSON to a temp path."""
+    """Patch _get_local_json_path to return a temp path."""
     local_json = tmp_path / ".trinity" / "local.json"
     local_json.parent.mkdir(parents=True)
-    with patch("aipass.aipass.apps.modules.init_flow._LOCAL_JSON", local_json):
+    with patch("aipass.aipass.apps.modules.init_flow._get_local_json_path", return_value=local_json):
         yield local_json
 
 
@@ -198,12 +198,13 @@ class TestHandleCommand:
         assert handle_command("doctor", []) is False
         assert handle_command("profile", ["set", "name", "X"]) is False
 
-    def test_no_args_calls_introspection(self, tmp_local_json) -> None:
-        """'init' with no args calls print_introspection."""
-        with patch("aipass.aipass.apps.modules.init_flow.print_introspection") as mock_pi:
-            result = handle_command("init", [])
-        assert result is True
-        mock_pi.assert_called_once()
+    def test_no_args_runs_scaffold(self, tmp_local_json) -> None:
+        """'init' with no args runs project scaffold."""
+        with patch("aipass.aipass.apps.modules.init_flow._preflight_check", return_value=None):
+            with patch("aipass.aipass.apps.modules.init_flow._handle_init_scaffold", return_value=0):
+                with pytest.raises(SystemExit) as exc_info:
+                    handle_command("init", [])
+        assert exc_info.value.code == 0
 
     def test_help_flag(self) -> None:
         """--help flag routes to print_help."""
@@ -221,22 +222,33 @@ class TestHandleCommand:
 
     def test_run_subcommand_calls_run_init(self, tmp_local_json) -> None:
         """'init run' routes to run_init."""
-        with patch("aipass.aipass.apps.modules.init_flow.run_init", return_value=0) as mock_run:
-            result = handle_command("init", ["run"])
-        assert result is True
+        with patch("aipass.aipass.apps.modules.init_flow._preflight_check", return_value=None):
+            with patch("aipass.aipass.apps.modules.init_flow.run_init", return_value=0) as mock_run:
+                with pytest.raises(SystemExit) as exc_info:
+                    handle_command("init", ["run"])
+        assert exc_info.value.code == 0
         mock_run.assert_called_once()
 
-    def test_unknown_subcommand_falls_to_print_help(self, tmp_local_json) -> None:
-        """Unknown subcommand falls through to print_help."""
-        with patch("aipass.aipass.apps.modules.init_flow.print_help") as mock_help:
-            result = handle_command("init", ["status"])
-        assert result is True
-        mock_help.assert_called_once()
+    def test_positional_args_treated_as_scaffold_target(self, tmp_local_json) -> None:
+        """Positional args are treated as target path for scaffold."""
+        with patch("aipass.aipass.apps.modules.init_flow._preflight_check", return_value=None):
+            with patch("aipass.aipass.apps.modules.init_flow._handle_init_scaffold", return_value=0) as mock_scaffold:
+                with pytest.raises(SystemExit) as exc_info:
+                    handle_command("init", ["/tmp/test-proj"])
+        assert exc_info.value.code == 0
+        mock_scaffold.assert_called_once_with(["/tmp/test-proj"])
 
 
 # =============================================================================
 # TestRunInit
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _bypass_preflight():
+    """All TestRunInit tests run outside a real AIPass project — bypass the guard."""
+    with patch("aipass.aipass.apps.modules.init_flow._preflight_check", return_value=None):
+        yield
 
 
 class TestRunInit:
@@ -533,19 +545,19 @@ class TestStages:
     def test_stage_11_default_variant_no_flag(self, tmp_local_json) -> None:
         """Default flag variant does not append --dangerously-skip-permissions."""
         with patch(f"{_MOD}.console"):
-            result = stage_11_handoff(cli_choice="claude", flag_variant="default")
+            result = stage_11_handoff(cli_choice="claude", flag_variant="default", non_interactive=True)
         assert "--dangerously-skip-permissions" not in result["handoff_command"]
 
     def test_stage_11_skip_permissions_variant(self, tmp_local_json) -> None:
         """skip-permissions variant appends the flag for claude."""
         with patch(f"{_MOD}.console"):
-            result = stage_11_handoff(cli_choice="claude", flag_variant="skip-permissions")
+            result = stage_11_handoff(cli_choice="claude", flag_variant="skip-permissions", non_interactive=True)
         assert "--dangerously-skip-permissions" in result["handoff_command"]
 
     def test_stage_11_handoff_command_contains_path(self, tmp_local_json) -> None:
         """Handoff command includes the agent path."""
         with patch(f"{_MOD}.console"):
-            result = stage_11_handoff(agent_path="src/mybot")
+            result = stage_11_handoff(agent_path="src/mybot", non_interactive=True)
         assert "src/mybot" in result["handoff_command"]
 
     def test_stage_12_done_returns_empty(self, tmp_local_json) -> None:

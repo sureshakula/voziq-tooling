@@ -2,12 +2,12 @@
 
 # CLI
 
-**Purpose:** Display and output formatting service for all AIPass branches, plus the `aipass init` project bootstrap command. Provides consistent terminal output — headers, success/error/warning messages, section breaks, and operation templates — so every branch looks the same without duplicating Rich formatting code.
+**Purpose:** Display and output formatting service for all AIPass branches. Provides consistent terminal output — headers, success/error/warning messages, section breaks, and operation templates — so every branch looks the same without duplicating Rich formatting code.
 **Module:** `aipass.cli`
-**Version:** 2.0.0
+**Version:** 2.1.0
 **Seedgo:** 100% (34/34 standards)
 **Tests:** 203 passing (6 files, 5/5 modules covered)
-**Last Updated:** 2026-04-26
+**Last Updated:** 2026-05-04
 
 ## Usage
 
@@ -81,16 +81,8 @@ from aipass.cli.apps.modules.display import header         # Direct
 ```bash
 # Via drone
 drone @cli --help                        # Services + Rich formatting showcase
-drone @cli --version                     # Version (v2.0.0)
+drone @cli --version                     # Version (v2.1.0)
 drone @cli                               # Module discovery (introspection)
-drone @cli aipass                        # Show aipass subcommands
-drone @cli aipass init                   # Bootstrap AIPass project in current dir
-drone @cli aipass init /path             # Bootstrap in target directory
-drone @cli aipass init /path MyProject   # Bootstrap with custom name
-drone @cli aipass init update            # Re-sync managed scaffold files
-drone @cli aipass init update /path      # Re-sync in target directory
-drone @cli aipass init agent <name>      # Create agent (routes to spawn)
-drone @cli aipass init --help            # Detailed init usage
 drone @cli display                       # Display module info
 drone @cli display demo                  # Run display function showcase
 drone @cli templates                     # Templates module info
@@ -98,35 +90,13 @@ drone @cli templates demo                # Run templates function showcase
 
 # Standalone (no drone required)
 python -m aipass.cli --help              # Same help output
-python -m aipass.cli aipass init /path   # Bootstrap directly
-aipass --help                            # Via console_scripts entry point
 ```
 
-## aipass init
+> **Note:** The `aipass init` command is now owned by the @aipass branch (`aipass.aipass.apps.aipass:main`).
 
-Bootstraps a new AIPass project with 21 items (when AIPASS_HOME is detected):
+## aipass init (moved)
 
-| Category | Items Created |
-|----------|---------------|
-| Identity | `*_REGISTRY.json` |
-| Prompts | `.aipass/aipass_global_prompt.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` |
-| Docs | `README.md`, `STATUS.local.md` |
-| Config | `.claude/settings.json`, `.gitignore` |
-| Slash commands | `.claude/commands/prep.md`, `.claude/commands/memo.md` |
-| Hooks | 7 enforcement/injector hooks in `.claude/hooks/` |
-| Dirs | `hooks/`, `src/` |
-| Mail | `.ai_mail.local/inbox.json` |
-
-Settings.json wires 5 hook event types:
-- **UserPromptSubmit** (5 hooks): global prompt, local prompt, branch prompt loader, email notification, identity injector
-- **PostToolUse**: auto-fix diagnostics
-- **PreToolUse**: pre-edit gate
-- **Stop**: subagent stop gate
-- **PreCompact**: pre-compact
-
-`aipass init update` re-syncs managed files (prompts, config, hooks) without touching user-owned files (registry, README, STATUS.local.md, .gitignore, mailbox).
-
-Cross-platform: local prompt discovery uses `python3 -c` with pathlib (no bash dependency). A `setup.py` installer handles Windows + Linux + macOS.
+The `aipass init` command has been moved to the @aipass branch. CLI no longer owns project bootstrapping. See `aipass.aipass.apps.aipass:main` for the current implementation.
 
 ## Architecture
 
@@ -139,20 +109,14 @@ cli/
 │   ├── modules/                # PUBLIC — import from here
 │   │   ├── __init__.py         # Re-exports all display + template functions
 │   │   ├── display.py          # header, success, error, warning, fatal, section
-│   │   ├── templates.py        # operation_start, operation_complete
-│   │   └── init_project.py     # aipass init command routing
+│   │   └── templates.py        # operation_start, operation_complete
 │   └── handlers/               # PRIVATE — internal implementation
-│       ├── init/
-│       │   ├── bootstrap.py    # init_project(), update_project() (511 lines)
-│       │   └── scaffold_content.py  # 10 content generators (502 lines)
 │       ├── json/
 │       │   └── json_handler.py # JSON lifecycle (CRUD, validation, rotation)
 │       └── templates/          # Empty — placeholder from scaffold
-├── tests/                      # 203 tests across 6 files
-│   ├── test_bootstrap.py       # 72 tests — init/update/hooks/memo/mailbox/scaffold
+├── tests/                      # Test suite
 │   ├── test_json_handler.py    # 35 tests — CRUD, validation, rotation
 │   ├── test_display.py         # 28 tests — all display functions + routing
-│   ├── test_init_project.py    # 34 tests — command routing, agent, update, output
 │   ├── test_templates.py       # 19 tests — operation templates + routing
 │   └── test_integration.py     # 8 tests — main() flow, entry points
 ├── cli_json/                   # Auto-created JSON (config, data, log)
@@ -190,8 +154,6 @@ json_handler.ensure_module_jsons("cli")  # Create all 3 if missing
 - **All branches** — Display formatting (header, success, error, warning, fatal, section)
 - **All branches** — Operation templates (operation_start, operation_complete)
 - **All branches** — Rich console access
-- **All users** — `aipass init` project bootstrap + `aipass init update` refresh
-- **All users** — `aipass init agent` routing to spawn
 
 ## Entry Points
 
@@ -199,11 +161,10 @@ json_handler.ensure_module_jsons("cli")  # Create all 3 if missing
 |-------|---------|-----|
 | drone | `drone @cli [command]` | Drone routes to `apps/cli.py:main()` |
 | Module | `python -m aipass.cli [args]` | `__main__.py` calls `main()` |
-| PATH | `aipass [args]` | `console_scripts` calls `cli_entry()` |
 
 ---
 
-*Last Updated: 2026-04-26*
+*Last Updated: 2026-05-04*
 
 ---
 [← Back to AIPass](../../../README.md)

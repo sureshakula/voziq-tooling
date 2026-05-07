@@ -1,16 +1,15 @@
 # =================== AIPass ====================
 # Name: cli.py
 # Description: Entry point for drone @cli — seedgo-compliant module discovery and routing
-# Version: 2.0.0
+# Version: 2.1.0
 # Created: 2026-03-08
-# Modified: 2026-03-15
+# Modified: 2026-05-04
 # =============================================
 
 """
 CLI Branch - Universal Display/Output Service Provider
 
 Routes commands to auto-discovered modules via seedgo pattern.
-- 'aipass init /path' -> init_project module (handle_command)
 - Modules auto-discovered from modules/ directory
 - Service modules (display, templates) also discoverable via handle_command()
 
@@ -40,7 +39,7 @@ from rich import box
 # CLI modules (showcasing our own services!)
 from aipass.cli.apps.modules.display import console as CONSOLE, header, error
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 CLI_ROOT = Path(__file__).parent
 MODULES_DIR = CLI_ROOT / "modules"
 
@@ -138,8 +137,8 @@ def print_introspection() -> None:
         CONSOLE.print()
 
     CONSOLE.print("[yellow]Next:[/yellow]  Explore a module")
-    CONSOLE.print("  [green]drone @cli aipass[/green]               [dim]# Project commands[/dim]")
-    CONSOLE.print("  [green]drone @cli aipass init --help[/green]   [dim]# Bootstrap a project[/dim]")
+    CONSOLE.print("  [green]drone @cli display[/green]              [dim]# Display module info[/dim]")
+    CONSOLE.print("  [green]drone @cli display demo[/green]         [dim]# Run display showcase[/dim]")
     CONSOLE.print("  [green]drone @cli --help[/green]               [dim]# Full usage guide[/dim]")
     CONSOLE.print()
 
@@ -177,9 +176,6 @@ def print_help() -> None:
     CONSOLE.print("[bold cyan]COMMANDS:[/bold cyan]")
     CONSOLE.print()
     CONSOLE.print("  [green]drone @cli[/green]                             [dim]# Show discovered modules[/dim]")
-    CONSOLE.print("  [green]drone @cli aipass[/green]                      [dim]# Project commands[/dim]")
-    CONSOLE.print("  [green]drone @cli aipass init[/green]                 [dim]# Bootstrap a project[/dim]")
-    CONSOLE.print("  [green]drone @cli aipass init /path MyProj[/green]    [dim]# Bootstrap with name[/dim]")
     CONSOLE.print("  [green]drone @cli display[/green]                     [dim]# Display module info[/dim]")
     CONSOLE.print("  [green]drone @cli display demo[/green]                [dim]# Run display demo[/dim]")
     CONSOLE.print("  [green]drone @cli templates[/green]                   [dim]# Templates module info[/dim]")
@@ -237,10 +233,8 @@ def print_help() -> None:
 [green]\u2713[/green] apps/modules/       = PUBLIC API (what branches import)
   - display.py          Display functions (header, success, error, etc.)
   - templates.py        Standard operation patterns
-  - init_project.py     Project bootstrap (aipass init)
 
 [green]\u2713[/green] apps/handlers/      = PRIVATE (internal implementation)
-  - init/               Bootstrap logic (aipass init)
   - json/               JSON file I/O and validation
 
 [green]\u2713[/green] Rich library        = Underlying formatting engine
@@ -252,7 +246,7 @@ def print_help() -> None:
     CONSOLE.print()
 
     # Drone compliance — commands line
-    CONSOLE.print("[dim]Commands: aipass, display, templates, demo, --help[/dim]")
+    CONSOLE.print("[dim]Commands: display, templates, demo, --help[/dim]")
     CONSOLE.print()
 
 

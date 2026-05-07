@@ -65,7 +65,11 @@ COMMAND = "init"
 TOTAL_STAGES = 12
 
 _BRANCH_ROOT = Path(__file__).resolve().parents[2]
-_LOCAL_JSON = _BRANCH_ROOT / ".trinity" / "local.json"
+
+
+def _get_local_json_path() -> Path:
+    """Always resolve .trinity/local.json from CWD (user's project)."""
+    return Path.cwd() / ".trinity" / "local.json"
 
 CLI_CHOICES = ["claude", "codex", "gemini", "other"]
 # Flag variants for CLI launch — these are user-facing config values, not code-level flags
@@ -76,10 +80,11 @@ STYLE_CHOICES = ["building-my-own-project", "improving-aipass", "just-exploring"
 # --- LOCAL JSON HELPERS ---
 def _read_local_json() -> dict:
     """Read .trinity/local.json, returning empty dict on failure."""
-    if not _LOCAL_JSON.exists():
+    local_json = _get_local_json_path()
+    if not local_json.exists() or local_json.stat().st_size == 0:
         return {}
     try:
-        with open(_LOCAL_JSON, "r", encoding="utf-8") as f:
+        with open(local_json, "r", encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("[init_flow] local.json read error: %s", exc)
@@ -98,13 +103,14 @@ def _fire_file_deleted(path: str) -> None:
 
 def _write_local_json(data: dict) -> None:
     """Write .trinity/local.json atomically via temp-file rename."""
-    dir_ = _LOCAL_JSON.parent
+    local_json = _get_local_json_path()
+    dir_ = local_json.parent
     dir_.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=str(dir_), prefix=".local_", suffix=".json.tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        os.replace(tmp_path, _LOCAL_JSON)
+        os.replace(tmp_path, local_json)
     except OSError as exc:
         logger.warning("[init_flow] write failed, cleaning up %s: %s", tmp_path, exc)
         _fire_file_deleted(tmp_path)
@@ -198,10 +204,13 @@ def stage_1_welcome(dry_run: bool = False) -> Dict[str, Any]:
     console.print()
     console.print("[bold]Hi, I am AIPass — your AI passport and front door to the ecosystem.[/bold]")
     console.print("Let's walk through setup together. This takes about 5 minutes.")
+    if shutil.which("drone"):
+        console.print()
+        console.print("[dim]Tip: Open another terminal and run [cyan]drone @prax monitor run[/cyan] to watch activity live.[/dim]")
     if dry_run:
         console.print("[yellow]\\[dry-run][/yellow] No state will be written, no subprocesses launched.")
     console.print()
-    console.print("[dim][1/12] Welcome[/dim]")
+    console.print("[bold cyan]Step 1/12[/bold cyan] — Welcome")
     _save_stage(1, dry_run=dry_run)
     return {}
 
@@ -209,7 +218,7 @@ def stage_1_welcome(dry_run: bool = False) -> Dict[str, Any]:
 def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Detect OS, Python, shell, RAM, CPU, install method, and optional tools."""
     console.print()
-    console.print("[dim][2/12] System detection[/dim]")
+    console.print("[bold cyan]Step 2/12[/bold cyan] — System detection")
 
     from rich.table import Table
 
@@ -235,13 +244,15 @@ def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) 
     table.add_row("install", install)
     table.add_row("git", git["version"] if git["found"] else "not found")
     table.add_row("tmux", "yes" if has_tmux else "no")
-    table.add_row("wt.exe", "yes" if has_wt else "no")
+    if sys.platform == "win32":
+        table.add_row("wt.exe", "yes" if has_wt else "no")
     table.add_row("docker", "yes" if has_docker else "no")
     console.print(table)
 
     console.print()
     console.print(f"You are on [cyan]{os_info['os_name']}[/cyan] with Python [cyan]{py['version']}[/cyan].")
-    console.print(f"Looks like a [cyan]{install}[/cyan] install.")
+    install_labels = {"dev": "development (editable source)", "pip": "pip", "clone": "git clone", "unknown": "unknown"}
+    console.print(f"Install type: [cyan]{install_labels.get(install, install)}[/cyan]")
 
     system_data: Dict[str, Any] = {
         "os": os_info["os_name"],
@@ -259,7 +270,7 @@ def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) 
 def stage_3_doctor(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Run aipass doctor health checks inline."""
     console.print()
-    console.print("[dim][3/12] System health check[/dim]")
+    console.print("[bold cyan]Step 3/12[/bold cyan] — System health check")
 
     error_count = 0
     try:
@@ -287,7 +298,7 @@ def stage_4_user_profile(
 ) -> Dict[str, Any]:
     """Collect user name and OS, save to profile."""
     console.print()
-    console.print("[dim][4/12] User profile[/dim]")
+    console.print("[bold cyan]Step 4/12[/bold cyan] — User profile")
 
     from aipass.aipass.apps.modules import profile as profile_mod
 
@@ -327,7 +338,7 @@ def stage_5_style_questions(
 ) -> Dict[str, Any]:
     """Ask what the user wants to do — routes tone of later stages."""
     console.print()
-    console.print("[dim][5/12] What brings you here?[/dim]")
+    console.print("[bold cyan]Step 5/12[/bold cyan] — What brings you here?")
 
     if style_override and style_override in STYLE_CHOICES:
         style = style_override
@@ -348,7 +359,7 @@ def stage_6_tool_choice(
 ) -> Dict[str, Any]:
     """Choose CLI tool and launch flag variant."""
     console.print()
-    console.print("[dim][6/12] CLI tool choice[/dim]")
+    console.print("[bold cyan]Step 6/12[/bold cyan] — CLI tool choice")
 
     if cli_override and cli_override in CLI_CHOICES:
         cli_choice = cli_override
@@ -392,7 +403,7 @@ def stage_7_docker_offer(
 ) -> Dict[str, Any]:
     """Offer Docker sandbox test if Docker is detected."""
     console.print()
-    console.print("[dim][7/12] Docker[/dim]")
+    console.print("[bold cyan]Step 7/12[/bold cyan] — Docker")
 
     if has_docker is None:
         has_docker = detect_docker()
@@ -414,7 +425,7 @@ def stage_7_docker_offer(
 def stage_8_first_agent(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Create the user's first AI agent via drone @spawn."""
     console.print()
-    console.print("[dim][8/12] Create your first agent[/dim]")
+    console.print("[bold cyan]Step 8/12[/bold cyan] — Create your first agent")
     console.print("Let's create your first AI agent (citizen).")
 
     if non_interactive:
@@ -450,10 +461,27 @@ def stage_8_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
 def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Ping all registered branches via test-convention emails."""
     console.print()
-    console.print("[dim][9/12] Pinging branches...[/dim]")
-    console.print("[dim](Branches with daemons running will auto-ack; quiet ones will time out.)[/dim]")
+    console.print("[bold cyan]Step 9/12[/bold cyan] — Pinging agents")
 
     from aipass.aipass.apps.handlers import ping_sweep
+
+    branches = ping_sweep._discover_branches()
+    if not branches:
+        console.print("[dim]  No branches registered yet — skipping ping sweep.[/dim]")
+        _save_stage(9, {"results": {}, "skipped": True}, dry_run=dry_run)
+        return {"ping_results": {}}
+
+    # Standalone projects can't ping agents via drone (drone only knows AIPass's registry).
+    # Only attempt ping if we're inside the AIPass source tree.
+    aipass_registry = _BRANCH_ROOT.parent / "AIPASS_REGISTRY.json"
+    if not aipass_registry.exists():
+        console.print(f"[dim]  Found {len(branches)} agent(s) in this project.[/dim]")
+        console.print("[dim]  Ping requires a running session — your agents will be reachable after handoff (next step).[/dim]")
+        _save_stage(9, {"results": {}, "skipped_standalone": True}, dry_run=dry_run)
+        return {"ping_results": {}}
+
+    console.print(f"[dim]  Found {len(branches)} agent(s). Checking reachability...[/dim]")
+    console.print("[dim]  (Agents with a running session will auto-ack; new agents will time out — that's normal.)[/dim]")
 
     results = ping_sweep.sweep_all_branches(timeout=10)
 
@@ -461,13 +489,14 @@ def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
         if status == "ack":
             glyph = "[green]✓[/green]"
         elif status == "timeout":
-            glyph = "[yellow]![/yellow]"
+            glyph = "[yellow]—[/yellow]"
         else:
             glyph = "[red]✗[/red]"
-        console.print(f"  {glyph} @{branch}: {status}")
+        label = "reachable" if status == "ack" else "not running" if status == "timeout" else "error"
+        console.print(f"  {glyph} @{branch}: {label}")
 
     summary = ping_sweep.sweep_summary(results)
-    console.print(f"\n{summary}")
+    console.print(f"  {summary}")
     _save_stage(9, {"results": results}, dry_run=dry_run)
     return {"ping_results": results}
 
@@ -475,7 +504,7 @@ def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
 def stage_10_smoke_test(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Verify drone and aipass binaries are on PATH."""
     console.print()
-    console.print("[dim][10/12] Smoke test[/dim]")
+    console.print("[bold cyan]Step 10/12[/bold cyan] — Smoke test")
 
     drone_bin = shutil.which("drone")
     aipass_bin = shutil.which("aipass")
@@ -503,9 +532,13 @@ def stage_11_handoff(
 ) -> Dict[str, Any]:
     """Launch user's chosen CLI in a new session via handoff module."""
     console.print()
-    console.print("[dim][11/12] Handoff[/dim]")
+    console.print("[bold cyan]Step 11/12[/bold cyan] — Handoff")
 
     init_prompt = "I just completed aipass init. I am ready to start. What should I do first?"
+
+    console.print()
+    console.print("  Your agent is ready. The next step opens an interactive session with it.")
+    console.print(f"  [dim]CLI: {cli_choice} | Agent: {agent_path}[/dim]")
 
     if dry_run:
         from aipass.aipass.apps.handlers.handoff_platform import build_manual_command
@@ -513,7 +546,21 @@ def stage_11_handoff(
         command = build_manual_command(cli_choice, init_prompt, agent_path, flag_variant)
         console.print(f"[yellow]\\[dry-run][/yellow] would launch handoff: {command}")
         launched = False
+    elif non_interactive:
+        from aipass.aipass.apps.modules import handoff as handoff_mod
+
+        launched = handoff_mod.do_handoff(
+            cli=cli_choice,
+            prompt=init_prompt,
+            cwd=agent_path,
+            flag_variant=flag_variant,
+        )
+        from aipass.aipass.apps.handlers.handoff_platform import build_manual_command
+
+        command = build_manual_command(cli_choice, init_prompt, agent_path, flag_variant)
     else:
+        console.print()
+        input("  Press Enter to chat with your agent...")
         from aipass.aipass.apps.modules import handoff as handoff_mod
 
         launched = handoff_mod.do_handoff(
@@ -533,7 +580,7 @@ def stage_11_handoff(
 def stage_12_done(dry_run: bool = False) -> Dict[str, Any]:
     """Print completion summary."""
     console.print()
-    console.print("[dim][12/12] Done![/dim]")
+    console.print("[bold cyan]Step 12/12[/bold cyan] — Done!")
     console.print()
     console.print("[bold green]✓ Setup complete![/bold green]")
     console.print()
@@ -582,6 +629,16 @@ def run_init(
     if err:
         console.print(f"[red]✗[/red] {err}")
         return 1
+
+    # Ensure scaffold exists (creates registry, .trinity, etc. if missing)
+    cwd = Path.cwd()
+    if not list(cwd.glob("*_REGISTRY.json")):
+        from aipass.aipass.apps.handlers.init.bootstrap import init_project
+
+        if not dry_run:
+            init_project(cwd)
+        else:
+            console.print("[yellow]\\[dry-run][/yellow] would create project scaffold")
 
     # In dry-run we ignore on-disk progress so the full flow always walks.
     last_done = 0 if dry_run else _get_last_completed_stage()
@@ -753,12 +810,10 @@ def handle_command(command: str, args: list[str]) -> bool:
 
         def _flag_value(flag: str) -> str | None:
             """Extract the value after a named flag, or None if absent."""
-            try:
-                idx = run_args.index(flag)
-                return run_args[idx + 1] if idx + 1 < len(run_args) else None
-            except ValueError as exc:
-                logger.info("[init_flow] flag %r not found in args: %s", flag, exc)
+            if flag not in run_args:
                 return None
+            idx = run_args.index(flag)
+            return run_args[idx + 1] if idx + 1 < len(run_args) else None
 
         name = _flag_value("--name")
         cli = _flag_value("--cli")

@@ -131,7 +131,7 @@
         61
       ],
       "pattern": "except ImportError",
-      "reason": "Handler import failure in _ensure_initialized — has logger.warning, not actually silent. Checker false positive on try block line."
+      "reason": "Handler import failure in _ensure_initialized \u2014 has logger.warning, not actually silent. Checker false positive on try block line."
     },
     {
       "file": "apps/handlers/json/json_handler.py",
@@ -365,56 +365,76 @@
     {
       "file": "apps/handlers/log_watcher.py",
       "standard": "silent_catch",
-      "lines": [236],
+      "lines": [
+        236
+      ],
       "reason": "Timestamp parsing loop tries multiple formats. except ValueError: continue is intentional \u2014 on failure, tries next format. Logger.warning fires once after ALL formats fail (line 240)."
     },
     {
       "file": "apps/modules/errors.py",
       "standard": "silent_catch",
-      "lines": [247],
+      "lines": [
+        247
+      ],
       "reason": "Exception is handled: calls error() to display user-facing message with suggestion. Not a silent catch \u2014 the user sees the error output."
     },
     {
       "file": "apps/modules/core.py",
       "standard": "silent_catch",
-      "lines": [26, 171, 175],
-      "reason": "Line 26: ImportError fallback to rich Console. Lines 171/175: _coerce_value() type-testing try/except — intentional control flow for int/float/str coercion."
+      "lines": [
+        26,
+        171,
+        175
+      ],
+      "reason": "Line 26: ImportError fallback to rich Console. Lines 171/175: _coerce_value() type-testing try/except \u2014 intentional control flow for int/float/str coercion."
     },
     {
       "file": "apps/config.py",
       "standard": "silent_catch",
-      "lines": [37, 66, 96],
-      "reason": "Line 37: meta-logging _log_warning() — cannot log a failure to log. Line 66: atomic_write_json cleanup of tmp file during error — can't fail on cleanup. Line 96: ImportError fallback with _log_warning + rich Console."
+      "lines": [
+        37,
+        66,
+        96
+      ],
+      "reason": "Line 37: meta-logging _log_warning() \u2014 cannot log a failure to log. Line 66: atomic_write_json cleanup of tmp file during error \u2014 can't fail on cleanup. Line 96: ImportError fallback with _log_warning + rich Console."
     },
     {
       "file": "apps/handlers/log_watcher.py",
       "standard": "silent_catch",
-      "lines": [233],
-      "reason": "Timestamp format parsing loop — tries multiple datetime formats, ValueError is expected control flow on non-matching formats."
+      "lines": [
+        233
+      ],
+      "reason": "Timestamp format parsing loop \u2014 tries multiple datetime formats, ValueError is expected control flow on non-matching formats."
     },
     {
       "file": "tests/test_log_watcher_service.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_log_watcher.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_log_watcher.py",
       "standard": "encapsulation",
-      "lines": [82],
+      "lines": [
+        82
+      ],
       "pattern": "handler imported directly",
       "reason": "Test helper _import_log_watcher() must import the handler module directly to test it. All trigger test files follow this pattern."
     },
     {
       "file": "tests/test_log_watcher.py",
       "standard": "log_structure",
-      "lines": [133, 310, 316],
+      "lines": [
+        133,
+        310,
+        316
+      ],
       "pattern": "hardcoded log paths",
       "reason": "Test assertions use hardcoded log path strings as fixture data to verify path-detection logic. These are not production paths."
     },
@@ -422,18 +442,20 @@
       "file": "tests/test_trigger_entry.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_error_detected.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_error_detected.py",
       "standard": "encapsulation",
-      "lines": [72],
+      "lines": [
+        72
+      ],
       "pattern": "handler imported directly",
       "reason": "Test helper _import_module() must import the handler module directly to test it. All trigger test files follow this pattern."
     },
@@ -441,12 +463,14 @@
       "file": "tests/test_event_handlers.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_event_handlers.py",
       "standard": "encapsulation",
-      "lines": [51],
+      "lines": [
+        51
+      ],
       "pattern": "handler imported directly",
       "reason": "Test helper _import_cli() must import the handler module directly to test it. All trigger test files follow this pattern."
     },
@@ -454,7 +478,7 @@
       "file": "tests/test_core.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_core.py",
@@ -466,14 +490,21 @@
       "file": "tests/test_error_registry.py",
       "standard": "architecture",
       "pattern": "3-layer structure",
-      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
     },
     {
       "file": "tests/test_error_registry.py",
       "standard": "encapsulation",
-      "lines": [63],
+      "lines": [
+        63
+      ],
       "pattern": "handler imported directly",
       "reason": "Test helper _import_registry() must import the handler module directly to test it. All trigger test files follow this pattern."
+    },
+    {
+      "standard": "cli_flags",
+      "file": "apps/config.py",
+      "reason": "Config module \u2014 not a CLI entry point. --version is in apps/trigger.py."
     }
   ],
   "notes": {

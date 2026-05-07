@@ -104,21 +104,6 @@ class TestMainFlow:
         err_output = get_err()
         assert "Unknown command" in err_output
 
-    def test_main_aipass_init_help_returns_zero(self):
-        """'aipass init --help' returns 0."""
-        cons, _get_output = _make_capture_console()
-        err_cons, _get_err = _make_capture_console()
-        with (
-            patch.object(cli_module, "CONSOLE", cons),
-            patch.object(display, "CONSOLE", cons),
-            patch.object(display, "err_console", err_cons),
-            patch.object(display, "_TRIGGER", None),
-            patch.object(display, "_TRIGGER_LOADED", True),
-            patch("sys.argv", ["cli", "aipass", "init", "--help"]),
-        ):
-            result = main()
-        assert result == 0
-
     def test_main_display_demo_returns_zero(self):
         """'display demo' returns 0."""
         cons, _get_output = _make_capture_console()

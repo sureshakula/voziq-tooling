@@ -1,4 +1,12 @@
-"""Tests for the CLI init bootstrap handler.
+# =================== AIPass ====================
+# Name: test_bootstrap.py
+# Description: Tests for init bootstrap handler (DPLAN-0164)
+# Version: 1.0.0
+# Created: 2026-05-04
+# Modified: 2026-05-04
+# =============================================
+
+"""Tests for the init bootstrap handler.
 
 Covers _sanitize_name(), init_project(), update_project(), and
 scaffold_content generators — all file operations use tmp_path to
@@ -11,8 +19,11 @@ from datetime import date
 
 import pytest
 
-from aipass.cli.apps.handlers.init.bootstrap import _sanitize_name, init_project, update_project
-from aipass.cli.apps.handlers.init import scaffold_content as sc
+from aipass.aipass.apps.handlers.init import bootstrap, scaffold_content as sc
+
+_sanitize_name = bootstrap._sanitize_name
+init_project = bootstrap.init_project
+update_project = bootstrap.update_project
 
 
 # ---------------------------------------------------------------------------
@@ -821,7 +832,7 @@ def test_init_project_hooks_not_shipped_without_aipass_home(tmp_path, monkeypatc
     target.mkdir()
 
     monkeypatch.setattr(
-        "aipass.cli.apps.handlers.init.bootstrap._detect_aipass_home",
+        "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
         lambda: None,
     )
 

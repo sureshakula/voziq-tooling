@@ -185,6 +185,16 @@
       "standard": "encapsulation",
       "file": "tests/test_git_gate.py",
       "reason": "Test imports git_gate.py from ~/.claude/hooks/ via importlib.util.spec_from_file_location. git_gate is a user-level hook (not a branch module), so no aipass package path exists. No cross-branch handler import — this is outside the branch tree entirely."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "tools/spot_check.py",
+      "reason": "Devpulse tool script (not a handler). Manager branch has no apps/handlers/__init__.py inspect.stack guard."
+    },
+    {
+      "standard": "debug_print",
+      "file": "tools/spot_check.py",
+      "reason": "Standalone CLI tool — print() is the intended user-facing output method, not debug noise."
     }
   ],
   "notes": {

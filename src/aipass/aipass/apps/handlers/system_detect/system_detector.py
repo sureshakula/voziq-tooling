@@ -206,25 +206,26 @@ def detect_cpu() -> Dict[str, Any]:
 
 
 def detect_install_method() -> str:
-    """Return how aipass was installed: 'pip', 'clone', or 'fork'.
+    """Return how aipass was installed: 'pip', 'dev', 'clone', or 'fork'.
 
     Logic:
       - If this file's path contains 'site-packages' → pip
-      - If a .git directory exists at the repo root → clone or fork
-        (For simplicity we always return 'clone' in the git case.)
-      - Default → 'clone'
+      - If .git exists AND pyproject.toml is in the same tree → dev (editable install / source contributor)
+      - If .git exists → clone
+      - Default → 'unknown'
     """
     this_file = Path(__file__).resolve()
 
     if "site-packages" in str(this_file):
         return "pip"
 
-    # Walk up looking for .git
     for parent in this_file.parents:
         if (parent / ".git").exists():
+            if (parent / "pyproject.toml").exists() and (parent / "src").exists():
+                return "dev"
             return "clone"
 
-    return "clone"
+    return "unknown"
 
 
 # =============================================================================

@@ -50,8 +50,49 @@ def build_manual_command(cli: str, prompt: str, cwd: str, flag_variant: str = "d
     return f'cd {cwd} && {cli_cmd} "{safe_prompt}"'
 
 
+def _find_terminal_emulator() -> str | None:
+    """Find an available terminal emulator on the system."""
+    for term in ("gnome-terminal", "xfce4-terminal", "konsole", "xterm"):
+        if shutil.which(term):
+            return term
+    return None
+
+
+def launch_terminal(cli: str, prompt: str, cwd: str, flag_variant: str = "default") -> bool:
+    """Open a new terminal window running the CLI directly. No tmux needed."""
+    term = _find_terminal_emulator()
+    if not term:
+        logger.warning("[handoff_platform] no terminal emulator found")
+        return False
+
+    cli_cmd = build_cli_cmd(cli, flag_variant)
+    safe_prompt = prompt.replace('"', '\\"')
+    shell_cmd = f'cd "{cwd}" && {cli_cmd} "{safe_prompt}"'
+
+    try:
+        if term == "gnome-terminal":
+            subprocess.Popen(["gnome-terminal", "--", "bash", "-c", shell_cmd])
+        elif term == "xfce4-terminal":
+            subprocess.Popen(["xfce4-terminal", "-e", f"bash -c '{shell_cmd}'"])
+        elif term == "konsole":
+            subprocess.Popen(["konsole", "-e", "bash", "-c", shell_cmd])
+        elif term == "xterm":
+            subprocess.Popen(["xterm", "-e", f"bash -c '{shell_cmd}'"])
+        else:
+            return False
+        logger.info("[handoff_platform] opened %s in %s (cwd=%s)", term, cli, cwd)
+        from aipass.cli.apps.modules import console
+
+        console.print(f"\n  [green]✓[/green] Opened your agent in a new terminal window.")
+        console.print()
+        return True
+    except OSError as exc:
+        logger.warning("[handoff_platform] failed to open terminal: %s", exc)
+        return False
+
+
 def launch_tmux(cli: str, prompt: str, cwd: str, flag_variant: str = "default") -> bool:
-    """Launch CLI in a new tmux session. Returns True on success."""
+    """Launch CLI in a tmux session (fallback when no terminal emulator available)."""
     if not shutil.which("tmux"):
         logger.warning("[handoff_platform] tmux not found on PATH")
         return False
@@ -60,6 +101,11 @@ def launch_tmux(cli: str, prompt: str, cwd: str, flag_variant: str = "default") 
     safe_prompt = prompt.replace('"', '\\"')
 
     try:
+        subprocess.run(
+            ["tmux", "kill-session", "-t", _TMUX_SESSION],
+            capture_output=True,
+            timeout=5,
+        )
         subprocess.run(
             ["tmux", "new-session", "-d", "-s", _TMUX_SESSION, "-c", cwd],
             check=True,
@@ -71,6 +117,11 @@ def launch_tmux(cli: str, prompt: str, cwd: str, flag_variant: str = "default") 
             timeout=10,
         )
         logger.info("[handoff_platform] tmux session '%s' started in %s", _TMUX_SESSION, cwd)
+        from aipass.cli.apps.modules import console
+
+        console.print(f"\n  [green]✓[/green] Your agent is ready! Run this in your terminal:")
+        console.print(f"\n    [bold green]tmux attach -t {_TMUX_SESSION}[/bold green]\n")
+        console.print()
         return True
     except subprocess.CalledProcessError as exc:
         logger.warning("[handoff_platform] tmux launch failed: %s", exc)
@@ -129,6 +180,8 @@ def launch_handoff(
         if launch_wt(cli, prompt, cwd, flag_variant):
             return True, manual_cmd
     else:
+        if launch_terminal(cli, prompt, cwd, flag_variant):
+            return True, manual_cmd
         if launch_tmux(cli, prompt, cwd, flag_variant):
             return True, manual_cmd
 

@@ -70,6 +70,17 @@ def _get_branch_info_fn():
         return None
 
 
+COMMAND = "send"
+
+
+def handle_command(command: str, args: List[str]) -> bool:
+    """Module discovery entry point — routes to handle_send."""
+    if not args:
+        print_introspection()
+        return True
+    return handle_send(args)
+
+
 def handle_send(args: List[str]) -> bool:
     """Orchestrate email sending workflow."""
     json_handler.log_operation("send_email_initiated", {"args_count": len(args)})

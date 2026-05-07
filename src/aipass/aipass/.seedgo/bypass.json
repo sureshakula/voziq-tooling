@@ -27,6 +27,11 @@
       "reason": "The --dangerously-skip-permissions string is a CLI flag NAME appended to the user's chosen tool invocation. It is not a code-level permission bypass in this handler."
     },
     {
+      "file": "apps/handlers/handoff_platform/__init__.py",
+      "standard": "cli",
+      "reason": "Session info must print immediately after tmux spawn — returning data to module layer would lose the timing context. User needs attach/kill instructions right when the session starts."
+    },
+    {
       "file": "apps/modules/handoff.py",
       "standard": "introspection",
       "reason": "Phase 4 placeholder — print_introspection() added with handoff build."

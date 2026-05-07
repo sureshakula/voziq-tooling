@@ -47,6 +47,27 @@ BRANCHES = [
 _BRANCH_ROOT = Path(__file__).resolve().parents[3]
 
 
+def _discover_branches() -> list[str]:
+    """Read branches from the project's own registry. Returns empty if none found."""
+    cwd = Path.cwd()
+    search = cwd
+    for _ in range(10):
+        candidates = list(search.glob("*_REGISTRY.json"))
+        if candidates:
+            try:
+                data = json.loads(candidates[0].read_text(encoding="utf-8"))
+                branches = [b.get("name", "") for b in data.get("branches", [])]
+                return [b for b in branches if b]
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("[ping_sweep] failed to read registry %s: %s", candidates[0], exc)
+            return []
+        parent = search.parent
+        if parent == search:
+            break
+        search = parent
+    return BRANCHES
+
+
 def _aipass_inbox_path() -> Path:
     """Path to aipass's own inbox.json."""
     return _BRANCH_ROOT / ".ai_mail.local" / "inbox.json"
@@ -121,7 +142,7 @@ def sweep_all_branches(timeout: int = TIMEOUT_PER_BRANCH) -> Dict[str, str]:
     results: Dict[str, str] = {}
     body = f"AIPASS PING — checking that you are reachable.\n\n{TEST_TOKEN}"
 
-    for branch in BRANCHES:
+    for branch in _discover_branches():
         ok = _send_test_email(branch, body)
         if not ok:
             results[branch] = "error"

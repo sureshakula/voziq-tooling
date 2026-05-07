@@ -485,12 +485,17 @@
     {
       "file": "tests/test_filesystem_handler.py",
       "standard": "log_structure",
-      "reason": "False positive — /home/ references are test fixture path strings (e.g. Path('/home/user/modules/logger.py')), not real log config."
+      "reason": "False positive \u2014 /home/ references are test fixture path strings (e.g. Path('/home/user/modules/logger.py')), not real log config."
     },
     {
       "file": "tests/test_filesystem_handler.py",
       "standard": "documentation",
       "reason": "Test helper functions use pytest naming conventions. Internal test stubs do not require docstrings."
+    },
+    {
+      "standard": "cli_flags",
+      "file": "apps/__init__.py",
+      "reason": "Package marker \u2014 not a CLI entry point. --version is in apps/prax.py."
     }
   ],
   "notes": {

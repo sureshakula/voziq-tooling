@@ -75,7 +75,14 @@ class CheckResult(NamedTuple):
 
 
 def _find_registry() -> Path | None:
-    """Walk up from branch root to locate AIPASS_REGISTRY.json."""
+    """Walk up from CWD first (user's project), then branch root."""
+    cwd = Path.cwd()
+    for parent in (cwd, *cwd.parents):
+        candidates = list(parent.glob("*_REGISTRY.json"))
+        if candidates:
+            return candidates[0]
+        if parent == parent.parent:
+            break
     for parent in (_BRANCH_ROOT, *_BRANCH_ROOT.parents):
         candidate = parent / "AIPASS_REGISTRY.json"
         if candidate.exists():
@@ -145,19 +152,24 @@ def _check_identity() -> List[CheckResult]:
     """Run Identity group checks."""
     results: List[CheckResult] = []
 
-    # AIPASS_HOME env var
-    home = os.environ.get("AIPASS_HOME", "")
-    if home:
-        results.append(CheckResult("AIPASS_HOME", GLYPH_PASS, home, ""))
+    # Project root — derived from registry location
+    reg = _find_registry()
+    project_root = str(reg.parent) if reg else ""
+    if project_root:
+        results.append(CheckResult("AIPASS_HOME", GLYPH_PASS, project_root, ""))
     else:
-        results.append(
-            CheckResult(
-                "AIPASS_HOME",
-                GLYPH_WARN,
-                "not set",
-                "Set in ~/.bashrc: export AIPASS_HOME=/path/to/aipass",
+        home = os.environ.get("AIPASS_HOME", "")
+        if home:
+            results.append(CheckResult("AIPASS_HOME", GLYPH_PASS, home, ""))
+        else:
+            results.append(
+                CheckResult(
+                    "AIPASS_HOME",
+                    GLYPH_WARN,
+                    "not set",
+                    "Set in ~/.bashrc: export AIPASS_HOME=/path/to/aipass",
+                )
             )
-        )
 
     # Registry present
     reg_path = _find_registry()
@@ -287,7 +299,7 @@ def _check_community() -> List[CheckResult]:
     else:
         results.append(CheckResult("ai_mail", GLYPH_FAIL, "not found", "Run 'aipass init' to set up mailbox"))
 
-    # dropbox writable
+    # dropbox writable — only check if project has agents (dropbox is optional for fresh projects)
     reg_path = _find_registry()
     dropbox = None
     if reg_path:
@@ -298,8 +310,6 @@ def _check_community() -> List[CheckResult]:
             results.append(CheckResult("dropbox", GLYPH_PASS, "writable", ""))
         else:
             results.append(CheckResult("dropbox", GLYPH_WARN, "not writable", "Check dropbox directory permissions"))
-    else:
-        results.append(CheckResult("dropbox", GLYPH_WARN, "not found", ""))
 
     return results
 
