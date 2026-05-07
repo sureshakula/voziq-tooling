@@ -577,8 +577,33 @@ def stage_11_handoff(
     return {"handoff_command": command, "launched": launched}
 
 
-def stage_12_done(dry_run: bool = False) -> Dict[str, Any]:
-    """Print completion summary."""
+def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bool = False) -> None:
+    """Drop init_report.json into the agent's dropbox."""
+    if dry_run or not agent_path:
+        return
+    dropbox = Path(agent_path) / "dropbox"
+    dropbox.mkdir(parents=True, exist_ok=True)
+    system_data = {k: accumulated.get(k) for k in ("os", "python", "shell", "ram_gb", "install") if accumulated.get(k)}
+    report = {
+        "created": datetime.now(timezone.utc).isoformat(),
+        "project_name": Path.cwd().name,
+        "project_path": str(Path.cwd()),
+        "agent_name": accumulated.get("agent_name", Path(agent_path).name.upper()),
+        "agent_number": 1,
+        "is_orchestrator": True,
+        "install_method": accumulated.get("install", "unknown"),
+        "cli_choice": accumulated.get("cli", "claude"),
+        "total_agents": 1,
+        "system": system_data,
+        "note": "You are the first agent created in this project. You are the orchestrator. After dispatching work to other agents, monitor them with: drone @devpulse watchdog agent @target",
+    }
+    report_path = dropbox / "init_report.json"
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    logger.info("[init_flow] init report written to %s", report_path)
+
+
+def stage_12_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = False) -> Dict[str, Any]:
+    """Print completion summary and drop init report."""
     console.print()
     console.print("[bold cyan]Step 12/12[/bold cyan] — Done!")
     console.print()
@@ -588,6 +613,8 @@ def stage_12_done(dry_run: bool = False) -> Dict[str, Any]:
     console.print("  [cyan]aipass doctor[/cyan]   [dim]# Check system health[/dim]")
     console.print("  [cyan]aipass profile[/cyan]  [dim]# View your profile[/dim]")
     console.print()
+    if accumulated:
+        _write_init_report(accumulated.get("agent_path", ""), accumulated, dry_run=dry_run)
     _save_stage(12, dry_run=dry_run)
     return {}
 
@@ -674,7 +701,7 @@ def run_init(
                 dry_run=dry_run,
             ),
         ),
-        (12, lambda: stage_12_done(dry_run=dry_run)),
+        (12, lambda: stage_12_done(accumulated=accumulated, dry_run=dry_run)),
     ]
 
     for stage_num, fn in stage_fns:
