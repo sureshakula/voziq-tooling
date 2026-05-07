@@ -299,9 +299,30 @@ def is_same_file_as_last(file_path: str) -> bool:
     return False
 
 
+def _project_has_own_posttooluse_hooks() -> bool:
+    """Check if CWD is inside a project with its own PostToolUse hooks."""
+    search = Path.cwd()
+    home = Path.home()
+    while search != home and search.parent != search:
+        settings = search / ".claude" / "settings.json"
+        if settings.exists():
+            try:
+                data = json.loads(settings.read_text(encoding="utf-8"))
+                ptu = data.get("hooks", {}).get("PostToolUse", [])
+                if ptu:
+                    return True
+            except (json.JSONDecodeError, OSError):
+                pass
+        search = search.parent
+    return False
+
+
 def main():
     """Main hook entry point."""
     try:
+        if _project_has_own_posttooluse_hooks():
+            return
+
         input_data = json.load(sys.stdin)
         tool_name = input_data.get("tool_name", "")
         tool_input = input_data.get("tool_input", {})
@@ -318,10 +339,8 @@ def main():
 
         # Collect all errors
         errors = []
-        file_type = ""
 
         if file_path.endswith(".py"):
-            file_type = "Python"
             errors = run_python_checks(file_path)
 
             # Seedgo standards checklist
@@ -339,7 +358,6 @@ def main():
             save_diagnostics_state(file_path, ruff_lint_errors + type_errors)
 
         elif file_path.endswith(".json"):
-            file_type = "JSON"
             errors = run_json_checks(file_path)
         else:
             return

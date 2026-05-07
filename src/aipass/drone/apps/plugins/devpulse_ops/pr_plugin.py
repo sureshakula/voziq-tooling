@@ -92,8 +92,8 @@ def create_system_pr(description: str, caller: str) -> dict:
     """
     repo_root = find_repo_root()
     slug = slugify(description)
-    passport_branch = _resolve_system_git_branch(caller, repo_root)
-    feature_branch = passport_branch if passport_branch else f"system/{caller}-{slug}"
+    passport_prefix = _resolve_system_git_branch(caller, repo_root)
+    feature_branch = f"{passport_prefix}-{slug}" if passport_prefix else f"system/{caller}-{slug}"
     lock_acquired = False
 
     result: dict = {
@@ -210,7 +210,7 @@ def create_system_pr(description: str, caller: str) -> dict:
 
         # Step 7: Push feature branch
         push = subprocess.run(
-            ["git", "push", "--force-with-lease", "origin", feature_branch],
+            ["git", "push", "-u", "origin", feature_branch],
             capture_output=True,
             text=True,
             cwd=str(repo_root),

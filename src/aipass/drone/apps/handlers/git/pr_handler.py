@@ -17,6 +17,7 @@ and cleanup (checkout main + release lock) in a finally block.
 from __future__ import annotations
 
 import json as _json
+import re
 import subprocess
 from pathlib import Path
 
@@ -73,18 +74,26 @@ To contribute from a fork:
 """
 
 
-def _resolve_git_branch(branch_name: str, branch_dir: Path) -> str:
-    """Read git_branch from passport if available, else fall back to citizen/{name}."""
+def _slugify(description: str) -> str:
+    """Convert description to a branch-safe slug."""
+    slug = description.lower().strip().replace(" ", "-")
+    slug = re.sub(r"[^a-z0-9-]", "", slug)
+    slug = re.sub(r"-{2,}", "-", slug).strip("-")
+    return slug[:50]
+
+
+def _resolve_git_branch(branch_name: str, branch_dir: Path, slug: str = "") -> str:
+    """Read git_branch from passport as prefix, append slug for uniqueness."""
     passport_path = branch_dir / ".trinity" / "passport.json"
     if passport_path.is_file():
         try:
             data = _json.loads(passport_path.read_text())
             git_branch = data.get("branch_info", {}).get("git_branch", "")
             if git_branch:
-                return git_branch
+                return f"{git_branch}-{slug}" if slug else git_branch
         except (ValueError, OSError) as exc:
             logger.warning("Failed to read git_branch from passport %s: %s", passport_path, exc)
-    return f"citizen/{branch_name}"
+    return f"citizen/{branch_name}-{slug}" if slug else f"citizen/{branch_name}"
 
 
 def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
@@ -115,7 +124,8 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
         Dict with success, pr_url, feature_branch, and message.
     """
     repo_root = find_repo_root()
-    feature_branch = _resolve_git_branch(branch_name, branch_dir)
+    slug = _slugify(description)
+    feature_branch = _resolve_git_branch(branch_name, branch_dir, slug)
     lock_acquired = False
 
     result = {
@@ -209,9 +219,9 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             logger.error(result["message"])
             return result
 
-        # Step 7: Push feature branch (force-with-lease for persistent citizen branches)
+        # Step 7: Push feature branch
         push = subprocess.run(
-            ["git", "push", "--force-with-lease", "origin", feature_branch],
+            ["git", "push", "-u", "origin", feature_branch],
             capture_output=True,
             text=True,
             cwd=str(repo_root),
@@ -244,7 +254,7 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
             cwd=str(repo_root),
         )
         if pr_create.returncode != 0:
-            # Check if PR already exists — force-push already updated it
+            # Check if PR already exists for this branch
             existing = subprocess.run(
                 ["gh", "pr", "list", "--head", feature_branch, "--json", "url", "--limit", "1"],
                 capture_output=True,
@@ -258,7 +268,7 @@ def create_pr(branch_name: str, description: str, branch_dir: Path) -> dict:
                 existing_prs = []
             if existing_prs:
                 pr_url = existing_prs[0]["url"]
-                logger.info("Existing PR updated via force-push: %s", pr_url)
+                logger.info("Existing PR found: %s", pr_url)
             else:
                 result["message"] = f"PR creation failed: {pr_create.stderr.strip()}"
                 logger.error(result["message"])
