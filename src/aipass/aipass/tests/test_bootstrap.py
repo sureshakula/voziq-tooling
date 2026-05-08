@@ -207,10 +207,10 @@ def test_init_project_claude_md_content(tmp_path):
     assert "## Getting Started" in content
     assert "## Available Commands" in content
     assert "## Startup Protocol" in content
-    # Startup protocol reads registry, not .trinity/
     startup_idx = content.index("## Startup Protocol")
     startup_section = content[startup_idx:]
-    assert ".trinity/" not in startup_section
+    assert ".trinity/passport.json" in startup_section
+    assert "init_report.json" in startup_section
     assert "aipass init agent" in content
     assert "ZETA_REGISTRY.json" in content
 

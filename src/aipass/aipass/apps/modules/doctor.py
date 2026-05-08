@@ -232,7 +232,7 @@ def _check_provider_manifest() -> List[CheckResult]:
     if manifest_path is None:
         results.append(
             CheckResult(
-                "hooks", GLYPH_WARN, "manifest not found", "Run setup.sh or create .claude/provider_manifest.json"
+                "hooks", GLYPH_WARN, "manifest not found", "Expected .claude/provider_manifest.json in project root"
             )
         )
         return results
@@ -270,7 +270,7 @@ def _check_provider_manifest() -> List[CheckResult]:
                 "hooks",
                 GLYPH_WARN,
                 f"{len(missing_hooks)} hook(s) missing: {', '.join(missing_hooks)}",
-                "Run setup.sh or copy from .claude/hooks/ — see .claude/hooks/README.md",
+                "Copy missing hooks to ~/.claude/hooks/ — see .claude/hooks/README.md",
             )
         )
 
@@ -294,7 +294,7 @@ def _check_provider_manifest() -> List[CheckResult]:
                     "env vars",
                     GLYPH_WARN,
                     f"{len(missing_env)} env var(s) missing: {', '.join(missing_env)}",
-                    "Run setup.sh to configure provider settings",
+                    "Add to ~/.claude/settings.json env block — see provider_manifest.json",
                 )
             )
 
@@ -329,7 +329,7 @@ def _check_provider_manifest() -> List[CheckResult]:
                     "permissions",
                     GLYPH_WARN,
                     f"{total_missing} permission rule(s) missing",
-                    "Run setup.sh to configure provider permissions",
+                    "Add to ~/.claude/settings.json permissions — see provider_manifest.json",
                 )
             )
 
