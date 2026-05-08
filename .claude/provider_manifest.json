@@ -1,0 +1,73 @@
+{
+  "version": "1.0.0",
+  "description": "Single source of truth for provider-level settings per CLI. Doctor reads this to verify user setup.",
+  "cli": {
+    "claude": {
+      "hooks": [
+        {"script": "global_prompt_loader.py", "event": "UserPromptSubmit", "source": "repo"},
+        {"script": "branch_prompt_loader.py", "event": "UserPromptSubmit", "source": "repo"},
+        {"script": "identity_injector.py", "event": "UserPromptSubmit", "source": "repo"},
+        {"script": "email_notification.py", "event": "UserPromptSubmit", "source": "repo"},
+        {"script": "tool_use_sound.py", "event": "PreToolUse", "matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task", "source": "repo"},
+        {"script": "pre_edit_gate.py", "event": "PreToolUse", "matcher": "Edit|MultiEdit|Write|NotebookEdit", "source": "user"},
+        {"script": "git_gate.py", "event": "PreToolUse", "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit", "source": "user"},
+        {"script": "auto_fix_diagnostics.py", "event": "PostToolUse", "matcher": "Edit|MultiEdit|Write|NotebookEdit", "source": "repo"},
+        {"script": "auto_watchdog.py", "event": "PostToolUse", "matcher": "Bash", "source": "user"},
+        {"script": "subagent_stop_gate.py", "event": "SubagentStop", "source": "repo"},
+        {"script": "stop_sound.py", "event": "Stop", "source": "repo"},
+        {"script": "notification_sound.py", "event": "Notification", "source": "repo"},
+        {"script": "pre_compact.py", "event": "PreCompact", "matcher": "manual", "source": "repo", "timeout": 60},
+        {"script": "pre_compact.py", "event": "PreCompact", "matcher": "auto", "source": "repo", "timeout": 60}
+      ],
+      "env": {
+        "AIPASS_HOME": "{{REPO_ROOT}}",
+        "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+        "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+      },
+      "permissions": {
+        "deny": [
+          "Read(~/.secrets/**)",
+          "Bash(cat ~/.secrets/*)",
+          "Bash(head ~/.secrets/*)",
+          "Bash(tail ~/.secrets/*)",
+          "Bash(less ~/.secrets/*)",
+          "Bash(git reset --hard*)",
+          "Bash(git push --force*)",
+          "Bash(git push -f *)",
+          "Bash(git rebase*)",
+          "Bash(git clean*)",
+          "Bash(rm -rf*)",
+          "Bash(git reset*)",
+          "Bash(git merge*)",
+          "Bash(git config*)",
+          "Bash(git checkout -- *)",
+          "Bash(git checkout .*)",
+          "Bash(git restore --staged*)",
+          "Bash(git restore .*)",
+          "Bash(git branch -D*)",
+          "Bash(git stash drop*)",
+          "Bash(git stash clear*)",
+          "Bash(rm -r *)",
+          "Bash(git checkout -b*)",
+          "Bash(git switch -c*)",
+          "Bash(git switch --create*)",
+          "Bash(git commit*)",
+          "Bash(git push*)"
+        ],
+        "ask": [
+          "Edit(~/.claude/**)",
+          "Write(~/.claude/**)"
+        ]
+      },
+      "commands": {
+        "memo.md": ".claude/templates/memo.md"
+      }
+    },
+    "codex": {
+      "hooks": [],
+      "env": {},
+      "permissions": {},
+      "commands": {}
+    }
+  }
+}

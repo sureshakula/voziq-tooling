@@ -63,10 +63,21 @@ Read-only git commands are fine: `git status`, `git diff`, `git log`.
 
 **Never cd to repo root.** `drone @git system-pr` requires `.trinity/passport.json` in the CWD hierarchy. If you cd to the repo root, it fails. Stage files with relative paths from devpulse: `git add ../../../HERALD.md`. Always run drone commands from this directory.
 
+## Dispatch — Fresh vs Continue
+
+Default dispatch resumes the agent's last session (`-c` flag). Before dispatching, reason about whether the agent needs prior context:
+
+- **Did the agent finish its last task?** If yes and the new task is unrelated → use `--fresh`. Stale context is noise.
+- **Is this a continuation?** Same DPLAN, follow-up question, same domain → default continue is fine, the context helps.
+- **When in doubt, fresh is safer.** Memories carry the important context. The session carries the noise.
+
+Dispatch uses continue as a fail-safe — if an agent crashed or didn't save memories, the context is recoverable. But for new unrelated tasks, fresh gives cleaner results.
+
 ## Key Commands
 
 ```
-drone @ai_mail dispatch @target "Subject" "Body"             # Send + wake (one command)
+drone @ai_mail dispatch @target "Subject" "Body"             # Send + wake (continue, default)
+drone @ai_mail dispatch @target "Subject" "Body" --fresh     # Send + wake (fresh session)
 drone @ai_mail email @target "Subject" "Body"                # Just mail, no wake
 drone @flow create . "Subject"                             # Create FPLAN
 drone @flow create . "Subject" dplan                       # Create DPLAN (dplan template)

@@ -8,6 +8,7 @@
 
 """Tests for aipass doctor command — Phase 1 (FPLAN-0188)."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -380,3 +381,167 @@ class TestRunDoctor:
                     with patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]):
                         result = run_doctor()
         assert result == 0
+
+
+# =============================================================================
+# TestProviderManifest
+# =============================================================================
+
+
+class TestProviderManifest:
+    """Tests for manifest-driven provider checks (DPLAN-0168)."""
+
+    def test_manifest_not_found_returns_warn(self) -> None:
+        """Missing manifest → single WARN result."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        with patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=None):
+            results = _check_provider_manifest()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+        assert "manifest" in results[0].detail
+
+    def test_manifest_unreadable_returns_warn(self, tmp_path) -> None:
+        """Corrupt manifest file → WARN."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        bad_manifest = tmp_path / ".claude" / "provider_manifest.json"
+        bad_manifest.parent.mkdir(parents=True)
+        bad_manifest.write_text("not json{{{", encoding="utf-8")
+        with patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=bad_manifest):
+            results = _check_provider_manifest()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+        assert "unreadable" in results[0].detail
+
+    def test_manifest_no_claude_section(self, tmp_path) -> None:
+        """Manifest with no cli.claude → WARN."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        manifest = tmp_path / ".claude" / "provider_manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(json.dumps({"cli": {}}), encoding="utf-8")
+        with patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=manifest):
+            results = _check_provider_manifest()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_all_hooks_present(self, tmp_path) -> None:
+        """All hook scripts exist → PASS for hooks."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        hooks_dir = tmp_path / ".claude" / "hooks"
+        hooks_dir.mkdir(parents=True)
+        (hooks_dir / "hook_a.py").write_text("", encoding="utf-8")
+        (hooks_dir / "hook_b.py").write_text("", encoding="utf-8")
+
+        manifest = tmp_path / ".claude" / "provider_manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "cli": {
+                        "claude": {
+                            "hooks": [
+                                {"script": "hook_a.py", "event": "Stop", "source": "repo"},
+                                {"script": "hook_b.py", "event": "Stop", "source": "repo"},
+                            ]
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=manifest):
+            results = _check_provider_manifest()
+        hooks_result = [r for r in results if r.label == "hooks"][0]
+        assert hooks_result.glyph == GLYPH_PASS
+        assert "2" in hooks_result.detail
+
+    def test_missing_hook_detected(self, tmp_path) -> None:
+        """Missing hook script → WARN with script name."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        hooks_dir = tmp_path / ".claude" / "hooks"
+        hooks_dir.mkdir(parents=True)
+
+        manifest = tmp_path / ".claude" / "provider_manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "cli": {
+                        "claude": {
+                            "hooks": [
+                                {"script": "missing.py", "event": "Stop", "source": "repo"},
+                            ]
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=manifest):
+            results = _check_provider_manifest()
+        hooks_result = [r for r in results if r.label == "hooks"][0]
+        assert hooks_result.glyph == GLYPH_WARN
+        assert "missing.py" in hooks_result.detail
+
+    def test_env_vars_all_present(self, tmp_path) -> None:
+        """All manifest env vars present in provider settings → PASS."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        manifest = tmp_path / ".claude" / "provider_manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(
+            json.dumps({"cli": {"claude": {"hooks": [], "env": {"FOO": "1", "BAR": "2"}}}}),
+            encoding="utf-8",
+        )
+        provider_settings = tmp_path / ".claude" / "settings.json"
+        provider_settings.write_text(
+            json.dumps({"env": {"FOO": "1", "BAR": "2", "OTHER": "3"}}),
+            encoding="utf-8",
+        )
+        with (
+            patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=manifest),
+            patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path),
+        ):
+            results = _check_provider_manifest()
+        env_results = [r for r in results if r.label == "env vars"]
+        assert len(env_results) == 1
+        assert env_results[0].glyph == GLYPH_PASS
+
+    def test_env_vars_missing(self, tmp_path) -> None:
+        """Missing env var → WARN with var name."""
+        from aipass.aipass.apps.modules.doctor import _check_provider_manifest
+
+        manifest = tmp_path / ".claude" / "provider_manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(
+            json.dumps({"cli": {"claude": {"hooks": [], "env": {"MISSING_VAR": "1"}}}}),
+            encoding="utf-8",
+        )
+        provider_settings = tmp_path / ".claude" / "settings.json"
+        provider_settings.write_text(json.dumps({"env": {}}), encoding="utf-8")
+        with (
+            patch("aipass.aipass.apps.modules.doctor._find_manifest", return_value=manifest),
+            patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path),
+        ):
+            results = _check_provider_manifest()
+        env_results = [r for r in results if r.label == "env vars"]
+        assert len(env_results) == 1
+        assert env_results[0].glyph == GLYPH_WARN
+        assert "MISSING_VAR" in env_results[0].detail
+
+    def test_find_manifest_walks_up(self, tmp_path, monkeypatch) -> None:
+        """_find_manifest finds manifest by walking up from CWD."""
+        from aipass.aipass.apps.modules.doctor import _find_manifest
+
+        manifest = tmp_path / ".claude" / "provider_manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("{}", encoding="utf-8")
+        subdir = tmp_path / "src" / "deep"
+        subdir.mkdir(parents=True)
+        monkeypatch.chdir(subdir)
+        monkeypatch.delenv("AIPASS_HOME", raising=False)
+        result = _find_manifest()
+        assert result is not None
+        assert result == manifest

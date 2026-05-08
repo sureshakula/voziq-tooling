@@ -211,6 +211,131 @@ def _check_identity() -> List[CheckResult]:
     return results
 
 
+def _find_manifest() -> Path | None:
+    """Find provider_manifest.json by walking up from CWD or using AIPASS_HOME."""
+    for start in (Path.cwd(), Path(os.environ.get("AIPASS_HOME", ""))):
+        p = start.resolve()
+        for parent in (p, *p.parents):
+            candidate = parent / ".claude" / "provider_manifest.json"
+            if candidate.exists():
+                return candidate
+            if parent == parent.parent:
+                break
+    return None
+
+
+def _check_provider_manifest() -> List[CheckResult]:
+    """Check provider settings against manifest. Returns hook/env/permission results."""
+    results: List[CheckResult] = []
+
+    manifest_path = _find_manifest()
+    if manifest_path is None:
+        results.append(
+            CheckResult(
+                "hooks", GLYPH_WARN, "manifest not found", "Run setup.sh or create .claude/provider_manifest.json"
+            )
+        )
+        return results
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("[doctor] manifest read error: %s", exc)
+        results.append(CheckResult("hooks", GLYPH_WARN, "manifest unreadable", "Check .claude/provider_manifest.json"))
+        return results
+
+    claude_section = manifest.get("cli", {}).get("claude", {})
+    if not claude_section:
+        results.append(CheckResult("hooks", GLYPH_WARN, "manifest has no claude section", ""))
+        return results
+
+    # --- Hook scripts exist ---
+    manifest_hooks = claude_section.get("hooks", [])
+    hook_scripts = {h["script"] for h in manifest_hooks if "script" in h}
+    repo_hooks_dir = manifest_path.parent / "hooks"
+    user_hooks_dir = Path.home() / ".claude" / "hooks"
+
+    missing_hooks = []
+    for script in sorted(hook_scripts):
+        source = next((h.get("source", "repo") for h in manifest_hooks if h.get("script") == script), "repo")
+        check_dir = user_hooks_dir if source == "user" else repo_hooks_dir
+        if not (check_dir / script).exists():
+            missing_hooks.append(script)
+
+    if not missing_hooks:
+        results.append(CheckResult("hooks", GLYPH_PASS, f"{len(hook_scripts)} provider hooks present", ""))
+    else:
+        results.append(
+            CheckResult(
+                "hooks",
+                GLYPH_WARN,
+                f"{len(missing_hooks)} hook(s) missing: {', '.join(missing_hooks)}",
+                "Run setup.sh or copy from .claude/hooks/ — see .claude/hooks/README.md",
+            )
+        )
+
+    # --- Env vars in provider settings ---
+    manifest_env = claude_section.get("env", {})
+    if manifest_env:
+        provider_settings_path = Path.home() / ".claude" / "settings.json"
+        provider_env: dict = {}
+        if provider_settings_path.exists():
+            try:
+                provider_env = json.loads(provider_settings_path.read_text(encoding="utf-8")).get("env", {})
+            except Exception as exc:
+                logger.warning("[doctor] provider settings read error (env): %s", exc)
+
+        missing_env = [k for k in manifest_env if k not in provider_env]
+        if not missing_env:
+            results.append(CheckResult("env vars", GLYPH_PASS, f"{len(manifest_env)} provider env vars set", ""))
+        else:
+            results.append(
+                CheckResult(
+                    "env vars",
+                    GLYPH_WARN,
+                    f"{len(missing_env)} env var(s) missing: {', '.join(missing_env)}",
+                    "Run setup.sh to configure provider settings",
+                )
+            )
+
+    # --- Permissions ---
+    manifest_perms = claude_section.get("permissions", {})
+    manifest_deny = manifest_perms.get("deny", [])
+    manifest_ask = manifest_perms.get("ask", [])
+    if manifest_deny or manifest_ask:
+        provider_settings_path = Path.home() / ".claude" / "settings.json"
+        provider_perms: dict = {}
+        if provider_settings_path.exists():
+            try:
+                provider_perms = json.loads(provider_settings_path.read_text(encoding="utf-8")).get("permissions", {})
+            except Exception as exc:
+                logger.warning("[doctor] provider settings read error (permissions): %s", exc)
+
+        provider_deny = set(provider_perms.get("deny", []))
+        provider_ask = set(provider_perms.get("ask", []))
+
+        # Check deny rules (use ~ form only, skip expanded $HOME duplicates)
+        missing_deny = [r for r in manifest_deny if r not in provider_deny]
+        # Check ask rules
+        missing_ask = [r for r in manifest_ask if r not in provider_ask]
+        total_expected = len(manifest_deny) + len(manifest_ask)
+        total_missing = len(missing_deny) + len(missing_ask)
+
+        if total_missing == 0:
+            results.append(CheckResult("permissions", GLYPH_PASS, f"{total_expected} permission rules set", ""))
+        else:
+            results.append(
+                CheckResult(
+                    "permissions",
+                    GLYPH_WARN,
+                    f"{total_missing} permission rule(s) missing",
+                    "Run setup.sh to configure provider permissions",
+                )
+            )
+
+    return results
+
+
 def _check_services(verbose: bool = False) -> List[CheckResult]:
     """Run Services group checks."""
     results: List[CheckResult] = []
@@ -271,21 +396,9 @@ def _check_services(verbose: bool = False) -> List[CheckResult]:
         logger.warning("[doctor] pytest collect timed out: %s", exc)
         results.append(CheckResult("pytest collect", GLYPH_WARN, "timed out", ""))
 
-    # hooks wired — check provider-level enforcement hooks
-    provider_hooks_dir = Path("~/.claude/hooks").expanduser()
-    provider_hooks = ["auto_fix_diagnostics.py", "pre_edit_gate.py", "subagent_stop_gate.py"]
-    missing = [h for h in provider_hooks if not (provider_hooks_dir / h).exists()]
-    if not missing:
-        results.append(CheckResult("hooks", GLYPH_PASS, f"{len(provider_hooks)} provider hooks wired", ""))
-    else:
-        results.append(
-            CheckResult(
-                "hooks",
-                GLYPH_WARN,
-                f"{len(missing)} provider hook(s) missing: {', '.join(missing)}",
-                "Copy from .claude/hooks/ to ~/.claude/hooks/ — see .claude/hooks/README.md",
-            )
-        )
+    # hooks + env + permissions — manifest-driven provider check
+    manifest_checks = _check_provider_manifest()
+    results.extend(manifest_checks)
 
     return results
 
