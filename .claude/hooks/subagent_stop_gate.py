@@ -29,18 +29,41 @@ def _find_repo_root() -> Path | None:
 AIPASS_ROOT = _find_repo_root()
 
 
+def _get_cwd_branch() -> str | None:
+    """Detect which branch directory (src/aipass/<name>) the CWD is in."""
+    cwd = Path.cwd().resolve()
+    if AIPASS_ROOT is None:
+        return None
+    src = AIPASS_ROOT / "src" / "aipass"
+    try:
+        rel = cwd.relative_to(src)
+        return rel.parts[0] if rel.parts else None
+    except ValueError:
+        return None
+
+
 def get_modified_py_files() -> list[str]:
-    """Get Python files modified in the working tree (unstaged + staged)."""
+    """Get Python files modified in the working tree, scoped to the CWD branch.
+
+    Only returns files inside the current branch's directory (or repo-root files).
+    This prevents dispatched agents' changes from triggering violations on the
+    orchestrator or other agents sharing the worktree.
+    """
     if AIPASS_ROOT is None:
         return []
     try:
         result = subprocess.run(
             ["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, timeout=5, cwd=str(AIPASS_ROOT)
         )
+        cwd_branch = _get_cwd_branch()
         files = []
         for line in result.stdout.strip().split("\n"):
             line = line.strip()
             if line.endswith(".py") and not line.startswith(".claude/"):
+                if cwd_branch and line.startswith("src/aipass/"):
+                    file_branch = line.split("/")[2] if len(line.split("/")) > 2 else None
+                    if file_branch and file_branch != cwd_branch:
+                        continue
                 full = AIPASS_ROOT / line
                 if full.exists():
                     files.append(str(full))

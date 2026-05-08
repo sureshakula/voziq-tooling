@@ -271,17 +271,19 @@ def _check_services(verbose: bool = False) -> List[CheckResult]:
         logger.warning("[doctor] pytest collect timed out: %s", exc)
         results.append(CheckResult("pytest collect", GLYPH_WARN, "timed out", ""))
 
-    # hooks wired
-    auto_fix = Path("~/.claude/hooks/auto_fix_diagnostics.py").expanduser()
-    if auto_fix.exists():
-        results.append(CheckResult("hooks", GLYPH_PASS, "auto_fix_diagnostics wired", ""))
+    # hooks wired — check provider-level enforcement hooks
+    provider_hooks_dir = Path("~/.claude/hooks").expanduser()
+    provider_hooks = ["auto_fix_diagnostics.py", "pre_edit_gate.py", "subagent_stop_gate.py"]
+    missing = [h for h in provider_hooks if not (provider_hooks_dir / h).exists()]
+    if not missing:
+        results.append(CheckResult("hooks", GLYPH_PASS, f"{len(provider_hooks)} provider hooks wired", ""))
     else:
         results.append(
             CheckResult(
                 "hooks",
                 GLYPH_WARN,
-                "auto_fix_diagnostics.py not found",
-                "Run setup to wire Claude Code hooks",
+                f"{len(missing)} provider hook(s) missing: {', '.join(missing)}",
+                "Copy from .claude/hooks/ to ~/.claude/hooks/ — see .claude/hooks/README.md",
             )
         )
 
