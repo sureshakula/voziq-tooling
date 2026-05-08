@@ -236,7 +236,7 @@ class TestPublicGetModelInfo:
         result = embedder.get_model_info()
 
         assert result["success"] is True
-        assert result["model_name"] == "all-MiniLM-L6-v2"
+        assert result["model_name"] == "sentence-transformers/all-MiniLM-L6-v2"
         assert result["dimension"] == 384
 
     def test_service_init_failure_returns_error(self, monkeypatch):

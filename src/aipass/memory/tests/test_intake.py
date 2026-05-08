@@ -336,14 +336,14 @@ class TestProcessFileToVectors:
         mock_chromadb = MagicMock()
         mock_chromadb.PersistentClient.return_value = mock_client
 
-        # Mock sentence_transformers
+        # Mock fastembed
         mock_model = MagicMock()
-        mock_model.encode.return_value = MagicMock(tolist=MagicMock(return_value=[[0.1, 0.2]]))
-        mock_st = MagicMock()
-        mock_st.SentenceTransformer.return_value = mock_model
+        mock_model.embed.return_value = iter([MagicMock(tolist=MagicMock(return_value=[0.1, 0.2]))])
+        mock_fastembed = MagicMock()
+        mock_fastembed.TextEmbedding.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "chromadb", mock_chromadb)
-        monkeypatch.setitem(sys.modules, "sentence_transformers", mock_st)
+        monkeypatch.setitem(sys.modules, "fastembed", mock_fastembed)
 
         result = mod.process_file_to_vectors(test_file, "test_collection")
 
@@ -368,7 +368,7 @@ class TestProcessFileToVectors:
 
         # Remove chromadb from modules so the import inside the function fails
         monkeypatch.delitem(sys.modules, "chromadb", raising=False)
-        monkeypatch.delitem(sys.modules, "sentence_transformers", raising=False)
+        monkeypatch.delitem(sys.modules, "fastembed", raising=False)
 
         # Patch the builtins __import__ to raise for chromadb
         original_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__

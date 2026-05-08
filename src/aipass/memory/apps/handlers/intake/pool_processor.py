@@ -251,14 +251,14 @@ def process_file_to_vectors(
     # Chunk content
     chunks = chunk_content(content, chunk_size, chunk_overlap)
 
-    # Import ChromaDB and sentence transformers (late import for venv compatibility)
+    # Import ChromaDB and fastembed (late import for venv compatibility)
     try:
         import chromadb
-        from sentence_transformers import SentenceTransformer
+        from fastembed import TextEmbedding
 
         client = chromadb.PersistentClient(path=str(CHROMA_PATH))
         collection = client.get_or_create_collection(name=collection_name)
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+        model = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
 
         # Generate embeddings and store
         documents = []
@@ -280,7 +280,7 @@ def process_file_to_vectors(
             )
 
         # Batch encode
-        embeddings = model.encode(documents).tolist()
+        embeddings = [e.tolist() for e in model.embed(documents)]
 
         # Upsert (update if exists, insert if not)
         collection.upsert(documents=documents, embeddings=embeddings, ids=ids, metadatas=metadatas)

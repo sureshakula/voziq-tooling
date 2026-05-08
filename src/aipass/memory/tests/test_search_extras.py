@@ -87,26 +87,22 @@ def _prepare_vector_search_mocks(monkeypatch):
         MagicMock(),
     )
 
-    # Mock sentence_transformers and torch for QueryEncoder
+    # Mock fastembed for QueryEncoder
     mock_model = MagicMock()
-    mock_model.encode.return_value = MagicMock(tolist=MagicMock(return_value=[0.1] * 384))
-    mock_model.to.return_value = mock_model
+    mock_model.embed.side_effect = lambda texts: iter(
+        [MagicMock(tolist=MagicMock(return_value=[0.1] * 384)) for _ in texts]
+    )
 
-    mock_st_cls = MagicMock(return_value=mock_model)
+    mock_te_cls = MagicMock(return_value=mock_model)
 
-    mock_sentence_transformers = MagicMock()
-    mock_sentence_transformers.SentenceTransformer = mock_st_cls
-    monkeypatch.setitem(sys.modules, "sentence_transformers", mock_sentence_transformers)
-
-    mock_torch = MagicMock()
-    mock_torch.cuda.is_available.return_value = False
-    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    mock_fastembed = MagicMock()
+    mock_fastembed.TextEmbedding = mock_te_cls
+    monkeypatch.setitem(sys.modules, "fastembed", mock_fastembed)
 
     return {
         "client": mock_client,
         "model": mock_model,
-        "st_cls": mock_st_cls,
-        "torch": mock_torch,
+        "st_cls": mock_te_cls,
     }
 
 
@@ -443,7 +439,7 @@ class TestEncodeQuery:
         assert result["success"] is True
         assert len(result["embedding"]) == 384
         assert result["dimension"] == 384
-        assert result["model"] == "all-MiniLM-L6-v2"
+        assert result["model"] == "sentence-transformers/all-MiniLM-L6-v2"
 
     def test_encode_rejects_empty_query(self, monkeypatch):
         """Empty query string returns error."""
@@ -467,7 +463,7 @@ class TestEncodeQuery:
         """If model.encode raises, error is caught and returned."""
         mod, mocks = _import_vector_search(monkeypatch)
 
-        mocks["model"].encode.side_effect = RuntimeError("CUDA out of memory")
+        mocks["model"].embed.side_effect = RuntimeError("CUDA out of memory")
 
         result = mod.encode_query("test query")
 
@@ -481,7 +477,7 @@ class TestEncodeQuery:
         mod.encode_query("first query")
         mod.encode_query("second query")
 
-        # SentenceTransformer should only be constructed once
+        # TextEmbedding should only be constructed once
         mocks["st_cls"].assert_called_once()
 
 

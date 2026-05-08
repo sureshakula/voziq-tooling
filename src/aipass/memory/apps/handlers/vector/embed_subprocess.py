@@ -32,7 +32,7 @@ def main():
 
         from fastembed import TextEmbedding
 
-        model = TextEmbedding("all-MiniLM-L6-v2")
+        model = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
 
         sorted_pairs = sorted(enumerate(texts), key=lambda x: len(x[1]))
         sorted_indices, sorted_texts = zip(*sorted_pairs)

@@ -30,7 +30,7 @@ logger = get_system_logger()
 class EmbeddingService:
     """Embedding service using fastembed (ONNX runtime, no torch dependency)."""
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
         try:
             from fastembed import TextEmbedding
         except ImportError as e:
