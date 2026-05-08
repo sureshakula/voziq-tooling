@@ -104,7 +104,6 @@ def test_init_project_creates_all_expected_files(tmp_path):
         target / ".gitignore",
         target / ".claude" / "settings.json",
         target / ".claude" / "commands" / "prep.md",
-        target / ".claude" / "commands" / "memo.md",
         target / ".ai_mail.local" / "inbox.json",
     ]
     for f in expected_files:
@@ -119,8 +118,8 @@ def test_init_project_creates_all_expected_files(tmp_path):
     # No local prompt at project level (belongs in agent dirs only)
     assert not (target / ".aipass" / "aipass_local_prompt.md").exists()
 
-    # 11 items + 2 commands + 7 shipped hooks (when AIPASS_HOME detected) = 20
-    assert len(result["created_files"]) == 20
+    # 11 items + 1 command (prep.md) + 7 shipped hooks (when AIPASS_HOME detected) = 19
+    assert len(result["created_files"]) == 19
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -354,7 +353,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) == 20
+    assert len(result["created_files"]) == 19
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -410,8 +409,8 @@ def test_init_project_skips_existing_optional_files(tmp_path):
 
     result = init_project(target, project_name="eta")
 
-    # Registry + prep.md + memo.md + 7 shipped hooks = 10 (everything else pre-existed)
-    assert len(result["created_files"]) == 10
+    # Registry + prep.md + 7 shipped hooks = 9 (everything else pre-existed)
+    assert len(result["created_files"]) == 9
 
     # Verify pre-existing files were NOT overwritten
     md_content = (target / "CLAUDE.md").read_text(encoding="utf-8")
@@ -504,7 +503,7 @@ def test_update_project_already_current_after_init(tmp_path):
     result = update_project(target)
 
     assert len(result["updated_files"]) == 0
-    assert len(result["already_current"]) == 7
+    assert len(result["already_current"]) == 6
 
 
 def test_update_project_idempotent(tmp_path):
@@ -583,8 +582,8 @@ def test_update_project_creates_missing_managed_dirs(tmp_path):
 
     assert (target / ".aipass" / "aipass_global_prompt.md").exists()
     assert (target / ".claude" / "settings.json").exists()
-    # Managed files in deleted dirs re-written (global_prompt, settings, prep, memo + 7 hooks)
-    assert len(result["updated_files"]) == 11
+    # Managed files in deleted dirs re-written (global_prompt, settings, prep + 7 hooks)
+    assert len(result["updated_files"]) == 10
     assert len(result["already_current"]) == 3
 
 
@@ -741,61 +740,15 @@ def test_update_project_adds_aipass_home_if_missing(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_init_project_creates_memo_md(tmp_path):
-    """init_project creates .claude/commands/memo.md slash command."""
+def test_init_project_no_memo_md(tmp_path):
+    """init_project does NOT create memo.md — it belongs at provider level."""
     target = tmp_path / "proj"
     target.mkdir()
 
     init_project(target, project_name="memo")
 
     memo_path = target / ".claude" / "commands" / "memo.md"
-    assert memo_path.exists()
-    content = memo_path.read_text(encoding="utf-8")
-    assert "# Memory Update" in content
-    assert ".trinity/passport.json" in content
-    assert ".trinity/local.json" in content
-    assert "STATUS.local.md" in content
-
-
-def test_init_project_memo_not_overwritten_on_rerun(tmp_path):
-    """Re-running init skips existing memo.md."""
-    target = tmp_path / "proj"
-    target.mkdir()
-    init_project(target, project_name="memo")
-
-    memo_path = target / ".claude" / "commands" / "memo.md"
-    memo_path.write_text("# Custom memo\n", encoding="utf-8")
-
-    init_project(target, project_name="memo")
-
-    assert memo_path.read_text(encoding="utf-8") == "# Custom memo\n"
-
-
-def test_update_project_refreshes_memo_md(tmp_path):
-    """update_project refreshes memo.md when content differs."""
-    target = tmp_path / "proj"
-    target.mkdir()
-    init_project(target, project_name="umemo")
-
-    memo_path = target / ".claude" / "commands" / "memo.md"
-    memo_path.write_text("# Stale content\n", encoding="utf-8")
-
-    result = update_project(target)
-
-    assert str(memo_path) in result["updated_files"]
-    assert "# Memory Update" in memo_path.read_text(encoding="utf-8")
-
-
-def test_update_project_memo_already_current(tmp_path):
-    """update_project reports memo.md as already_current when unchanged."""
-    target = tmp_path / "proj"
-    target.mkdir()
-    init_project(target, project_name="memocur")
-
-    result = update_project(target)
-
-    memo_path = target / ".claude" / "commands" / "memo.md"
-    assert str(memo_path) in result["already_current"]
+    assert not memo_path.exists()
 
 
 def test_init_project_ships_hooks(tmp_path):

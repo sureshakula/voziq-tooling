@@ -649,6 +649,18 @@ else
     echo "Skipping hooks (no .claude/hooks/ directory found)"
 fi
 
+# --- Install Claude Code commands (provider level) ---
+# memo.md belongs at provider level — works in all projects.
+# prep.md stays at repo root only — it's AIPass-specific.
+COMMANDS_SRC="$SCRIPT_DIR/.claude/templates"
+COMMANDS_DST="$HOME/.claude/commands"
+if [ -f "$COMMANDS_SRC/memo.md" ]; then
+    mkdir -p "$COMMANDS_DST"
+    cp -n "$COMMANDS_SRC/memo.md" "$COMMANDS_DST/memo.md" 2>/dev/null && \
+        echo "  memo.md -> $COMMANDS_DST/ (installed)" || \
+        echo "  memo.md -> $COMMANDS_DST/ (already exists, skipped)"
+fi
+
 # --- Install Codex CLI hooks ---
 if command -v codex &>/dev/null; then
     if [ -f "$SCRIPT_DIR/.codex/hooks.json" ]; then

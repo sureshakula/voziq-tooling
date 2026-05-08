@@ -319,18 +319,13 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         created.append(str(settings_path))
 
     # 9b. .claude/commands/prep.md — /prep session wrap-up slash command
+    # Only prep.md here — memo.md belongs at provider level (~/.claude/commands/)
     commands_dir = claude_dir / "commands"
     commands_dir.mkdir(exist_ok=True)
     prep_path = commands_dir / "prep.md"
     if not prep_path.exists():
         prep_path.write_text(sc.prep_md(), encoding="utf-8")
         created.append(str(prep_path))
-
-    # 9c. .claude/commands/memo.md — /memo memory update slash command
-    memo_path = commands_dir / "memo.md"
-    if not memo_path.exists():
-        memo_path.write_text(sc.memo_md(), encoding="utf-8")
-        created.append(str(memo_path))
 
     # 9d. Ship enforcement + injector hooks from AIPass install
     if aipass_home:
@@ -465,6 +460,7 @@ def update_project(target: Path) -> dict:
         already_current.append(str(gemini_md_path))
 
     # .claude/commands/prep.md — managed slash command, refresh to latest
+    # Only prep.md — memo.md belongs at provider level (~/.claude/commands/)
     commands_dir = claude_dir / "commands"
     commands_dir.mkdir(exist_ok=True)
     prep_path = commands_dir / "prep.md"
@@ -474,15 +470,6 @@ def update_project(target: Path) -> dict:
         updated.append(str(prep_path))
     else:
         already_current.append(str(prep_path))
-
-    # .claude/commands/memo.md — managed slash command, refresh to latest
-    memo_path = commands_dir / "memo.md"
-    generated = sc.memo_md()
-    if not memo_path.exists() or memo_path.read_text(encoding="utf-8") != generated:
-        memo_path.write_text(generated, encoding="utf-8")
-        updated.append(str(memo_path))
-    else:
-        already_current.append(str(memo_path))
 
     # Re-sync enforcement + injector hooks from AIPass install
     hook_home = aipass_home or _detect_aipass_home()

@@ -37,6 +37,56 @@ from aipass.trigger.apps.handlers.medic_state import (
 )
 
 SERVICE_NAME = "trigger-log-watcher.service"
+_SERVICE_UNIT_PATH = Path.home() / ".config" / "systemd" / "user" / SERVICE_NAME
+_TEMPLATE_PATH = Path(__file__).resolve().parent.parent.parent / "templates" / f"{SERVICE_NAME}.template"
+
+
+def _get_aipass_home() -> Path:
+    """Resolve AIPASS_HOME from env var or git repo root."""
+    import os
+
+    env = os.environ.get("AIPASS_HOME")
+    if env:
+        return Path(env)
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return Path(result.stdout.strip())
+    except Exception as exc:
+        logger.warning("[MEDIC] git repo root detection failed: %s", exc)
+    return Path(__file__).resolve().parent.parent.parent.parent.parent
+
+
+def _ensure_service_installed() -> bool:
+    """Install systemd unit from template if missing. Returns True if ready."""
+    if _SERVICE_UNIT_PATH.exists():
+        return True
+
+    if not _TEMPLATE_PATH.exists():
+        logger.warning("[MEDIC] Service template not found: %s", _TEMPLATE_PATH)
+        return False
+
+    aipass_home = _get_aipass_home()
+    template = _TEMPLATE_PATH.read_text()
+    rendered = template.replace("{{AIPASS_HOME}}", str(aipass_home))
+
+    _SERVICE_UNIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _SERVICE_UNIT_PATH.write_text(rendered)
+    logger.info("[MEDIC] Installed systemd unit to %s", _SERVICE_UNIT_PATH)
+
+    _systemctl("daemon-reload")
+    subprocess.run(
+        ["systemctl", "--user", "enable", SERVICE_NAME],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    return True
 
 
 def print_introspection():
@@ -246,6 +296,7 @@ def _handle_on(console) -> None:
 
     logger.info("[MEDIC] Medic ENABLED - error dispatch active")
     if not _is_service_active():
+        _ensure_service_installed()
         started = _systemctl("start")
         if started:
             logger.info("[MEDIC] Log watcher service started")
