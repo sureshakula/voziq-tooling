@@ -21,11 +21,11 @@ A local multi-agent framework where your AI assistants keep their memory between
 - [What AIPass Does](#what-aipass-does)
 - [Quick Start](#quick-start)
 - [How It Works](#how-it-works)
-- [The 11 Agents](#the-11-agents)
+- [The 12 Agents](#the-12-agents)
 - [CLI Support](#cli-support)
 - [Project Status](#project-status)
 - [Requirements](#requirements)
-- [Subscriptions & Compliance](#subscriptions--compliance)
+- [Roadmap](#roadmap)
 
 ---
 
@@ -112,12 +112,12 @@ Your project automatically gets access to every AIPass service — dispatch work
 
 ### Explore the full framework
 
-Clone the repo to see all 11 agents working together — the reference implementation:
+Clone the repo to see all 12 agents working together — the reference implementation:
 
 ```bash
 git clone https://github.com/AIOSAI/AIPass.git
 cd AIPass
-./setup.sh                            # Creates venv, installs, bootstraps 11 agents
+./setup.sh                            # Creates venv, installs, bootstraps 12 agents
 drone systems                         # See all agents
 
 cd src/aipass/devpulse
@@ -165,14 +165,15 @@ drone @ai_mail dispatch @memory "Archive old sessions" "Find sessions older than
 **Two ways to use AIPass:**
 
 - **Your own project:** `aipass init run` sets up a new project with your first agent. Add more agents as you need them. Your first agent is the orchestrator — it coordinates the others.
-- **The full framework:** Clone the repo to work with all 11 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
+- **The full framework:** Clone the repo to work with all 12 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
 
-**AIPass ships with 11 core agents** that maintain and develop the framework — the reference implementation proving the architecture works at scale:
+**AIPass ships with 12 core agents** that maintain and develop the framework — the reference implementation proving the architecture works at scale:
 
 ```
 devpulse (orchestrator)
+   ├── aipass   — concierge + onboarding (aipass init, doctor, profile)
    ├── drone    — command routing + @agent resolution
-   ├── seedgo   — 33 automated quality standards
+   ├── seedgo   — 34 automated quality standards
    ├── prax     — real-time monitoring across all agents
    ├── ai_mail  — agent-to-agent communication + task dispatch
    ├── flow     — plan lifecycle, templates, auto-archival
@@ -187,7 +188,7 @@ These agents work on the **same filesystem, same project, same time** — no san
 
 ---
 
-## The 11 Agents
+## The 12 Agents
 
 You don't need to memorize this list. Start with `devpulse`, use `drone` to reach any agent, and learn the rest as your workflow expands.
 
@@ -197,6 +198,7 @@ You don't need to memorize this list. Start with `devpulse`, use `drone` to reac
 
 | Agent | Role |
 |-------|------|
+| [**aipass**](src/aipass/aipass/README.md) | Concierge — `aipass init`, doctor, profile, onboarding |
 | [**drone**](src/aipass/drone/README.md) | Routes `drone @branch command` to the right agent |
 | [**ai_mail**](src/aipass/ai_mail/README.md) | Agent-to-agent messaging and task dispatch |
 | [**memory**](src/aipass/memory/README.md) | Memory lifecycle — automatic archival, ChromaDB vectors, semantic search |
@@ -207,7 +209,7 @@ You don't need to memorize this list. Start with `devpulse`, use `drone` to reac
 
 | Agent | Role |
 |-------|------|
-| [**seedgo**](src/aipass/seedgo/README.md) | 33 automated quality standards, enforced across all agents |
+| [**seedgo**](src/aipass/seedgo/README.md) | 34 automated quality standards, enforced across all agents |
 | [**prax**](src/aipass/prax/README.md) | Real-time monitoring, logs, dashboards |
 | [**flow**](src/aipass/flow/README.md) | Plan lifecycle — 6 template types, auto-archival, vector verification |
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
@@ -236,12 +238,10 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | Metric | Value |
 |--------|-------|
 | Version | 2.2.0 |
-| Agents | 11 core + user-created |
+| Agents | 12 core + user-created |
 | Quality standards | 34 automated checks |
-| Tests | 6,500+ (across all agents) |
-| PRs merged | 517+ (created by agents, reviewed by human) |
-| Code coverage | 75% ([codecov](https://codecov.io/gh/AIOSAI/AIPass)) |
-| CI | Green (0 failures) |
+| Tests | 7,600+ (across all agents) |
+| PRs merged | 538+ (created by agents, reviewed by human) |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 
