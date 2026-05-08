@@ -24,8 +24,7 @@ Design:
 
 Dependencies (optional):
     - chromadb
-    - sentence-transformers
-    - torch
+    - fastembed
 """
 
 from typing import List, Dict, Any
@@ -56,7 +55,7 @@ class QueryEncoder:
     Uses all-MiniLM-L6-v2 model with same settings.
     """
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
         """
         Initialize query encoder
 
@@ -64,28 +63,17 @@ class QueryEncoder:
             model_name: HuggingFace model identifier (must match embedder.py)
 
         Raises:
-            ImportError: If sentence-transformers or torch are not installed
+            ImportError: If fastembed is not installed
         """
         # Late imports (heavy optional dependencies)
         try:
-            import torch
-            from sentence_transformers import SentenceTransformer
+            from fastembed import TextEmbedding
         except ImportError as e:
             logger.info(f"[vector_search] Optional ML dependencies not available: {e}")
-            raise ImportError(
-                f"Search requires sentence-transformers and torch. "
-                f"Install with: pip install sentence-transformers torch. "
-                f"Original error: {e}"
-            )
+            raise ImportError(f"Search requires fastembed. Install with: pip install fastembed. Original error: {e}")
 
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
-
-        # GPU optimization if available
-        self.use_gpu = torch.cuda.is_available()
-        if self.use_gpu:
-            self.model = self.model.to("cuda")
-
+        self.model = TextEmbedding(model_name)
         self.dimension = 384  # all-MiniLM-L6-v2 output dimension
 
     def encode(self, query: str) -> List[float]:
@@ -98,21 +86,8 @@ class QueryEncoder:
         Returns:
             384-dimensional embedding as list
         """
-        import torch
-
-        # Encode with same settings as embedder.py
-        embedding = self.model.encode(
-            query,
-            convert_to_tensor=False,  # Return numpy
-            normalize_embeddings=True,  # Critical for L2 distance
-            show_progress_bar=False,
-        )
-
-        # Cleanup GPU memory if used
-        if self.use_gpu:
-            torch.cuda.empty_cache()
-
-        return embedding.tolist()
+        embeddings = list(self.model.embed([query]))
+        return embeddings[0].tolist()
 
 
 # Global encoder instance (singleton pattern)

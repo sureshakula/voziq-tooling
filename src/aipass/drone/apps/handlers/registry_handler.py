@@ -128,10 +128,7 @@ def find_registry() -> Path:
         if hit is not None:
             if _registry_matches_credential(hit):
                 return hit
-            logger.warning(
-                "Skipping mismatched registry at %s — continuing walk-up",
-                hit,
-            )
+            continue
 
     # AIPASS_HOME fallback — for external projects where CWD walk finds nothing
     aipass_home = os.environ.get("AIPASS_HOME")
