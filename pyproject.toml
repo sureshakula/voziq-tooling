@@ -52,12 +52,13 @@ memory = [
 ]
 seedgo = []
 dev = [
-    "pytest",
+    "pytest>=9.0.3",
     "pytest-cov",
     "pytest-timeout",
     "ruff",
     "coverage",
     "pyright",
+    "Pygments>=2.20.0",
 ]
 
 [project.scripts]
