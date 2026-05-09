@@ -18,9 +18,9 @@ Flutter-doctor-style health check across four groups:
 Three-tier glyph output: ✓ green / ! yellow / ✗ red
 Remediation shown inline under failing checks.
 Exit 0 on pass+warn, non-zero only on errors.
-Pure reads — never mutates.
+Pure reads — never mutates (unless --fix or interactive auto-wire accepted).
 
-Run: aipass doctor [--verbose]
+Run: aipass doctor [--verbose] [--fix]
 """
 
 from __future__ import annotations
@@ -36,6 +36,11 @@ from aipass.cli.apps.modules import console
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
+from aipass.aipass.apps.modules.doctor_wire import (
+    ENV_DESCRIPTIONS,
+    HOOK_DESCRIPTIONS,
+    _auto_wire_provider,
+)
 from aipass.aipass.apps.handlers.system_detect.system_detector import (
     detect_cpu,
     detect_git,
@@ -58,7 +63,6 @@ from aipass.aipass.apps.handlers.ui.progress import (
 # =============================================================================
 
 _BRANCH_ROOT = Path(__file__).resolve().parents[2]
-
 
 class CheckResult(NamedTuple):
     """Single doctor check result."""
@@ -224,7 +228,7 @@ def _find_manifest() -> Path | None:
     return None
 
 
-def _check_provider_manifest() -> List[CheckResult]:
+def _check_provider_manifest(interactive: bool = False, fix: bool = False) -> List[CheckResult]:
     """Check provider settings against manifest. Returns hook/env/permission results."""
     results: List[CheckResult] = []
 
@@ -275,6 +279,7 @@ def _check_provider_manifest() -> List[CheckResult]:
         )
 
     # --- Env vars in provider settings ---
+    missing_env: List[str] = []
     manifest_env = claude_section.get("env", {})
     if manifest_env:
         provider_settings_path = Path.home() / ".claude" / "settings.json"
@@ -299,6 +304,8 @@ def _check_provider_manifest() -> List[CheckResult]:
             )
 
     # --- Permissions ---
+    missing_deny: List[str] = []
+    missing_ask: List[str] = []
     manifest_perms = claude_section.get("permissions", {})
     manifest_deny = manifest_perms.get("deny", [])
     manifest_ask = manifest_perms.get("ask", [])
@@ -333,10 +340,78 @@ def _check_provider_manifest() -> List[CheckResult]:
                 )
             )
 
+    # --- Interactive auto-wire prompt / --fix auto-accept ---
+    if (interactive or fix) and any(r.glyph != GLYPH_PASS for r in results):
+        if fix:
+            # --fix skips prompt, auto-wires directly
+            actions = _auto_wire_provider(manifest_path, interactive=False)
+            for action in actions:
+                console.print(f"[green]✓[/green] {action}")
+        else:
+            _prompt_auto_wire(manifest_path, results, missing_hooks, missing_env, missing_deny, missing_ask)
+
     return results
 
 
-def _check_services(verbose: bool = False) -> List[CheckResult]:
+def _prompt_auto_wire(
+    manifest_path: Path,
+    results: List[CheckResult],
+    missing_hooks: List[str],
+    missing_env: List[str],
+    missing_deny: List[str],
+    missing_ask: List[str],
+) -> None:
+    """Prompt user to auto-wire provider settings, or print manual warning."""
+    hook_count = len(missing_hooks)
+    env_count = len(missing_env)
+    perm_count = len(missing_deny) + len(missing_ask)
+    logger.warning("[doctor] %d hooks, %d env vars, %d permissions missing", hook_count, env_count, perm_count)
+    console.print(f"\n[bold]{hook_count} hooks, {env_count} env vars, {perm_count} permissions missing[/bold]")
+    console.print("[dim]Review details: .claude/hooks/README.md[/dim]")
+
+    try:
+        answer = input("Auto-wire provider settings? [y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt) as exc:
+        logger.info("[doctor] auto-wire prompt interrupted: %s", type(exc).__name__)
+        answer = "n"
+
+    if answer in ("y", "yes"):
+        actions = _auto_wire_provider(manifest_path, interactive=True)
+        for action in actions:
+            console.print(f"[green]✓[/green] {action}")
+    else:
+        _print_manual_wire_warning(missing_hooks, missing_env, missing_deny, missing_ask)
+
+
+def _print_manual_wire_warning(
+    missing_hooks: List[str],
+    missing_env: List[str],
+    missing_deny: List[str],
+    missing_ask: List[str],
+) -> None:
+    """Print detailed warning when user declines auto-wire."""
+    logger.warning("[doctor] provider settings not wired — user declined auto-wire")
+    console.print("\n[bold]Provider settings not wired. Required for full AIPass functionality:[/bold]\n")
+    if missing_hooks:
+        console.print("[bold]Hooks (code quality enforcement):[/bold]")
+        for hook in missing_hooks:
+            desc = HOOK_DESCRIPTIONS.get(hook, hook)
+            console.print(f"  [dim]•[/dim] {hook} — {desc}")
+        console.print()
+    if missing_env:
+        console.print("[bold]Env vars:[/bold]")
+        for var in missing_env:
+            desc = ENV_DESCRIPTIONS.get(var, var)
+            console.print(f"  [dim]•[/dim] {var} — {desc}")
+        console.print()
+    if missing_deny or missing_ask:
+        console.print(f"{len(missing_deny)} deny rules + {len(missing_ask)} ask rules"
+                       " (protect ~/.secrets/, block destructive git)")
+        console.print()
+    console.print("[dim]Wire manually when ready — see .claude/hooks/README.md[/dim]")
+
+
+def _check_services(verbose: bool = False, interactive: bool = False, fix: bool = False) -> List[CheckResult]:
     """Run Services group checks."""
     results: List[CheckResult] = []
 
@@ -397,7 +472,7 @@ def _check_services(verbose: bool = False) -> List[CheckResult]:
         results.append(CheckResult("pytest collect", GLYPH_WARN, "timed out", ""))
 
     # hooks + env + permissions — manifest-driven provider check
-    manifest_checks = _check_provider_manifest()
+    manifest_checks = _check_provider_manifest(interactive=interactive, fix=fix)
     results.extend(manifest_checks)
 
     return results
@@ -434,7 +509,7 @@ def _check_community() -> List[CheckResult]:
 # =============================================================================
 
 
-def run_doctor(verbose: bool = False) -> int:
+def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = False) -> int:
     """Run all four groups and print results. Returns error count."""
     console.print()
     console.print("[bold cyan]aipass doctor[/bold cyan]")
@@ -445,7 +520,7 @@ def run_doctor(verbose: bool = False) -> int:
     group_specs = [
         ("System", _check_system),
         ("Identity", _check_identity),
-        ("Services", lambda: _check_services(verbose=verbose)),
+        ("Services", lambda: _check_services(verbose=verbose, interactive=interactive, fix=fix)),
         ("Community", _check_community),
     ]
     groups: Dict[str, List[CheckResult]] = {}
@@ -530,8 +605,9 @@ def print_help() -> None:
     console.print()
 
     console.print("[yellow]USAGE:[/yellow]")
-    console.print("  [green]aipass doctor[/green]              [dim]# Run all checks[/dim]")
+    console.print("  [green]aipass doctor[/green]              [dim]# Run all checks (interactive)[/dim]")
     console.print("  [green]aipass doctor --verbose[/green]    [dim]# Show sub-check detail[/dim]")
+    console.print("  [green]aipass doctor --fix[/green]        [dim]# Auto-wire missing provider settings[/dim]")
     console.print()
 
     console.print("[yellow]OUTPUT:[/yellow]")
@@ -573,8 +649,9 @@ def handle_command(command: str, args: list[str]) -> bool:
         return True
 
     verbose = "--verbose" in args or "-v" in args
-    error_count = run_doctor(verbose=verbose)
-    json_handler.log_operation("doctor_run", {"error_count": error_count})
+    fix_mode = "--fix" in args
+    error_count = run_doctor(verbose=verbose, interactive=True, fix=fix_mode)
+    json_handler.log_operation("doctor_run", {"error_count": error_count, "fix": fix_mode})
     if error_count > 0:
         raise SystemExit(1)
     return True

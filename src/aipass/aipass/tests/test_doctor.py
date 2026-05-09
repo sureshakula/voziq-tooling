@@ -332,7 +332,7 @@ class TestDoctorHandleCommand:
         with patch("aipass.aipass.apps.modules.doctor.run_doctor", return_value=0) as mock_run:
             with patch("aipass.aipass.apps.modules.doctor.json_handler"):
                 handle_command("doctor", ["--verbose"])
-        mock_run.assert_called_once_with(verbose=True)
+        mock_run.assert_called_once_with(verbose=True, interactive=True, fix=False)
 
 
 # =============================================================================
