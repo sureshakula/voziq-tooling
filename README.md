@@ -237,7 +237,7 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 
 | Metric | Value |
 |--------|-------|
-| Version | 2.2.0 |
+| Version | 2.3.0 |
 | Agents | 12 core + user-created |
 | Quality standards | 34 automated checks |
 | Tests | 7,600+ (across all agents) |
