@@ -420,7 +420,7 @@ def _print_manual_wire_warning(
     console.print("[dim]Wire manually when ready — see .claude/hooks/README.md[/dim]")
 
 
-def _check_services(verbose: bool = False, interactive: bool = False, fix: bool = False) -> List[CheckResult]:
+def _check_services(verbose: bool = False) -> List[CheckResult]:
     """Run Services group checks."""
     results: List[CheckResult] = []
 
@@ -481,7 +481,7 @@ def _check_services(verbose: bool = False, interactive: bool = False, fix: bool 
         results.append(CheckResult("pytest collect", GLYPH_WARN, "timed out", ""))
 
     # hooks + env + permissions — manifest-driven provider check
-    manifest_checks = _check_provider_manifest(interactive=interactive, fix=fix)
+    manifest_checks = _check_provider_manifest()
     results.extend(manifest_checks)
 
     return results
@@ -529,7 +529,7 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
     group_specs = [
         ("System", _check_system),
         ("Identity", _check_identity),
-        ("Services", lambda: _check_services(verbose=verbose, interactive=interactive, fix=fix)),
+        ("Services", lambda: _check_services(verbose=verbose)),
         ("Community", _check_community),
     ]
     groups: Dict[str, List[CheckResult]] = {}
@@ -538,6 +538,14 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
             task_id = progress.add_task(f"checking {name}...", total=None)
             groups[name] = runner()
             progress.remove_task(task_id)
+
+    if interactive or fix:
+        manifest_results = _check_provider_manifest(interactive=interactive, fix=fix)
+        if manifest_results:
+            groups["Services"] = [
+                r for r in groups.get("Services", [])
+                if r.label not in ("hooks", "env vars", "permissions")
+            ] + manifest_results
 
     pass_count = 0
     warn_count = 0
