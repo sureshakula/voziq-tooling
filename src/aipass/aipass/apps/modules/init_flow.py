@@ -280,7 +280,7 @@ def stage_3_doctor(non_interactive: bool = False, dry_run: bool = False) -> Dict
     try:
         from aipass.aipass.apps.modules import doctor
 
-        error_count = doctor.run_doctor()
+        error_count = doctor.run_doctor(interactive=not non_interactive)
         try:
             for r in doctor._check_provider_manifest():
                 if r.glyph != doctor.GLYPH_PASS:

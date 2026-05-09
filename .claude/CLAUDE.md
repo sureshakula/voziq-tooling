@@ -90,8 +90,6 @@ Every branch is an expert in its domain. When you don't know something, ask the 
 
 Branches operate semi-autonomously. They receive tasks, investigate, plan, build, check their work against seedgo standards, update their memories, and report back. The system teaches itself through this cycle.
 
-**Sub-agents build, managers PR.** Sub-agents never create PRs — they build the code and run tests. The manager (devpulse or the dispatching branch) reviews the work, then creates the PR. The review gate is the manager's responsibility.
-
 ---
 
 ## Message from the AIPass Developer
