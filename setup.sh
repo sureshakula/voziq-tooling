@@ -477,12 +477,13 @@ bootstrap_branch "trigger"  "$SCRIPT_DIR/src/aipass/trigger"  "builder" "Event-d
 bootstrap_branch "spawn"    "$SCRIPT_DIR/src/aipass/spawn"    "builder" "Branch lifecycle management"
 bootstrap_branch "devpulse" "$SCRIPT_DIR/src/aipass/devpulse" "manager" "Orchestration hub and coordination"
 bootstrap_branch "memory"   "$SCRIPT_DIR/src/aipass/memory"   "builder" "Vector memory bank"
+bootstrap_branch "aipass"   "$SCRIPT_DIR/src/aipass/aipass"   "builder" "Concierge — init, doctor, profile, onboarding"
 
 # External branches
 # NOTE: backup, daemon removed S82/S87. commons, skills moved to external repos.
-# Only the 11 core branches above should be bootstrapped.
+# Only the 12 core branches above should be bootstrapped.
 
-echo "  11 branches bootstrapped"
+echo "  12 branches bootstrapped"
 
 # --- Seed branch config files from .example defaults ---
 # Some branches need a config file that's gitignored (contains local state).
