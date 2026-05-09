@@ -342,13 +342,17 @@ def _check_provider_manifest(interactive: bool = False, fix: bool = False) -> Li
 
     # --- Interactive auto-wire prompt / --fix auto-accept ---
     if (interactive or fix) and any(r.glyph != GLYPH_PASS for r in results):
+        wired = False
         if fix:
-            # --fix skips prompt, auto-wires directly
             actions = _auto_wire_provider(manifest_path, interactive=False)
             for action in actions:
                 console.print(f"[green]✓[/green] {action}")
+            wired = bool(actions)
         else:
-            _prompt_auto_wire(manifest_path, results, missing_hooks, missing_env, missing_deny, missing_ask)
+            wired = _prompt_auto_wire(manifest_path, results, missing_hooks, missing_env, missing_deny, missing_ask)
+
+        if wired:
+            return _check_provider_manifest(interactive=False, fix=False)
 
     return results
 
@@ -360,8 +364,11 @@ def _prompt_auto_wire(
     missing_env: List[str],
     missing_deny: List[str],
     missing_ask: List[str],
-) -> None:
-    """Prompt user to auto-wire provider settings, or print manual warning."""
+) -> bool:
+    """Prompt user to auto-wire provider settings, or print manual warning.
+
+    Returns True if wiring was performed.
+    """
     hook_count = len(missing_hooks)
     env_count = len(missing_env)
     perm_count = len(missing_deny) + len(missing_ask)
@@ -379,8 +386,10 @@ def _prompt_auto_wire(
         actions = _auto_wire_provider(manifest_path, interactive=True)
         for action in actions:
             console.print(f"[green]✓[/green] {action}")
-    else:
-        _print_manual_wire_warning(missing_hooks, missing_env, missing_deny, missing_ask)
+        return bool(actions)
+
+    _print_manual_wire_warning(missing_hooks, missing_env, missing_deny, missing_ask)
+    return False
 
 
 def _print_manual_wire_warning(
