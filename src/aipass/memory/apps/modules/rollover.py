@@ -167,7 +167,7 @@ def print_help() -> None:
     console.print("[bold]WORKFLOW:[/bold]")
     console.print("  1. Detect files exceeding limits (line count or entry count)")
     console.print("  2. Extract oldest entries")
-    console.print("  3. Generate embeddings via sentence-transformers")
+    console.print("  3. Generate embeddings via fastembed")
     console.print("  4. Store vectors in local + global ChromaDB")
     console.print()
 

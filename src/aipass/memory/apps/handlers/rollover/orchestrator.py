@@ -143,7 +143,7 @@ def store_vectors_subprocess(
 
 def encode_batch_subprocess(texts: list) -> dict:
     """
-    Encode texts via subprocess using memory venv's sentence-transformers.
+    Encode texts via subprocess using memory venv's fastembed.
 
     Args:
         texts: List of text strings to encode

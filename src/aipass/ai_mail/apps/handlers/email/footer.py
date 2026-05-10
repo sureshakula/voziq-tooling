@@ -22,6 +22,7 @@ STANDARD_FOOTER = """
 ⚠️ TASK CHECKLIST (before marking complete):
 □ SEEDGO CHECK → drone @seedgo audit @branch (80%+)
 □ UPDATE MEMORIES → Your .trinity/local.json records this work
+□ UPDATE STATUS → Your STATUS.local.md reflects current state
 □ CLOSE FPLAN → drone @flow close <plan_id>
 □ EMAIL SENDER → drone @ai_mail email @<sender> "Subject" "Summary"
 

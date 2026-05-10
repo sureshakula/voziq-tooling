@@ -61,7 +61,7 @@ MIN_SIMILARITY_THRESHOLD = 0.40  # 40% minimum relevance
 
 def encode_query_subprocess(query: str) -> dict:
     """
-    Encode query text via subprocess using memory venv's sentence-transformers.
+    Encode query text via subprocess using memory venv's fastembed.
 
     Args:
         query: Search query text

@@ -103,7 +103,7 @@ class TestChromaServiceStoreVectors:
         _reset_globals(chroma)
 
         mock_collection = MagicMock()
-        mock_collection.count.side_effect = [0, 3]  # before and after add
+        mock_collection.count.return_value = 3  # count after upsert
 
         mock_client = MagicMock()
         mock_client.get_or_create_collection.return_value = mock_collection
@@ -121,7 +121,7 @@ class TestChromaServiceStoreVectors:
         assert result["count"] == 3
         assert result["total_vectors"] == 3
         assert len(result["ids"]) == 3
-        mock_collection.add.assert_called_once()
+        mock_collection.upsert.assert_called_once()
 
 
 class TestChromaServiceGetCollectionStats:

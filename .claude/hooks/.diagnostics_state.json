@@ -1,0 +1,1 @@
+{"file": "/home/patrick/Projects/AIPass/src/aipass/memory/apps/handlers/search/vector_search.py", "errors": [{"line": 42, "message": "E402: Module level import not at top of file"}]}

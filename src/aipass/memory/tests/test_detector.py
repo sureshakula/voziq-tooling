@@ -126,7 +126,7 @@ class TestLoadConfig:
     def test_returns_config_dict_when_file_exists(self, tmp_path: Path, monkeypatch):
         config_dir = tmp_path / "config"
         config_dir.mkdir()
-        config_file = config_dir / "memory_bank.config.json"
+        config_file = config_dir / "memory.config.json"
         config_data = {
             "rollover": {
                 "defaults": {"max_lines": 500},
@@ -166,7 +166,7 @@ class TestLoadConfig:
     def test_returns_empty_dict_on_invalid_json(self, tmp_path: Path, monkeypatch):
         config_dir = tmp_path / "config"
         config_dir.mkdir()
-        config_file = config_dir / "memory_bank.config.json"
+        config_file = config_dir / "memory.config.json"
         config_file.write_text("NOT VALID JSON {{", encoding="utf-8")
 
         from aipass.memory.apps.handlers.monitor import detector

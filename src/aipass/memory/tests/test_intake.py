@@ -113,7 +113,7 @@ class TestLoadConfig:
 
     def test_loads_valid_config(self, monkeypatch, tmp_path):
         mod = _import_pool_processor(monkeypatch)
-        config_file = tmp_path / "memory_bank.config.json"
+        config_file = tmp_path / "memory.config.json"
         config_file.write_text(
             json.dumps({"memory_pool": {"enabled": True, "keep_recent": 5, "collection_name": "test_pool"}}),
             encoding="utf-8",
@@ -137,7 +137,7 @@ class TestLoadConfig:
 
     def test_returns_empty_when_no_memory_pool_key(self, monkeypatch, tmp_path):
         mod = _import_pool_processor(monkeypatch)
-        config_file = tmp_path / "memory_bank.config.json"
+        config_file = tmp_path / "memory.config.json"
         config_file.write_text(json.dumps({"rollover": {}}), encoding="utf-8")
         monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
 

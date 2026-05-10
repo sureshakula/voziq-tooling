@@ -394,10 +394,10 @@ class TestProcessPlans:
     """Test process_plans main entry point."""
 
     def _setup_config(self, tmp_path, config_data):
-        """Write a memory_bank.config.json and return its path."""
+        """Write a memory.config.json and return its path."""
         config_dir = tmp_path / "config"
         config_dir.mkdir(parents=True, exist_ok=True)
-        config_path = config_dir / "memory_bank.config.json"
+        config_path = config_dir / "memory.config.json"
         config_path.write_text(json.dumps(config_data), encoding="utf-8")
         return config_path
 

@@ -5,7 +5,7 @@
 **Purpose:** Central memory archive — vector search, rollover, and memory management for all AIPass branches.
 **Module:** `aipass.memory`
 **Created:** 2026-03-07
-**Last Updated:** 2026-05-02
+**Last Updated:** 2026-05-10
 **Citizen Class:** builder
 
 ---
@@ -15,7 +15,7 @@
 Memory is the archival backbone of AIPass. Every branch accumulates session history and learnings in `.trinity/` files. When those files reach capacity, Memory archives the oldest entries into ChromaDB vectors — searchable, permanent, never lost.
 
 What Memory does:
-- **Rollover** — detects when `.trinity/local.json` or `observations.json` exceed limits, extracts oldest entries, embeds them via sentence-transformers, stores in ChromaDB, trims the source file
+- **Rollover** — detects when `.trinity/local.json` or `observations.json` exceed limits, extracts oldest entries, embeds them via fastembed, stores in ChromaDB, trims the source file
 - **Search** — semantic search across all archived branch memories (4+ collections, 2200+ vectors)
 - **Templates** — distributes `.trinity/` schema updates across all branches (push, diff, status)
 - **Symbolic** — fragmented memory extraction from conversations (demo, analyze, extract, fragments, bootstrap, hook-test)
@@ -99,9 +99,9 @@ memory/
 │       ├── symbolic/            # 6 handlers — chroma_client, deduplicator, extractor, hook, retriever, storage
 │       ├── templates/           # pusher.py, differ.py, spawn_pusher.py — template distribution
 │       ├── tracking/            # line_counter.py — metadata line count tracking
-│       ├── vector/              # embedder.py, embed_subprocess.py — sentence-transformer embeddings
+│       ├── vector/              # embedder.py, embed_subprocess.py — fastembed embeddings
 │       └── central_writer.py    # Central memory write operations
-├── config/                      # memory_bank.config.json — per-branch rollover limits
+├── config/                      # memory.config.json — per-branch rollover limits
 ├── templates/                   # LOCAL.template.json, OBS.template — schema templates
 ├── tests/                       # 450 tests (16/16 module coverage)
 ├── .chroma/                     # Global ChromaDB vector store
@@ -118,7 +118,7 @@ startup trigger → check_and_rollover()
   → orchestrator.execute_rollover()
     → create_rollover_backup()         # safety copy to branch/.backup/
     → extract_items()                  # v2: max(excess, 1) oldest entries
-    → embed via subprocess             # sentence-transformers in memory .venv
+    → embed via subprocess             # fastembed (ONNX) in memory .venv
     → store in ChromaDB                # global + local collections
     → trim source file                 # write back with oldest removed
 ```
@@ -130,7 +130,7 @@ startup trigger → check_and_rollover()
 
 ### Subprocess Isolation
 
-All ML operations (torch, sentence-transformers, chromadb) run via subprocess. The main process never imports these heavy libraries. Each embedding call resolves a Python interpreter via `_get_memory_python()` (env var `AIPASS_MEMORY_PYTHON` → `memory/.venv/bin/python` → `sys.executable`) and runs a self-contained script that reads stdin JSON and writes stdout JSON.
+All ML operations (fastembed, chromadb) run via subprocess. The main process never imports these libraries. Each embedding call resolves a Python interpreter via `_get_memory_python()` (env var `AIPASS_MEMORY_PYTHON` → `memory/.venv/bin/python` → `sys.executable`) and runs a self-contained script that reads stdin JSON and writes stdout JSON.
 
 ---
 
@@ -142,7 +142,7 @@ All ML operations (torch, sentence-transformers, chromadb) run via subprocess. T
 - `prax` (internal) — logging via `get_system_logger()`
 
 ### ML (in memory `.venv/` only)
-- `torch` + `sentence-transformers` — embedding generation
+- `fastembed` — embedding generation (ONNX, no torch required)
 - `chromadb` — vector storage and semantic search
 - `numpy` — numerical operations
 
@@ -165,7 +165,7 @@ All ML operations (torch, sentence-transformers, chromadb) run via subprocess. T
 
 ## Known Issues
 
-- `search` requires torch/sentence-transformers in memory `.venv/` — fails without them
+- `search` requires fastembed in memory `.venv/` — fails without it
 - memory_watcher.py at 704 lines (near 700 threshold, bypassed in seedgo)
 - symbolic.py at 1604 lines (legacy port, bypassed)
 - manager.py at 1076 lines (complex learning extraction, bypassed)
@@ -183,7 +183,7 @@ All ML operations (torch, sentence-transformers, chromadb) run via subprocess. T
 
 ---
 
-*Last Updated: 2026-04-22*
+*Last Updated: 2026-05-10*
 
 ---
 [← Back to AIPass](../../../README.md)

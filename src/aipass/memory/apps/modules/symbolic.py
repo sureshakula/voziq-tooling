@@ -1501,13 +1501,8 @@ def bootstrap_from_jsonl(max_sessions: int = 8) -> None:
     for i, jsonl_path in enumerate(sessions, 1):
         # Derive branch name from parent directory
         branch_dir = jsonl_path.parent.name
-        # New layout: -home-patrick-Projects-AIPass-src-aipass-<branch>
+        # Layout: -home-patrick-Projects-AIPass-src-aipass-<branch>
         branch_name = branch_dir.rsplit("-aipass-", 1)[-1].replace("-", "_").upper()
-        # Legacy layout fallback
-        if branch_name.startswith("AIPASS_CORE_"):
-            branch_name = branch_name.replace("AIPASS_CORE_", "")
-        if branch_name.startswith("AIPASS_OS_"):
-            branch_name = branch_name.replace("AIPASS_OS_", "")
 
         file_size_kb = jsonl_path.stat().st_size / 1024
         console.print(

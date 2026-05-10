@@ -21,8 +21,8 @@ Output: JSON on stdout with result
 import sys
 import json
 import logging
+import hashlib
 from pathlib import Path
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +67,14 @@ def _store_vectors(branch, memory_type, embeddings, documents, metadatas, db_pat
         embedding_function=None,
     )
 
-    existing_count = collection.count()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ids = [f"{branch}_{memory_type}_{existing_count + i}_{timestamp}" for i in range(len(embeddings))]
+    # Content-hash IDs prevent duplicates across rollover runs
+    ids = [f"{branch}_{memory_type}_{hashlib.sha256(doc.encode()).hexdigest()[:16]}" for doc in documents]
 
     # Chroma expects lists, not numpy arrays
     embeddings_list = [emb.tolist() if hasattr(emb, "tolist") else emb for emb in embeddings]
 
-    collection.add(embeddings=embeddings_list, documents=documents, metadatas=metadatas, ids=ids)
+    # Upsert: idempotent — same content gets same ID, no duplicates
+    collection.upsert(embeddings=embeddings_list, documents=documents, metadatas=metadatas, ids=ids)
 
     new_count = collection.count()
 
@@ -107,7 +107,7 @@ def _check_plan(plan_label, db_path=None):
     """
     client = _get_client(db_path)
 
-    collection_name = "flow_flow_plans"
+    collection_name = "flow_plans"
     try:
         collection = client.get_collection(collection_name, embedding_function=None)
     except Exception as e:

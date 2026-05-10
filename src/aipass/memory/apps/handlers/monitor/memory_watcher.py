@@ -103,7 +103,7 @@ def _get_rollover_threshold(branch_name: str, file_path: Path | None = None) -> 
             logger.warning(f"[memory_watcher] Failed to read file-level threshold from {file_path}: {e}")
 
     # 2. Check per-branch config override
-    config_path = _MEMORY_ROOT / "config" / "memory_bank.config.json"
+    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
 
     try:
         with open(config_path) as f:
@@ -288,7 +288,7 @@ def _check_memory_pool() -> Dict[str, Any]:
     """
     import json
 
-    config_path = _MEMORY_ROOT / "config" / "memory_bank.config.json"
+    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
     pool_path = _MEMORY_ROOT / "memory_pool"
 
     # Load config
@@ -348,7 +348,7 @@ def _check_plans() -> Dict[str, Any]:
     """
     import json
 
-    config_path = _MEMORY_ROOT / "config" / "memory_bank.config.json"
+    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
 
     # Load config
     try:

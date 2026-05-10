@@ -230,7 +230,7 @@ def process_plans() -> Dict[str, Any]:
         Dict with success, files_processed, total_chunks
     """
     # Load config
-    config_path = _MEMORY_ROOT / "config" / "memory_bank.config.json"
+    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
         plans_config = config.get("plans", {})
@@ -242,7 +242,7 @@ def process_plans() -> Dict[str, Any]:
         return {"success": True, "skipped": True, "reason": "plans disabled"}
 
     # Resolve plans directory (relative to repo root)
-    plans_dir = plans_config.get("path", "src/aipass/flow/processed_plans")
+    plans_dir = plans_config.get("path", ".backup/processed_plans")
     repo_root = _find_repo_root()
     plans_path = Path(plans_dir) if Path(plans_dir).is_absolute() else repo_root / plans_dir
     extensions = plans_config.get("supported_extensions", [".md"])

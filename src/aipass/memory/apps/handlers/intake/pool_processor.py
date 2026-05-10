@@ -15,7 +15,7 @@ Processes markdown/text files from memory_pool directory:
 3. Vectorizes via ChromaDB
 4. Archives old files based on retention config
 
-All settings read from memory_bank.config.json
+All settings read from memory.config.json
 """
 
 import json
@@ -30,7 +30,7 @@ from aipass.memory.apps.handlers.json import json_handler
 
 # Paths
 _MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # handlers/intake/ → handlers/ → apps/ → memory/
-CONFIG_PATH = _MEMORY_ROOT / "config" / "memory_bank.config.json"
+CONFIG_PATH = _MEMORY_ROOT / "config" / "memory.config.json"
 MEMORY_POOL_PATH = _MEMORY_ROOT / "memory_pool"
 CHROMA_PATH = _MEMORY_ROOT / ".chroma"
 
@@ -103,7 +103,7 @@ def find_source_file(filename: str) -> Path | None:
 
 
 def load_config() -> dict:
-    """Load memory_pool config from memory_bank.config.json"""
+    """Load memory_pool config from memory.config.json"""
     try:
         with open(CONFIG_PATH) as f:
             config = json.load(f)

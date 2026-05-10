@@ -171,13 +171,13 @@ def _get_memory_file_path(branch: Dict, memory_type: str) -> Path | None:
 
 def _load_config() -> Dict[str, Any]:
     """
-    Load memory_bank.config.json
+    Load memory.config.json
 
     Returns:
         Config dict, or empty dict on error
     """
     # Look for config relative to this handler's location
-    config_path = Path(__file__).resolve().parents[3] / "config" / "memory_bank.config.json"
+    config_path = Path(__file__).resolve().parents[3] / "config" / "memory.config.json"
 
     if not config_path.exists():
         return {}

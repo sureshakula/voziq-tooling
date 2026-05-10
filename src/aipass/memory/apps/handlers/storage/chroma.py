@@ -29,7 +29,7 @@ Dependencies (optional):
 
 from typing import List, Dict, Any
 from pathlib import Path
-from datetime import datetime
+import hashlib
 
 from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
@@ -138,18 +138,14 @@ class ChromaService:
             embedding_function=None,
         )
 
-        # Get existing count for ID generation
-        existing_count = collection.count()
-
-        # Generate unique IDs
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        ids = [f"{branch}_{memory_type}_{existing_count + i}_{timestamp}" for i in range(len(embeddings))]
+        # Content-hash IDs prevent duplicates across rollover runs
+        ids = [f"{branch}_{memory_type}_{hashlib.sha256(doc.encode()).hexdigest()[:16]}" for doc in documents]
 
         # Convert embeddings to list format (Chroma requirement)
         embeddings_list = [emb.tolist() if hasattr(emb, "tolist") else emb for emb in embeddings]
 
-        # Batch insert (optimal size: 100-150)
-        collection.add(embeddings=embeddings_list, documents=documents, metadatas=metadatas, ids=ids)
+        # Upsert: idempotent — same content gets same ID, no duplicates
+        collection.upsert(embeddings=embeddings_list, documents=documents, metadatas=metadatas, ids=ids)
 
         new_count = collection.count()
 

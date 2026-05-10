@@ -13,7 +13,7 @@ Checks whether a plan has been vectorized in ChromaDB.
 
 Purpose:
     Thin orchestration layer - calls chroma_subprocess via subprocess
-    to query the flow_flow_plans collection for a given plan label.
+    to query the flow_plans collection for a given plan label.
 """
 
 import subprocess
@@ -261,7 +261,7 @@ def print_help() -> None:
     console.print("  [dim]drone @memory verify HPLAN-0001[/dim]")
     console.print()
     console.print("[bold]HOW IT WORKS:[/bold]")
-    console.print("  1. Query the flow_flow_plans ChromaDB collection")
+    console.print("  1. Query the flow_plans ChromaDB collection")
     console.print("  2. Filter entries by source_file metadata matching the plan label")
     console.print("  3. Report vectorization status and chunk count")
     console.print()

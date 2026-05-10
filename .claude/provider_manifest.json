@@ -17,7 +17,9 @@
         {"script": "stop_sound.py", "event": "Stop", "source": "repo"},
         {"script": "notification_sound.py", "event": "Notification", "source": "repo"},
         {"script": "pre_compact.py", "event": "PreCompact", "matcher": "manual", "source": "repo", "timeout": 60},
-        {"script": "pre_compact.py", "event": "PreCompact", "matcher": "auto", "source": "repo", "timeout": 60}
+        {"script": "pre_compact.py", "event": "PreCompact", "matcher": "auto", "source": "repo", "timeout": 60},
+        {"script": "pre_compact_rollover.py", "event": "PreCompact", "matcher": "manual", "source": "repo", "timeout": 120},
+        {"script": "pre_compact_rollover.py", "event": "PreCompact", "matcher": "auto", "source": "repo", "timeout": 120}
       ],
       "env": {
         "AIPASS_HOME": "{{REPO_ROOT}}",
