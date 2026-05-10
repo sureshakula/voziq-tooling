@@ -98,6 +98,30 @@ def _find_plan_across_registries(plan_key: str, load_registry_fn: Any) -> str | 
 # =============================================
 
 
+def _find_relocated_plan(plan_file: Path) -> Path | None:
+    """Search common locations for a plan file that was manually moved.
+
+    Returns the found path, or None if not found anywhere.
+    """
+    from aipass.flow.apps.handlers.mbank.process import PROCESSED_PLANS_DIR
+
+    filename = plan_file.name
+    branch_dir = plan_file.parent
+
+    search_dirs = [
+        branch_dir / ".archive",
+        branch_dir / "docs.local",
+        PROCESSED_PLANS_DIR,
+    ]
+
+    for search_dir in search_dirs:
+        candidate = search_dir / filename
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
 def _spawn_background_runner():
     """Spawn post_close_runner.py as a fully detached background process"""
     bg_runner = FLOW_ROOT / "apps" / "modules" / "post_close_runner.py"
@@ -275,6 +299,17 @@ def close_plan_impl(
                 "cancelled": False,
             }
 
+        # --- File location resolution ---
+        # If plan file was manually moved, find it before proceeding
+        if not plan_file.exists():
+            relocated = _find_relocated_plan(plan_file)
+            if relocated:
+                messages.append(
+                    {"type": "warning", "text": f"  Plan file not at expected path, found at: {relocated.parent.name}/"}
+                )
+                logger.info(f"[{MODULE_NAME}] Relocated {plan_label}: {relocated}")
+                plan_file = relocated
+
         # --- Step 1/5: Template check (may fast-delete) ---
         messages.append({"type": "step", "text": "[1/5] Checking template status..."})
         try:
@@ -308,9 +343,11 @@ def close_plan_impl(
                     "cancelled": False,
                 }
 
-        except FileNotFoundError as e:
-            logger.warning(f"[{MODULE_NAME}] Template check - file not found: {e}")
-            messages.append({"type": "warning", "text": "  Plan file not found, continuing with registry close"})
+        except FileNotFoundError:
+            logger.warning(f"[{MODULE_NAME}] Plan file not found at any location: {plan_file}")
+            messages.append(
+                {"type": "warning", "text": "  Plan file not found at any location, closing in registry only"}
+            )
         except Exception as e:
             logger.warning(f"[{MODULE_NAME}] Template check failed: {e}")
             messages.append(
@@ -355,11 +392,17 @@ def close_plan_impl(
         # --- Step 3/5: Archive plan to processed_plans ---
         messages.append({"type": "step", "text": "[3/5] Archiving plan..."})
         try:
-            from aipass.flow.apps.handlers.mbank.process import archive_plan
+            from aipass.flow.apps.handlers.mbank.process import archive_plan, PROCESSED_PLANS_DIR
 
-            archive_success = archive_plan(plan_file)
+            # If file is already in processed_plans (found via relocation search), skip move
+            if plan_file.exists() and plan_file.parent == PROCESSED_PLANS_DIR:
+                archive_success = True
+                logger.info(f"[{MODULE_NAME}] {plan_label} already in processed_plans/, skipping move")
+                messages.append({"type": "dim", "text": "  Already in processed_plans/ — skipping move"})
+            else:
+                archive_success = archive_plan(plan_file)
+
             if archive_success:
-                # Set flags on same registry object we already have in memory
                 plan_info["processed"] = True
                 plan_info["processed_date"] = datetime.now(timezone.utc).isoformat()
                 plan_info["cleanup_completed"] = True
@@ -368,8 +411,9 @@ def close_plan_impl(
                     save_registry(registry, registry_file=reg_file)
                 else:
                     save_registry(registry)
-                logger.info(f"[{MODULE_NAME}] Archived {plan_label} to processed_plans")
-                messages.append({"type": "dim", "text": "  Plan archived to processed_plans/"})
+                if plan_file.parent != PROCESSED_PLANS_DIR:
+                    logger.info(f"[{MODULE_NAME}] Archived {plan_label} to processed_plans")
+                    messages.append({"type": "dim", "text": "  Plan archived to processed_plans/"})
             else:
                 logger.error(f"[{MODULE_NAME}] Failed to archive {plan_label}")
                 messages.append({"type": "warning", "text": "  Archive failed — plan file not moved"})

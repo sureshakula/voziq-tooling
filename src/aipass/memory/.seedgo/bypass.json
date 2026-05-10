@@ -64,7 +64,7 @@
     {
       "file": "apps/modules/symbolic.py",
       "standard": "modules",
-      "reason": "Symbolic module is 1669 lines — legacy port from old memory bank. Functions flagged as implementation are CLI-display orchestration, not raw logic."
+      "reason": "Symbolic module is 1669 lines — legacy port from old memory system. Functions flagged as implementation are CLI-display orchestration, not raw logic."
     },
     {
       "file": "apps/modules/rollover.py",
@@ -219,7 +219,7 @@
     {
       "file": "apps/modules/symbolic.py",
       "standard": "documentation",
-      "reason": "Large legacy module (1672 lines) ported from old memory bank. Multiline signatures cause false-positive missing docstring detection."
+      "reason": "Large legacy module (1672 lines) ported from old memory system. Multiline signatures cause false-positive missing docstring detection."
     },
     {
       "file": "apps/modules/search.py",
@@ -269,7 +269,7 @@
     {
       "file": "apps/modules/symbolic.py",
       "standard": "architecture",
-      "reason": "1672 lines — legacy port from old memory bank. Full refactor into handler split deferred."
+      "reason": "1672 lines — legacy port from old memory system. Full refactor into handler split deferred."
     },
     {
       "file": "apps/handlers/learnings/manager.py",

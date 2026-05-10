@@ -9,7 +9,7 @@
 """
 Central File Writer Handler
 
-Updates memory_bank.central.json with current statistics.
+Updates memory.central.json with current statistics.
 This file is memory's "API output" - used to populate dashboards.
 
 Purpose:
