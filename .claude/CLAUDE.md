@@ -20,7 +20,7 @@
 
 ## What is AIPass?
 
-An experimental platform for discovering new ways to collaborate with AI through hands-on development. Not a product to ship - a journey of human-AI co-creation.
+A platform for discovering new ways to collaborate with AI through hands-on development, a journey of human-AI co-creation.
 
 user builds WITH AI, not just using AI as a tool. Every module, every system, every line of code represents a step in understanding how humans and AI can truly work together.
 
