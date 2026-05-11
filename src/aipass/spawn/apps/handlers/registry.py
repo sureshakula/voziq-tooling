@@ -8,8 +8,8 @@
 
 """*_REGISTRY.json discovery and CRUD operations."""
 
-import fcntl
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -179,8 +179,8 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
     """
     Add a new branch entry to the registry.
 
-    Uses file locking (fcntl.LOCK_EX) around the entire read-modify-write
-    cycle to prevent corruption from concurrent spawns.
+    Uses file locking around the entire read-modify-write cycle to prevent
+    corruption from concurrent spawns. Skips locking on Windows.
 
     Args:
         registry_path: Path to AIPASS_REGISTRY.json
@@ -201,10 +201,16 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
 
     lock_path = registry_path.parent / f".{registry_path.stem}.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_fd = open(lock_path, "w", encoding="utf-8")  # noqa: SIM115
-    try:
+
+    if sys.platform == "win32":
+        lock_fd = None
+    else:
+        import fcntl
+
+        lock_fd = open(lock_path, "w", encoding="utf-8")  # noqa: SIM115
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
 
+    try:
         registry = load_registry(registry_path)
         branches = registry.get("branches", [])
 
@@ -239,8 +245,11 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
 
         return save_registry(registry_path, registry)
     finally:
-        fcntl.flock(lock_fd, fcntl.LOCK_UN)
-        lock_fd.close()
+        if lock_fd is not None:
+            import fcntl
+
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
 
 
 def fix_passport_registry_id(branch_dir: Path, registry_path: Path) -> bool:
