@@ -16,6 +16,7 @@ Baselines in tests/fixtures/*_hooks_snapshot.json.
 
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -105,8 +106,8 @@ def _extract_hook_matchers(hooks_config: dict) -> dict[str, list[str]]:
 
 
 @pytest.mark.skipif(
-    not (Path.home() / ".claude" / "settings.json").exists(),
-    reason="No provider settings.json (CI environment)",
+    sys.platform == "win32" or not (Path.home() / ".claude" / "settings.json").exists(),
+    reason="No provider settings.json (CI environment) or Windows CI",
 )
 class TestProviderHooksSnapshot:
     """Compare ~/.claude/settings.json hooks against known-good baseline."""

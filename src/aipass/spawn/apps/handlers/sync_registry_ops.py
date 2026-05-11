@@ -176,7 +176,7 @@ def sync_registry(fix: bool = False) -> dict:
         today = datetime.now().strftime("%Y-%m-%d")
         for name in unregistered_list:
             branch_path = filesystem_branches[name]
-            rel_path = str(branch_path.relative_to(project_root))
+            rel_path = branch_path.relative_to(project_root).as_posix()
 
             entry = {
                 "name": name.upper(),

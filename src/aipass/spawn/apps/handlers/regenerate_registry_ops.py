@@ -90,7 +90,7 @@ def regenerate_template_registry(template_dir: Path) -> dict:
             json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
-        tmp_path.rename(registry_path)
+        tmp_path.replace(registry_path)
     except (IOError, OSError) as exc:
         logger.error(f"Failed to write template registry: {exc}")
         return {"error": f"Failed to write registry: {exc}"}
