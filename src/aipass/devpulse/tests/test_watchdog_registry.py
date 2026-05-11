@@ -148,6 +148,7 @@ def test_list_active_keeps_stale_when_prune_false(store_path):
     assert len(raw["watches"]) == 1  # still on disk
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (os.kill sig-0)")
 def test_list_active_selective_prune(store_path):
     """Only entries with dead pids should be pruned."""
     h_alive = watch_registry.register("agent", {"label": "alive"}, storage_path=store_path)
@@ -175,6 +176,7 @@ def test_is_pid_alive_current_process():
     assert watch_registry.is_pid_alive(os.getpid()) is True
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (os.kill sig-0)")
 def test_is_pid_alive_impossible_pid():
     # 999999 is well above typical kernel.pid_max default — unlikely to exist.
     assert watch_registry.is_pid_alive(999999) is False
@@ -202,6 +204,7 @@ def test_kill_watch_handle_not_found(store_path):
     }
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (os.kill sig-0)")
 def test_kill_watch_already_dead_pid(store_path):
     """Handle for a dead pid should still be deregistered cleanly."""
     handle = watch_registry.register("timer", {}, storage_path=store_path)
@@ -247,6 +250,7 @@ def test_kill_watch_happy_path(store_path):
             proc.wait(timeout=5)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (os.kill sig-0)")
 def test_kill_all_multiple_watches(store_path):
     h1 = watch_registry.register("timer", {}, storage_path=store_path)
     h2 = watch_registry.register("schedule", {}, storage_path=store_path)

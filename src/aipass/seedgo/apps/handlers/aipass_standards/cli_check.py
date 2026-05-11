@@ -50,6 +50,9 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     checks = []
     path = Path(module_path)
 
+    # Normalize to forward slashes so string matching works on Windows too
+    module_path = Path(module_path).as_posix()
+
     # Check if entire standard is bypassed for this file
     if is_bypassed(module_path, "cli", bypass_rules=bypass_rules):
         return {
@@ -403,21 +406,32 @@ def check_print_usage(
         return {
             "name": "print() usage",
             "passed": False,
-            "message": f"Found parser.print_help() in {filename} on lines {parser_print_help_lines[:3]} (uses plain print() - use Rich console.print() instead)",
+            "message": (
+                f"Found parser.print_help() in {filename} on lines "
+                f"{parser_print_help_lines[:3]} (uses plain print() - use Rich console.print() instead)"
+            ),
         }
 
     if raw_write_lines:
         return {
             "name": "print() usage",
             "passed": False,
-            "message": f"Found {len(raw_write_lines)} sys.stdout/stderr.write() in {filename} (use console.print() instead) on lines {raw_write_lines[:3]}{'...' if len(raw_write_lines) > 3 else ''}",
+            "message": (
+                f"Found {len(raw_write_lines)} sys.stdout/stderr.write() in {filename} "
+                f"(use console.print() instead) on lines "
+                f"{raw_write_lines[:3]}{'...' if len(raw_write_lines) > 3 else ''}"
+            ),
         }
 
     if print_lines:
         return {
             "name": "print() usage",
             "passed": False,
-            "message": f"Found {len(print_lines)} print() statements in {filename} (use console.print() instead) on lines {print_lines[:3]}{'...' if len(print_lines) > 3 else ''}",
+            "message": (
+                f"Found {len(print_lines)} print() statements in {filename} "
+                f"(use console.print() instead) on lines "
+                f"{print_lines[:3]}{'...' if len(print_lines) > 3 else ''}"
+            ),
         }
 
     # Check if using console.print()
@@ -488,7 +502,10 @@ def check_duplicate_display_functions(content: str, module_path: str = "") -> Op
         return {
             "name": "CLI display functions",
             "passed": False,
-            "message": f"Defines own {', '.join(duplicates_found)}() - use from cli.apps.modules.display import {', '.join(duplicates_found)}",
+            "message": (
+                f"Defines own {', '.join(duplicates_found)}() - "
+                f"use from cli.apps.modules.display import {', '.join(duplicates_found)}"
+            ),
         }
 
     return {"name": "CLI display functions", "passed": True, "message": "No duplicate CLI display functions defined"}

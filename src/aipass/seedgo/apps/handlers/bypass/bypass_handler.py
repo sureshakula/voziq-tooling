@@ -200,12 +200,12 @@ def is_bypassed(file_path: str, branch_path: str, standard: str, line: Optional[
     Returns:
         True if this violation should be bypassed
     """
-    # Get relative path from branch root
+    # Get relative path from branch root (use forward slashes for cross-platform matching)
     try:
-        rel_path = str(Path(file_path).relative_to(branch_path))
+        rel_path = Path(file_path).relative_to(branch_path).as_posix()
     except ValueError:
         logger.info("File %s not relative to branch %s, using raw path", file_path, branch_path)
-        rel_path = file_path
+        rel_path = Path(file_path).as_posix()
 
     for rule in bypass_rules:
         # Check if rule matches this file and standard

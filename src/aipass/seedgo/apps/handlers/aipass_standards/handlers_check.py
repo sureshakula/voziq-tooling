@@ -50,6 +50,9 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     checks = []
     path = Path(module_path)
 
+    # Normalize to forward slashes so string matching works on Windows too
+    module_path = Path(module_path).as_posix()
+
     # Check if entire standard is bypassed for this file
     if is_bypassed(module_path, "handlers", bypass_rules=bypass_rules):
         return {

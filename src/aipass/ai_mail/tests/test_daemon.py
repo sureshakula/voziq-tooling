@@ -9,6 +9,7 @@
 """Tests for dispatch daemon handler -- config loading, state management, inbox scanning."""
 
 import json
+import sys
 import pytest
 from datetime import datetime, date, timedelta
 from unittest.mock import patch
@@ -766,7 +767,6 @@ def test_poll_cycle_absolute_path_unchanged(tmp_path, monkeypatch):
 # ---- Additional imports for new tests --------------------------------
 
 import os
-import sys
 from unittest.mock import MagicMock, mock_open
 
 from aipass.ai_mail.apps.handlers.dispatch.daemon import (
@@ -1461,6 +1461,7 @@ def test_spawn_agent_prompt_fallback_without_id(tmp_path):
 # ---- run_daemon tests -------------------------------------------
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (os.WNOHANG)")
 def test_run_daemon_kill_switch_pauses(tmp_path, monkeypatch):
     """Kill switch active causes daemon to pause and loop, then SHUTDOWN exits."""
     monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", tmp_path / "daemon.pid")

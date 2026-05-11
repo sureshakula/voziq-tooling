@@ -160,7 +160,8 @@ class TestGetUserByEmailPaths:
         with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH", registry_path):
             result = get_user_by_email("@trigger")
             assert result is not None
-            path = result["mailbox_path"]
+            # Normalize to forward slashes for consistent counting on all platforms
+            path = result["mailbox_path"].replace("\\", "/")
             # Count occurrences of the relative segment
             assert path.count("src/aipass/trigger") == 1, f"Path contains doubled segment: {path}"
 
@@ -224,7 +225,8 @@ class TestGetAllUsersPaths:
         with patch("aipass.ai_mail.apps.handlers.users.branch_detection.BRANCH_REGISTRY_PATH", registry_path):
             users = get_all_users()
             for email, info in users.items():
-                path = info["mailbox_path"]
+                # Normalize to forward slashes for consistent counting on all platforms
+                path = info["mailbox_path"].replace("\\", "/")
                 # The relative prefix "src/aipass" should appear exactly once
                 assert path.count("src/aipass") == 1, f"Path for {email} contains doubled 'src/aipass': {path}"
 

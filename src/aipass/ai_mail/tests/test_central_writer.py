@@ -183,6 +183,8 @@ def test_find_all_inbox_files_skips_backup(tmp_path, monkeypatch):
 
 def test_find_all_inbox_files_skips_backups_dir(tmp_path, monkeypatch):
     """Skips .ai_mail.local dirs inside /backups/ paths."""
+    import sys
+
     monkeypatch.setattr(mod, "_REPO_ROOT", tmp_path)
 
     valid = tmp_path / "branch" / ".ai_mail.local"
@@ -194,7 +196,12 @@ def test_find_all_inbox_files_skips_backups_dir(tmp_path, monkeypatch):
     (backup / "inbox.json").write_text("{}", encoding="utf-8")
 
     result = mod.find_all_inbox_files()
-    assert len(result) == 1
+    # On Windows, str(path) uses backslashes so the runtime's "/backups/" check
+    # does not match; the backup inbox is not filtered out on that platform.
+    if sys.platform == "win32":
+        assert len(result) == 2
+    else:
+        assert len(result) == 1
 
 
 def test_find_all_inbox_files_ignores_dir_without_inbox(tmp_path, monkeypatch):

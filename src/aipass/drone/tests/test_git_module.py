@@ -512,7 +512,7 @@ class TestPRHandler:
         assert "--" in commit_cmd, "commit missing '--' pathspec separator"
         pathspec_idx = commit_cmd.index("--")
         pathspec = commit_cmd[pathspec_idx + 1]
-        assert "src/aipass/api" in pathspec, f"pathspec should target branch_dir, got: {pathspec}"
+        assert "src/aipass/api" in pathspec.replace(os.sep, "/"), f"pathspec should target branch_dir, got: {pathspec}"
 
 
 class TestDiagnosePushFailure:

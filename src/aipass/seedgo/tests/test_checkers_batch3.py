@@ -48,6 +48,18 @@ def _mock_infrastructure(monkeypatch):
     json_mod.log_operation = mock_json_handler.log_operation
     monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.json.json_handler", json_mod)
 
+    # -- bypass utils (used by checkers for is_bypassed) --------------------
+    # Use real is_bypassed — it only does string matching and calls
+    # json_handler.log_operation (already mocked above).
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed as real_is_bypassed
+
+    bypass_pkg = MagicMock()
+    bypass_utils = MagicMock()
+    bypass_utils.is_bypassed = real_is_bypassed
+    bypass_pkg.utils = bypass_utils
+    monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.bypass", bypass_pkg)
+    monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.bypass.utils", bypass_utils)
+
     # Force re-imports of all 8 checkers
     checker_modules = [
         "aipass.seedgo.apps.handlers.aipass_standards.log_structure_check",

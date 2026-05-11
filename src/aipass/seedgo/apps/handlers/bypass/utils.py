@@ -8,6 +8,8 @@
 
 """Shared bypass checking utility for standards checkers."""
 
+from pathlib import Path
+
 from aipass.seedgo.apps.handlers.json import json_handler
 
 
@@ -30,11 +32,13 @@ def is_bypassed(
     """
     if not bypass_rules:
         return False
+    # Normalize to forward slashes for cross-platform matching
+    file_path_posix = Path(file_path).as_posix()
     for rule in bypass_rules:
         if rule.get("standard") and rule.get("standard") != standard:
             continue
         rule_file = rule.get("file", "")
-        if rule_file and rule_file not in file_path:
+        if rule_file and rule_file not in file_path_posix:
             continue
         rule_lines = rule.get("lines", [])
         if rule_lines and line is not None and line not in rule_lines:

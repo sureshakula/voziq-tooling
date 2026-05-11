@@ -565,10 +565,13 @@ class TestWriteDashboard:
         assert result is True
         assert deep_path.exists()
 
-    def test_returns_false_on_write_error(self, setup_paths, monkeypatch):
+    def test_returns_false_on_write_error(self, setup_paths, monkeypatch, tmp_path):
         """Should return False when writing fails."""
         mod = _import_mod()
-        monkeypatch.setattr(mod, "DASHBOARD_FILE", Path("/nonexistent/readonly/DASHBOARD.local.json"))
+        # Use a file as parent so mkdir fails on all platforms
+        blocker = tmp_path / "blocker"
+        blocker.write_text("I am a file", encoding="utf-8")
+        monkeypatch.setattr(mod, "DASHBOARD_FILE", blocker / "subdir" / "DASHBOARD.local.json")
         result = mod._write_dashboard({"branch": "FLOW"})
         assert result is False
 

@@ -279,6 +279,18 @@
       "file": "tests/test_hooks_snapshot.py",
       "standard": "architecture",
       "reason": "Test file lives in tests/ by convention — outside the 3-layer apps/ structure by design."
+    },
+    {
+      "file": "tests/test_checkers_batch1.py",
+      "reason": "Test file: outside 3-layer structure by convention, imports handlers directly for unit testing, and contains intentional bad-pattern strings as test input data."
+    },
+    {
+      "file": "tests/test_checkers_batch3.py",
+      "reason": "Test file: outside 3-layer structure by convention, imports handlers directly for unit testing, and contains intentional bad-pattern strings as test input data."
+    },
+    {
+      "file": "tests/test_coverage_arch_checklist.py",
+      "reason": "Test file: outside 3-layer structure by convention, imports handlers directly for unit testing, and test functions omit docstrings by pytest convention."
     }
   ],
   "notes": {

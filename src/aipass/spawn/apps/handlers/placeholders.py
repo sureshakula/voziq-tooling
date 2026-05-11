@@ -56,7 +56,7 @@ def build_replacements_dict(target_dir, branch_name, **overrides):
         "BRANCHNAME": upper,
         "branchname": lower,
         "BRANCH": lower,
-        "CWD": str(target_dir),
+        "CWD": Path(target_dir).as_posix(),
         "DATE": now.strftime("%Y-%m-%d"),
         "MODULE": lower,
         "EMAIL": f"@{lower}",

@@ -195,6 +195,12 @@
       "standard": "debug_print",
       "file": "tools/spot_check.py",
       "reason": "Standalone CLI tool — print() is the intended user-facing output method, not debug noise."
+    },
+    {
+      "standard": "windows_compat",
+      "file": "apps/handlers/watchdog/registry.py",
+      "lines": [138, 149],
+      "reason": "fcntl imports at L138 and L149 are guarded by early return at L137 (if sys.platform == win32: return self) and runtime None check (if self._fh is not None). Windows never reaches these lines."
     }
   ],
   "notes": {

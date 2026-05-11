@@ -609,15 +609,15 @@ def run_daemon() -> None:
     cycle_count = 0
 
     while not SHUTDOWN:
-        # Reap zombie children from previously spawned agents
-        try:
-            while True:
-                pid, _ = os.waitpid(-1, os.WNOHANG)
-                if pid == 0:
-                    break
-                logger.info(f"Reaped child process PID {pid}")
-        except ChildProcessError:
-            logger.info("No child processes to reap")
+        if sys.platform != "win32":
+            try:
+                while True:
+                    pid, _ = os.waitpid(-1, os.WNOHANG)
+                    if pid == 0:
+                        break
+                    logger.info(f"Reaped child process PID {pid}")
+            except ChildProcessError:
+                logger.info("No child processes to reap")
 
         if is_kill_switch_active(config):
             logger.info("Kill switch ACTIVE - pausing all dispatches")

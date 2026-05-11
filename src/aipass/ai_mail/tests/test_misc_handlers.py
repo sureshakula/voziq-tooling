@@ -5,6 +5,7 @@ dashboard_sync.push_dashboard_update, inbox_resolve.resolve_inbox_target."""
 import json
 import os
 import subprocess
+import sys
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -111,6 +112,7 @@ def test_update_central_propagates_error():
 # ==============================================================
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (ps command)")
 def test_check_pid_status_running():
     """Returns RUNNING for the current process PID."""
     result = check_pid_status(os.getpid())
@@ -142,6 +144,7 @@ def test_check_pid_status_unknown_on_error():
 # ==============================================================
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only process API (os.WNOHANG)")
 def test_daemon_poll_cycle_is_called(tmp_path, monkeypatch):
     """run_daemon calls poll_cycle and save_daemon_state in the loop.
 

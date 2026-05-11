@@ -15,6 +15,7 @@ Baselines in tests/fixtures/*_hooks_snapshot.json.
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -49,8 +50,33 @@ def _load_settings_hooks(settings_path: Path) -> dict:
     return data.get("hooks", {})
 
 
+def _normalize_command(cmd: str) -> str:
+    """Normalize a hook command to be path-independent.
+
+    Strips environment-specific absolute paths from hook command strings
+    so snapshots are comparable across machines (Linux vs Windows CI).
+    Keeps the interpreter and script name, removes path prefixes.
+    """
+    # Replace Windows backslashes with forward slashes first
+    cmd = cmd.replace("\\", "/")
+    # Strip any absolute prefix up to and including the repo name
+    # e.g. "python3 /home/patrick/Projects/AIPass/.claude/hooks/x.py"
+    #   -> "python3 .claude/hooks/x.py"
+    # e.g. "python3 D:/a/AIPass/AIPass/.claude/hooks/x.py"
+    #   -> "python3 .claude/hooks/x.py"
+    cmd = re.sub(r"(?<= )([A-Za-z]:)?/.+?/AIPass/", "", cmd)
+    # Also strip home-dir provider hooks path:
+    # "python3 /home/patrick/.claude/hooks/x.py" -> "python3 .claude/hooks/x.py"
+    cmd = re.sub(r"(?<= )([A-Za-z]:)?/.+?/\.claude/", ".claude/", cmd)
+    return cmd
+
+
 def _extract_hook_commands(hooks_config: dict) -> dict[str, list[str]]:
-    """Extract {event: [command_strings]} from a hooks config, sorted for comparison."""
+    """Extract {event: [command_strings]} from a hooks config, sorted.
+
+    Command strings are normalized to strip environment-specific path
+    prefixes so comparisons work across different machines.
+    """
     result = {}
     for event, entries in hooks_config.items():
         commands = []
@@ -58,7 +84,7 @@ def _extract_hook_commands(hooks_config: dict) -> dict[str, list[str]]:
             for hook in entry.get("hooks", []):
                 cmd = hook.get("command", "")
                 if cmd:
-                    commands.append(cmd)
+                    commands.append(_normalize_command(cmd))
         result[event] = sorted(commands)
     return result
 

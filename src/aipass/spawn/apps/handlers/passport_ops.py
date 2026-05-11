@@ -112,10 +112,10 @@ def grant_passport(
 
     # Register in AIPASS_REGISTRY.json (store relative path for portability)
     try:
-        registry_branch_path = str(target.relative_to(reg_path.parent))
+        registry_branch_path = target.relative_to(reg_path.parent).as_posix()
     except ValueError:
         logger.warning("[passport] Cannot relativize path %s to registry %s, storing absolute", target, reg_path.parent)
-        registry_branch_path = str(target)
+        registry_branch_path = target.as_posix()
     registry_updated = add_to_registry(
         reg_path,
         branch_upper,

@@ -50,6 +50,9 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     checks = []
     path = Path(module_path)
 
+    # Normalize to forward slashes so string matching works on Windows too
+    module_path = Path(module_path).as_posix()
+
     # Check if entire standard is bypassed for this file
     if is_bypassed(module_path, "modules", bypass_rules=bypass_rules):
         return {
@@ -522,7 +525,10 @@ def check_thin_orchestration(content: str, module_path: str, bypass_rules: list 
         return {
             "name": "Thin orchestration",
             "passed": False,
-            "message": f"Module has {len(non_standard_functions)} implementation function(s) that belong in handlers: {', '.join(func_list)}{extra}",
+            "message": (
+                f"Module has {len(non_standard_functions)} implementation function(s) "
+                f"that belong in handlers: {', '.join(func_list)}{extra}"
+            ),
         }
 
     return {

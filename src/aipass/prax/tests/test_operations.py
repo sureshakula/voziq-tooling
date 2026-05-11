@@ -293,10 +293,12 @@ class TestWriteSection:
     def test_returns_false_on_error(self, tmp_path):
         """Non-writable path returns False instead of raising."""
         ops = _load_ops()
-        # Pass a path that does not exist and cannot be written to
-        nonexistent = tmp_path / "no" / "such" / "deep" / "branch"
+        # Use a file as parent so mkdir fails on all platforms
+        blocker = tmp_path / "blocker"
+        blocker.write_text("I am a file", encoding="utf-8")
+        impossible_branch = blocker / "subdir" / "branch"
 
-        result = ops.write_section(nonexistent, "flow", {"active_plans": 1})
+        result = ops.write_section(impossible_branch, "flow", {"active_plans": 1})
         assert result is False
 
 

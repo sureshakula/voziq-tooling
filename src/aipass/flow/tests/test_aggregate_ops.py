@@ -123,9 +123,12 @@ class TestSaveBranchRegistry:
         assert "T" in saved["last_updated"]
 
     def test_returns_false_on_write_error(self, tmp_path):
+        """save_branch_registry returns False when writing to an impossible path."""
         save_branch_registry = _import("save_branch_registry")
-        # Path to a directory that doesn't exist
-        bad_path = tmp_path / "no_dir" / "sub" / "registry.json"
+        # Use a file as parent so mkdir fails on all platforms
+        blocker = tmp_path / "blocker"
+        blocker.write_text("I am a file", encoding="utf-8")
+        bad_path = blocker / "sub" / "registry.json"
         result = save_branch_registry(bad_path, {"plans": {}})
         assert result is False
 
@@ -361,10 +364,14 @@ class TestSaveCentral:
         assert result is True
         assert central_dir.exists()
 
-    def test_returns_false_on_error(self):
+    def test_returns_false_on_error(self, tmp_path):
+        """save_central returns False when writing to an impossible path."""
         save_central = _import("save_central")
-        # Use a path that cannot be created
-        bad_dir = Path("/proc/fake_dir_no_write")
+        # Use a path that cannot be created on any platform:
+        # a file exists where a directory is needed
+        blocker = tmp_path / "blocker"
+        blocker.write_text("I am a file", encoding="utf-8")
+        bad_dir = blocker / "subdir"
         bad_file = bad_dir / "PLANS.central.json"
         result = save_central(bad_file, bad_dir, {})
         assert result is False

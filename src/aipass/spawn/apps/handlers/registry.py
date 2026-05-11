@@ -225,7 +225,7 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
         today = datetime.now().strftime("%Y-%m-%d")
         entry = {
             "name": branch_name,
-            "path": str(branch_path),
+            "path": Path(branch_path).as_posix(),
             "profile": profile,
             "description": purpose or "New agent - purpose TBD",
             "email": email,

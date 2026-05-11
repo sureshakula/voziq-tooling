@@ -20,6 +20,7 @@ from aipass.ai_mail.apps.handlers.dispatch.dispatch_monitor import (
     _check_jsonl_activity,
     _check_rate_limited,
     _get_jsonl_projects_dir,
+    _kill_process,
     _make_fresh_cmd,
     _run_with_startup_check,
     _send_bounce,
@@ -594,8 +595,6 @@ def test_notification_uses_at_branch_format(monkeypatch, main_argv):
 
 # --- _kill_process tests -----------------------------------------------
 
-from aipass.ai_mail.apps.handlers.dispatch.dispatch_monitor import _kill_process
-
 
 def test_kill_process_terminate_succeeds():
     """SIGTERM succeeds within 10s — no SIGKILL needed."""
@@ -842,8 +841,17 @@ def test_env_vars_set_correctly(monkeypatch, main_argv):
     assert "AIPASS_BOT_ID" not in captured_env
     assert "AIPASS_CALLER_BRANCH" not in captured_env
     assert "AIPASS_CALLER_CWD" not in captured_env
-    # Venv bin should be on PATH
-    assert "/fake/repo/.venv/bin" in captured_env.get("PATH", "")
+    # Venv bin should be on PATH (platform-aware: Scripts on Windows, bin elsewhere)
+    import os
+    import sys
+
+    venv_dir = "Scripts" if sys.platform == "win32" else "bin"
+    path_entries = captured_env.get("PATH", "").split(os.pathsep)
+    venv_in_path = any(
+        entry.endswith(os.sep + ".venv" + os.sep + venv_dir) or entry.endswith("/.venv/" + venv_dir)
+        for entry in path_entries
+    )
+    assert venv_in_path, f"Expected .venv/{venv_dir} in PATH entries: {path_entries}"
 
 
 # === Additional tests (added 2026-04-03) ===================================
@@ -1100,7 +1108,17 @@ def test_env_vars_setup(monkeypatch, main_argv):
     assert "AIPASS_BOT_ID" not in captured_env
     assert "AIPASS_CALLER_BRANCH" not in captured_env
     assert "AIPASS_CALLER_CWD" not in captured_env
-    assert "/fake/repo/.venv/bin" in captured_env.get("PATH", "")
+    # Venv bin should be on PATH (platform-aware: Scripts on Windows, bin elsewhere)
+    import os
+    import sys
+
+    venv_dir = "Scripts" if sys.platform == "win32" else "bin"
+    path_entries = captured_env.get("PATH", "").split(os.pathsep)
+    venv_in_path = any(
+        entry.endswith(os.sep + ".venv" + os.sep + venv_dir) or entry.endswith("/.venv/" + venv_dir)
+        for entry in path_entries
+    )
+    assert venv_in_path, f"Expected .venv/{venv_dir} in PATH entries: {path_entries}"
 
 
 # --- JSONL helper tests ----------------------------------------------------

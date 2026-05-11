@@ -254,11 +254,14 @@ class TestSaveRegistry:
 
         assert result is False
 
-    def test_returns_false_on_os_error(self, setup_flow_root, monkeypatch):
+    def test_returns_false_on_os_error(self, setup_flow_root, monkeypatch, tmp_path):
         """Returns False when file write fails with OSError."""
         mod = _import_mod()
         data = _valid_registry()
-        monkeypatch.setattr(mod, "REGISTRY_PATH", Path("/proc/nonexistent/registry.json"))
+        # Use a file as parent so mkdir fails on all platforms
+        blocker = tmp_path / "blocker"
+        blocker.write_text("I am a file", encoding="utf-8")
+        monkeypatch.setattr(mod, "REGISTRY_PATH", blocker / "subdir" / "registry.json")
 
         result = mod.save_registry(data)
 

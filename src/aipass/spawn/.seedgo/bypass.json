@@ -204,6 +204,12 @@
       "file": "tests/test_cli_routing.py",
       "standard": "architecture",
       "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "apps/handlers/registry.py",
+      "standard": "windows_compat",
+      "lines": [249],
+      "reason": "fcntl import at L249 inside 'if lock_fd is not None:' — lock_fd is None on Windows (set at L206), so this line never executes on Windows."
     }
   ],
   "notes": {

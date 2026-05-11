@@ -7,6 +7,7 @@ Covers: slugify_subject, create_plan_impl, create_plan_file,
 """
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -183,7 +184,7 @@ class TestCalculateRelativeLocation:
         target.mkdir(parents=True)
 
         result = calculate_relative_location(target, root)
-        assert result == "src/flow"
+        assert result.replace(os.sep, "/") == "src/flow"
 
     def test_same_directory_returns_root(self, tmp_path: Path):
         result = calculate_relative_location(tmp_path, tmp_path)
@@ -204,7 +205,7 @@ class TestCalculateRelativeLocation:
         target.mkdir(parents=True)
 
         result = calculate_relative_location(target, root)
-        assert result == "a/b/c/d"
+        assert result.replace(os.sep, "/") == "a/b/c/d"
 
 
 # =========================================================================

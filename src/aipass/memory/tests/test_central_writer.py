@@ -338,8 +338,10 @@ class TestWriteCentralFile:
     def test_write_failure_raises(self, monkeypatch, tmp_path):
         """Should raise Exception on write failure."""
         cw = _import_central_writer(monkeypatch, tmp_path)
-        # Point to impossible path
-        monkeypatch.setattr(cw, "CENTRAL_FILE", Path("/proc/0/impossible.json"))
+        # Use a file as parent so mkdir fails on all platforms
+        blocker = tmp_path / "blocker"
+        blocker.write_text("I am a file", encoding="utf-8")
+        monkeypatch.setattr(cw, "CENTRAL_FILE", blocker / "subdir" / "impossible.json")
 
         try:
             cw.write_central_file({"test": True})

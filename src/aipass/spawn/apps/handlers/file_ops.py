@@ -183,7 +183,7 @@ def regenerate_template_registry(target_dir):
         if item.is_dir():
             dir_id = f"d{dir_idx:03d}"
             directories[dir_id] = {
-                "path": str(rel),
+                "path": rel.as_posix(),
                 "name": item.name,
             }
             dir_idx += 1
@@ -204,7 +204,7 @@ def regenerate_template_registry(target_dir):
                 logger.warning(f"[spawn] Failed to check placeholders in {item}: {e}")
 
             files[file_id] = {
-                "path": str(rel),
+                "path": rel.as_posix(),
                 "name": item.name,
                 "content_hash": content_hash,
                 "has_branch_placeholder": has_placeholder,

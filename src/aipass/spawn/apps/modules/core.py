@@ -238,10 +238,10 @@ def _spawn_agent(
     # Step 4: Register in project registry
     # Store path relative to registry location (works for both AIPass and external projects)
     try:
-        registry_branch_path = str(target.relative_to(reg_path.parent))
+        registry_branch_path = target.relative_to(reg_path.parent).as_posix()
     except ValueError as e:
         logger.warning("Cannot relativize path %s to registry %s: %s", target, reg_path.parent, e)
-        registry_branch_path = str(target)
+        registry_branch_path = target.as_posix()
     registry_updated = add_to_registry(
         reg_path,
         branch_upper,
@@ -318,10 +318,10 @@ def _adopt_existing(target, purpose, profile, registry_path):
 
     # Store path relative to registry location
     try:
-        registry_branch_path = str(target.relative_to(reg_path.parent))
+        registry_branch_path = target.relative_to(reg_path.parent).as_posix()
     except ValueError as e:
         logger.warning("Cannot relativize path %s to registry %s: %s", target, reg_path.parent, e)
-        registry_branch_path = str(target)
+        registry_branch_path = target.as_posix()
 
     registry_updated = add_to_registry(
         reg_path,

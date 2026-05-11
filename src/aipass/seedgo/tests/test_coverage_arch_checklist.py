@@ -71,11 +71,24 @@ def _mock_infrastructure(monkeypatch):
     bypass_ignore = MagicMock()
     bypass_ignore.get_template_ignore_patterns = MagicMock(return_value=[])
     bypass_pkg.ignore_handler = bypass_ignore
+
+    # Use real is_bypassed — it only does string matching and calls
+    # json_handler.log_operation (already mocked above).
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed as real_is_bypassed
+
+    bypass_utils = MagicMock()
+    bypass_utils.is_bypassed = real_is_bypassed
+    bypass_pkg.utils = bypass_utils
     monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.bypass", bypass_pkg)
     monkeypatch.setitem(
         sys.modules,
         "aipass.seedgo.apps.handlers.bypass.ignore_handler",
         bypass_ignore,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "aipass.seedgo.apps.handlers.bypass.utils",
+        bypass_utils,
     )
 
     # -- bypass handler (used by checklist) ---------------------------------
