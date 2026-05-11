@@ -232,7 +232,7 @@ def deliver_email_to_branch(
     json_handler.log_operation("deliver_email", {"to": to_branch, "subject": email_data.get("subject", "")})
 
     # Handle path input from DRONE's @ resolution
-    if Path(to_branch).is_absolute():
+    if to_branch.startswith("/") or Path(to_branch).is_absolute():
         branches_list = get_all_branches()
         path_to_email = {b["path"]: b["email"] for b in branches_list}
         if to_branch in path_to_email:
