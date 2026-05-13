@@ -575,3 +575,180 @@ class TestUpdatedHelp:
         text = get_introspective()
         assert "global" in text.lower()
         assert "owner" in text.lower()
+
+
+# ===========================================================================
+# 10. gh passthrough commands (issue, run, workflow)
+# ===========================================================================
+
+
+class TestGhPassthroughTierConfig:
+    """Passthrough commands are in the global tier."""
+
+    def test_issue_in_global_tier(self) -> None:
+        assert "issue" in GIT_ACCESS_TIERS["global"]["commands"]
+
+    def test_run_in_global_tier(self) -> None:
+        assert "run" in GIT_ACCESS_TIERS["global"]["commands"]
+
+    def test_workflow_in_global_tier(self) -> None:
+        assert "workflow" in GIT_ACCESS_TIERS["global"]["commands"]
+
+    def test_passthrough_not_in_owner_tier(self) -> None:
+        owner_cmds = GIT_ACCESS_TIERS["owner"]["commands"]
+        assert "issue" not in owner_cmds
+        assert "run" not in owner_cmds
+        assert "workflow" not in owner_cmds
+
+
+class TestGhPassthroughAccess:
+    """Global-tier access for passthrough commands."""
+
+    def test_issue_allowed_for_any_branch(self, seedgo_dir: Path) -> None:
+        assert verify_git_access("issue") == "seedgo"
+
+    def test_run_allowed_for_any_branch(self, seedgo_dir: Path) -> None:
+        assert verify_git_access("run") == "seedgo"
+
+    def test_workflow_allowed_for_any_branch(self, seedgo_dir: Path) -> None:
+        assert verify_git_access("workflow") == "seedgo"
+
+
+class TestGhPassthroughRouting:
+    """handle_command routes passthrough to subprocess."""
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run")
+    def test_issue_list(self, mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="Issue #1\nIssue #2\n", stderr="")
+        result = handle_command("issue", ["list"])
+        assert result["exit_code"] == 0
+        assert "Issue #1" in result["stdout"]
+        mock_run.assert_called_once_with(
+            ["gh", "issue", "list"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run")
+    def test_run_list(self, mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="run 123\n", stderr="")
+        result = handle_command("run", ["list"])
+        assert result["exit_code"] == 0
+        mock_run.assert_called_once_with(
+            ["gh", "run", "list"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run")
+    def test_workflow_list(self, mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="CI workflow\n", stderr="")
+        result = handle_command("workflow", ["list"])
+        assert result["exit_code"] == 0
+        mock_run.assert_called_once_with(
+            ["gh", "workflow", "list"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run")
+    def test_passthrough_no_args(self, mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="usage info\n", stderr="")
+        result = handle_command("issue")
+        assert result["exit_code"] == 0
+        mock_run.assert_called_once_with(
+            ["gh", "issue"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run")
+    def test_passthrough_returns_stderr(self, mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="not authenticated")
+        result = handle_command("issue", ["list"])
+        assert result["exit_code"] == 1
+        assert "not authenticated" in result["stderr"]
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run", side_effect=FileNotFoundError("gh"))
+    def test_passthrough_gh_not_found(self, _mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        result = handle_command("issue", ["list"])
+        assert result["exit_code"] == 1
+        assert "gh CLI not found" in result["stderr"]
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch(
+        "aipass.drone.apps.modules.git_module.subprocess.run",
+        side_effect=__import__("subprocess").TimeoutExpired(["gh", "issue"], 60),
+    )
+    def test_passthrough_timeout(self, _mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        result = handle_command("issue", ["list"])
+        assert result["exit_code"] == 1
+        assert "timed out" in result["stderr"]
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="test_branch")
+    @patch("aipass.drone.apps.modules.git_module.subprocess.run")
+    def test_passthrough_multiple_args(self, mock_run: MagicMock, _mock_auth: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        handle_command("issue", ["create", "--title", "Bug", "--body", "Details"])
+        mock_run.assert_called_once_with(
+            ["gh", "issue", "create", "--title", "Bug", "--body", "Details"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+
+class TestGhPassthroughHelp:
+    """Help text includes passthrough commands."""
+
+    def test_help_includes_issue(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_help
+
+        assert "issue" in get_help()
+
+    def test_help_includes_run(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_help
+
+        assert "run" in get_help()
+
+    def test_help_includes_workflow(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_help
+
+        assert "workflow" in get_help()
+
+    def test_per_command_help_issue(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_help
+
+        text = get_help("issue")
+        assert "gh issue" in text
+        assert "global" in text.lower()
+
+    def test_per_command_help_run(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_help
+
+        text = get_help("run")
+        assert "gh run" in text
+
+    def test_per_command_help_workflow(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_help
+
+        text = get_help("workflow")
+        assert "gh workflow" in text
+
+    def test_introspection_includes_passthrough(self) -> None:
+        from aipass.drone.apps.modules.git_module import get_introspective
+
+        text = get_introspective()
+        assert "issue" in text
+        assert "run" in text
+        assert "workflow" in text

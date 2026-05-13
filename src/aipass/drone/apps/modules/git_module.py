@@ -16,6 +16,7 @@ the module orchestrator, routing git commands to the appropriate handlers.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from aipass.prax import logger
@@ -41,6 +42,9 @@ _COMMANDS = (
     "diff",
     "log",
     "lock",
+    "issue",
+    "run",
+    "workflow",
     "commit",
     "checkout",
     "sync",
@@ -51,6 +55,8 @@ _COMMANDS = (
     "fix",
     "pr",
 )
+
+_GH_PASSTHROUGH_COMMANDS = ("issue", "run", "workflow")
 
 
 def _detect_branch_dir() -> tuple[str, Path] | None:
@@ -117,6 +123,8 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
 
     json_handler.log_operation("git_handle_command", {"command": command, "args": args, "caller": caller})
 
+    if command in _GH_PASSTHROUGH_COMMANDS:
+        return _handle_gh_passthrough(command, args)
     if command == "status":
         return _handle_status()
     if command == "diff":
@@ -150,6 +158,37 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         "stderr": f"Unknown git command: '{command}'. Available: {available}",
         "exit_code": 1,
     }
+
+
+def _handle_gh_passthrough(subcommand: str, args: list[str]) -> dict:
+    """Pass through to gh CLI for issue, run, and workflow subcommands."""
+    cmd = ["gh", subcommand] + args
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        return {
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "exit_code": result.returncode,
+        }
+    except FileNotFoundError as exc:
+        logger.warning("gh CLI not found: %s", exc)
+        return {
+            "stdout": "",
+            "stderr": "gh CLI not found. Install: https://cli.github.com/",
+            "exit_code": 1,
+        }
+    except subprocess.TimeoutExpired as exc:
+        logger.warning("gh %s timed out: %s", subcommand, exc)
+        return {
+            "stdout": "",
+            "stderr": f"gh {subcommand} timed out after 60s",
+            "exit_code": 1,
+        }
 
 
 def _handle_system_pr(args: list[str], caller: str) -> dict:
@@ -451,6 +490,16 @@ def get_help(command: str | None = None) -> str:
     Returns:
         Help text string.
     """
+    if command == "issue":
+        return (
+            "git issue [args] — Passthrough to gh issue CLI [global]\n  Examples: list, create, view <#>, close <#>\n"
+        )
+    if command == "run":
+        return "git run [args] — Passthrough to gh run CLI [global]\n  Examples: list, view <id>, watch <id>\n"
+    if command == "workflow":
+        return (
+            "git workflow [args] — Passthrough to gh workflow CLI [global]\n  Examples: list, view <name>, run <name>\n"
+        )
     if command == "pr":
         return "git pr — DEPRECATED. Agent PRs are no longer supported. Devpulse handles git.\n"
     if command == "status":
@@ -515,6 +564,9 @@ def get_help(command: str | None = None) -> str:
         "  diff [--staged]        Show git diff for your branch\n"
         "  log [count]            Show recent git log (default: 10)\n"
         "  lock                   Check lock status\n"
+        "  issue [args]           Passthrough to gh issue\n"
+        "  run [args]             Passthrough to gh run\n"
+        "  workflow [args]        Passthrough to gh workflow\n"
         "\n"
         "Owner (devpulse only):\n"
         "  commit <msg> [--all]   Commit staged changes\n"
@@ -554,7 +606,10 @@ def get_introspective() -> str:
         "    - sync_plugin.py (smart_sync — fetch + rebase if behind)\n"
         "    - fix_plugin.py (fix_git_state — detect/fix broken states)\n"
         "\n"
-        "Access Tiers: global (status, diff, log, lock) | owner (commit, checkout, sync, unlock, system-pr, merge, smart-sync, fix)\n"
+        "  gh passthrough:\n"
+        "    - issue, run, workflow → subprocess gh <cmd> [args]\n"
+        "\n"
+        "Access Tiers: global (status, diff, log, lock, issue, run, workflow) | owner (commit, checkout, sync, unlock, system-pr, merge, smart-sync, fix)\n"
     )
 
 

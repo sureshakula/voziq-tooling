@@ -299,30 +299,9 @@ def is_same_file_as_last(file_path: str) -> bool:
     return False
 
 
-def _project_has_own_posttooluse_hooks() -> bool:
-    """Check if CWD is inside a project with its own PostToolUse hooks."""
-    search = Path.cwd()
-    home = Path.home()
-    while search != home and search.parent != search:
-        settings = search / ".claude" / "settings.json"
-        if settings.exists():
-            try:
-                data = json.loads(settings.read_text(encoding="utf-8"))
-                ptu = data.get("hooks", {}).get("PostToolUse", [])
-                if ptu:
-                    return True
-            except (json.JSONDecodeError, OSError):
-                pass
-        search = search.parent
-    return False
-
-
 def main():
     """Main hook entry point."""
     try:
-        if _project_has_own_posttooluse_hooks():
-            return
-
         input_data = json.load(sys.stdin)
         tool_name = input_data.get("tool_name", "")
         tool_input = input_data.get("tool_input", {})
@@ -384,7 +363,4 @@ Fix these errors in {Path(file_path).name} now. Do not skip or defer."""
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hook_log import run_and_log
-
-    run_and_log("PostToolUse", "provider", __file__, main)
+    main()

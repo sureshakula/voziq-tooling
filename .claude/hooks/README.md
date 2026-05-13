@@ -137,7 +137,41 @@ claude --debug hooks --debug-file /tmp/debug.log
 Type `/hooks` inside a Claude session — shows all hooks with source labels
 (`[User]`, `[Project]`, `[Local]`).
 
+## git_gate.py — Known Limitations
+
+`git_gate.py` is the **only real enforcement layer** for blocking raw git/gh commands.
+`Bash(git *)` deny rules in `settings.json` **do not work** — the permission gate
+silently skips content-specific deny patterns. The hook is what actually blocks.
+
+### What it blocks
+
+- Bare `git`/`gh` commands (`git status`, `gh pr list`)
+- Prefixed variants (`env git status`)
+- Drone tier system enforces per-branch write restrictions on top
+
+### Known bypass vectors (not caught by the hook)
+
+These are inherent limitations of regex-based command scanning:
+
+1. **Python subprocess** — `python3 -c 'import subprocess; subprocess.run(["git", "status"])'`
+   `git` never appears as a bare word in the scanned command
+2. **Full binary path** — `/usr/bin/git status`
+   Lookbehind `(?<![@\w/.])` excludes `/` before `git`
+3. **Nested bash with quotes** — `bash -c 'git log'`
+   Hook strips quoted strings before scanning, so `git` inside quotes is invisible
+4. **Script file execution** — Write git commands to `/tmp/script.sh`, then run it
+   `git` is inside the file content, not the Bash command
+5. **Subshell expansion** — `$(which git) status`
+   Hook sees `$(which git)` not bare `git`
+
+### Why this is acceptable
+
+These bypasses require deliberate circumvention — no agent will accidentally hit them.
+The hook catches all natural/obvious git usage patterns. Combined with the drone tier
+system (only devpulse has write-level git access), the defense is layered.
+
 ## Related
+- **DPLAN-0173** — Git workflow redesign (whitelist-only drone git)
 - **DPLAN-0167** — Hook testing framework
 - **DPLAN-0166** — Hook audit + CI health
 - **DPLAN-0139** — Hook overhaul + single-path enforcement

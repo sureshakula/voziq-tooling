@@ -29,41 +29,18 @@ def _find_repo_root() -> Path | None:
 AIPASS_ROOT = _find_repo_root()
 
 
-def _get_cwd_branch() -> str | None:
-    """Detect which branch directory (src/aipass/<name>) the CWD is in."""
-    cwd = Path.cwd().resolve()
-    if AIPASS_ROOT is None:
-        return None
-    src = AIPASS_ROOT / "src" / "aipass"
-    try:
-        rel = cwd.relative_to(src)
-        return rel.parts[0] if rel.parts else None
-    except ValueError:
-        return None
-
-
 def get_modified_py_files() -> list[str]:
-    """Get Python files modified in the working tree, scoped to the CWD branch.
-
-    Only returns files inside the current branch's directory (or repo-root files).
-    This prevents dispatched agents' changes from triggering violations on the
-    orchestrator or other agents sharing the worktree.
-    """
+    """Get Python files modified in the working tree (unstaged + staged)."""
     if AIPASS_ROOT is None:
         return []
     try:
         result = subprocess.run(
             ["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, timeout=5, cwd=str(AIPASS_ROOT)
         )
-        cwd_branch = _get_cwd_branch()
         files = []
         for line in result.stdout.strip().split("\n"):
             line = line.strip()
             if line.endswith(".py") and not line.startswith(".claude/"):
-                if cwd_branch and line.startswith("src/aipass/"):
-                    file_branch = line.split("/")[2] if len(line.split("/")) > 2 else None
-                    if file_branch and file_branch != cwd_branch:
-                        continue
                 full = AIPASS_ROOT / line
                 if full.exists():
                     files.append(str(full))
@@ -100,29 +77,6 @@ def run_seedgo_checklist(file_path: str) -> list[str]:
         return []
 
 
-def check_hook_readme_accountability() -> str | None:
-    """Check if hook files changed but README wasn't updated. Returns reminder or None."""
-    if AIPASS_ROOT is None:
-        return None
-    try:
-        result = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, timeout=5, cwd=str(AIPASS_ROOT)
-        )
-        changed = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
-
-        hook_files_changed = any(f.startswith(".claude/hooks/") and f.endswith(".py") for f in changed)
-        readme_changed = ".claude/hooks/README.md" in changed
-
-        if hook_files_changed and not readme_changed:
-            return (
-                "Hook files were modified but .claude/hooks/README.md was not updated. "
-                "Consider updating the README to reflect your changes."
-            )
-    except Exception:
-        pass
-    return None
-
-
 def main():
     try:
         json.load(sys.stdin)
@@ -131,8 +85,6 @@ def main():
         if not modified:
             return  # Nothing to check
 
-        readme_reminder = check_hook_readme_accountability()
-
         all_violations = {}
         for f in modified:
             vs = run_seedgo_checklist(f)
@@ -140,30 +92,23 @@ def main():
                 name = Path(f).name
                 all_violations[name] = vs
 
-        if all_violations:
-            # Build the block reason
-            lines = ["Standards violations found in files you modified:\n"]
-            for fname, vs in all_violations.items():
-                lines.append(f"  {fname}:")
-                for v in vs:
-                    lines.append(f"    - {v}")
-            lines.append("\nFix these violations before finishing.")
+        if not all_violations:
+            return  # All clear
 
-            if readme_reminder:
-                lines.append(f"\n⚠️ {readme_reminder}")
+        # Build the block reason
+        lines = ["Standards violations found in files you modified:\n"]
+        for fname, vs in all_violations.items():
+            lines.append(f"  {fname}:")
+            for v in vs:
+                lines.append(f"    - {v}")
+        lines.append("\nFix these violations before finishing.")
 
-            output = {"decision": "block", "reason": "\n".join(lines)}
-            print(json.dumps(output))
-        elif readme_reminder:
-            output = {"decision": "allow", "reason": f"⚠️ {readme_reminder}"}
-            print(json.dumps(output))
+        output = {"decision": "block", "reason": "\n".join(lines)}
+        print(json.dumps(output))
 
     except Exception:
         pass  # Silent fail — don't block on errors
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hook_log import run_and_log
-
-    run_and_log("SubagentStop", "provider", __file__, main)
+    main()

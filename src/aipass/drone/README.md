@@ -14,7 +14,7 @@
 ### What I Do
 - Resolve `@branch` symbolic names to absolute paths via `AIPASS_REGISTRY.json`
 - Route commands to registered branches and internal modules
-- Manage git workflows: PR creation, branch sync, lock management, merge
+- Manage git workflows: tier-based access (global read-only, owner write), commit, diff, log, sync, merge
 - Discover and scan available commands across the system
 - Provide `drone systems` introspection of all registered components
 - Support external AIPass projects via dual registry lookup and module fallback
@@ -33,19 +33,33 @@ drone @seedgo audit aipass       # Route "audit aipass" to seedgo
 drone @module --help             # Show help for any module
 drone systems                    # List all registered modules and branches
 
-# Git workflow
-drone @git pr "description"      # Create a PR from current branch
+# Git workflow — global tier (all branches)
 drone @git status                # Git status scoped to branch directory
-drone @git sync                  # Pull latest main with --rebase
-drone @git sync --autostash      # Sync with autostash for dirty trees
-drone @git lock / unlock         # Atomic branch lockfile
+drone @git diff                  # Show git diff for your branch
+drone @git diff --staged         # Show staged changes
+drone @git log                   # Show recent git log (default: 10)
+drone @git log 20                # Show last 20 commits
+drone @git lock                  # Check lock status
+drone @git issue list            # Passthrough to gh issue list
+drone @git issue view 42         # Passthrough to gh issue view 42
+drone @git run list              # Passthrough to gh run list
+drone @git workflow list         # Passthrough to gh workflow list
 
-# Git workflow (devpulse-authorized only)
+# Git workflow — owner tier (devpulse only)
+drone @git commit "message"      # Commit staged changes
+drone @git commit "msg" --all    # Stage tracked files and commit
+drone @git checkout main         # Switch to main branch
+drone @git sync                  # Checkout main and pull
+drone @git sync --autostash      # Sync with autostash for dirty trees
+drone @git unlock --force        # Force-release the PR lock
 drone @git system-pr "desc"      # System-wide PR across all tracked changes
 drone @git merge <PR#>           # Straight-merge a PR and sync local main
 drone @git smart-sync            # Fetch + detect divergence + rebase
 drone @git fix                   # Auto-fix stuck rebase / detached HEAD
 drone @git fix --dry-run         # Detect issues without fixing
+
+# Git workflow — deprecated
+drone @git pr                    # DEPRECATED — returns error message
 
 # Command discovery
 drone scan @branch               # Discover available commands in a branch
@@ -125,7 +139,7 @@ drone/
 │   │   ├── module_registry.py     # Internal module routing
 │   │   ├── registry.py            # Registry query operations
 │   │   ├── commands.py            # Custom command shortcut orchestrator
-│   │   ├── git_module.py          # Git workflow (9 commands + plugin routing)
+│   │   ├── git_module.py          # Git workflow (tier-based access, 13 commands)
 │   │   └── scan.py                # Branch command scanning
 │   ├── handlers/                  # Implementation details
 │   │   ├── executor.py            # Safe subprocess execution (timeout, no shell)
@@ -146,8 +160,13 @@ drone/
 │   │   │   ├── lookup.py          # Greedy multi-word matching
 │   │   │   └── formatters.py      # Rich output for command lists
 │   │   └── git/
+│   │       ├── auth.py                      # Tier-based access (verify_git_access)
 │   │       ├── lock_handler.py              # Atomic lockfile (O_CREAT|O_EXCL)
-│   │       ├── pr_handler.py                # 10-step PR workflow with scoped staging
+│   │       ├── pr_handler.py                # DEPRECATED — returns error message
+│   │       ├── diff_handler.py              # Scoped git diff (--staged support)
+│   │       ├── log_handler.py               # Scoped git log (configurable count)
+│   │       ├── commit_handler.py            # Commit staged changes (--all support)
+│   │       ├── checkout_handler.py          # Branch switching (main/dev guard)
 │   │       ├── status_handler.py            # Scoped git status (subprocess)
 │   │       ├── status_handler_gitpython.py  # [prototype] DPLAN-0140 Phase 1, not wired in
 │   │       └── sync_handler.py              # Safe main sync (--autostash support)
@@ -162,7 +181,7 @@ drone/
 │           └── hook_sounds_plugin.py  # Toggle notification sounds on/off
 ├── docs/                          # Public documentation
 ├── docs.local/                    # Investigation reports and policies
-└── tests/                         # 530 tests across 20 test files
+└── tests/                         # 704 tests across 21 test files
 ```
 
 ### Routing Flow
@@ -184,6 +203,19 @@ Drone routes to two kinds of modules:
 | External | `seedgo`, `cli`, `spawn` | `generic_adapter.capture_main()` via `routing_config.json` |
 
 External modules are declared in `apps/handlers/routing_config.json` with entry points, descriptions, and versions.
+
+### Git Access Tiers
+
+Auth centralized via `verify_git_access()` in `apps/handlers/git/auth.py`. Two tiers:
+
+| Tier | Who | Commands |
+|------|-----|----------|
+| **Global** | All branches | `status`, `diff`, `log`, `lock` |
+| **Owner** | `devpulse` only | `commit`, `checkout`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
+
+- `pr` is **deprecated** — returns an error message directing to devpulse
+- Auth is checked once at the top of `git_module.handle_command()` before any handler is called
+- Unauthorized commands return a clear "Access denied" message with the caller's tier
 
 ### Git Main-Only Enforcement
 
@@ -280,12 +312,12 @@ Tip: set AIPASS_HOME=/path/to/AIPass to access all branches
 
 ## Testing
 
-530 tests across 20 test files, covering all layers:
+704 tests across 21 test files, covering all layers:
 
 | Area | Files | Tests |
 |------|-------|-------|
 | Core routing | `test_resolver.py`, `test_router.py`, `test_activation.py` | ~128 |
-| Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py` | ~95 |
+| Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py`, `test_git_access.py` | ~150 |
 | Handlers | `test_executor.py`, `test_registry_handler.py`, `test_discovery.py` | ~99 |
 | Infrastructure | `test_generic_adapter.py`, `test_module_registry.py`, `test_config.py` | ~66 |
 | Features | `test_commands.py`, `test_scan.py`, `test_hook_sounds.py`, `test_json_handler.py` | ~125 |
@@ -304,7 +336,7 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ---
 
-**Seedgo:** 100% (34/34) | **Tests:** 530 pass, 4 skip | **Last Updated:** 2026-04-22
+**Seedgo:** 99% | **Tests:** 704 pass, 4 skip | **Last Updated:** 2026-05-12
 
 ---
 [← Back to AIPass](../../../README.md)

@@ -26,7 +26,7 @@ ALLOWED_CALLERS: list[str] = list(TRUSTED_CROSS_WRITERS)
 
 GIT_ACCESS_TIERS: dict[str, dict] = {
     "global": {
-        "commands": ["status", "diff", "log", "lock"],
+        "commands": ["status", "diff", "log", "lock", "issue", "run", "workflow"],
         "description": "Read-only — available to all branches",
     },
     "owner": {
