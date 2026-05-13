@@ -13,7 +13,6 @@ from __future__ import annotations
 import types
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from aipass.aipass.apps.aipass import discover_modules, main, route_command
 
@@ -188,7 +187,7 @@ class TestMain:
         """-h shows module list and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "-h"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("builtins.print"):
                     result = main()
         assert result == 0
 
@@ -196,7 +195,7 @@ class TestMain:
         """No arguments shows module list and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("builtins.print"):
                     result = main()
         assert result == 0
 
@@ -217,7 +216,6 @@ class TestMain:
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[mod]):
                 with patch("builtins.print") as mock_print:
                     main()
-        # First call should have "1 modules discovered"
         first_call_args = mock_print.call_args_list[0][0][0]
         assert "1 modules" in first_call_args
 
