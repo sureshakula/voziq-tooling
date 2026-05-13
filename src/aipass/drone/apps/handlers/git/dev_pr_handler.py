@@ -75,7 +75,17 @@ def create_dev_pr(description: str) -> dict:
         return {"success": False, "message": f"PR creation failed: {exc}", "pr_url": ""}
 
     if pr.returncode != 0:
-        return {"success": False, "message": f"PR creation failed: {pr.stderr.strip()}", "pr_url": ""}
+        stderr = pr.stderr.strip()
+        if "already exists" in stderr:
+            existing_url = ""
+            for line in stderr.splitlines():
+                if "github.com" in line:
+                    existing_url = line.strip()
+                    break
+            msg = f"Pushed to dev. PR already open: {existing_url}" if existing_url else "Pushed to dev. PR already open."
+            json_handler.log_operation("dev_pr_push_existing", {"pr_url": existing_url, "description": description})
+            return {"success": True, "message": msg, "pr_url": existing_url}
+        return {"success": False, "message": f"PR creation failed: {stderr}", "pr_url": ""}
 
     pr_url = pr.stdout.strip()
     json_handler.log_operation("create_dev_pr", {"pr_url": pr_url, "description": description})
