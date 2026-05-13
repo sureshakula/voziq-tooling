@@ -62,7 +62,7 @@ def create_dev_pr(description: str) -> dict:
 
     try:
         pr = subprocess.run(
-            ["gh", "pr", "create", "--head", "dev", "--base", "main", "--title", description],
+            ["gh", "pr", "create", "--head", "dev", "--base", "main", "--title", description, "--body", ""],
             capture_output=True,
             text=True,
             cwd=str(repo_root),
