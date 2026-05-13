@@ -343,15 +343,19 @@ class TestCommitChanges:
         assert "nothing to commit" in result["stderr"].lower()
 
     def test_commit_all_stages_first(self, repo_dir: Path) -> None:
+        mock_ruff = MagicMock(returncode=0, stdout="", stderr="")
         mock_add = MagicMock(returncode=0, stderr="")
         mock_diff = MagicMock(returncode=1, stdout="", stderr="")
         mock_commit = MagicMock(returncode=0, stdout="[main def456] all commit", stderr="")
 
         branch_dir = repo_dir / "src" / "aipass" / "api"
 
-        with patch(
-            "aipass.drone.apps.handlers.git.commit_handler.subprocess.run",
-            side_effect=[mock_add, mock_diff, mock_commit],
+        with (
+            patch("shutil.which", return_value="/usr/bin/ruff"),
+            patch(
+                "aipass.drone.apps.handlers.git.commit_handler.subprocess.run",
+                side_effect=[mock_ruff, mock_add, mock_diff, mock_commit],
+            ),
         ):
             result = commit_changes("all commit", branch_dir=branch_dir, all_files=True)
 
@@ -427,15 +431,16 @@ class TestCheckoutHandler:
     def test_checkout_git_failure(self, repo_dir: Path) -> None:
         mock_status = MagicMock(returncode=0, stdout="", stderr="")
         mock_checkout = MagicMock(returncode=1, stdout="", stderr="error: pathspec 'main' did not match")
+        mock_create = MagicMock(returncode=0, stdout="Switched to a new branch 'main'", stderr="")
 
         with patch(
             "aipass.drone.apps.handlers.git.checkout_handler.subprocess.run",
-            side_effect=[mock_status, mock_checkout],
+            side_effect=[mock_status, mock_checkout, mock_create],
         ):
             result = checkout_branch("main")
 
-        assert result["exit_code"] == 1
-        assert result["current_branch"] == ""
+        assert result["exit_code"] == 0
+        assert result["current_branch"] == "main"
 
 
 # ===========================================================================
@@ -554,11 +559,11 @@ class TestUpdatedHelp:
         assert "global" in text.lower()
         assert "owner" in text.lower()
 
-    def test_help_marks_pr_deprecated(self) -> None:
+    def test_help_marks_pr_legacy(self) -> None:
         from aipass.drone.apps.modules.git_module import get_help
 
         text = get_help()
-        assert "deprecated" in text.lower()
+        assert "legacy" in text.lower()
 
     def test_introspection_includes_new_handlers(self) -> None:
         from aipass.drone.apps.modules.git_module import get_introspective
