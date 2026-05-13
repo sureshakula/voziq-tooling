@@ -47,19 +47,20 @@ drone @git workflow list         # Passthrough to gh workflow list
 
 # Git workflow — owner tier (devpulse only)
 drone @git commit "message"      # Commit staged changes
-drone @git commit "msg" --all    # Stage tracked files and commit
+drone @git commit "msg" --all    # Stage ALL repo changes and commit
+drone @git checkout dev          # Switch to dev branch
 drone @git checkout main         # Switch to main branch
-drone @git sync                  # Checkout main and pull
+drone @git dev-pr "desc"         # Push dev and create PR to main
+drone @git merge <PR#>           # Merge a PR and sync local main
+drone @git delete-branch <name>  # Delete a remote branch (not main/dev)
+drone @git branches              # List remote branches
+drone @git sync                  # Pull latest (branch-aware: main or dev)
 drone @git sync --autostash      # Sync with autostash for dirty trees
-drone @git unlock --force        # Force-release the PR lock
-drone @git system-pr "desc"      # System-wide PR across all tracked changes
-drone @git merge <PR#>           # Straight-merge a PR and sync local main
 drone @git smart-sync            # Fetch + detect divergence + rebase
+drone @git unlock --force        # Force-release the PR lock
+drone @git system-pr "desc"      # Legacy system-wide PR (use dev-pr)
 drone @git fix                   # Auto-fix stuck rebase / detached HEAD
 drone @git fix --dry-run         # Detect issues without fixing
-
-# Git workflow — deprecated
-drone @git pr                    # DEPRECATED — returns error message
 
 # Command discovery
 drone scan @branch               # Discover available commands in a branch
@@ -206,30 +207,26 @@ External modules are declared in `apps/handlers/routing_config.json` with entry 
 
 ### Git Access Tiers
 
-Auth centralized via `verify_git_access()` in `apps/handlers/git/auth.py`. Two tiers:
+Auth centralized via `verify_git_access()` in `apps/plugins/devpulse_ops/auth.py`. Two tiers:
 
 | Tier | Who | Commands |
 |------|-----|----------|
-| **Global** | All branches | `status`, `diff`, `log`, `lock` |
-| **Owner** | `devpulse` only | `commit`, `checkout`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
+| **Global** | All branches | `status`, `diff`, `log`, `lock`, `branches`, `issue`, `run`, `workflow` |
+| **Owner** | `devpulse` only | `commit`, `checkout`, `dev-pr`, `delete-branch`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
 
-- `pr` is **deprecated** — returns an error message directing to devpulse
 - Auth is checked once at the top of `git_module.handle_command()` before any handler is called
 - Unauthorized commands return a clear "Access denied" message with the caller's tier
 
-### Git Main-Only Enforcement
+### Dev Branch Model
 
-All agents work on `main`. Branch creation is only allowed inside `drone @git system-pr`, which:
-1. Commits changes on main
-2. Moves branch pointer with `git branch -f` (HEAD stays on main)
-3. Pushes branch with `--force-with-lease`
-4. Opens PR via `gh`
-5. Returns to main
+All work happens on `dev`. Only devpulse has write access. Agents build and report; devpulse commits.
+
+**Flow:** work on dev → stack changes → `drone @git dev-pr "desc"` → merge PR → `drone @git sync` (realigns dev from main)
 
 Enforcement layers:
-- `.claude/settings.json` deny rules block `git checkout -b`, `git switch -c`
-- `_assert_on_main_or_pr_flow()` guard in `git_module.py`
-- Persistent citizen branches: `citizen/{name}` reused across PRs
+- `git_gate.py` PreToolUse hook blocks ALL raw git/gh commands
+- Drone tier system restricts write commands to devpulse only
+- Prompt instructions tell agents they have zero git access
 
 ---
 

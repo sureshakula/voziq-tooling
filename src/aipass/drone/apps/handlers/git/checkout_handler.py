@@ -62,6 +62,13 @@ def checkout_branch(target: str) -> dict:
             text=True,
             cwd=str(repo_root),
         )
+        if result.returncode != 0 and "did not match" in result.stderr:
+            result = subprocess.run(
+                ["git", "checkout", "-b", target],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
     except (OSError, subprocess.SubprocessError) as exc:
         logger.error("git checkout failed: %s", exc)
         return {

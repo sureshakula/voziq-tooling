@@ -7,10 +7,11 @@
 # =============================================
 
 """
-Safe main branch synchronization.
+Branch synchronization — works on both main and dev.
 
-Checks out main and pulls latest, with error handling for dirty
-working trees and other common failure modes.
+On main: pulls latest from origin/main.
+On dev: pulls origin/main into dev (realigns after PR merge).
+From other branch: checks out main first, then pulls.
 """
 
 from __future__ import annotations
@@ -36,16 +37,28 @@ def sync_main(autostash: bool = False) -> dict:
     stashed = False
 
     try:
-        checkout = subprocess.run(
-            ["git", "checkout", "main"],
+        head = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True,
             text=True,
             cwd=str(repo_root),
         )
-        if checkout.returncode != 0:
-            msg = f"Failed to checkout main: {checkout.stderr.strip()}"
-            logger.error(msg)
-            return {"success": False, "message": msg, "stdout": checkout.stdout}
+        current_branch = head.stdout.strip() if head.returncode == 0 else ""
+
+        if current_branch == "dev":
+            return _sync_dev(repo_root, autostash)
+
+        if current_branch != "main":
+            checkout = subprocess.run(
+                ["git", "checkout", "main"],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
+            if checkout.returncode != 0:
+                msg = f"Failed to checkout main: {checkout.stderr.strip()}"
+                logger.error(msg)
+                return {"success": False, "message": msg, "stdout": checkout.stdout}
 
         if autostash:
             stash = subprocess.run(
@@ -158,3 +171,51 @@ def sync_main(autostash: bool = False) -> dict:
         msg = f"Sync failed: {exc}"
         logger.error(msg)
         return {"success": False, "message": msg, "stdout": ""}
+
+
+def _sync_dev(repo_root, autostash: bool = False) -> dict:
+    """Pull origin/main into dev branch to realign after PR merge."""
+    stashed = False
+
+    if autostash:
+        stash = subprocess.run(
+            ["git", "stash"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        stashed = "No local changes to save" not in stash.stdout
+
+    fetch = subprocess.run(
+        ["git", "fetch", "origin", "--prune"],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+    )
+    if fetch.returncode != 0:
+        if stashed:
+            subprocess.run(["git", "stash", "pop"], capture_output=True, text=True, cwd=str(repo_root))
+        return {"success": False, "message": f"Fetch failed: {fetch.stderr.strip()}", "stdout": ""}
+
+    result = subprocess.run(
+        ["git", "pull", "origin", "main", "--rebase"],
+        capture_output=True,
+        text=True,
+        cwd=str(repo_root),
+    )
+
+    if stashed:
+        subprocess.run(["git", "stash", "pop"], capture_output=True, text=True, cwd=str(repo_root))
+
+    if result.returncode != 0:
+        raw = result.stderr.strip()
+        msg = f"Failed to sync dev from main: {raw}"
+        if not autostash and ("unstaged changes" in raw or "uncommitted changes" in raw):
+            msg += "\n  Tip: retry with 'drone @git sync --autostash'"
+        return {"success": False, "message": msg, "stdout": result.stdout}
+
+    stdout = result.stdout.strip()
+    msg = f"Synced dev from origin/main: {stdout}"
+    json_handler.log_operation("sync_dev", {"result": stdout, "autostash": autostash})
+    logger.info(msg)
+    return {"success": True, "message": msg, "stdout": stdout}
