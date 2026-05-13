@@ -79,7 +79,7 @@ aipass init agent my-agent            # Full agent: apps, mail, memory, identity
 - **Everything is local.** Your data stays on your machine. Memory is JSON files. Communication is local mailbox files. No cloud dependencies, no external APIs for core operations.
 - **One pattern for everything.** Every agent follows the same structure. One command (`drone @branch command`) reaches any agent. Learn it once, use it everywhere.
 - **Projects are isolated by design.** Each project gets its own registry. Agents communicate within their project, not across projects.
-- **The system protects itself.** Agent locks prevent double-dispatch. PR locks prevent merge conflicts. Branches don't touch each other's files. Quality standards are embedded in every workflow. Errors trigger self-healing.
+- **The system protects itself.** Agent locks prevent double-dispatch. Git access is tier-controlled through drone. Branches don't touch each other's files. Quality standards are embedded in every workflow. Errors trigger self-healing.
 
 **Say "hi" tomorrow and pick up exactly where you left off.** One agent or fifteen — the memory persists.
 
@@ -241,7 +241,7 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 | Agents | 12 core + user-created |
 | Quality standards | 34 automated checks |
 | Tests | 7,600+ (across all agents) |
-| PRs merged | 538+ (created by agents, reviewed by human) |
+| PRs merged | 560+ (human-AI collaboration) |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 
