@@ -76,6 +76,12 @@ def commit_changes(
                 ruff_bin = str(venv_ruff)
         if ruff_bin:
             subprocess.run(
+                [ruff_bin, "check", "--fix", "src/", "tests/"],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
+            subprocess.run(
                 [ruff_bin, "format", "src/", "tests/"],
                 capture_output=True,
                 text=True,
