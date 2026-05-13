@@ -338,6 +338,172 @@ class TestFatal:
 # =============================================================================
 
 
+class TestPrintIntrospectionOutput:
+    """Verify print_introspection() body produces expected Rich output."""
+
+    def test_print_introspection_contains_module_name(self):
+        cons, get_output = _make_capture_console()
+        with patch.object(display, "CONSOLE", cons):
+            display.print_introspection()
+        output = get_output()
+        assert "CLI Display Module" in output
+
+    def test_print_introspection_lists_all_functions(self):
+        cons, get_output = _make_capture_console()
+        with patch.object(display, "CONSOLE", cons):
+            display.print_introspection()
+        output = get_output()
+        for fn in ("header()", "success()", "error()", "warning()", "fatal()", "section()", "console"):
+            assert fn in output
+
+    def test_print_introspection_shows_help_hint(self):
+        cons, get_output = _make_capture_console()
+        with patch.object(display, "CONSOLE", cons):
+            display.print_introspection()
+        output = get_output()
+        assert "drone @cli display --help" in output
+
+
+class TestPrintHelpOutput:
+    """Verify print_help() body produces expected Rich output."""
+
+    def test_print_help_contains_header(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "CLI Display Module" in output
+
+    def test_print_help_contains_what_is_section(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "WHAT IS DISPLAY?" in output
+
+    def test_print_help_contains_public_api_table(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "PUBLIC API FUNCTIONS" in output
+        for fn in ("header()", "success()", "error()", "warning()", "fatal()", "section()"):
+            assert fn in output
+
+    def test_print_help_contains_usage_section(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "USAGE:" in output
+        assert "drone @cli display" in output
+
+    def test_print_help_contains_code_examples(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "CODE EXAMPLES:" in output
+        assert "from aipass.cli" in output
+
+    def test_print_help_contains_integration_section(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "INTEGRATION:" in output
+
+    def test_print_help_contains_reference_section(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "REFERENCE:" in output
+        assert "Module:" in output
+
+    def test_print_help_contains_tip(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "TIP:" in output
+        assert "drone @cli display demo" in output
+
+    def test_print_help_contains_commands_line(self):
+        cons, get_output = _make_capture_console()
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            display.print_help()
+        output = get_output()
+        assert "Commands:" in output
+
+
+class TestHeaderTriggerLoading:
+    """Verify header() lazy-loads trigger module."""
+
+    def test_header_loads_trigger_on_first_call(self):
+        cons, _get_output = _make_capture_console()
+        original_loaded = display._TRIGGER_LOADED
+        original_trigger = display._TRIGGER
+        try:
+            display._TRIGGER_LOADED = False
+            display._TRIGGER = None
+            with patch.object(display, "CONSOLE", cons):
+                display.header("Test")
+            assert display._TRIGGER_LOADED is True
+        finally:
+            display._TRIGGER_LOADED = original_loaded
+            display._TRIGGER = original_trigger
+
+    def test_header_handles_import_error_for_trigger(self):
+        cons, _get_output = _make_capture_console()
+        display._TRIGGER_LOADED = False
+        display._TRIGGER = None
+        with (
+            patch.object(display, "CONSOLE", cons),
+            patch.dict("sys.modules", {"aipass.trigger.apps.modules.core": None}),
+        ):
+            display._TRIGGER_LOADED = False
+            display.header("Trigger Fail Test")
+        assert display._TRIGGER_LOADED is True
+        assert display._TRIGGER is None
+
+
 class TestInfrastructureMocking:
     """Verify display module can be safely reloaded after sys.modules mocking."""
 

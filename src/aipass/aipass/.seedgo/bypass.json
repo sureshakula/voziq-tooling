@@ -127,6 +127,96 @@
       "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
     },
     {
+      "file": "tests/test_aipass_main.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_aipass_main.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import the entry point directly to test discover_modules, route_command, and main in isolation."
+    },
+    {
+      "file": "tests/test_handoff_platform.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_handoff_platform.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "tests/test_handoff_platform.py",
+      "standard": "permission_flags",
+      "reason": "Assertions verify that the CLI flag name appears/absent in build_cli_cmd output. String is in assertion context only — not a permission bypass in this file."
+    },
+    {
+      "file": "tests/test_readme_map.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_readme_map.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "tests/test_handler_guard.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_handler_guard.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handler guard functions directly to test branch-access control in isolation."
+    },
+    {
+      "file": "tests/test_system_detector.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_system_detector.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "tests/test_json_handler.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_json_handler.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "tests/test_handoff_module.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_handoff_module.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import modules directly to test them in isolation."
+    },
+    {
+      "file": "tests/test_handoff_module.py",
+      "standard": "permission_flags",
+      "reason": "Assertions verify that the CLI flag name appears/absent in handoff command output. String is in assertion context only — not a permission bypass in this file."
+    },
+    {
+      "file": "tests/test_bootstrap.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_bootstrap.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
       "file": "apps/handlers/init/bootstrap.py",
       "standard": "debug_print",
       "reason": "The print() on line 159 is inside a generated shell command string (python3 -c), not a bare print call in this module's code."

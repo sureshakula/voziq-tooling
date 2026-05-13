@@ -174,6 +174,110 @@ class TestOperationComplete:
 # ============================================================================
 
 
+class TestPrintIntrospectionOutput:
+    """Verify print_introspection() body produces expected output."""
+
+    def test_introspection_contains_module_name(self, plain_console):
+        console, get_output = plain_console
+        with patch.object(templates, "CONSOLE", console):
+            templates.print_introspection()
+        output = get_output()
+        assert "CLI Templates Module" in output
+
+    def test_introspection_lists_functions(self, plain_console):
+        console, get_output = plain_console
+        with patch.object(templates, "CONSOLE", console):
+            templates.print_introspection()
+        output = get_output()
+        assert "operation_start()" in output
+        assert "operation_complete()" in output
+
+    def test_introspection_shows_help_hint(self, plain_console):
+        console, get_output = plain_console
+        with patch.object(templates, "CONSOLE", console):
+            templates.print_introspection()
+        output = get_output()
+        assert "drone @cli templates --help" in output
+
+
+class TestPrintHelpOutput:
+    """Verify print_help() body produces expected output."""
+
+    def test_help_contains_header(self, plain_console):
+        console, get_output = plain_console
+        with (
+            patch.object(templates, "CONSOLE", console),
+            patch.object(display, "CONSOLE", console),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            templates.print_help()
+        output = get_output()
+        assert "CLI Templates Module" in output
+
+    def test_help_contains_function_signatures(self, plain_console):
+        console, get_output = plain_console
+        with (
+            patch.object(templates, "CONSOLE", console),
+            patch.object(display, "CONSOLE", console),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            templates.print_help()
+        output = get_output()
+        assert "operation_start" in output
+        assert "operation_complete" in output
+
+    def test_help_contains_usage_examples(self, plain_console):
+        console, get_output = plain_console
+        with (
+            patch.object(templates, "CONSOLE", console),
+            patch.object(display, "CONSOLE", console),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            templates.print_help()
+        output = get_output()
+        assert "drone @cli templates" in output
+        assert "drone @cli templates demo" in output
+
+    def test_help_contains_integration_example(self, plain_console):
+        console, get_output = plain_console
+        with (
+            patch.object(templates, "CONSOLE", console),
+            patch.object(display, "CONSOLE", console),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            templates.print_help()
+        output = get_output()
+        assert "from aipass.cli" in output
+
+    def test_help_contains_reference(self, plain_console):
+        console, get_output = plain_console
+        with (
+            patch.object(templates, "CONSOLE", console),
+            patch.object(display, "CONSOLE", console),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            templates.print_help()
+        output = get_output()
+        assert "Reference:" in output
+
+    def test_help_contains_commands_line(self, plain_console):
+        console, get_output = plain_console
+        with (
+            patch.object(templates, "CONSOLE", console),
+            patch.object(display, "CONSOLE", console),
+            patch.object(display, "_TRIGGER", None),
+            patch.object(display, "_TRIGGER_LOADED", True),
+        ):
+            templates.print_help()
+        output = get_output()
+        assert "Commands:" in output
+
+
 class TestRunDemo:
     """Tests for run_demo execution."""
 
