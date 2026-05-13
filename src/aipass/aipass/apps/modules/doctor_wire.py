@@ -157,10 +157,7 @@ def _auto_wire_provider(manifest_path: Path, interactive: bool = True) -> List[s
             event_hooks = [event_hooks]
             settings["hooks"][event] = event_hooks
 
-        already_wired = any(
-            isinstance(h, dict) and script in json.dumps(h)
-            for h in event_hooks
-        )
+        already_wired = any(isinstance(h, dict) and script in json.dumps(h) for h in event_hooks)
         if not already_wired:
             if source_type == "user":
                 hook_path = f"~/.claude/hooks/{script}"

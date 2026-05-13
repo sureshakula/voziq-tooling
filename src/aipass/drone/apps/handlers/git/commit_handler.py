@@ -67,6 +67,20 @@ def commit_changes(
     repo_root = find_repo_root()
 
     if all_files:
+        import shutil
+
+        ruff_bin = shutil.which("ruff")
+        if not ruff_bin:
+            venv_ruff = repo_root / ".venv" / "bin" / "ruff"
+            if venv_ruff.exists():
+                ruff_bin = str(venv_ruff)
+        if ruff_bin:
+            subprocess.run(
+                [ruff_bin, "format", "src/", "tests/"],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
         add_result = subprocess.run(
             ["git", "add", "-A"],
             capture_output=True,

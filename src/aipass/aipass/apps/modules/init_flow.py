@@ -615,7 +615,9 @@ def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bo
     provider_gaps = accumulated.get("provider_gaps", {})
     if provider_gaps:
         report["provider_gaps"] = provider_gaps
-        report["provider_action"] = "Provider settings need configuring. Tell the user what is missing and point them to provider_manifest.json for details."
+        report["provider_action"] = (
+            "Provider settings need configuring. Tell the user what is missing and point them to provider_manifest.json for details."
+        )
     report_path = dropbox / "init_report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     logger.info("[init_flow] init report written to %s", report_path)

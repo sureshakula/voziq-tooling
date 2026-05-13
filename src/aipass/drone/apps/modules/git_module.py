@@ -570,8 +570,7 @@ def get_help(command: str | None = None) -> str:
         )
     if command == "delete-branch":
         return (
-            "git delete-branch <name> — Delete a remote branch [owner]\n"
-            "  Protected: main and dev cannot be deleted.\n"
+            "git delete-branch <name> — Delete a remote branch [owner]\n  Protected: main and dev cannot be deleted.\n"
         )
     if command == "commit":
         return (

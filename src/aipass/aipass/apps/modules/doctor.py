@@ -64,6 +64,7 @@ from aipass.aipass.apps.handlers.ui.progress import (
 
 _BRANCH_ROOT = Path(__file__).resolve().parents[2]
 
+
 class CheckResult(NamedTuple):
     """Single doctor check result."""
 
@@ -426,8 +427,10 @@ def _print_manual_wire_warning(
             console.print(f"  [dim]•[/dim] {var} — {desc}")
         console.print()
     if missing_deny or missing_ask:
-        console.print(f"{len(missing_deny)} deny rules + {len(missing_ask)} ask rules"
-                       " (protect ~/.secrets/, block destructive git)")
+        console.print(
+            f"{len(missing_deny)} deny rules + {len(missing_ask)} ask rules"
+            " (protect ~/.secrets/, block destructive git)"
+        )
         console.print()
     console.print("[dim]Wire manually when ready — see .claude/hooks/README.md[/dim]")
 
@@ -555,8 +558,7 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
         manifest_results = _check_provider_manifest(interactive=interactive, fix=fix)
         if manifest_results:
             groups["Services"] = [
-                r for r in groups.get("Services", [])
-                if r.label not in ("hooks", "env vars", "permissions")
+                r for r in groups.get("Services", []) if r.label not in ("hooks", "env vars", "permissions")
             ] + manifest_results
 
     pass_count = 0
