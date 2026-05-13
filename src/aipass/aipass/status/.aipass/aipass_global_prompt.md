@@ -83,11 +83,11 @@ drone @memory search <query>       # Search archived memories
 
 ### Git Workflow
 ```
-drone @git pr 'description'        # Create a pull request
 drone @git status                  # Git status (branch-scoped)
-drone @git sync                    # Sync with main
-drone @git lock / unlock           # Lock/unlock the repo
+drone @git diff                    # See changes
+drone @git log                     # Commit history
 ```
+You have no git write access. Devpulse handles all commits and PRs.
 
 ### Infrastructure
 ```

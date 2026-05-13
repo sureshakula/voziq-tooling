@@ -462,13 +462,7 @@ def _handle_commit(args: list[str]) -> dict:
             "exit_code": 1,
         }
 
-    branch_dir = None
-    if all_files:
-        detected = _detect_branch_dir()
-        if detected:
-            _, branch_dir = detected
-
-    return commit_handler.commit_changes(message, branch_dir=branch_dir, all_files=all_files)
+    return commit_handler.commit_changes(message, all_files=all_files)
 
 
 def _handle_checkout(args: list[str]) -> dict:
@@ -567,11 +561,23 @@ def get_help(command: str | None = None) -> str:
         return "git log [count] — Show recent git log entries (default: 10) [global]\n"
     if command == "lock":
         return "git lock — Check current lock status [global]\n  Shows lock holder, age, stale/orphan detection.\n"
+    if command == "branches":
+        return "git branches — List all remote branches [global]\n"
+    if command == "dev-pr":
+        return (
+            "git dev-pr <description> — Push dev branch and create PR to main [owner]\n"
+            "  Description becomes the PR title.\n"
+        )
+    if command == "delete-branch":
+        return (
+            "git delete-branch <name> — Delete a remote branch [owner]\n"
+            "  Protected: main and dev cannot be deleted.\n"
+        )
     if command == "commit":
         return (
-            "git commit <message> [--all] — Commit staged changes [owner]\n"
+            "git commit <message> [--all] — Commit changes [owner]\n"
             "  Options:\n"
-            "    --all   Stage all changes under your branch directory first.\n"
+            "    --all   Stage all repo changes (git add -A) before committing.\n"
         )
     if command == "checkout":
         return "git checkout <main|dev> — Switch branches (main or dev only) [owner]\n"
@@ -610,36 +616,36 @@ def get_help(command: str | None = None) -> str:
         )
 
     return (
-        "git — Tier-based git workflow\n"
+        "git — Tier-based git workflow (dev branch model)\n"
         "\n"
         "Global (all branches):\n"
         "  status                 Show git status for your branch\n"
         "  diff [--staged]        Show git diff for your branch\n"
         "  log [count]            Show recent git log (default: 10)\n"
         "  lock                   Check lock status\n"
+        "  branches               List remote branches\n"
         "  issue [args]           Passthrough to gh issue\n"
         "  run [args]             Passthrough to gh run\n"
         "  workflow [args]        Passthrough to gh workflow\n"
         "\n"
         "Owner (devpulse only):\n"
-        "  commit <msg> [--all]   Commit staged changes\n"
+        "  commit <msg> [--all]   Commit changes (--all stages entire repo)\n"
         "  checkout <main|dev>    Switch branches\n"
-        "  sync [--autostash]     Checkout main and pull\n"
-        "  unlock --force         Force-release the PR lock\n"
-        "  system-pr <desc>       Create a system-wide PR\n"
+        "  dev-pr <desc>          Push dev and create PR to main\n"
+        "  delete-branch <name>   Delete a remote branch\n"
         "  merge <PR#>            Merge a PR\n"
+        "  sync [--autostash]     Checkout main and pull\n"
         "  smart-sync             Fetch + rebase if behind\n"
+        "  unlock --force         Force-release the PR lock\n"
+        "  system-pr <desc>       Legacy system-wide PR (use dev-pr)\n"
         "  fix [--dry-run]        Fix broken git states\n"
-        "\n"
-        "Deprecated:\n"
-        "  pr                     Agent PRs removed — devpulse handles git\n"
     )
 
 
 def get_introspective() -> str:
     """Return introspection text showing connected handlers."""
     return (
-        "@git — Tier-based git workflow (v2.0.0)\n"
+        "@git — Tier-based git workflow, dev branch model (v3.0.0)\n"
         "\n"
         "Connected Handlers:\n"
         "  handlers/git/\n"
@@ -647,14 +653,17 @@ def get_introspective() -> str:
         "    - status_handler.py (get_branch_status — scoped git status)\n"
         "    - diff_handler.py (get_branch_diff — scoped git diff)\n"
         "    - log_handler.py (get_git_log — recent log entries)\n"
-        "    - commit_handler.py (commit_changes, stage_branch_dir)\n"
+        "    - commit_handler.py (commit_changes — repo-wide staging with --all)\n"
         "    - checkout_handler.py (checkout_branch — main/dev only)\n"
         "    - sync_handler.py (sync_main — safe main synchronization)\n"
-        "    - pr_handler.py (create_pr — DEPRECATED)\n"
+        "    - dev_pr_handler.py (create_dev_pr — push dev, PR to main)\n"
+        "    - branches_handler.py (list_remote_branches)\n"
+        "    - delete_branch_handler.py (delete_remote_branch — protected: main/dev)\n"
+        "    - pr_handler.py (create_pr — DEPRECATED, kept for reference)\n"
         "\n"
         "  plugins/devpulse_ops/\n"
         "    - auth.py (verify_git_access — tier-based authorization)\n"
-        "    - pr_plugin.py (create_system_pr — system-wide PR workflow)\n"
+        "    - pr_plugin.py (create_system_pr — legacy, use dev-pr instead)\n"
         "    - merge_plugin.py (merge_pr — merge PR + sync)\n"
         "    - sync_plugin.py (smart_sync — fetch + rebase if behind)\n"
         "    - fix_plugin.py (fix_git_state — detect/fix broken states)\n"
@@ -662,7 +671,7 @@ def get_introspective() -> str:
         "  gh passthrough:\n"
         "    - issue, run, workflow → subprocess gh <cmd> [args]\n"
         "\n"
-        "Access Tiers: global (status, diff, log, lock, issue, run, workflow) | owner (commit, checkout, sync, unlock, system-pr, merge, smart-sync, fix)\n"
+        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (commit, checkout, dev-pr, delete-branch, sync, unlock, system-pr, merge, smart-sync, fix)\n"
     )
 
 

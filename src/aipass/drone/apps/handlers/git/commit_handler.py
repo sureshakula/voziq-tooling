@@ -58,13 +58,23 @@ def commit_changes(
     branch_dir: Path | None = None,
     all_files: bool = False,
 ) -> dict:
-    """Commit staged changes or all changes under branch_dir."""
+    """Commit changes. With --all, stages the entire repo (not CWD-scoped).
+
+    Post-DPLAN-0173: only devpulse commits, agents don't PR. Repo-wide
+    staging is the correct default since dispatched agents work across
+    multiple branch directories.
+    """
     repo_root = find_repo_root()
 
-    if all_files and branch_dir:
-        stage_result = stage_branch_dir(branch_dir, repo_root)
-        if not stage_result["success"]:
-            return {"stdout": "", "stderr": stage_result["message"], "exit_code": 1}
+    if all_files:
+        add_result = subprocess.run(
+            ["git", "add", "-A"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        if add_result.returncode != 0:
+            return {"stdout": "", "stderr": f"Failed to stage: {add_result.stderr.strip()}", "exit_code": 1}
 
     diff_check = subprocess.run(
         ["git", "diff", "--cached", "--quiet"],
@@ -81,13 +91,6 @@ def commit_changes(
 
     try:
         cmd = ["git", "commit", "-m", message]
-        if branch_dir:
-            try:
-                rel_dir = branch_dir.resolve().relative_to(repo_root.resolve())
-            except ValueError as exc:
-                logger.warning("commit_changes: branch_dir not relative to repo root: %s", exc)
-                rel_dir = branch_dir
-            cmd.extend(["--", str(rel_dir) + "/"])
 
         result = subprocess.run(
             cmd,

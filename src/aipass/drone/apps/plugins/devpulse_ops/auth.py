@@ -86,8 +86,8 @@ def _find_caller() -> str:
 def verify_caller() -> str:
     """Verify the calling branch is authorized for devpulse operations.
 
-    system-pr, merge, smart-sync, fix are restricted to ALLOWED_CALLERS.
-    Other branches use drone @git pr for their own branch-scoped PRs.
+    Owner-tier commands (commit, dev-pr, merge, etc.) are restricted to
+    ALLOWED_CALLERS. Other branches have read-only access via global tier.
 
     Returns:
         The caller's branch name if authorized.
@@ -97,7 +97,7 @@ def verify_caller() -> str:
     """
     name = _find_caller()
     if name not in ALLOWED_CALLERS:
-        msg = f"Branch '{name}' is not authorized for this operation. Use 'drone @git pr' for branch-scoped PRs."
+        msg = f"Branch '{name}' is not authorized for this operation. Only devpulse can use owner-tier commands."
         logger.error(msg)
         raise PermissionError(msg)
     json_handler.log_operation(

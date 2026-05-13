@@ -75,18 +75,20 @@ TRUSTED_HOOK_EDITORS = ("devpulse", "seedgo")
 
 GIT_REDIRECT = (
     "Raw git write commands are blocked. Use drone instead:\n"
-    '  drone @git pr "description"        # branch-scoped PR\n'
-    '  drone @git system-pr "description"  # devpulse-only system PR\n'
-    "  drone @git smart-sync               # fetch + rebase\n"
-    "  drone @git sync                     # checkout main + pull\n"
     "  drone @git status                   # what changed\n"
+    "  drone @git diff                     # see changes\n"
+    "  drone @git log                      # commit history\n"
+    "  drone @git commit 'msg' --all       # commit all changes (devpulse only)\n"
+    '  drone @git dev-pr "description"     # PR dev to main (devpulse only)\n'
+    "  drone @git smart-sync               # fetch + rebase\n"
     "Read-only git (status, log, diff, show, fetch, ls-files) is allowed."
 )
 
 GH_REDIRECT = (
     "Raw gh write commands are blocked. Use drone for git ops:\n"
-    '  drone @git pr "description"\n'
-    "  drone @git merge <PR#>   # devpulse only, on user request\n"
+    '  drone @git dev-pr "description"     # PR dev to main\n'
+    "  drone @git merge <PR#>              # merge a PR (devpulse only)\n"
+    "  drone @git issue list/create/view   # gh issue passthrough\n"
     "Read-only gh (list, view, status, diff, checks, comments) is allowed."
 )
 
