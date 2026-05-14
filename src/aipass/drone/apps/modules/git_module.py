@@ -447,13 +447,22 @@ def _handle_commit(args: list[str]) -> dict:
     if not args:
         return {
             "stdout": "",
-            "stderr": "Usage: drone @git commit <message> [--all]",
+            "stderr": "Usage: drone @git commit <message> [--all | file1 file2 ...]",
             "exit_code": 1,
         }
 
     all_files = "--all" in args
-    msg_parts = [a for a in args if a != "--all"]
-    message = " ".join(msg_parts)
+    clean_args = [a for a in args if a != "--all"]
+
+    if not clean_args:
+        return {
+            "stdout": "",
+            "stderr": "Commit message cannot be empty",
+            "exit_code": 1,
+        }
+
+    message = clean_args[0]
+    files = clean_args[1:] if len(clean_args) > 1 else None
 
     if not message:
         return {
@@ -462,7 +471,7 @@ def _handle_commit(args: list[str]) -> dict:
             "exit_code": 1,
         }
 
-    return commit_handler.commit_changes(message, all_files=all_files)
+    return commit_handler.commit_changes(message, all_files=all_files, files=files)
 
 
 def _handle_checkout(args: list[str]) -> dict:

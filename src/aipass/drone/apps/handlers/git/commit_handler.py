@@ -57,16 +57,28 @@ def commit_changes(
     message: str,
     branch_dir: Path | None = None,
     all_files: bool = False,
+    files: list[str] | None = None,
 ) -> dict:
     """Commit changes. With --all, stages the entire repo (not CWD-scoped).
 
     Post-DPLAN-0173: only devpulse commits, agents don't PR. Repo-wide
     staging is the correct default since dispatched agents work across
     multiple branch directories.
+
+    With file paths, stages only those specific files (selective commit).
     """
     repo_root = find_repo_root()
 
-    if all_files:
+    if files:
+        add_result = subprocess.run(
+            ["git", "add", "--"] + files,
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        if add_result.returncode != 0:
+            return {"stdout": "", "stderr": f"Failed to stage: {add_result.stderr.strip()}", "exit_code": 1}
+    elif all_files:
         import shutil
 
         ruff_bin = shutil.which("ruff")
@@ -124,7 +136,7 @@ def commit_changes(
 
     json_handler.log_operation(
         "commit_changes",
-        {"message": message, "all_files": all_files, "exit_code": result.returncode},
+        {"message": message, "all_files": all_files, "files": files, "exit_code": result.returncode},
     )
 
     return {
