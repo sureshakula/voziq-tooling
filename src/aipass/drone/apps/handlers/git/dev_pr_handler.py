@@ -79,6 +79,7 @@ def create_dev_pr(description: str) -> dict:
         if "already exists" in stderr:
             existing_url = ""
             for line in stderr.splitlines():
+                # codeql[py/incomplete-url-substring-sanitization]
                 if "github.com" in line:
                     existing_url = line.strip()
                     break
