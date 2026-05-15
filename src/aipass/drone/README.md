@@ -51,6 +51,7 @@ drone @git commit "msg" --all    # Stage ALL repo changes and commit
 drone @git commit "msg" f1 f2    # Stage only f1 f2, then commit
 drone @git checkout dev          # Switch to dev branch
 drone @git checkout main         # Switch to main branch
+drone @git pr "desc"             # Push current branch and create PR to main
 drone @git dev-pr "desc"         # Push dev and create PR to main
 drone @git merge <PR#>           # Merge a PR and sync local main
 drone @git delete-branch <name>  # Delete a remote branch (not main/dev)
@@ -59,7 +60,7 @@ drone @git sync                  # Pull latest (branch-aware: main or dev)
 drone @git sync --autostash      # Sync with autostash for dirty trees
 drone @git smart-sync            # Fetch + detect divergence + rebase
 drone @git unlock --force        # Force-release the PR lock
-drone @git system-pr "desc"      # DEPRECATED — use dev-pr instead
+drone @git system-pr "desc"      # DEPRECATED — returns error message
 drone @git fix                   # Auto-fix stuck rebase / detached HEAD
 drone @git fix --dry-run         # Detect issues without fixing
 
@@ -216,7 +217,7 @@ Auth centralized via `verify_git_access()` in `apps/plugins/devpulse_ops/auth.py
 | Tier | Who | Commands |
 |------|-----|----------|
 | **Global** | All branches | `status`, `diff`, `log`, `lock`, `branches`, `issue`, `run`, `workflow` |
-| **Owner** | `devpulse` only | `commit`, `checkout`, `dev-pr`, `delete-branch`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
+| **Owner** | `devpulse` only | `pr`, `commit`, `checkout`, `dev-pr`, `delete-branch`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
 
 - Auth is checked once at the top of `git_module.handle_command()` before any handler is called
 - Unauthorized commands return a clear "Access denied" message with the caller's tier
@@ -226,6 +227,8 @@ Auth centralized via `verify_git_access()` in `apps/plugins/devpulse_ops/auth.py
 All work happens on `dev`. Only devpulse has write access. Agents build and report; devpulse commits.
 
 **Flow:** work on dev → stack changes → `drone @git dev-pr "desc"` → merge PR → `drone @git sync` (realigns dev from main)
+
+**`pr` vs `dev-pr`:** `pr` works from any branch — on main it auto-creates a temp branch from the description slug (`main:<slug>`), on other branches it pushes directly. Does NOT use `-u` so main's upstream tracking stays on `origin/main`. `dev-pr` is specific to the dev→main workflow.
 
 Enforcement layers:
 - `git_gate.py` PreToolUse hook blocks ALL raw git/gh commands
