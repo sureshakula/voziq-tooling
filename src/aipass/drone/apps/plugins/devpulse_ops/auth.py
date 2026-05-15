@@ -35,11 +35,11 @@ GIT_ACCESS_TIERS: dict[str, dict] = {
             "checkout",
             "sync",
             "unlock",
-            "system-pr",
             "merge",
             "smart-sync",
             "fix",
             "dev-pr",
+            "pr",
             "delete-branch",
         ],
         "allowed_callers": ["devpulse"],
@@ -121,9 +121,6 @@ def verify_git_access(command: str) -> str:
     Raises:
         PermissionError: If the caller is not authorized for this command.
     """
-    if command == "pr":
-        raise PermissionError("Agent PRs are deprecated. Build code, run tests, report results. Devpulse handles git.")
-
     global_cmds = GIT_ACCESS_TIERS["global"]["commands"]
     owner_tier = GIT_ACCESS_TIERS["owner"]
 
