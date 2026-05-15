@@ -38,6 +38,8 @@ Examples:
 
 Agents live in branches. Sub-agents work for agents. `.trinity/passport.json` = agent (citizen), not sub-agent.
 
+Never manually edit a registry. AIPASS_REGISTRY.json, fplan_registry.json, dplan_registry.json — all managed by their owning systems (spawn, flow). Use the commands: `drone @flow create/close`, `drone @spawn`. Manual edits corrupt counters and break pipelines.
+
 # Branches
 
 Every branch follows same structure:

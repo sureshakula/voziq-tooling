@@ -220,9 +220,9 @@ def _self_heal_unregistered_plan(
     }
 
     registry["plans"][actual_key] = entry
-    num_val = int(actual_key) + 1
-    if registry.get("next_number", 0) <= int(actual_key):
-        registry["next_number"] = num_val
+    if actual_key != plan_key:
+        # Collision bumped plan to the next_number slot — advance counter.
+        registry["next_number"] = int(actual_key) + 1
     save_registry_fn(registry, registry_file=reg_file)
 
     messages.append(

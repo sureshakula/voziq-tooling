@@ -139,9 +139,10 @@ class TestClosePlanImplAllFlag:
 class TestClosePlanImplNotFound:
     """Plan not found in registry."""
 
+    @patch("aipass.flow.apps.handlers.plan.close_ops._find_unregistered_plan_file", return_value=None)
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None)
     @patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None)
-    def test_plan_not_found_returns_error(self, _mock_find, _mock_resolve):
+    def test_plan_not_found_returns_error(self, _mock_find, _mock_resolve, _mock_unregistered):
         close_plan_impl = _import_close_plan_impl()
         deps = _make_deps()
         deps["validate_plan_exists"].return_value = (False, "Plan 99 not found")
@@ -571,7 +572,7 @@ class TestSelfHealNoCollision:
         assert "0176" in updated_reg["plans"]
         assert updated_reg["plans"]["0176"]["self_healed"] is True
         assert updated_reg["plans"]["0176"]["status"] == "open"
-        assert updated_reg["next_number"] == 177
+        assert updated_reg["next_number"] == 175
         save_fn.assert_called_once_with(registry, registry_file="dplan_registry.json")
 
     @patch("aipass.flow.apps.handlers.plan.close_ops.discover_plan_types", create=True)
