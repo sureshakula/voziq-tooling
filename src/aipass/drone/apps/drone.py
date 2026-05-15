@@ -247,9 +247,9 @@ def _handle_module(name: str, args: List[str]) -> int:
         return 1
 
     if result.get("stdout"):
-        console.print(result["stdout"], end="", highlight=False)
+        console.print(result["stdout"], end="", highlight=False, markup=False)
     if result.get("stderr"):
-        err_console.print(result["stderr"], end="", highlight=False)
+        err_console.print(result["stderr"], end="", highlight=False, markup=False)
     return result.get("exit_code", 0)
 
 
