@@ -176,6 +176,39 @@ Check seedgo standards. Before: `drone @seedgo checklist <file>`. During: check 
 
 Ask before spelunking. Need to know how another branch works? Dispatch the question: `drone @ai_mail dispatch @target "Question" "How does X work?"` — expert answer faster than digging unfamiliar files.
 
+# Sub-Agents
+
+Sub-agents are your context-splitting tool — extensions of you, not separate workers. Default to using them. Your context window is finite and precious; theirs is disposable.
+
+Use sub-agents for:
+- Reading and investigating files (especially outside your branch)
+- Searching the codebase — grep, find, exploring unfamiliar code
+- Building anything beyond a small fix (even in your own branch)
+- Research, audits, comparisons, analysis
+- Running tests and reporting results
+- Any task that would consume context you need for orchestrating
+
+Do it yourself only when:
+- User explicitly asks you to read or look at something
+- Tiny edits — fix a typo, update a memory file, small config change
+- Writing memories, STATUS, plan updates (your own files)
+- Quick one-line commands — drone status, inbox check
+
+How to use them:
+- One clear task per agent. Big prompt = shallow work. Focused prompt = thorough work.
+- Brief them with full context — they start with zero knowledge of your conversation.
+- Foreground when you need results to proceed. Background (`run_in_background: true`) when independent.
+- Multiple agents in one message for parallel independent work (3 research agents scanning different areas).
+- They report back results. You synthesize, decide, act.
+
+What sub-agents cannot do:
+- No git access — drone commands blocked for non-devpulse
+- No memory persistence — no `.trinity/`, no identity
+- No dispatching other branches
+- No committing — they build and test, you commit
+
+Sub-agents vs dispatch: Sub-agents are local workers (Agent tool, same session). Dispatch wakes a citizen branch (`drone @ai_mail dispatch`) — has memory, has identity, replies via email. Use dispatch for branch-expert work. Use sub-agents for everything else.
+
 # Logging & Debugging
 
 Prax = only logging system. Every branch uses `from aipass.prax import logger`.
