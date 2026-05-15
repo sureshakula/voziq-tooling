@@ -535,11 +535,15 @@ class MonitoringFileHandler(FileSystemEventHandler):
     # CLAUDE CODE AGENT ACTIVITY PARSING (JSONL sessions)
     # =========================================================================
 
+    _MAX_AGENT_EVENTS_PER_BATCH = 3
+
     def _parse_agent_activity(self, file_path, branch):
         """Parse Claude Code session JSONL to show agent actions.
 
         Returns True if an event was emitted (or deduped), False on failure.
-        Iterates forward through new lines, emitting all distinct actions.
+        Iterates forward through all new lines (for model extraction), but only
+        emits the last few distinct actions to prevent doom-scrolling when large
+        batches accumulate between polls or after compaction resets.
         """
         try:
             path_key = str(file_path)
@@ -560,6 +564,9 @@ class MonitoringFileHandler(FileSystemEventHandler):
             if not lines:
                 return True
 
+            pending_actions = []
+            last_seen = self._last_agent_action.get(path_key)
+
             for line in lines:
                 try:
                     entry = _json.loads(line)
@@ -575,10 +582,12 @@ class MonitoringFileHandler(FileSystemEventHandler):
                 if not action_text:
                     continue
 
-                if self._last_agent_action.get(path_key) == action_text:
+                if action_text == last_seen:
                     continue
-                self._last_agent_action[path_key] = action_text
+                last_seen = action_text
+                pending_actions.append(action_text)
 
+            for action_text in pending_actions[-self._MAX_AGENT_EVENTS_PER_BATCH :]:
                 tagged_branch = self._tag_branch_with_model(path_key, branch)
                 evt = MonitoringEvent(
                     priority=1,
@@ -590,6 +599,9 @@ class MonitoringFileHandler(FileSystemEventHandler):
                 )
                 if self._event_queue:
                     self._event_queue.enqueue(evt)
+
+            if pending_actions:
+                self._last_agent_action[path_key] = pending_actions[-1]
 
             return True
 
