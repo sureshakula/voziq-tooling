@@ -24,6 +24,18 @@ def _import_close_all_plans_impl():
     return close_all_plans_impl
 
 
+def _import_find_unregistered():
+    from aipass.flow.apps.handlers.plan.close_ops import _find_unregistered_plan_file
+
+    return _find_unregistered_plan_file
+
+
+def _import_self_heal():
+    from aipass.flow.apps.handlers.plan.close_ops import _self_heal_unregistered_plan
+
+    return _self_heal_unregistered_plan
+
+
 def _make_deps(**overrides) -> dict:
     """Build a full set of injected dependency kwargs with MagicMock defaults."""
     deps = {
@@ -453,3 +465,465 @@ class TestCloseAllException:
         assert result["success"] is False
         assert result["total"] == 0
         assert any("Error" in m.get("text", "") for m in result["messages"])
+
+
+# ═══════════════════════════════════════════════════════════
+# 4. _find_unregistered_plan_file
+# ═══════════════════════════════════════════════════════════
+
+
+class TestFindUnregisteredPlanFile:
+    @patch("aipass.flow.apps.handlers.plan.close_ops.FLOW_ROOT")
+    def test_finds_matching_file(self, mock_flow_root, tmp_path):
+        find_fn = _import_find_unregistered()
+        mock_flow_root.parent = tmp_path
+        branch_dir = tmp_path / "somebranch"
+        branch_dir.mkdir()
+        plan_file = branch_dir / "DPLAN-0176_design_topic_2026-05-10.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+
+        result = find_fn("DPLAN", "0176")
+        assert result is not None
+        assert result.name == "DPLAN-0176_design_topic_2026-05-10.md"
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.FLOW_ROOT")
+    def test_skips_backup_directory(self, mock_flow_root, tmp_path):
+        find_fn = _import_find_unregistered()
+        mock_flow_root.parent = tmp_path
+        backup_dir = tmp_path / ".backup" / "processed_plans"
+        backup_dir.mkdir(parents=True)
+        (backup_dir / "FPLAN-0099_old_2026-01-01.md").write_text("# Old", encoding="utf-8")
+
+        result = find_fn("FPLAN", "0099")
+        assert result is None
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.FLOW_ROOT")
+    def test_skips_archive_directory(self, mock_flow_root, tmp_path):
+        find_fn = _import_find_unregistered()
+        mock_flow_root.parent = tmp_path
+        archive_dir = tmp_path / "branch" / ".archive"
+        archive_dir.mkdir(parents=True)
+        (archive_dir / "FPLAN-0050_archived_2026-02-01.md").write_text("# Archived", encoding="utf-8")
+
+        result = find_fn("FPLAN", "0050")
+        assert result is None
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.FLOW_ROOT")
+    def test_skips_processed_plans_directory(self, mock_flow_root, tmp_path):
+        find_fn = _import_find_unregistered()
+        mock_flow_root.parent = tmp_path
+        proc_dir = tmp_path / "processed_plans"
+        proc_dir.mkdir()
+        (proc_dir / "FPLAN-0077_done_2026-03-01.md").write_text("# Done", encoding="utf-8")
+
+        result = find_fn("FPLAN", "0077")
+        assert result is None
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.FLOW_ROOT")
+    def test_returns_none_when_no_match(self, mock_flow_root, tmp_path):
+        find_fn = _import_find_unregistered()
+        mock_flow_root.parent = tmp_path
+        branch_dir = tmp_path / "branch"
+        branch_dir.mkdir()
+        (branch_dir / "FPLAN-0001_other_2026-01-01.md").write_text("# Other", encoding="utf-8")
+
+        result = find_fn("FPLAN", "9999")
+        assert result is None
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.FLOW_ROOT")
+    def test_skips_git_directory(self, mock_flow_root, tmp_path):
+        find_fn = _import_find_unregistered()
+        mock_flow_root.parent = tmp_path
+        git_dir = tmp_path / ".git" / "refs"
+        git_dir.mkdir(parents=True)
+        (git_dir / "FPLAN-0010_gitfile_2026-01-01.md").write_text("# Git", encoding="utf-8")
+
+        result = find_fn("FPLAN", "0010")
+        assert result is None
+
+
+# ═══════════════════════════════════════════════════════════
+# 5. _self_heal_unregistered_plan
+# ═══════════════════════════════════════════════════════════
+
+
+class TestSelfHealNoCollision:
+    @patch("aipass.flow.apps.handlers.plan.close_ops.discover_plan_types", create=True)
+    def test_registers_with_original_key(self, _mock_discover, tmp_path):
+        heal_fn = _import_self_heal()
+        plan_file = tmp_path / "DPLAN-0176_design_topic_2026-05-10.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+        registry = {"plans": {}, "next_number": 175}
+        save_fn = MagicMock()
+        load_fn = MagicMock()
+        messages = []
+
+        with patch(
+            "aipass.flow.apps.handlers.plan.close_ops.discover_plan_types",
+            return_value={},
+            create=True,
+        ):
+            actual_key, updated_reg = heal_fn(
+                "DPLAN", "0176", plan_file, registry, "dplan_registry.json", save_fn, load_fn, messages
+            )
+
+        assert actual_key == "0176"
+        assert "0176" in updated_reg["plans"]
+        assert updated_reg["plans"]["0176"]["self_healed"] is True
+        assert updated_reg["plans"]["0176"]["status"] == "open"
+        assert updated_reg["next_number"] == 177
+        save_fn.assert_called_once_with(registry, registry_file="dplan_registry.json")
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.discover_plan_types", create=True)
+    def test_extracts_subject_from_filename(self, _mock_discover, tmp_path):
+        heal_fn = _import_self_heal()
+        plan_file = tmp_path / "FPLAN-0042_my_great_feature_2026-04-01.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+        registry = {"plans": {}, "next_number": 40}
+        messages = []
+
+        with patch(
+            "aipass.flow.apps.handlers.plan.close_ops.discover_plan_types",
+            return_value={},
+            create=True,
+        ):
+            actual_key, updated_reg = heal_fn(
+                "FPLAN", "0042", plan_file, registry, "fplan_registry.json", MagicMock(), MagicMock(), messages
+            )
+
+        assert updated_reg["plans"][actual_key]["subject"] == "my great feature"
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops.discover_plan_types", create=True)
+    def test_emits_self_heal_warning_message(self, _mock_discover, tmp_path):
+        heal_fn = _import_self_heal()
+        plan_file = tmp_path / "FPLAN-0001_test_2026-01-01.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+        registry = {"plans": {}, "next_number": 1}
+        messages = []
+
+        with patch(
+            "aipass.flow.apps.handlers.plan.close_ops.discover_plan_types",
+            return_value={},
+            create=True,
+        ):
+            heal_fn("FPLAN", "0001", plan_file, registry, "fplan_registry.json", MagicMock(), MagicMock(), messages)
+
+        assert any("self-heal" in m.get("text", "").lower() for m in messages)
+        assert any("Registered" in m.get("text", "") for m in messages)
+
+
+class TestSelfHealSamePrefixCollision:
+    @patch("aipass.flow.apps.handlers.plan.close_ops.discover_plan_types", create=True)
+    def test_bumps_to_next_number(self, _mock_discover, tmp_path):
+        heal_fn = _import_self_heal()
+        plan_file = tmp_path / "FPLAN-0005_colliding_2026-03-01.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+        registry = {
+            "plans": {"0005": {"status": "closed", "subject": "existing"}},
+            "next_number": 10,
+        }
+        messages = []
+
+        with patch(
+            "aipass.flow.apps.handlers.plan.close_ops.discover_plan_types",
+            return_value={},
+            create=True,
+        ):
+            actual_key, updated_reg = heal_fn(
+                "FPLAN", "0005", plan_file, registry, "fplan_registry.json", MagicMock(), MagicMock(), messages
+            )
+
+        assert actual_key == "0010"
+        assert "0010" in updated_reg["plans"]
+        assert "0005" in updated_reg["plans"]
+        assert updated_reg["next_number"] == 11
+        assert any("Bumping" in m.get("text", "") for m in messages)
+
+
+class TestSelfHealCrossPrefixCollision:
+    def test_notes_cross_prefix_collision(self, tmp_path):
+        heal_fn = _import_self_heal()
+        plan_file = tmp_path / "DPLAN-0013_design_2026-03-01.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+        registry = {"plans": {}, "next_number": 13}
+        save_fn = MagicMock()
+        other_registry = {"plans": {"0013": {"status": "closed", "subject": "fplan thing"}}}
+        load_fn = MagicMock(return_value=other_registry)
+        messages = []
+
+        with patch(
+            "aipass.flow.apps.handlers.plan.close_ops.discover_plan_types",
+            return_value={
+                "flow_plans": {"prefix": "FPLAN", "registry_file": "fplan_registry.json"},
+                "dev_plans": {"prefix": "DPLAN", "registry_file": "dplan_registry.json"},
+            },
+            create=True,
+        ):
+            actual_key, updated_reg = heal_fn(
+                "DPLAN", "0013", plan_file, registry, "dplan_registry.json", save_fn, load_fn, messages
+            )
+
+        assert actual_key == "0013"
+        assert any("FPLAN-0013 also exists" in m.get("text", "") for m in messages)
+
+    def test_skips_own_prefix_in_cross_check(self, tmp_path):
+        heal_fn = _import_self_heal()
+        plan_file = tmp_path / "FPLAN-0020_test_2026-03-01.md"
+        plan_file.write_text("# Plan", encoding="utf-8")
+        registry = {"plans": {}, "next_number": 20}
+        load_fn = MagicMock()
+        messages = []
+
+        with patch(
+            "aipass.flow.apps.handlers.template.plan_type_loader.discover_plan_types",
+            return_value={
+                "flow_plans": {"prefix": "FPLAN", "registry_file": "fplan_registry.json"},
+            },
+        ):
+            heal_fn("FPLAN", "0020", plan_file, registry, "fplan_registry.json", MagicMock(), load_fn, messages)
+
+        load_fn.assert_not_called()
+
+
+# ═══════════════════════════════════════════════════════════
+# 6. close_plan_impl — self-heal integration path
+# ═══════════════════════════════════════════════════════════
+
+
+class TestClosePlanImplSelfHeal:
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="dplan_registry.json")
+    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    def test_triggers_self_heal_when_not_in_registry(self, mock_subprocess, _mock_resolve, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+
+        plan_file = tmp_path / "DPLAN-0176_design_topic_2026-05-10.md"
+        plan_file.write_text("# Real content\nDesign notes here.", encoding="utf-8")
+
+        registry = {"plans": {}, "next_number": 175}
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (False, "Plan 0176 not found")
+
+        with (
+            patch(
+                "aipass.flow.apps.handlers.plan.close_ops._find_unregistered_plan_file",
+                return_value=plan_file,
+            ),
+            patch(
+                "aipass.flow.apps.handlers.plan.close_ops._self_heal_unregistered_plan",
+                return_value=(
+                    "0176",
+                    {
+                        "plans": {
+                            "0176": {
+                                "status": "open",
+                                "subject": "design topic",
+                                "file_path": str(plan_file),
+                                "location": str(tmp_path),
+                                "self_healed": True,
+                            }
+                        },
+                        "next_number": 177,
+                    },
+                ),
+            ) as mock_heal,
+            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            result = close_plan_impl(plan_num="DPLAN-0176", **deps)
+
+        mock_heal.assert_called_once()
+        assert result["success"] is True
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
+    @patch("aipass.flow.apps.handlers.plan.close_ops._find_unregistered_plan_file", return_value=None)
+    def test_returns_not_found_when_no_file_on_disk(self, _mock_find, _mock_resolve):
+        close_plan_impl = _import_close_plan_impl()
+        deps = _make_deps()
+        deps["load_registry"].return_value = {"plans": {}}
+        deps["validate_plan_exists"].return_value = (False, "Plan 9990 not found")
+
+        result = close_plan_impl(plan_num="FPLAN-9990", **deps)
+        assert result["success"] is False
+        assert result["messages"][0]["text"] == "not_found"
+
+
+# ═══════════════════════════════════════════════════════════
+# 7. [VERIFY] block — physical state checks after self-heal
+# ═══════════════════════════════════════════════════════════
+
+
+class TestSelfHealVerifyBlock:
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
+    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    def test_verify_all_pass(self, mock_subprocess, _mock_resolve, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+
+        plan_file = tmp_path / "FPLAN-0042_test_2026-03-01.md"
+        plan_file.write_text("# Real content here.", encoding="utf-8")
+        processed_dir = tmp_path / "processed"
+        processed_dir.mkdir()
+        dest_file = processed_dir / plan_file.name
+        dest_file.write_text("# Archived", encoding="utf-8")
+
+        registry = {
+            "plans": {
+                "42": {
+                    "status": "open",
+                    "subject": "test",
+                    "file_path": str(plan_file),
+                    "location": str(tmp_path),
+                    "self_healed": True,
+                }
+            },
+            "next_number": 43,
+        }
+
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (True, None)
+
+        with (
+            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
+            patch(
+                "aipass.flow.apps.handlers.mbank.process.PROCESSED_PLANS_DIR",
+                processed_dir,
+            ),
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            plan_file.unlink()
+            result = close_plan_impl(plan_num="FPLAN-0042", **deps)
+
+        assert result["success"] is True
+        verify_msgs = [
+            m
+            for m in result["messages"]
+            if "[VERIFY]" in m.get("text", "") or "[OK]" in m.get("text", "") or "[FAIL]" in m.get("text", "")
+        ]
+        assert len(verify_msgs) >= 1
+        ok_msgs = [m for m in result["messages"] if "[OK]" in m.get("text", "")]
+        assert len(ok_msgs) >= 2
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
+    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    def test_verify_fails_when_file_not_in_processed(self, mock_subprocess, _mock_resolve, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+
+        plan_file = tmp_path / "FPLAN-0055_missing_2026-03-01.md"
+        plan_file.write_text("# Content", encoding="utf-8")
+        processed_dir = tmp_path / "processed_empty"
+        processed_dir.mkdir()
+
+        registry = {
+            "plans": {
+                "55": {
+                    "status": "open",
+                    "subject": "missing test",
+                    "file_path": str(plan_file),
+                    "location": str(tmp_path),
+                    "self_healed": True,
+                }
+            },
+            "next_number": 56,
+        }
+
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (True, None)
+
+        with (
+            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
+            patch(
+                "aipass.flow.apps.handlers.mbank.process.PROCESSED_PLANS_DIR",
+                processed_dir,
+            ),
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            result = close_plan_impl(plan_num="FPLAN-0055", **deps)
+
+        assert result["success"] is True
+        fail_msgs = [m for m in result["messages"] if "[FAIL]" in m.get("text", "")]
+        assert len(fail_msgs) >= 1
+        assert any("NOT found in processed_plans" in m.get("text", "") for m in fail_msgs)
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
+    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    def test_verify_fails_when_source_still_exists(self, mock_subprocess, _mock_resolve, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+
+        plan_file = tmp_path / "FPLAN-0060_leftover_2026-03-01.md"
+        plan_file.write_text("# Content", encoding="utf-8")
+        processed_dir = tmp_path / "processed"
+        processed_dir.mkdir()
+        (processed_dir / plan_file.name).write_text("# Archived copy", encoding="utf-8")
+
+        registry = {
+            "plans": {
+                "60": {
+                    "status": "open",
+                    "subject": "leftover test",
+                    "file_path": str(plan_file),
+                    "location": str(tmp_path),
+                    "self_healed": True,
+                }
+            },
+            "next_number": 61,
+        }
+
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (True, None)
+
+        with (
+            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
+            patch(
+                "aipass.flow.apps.handlers.mbank.process.PROCESSED_PLANS_DIR",
+                processed_dir,
+            ),
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            result = close_plan_impl(plan_num="FPLAN-0060", **deps)
+
+        assert result["success"] is True
+        fail_msgs = [m for m in result["messages"] if "[FAIL]" in m.get("text", "")]
+        assert any("Source file still exists" in m.get("text", "") for m in fail_msgs)
+
+    def test_verify_skipped_for_non_self_healed_plans(self, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+
+        plan_file = tmp_path / "FPLAN-0070_normal_2026-03-01.md"
+        plan_file.write_text("# Normal plan content", encoding="utf-8")
+
+        registry = {
+            "plans": {
+                "70": {
+                    "status": "open",
+                    "subject": "normal plan",
+                    "file_path": str(plan_file),
+                    "location": str(tmp_path),
+                }
+            },
+            "next_number": 71,
+        }
+
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (True, None)
+
+        with (
+            patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None),
+            patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None),
+            patch("aipass.flow.apps.handlers.plan.close_ops.subprocess"),
+            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            result = close_plan_impl(plan_num="70", **deps)
+
+        assert result["success"] is True
+        verify_msgs = [m for m in result["messages"] if "[VERIFY]" in m.get("text", "")]
+        assert len(verify_msgs) == 0
