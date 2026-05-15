@@ -460,7 +460,7 @@ class TestPrCommand:
     @patch("aipass.drone.apps.handlers.git.dev_pr_handler.create_branch_pr")
     def test_pr_with_description_calls_handler(self, mock_pr: MagicMock, devpulse_dir: Path) -> None:
         mock_pr.return_value = {"success": True, "message": "PR created", "pr_url": "https://example.com"}
-        result = handle_command("pr", ["test description"])
+        handle_command("pr", ["test description"])
         mock_pr.assert_called_once()
 
 
