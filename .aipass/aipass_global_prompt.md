@@ -55,9 +55,7 @@ src/aipass/{name}/
 └── README.md
 ```
 
-Secrets at `~/.secrets/aipass/` — API keys, tokens, credentials.
-
-11 core branches: drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, memory, devpulse.
+12 core branches: aipass, drone, seedgo, prax, cli, flow, ai_mail, api, trigger, spawn, memory, devpulse.
 
 # Commands
 
@@ -79,11 +77,11 @@ Read-only awareness (all branches):
 
 All write operations (commit, push, merge, checkout) restricted to devpulse via tier-based access. Dispatched agents build code, run tests — devpulse reviews diff, commits.
 
-Drone runs git via Python subprocess, bypasses settings.json deny rules by design — drone is the gate.
+Drone runs git via Python subprocess, bypasses settings.json deny rules by design — drone is the gate. `git_gate.py` PreToolUse hook enforces mechanically — applies to ALL sessions including dispatched agents. bypassPermissions does not skip hooks.
 
 Local files = source of truth. Edit file → state on disk IS reality.
 
-`git_gate.py` PreToolUse hook enforces mechanically — applies to ALL sessions including dispatched agents. bypassPermissions does not skip hooks.
+Linting and formatting run automatically on commit via drone's commit handler (ruff check --fix + ruff format).
 
 # aipass init
 
@@ -122,12 +120,6 @@ Read and reply:
 
 Always reply to dispatch emails. Complete task → email back results. No silent completions.
 
-# Feedback — Cross-Project Communication
-
-Send feedback to devpulse from any project. Messages accumulate silently — no wake, no notification. DevPulse reads on demand. Works from any AIPass project (requires `AIPASS_HOME`).
-
-Sender auto-detected. `drone @devpulse feedback --help` for commands.
-
 # Plans (flow)
 
 Plans manage context you don't need to carry. You don't remember what's in a plan — you remember it exists and where to find it. Registry = catalog.
@@ -140,12 +132,7 @@ Plans manage context you don't need to carry. You don't remember what's in a pla
 - Other types may exist — `drone @flow --help` for current list.
 
 Commands:
-- `drone @flow create . "Subject"` — create FPLAN in current branch
-- `drone @flow create /path/to "Subject"` — create FPLAN at any path
-- `drone @flow create . "Subject" dplan` — create DPLAN
-- `drone @flow create . "Subject" tdplan` — create TDPLAN
-- `drone @flow create . "Subject" master` — create FPLAN master
-- `drone @flow create . "Subject" aplan` — create APLAN
+- `drone @flow create <path> "Subject" [type]` — create plan. Types: `dplan`, `aplan`, `tdplan`, `master`. Default = FPLAN. Path `.` = current branch.
 - `drone @flow list open` — list active plans
 - `drone @flow close <id>` — close a plan
 - `drone @flow --help` — full flow reference
@@ -175,28 +162,7 @@ Where to put what:
 
 Save proactively. Triggers: after milestone, decision, learning, before switching topics.
 
-Archive:
-- `drone @memory search <query>` — search archived memories
-- `drone @memory --help` — full memory reference
-
-# Git Workflow
-
-Drone = only git interface. All git/gh commands denied at project level.
-
-Read-only via drone:
-- `drone @git status` — changes in your branch directory
-- `drone @git diff` — actual diff
-- `drone @git log` — recent commits
-
-Write operations restricted to devpulse. You build + test → devpulse reviews + commits.
-
-Before submitting code:
-```
-ruff check --fix src/ tests/
-ruff format src/ tests/
-```
-
-Respect .gitignore. Gitignored patterns (`.trinity/`, `.ai_mail.local/`, `DPLAN-*`, `*.local.*`, `logs/`, `.chroma/`) ignored for a reason.
+When local.json overflows limits, memories roll over to vector store via `@memory`. Search past context with `drone @memory search <query>`. `drone @memory --help` for full reference.
 
 # How to Work
 
@@ -220,12 +186,13 @@ Errors go to both. Console tells user. Log tells next session.
 
 Logs = first diagnostic tool. Check `logs/` before anything else. Don't write debug scripts or print statements — read logs.
 
+Each branch also has `{branch}_json/` — structured JSON files per handler (config, data, log). Contains operation history, handler configuration, and runtime data. Check these for handler-level debugging alongside prax logs.
+
 # Hard Rules
 
 - No cross-branch file edits. Issue in another branch → email them.
 - No bare imports. Always `from aipass.{module}.apps.modules...`
 - No hardcoded paths. Use `Path(__file__).parents[N]` or drone for resolution.
-- Never move/archive/delete files with user's name. Personal files off-limits.
 - No deleting files. Rename `my_handler(disabled).py`, move to sibling `.archive/`. `(disabled)` tag gitignored. Never truly delete.
 - Verify after fixing. Run test or command to confirm. Don't say "fixed" until verified.
 - Cross-platform. Public package — Linux, macOS, Windows. `pathlib.Path` not string concat. `Path.home()` not `~`.
@@ -243,14 +210,5 @@ Prompts: plant breadcrumbs, not encyclopedias. Two lines ("this exists, look her
 
 Prompts are signposts, not journals. Injected every turn — keep minimal. Never track state/sessions/context in prompts. State → `.trinity/` + `STATUS.local.md`. Prompts guide; memories record; registries catalog.
 
-# Setup: if drone commands fail
+If `drone` can't find the AIPass registry, set `AIPASS_HOME=/path/to/AIPass` in shell profile and `~/.claude/settings.json` env block.
 
-If `drone` cannot find AIPass registry:
-
-`export AIPASS_HOME=/path/to/AIPass`
-
-Add to shell profile (`~/.bashrc`/`~/.zshrc`) and `~/.claude/settings.json` env block.
-
-# Claude Code Docs (Local)
-
-`/docs` to list topics, `/docs <topic>` to read (e.g. `/docs hooks`).

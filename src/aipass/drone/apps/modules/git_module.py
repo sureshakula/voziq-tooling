@@ -55,7 +55,6 @@ _COMMANDS = (
     "unlock",
     "dev-pr",
     "delete-branch",
-    "system-pr",
     "merge",
     "smart-sync",
     "fix",
@@ -153,8 +152,6 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         return _handle_sync(args)
     if command == "unlock":
         return _handle_unlock(args)
-    if command == "system-pr":
-        return _handle_system_pr(args, caller)
     if command == "merge":
         return _handle_merge(args, caller)
     if command == "smart-sync":
@@ -162,7 +159,7 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
     if command == "fix":
         return _handle_fix(args, caller)
     if command == "pr":
-        return {"stdout": "", "stderr": "Agent PRs are deprecated.", "exit_code": 1}
+        return _handle_pr(args)
 
     available = ", ".join(_COMMANDS)
     return {
@@ -215,6 +212,21 @@ def _handle_branches() -> dict:
     return {"stdout": result["message"], "stderr": "", "exit_code": 0}
 
 
+def _handle_pr(args: list[str]) -> dict:
+    """Handle the pr subcommand — push current branch and create PR to main."""
+    if not args:
+        return {
+            "stdout": "",
+            "stderr": "Usage: drone @git pr <description>",
+            "exit_code": 1,
+        }
+    description = " ".join(args)
+    result = dev_pr_handler.create_branch_pr(description)
+    if result["success"]:
+        return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+    return {"stdout": "", "stderr": result["message"], "exit_code": 1}
+
+
 def _handle_dev_pr(args: list[str]) -> dict:
     """Handle the dev-pr subcommand (owner tier)."""
     if not args:
@@ -242,15 +254,6 @@ def _handle_delete_branch(args: list[str]) -> dict:
     if result["success"]:
         return {"stdout": result["message"], "stderr": "", "exit_code": 0}
     return {"stdout": "", "stderr": result["message"], "exit_code": 1}
-
-
-def _handle_system_pr(_args: list[str], _caller: str) -> dict:
-    """Handle the system-pr subcommand — DEPRECATED."""
-    return {
-        "stdout": "",
-        "stderr": "system-pr is deprecated. Use: drone @git dev-pr <description>",
-        "exit_code": 1,
-    }
 
 
 def _handle_merge(args: list[str], caller: str) -> dict:
@@ -542,7 +545,7 @@ def get_help(command: str | None = None) -> str:
             "git workflow [args] — Passthrough to gh workflow CLI [global]\n  Examples: list, view <name>, run <name>\n"
         )
     if command == "pr":
-        return "git pr — DEPRECATED. Agent PRs are no longer supported. Devpulse handles git.\n"
+        return "git pr <description> — Push current branch and create PR to main [owner]\n"
     if command == "status":
         return "git status [--all] — Show git status filtered to your branch (--all for repo-wide) [global]\n"
     if command == "diff":
@@ -585,8 +588,6 @@ def get_help(command: str | None = None) -> str:
         )
     if command == "unlock":
         return "git unlock --force — Force-release the PR lock [owner]\n"
-    if command == "system-pr":
-        return "git system-pr — DEPRECATED. Use: drone @git dev-pr <description>\n"
     if command == "merge":
         return (
             "git merge <PR#> — Merge a PR and sync local main [owner]\n"
@@ -624,13 +625,13 @@ def get_help(command: str | None = None) -> str:
         "Owner (devpulse only):\n"
         "  commit <msg> [--all | files]  Commit changes (selective or --all)\n"
         "  checkout <main|dev>    Switch branches\n"
+        "  pr <desc>              Push current branch and create PR to main\n"
         "  dev-pr <desc>          Push dev and create PR to main\n"
         "  delete-branch <name>   Delete a remote branch\n"
         "  merge <PR#>            Merge a PR\n"
         "  sync [--autostash]     Checkout main and pull\n"
         "  smart-sync             Fetch + rebase if behind\n"
         "  unlock --force         Force-release the PR lock\n"
-        "  system-pr              DEPRECATED (use dev-pr)\n"
         "  fix [--dry-run]        Fix broken git states\n"
     )
 

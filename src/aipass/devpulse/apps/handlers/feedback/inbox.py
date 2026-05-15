@@ -18,6 +18,7 @@ from rich.table import Table
 from aipass.devpulse.apps.handlers.feedback.storage import load_inbox, save_inbox
 
 from aipass.cli.apps.modules import err_console
+from aipass.devpulse.apps.handlers.json import json_handler
 
 console = err_console
 
@@ -27,6 +28,7 @@ def list_messages() -> None:
 
     Shows id, from, subject, date, and read status for each message.
     """
+    json_handler.log_operation("list_messages")
     data = load_inbox()
     messages = data.get("messages", [])
 

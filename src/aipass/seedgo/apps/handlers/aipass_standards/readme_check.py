@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: readme_check.py
 # Description: README Standards Checker Handler
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-03-05
-# Modified: 2026-03-05
+# Modified: 2026-05-15
 # =============================================
 
 """
@@ -18,6 +18,8 @@ Checks:
 4. Directory tree accuracy (mentioned directories exist on disk)
 5. Module list completeness (all modules in apps/modules/ mentioned)
 6. Command list presence (commands/usage section is not empty)
+7. Test count accuracy (claimed count vs actual def test_ functions)
+8. Markdown link validity (relative links point to existing paths)
 """
 
 import os
@@ -77,6 +79,8 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
             "Directory tree accuracy",
             "Module list completeness",
             "Command list presence",
+            "Test count accuracy",
+            "Markdown link validity",
         ]:
             checks.append({"name": name, "passed": False, "message": "Cannot check - README.md missing"})
 
@@ -118,6 +122,14 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     # Check 6: Command list presence
     commands_check = check_command_list(lines, module_path, bypass_rules)
     checks.append(commands_check)
+
+    # Check 7: Test count accuracy
+    test_count_check = check_test_count_accuracy(lines, branch_root, module_path, bypass_rules)
+    checks.append(test_count_check)
+
+    # Check 8: Markdown link validity
+    link_check = check_markdown_links(lines, branch_root, module_path, bypass_rules)
+    checks.append(link_check)
 
     # Calculate score
     passed_checks = sum(1 for c in checks if c["passed"])
@@ -405,6 +417,141 @@ def check_module_list(lines: List[str], branch_root: Path, file_path: str, bypas
         "passed": False,
         "message": f"Modules not mentioned in README: {', '.join(missing_modules)}",
     }
+
+
+def check_test_count_accuracy(
+    lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None
+) -> Dict:
+    """
+    Check that test count claims in README match actual test function count.
+
+    Scans README for patterns like "N tests", "N test functions", etc.
+    Counts actual `def test_` functions in tests/ directory.
+    Flags when claimed count drifts >10% from actual.
+    """
+    if is_bypassed(file_path, "readme", None, bypass_rules):
+        return {"name": "Test count accuracy", "passed": True, "message": "Bypassed by bypass rules"}
+
+    content = "\n".join(lines)
+
+    claimed_counts = _extract_test_counts(content)
+    if not claimed_counts:
+        return {
+            "name": "Test count accuracy",
+            "passed": True,
+            "message": "No test count claims found in README (skipped)",
+        }
+
+    tests_dir = branch_root / "tests"
+    if not tests_dir.exists():
+        return {
+            "name": "Test count accuracy",
+            "passed": True,
+            "message": "No tests/ directory found (skipped)",
+        }
+
+    actual_count = _count_test_functions(tests_dir)
+    max_claimed = max(claimed_counts)
+
+    if actual_count == 0:
+        if max_claimed > 0:
+            return {
+                "name": "Test count accuracy",
+                "passed": False,
+                "message": f"README claims {max_claimed} tests but no test functions found",
+            }
+        return {"name": "Test count accuracy", "passed": True, "message": "Both README and tests/ show 0 tests"}
+
+    drift_pct = abs(max_claimed - actual_count) / actual_count * 100
+
+    if drift_pct <= 10:
+        return {
+            "name": "Test count accuracy",
+            "passed": True,
+            "message": f"Test count claim ({max_claimed}) within 10% of actual ({actual_count})",
+        }
+
+    return {
+        "name": "Test count accuracy",
+        "passed": False,
+        "message": f"README claims {max_claimed} tests, actual count is {actual_count} ({drift_pct:.0f}% drift)",
+    }
+
+
+def _extract_test_counts(content: str) -> List[int]:
+    """Extract numeric test count claims from README content."""
+    counts = []
+    pattern = re.compile(r"\b(\d+)\s+tests?\b", re.IGNORECASE)
+    for match in pattern.finditer(content):
+        counts.append(int(match.group(1)))
+    return counts
+
+
+def _count_test_functions(tests_dir: Path) -> int:
+    """Count `def test_` functions in all test_*.py files under tests/."""
+    count = 0
+    test_func_pattern = re.compile(r"^\s*def\s+test_", re.MULTILINE)
+    for test_file in tests_dir.rglob("test_*.py"):
+        try:
+            source = test_file.read_text(encoding="utf-8")
+            count += len(test_func_pattern.findall(source))
+        except OSError:
+            logger.info("Cannot read test file %s for count", test_file)
+            continue
+    return count
+
+
+def check_markdown_links(lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None) -> Dict:
+    """
+    Check that relative markdown links point to existing paths.
+
+    Parses [text](path) links where path is relative (not http/https/mailto/#).
+    Verifies each path exists relative to branch root.
+    """
+    if is_bypassed(file_path, "readme", None, bypass_rules):
+        return {"name": "Markdown link validity", "passed": True, "message": "Bypassed by bypass rules"}
+
+    content = "\n".join(lines)
+    links = _extract_relative_links(content)
+
+    if not links:
+        return {
+            "name": "Markdown link validity",
+            "passed": True,
+            "message": "No relative markdown links found (skipped)",
+        }
+
+    dead_links = []
+    for link_text, link_path in links:
+        resolved = (branch_root / link_path).resolve()
+        if not resolved.exists():
+            dead_links.append(f"{link_path} ({link_text})")
+
+    if not dead_links:
+        return {
+            "name": "Markdown link validity",
+            "passed": True,
+            "message": f"All {len(links)} relative links verified",
+        }
+
+    return {
+        "name": "Markdown link validity",
+        "passed": False,
+        "message": f"Dead links: {', '.join(dead_links)}",
+    }
+
+
+def _extract_relative_links(content: str) -> List[tuple]:
+    """Extract relative markdown links as (text, path) tuples."""
+    link_pattern = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
+    links = []
+    for match in link_pattern.finditer(content):
+        text = match.group(1)
+        path = match.group(2)
+        if path.startswith(("http://", "https://", "mailto:", "#")):
+            continue
+        links.append((text, path))
+    return links
 
 
 def check_command_list(lines: List[str], file_path: str, bypass_rules: list | None = None) -> Dict:

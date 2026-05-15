@@ -35,6 +35,7 @@ from pathlib import Path
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 from aipass.devpulse.apps.handlers.watchdog import registry as _registry
+from aipass.devpulse.apps.handlers.json import json_handler
 
 
 _DURATION_TOKEN_RE = re.compile(r"(\d+)([smh])")
@@ -180,6 +181,7 @@ def wake_in(duration: str) -> dict:
     orchestrators with a console attached can see progress. Short timers
     stay silent so test runs aren't chatty.
     """
+    json_handler.log_operation("wake_in", {"duration": duration})
     total_seconds = parse_duration(duration)
     started_at = time.monotonic()
     logger.info("[watchdog.timer] wake_in duration=%s total=%ss", duration, total_seconds)

@@ -26,6 +26,7 @@ from aipass.devpulse.apps.handlers.feedback.storage import (
 )
 
 from aipass.cli.apps.modules import err_console
+from aipass.devpulse.apps.handlers.json import json_handler
 
 console = err_console
 
@@ -81,6 +82,7 @@ def send_feedback(from_branch: str, subject: str, body: str, ai_mail_path: str =
     Returns:
         str: The generated message ID.
     """
+    json_handler.log_operation("send_feedback", {"from_branch": from_branch, "subject": subject})
     data = load_inbox()
     msg_id = generate_id()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")

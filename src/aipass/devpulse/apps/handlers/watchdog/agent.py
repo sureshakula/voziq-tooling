@@ -35,6 +35,7 @@ from pathlib import Path
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 from aipass.devpulse.apps.handlers.watchdog import registry as _registry
+from aipass.devpulse.apps.handlers.json import json_handler
 
 
 def _stderr(msg: str) -> None:
@@ -404,7 +405,7 @@ def watch_agent(
                 elapsed_int = int(time.monotonic() - started_at)
                 state, reason, exit_code = _classify_exit(branch_path, lock_existed=True, dispatch_ts=dispatch_ts)
                 logger.info("[watchdog.agent] wake agent_id=%s state=%s elapsed=%s", agent_id, state, elapsed_int)
-                return {
+                result = {
                     "woke": True,
                     "reason": reason,
                     "elapsed": elapsed_int,
@@ -413,6 +414,8 @@ def watch_agent(
                     "agent_id": agent_id,
                     "handle": handle,
                 }
+                json_handler.log_operation("watch_agent", {"agent_id": agent_id, "state": result.get("agent_state")})
+                return result
 
             if isinstance(initial_pid, int) and not _pid_alive(initial_pid):
                 _stderr(
