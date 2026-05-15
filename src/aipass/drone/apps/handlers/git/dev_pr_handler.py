@@ -59,7 +59,7 @@ def create_branch_pr(description: str, target_branch: str = "main") -> dict:
 
     try:
         push = subprocess.run(
-            ["git", "push", "-u", "origin", push_refspec],
+            ["git", "push", "origin", push_refspec],
             capture_output=True,
             text=True,
             cwd=str(repo_root),
