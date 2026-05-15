@@ -350,11 +350,14 @@ class TestRunDoctor:
 
     def test_run_doctor_returns_int(self) -> None:
         """run_doctor returns an integer error count."""
-        with patch("aipass.aipass.apps.modules.doctor._check_system", return_value=[]):
-            with patch("aipass.aipass.apps.modules.doctor._check_identity", return_value=[]):
-                with patch("aipass.aipass.apps.modules.doctor._check_services", return_value=[]):
-                    with patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]):
-                        result = run_doctor()
+        with (
+            patch("aipass.aipass.apps.modules.doctor._check_system", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_identity", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_services", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_structure", return_value=[]),
+        ):
+            result = run_doctor()
         assert isinstance(result, int)
         assert result == 0
 
@@ -363,11 +366,14 @@ class TestRunDoctor:
         from aipass.aipass.apps.modules.doctor import CheckResult
 
         fail_check = CheckResult("test", GLYPH_FAIL, "bad", "fix it")
-        with patch("aipass.aipass.apps.modules.doctor._check_system", return_value=[fail_check]):
-            with patch("aipass.aipass.apps.modules.doctor._check_identity", return_value=[]):
-                with patch("aipass.aipass.apps.modules.doctor._check_services", return_value=[]):
-                    with patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]):
-                        result = run_doctor()
+        with (
+            patch("aipass.aipass.apps.modules.doctor._check_system", return_value=[fail_check]),
+            patch("aipass.aipass.apps.modules.doctor._check_identity", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_services", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_structure", return_value=[]),
+        ):
+            result = run_doctor()
         assert result == 1
 
     def test_run_doctor_counts_only_errors_not_warnings(self) -> None:
@@ -375,11 +381,14 @@ class TestRunDoctor:
         from aipass.aipass.apps.modules.doctor import CheckResult
 
         warn_check = CheckResult("test", GLYPH_WARN, "minor", "")
-        with patch("aipass.aipass.apps.modules.doctor._check_system", return_value=[warn_check]):
-            with patch("aipass.aipass.apps.modules.doctor._check_identity", return_value=[]):
-                with patch("aipass.aipass.apps.modules.doctor._check_services", return_value=[]):
-                    with patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]):
-                        result = run_doctor()
+        with (
+            patch("aipass.aipass.apps.modules.doctor._check_system", return_value=[warn_check]),
+            patch("aipass.aipass.apps.modules.doctor._check_identity", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_services", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_community", return_value=[]),
+            patch("aipass.aipass.apps.modules.doctor._check_structure", return_value=[]),
+        ):
+            result = run_doctor()
         assert result == 0
 
 

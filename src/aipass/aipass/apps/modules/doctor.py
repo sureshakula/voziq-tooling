@@ -36,10 +36,18 @@ from aipass.cli.apps.modules import console
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
+from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
+    check_placement,
+    check_pyproject,
+    check_registry_consistency,
+    detect_pollution,
+    find_project_root,
+    find_registry,
+    scan_agents,
+)
 from aipass.aipass.apps.modules.doctor_wire import (
-    ENV_DESCRIPTIONS,
-    HOOK_DESCRIPTIONS,
     _auto_wire_provider,
+    prompt_auto_wire,
 )
 from aipass.aipass.apps.handlers.system_detect.system_detector import (
     detect_cpu,
@@ -362,84 +370,12 @@ def _check_provider_manifest(interactive: bool = False, fix: bool = False) -> Li
                 console.print(f"[green]✓[/green] {action}")
             wired = bool(actions)
         else:
-            wired = _prompt_auto_wire(manifest_path, results, missing_hooks, missing_env, missing_deny, missing_ask)
+            wired = prompt_auto_wire(manifest_path, missing_hooks, missing_env, missing_deny, missing_ask)
 
         if wired:
             return _check_provider_manifest(interactive=False, fix=False)
 
     return results
-
-
-def _prompt_auto_wire(
-    manifest_path: Path,
-    results: List[CheckResult],
-    missing_hooks: List[str],
-    missing_env: List[str],
-    missing_deny: List[str],
-    missing_ask: List[str],
-) -> bool:
-    """Prompt user to auto-wire provider settings, or print manual warning.
-
-    Returns True if wiring was performed.
-    """
-    hook_count = len(missing_hooks)
-    env_count = len(missing_env)
-    perm_count = len(missing_deny) + len(missing_ask)
-    logger.warning("[doctor] %d hooks, %d env vars, %d permissions missing", hook_count, env_count, perm_count)
-    parts = []
-    if hook_count:
-        parts.append(f"{hook_count} hooks")
-    if env_count:
-        parts.append(f"{env_count} env vars")
-    if perm_count:
-        parts.append(f"{perm_count} permissions")
-    console.print(f"\n[bold]{', '.join(parts)} missing[/bold]")
-    console.print("[dim]Review details: .claude/hooks/README.md[/dim]")
-
-    try:
-        answer = input("Auto-wire provider settings? [y/N]: ").strip().lower()
-    except (EOFError, KeyboardInterrupt) as exc:
-        logger.info("[doctor] auto-wire prompt interrupted: %s", type(exc).__name__)
-        answer = "n"
-
-    if answer in ("y", "yes"):
-        actions = _auto_wire_provider(manifest_path, interactive=True)
-        for action in actions:
-            console.print(f"[green]✓[/green] {action}")
-        return bool(actions)
-
-    _print_manual_wire_warning(missing_hooks, missing_env, missing_deny, missing_ask)
-    return False
-
-
-def _print_manual_wire_warning(
-    missing_hooks: List[str],
-    missing_env: List[str],
-    missing_deny: List[str],
-    missing_ask: List[str],
-) -> None:
-    """Print detailed warning when user declines auto-wire."""
-    logger.warning("[doctor] provider settings not wired — user declined auto-wire")
-    console.print("\n[bold]Provider settings not wired. Required for full AIPass functionality:[/bold]\n")
-    if missing_hooks:
-        console.print("[bold]Hooks (code quality enforcement):[/bold]")
-        for hook in missing_hooks:
-            desc = HOOK_DESCRIPTIONS.get(hook, hook)
-            console.print(f"  [dim]•[/dim] {hook} — {desc}")
-        console.print()
-    if missing_env:
-        console.print("[bold]Env vars:[/bold]")
-        for var in missing_env:
-            desc = ENV_DESCRIPTIONS.get(var, var)
-            console.print(f"  [dim]•[/dim] {var} — {desc}")
-        console.print()
-    if missing_deny or missing_ask:
-        console.print(
-            f"{len(missing_deny)} deny rules + {len(missing_ask)} ask rules"
-            " (protect ~/.secrets/, block destructive git)"
-        )
-        console.print()
-    console.print("[dim]Wire manually when ready — see .claude/hooks/README.md[/dim]")
 
 
 def _check_services(verbose: bool = False) -> List[CheckResult]:
@@ -536,23 +472,93 @@ def _check_community() -> List[CheckResult]:
 
 
 # =============================================================================
+# STRUCTURE CHECK GROUP
+# =============================================================================
+
+
+def _check_structure() -> List[CheckResult]:
+    """Run Structure group checks — agent placement, pollution, registry consistency."""
+    results: List[CheckResult] = []
+
+    project_root = find_project_root(Path.cwd())
+    if project_root is None:
+        results.append(
+            CheckResult("project root", GLYPH_WARN, "not detected", "Run from inside an AIPass project directory")
+        )
+        return results
+
+    agents = scan_agents(project_root)
+    results.append(CheckResult("agents found", GLYPH_PASS, f"{len(agents)} agents", ""))
+
+    # Placement
+    placement_issues = check_placement(agents, project_root)
+    if placement_issues:
+        for issue in placement_issues:
+            glyph = GLYPH_WARN if issue.severity == "warn" else GLYPH_FAIL
+            results.append(
+                CheckResult(f"placement: {issue.agent_name}", glyph, issue.actual_path, issue.expected_pattern)
+            )
+    else:
+        results.append(CheckResult("placement", GLYPH_PASS, "all agents correctly placed", ""))
+
+    # Pollution
+    pollution = detect_pollution(agents)
+    if pollution:
+        for hit in pollution:
+            locs = ", ".join(hit.locations)
+            results.append(
+                CheckResult(
+                    f"pollution: {hit.agent_name}",
+                    GLYPH_FAIL,
+                    f"{len(hit.locations)} copies",
+                    f"Duplicate registry_id at: {locs}",
+                )
+            )
+    else:
+        results.append(CheckResult("pollution", GLYPH_PASS, "no duplicates", ""))
+
+    # Registry consistency
+    reg_path = find_registry(project_root)
+    if reg_path:
+        reg_issues = check_registry_consistency(reg_path, agents)
+        if reg_issues:
+            for issue in reg_issues:
+                glyph = GLYPH_FAIL if issue.problem == "missing" else GLYPH_WARN
+                results.append(
+                    CheckResult(f"registry: {issue.branch_name}", glyph, issue.problem, issue.registered_path)
+                )
+        else:
+            results.append(CheckResult("registry paths", GLYPH_PASS, "all paths valid", ""))
+    else:
+        results.append(CheckResult("registry", GLYPH_WARN, "not found", "Expected *_REGISTRY.json in project root"))
+
+    # Pyproject
+    pyproject = check_pyproject(project_root)
+    if pyproject["found"]:
+        results.append(CheckResult("pyproject.toml", GLYPH_PASS, "present", ""))
+    else:
+        results.append(CheckResult("pyproject.toml", GLYPH_WARN, "missing", "Create pyproject.toml for pip packaging"))
+
+    return results
+
+
+# =============================================================================
 # MAIN DOCTOR RUN
 # =============================================================================
 
 
 def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = False) -> int:
-    """Run all four groups and print results. Returns error count."""
+    """Run all five groups and print results. Returns error count."""
     console.print()
     console.print("[bold cyan]aipass doctor[/bold cyan]")
     console.print()
 
-    # Run each check group inside a transient progress spinner so the user
-    # sees what is happening during slow checks (e.g. pytest --collect-only).
     group_specs = [
         ("System", _check_system),
         ("Identity", _check_identity),
         ("Services", lambda: _check_services(verbose=verbose)),
         ("Community", _check_community),
+        ("Structure", _check_structure),
     ]
     groups: Dict[str, List[CheckResult]] = {}
     with make_doctor_progress() as progress:
@@ -609,29 +615,12 @@ def print_introspection() -> None:
     console.print("[bold cyan]doctor Module[/bold cyan]")
     console.print("System health aggregation — flutter-doctor-style output")
     console.print()
-
-    console.print("[yellow]Connected Handlers:[/yellow]")
-    console.print("  [cyan]handlers/system_detect/[/cyan]")
-    console.print("    [dim]- system_detector.py (python, git, shell, OS, RAM, CPU, install)[/dim]")
+    console.print("[yellow]Handlers:[/yellow] system_detect, ui/progress, json, structure_scan")
+    console.print("[yellow]Groups:[/yellow] System, Identity, Services, Community, Structure")
     console.print()
-    console.print("  [cyan]handlers/ui/[/cyan]")
-    console.print("    [dim]- progress.py (GLYPH_PASS/WARN/FAIL, format_check, make_doctor_progress)[/dim]")
-    console.print()
-    console.print("  [cyan]handlers/json/[/cyan]")
-    console.print("    [dim]- json_handler.py (operation logging)[/dim]")
-    console.print()
-
-    console.print("[yellow]Check Groups:[/yellow]")
-    console.print("  [dim]System   — Python, git, shell, OS, RAM, CPU, install method[/dim]")
-    console.print("  [dim]Identity — AIPASS_HOME, registry, passport[/dim]")
-    console.print("  [dim]Services — drone routing, pytest collect, hooks[/dim]")
-    console.print("  [dim]Community — ai_mail, dropbox[/dim]")
-    console.print()
-
     console.print("[yellow]Next:[/yellow]")
-    console.print("  [green]aipass doctor[/green]              [dim]# Run all checks[/dim]")
-    console.print("  [green]aipass doctor --verbose[/green]    [dim]# Full check detail[/dim]")
-    console.print("  [green]aipass doctor --help[/green]       [dim]# Full usage[/dim]")
+    console.print("  [green]aipass doctor[/green]           [dim]# Run all checks[/dim]")
+    console.print("  [green]aipass doctor --verbose[/green] [dim]# Full check detail[/dim]")
     console.print()
 
 
@@ -639,24 +628,17 @@ def print_help() -> None:
     """Print help information."""
     console.print()
     console.print("[bold cyan]aipass doctor[/bold cyan] — System health aggregation")
-    console.print("Flutter-doctor-style check across System / Identity / Services / Community")
+    console.print("Flutter-doctor-style check across System / Identity / Services / Community / Structure")
     console.print()
-
     console.print("[yellow]USAGE:[/yellow]")
-    console.print("  [green]aipass doctor[/green]              [dim]# Run all checks (interactive)[/dim]")
-    console.print("  [green]aipass doctor --verbose[/green]    [dim]# Show sub-check detail[/dim]")
-    console.print("  [green]aipass doctor --fix[/green]        [dim]# Auto-wire missing provider settings[/dim]")
+    console.print("  [green]aipass doctor[/green]           [dim]# Run all checks (interactive)[/dim]")
+    console.print("  [green]aipass doctor --verbose[/green] [dim]# Show sub-check detail[/dim]")
+    console.print("  [green]aipass doctor --fix[/green]     [dim]# Auto-wire missing provider settings[/dim]")
     console.print()
-
-    console.print("[yellow]OUTPUT:[/yellow]")
-    console.print("  [green]✓[/green] green  — check passed")
-    console.print("  [yellow]![/yellow] yellow — warning (non-blocking)")
-    console.print("  [red]✗[/red] red    — error (remediation shown below)")
-    console.print()
-
-    console.print("[yellow]EXIT CODES:[/yellow]")
-    console.print("  0 — all checks pass or warn only")
-    console.print("  1 — one or more errors found")
+    console.print(
+        "[yellow]OUTPUT:[/yellow]  [green]✓[/green] pass  [yellow]![/yellow] warning  [red]✗[/red] error (remediation shown)"
+    )
+    console.print("[yellow]EXIT:[/yellow]    0 = pass/warn only  |  1 = errors found")
     console.print()
 
 

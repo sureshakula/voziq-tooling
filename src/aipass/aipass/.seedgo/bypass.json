@@ -217,6 +217,16 @@
       "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
     },
     {
+      "file": "tests/test_structure_scan.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_structure_scan.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
       "file": "apps/handlers/init/bootstrap.py",
       "standard": "debug_print",
       "reason": "The print() on line 159 is inside a generated shell command string (python3 -c), not a bare print call in this module's code."

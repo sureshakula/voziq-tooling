@@ -224,6 +224,82 @@ def _auto_wire_provider(manifest_path: Path, interactive: bool = True) -> List[s
 
 
 # =============================================================================
+# INTERACTIVE WIRE PROMPTS
+# =============================================================================
+
+
+def prompt_auto_wire(
+    manifest_path: Path,
+    missing_hooks: List[str],
+    missing_env: List[str],
+    missing_deny: List[str],
+    missing_ask: List[str],
+) -> bool:
+    """Prompt user to auto-wire provider settings, or print manual warning.
+
+    Returns True if wiring was performed.
+    """
+    hook_count = len(missing_hooks)
+    env_count = len(missing_env)
+    perm_count = len(missing_deny) + len(missing_ask)
+    logger.warning("[doctor] %d hooks, %d env vars, %d permissions missing", hook_count, env_count, perm_count)
+    parts = []
+    if hook_count:
+        parts.append(f"{hook_count} hooks")
+    if env_count:
+        parts.append(f"{env_count} env vars")
+    if perm_count:
+        parts.append(f"{perm_count} permissions")
+    console.print(f"\n[bold]{', '.join(parts)} missing[/bold]")
+    console.print("[dim]Review details: .claude/hooks/README.md[/dim]")
+
+    try:
+        answer = input("Auto-wire provider settings? [y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt) as exc:
+        logger.info("[doctor] auto-wire prompt interrupted: %s", type(exc).__name__)
+        answer = "n"
+
+    if answer in ("y", "yes"):
+        actions = _auto_wire_provider(manifest_path, interactive=True)
+        for action in actions:
+            console.print(f"[green]✓[/green] {action}")
+        return bool(actions)
+
+    _print_manual_wire_warning(missing_hooks, missing_env, missing_deny, missing_ask)
+    return False
+
+
+def _print_manual_wire_warning(
+    missing_hooks: List[str],
+    missing_env: List[str],
+    missing_deny: List[str],
+    missing_ask: List[str],
+) -> None:
+    """Print detailed warning when user declines auto-wire."""
+    logger.warning("[doctor] provider settings not wired — user declined auto-wire")
+    console.print("\n[bold]Provider settings not wired. Required for full AIPass functionality:[/bold]\n")
+    if missing_hooks:
+        console.print("[bold]Hooks (code quality enforcement):[/bold]")
+        for hook in missing_hooks:
+            desc = HOOK_DESCRIPTIONS.get(hook, hook)
+            console.print(f"  [dim]•[/dim] {hook} — {desc}")
+        console.print()
+    if missing_env:
+        console.print("[bold]Env vars:[/bold]")
+        for var in missing_env:
+            desc = ENV_DESCRIPTIONS.get(var, var)
+            console.print(f"  [dim]•[/dim] {var} — {desc}")
+        console.print()
+    if missing_deny or missing_ask:
+        console.print(
+            f"{len(missing_deny)} deny rules + {len(missing_ask)} ask rules"
+            " (protect ~/.secrets/, block destructive git)"
+        )
+        console.print()
+    console.print("[dim]Wire manually when ready — see .claude/hooks/README.md[/dim]")
+
+
+# =============================================================================
 # OUTPUT FORMATTING
 # =============================================================================
 
