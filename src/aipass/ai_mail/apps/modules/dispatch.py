@@ -13,6 +13,8 @@ Orchestrates dispatch commands: status tracking and daemon management.
 Delegates all business logic to handlers.
 """
 
+import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import List
@@ -39,6 +41,7 @@ DISPATCH (send + wake):
   drone @ai_mail dispatch @branch "Subject" "Body" --fresh            # Send + fresh wake
   drone @ai_mail dispatch @branch "Subject" "Body" --model opus       # Send + wake with Opus
   drone @ai_mail dispatch @branch "Subject" "Body" --no-memory-save
+  drone @ai_mail dispatch @branch "Subject" "Body" --no-watchdog      # Skip auto-watchdog
 
 WAKE ONLY:
   drone @ai_mail dispatch wake @branch                       # Wake with default inbox check
@@ -216,6 +219,7 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
     # Parse flags
     use_fresh = False
     no_memory_save = False
+    no_watchdog = False
     from_branch = None
     use_model = None
     filtered = []
@@ -227,6 +231,10 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
             continue
         if args[i] == "--no-memory-save":
             no_memory_save = True
+            i += 1
+            continue
+        if args[i] == "--no-watchdog":
+            no_watchdog = True
             i += 1
             continue
         if args[i] == "--from" and i + 1 < len(args):
@@ -335,8 +343,55 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
     if not wake_ok:
         logger.warning("[dispatch] Wake failed for %s — email was sent", target)
         error(f"Email sent but wake failed — retry: drone @ai_mail dispatch wake {target}")
+    elif not no_watchdog:
+        _spawn_watchdog(target)
 
     return True
+
+
+def _spawn_watchdog(target: str) -> None:
+    """Auto-spawn devpulse watchdog as a detached background process."""
+    from aipass.ai_mail.apps.handlers.registry.read import get_branch_by_email
+
+    devpulse_info = get_branch_by_email("@devpulse")
+    if not devpulse_info:
+        logger.warning("[dispatch] Cannot spawn watchdog — @devpulse not in registry")
+        return
+
+    _ai_mail_dir = Path(__file__).resolve().parents[2]
+    _repo_root = _ai_mail_dir.parents[2]
+    devpulse_path = devpulse_info.get("path", "")
+    if not devpulse_path:
+        logger.warning("[dispatch] Cannot spawn watchdog — @devpulse has no path")
+        return
+
+    devpulse_dir = Path(devpulse_path)
+    if not devpulse_dir.is_absolute():
+        devpulse_dir = _repo_root / devpulse_dir
+
+    if not devpulse_dir.is_dir():
+        logger.warning("[dispatch] Cannot spawn watchdog — devpulse dir not found: %s", devpulse_dir)
+        return
+
+    cmd = ["drone", "@devpulse", "watchdog", "agent", target]
+
+    spawn_env = os.environ.copy()
+    local_bin = str(Path.home() / ".local" / "bin")
+    if local_bin not in spawn_env.get("PATH", ""):
+        spawn_env["PATH"] = local_bin + ":" + spawn_env.get("PATH", "")
+
+    try:
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=str(devpulse_dir),
+            env=spawn_env,
+        )
+        console.print(f"[green]Watchdog armed for {target}[/green]")
+    except Exception as e:
+        logger.warning("[dispatch] Watchdog spawn failed for %s: %s", target, e)
 
 
 def _orchestrate_daemon() -> bool:
