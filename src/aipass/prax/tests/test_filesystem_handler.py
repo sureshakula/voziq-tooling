@@ -1763,6 +1763,56 @@ class TestParseAgentActivity:
             result = handler._parse_agent_activity(mock_path, "PRAX")
         assert result is True
 
+    def test_batch_cap_limits_emitted_events(self):
+        """Should only emit last N events when batch exceeds cap."""
+        mod, _, _, _, queue = _import_filesystem_handler()
+        handler = _make_handler(mod, queue=queue)
+        mock_path = MagicMock()
+        mock_path.__str__ = MagicMock(return_value="/fake/claude.jsonl")
+        mock_path.name = "claude.jsonl"
+        entries = []
+        tools = ["Read", "Edit", "Write", "Grep", "Glob", "Bash"]
+        for i, tool in enumerate(tools):
+            entries.append(
+                {
+                    "type": "assistant",
+                    "message": {"content": [{"type": "tool_use", "name": tool, "input": {"file_path": f"f{i}.py"}}]},
+                }
+            )
+        data = "\n".join(json.dumps(e) for e in entries) + "\n"
+        mock_path.stat.return_value.st_size = len(data)
+        with patch("builtins.open", _mopen(read_data=data)):
+            result = handler._parse_agent_activity(mock_path, "PRAX")
+        assert result is True
+        cap = mod.MonitoringFileHandler._MAX_AGENT_EVENTS_PER_BATCH
+        assert queue.enqueue.call_count == cap
+
+    def test_batch_cap_emits_tail_not_head(self):
+        """Should emit the last actions in a large batch, not the first."""
+        mod, mock_eq, _, _, queue = _import_filesystem_handler()
+        handler = _make_handler(mod, queue=queue)
+        mock_path = MagicMock()
+        mock_path.__str__ = MagicMock(return_value="/fake/claude.jsonl")
+        mock_path.name = "claude.jsonl"
+        entries = []
+        for i in range(6):
+            entries.append(
+                {
+                    "type": "assistant",
+                    "message": {"content": [{"type": "tool_use", "name": f"Tool{i}", "input": {}}]},
+                }
+            )
+        data = "\n".join(json.dumps(e) for e in entries) + "\n"
+        mock_path.stat.return_value.st_size = len(data)
+        with patch("builtins.open", _mopen(read_data=data)):
+            handler._parse_agent_activity(mock_path, "PRAX")
+        cap = mod.MonitoringFileHandler._MAX_AGENT_EVENTS_PER_BATCH
+        assert queue.enqueue.call_count == cap
+        last_call_kwargs = mock_eq.MonitoringEvent.call_args_list[-1][1]
+        assert "Tool5" in last_call_kwargs["message"]
+        first_call_kwargs = mock_eq.MonitoringEvent.call_args_list[-cap][1]
+        assert "Tool3" in first_call_kwargs["message"]
+
 
 # =============================================
 # CHECK COMMAND INDICATOR TESTS

@@ -545,7 +545,10 @@ def get_help(command: str | None = None) -> str:
             "git workflow [args] — Passthrough to gh workflow CLI [global]\n  Examples: list, view <name>, run <name>\n"
         )
     if command == "pr":
-        return "git pr <description> — Push current branch and create PR to main [owner]\n"
+        return (
+            "git pr <description> — Push current branch and create PR to main [owner]\n"
+            "  On main: creates temp branch from slug. Otherwise: pushes branch directly. No -u flag.\n"
+        )
     if command == "status":
         return "git status [--all] — Show git status filtered to your branch (--all for repo-wide) [global]\n"
     if command == "diff":
@@ -650,7 +653,7 @@ def get_introspective() -> str:
         "    - commit_handler.py (commit_changes — selective files, --all, or pre-staged)\n"
         "    - checkout_handler.py (checkout_branch — main/dev only)\n"
         "    - sync_handler.py (sync_main — safe main synchronization)\n"
-        "    - dev_pr_handler.py (create_dev_pr — push dev, PR to main)\n"
+        "    - dev_pr_handler.py (create_branch_pr, create_dev_pr — PR to main)\n"
         "    - branches_handler.py (list_remote_branches)\n"
         "    - delete_branch_handler.py (delete_remote_branch — protected: main/dev)\n"
         "    - pr_handler.py (create_pr — DEPRECATED, kept for reference)\n"
@@ -665,7 +668,7 @@ def get_introspective() -> str:
         "  gh passthrough:\n"
         "    - issue, run, workflow → subprocess gh <cmd> [args]\n"
         "\n"
-        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (commit, checkout, dev-pr, delete-branch, sync, unlock, system-pr, merge, smart-sync, fix)\n"
+        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (pr, commit, checkout, dev-pr, delete-branch, sync, unlock, system-pr, merge, smart-sync, fix)\n"
     )
 
 
