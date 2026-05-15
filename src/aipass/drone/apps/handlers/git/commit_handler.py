@@ -27,7 +27,9 @@ def _run_test_gate(repo_root: Path) -> dict | None:
         cwd=str(repo_root),
     )
     changed_branches: set[str] = set()
-    for line in status_result.stdout.strip().splitlines():
+    for line in status_result.stdout.splitlines():
+        if len(line) < 4:
+            continue
         filepath = line[3:].split(" -> ")[-1]
         parts = Path(filepath).parts
         if len(parts) >= 3 and parts[0] == "src" and parts[1] == "aipass":

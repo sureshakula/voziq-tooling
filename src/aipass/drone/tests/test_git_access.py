@@ -425,8 +425,14 @@ class TestCommitChanges:
             patch(
                 "aipass.drone.apps.handlers.git.commit_handler.subprocess.run",
                 side_effect=[
-                    mock_ruff_fix, mock_ruff_format, mock_ruff_gate,
-                    mock_status, mock_pytest, mock_add, mock_diff, mock_commit,
+                    mock_ruff_fix,
+                    mock_ruff_format,
+                    mock_ruff_gate,
+                    mock_status,
+                    mock_pytest,
+                    mock_add,
+                    mock_diff,
+                    mock_commit,
                 ],
             ),
         ):
@@ -452,8 +458,13 @@ class TestCommitChanges:
             patch(
                 "aipass.drone.apps.handlers.git.commit_handler.subprocess.run",
                 side_effect=[
-                    mock_ruff_fix, mock_ruff_format, mock_ruff_gate,
-                    mock_status, mock_add, mock_diff, mock_commit,
+                    mock_ruff_fix,
+                    mock_ruff_format,
+                    mock_ruff_gate,
+                    mock_status,
+                    mock_add,
+                    mock_diff,
+                    mock_commit,
                 ],
             ),
         ):
