@@ -1,26 +1,12 @@
 # =================== AIPass ====================
 # Name: windows_compat_check.py
 # Description: Windows Compatibility Standards Checker Handler
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-05-10
-# Modified: 2026-05-10
+# Modified: 2026-05-14
 # =============================================
 
-"""
-Windows Compatibility Standards Checker Handler
-
-Detects POSIX-only patterns that will crash or behave incorrectly on
-Windows.  Scans for:
-
-  1. Unguarded POSIX-only imports (fcntl, pwd, grp, termios, resource)
-  2. Unguarded POSIX-only constants (os.WNOHANG, signal.SIGPIPE)
-  3. Unguarded POSIX-only calls (os.fork, os.setpgid, os.killpg, os.waitpid)
-  4. os.kill() without try/except catching OSError
-
-Detection uses AST parsing to identify violations and check whether they
-sit inside a platform guard (if sys.platform / if os.name / try-except
-ImportError).
-"""
+"""Windows Compatibility Standards Checker Handler."""
 
 import ast
 from pathlib import Path
@@ -47,6 +33,15 @@ _GUARDED_EXCEPT_TYPES = frozenset(
         "ProcessLookupError",
     }
 )
+
+_TEST_POSIX_CALLS: dict[tuple[str, str], str] = {
+    ("os", "chmod"): "os.chmod() — Windows ignores permission bits",
+    ("os", "symlink"): "os.symlink() — Windows needs privileges",
+    ("os", "getuid"): "os.getuid() — not available on Windows",
+    ("os", "getgid"): "os.getgid() — not available on Windows",
+    ("os", "chown"): "os.chown() — not available on Windows",
+    ("stat", "S_IMODE"): "stat.S_IMODE() — Unix permission assertion",
+}
 
 
 def _is_platform_guard(node: ast.expr) -> bool:
@@ -172,6 +167,111 @@ def _find_os_kill_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[
     return violations
 
 
+def _is_test_file(path: Path) -> bool:
+    return "tests" in path.parts or path.name.startswith("test_") or path.name.endswith("_test.py")
+
+
+def _is_pytest_mark(node: ast.expr) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "mark"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "pytest"
+    )
+
+
+def _references_platform(node: ast.expr) -> bool:
+    for child in ast.walk(node):
+        if isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name):
+            if (child.value.id == "sys" and child.attr == "platform") or (
+                child.value.id == "os" and child.attr == "name"
+            ):
+                return True
+    return False
+
+
+def _has_platform_skipif(decorators: list[ast.expr]) -> bool:
+    for dec in decorators:
+        if isinstance(dec, ast.Attribute) and dec.attr == "skip" and _is_pytest_mark(dec.value):
+            return True
+        if not isinstance(dec, ast.Call) or not isinstance(dec.func, ast.Attribute):
+            continue
+        func = dec.func
+        if func.attr == "skip" and _is_pytest_mark(func.value):
+            return True
+        if func.attr == "skipif" and _is_pytest_mark(func.value):
+            if any(_references_platform(arg) for arg in dec.args):
+                return True
+    return False
+
+
+def _match_posix_call(node: ast.AST) -> str | None:
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return None
+    if not isinstance(node.func.value, ast.Name):
+        return None
+    key = (node.func.value.id, node.func.attr)
+    return _TEST_POSIX_CALLS.get(key)
+
+
+def _match_stat_constant(node: ast.AST) -> str | None:
+    if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+        return None
+    if node.value.id == "stat" and node.attr.startswith("S_I") and node.attr != "S_IMODE":
+        return f"stat.{node.attr} — Unix permission constant"
+    return None
+
+
+def _scan_test_body(
+    func_node: ast.FunctionDef | ast.AsyncFunctionDef,
+    guarded: set[int],
+    violations: list[tuple[int, str]],
+) -> None:
+    seen_lines: set[int] = set()
+    for node in ast.walk(func_node):
+        lineno = getattr(node, "lineno", None)
+        if lineno is None or lineno in guarded or lineno in seen_lines:
+            continue
+
+        desc = _match_posix_call(node) or _match_stat_constant(node)
+        if desc:
+            violations.append((lineno, desc))
+            seen_lines.add(lineno)
+
+
+def _collect_unguarded_tests(
+    parent: ast.Module | ast.ClassDef,
+    class_skipif: bool = False,
+) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    results: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
+    for node in ast.iter_child_nodes(parent):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if not node.name.startswith("test_"):
+            continue
+        if not class_skipif and not _has_platform_skipif(node.decorator_list):
+            results.append(node)
+    return results
+
+
+def _find_test_platform_violations(
+    tree: ast.Module,
+    guarded: set[int],
+) -> list[tuple[int, str]]:
+    violations: list[tuple[int, str]] = []
+    targets: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
+
+    targets.extend(_collect_unguarded_tests(tree))
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.ClassDef):
+            targets.extend(_collect_unguarded_tests(node, _has_platform_skipif(node.decorator_list)))
+
+    for func in targets:
+        _scan_test_body(func, guarded, violations)
+
+    return violations
+
+
 def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     """Check a Python file for Windows-incompatible patterns."""
     path = Path(module_path)
@@ -259,6 +359,9 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     all_violations.extend(_find_posix_constant_violations(tree, guarded))
     all_violations.extend(_find_posix_call_violations(tree, guarded))
     all_violations.extend(_find_os_kill_violations(tree, guarded))
+
+    if _is_test_file(path):
+        all_violations.extend(_find_test_platform_violations(tree, guarded))
 
     non_bypassed = [
         (ln, desc) for ln, desc in all_violations if not is_bypassed(module_path, "windows_compat", ln, bypass_rules)

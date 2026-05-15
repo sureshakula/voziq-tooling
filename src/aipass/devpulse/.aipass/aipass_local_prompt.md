@@ -43,8 +43,8 @@ Three rules:
 3. Local files = source of truth.
 
 ```
-drone @git status                    # changes (all branches)
-drone @git diff                      # diff (all branches)
+drone @git status --all              # changes (full repo)
+drone @git diff --all                # diff (full repo)
 drone @git log                       # commits (all branches)
 drone @git branches                  # remote branches (all branches)
 drone @git commit "msg" --all        # commit all (devpulse only)

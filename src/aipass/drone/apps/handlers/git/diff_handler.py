@@ -55,13 +55,14 @@ def get_branch_diff(branch_dir: Path, staged: bool = False) -> dict:
         rel_dir = branch_dir
 
     rel_prefix = rel_dir.as_posix() + "/"
+    show_all = rel_dir == Path(".")
 
     filtered_lines: list[str] = []
     include_block = False
     files_changed = 0
     for line in result.stdout.splitlines():
         if line.startswith("diff --git"):
-            include_block = rel_prefix in line
+            include_block = show_all or rel_prefix in line
             if include_block:
                 files_changed += 1
         if include_block:

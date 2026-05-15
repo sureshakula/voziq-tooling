@@ -62,6 +62,7 @@ def get_branch_status(branch_dir: Path) -> dict:
         rel_dir = branch_dir
 
     rel_prefix = rel_dir.as_posix() + "/"
+    show_all = rel_dir == Path(".")
 
     files = []
     for line in result.stdout.splitlines():
@@ -69,7 +70,7 @@ def get_branch_status(branch_dir: Path) -> dict:
             continue
         status_code = line[:2].strip()
         file_path = line[3:]
-        if file_path.startswith(rel_prefix) or file_path == str(rel_dir):
+        if show_all or file_path.startswith(rel_prefix) or file_path == str(rel_dir):
             files.append({"status": status_code, "path": file_path})
 
     total = len(files)

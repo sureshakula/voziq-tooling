@@ -132,7 +132,7 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
     if command in _GH_PASSTHROUGH_COMMANDS:
         return _handle_gh_passthrough(command, args)
     if command == "status":
-        return _handle_status()
+        return _handle_status(args)
     if command == "diff":
         return _handle_diff(args)
     if command == "log":
@@ -344,8 +344,11 @@ def _handle_fix(args: list[str], caller: str) -> dict:
     }
 
 
-def _handle_status() -> dict:
-    """Handle the status subcommand (global tier)."""
+def _handle_status(args: list[str] | None = None) -> dict:
+    """Handle the status subcommand (global tier). --all for repo-wide."""
+    args = args or []
+    show_all = "--all" in args
+
     detected = _detect_branch_dir()
     if detected is None:
         return {
@@ -355,7 +358,13 @@ def _handle_status() -> dict:
         }
 
     _, branch_dir = detected
-    result = status_handler.get_branch_status(branch_dir)
+
+    if show_all:
+        repo_root = lock_handler.find_repo_root()
+        result = status_handler.get_branch_status(repo_root)
+        result["message"] = f"{result['total']} file(s) changed in repo"
+    else:
+        result = status_handler.get_branch_status(branch_dir)
 
     lines = [result["message"]]
     for f in result["files"]:
@@ -369,7 +378,7 @@ def _handle_status() -> dict:
 
 
 def _handle_diff(args: list[str]) -> dict:
-    """Handle the diff subcommand (global tier)."""
+    """Handle the diff subcommand (global tier). --staged, --all supported."""
     detected = _detect_branch_dir()
     if detected is None:
         return {
@@ -380,7 +389,10 @@ def _handle_diff(args: list[str]) -> dict:
 
     _, branch_dir = detected
     staged = "--staged" in args
-    result = diff_handler.get_branch_diff(branch_dir, staged=staged)
+    show_all = "--all" in args
+
+    target_dir = lock_handler.find_repo_root() if show_all else branch_dir
+    result = diff_handler.get_branch_diff(target_dir, staged=staged)
 
     return {
         "stdout": result["diff"] if result["diff"] else result["message"],
@@ -532,12 +544,13 @@ def get_help(command: str | None = None) -> str:
     if command == "pr":
         return "git pr — DEPRECATED. Agent PRs are no longer supported. Devpulse handles git.\n"
     if command == "status":
-        return "git status — Show git status filtered to your branch directory [global]\n"
+        return "git status [--all] — Show git status filtered to your branch (--all for repo-wide) [global]\n"
     if command == "diff":
         return (
-            "git diff [--staged] — Show git diff filtered to your branch directory [global]\n"
+            "git diff [--staged] [--all] — Show git diff filtered to your branch [global]\n"
             "  Options:\n"
             "    --staged   Show staged changes only.\n"
+            "    --all      Show all repo changes (not just your branch).\n"
         )
     if command == "log":
         return "git log [count] — Show recent git log entries (default: 10) [global]\n"
