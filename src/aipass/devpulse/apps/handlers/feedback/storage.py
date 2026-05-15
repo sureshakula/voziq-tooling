@@ -18,6 +18,7 @@ import secrets
 from pathlib import Path
 
 from aipass.prax import logger
+from aipass.devpulse.apps.handlers.json import json_handler
 
 # devpulse/ root (three levels up from this file: handlers/feedback/storage.py -> apps/ -> devpulse/)
 _DEVPULSE_ROOT = Path(__file__).resolve().parents[3]
@@ -43,6 +44,7 @@ def load_inbox() -> dict:
     Returns:
         dict: The inbox data with mailbox, total_messages, unread_count, and messages.
     """
+    json_handler.log_operation("load_inbox")
     _ensure_dir()
     inbox_path = get_inbox_path()
 

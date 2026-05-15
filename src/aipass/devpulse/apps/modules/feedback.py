@@ -1,7 +1,10 @@
-# META
-# module: devpulse.feedback
-# description: Command routing module for feedback mailbox
-# END META
+# =================== AIPass ====================
+# Name: feedback.py
+# Description: Feedback Module — command routing for devpulse feedback mailbox
+# Version: 1.0.0
+# Created: 2026-04-11
+# Modified: 2026-05-15
+# =============================================
 
 """
 Feedback Module — command routing for devpulse's personal feedback mailbox.
@@ -25,6 +28,7 @@ from aipass.devpulse.apps.handlers.feedback.compose import (
 
 from aipass.prax import logger
 from aipass.cli.apps.modules import err_console
+from aipass.devpulse.apps.handlers.json import json_handler
 
 console = err_console
 
@@ -43,6 +47,17 @@ HELP_TEXT = """\
 """
 
 
+def print_introspection() -> None:
+    """Display module introspection info."""
+    console.print()
+    console.print("feedback Module")
+    console.print("DevPulse personal feedback mailbox. Receives cross-project")
+    console.print("feedback messages from any agent via drone routing.")
+    console.print()
+    console.print("Subcommands: inbox, view, reply, send, clear")
+    console.print()
+
+
 def handle_command(command: str, args: list[str]) -> bool:
     """Route feedback commands to handler functions.
 
@@ -58,14 +73,15 @@ def handle_command(command: str, args: list[str]) -> bool:
     if command != "feedback":
         return False
 
-    # No subcommand — show summary
     if not args:
+        print_introspection()
         summary = get_summary()
         console.print(f"[bold cyan]Feedback:[/bold cyan] {summary}")
         return True
 
     subcommand = args[0]
     sub_args = args[1:]
+    json_handler.log_operation("feedback_command", {"subcommand": subcommand})
 
     if subcommand in ("--help", "-h", "help"):
         console.print(HELP_TEXT)

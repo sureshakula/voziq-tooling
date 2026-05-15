@@ -50,6 +50,7 @@ from datetime import datetime
 from pathlib import Path
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.devpulse.apps.handlers.json import json_handler
 
 
 _STORAGE_FILENAME = "watchdog_active.json"
@@ -230,6 +231,7 @@ def register(
         store["watches"].append(entry)
         _atomic_write_unlocked(path, store)
 
+    json_handler.log_operation("register_watch", {"watch_type": watch_type})
     logger.info("[watchdog.registry] register type=%s handle=%s pid=%s", watch_type, handle, entry["pid"])
     return handle
 

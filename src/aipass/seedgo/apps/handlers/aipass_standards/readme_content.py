@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: readme_content.py
 # Description: README Standards Content
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-03-05
-# Modified: 2026-03-05
+# Modified: 2026-05-15
 # =============================================
 
 """
@@ -70,7 +70,27 @@ def get_readme_standards() -> str:
   The Commands/Usage section must not be empty.
   At minimum, list the primary commands the branch supports.
 
+[yellow]CHECK 7 - TEST COUNT ACCURACY:[/yellow]
+
+  If README mentions test counts (e.g. "219 tests" in tree comments
+  or status lines), the claimed number must be within [bold white]10%[/bold white]
+  of the actual [dim]def test_[/dim] function count in tests/.
+
+  The highest claimed count is compared against actual.
+  Branches with no test claims or no tests/ directory pass by default.
+
+  Date-bumping hides this drift. A branch can update its date
+  every week while claiming "130 tests" when reality is 450.
+
+[yellow]CHECK 8 - MARKDOWN LINK VALIDITY:[/yellow]
+
+  All relative markdown links [dim]\\[text](path)[/dim] must point to
+  existing files or directories relative to the branch root.
+
+  Skips external links (http/https/mailto) and anchor links (#).
+  Dead links mislead contributors navigating via README.
+
 [yellow]SCORING:[/yellow]
 
-  6 checks, each worth ~17 points. Pass threshold: 75%.
-  A branch with a missing README scores 17/100 (only check 1 runs)."""
+  8 checks, each worth ~12.5 points. Pass threshold: 75%.
+  A branch with a missing README scores 12/100 (only check 1 runs)."""

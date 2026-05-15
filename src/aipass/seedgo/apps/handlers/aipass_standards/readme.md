@@ -1,5 +1,5 @@
 # README Standards
-**Status:** Active v1.0
+**Status:** Active v1.1
 **Date:** 2026-02-21
 
 ---
@@ -97,17 +97,19 @@ Auto-generation handles facts (file lists, timestamps). Humans handle meaning.
 
 | Tool | Purpose | Location |
 |------|---------|----------|
-| `readme_check.py` | 6 automated checks, score >= 75% to pass | `src/aipass/seedgo/apps/standards/aipass/handlers/standards/` |
+| `readme_check.py` | 8 automated checks, score >= 75% to pass | `src/aipass/seedgo/apps/standards/aipass/handlers/standards/` |
 | `readme_generator.py` | Auto-populates TREE, MODULES, COMMANDS, HEADER, LAST_UPDATED | `src/aipass/seedgo/apps/standards/aipass/handlers/standards/` |
 | `seedgo readme update @branch` | On-demand regeneration (Phase 4, coming soon) | CLI |
 
 **Checks performed by `readme_check.py`:**
 1. README.md exists
-2. Contains auto-generated markers
+2. Required sections present
 3. Last Updated is within 7 days
 4. Directory tree matches filesystem
 5. Module list is complete
-6. Required sections present
+6. Command list presence
+7. Test count accuracy (claimed vs actual `def test_` count, >10% drift fails)
+8. Markdown link validity (relative `[text](path)` links point to existing files)
 
 ---
 

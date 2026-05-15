@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: devpulse.py
+# Description: Entry point for devpulse branch — auto-discovers modules
+# Version: 1.0.0
+# Created: 2026-03-07
+# Modified: 2026-05-15
+# =============================================
+
 """
 DEVPULSE Branch - Main Orchestrator
 
@@ -7,22 +15,15 @@ Auto-discovery architecture:
 - No manual imports or routing needed
 """
 
-# META
-# module: devpulse
-# description: Orchestration hub — coordinates via dispatch + agents
-# citizen_class: manager
-# END META
-
 import sys
 import importlib
 from pathlib import Path
 from typing import Any
 
 from aipass.prax import logger
+from aipass.cli.apps.modules import err_console
 
-from rich.console import Console
-
-console = Console(stderr=True)
+console = err_console
 
 # =============================================================================
 # MODULE DISCOVERY
@@ -81,6 +82,24 @@ def print_introspection():
         console.print(f"  {name:20} {desc}")
 
 
+def print_help():
+    """Print CLI help — usage instructions and available commands."""
+    modules = discover_modules()
+    console.print("[bold cyan]DEVPULSE[/bold cyan] — Usage")
+    console.print()
+    console.print("  drone @devpulse <command> [args...]")
+    console.print()
+    console.print("[bold]COMMANDS:[/bold]")
+    for module in modules:
+        name = module.__name__.split(".")[-1]
+        desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
+        console.print(f"  {name:20} {desc}")
+    console.print()
+    console.print("[bold]FLAGS:[/bold]")
+    console.print("  --help, -h           Show this help message")
+    console.print("  --version, -V        Show version")
+
+
 def route_command(command: str, args: list[str], modules: list[Any]) -> bool:
     """Route command to appropriate module."""
     for module in modules:
@@ -111,7 +130,7 @@ def _handle_command(command: str, args: list) -> bool:
     modules = discover_modules()
 
     if command in ["--help", "-h", "help"]:
-        print_introspection()
+        print_help()
         return True
 
     if command in ["--version", "-V"]:

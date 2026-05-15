@@ -539,6 +539,7 @@ class MonitoringFileHandler(FileSystemEventHandler):
         """Parse Claude Code session JSONL to show agent actions.
 
         Returns True if an event was emitted (or deduped), False on failure.
+        Iterates forward through new lines, emitting all distinct actions.
         """
         try:
             path_key = str(file_path)
@@ -559,14 +560,13 @@ class MonitoringFileHandler(FileSystemEventHandler):
             if not lines:
                 return True
 
-            for line in reversed(lines):
+            for line in lines:
                 try:
                     entry = _json.loads(line)
                 except _json.JSONDecodeError as e:
                     logger.info(f"[monitor] Skipping malformed JSONL line: {e}")
                     continue
 
-                # Extract model for display tag
                 model = self._extract_model_from_entry(entry)
                 if model:
                     self._session_models[path_key] = self._shorten_model(model)
@@ -576,7 +576,7 @@ class MonitoringFileHandler(FileSystemEventHandler):
                     continue
 
                 if self._last_agent_action.get(path_key) == action_text:
-                    return True
+                    continue
                 self._last_agent_action[path_key] = action_text
 
                 tagged_branch = self._tag_branch_with_model(path_key, branch)
@@ -590,7 +590,6 @@ class MonitoringFileHandler(FileSystemEventHandler):
                 )
                 if self._event_queue:
                     self._event_queue.enqueue(evt)
-                return True
 
             return True
 

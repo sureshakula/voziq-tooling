@@ -30,6 +30,7 @@ from typing import List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console, error, warning
+from aipass.devpulse.apps.handlers.json import json_handler
 
 _VALID_SUBCOMMANDS = ["agent", "timer", "schedule", "status", "cancel", "list"]
 _DEFAULT_AGENT_TIMEOUT = 600
@@ -154,6 +155,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         return True
 
     logger.info("[watchdog] subcommand=%s args=%s", subcommand, sub_args)
+    json_handler.log_operation("watchdog_command", {"subcommand": subcommand, "args": sub_args})
 
     if subcommand == "agent":
         return _handle_agent(sub_args)

@@ -32,6 +32,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 
 from aipass.devpulse.apps.handlers.watchdog import registry as _registry
 from aipass.devpulse.apps.handlers.watchdog.timer import parse_duration
+from aipass.devpulse.apps.handlers.json import json_handler
 
 
 # Chunk size keeps long sleeps interruptible and makes tests with injected
@@ -163,6 +164,7 @@ def wake_at(
         ``command_stderr``. Command fields are ``None`` when no command
         was requested.
     """
+    json_handler.log_operation("wake_at", {"time_str": time_str, "command": command})
     clock = now_fn if now_fn is not None else datetime.now
     start = clock()
     target = parse_schedule(time_str, now=start)
