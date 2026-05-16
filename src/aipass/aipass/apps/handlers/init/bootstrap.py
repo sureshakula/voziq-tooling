@@ -199,6 +199,15 @@ def _claude_settings(aipass_home: str | None = None) -> str:
     event_hooks["UserPromptSubmit"] = prompt_hooks + event_hooks.get("UserPromptSubmit", [])
 
     data: dict = {"hooks": event_hooks}
+
+    data["permissions"] = {
+        "deny": [
+            "Bash(rm -rf *)",
+            "Bash(git push --force*)",
+            "Bash(git reset --hard*)",
+        ],
+    }
+
     if aipass_home:
         data["env"] = {"AIPASS_HOME": aipass_home}
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
@@ -378,6 +387,24 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     if not init_py.exists():
         init_py.write_text(f'"""{raw_name} — created with aipass init."""\n', encoding="utf-8")
         created.append(str(init_py))
+
+    # 10b. pyproject.toml — pytest config + package metadata
+    pyproject_path = target / "pyproject.toml"
+    if not pyproject_path.exists():
+        pyproject_path.write_text(
+            f'[project]\nname = "{package_name}"\nversion = "0.1.0"\nrequires-python = ">=3.10"\n\n'
+            f'[tool.pytest.ini_options]\ntestpaths = ["src"]\npythonpath = ["src"]\n',
+            encoding="utf-8",
+        )
+        created.append(str(pyproject_path))
+
+    # 10c. tests/ directory with conftest
+    tests_dir = package_dir / "tests"
+    if not tests_dir.exists():
+        tests_dir.mkdir(parents=True)
+        conftest = tests_dir / "conftest.py"
+        conftest.write_text('"""Pytest fixtures for ' + raw_name + '."""\n', encoding="utf-8")
+        created.append(str(tests_dir))
 
     # 11. .venv symlink → AIPass shared runtime
     venv_link = target / ".venv"

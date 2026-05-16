@@ -251,7 +251,7 @@ Each agent documents its own operational status in its branch README — what wo
 
 - Python 3.10+
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
-- Linux or WSL (primary supported platforms)
+- Linux, macOS, or WSL (all CI-tested)
 - `sudo` access optional (for `/usr/local/bin` symlinks — falls back to `~/.local/bin` without sudo)
 - API keys optional (OpenRouter/OpenAI — for optional add-on agents)
 
@@ -259,8 +259,8 @@ Each agent documents its own operational status in its branch README — what wo
 
 These items have partial work done and are under ongoing testing:
 
-- **macOS support** — setup and bootstrap work in progress ([#360](https://github.com/AIOSAI/AIPass/issues/360))
-- **Windows native** — CI passing, real-world testing ongoing
+- **macOS support** — CI green, full test suite passing ([#360](https://github.com/AIOSAI/AIPass/issues/360))
+- **Windows native** — CI green, full test suite passing
 - **Codex CLI** — hooks and AGENTS.md wired, needs end-to-end testing
 - **Gemini CLI** — hooks and GEMINI.md wired, needs end-to-end testing
 - **Fork contributor workflow** — improved error handling for fork-based PRs ([#329](https://github.com/AIOSAI/AIPass/issues/329))
