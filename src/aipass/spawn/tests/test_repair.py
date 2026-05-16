@@ -1,0 +1,519 @@
+# =================== AIPass ====================
+# Name: test_repair.py
+# Description: Tests for repair handler — move, registry path update, pollution cleanup
+# Version: 1.0.0
+# Created: 2026-05-15
+# Modified: 2026-05-15
+# =============================================
+
+"""Tests for repair handler — move_branch, update_registry_path, pollution cleanup."""
+
+import json
+import shutil
+from pathlib import Path
+from unittest.mock import patch
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_project(tmp_path, project_name="testproj", branches=None):
+    """Create a minimal project with registry and optional branches."""
+    project = tmp_path / project_name
+    project.mkdir()
+
+    branch_entries = []
+    for b in branches or []:
+        name = b["name"]
+        rel_path = b.get("path", name)
+        branch_dir = project / rel_path
+        branch_dir.mkdir(parents=True, exist_ok=True)
+        trinity = branch_dir / ".trinity"
+        trinity.mkdir()
+        passport = {
+            "branch_info": {
+                "branch_name": name.lower(),
+                "path": rel_path,
+                "module": f"{project_name}.{name.lower()}",
+            },
+            "identity": {"citizen_class": "builder"},
+            "citizenship": {"registered": True},
+        }
+        (trinity / "passport.json").write_text(json.dumps(passport), encoding="utf-8")
+        branch_entries.append(
+            {
+                "name": name,
+                "path": rel_path,
+                "profile": "test",
+                "description": b.get("purpose", "test branch"),
+                "email": f"@{name.lower()}",
+                "status": "active",
+                "created": "2026-01-01",
+                "last_active": "2026-01-01",
+            }
+        )
+
+    registry_path = project / f"{project_name.upper()}_REGISTRY.json"
+    registry_data = {
+        "metadata": {
+            "version": "1.0.0",
+            "last_updated": "2026-01-01",
+            "total_branches": len(branch_entries),
+        },
+        "branches": branch_entries,
+    }
+    registry_path.write_text(json.dumps(registry_data), encoding="utf-8")
+    return project, registry_path
+
+
+# ---------------------------------------------------------------------------
+# update_registry_path
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateRegistryPath:
+    """Tests for update_registry_path — path update without entry re-creation."""
+
+    def test_updates_path_preserves_fields(self, tmp_path):
+        """Path updated, creation date and name preserved."""
+        from aipass.spawn.apps.handlers.repair_ops import update_registry_path
+
+        _project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        result = update_registry_path(reg, "NAV", "src/compass/navigator")
+
+        assert result is True
+        data = json.loads(reg.read_text())
+        entry = data["branches"][0]
+        assert entry["path"] == "src/compass/navigator"
+        assert entry["created"] == "2026-01-01"
+        assert entry["name"] == "NAV"
+
+    def test_not_found_returns_false(self, tmp_path):
+        """Unknown branch returns False."""
+        from aipass.spawn.apps.handlers.repair_ops import update_registry_path
+
+        _project, reg = _make_project(tmp_path, branches=[])
+        result = update_registry_path(reg, "GHOST", "somewhere")
+        assert result is False
+
+    def test_case_insensitive_match(self, tmp_path):
+        """Lowercase name matches uppercase registry entry."""
+        from aipass.spawn.apps.handlers.repair_ops import update_registry_path
+
+        _project, reg = _make_project(tmp_path, branches=[{"name": "POLY", "path": "polyglot"}])
+        result = update_registry_path(reg, "poly", "src/aipl/polyglot")
+        assert result is True
+        data = json.loads(reg.read_text())
+        assert data["branches"][0]["path"] == "src/aipl/polyglot"
+
+
+# ---------------------------------------------------------------------------
+# move_branch
+# ---------------------------------------------------------------------------
+
+
+class TestMoveBranch:
+    """Tests for move_branch — relocate dir + registry + passport update."""
+
+    def test_moves_dir_updates_registry_and_passport(self, tmp_path):
+        """Full move: directory relocated, registry path updated, passport paths updated."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg)
+
+        assert result["success"] is True
+        assert result["old_path"] == "navigator"
+        assert result["new_path"] == "src/compass/navigator"
+
+        assert not (project / "navigator").exists()
+        assert (project / "src" / "compass" / "navigator").is_dir()
+
+        data = json.loads(reg.read_text())
+        assert data["branches"][0]["path"] == "src/compass/navigator"
+
+        passport_path = project / "src" / "compass" / "navigator" / ".trinity" / "passport.json"
+        passport = json.loads(passport_path.read_text())
+        assert passport["branch_info"]["path"] == "src/compass/navigator"
+
+    def test_creates_archive(self, tmp_path):
+        """Archive created before move contains original files."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        marker = project / "navigator" / "test_file.txt"
+        marker.write_text("hello")
+
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg)
+        assert result["success"] is True
+
+        archive_dir = Path(result["archive_path"])
+        assert archive_dir.is_dir()
+        assert (archive_dir / "test_file.txt").read_text() == "hello"
+
+    def test_dry_run_no_changes(self, tmp_path):
+        """Dry run reports actions but makes no filesystem or registry changes."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg, dry_run=True)
+
+        assert result["success"] is True
+        assert result["dry_run"] is True
+        assert len(result["actions"]) > 0
+
+        assert (project / "navigator").is_dir()
+        data = json.loads(reg.read_text())
+        assert data["branches"][0]["path"] == "navigator"
+
+    def test_source_missing_fails(self, tmp_path):
+        """Fails when source directory does not exist on disk."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        shutil.rmtree(project / "navigator")
+
+        result = move_branch("NAV", "src/nav", registry_path=reg)
+        assert result["success"] is False
+        assert "does not exist" in result["error"]
+
+    def test_target_exists_fails(self, tmp_path):
+        """Fails when target directory already exists."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        (project / "src" / "compass" / "navigator").mkdir(parents=True)
+
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg)
+        assert result["success"] is False
+        assert "already exists" in result["error"]
+
+    def test_branch_not_in_registry(self, tmp_path):
+        """Fails for branch name not found in registry."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        _project, reg = _make_project(tmp_path, branches=[])
+        result = move_branch("GHOST", "somewhere", registry_path=reg)
+        assert result["success"] is False
+        assert "not found" in result["error"]
+
+    def test_outside_project_root_fails(self, tmp_path):
+        """Fails when target path escapes project root."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        _project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        result = move_branch("NAV", "/tmp/escape_attempt", registry_path=reg)
+        assert result["success"] is False
+        assert "outside project root" in result["error"]
+
+
+# ---------------------------------------------------------------------------
+# detect_pollution
+# ---------------------------------------------------------------------------
+
+
+class TestDetectPollution:
+    """Tests for detect_pollution — duplicate nested directory detection."""
+
+    def test_finds_root_duplicate(self, tmp_path):
+        """Detects project_name/project_name/ at root level."""
+        from aipass.spawn.apps.handlers.repair_ops import detect_pollution
+
+        project = tmp_path / "compass"
+        project.mkdir()
+        (project / "compass").mkdir()
+
+        issues = detect_pollution(project)
+        assert len(issues) == 1
+        assert issues[0]["type"] == "duplicate_nested_dir"
+        assert issues[0]["path"] == "compass"
+
+    def test_finds_src_duplicate(self, tmp_path):
+        """Detects src/pkg/pkg/ duplication."""
+        from aipass.spawn.apps.handlers.repair_ops import detect_pollution
+
+        project = tmp_path / "myproj"
+        project.mkdir()
+        (project / "src" / "mypkg" / "mypkg").mkdir(parents=True)
+
+        issues = detect_pollution(project)
+        assert len(issues) == 1
+        assert "src/mypkg/mypkg" in issues[0]["path"]
+
+    def test_clean_project_no_issues(self, tmp_path):
+        """Clean project returns empty issues list."""
+        from aipass.spawn.apps.handlers.repair_ops import detect_pollution
+
+        project = tmp_path / "clean"
+        project.mkdir()
+        (project / "src" / "pkg" / "agent").mkdir(parents=True)
+
+        issues = detect_pollution(project)
+        assert len(issues) == 0
+
+
+# ---------------------------------------------------------------------------
+# cleanup_pollution
+# ---------------------------------------------------------------------------
+
+
+class TestCleanupPollution:
+    """Tests for cleanup_pollution — archive and remove duplicate dirs."""
+
+    def test_archives_and_removes(self, tmp_path):
+        """Pollution dir archived then removed from filesystem."""
+        from aipass.spawn.apps.handlers.repair_ops import cleanup_pollution
+
+        project = tmp_path / "compass"
+        project.mkdir()
+        dup = project / "compass"
+        dup.mkdir()
+        (dup / "junk.txt").write_text("pollution")
+
+        result = cleanup_pollution(project)
+        assert result["success"] is True
+        assert result["issues_found"] == 1
+        assert len(result["cleaned"]) == 1
+        assert not dup.exists()
+        assert (project / ".archive" / "pollution").is_dir()
+
+    def test_dry_run_no_changes(self, tmp_path):
+        """Dry run reports issues but leaves filesystem unchanged."""
+        from aipass.spawn.apps.handlers.repair_ops import cleanup_pollution
+
+        project = tmp_path / "compass"
+        project.mkdir()
+        dup = project / "compass"
+        dup.mkdir()
+
+        result = cleanup_pollution(project, dry_run=True)
+        assert result["success"] is True
+        assert result["dry_run"] is True
+        assert result["issues_found"] == 1
+        assert dup.exists()
+
+    def test_no_pollution_returns_empty(self, tmp_path):
+        """Clean project returns zero issues."""
+        from aipass.spawn.apps.handlers.repair_ops import cleanup_pollution
+
+        project = tmp_path / "clean"
+        project.mkdir()
+
+        result = cleanup_pollution(project)
+        assert result["success"] is True
+        assert result["issues_found"] == 0
+
+
+# ---------------------------------------------------------------------------
+# repair_project
+# ---------------------------------------------------------------------------
+
+
+class TestRepairProject:
+    """Tests for repair_project — scan and report structural issues."""
+
+    def test_detects_pollution_and_mismatches(self, tmp_path):
+        """Finds both pollution and registry mismatches in one scan."""
+        from aipass.spawn.apps.handlers.repair_ops import repair_project
+
+        project, _reg = _make_project(
+            tmp_path,
+            project_name="compass",
+            branches=[{"name": "NAV", "path": "navigator"}],
+        )
+        (project / "compass").mkdir()
+        shutil.rmtree(project / "navigator")
+
+        result = repair_project(project)
+        assert result["success"] is True
+        assert result["total_issues"] == 2
+        assert len(result["pollution"]) == 1
+        assert len(result["registry_mismatches"]) == 1
+
+    def test_clean_project_no_issues(self, tmp_path):
+        """Clean project reports zero issues."""
+        from aipass.spawn.apps.handlers.repair_ops import repair_project
+
+        project, _reg = _make_project(tmp_path, branches=[{"name": "AGENT", "path": "agent"}])
+        result = repair_project(project)
+        assert result["success"] is True
+        assert result["total_issues"] == 0
+
+    def test_no_registry_fails(self, tmp_path):
+        """Fails when no *_REGISTRY.json found."""
+        from aipass.spawn.apps.handlers.repair_ops import repair_project
+
+        project = tmp_path / "empty"
+        project.mkdir()
+
+        result = repair_project(project)
+        assert result["success"] is False
+        assert "REGISTRY" in result["error"]
+
+    def test_nonexistent_path_fails(self, tmp_path):
+        """Fails when project path does not exist."""
+        from aipass.spawn.apps.handlers.repair_ops import repair_project
+
+        result = repair_project(tmp_path / "does_not_exist")
+        assert result["success"] is False
+        assert "does not exist" in result["error"]
+
+
+# ---------------------------------------------------------------------------
+# CLI routing
+# ---------------------------------------------------------------------------
+
+
+class TestRepairCLI:
+    """Tests for repair CLI integration — command routing and arg parsing."""
+
+    def test_repair_command_routes(self):
+        """Verify spawn.py routes 'repair' to repair module."""
+        from aipass.spawn.apps.spawn import main
+
+        with patch("sys.argv", ["spawn", "repair", "--help"]):
+            result = main()
+        assert result == 0
+
+    def test_handle_repair_help(self):
+        """--help returns exit code 0."""
+        from aipass.spawn.apps.modules.repair import handle_repair
+
+        result = handle_repair(["--help"])
+        assert result == 0
+
+    def test_handle_repair_no_args(self):
+        """No args returns exit code 1."""
+        from aipass.spawn.apps.modules.repair import handle_repair
+
+        result = handle_repair([])
+        assert result == 1
+
+
+# ---------------------------------------------------------------------------
+# .chroma relocation
+# ---------------------------------------------------------------------------
+
+
+class TestChromaRelocation:
+    """Tests for .chroma artifact relocation during branch moves."""
+
+    def test_relocates_chroma_single_branch(self, tmp_path):
+        """Moves .chroma/ into branch dir when only 1 branch in registry."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        chroma = project / ".chroma"
+        chroma.mkdir()
+        (chroma / "data.bin").write_text("vectors")
+
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg, relocate_artifacts=True)
+
+        assert result["success"] is True
+        assert result["chroma_relocated"] is True
+        assert not chroma.exists()
+        assert (project / "src" / "compass" / "navigator" / ".chroma" / "data.bin").read_text() == "vectors"
+
+    def test_skips_chroma_multiple_branches(self, tmp_path):
+        """Does not relocate .chroma/ when more than 1 branch exists."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(
+            tmp_path,
+            branches=[
+                {"name": "NAV", "path": "navigator"},
+                {"name": "LOG", "path": "logger"},
+            ],
+        )
+        chroma = project / ".chroma"
+        chroma.mkdir()
+
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg, relocate_artifacts=True)
+
+        assert result["success"] is True
+        assert result["chroma_relocated"] is False
+        assert chroma.exists()
+
+    def test_skips_when_no_chroma(self, tmp_path):
+        """Does not fail when .chroma/ does not exist at project root."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        _project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg, relocate_artifacts=True)
+
+        assert result["success"] is True
+        assert result["chroma_relocated"] is False
+
+    def test_skips_when_chroma_already_in_branch(self, tmp_path):
+        """Does not overwrite existing .chroma/ inside the branch."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        (project / ".chroma").mkdir()
+        (project / "navigator" / ".chroma").mkdir()
+
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg, relocate_artifacts=True)
+
+        assert result["success"] is True
+        assert result["chroma_relocated"] is False
+
+    def test_no_relocation_without_flag(self, tmp_path):
+        """Default relocate_artifacts=False leaves .chroma/ in place."""
+        from aipass.spawn.apps.handlers.repair_ops import move_branch
+
+        project, reg = _make_project(tmp_path, branches=[{"name": "NAV", "path": "navigator"}])
+        (project / ".chroma").mkdir()
+
+        result = move_branch("NAV", "src/compass/navigator", registry_path=reg)
+
+        assert result["success"] is True
+        assert result.get("chroma_relocated") is False
+        assert (project / ".chroma").exists()
+
+
+# ---------------------------------------------------------------------------
+# ARCHIVE_EXCLUDE shared constant
+# ---------------------------------------------------------------------------
+
+
+class TestArchiveExclude:
+    """Tests for ARCHIVE_EXCLUDE constant shared between repair_ops and delete_ops."""
+
+    def test_archive_exclude_defined_in_repair_ops(self):
+        """ARCHIVE_EXCLUDE is a set in repair_ops."""
+        from aipass.spawn.apps.handlers.repair_ops import ARCHIVE_EXCLUDE
+
+        assert isinstance(ARCHIVE_EXCLUDE, set)
+        assert ".venv" in ARCHIVE_EXCLUDE
+        assert ".git" in ARCHIVE_EXCLUDE
+
+    def test_delete_ops_imports_archive_exclude(self):
+        """delete_ops imports ARCHIVE_EXCLUDE from repair_ops (same object)."""
+        from aipass.spawn.apps.handlers.delete_ops import ARCHIVE_EXCLUDE as del_exclude
+        from aipass.spawn.apps.handlers.repair_ops import ARCHIVE_EXCLUDE as rep_exclude
+
+        assert del_exclude is rep_exclude
+
+
+# ---------------------------------------------------------------------------
+# Template file checks
+# ---------------------------------------------------------------------------
+
+
+class TestTemplateFiles:
+    """Tests for template file additions — .gitignore and requirements.project.txt."""
+
+    def test_builder_gitignore_has_venv(self):
+        """Builder template .gitignore includes .venv/ entry."""
+        gitignore = Path(__file__).resolve().parent.parent / "templates" / "builder" / ".gitignore"
+        content = gitignore.read_text()
+        assert ".venv/" in content
+
+    def test_requirements_project_exists(self):
+        """Builder template includes requirements.project.txt."""
+        req = Path(__file__).resolve().parent.parent / "templates" / "builder" / "requirements.project.txt"
+        assert req.exists()
+        content = req.read_text()
+        assert "Project-specific" in content

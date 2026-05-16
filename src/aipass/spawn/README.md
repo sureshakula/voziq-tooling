@@ -78,6 +78,13 @@ drone @spawn sync-registry --fix                               # Rebuild .spawn/
 drone @spawn sync-templates                                    # Pull managed files from sources (partial — see Known Issues)
 drone @spawn regenerate-registry                               # Regenerate builder template hashes
 drone @spawn regenerate-registry --all                         # All template classes
+
+# Repair
+drone @spawn repair <project_path>                             # Scan project for structural issues
+drone @spawn repair <project_path> --dry-run                   # Preview only
+drone @spawn repair --relocate @branch src/pkg/branch          # Move branch to new location
+drone @spawn repair --relocate @branch path --relocate-artifacts  # Move branch + .chroma/ into it
+drone @spawn repair <project_path> --clean-pollution            # Archive + remove duplicate dirs
 ```
 
 ### Introspection
@@ -140,7 +147,7 @@ spawn/
 ├── templates/
 │   ├── builder/                         # Full scaffold template (45 files, 24 dirs)
 │   └── birthright/                      # Minimal template
-├── tests/                               # 13 test files, 253 tests
+├── tests/                               # 14 test files, 316 tests
 ├── spawn_json/                          # JSON tracking directory
 ├── tools/                               # Branch verification utilities
 ├── docs/                                # Documentation
@@ -191,7 +198,7 @@ spawn/
 
 ## Tests
 
-**253 tests | 0 skipped | 0 failed** across 13 test files:
+**316 tests | 0 skipped | 0 failed** across 14 test files:
 
 | File | Focus |
 |------|-------|
@@ -245,6 +252,6 @@ spawn/
 
 ---
 
-*Last Updated: 2026-04-22*
+*Last Updated: 2026-05-15*
 
 [← Back to AIPass](../../../README.md)

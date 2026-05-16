@@ -17,7 +17,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.spawn.apps.handlers.json import json_handler
 
 
-def _branches_as_list(branches):
+def branches_as_list(branches):
     """Normalize branches to a list regardless of storage format.
 
     The registry may store branches as:
@@ -159,7 +159,7 @@ def get_next_citizen_number(registry_path):
     """
     data = load_registry(registry_path)
     branches = data.get("branches", [])
-    return len(_branches_as_list(branches)) + 1
+    return len(branches_as_list(branches)) + 1
 
 
 def _validate_path_containment(branch_path, registry_path):
@@ -239,7 +239,7 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
         else:
             branches.append(entry)
         registry["branches"] = branches
-        registry["metadata"]["total_branches"] = len(_branches_as_list(branches))
+        registry["metadata"]["total_branches"] = len(branches_as_list(branches))
 
         json_handler.log_operation("registry_updated", data={"branch": branch_name})
 
@@ -310,7 +310,7 @@ def ensure_project_has_owner(registry_path):
     """If no agent in the project has owner:true, assign it to the earliest-created agent."""
     registry_path = Path(registry_path)
     reg_data = load_registry(registry_path)
-    branches = _branches_as_list(reg_data.get("branches", []))
+    branches = branches_as_list(reg_data.get("branches", []))
     if not branches:
         return False
 

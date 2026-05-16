@@ -9,18 +9,7 @@
 """
 aipass doctor — system health aggregation
 
-Flutter-doctor-style health check across four groups:
-  System   — Python, git, shell, OS, RAM, CPU, install method
-  Identity — AIPASS_HOME, registry, passport integrity
-  Services — drone routing, pytest collect, hooks wired
-  Community — ai_mail, dropbox
-
-Three-tier glyph output: ✓ green / ! yellow / ✗ red
-Remediation shown inline under failing checks.
-Exit 0 on pass+warn, non-zero only on errors.
-Pure reads — never mutates (unless --fix or interactive auto-wire accepted).
-
-Run: aipass doctor [--verbose] [--fix]
+Run: aipass doctor [--verbose] [--fix] [--fix --json]
 """
 
 from __future__ import annotations
@@ -40,10 +29,15 @@ from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_placement,
     check_pyproject,
     check_registry_consistency,
+    check_root_artifacts,
     detect_pollution,
     find_project_root,
     find_registry,
     scan_agents,
+)
+from aipass.aipass.apps.modules.doctor_fix import (
+    print_json_report,
+    print_remediation_report,
 )
 from aipass.aipass.apps.modules.doctor_wire import (
     _auto_wire_provider,
@@ -532,6 +526,15 @@ def _check_structure() -> List[CheckResult]:
     else:
         results.append(CheckResult("registry", GLYPH_WARN, "not found", "Expected *_REGISTRY.json in project root"))
 
+    # Root artifacts
+    root_hits = check_root_artifacts(project_root)
+    if root_hits:
+        for hit in root_hits:
+            glyph = GLYPH_WARN if hit.severity == "warn" else GLYPH_PASS
+            results.append(CheckResult(f"root: {hit.name}", glyph, hit.description, ""))
+    else:
+        results.append(CheckResult("root artifacts", GLYPH_PASS, "none misplaced", ""))
+
     # Pyproject
     pyproject = check_pyproject(project_root)
     if pyproject["found"]:
@@ -615,12 +618,8 @@ def print_introspection() -> None:
     console.print("[bold cyan]doctor Module[/bold cyan]")
     console.print("System health aggregation — flutter-doctor-style output")
     console.print()
-    console.print("[yellow]Handlers:[/yellow] system_detect, ui/progress, json, structure_scan")
     console.print("[yellow]Groups:[/yellow] System, Identity, Services, Community, Structure")
-    console.print()
-    console.print("[yellow]Next:[/yellow]")
-    console.print("  [green]aipass doctor[/green]           [dim]# Run all checks[/dim]")
-    console.print("  [green]aipass doctor --verbose[/green] [dim]# Full check detail[/dim]")
+    console.print("[yellow]Next:[/yellow]  [green]aipass doctor[/green] / [green]aipass doctor --fix[/green]")
     console.print()
 
 
@@ -628,17 +627,15 @@ def print_help() -> None:
     """Print help information."""
     console.print()
     console.print("[bold cyan]aipass doctor[/bold cyan] — System health aggregation")
-    console.print("Flutter-doctor-style check across System / Identity / Services / Community / Structure")
     console.print()
     console.print("[yellow]USAGE:[/yellow]")
-    console.print("  [green]aipass doctor[/green]           [dim]# Run all checks (interactive)[/dim]")
+    console.print("  [green]aipass doctor[/green]           [dim]# Run all checks[/dim]")
     console.print("  [green]aipass doctor --verbose[/green] [dim]# Show sub-check detail[/dim]")
-    console.print("  [green]aipass doctor --fix[/green]     [dim]# Auto-wire missing provider settings[/dim]")
+    console.print("  [green]aipass doctor --fix[/green]     [dim]# Auto-wire + remediation report[/dim]")
+    console.print("  [green]aipass doctor --fix --json[/green][dim]# Remediation as JSON (for spawn)[/dim]")
     console.print()
-    console.print(
-        "[yellow]OUTPUT:[/yellow]  [green]✓[/green] pass  [yellow]![/yellow] warning  [red]✗[/red] error (remediation shown)"
-    )
-    console.print("[yellow]EXIT:[/yellow]    0 = pass/warn only  |  1 = errors found")
+    console.print("[yellow]OUTPUT:[/yellow]  [green]✓[/green] pass  [yellow]![/yellow] warn  [red]✗[/red] error")
+    console.print("[yellow]EXIT:[/yellow]    0 = pass/warn  |  1 = errors found")
     console.print()
 
 
@@ -670,7 +667,19 @@ def handle_command(command: str, args: list[str]) -> bool:
 
     verbose = "--verbose" in args or "-v" in args
     fix_mode = "--fix" in args
+    json_mode = "--json" in args
+
+    if json_mode and fix_mode:
+        project_root = find_project_root(Path.cwd())
+        if project_root:
+            print_json_report(project_root)
+        return True
+
     error_count = run_doctor(verbose=verbose, interactive=True, fix=fix_mode)
+    if fix_mode:
+        project_root = find_project_root(Path.cwd())
+        if project_root:
+            print_remediation_report(project_root)
     json_handler.log_operation("doctor_run", {"error_count": error_count, "fix": fix_mode})
     if error_count > 0:
         raise SystemExit(1)
@@ -683,13 +692,4 @@ def handle_command(command: str, args: list[str]) -> bool:
 
 if __name__ == "__main__":
     logger.info("Prax logger connected to doctor")
-
-    if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h", "help"):
-        print_help()
-        sys.exit(0)
-
-    if len(sys.argv) > 1 and sys.argv[1] == "--info":
-        print_introspection()
-        sys.exit(0)
-
     handle_command("doctor", sys.argv[1:])

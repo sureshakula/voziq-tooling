@@ -180,6 +180,16 @@ def _spawn_agent(
     else:
         template = _get_template_dir(citizen_class)
 
+    # Guard: block creating agent inside another agent's directory
+    for parent in target.parents:
+        if (parent / ".trinity" / "passport.json").is_file():
+            return _error(
+                f"BLOCKED: Cannot create agent inside existing agent '{parent.name}' "
+                f"(found .trinity/passport.json at {parent})"
+            )
+        if parent == parent.parent:
+            break
+
     # Validate
     if target.exists():
         # If target has a passport, adopt it (register without re-creating)

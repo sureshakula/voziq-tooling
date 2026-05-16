@@ -49,6 +49,15 @@ class PollutionHit(NamedTuple):
     locations: List[str]
 
 
+class RootArtifact(NamedTuple):
+    """Branch-level file or directory found at project root."""
+
+    name: str
+    artifact_type: str
+    severity: str
+    description: str
+
+
 class RegistryIssue(NamedTuple):
     """Registry path mismatch."""
 
@@ -84,6 +93,9 @@ def find_project_root(start: Path) -> Optional[Path]:
 # =============================================================================
 
 
+_SCAN_SKIP_DIRS = {".archive", ".venv", ".git", "__pycache__", "node_modules", ".chroma"}
+
+
 def scan_agents(project_root: Path) -> List[AgentInfo]:
     """Find all agents by scanning for .trinity/passport.json under project_root.
 
@@ -92,6 +104,11 @@ def scan_agents(project_root: Path) -> List[AgentInfo]:
     """
     agents: List[AgentInfo] = []
     for passport_path in sorted(project_root.rglob(".trinity/passport.json")):
+        if any(skip in passport_path.parts for skip in _SCAN_SKIP_DIRS):
+            continue
+        agent_dir = passport_path.parent.parent
+        if agent_dir == project_root:
+            continue
         try:
             data = json.loads(passport_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
@@ -119,6 +136,57 @@ def scan_agents(project_root: Path) -> List[AgentInfo]:
 
 
 # =============================================================================
+# PACKAGE DETECTION
+# =============================================================================
+
+
+def _detect_package_names(project_root: Path) -> set:
+    """Read pyproject.toml to find declared package directory names.
+
+    Returns:
+        Set of package names (e.g. {'aipass', 'aipl'}), empty if none found.
+    """
+    pyproject = project_root / "pyproject.toml"
+    if not pyproject.exists():
+        return set()
+
+    try:
+        import tomllib  # noqa: F811 — stdlib 3.11+
+    except ImportError:
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            logger.info("[structure_scan] no TOML parser available — skipping package detection")
+            return set()
+
+    try:
+        with open(pyproject, "rb") as f:
+            data = tomllib.load(f)
+    except Exception as exc:
+        logger.warning("[structure_scan] pyproject.toml parse error: %s", exc)
+        return set()
+
+    names: set = set()
+
+    hatch_pkgs = (
+        data.get("tool", {}).get("hatch", {}).get("build", {}).get("targets", {}).get("wheel", {}).get("packages", [])
+    )
+    for pkg in hatch_pkgs:
+        name = Path(pkg).name
+        if name:
+            names.add(name)
+
+    setup_pkgs = data.get("tool", {}).get("setuptools", {}).get("packages", [])
+    for pkg in setup_pkgs:
+        if pkg:
+            names.add(pkg)
+
+    if names:
+        logger.info("[structure_scan] detected packages: %s", names)
+    return names
+
+
+# =============================================================================
 # PLACEMENT VALIDATION
 # =============================================================================
 
@@ -126,11 +194,15 @@ def scan_agents(project_root: Path) -> List[AgentInfo]:
 def check_placement(agents: List[AgentInfo], project_root: Path) -> List[PlacementIssue]:
     """Check whether each agent is in src/<package>/<agent>/ or src/<agent>/.
 
+    When pyproject.toml defines packages, agents at src/<name>/ where name
+    is not a declared package are flagged as misplaced siblings.
+
     Returns:
         List of PlacementIssue for agents in unexpected locations.
     """
     src_dir = project_root / "src"
     issues: List[PlacementIssue] = []
+    package_names = _detect_package_names(project_root)
 
     for agent in agents:
         rel = None
@@ -150,7 +222,15 @@ def check_placement(agents: List[AgentInfo], project_root: Path) -> List[Placeme
 
         parts = rel.parts
         if len(parts) == 1:
-            # src/<agent>/ — valid single-agent layout
+            if package_names and parts[0] not in package_names:
+                issues.append(
+                    PlacementIssue(
+                        agent_name=agent.name,
+                        actual_path=str(agent.path),
+                        expected_pattern="src/<package>/<agent>/ — agent outside package framework",
+                        severity="warn",
+                    )
+                )
             continue
         elif len(parts) == 2:
             # src/<package>/<agent>/ — valid multi-agent package layout
@@ -244,6 +324,52 @@ def check_registry_consistency(
                 issues.append(RegistryIssue(name, path_str, "no_passport"))
 
     return issues
+
+
+# =============================================================================
+# ROOT ARTIFACT DETECTION
+# =============================================================================
+
+_ROOT_ARTIFACTS = {
+    ".chroma": ("chroma", "warn", "Memory vector store belongs inside branch directory"),
+    ".ai_mail.local": ("mailbox", "warn", "Branch mailbox belongs inside branch directory"),
+    "logs": ("logs", "warn", "Branch logs directory belongs inside branch directory"),
+    ".venv": (
+        "venv",
+        "info",
+        "Redundant venv — AIPass provides runtime via drone, use requirements.project.txt for extras",
+    ),
+}
+
+
+def check_root_artifacts(project_root: Path) -> List[RootArtifact]:
+    """Detect branch-level files/dirs sitting at project root instead of inside branches.
+
+    Returns:
+        List of RootArtifact for each misplaced item found.
+    """
+    hits: List[RootArtifact] = []
+
+    for dirname, (artifact_type, severity, description) in _ROOT_ARTIFACTS.items():
+        candidate = project_root / dirname
+        if not candidate.exists():
+            continue
+        if dirname == ".venv" and candidate.is_symlink():
+            hits.append(
+                RootArtifact(
+                    name=dirname,
+                    artifact_type=artifact_type,
+                    severity="pass",
+                    description=f"Linked to AIPass runtime ({candidate.resolve()})",
+                )
+            )
+            continue
+        hits.append(RootArtifact(name=dirname, artifact_type=artifact_type, severity=severity, description=description))
+
+    if hits:
+        logger.info("[structure_scan] found %d root artifacts at %s", len(hits), project_root)
+    json_handler.log_operation("check_root_artifacts", {"count": len(hits), "root": str(project_root)})
+    return hits
 
 
 # =============================================================================

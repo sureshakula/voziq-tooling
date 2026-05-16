@@ -437,6 +437,127 @@ class TestSyncRegistryCwdAware:
         daemon_entry = next(b for b in reg["branches"] if b["name"] == "DAEMON")
         assert daemon_entry["path"] == "src/daemon"
 
+    def test_escaped_paths_detected_as_stale(self, tmp_path):
+        """Registry entries with ../paths that escape project root should be stale."""
+        from aipass.spawn.apps.handlers.sync_registry_ops import sync_registry
+
+        # Simulate external project with stale cross-project entries
+        project = tmp_path / "myproject"
+        project.mkdir()
+
+        # Create a real agent that exists OUTSIDE this project (simulates AIPass branches)
+        external = tmp_path / "AIPass" / "src" / "aipass" / "ai_mail"
+        external.mkdir(parents=True)
+        (external / ".trinity").mkdir()
+        (external / ".trinity" / "passport.json").write_text('{"name": "AI_MAIL"}')
+
+        # Create a local agent that belongs to this project
+        local_agent = project / "src" / "polyglot"
+        local_agent.mkdir(parents=True)
+        (local_agent / ".trinity").mkdir()
+        (local_agent / ".trinity" / "passport.json").write_text(
+            json.dumps({"name": "POLYGLOT", "identity": {"citizen_class": "builder"}})
+        )
+
+        reg_path = project / "MYPROJECT_REGISTRY.json"
+        reg_path.write_text(
+            json.dumps(
+                {
+                    "metadata": {"version": "1.0.0", "last_updated": "2026-05-15", "total_branches": 2},
+                    "branches": [
+                        {
+                            "name": "AI_MAIL",
+                            "path": "../AIPass/src/aipass/ai_mail",
+                            "profile": "library",
+                            "description": "Mail system",
+                            "email": "@ai_mail",
+                            "status": "active",
+                            "created": "2026-05-01",
+                            "last_active": "2026-05-01",
+                        },
+                        {
+                            "name": "POLYGLOT",
+                            "path": "src/polyglot",
+                            "profile": "library",
+                            "description": "Local agent",
+                            "email": "@polyglot",
+                            "status": "active",
+                            "created": "2026-05-01",
+                            "last_active": "2026-05-01",
+                        },
+                    ],
+                }
+            )
+        )
+
+        with patch("aipass.spawn.apps.handlers.sync_registry_ops.find_registry", return_value=reg_path):
+            result = sync_registry(fix=False)
+
+        assert "ai_mail" in result["stale"]
+        assert "polyglot" in result["healthy"]
+
+    def test_escaped_paths_pruned_on_fix(self, tmp_path):
+        """sync_registry --fix should remove entries with ../paths escaping project root."""
+        from aipass.spawn.apps.handlers.sync_registry_ops import sync_registry
+
+        project = tmp_path / "myproject"
+        project.mkdir()
+
+        # External directory exists with passport (would fool old code)
+        external = tmp_path / "AIPass" / "src" / "aipass" / "flow"
+        external.mkdir(parents=True)
+        (external / ".trinity").mkdir()
+        (external / ".trinity" / "passport.json").write_text('{"name": "FLOW"}')
+
+        # Local agent
+        local = project / "src" / "myagent"
+        local.mkdir(parents=True)
+        (local / ".trinity").mkdir()
+        (local / ".trinity" / "passport.json").write_text(
+            json.dumps({"name": "MYAGENT", "identity": {"citizen_class": "builder"}})
+        )
+
+        reg_path = project / "TEST_REGISTRY.json"
+        reg_path.write_text(
+            json.dumps(
+                {
+                    "metadata": {"version": "1.0.0", "last_updated": "2026-05-15", "total_branches": 2},
+                    "branches": [
+                        {
+                            "name": "FLOW",
+                            "path": "../AIPass/src/aipass/flow",
+                            "profile": "library",
+                            "description": "Flow",
+                            "email": "@flow",
+                            "status": "active",
+                            "created": "2026-05-01",
+                            "last_active": "2026-05-01",
+                        },
+                        {
+                            "name": "MYAGENT",
+                            "path": "src/myagent",
+                            "profile": "library",
+                            "description": "Local",
+                            "email": "@myagent",
+                            "status": "active",
+                            "created": "2026-05-01",
+                            "last_active": "2026-05-01",
+                        },
+                    ],
+                }
+            )
+        )
+
+        with patch("aipass.spawn.apps.handlers.sync_registry_ops.find_registry", return_value=reg_path):
+            result = sync_registry(fix=True)
+
+        assert result["fixed"] is True
+        reg = json.loads(reg_path.read_text())
+        names = [b["name"] for b in reg["branches"]]
+        assert "FLOW" not in names
+        assert "MYAGENT" in names
+        assert reg["metadata"]["total_branches"] == 1
+
 
 # ---------------------------------------------------------------------------
 # ADOPT EXISTING Tests

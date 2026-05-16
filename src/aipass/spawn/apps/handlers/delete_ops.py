@@ -21,8 +21,9 @@ from aipass.spawn.apps.handlers.registry import (
     find_registry,
     load_registry,
     save_registry,
-    _branches_as_list,
+    branches_as_list,
 )
+from aipass.spawn.apps.handlers.repair_ops import ARCHIVE_EXCLUDE
 from aipass.spawn.apps.handlers.json import json_handler
 
 # Branches that cannot be deleted (critical infrastructure)
@@ -41,7 +42,7 @@ def _resolve_branch_dir(branch_name, registry_path, registry):
         Tuple of (branch_entry, branch_dir) or (None, None) if not found.
     """
     project_root = registry_path.parent
-    for entry in _branches_as_list(registry.get("branches", [])):
+    for entry in branches_as_list(registry.get("branches", [])):
         if entry.get("name", "").lower() == branch_name.lower():
             rel_path = entry.get("path", "")
             branch_dir = (project_root / rel_path).resolve() if rel_path else None
@@ -57,7 +58,7 @@ def _archive_branch(branch_dir, archive_dir):
     """
     archive_dir.parent.mkdir(parents=True, exist_ok=True)
     try:
-        shutil.copytree(str(branch_dir), str(archive_dir))
+        shutil.copytree(str(branch_dir), str(archive_dir), ignore=shutil.ignore_patterns(*ARCHIVE_EXCLUDE))
         logger.info(f"[delete] Archived to {archive_dir}")
         return None
     except Exception as exc:
@@ -91,7 +92,7 @@ def _remove_from_registry(registry, branch_name, registry_path):
         registry["branches"] = branches
     else:
         registry["branches"] = [b for b in branches if b.get("name", "").lower() != branch_name.lower()]
-    registry["metadata"]["total_branches"] = len(_branches_as_list(registry["branches"]))
+    registry["metadata"]["total_branches"] = len(branches_as_list(registry["branches"]))
     return save_registry(registry_path, registry)
 
 

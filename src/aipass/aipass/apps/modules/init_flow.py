@@ -845,7 +845,27 @@ def _handle_init_update(args: list[str]) -> int:
     target = Path(args[0]) if args else Path.cwd()
     try:
         result = update_project(target)
-        console.print(f"[green]✓[/green] Project updated at {target}")
+        updated = result.get("updated_files", [])
+        current = result.get("already_current", [])
+        if updated:
+            console.print(f"[green]✓[/green] Updated {len(updated)} file(s):")
+            for f in updated:
+                console.print(f"  [green]+[/green] {f}")
+        else:
+            console.print("[green]✓[/green] All files already current.")
+        if current:
+            console.print(f"  ({len(current)} already up to date)")
+        # Heal registry: prune stale entries (e.g. cross-project ../paths)
+        try:
+            from aipass.spawn.apps.modules.sync_registry import sync_registry
+
+            sync_result = sync_registry(fix=True)
+            pruned = sync_result.get("stale", [])
+            if pruned:
+                console.print(f"  [green]Registry healed:[/green] removed {len(pruned)} stale entry(ies)")
+        except Exception as sync_exc:
+            logger.warning("[init_flow] registry sync during update skipped: %s", sync_exc)
+
         json_handler.log_operation("aipass_init_update", {"target": str(target), "result": result})
         return 0
     except Exception as exc:

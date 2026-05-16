@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2026-05-12",
+    "last_updated": "2026-05-15",
     "description": "Template file tracking registry for ID-based updates"
   },
   "files": {
@@ -50,7 +50,7 @@
     "f008": {
       "path": ".gitignore",
       "name": ".gitignore",
-      "content_hash": "841dedb922da",
+      "content_hash": "2dd6758a96d5",
       "has_branch_placeholder": false
     },
     "f009": {
@@ -86,13 +86,13 @@
     "f012": {
       "path": ".trinity/local.json",
       "name": "local.json",
-      "content_hash": "f4e62d2d12ba",
+      "content_hash": "df2ba4a97f0a",
       "has_branch_placeholder": false
     },
     "f013": {
       "path": ".trinity/observations.json",
       "name": "observations.json",
-      "content_hash": "25b957960a59",
+      "content_hash": "62160dfa243c",
       "has_branch_placeholder": false
     },
     "f014": {
@@ -219,6 +219,12 @@
       "path": "pytest.ini",
       "name": "pytest.ini",
       "content_hash": "7b39ba7bca40",
+      "has_branch_placeholder": false
+    },
+    "f045": {
+      "path": "requirements.project.txt",
+      "name": "requirements.project.txt",
+      "content_hash": "1facc521802b",
       "has_branch_placeholder": false
     },
     "f036": {

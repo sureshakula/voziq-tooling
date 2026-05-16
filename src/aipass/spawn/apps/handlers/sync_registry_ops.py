@@ -26,7 +26,7 @@ from aipass.spawn.apps.handlers.registry import (
     find_registry,
     load_registry,
     save_registry,
-    _branches_as_list,
+    branches_as_list,
     fix_passport_registry_id,
 )
 from aipass.spawn.apps.handlers.meta_ops import (
@@ -109,7 +109,7 @@ def sync_registry(fix: bool = False) -> dict:
     registry_path = find_registry()
     project_root = registry_path.parent
     registry = load_registry(registry_path)
-    branches = _branches_as_list(registry.get("branches", []))
+    branches = branches_as_list(registry.get("branches", []))
 
     # Build lookup of registered branch names (lowercase) -> entry
     registered: dict[str, dict] = {}
@@ -127,11 +127,19 @@ def sync_registry(fix: bool = False) -> dict:
     healthy: list[str] = []
 
     # Check registered branches against filesystem
+    resolved_root = project_root.resolve()
     for name, entry in registered.items():
         rel_path = entry.get("path", "")
         branch_dir = (project_root / rel_path).resolve() if rel_path else None
 
         if branch_dir and branch_dir.is_dir():
+            try:
+                branch_dir.relative_to(resolved_root)
+            except ValueError:
+                stale.append(name)
+                logger.info("[sync-registry] Entry '%s' path escapes project root: %s", name, rel_path)
+                continue
+
             passport = branch_dir / ".trinity" / "passport.json"
             if passport.exists():
                 healthy.append(name)
@@ -196,7 +204,7 @@ def sync_registry(fix: bool = False) -> dict:
             logger.info(f"[sync-registry] Added unregistered branch: {name}")
 
         # Update total and save
-        registry["metadata"]["total_branches"] = len(_branches_as_list(registry["branches"]))
+        registry["metadata"]["total_branches"] = len(branches_as_list(registry["branches"]))
         save_result = save_registry(registry_path, registry)
         fixed = save_result
 

@@ -17,7 +17,7 @@
       "max_key_learnings": 25,
       "session_summary_max_chars": 150,
       "learning_value_max_chars": 200,
-      "note": "Auto-rollover to @memory when limits exceeded. Oldest entries trimmed first."
+      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries."
     },
     "status": {
       "health": "healthy",

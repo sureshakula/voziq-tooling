@@ -210,6 +210,42 @@
       "standard": "windows_compat",
       "lines": [249],
       "reason": "fcntl import at L249 inside 'if lock_fd is not None:' — lock_fd is None on Windows (set at L206), so this line never executes on Windows."
+    },
+    {
+      "file": "apps/handlers/repair_ops.py",
+      "standard": "handlers",
+      "reason": "Imports registry functions — repair needs to load/save registry and update branch paths. Registry is a shared data handler."
+    },
+    {
+      "file": "apps/handlers/delete_ops.py",
+      "standard": "handlers",
+      "reason": "Imports ARCHIVE_EXCLUDE from repair_ops — shared constant for copytree ignore patterns. Avoids duplicating the exclude set across handlers."
+    },
+    {
+      "file": "tests/test_repair.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "tests/test_repair.py",
+      "standard": "encapsulation",
+      "reason": "Test file — tests must import handlers directly to test them in isolation. Handler imports inside test methods are intentional."
+    },
+    {
+      "file": "tests/test_lifecycle.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "tests/test_lifecycle.py",
+      "standard": "encapsulation",
+      "reason": "Test file — tests must import handlers directly to test them in isolation. Handler imports inside test methods are intentional."
+    },
+    {
+      "file": "apps/handlers/repair_ops.py",
+      "standard": "windows_compat",
+      "lines": [89],
+      "reason": "fcntl import guarded by sys.platform != 'win32' check — lock_fd is None on Windows, so this line never executes."
     }
   ],
   "notes": {

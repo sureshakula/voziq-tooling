@@ -135,6 +135,14 @@ def _detect_aipass_home() -> str | None:
     return None
 
 
+def _resolve_global_prompt(name: str, aipass_home: str | None, dest: Path) -> str:
+    """Resolve global prompt content from source template or fallback generator."""
+    source = Path(aipass_home) / ".aipass" / "project_global_prompt.md" if aipass_home else None
+    if source and source.is_file():
+        return source.read_text(encoding="utf-8").replace("{name}", name)
+    return sc.with_source(sc.global_prompt_md(name), dest)
+
+
 def _claude_settings(aipass_home: str | None = None) -> str:
     """Generate .claude/settings.json — hooks for prompt injection at project level.
 
@@ -196,6 +204,48 @@ def _claude_settings(aipass_home: str | None = None) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
+def _guard_init(target: Path) -> None:
+    """Block init if target is inside an agent branch or existing project.
+
+    Raises RuntimeError with explanation if init should not proceed.
+    """
+    target = target.resolve()
+    # Block: target IS an agent branch (has passport)
+    if (target / ".trinity" / "passport.json").is_file():
+        raise RuntimeError(
+            f"BLOCKED: '{target}' is an agent branch (has .trinity/passport.json). "
+            "Agents are managed by 'drone @spawn', not 'aipass init'."
+        )
+    # Block: target is INSIDE an agent branch (passport above us)
+    for parent in target.parents:
+        if (parent / ".trinity" / "passport.json").is_file():
+            raise RuntimeError(
+                f"BLOCKED: '{target}' is inside agent branch '{parent.name}'. "
+                "Cannot run aipass init inside an agent directory."
+            )
+        if parent == parent.parent:
+            break
+    # Block: target already has a registry (is already a project)
+    for f in target.iterdir() if target.is_dir() else []:
+        if f.is_file() and f.name.endswith("_REGISTRY.json"):
+            raise RuntimeError(
+                f"BLOCKED: '{target}' is already an AIPass project (has {f.name}). "
+                "Use 'aipass init update' to upgrade an existing project."
+            )
+    # Block: target is inside an existing project
+    for parent in target.parents:
+        if not parent.is_dir():
+            continue
+        for f in parent.iterdir():
+            if f.is_file() and f.name.endswith("_REGISTRY.json"):
+                raise RuntimeError(
+                    f"BLOCKED: '{target}' is inside AIPass project at '{parent}' (has {f.name}). "
+                    "Cannot create a nested project."
+                )
+        if parent == parent.parent:
+            break
+
+
 def init_project(target: Path, project_name: str | None = None) -> dict:
     """Initialize an AIPass project in the target directory.
 
@@ -208,8 +258,10 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
 
     Raises:
         ValueError: If project name is empty after sanitization
+        RuntimeError: If target is inside an agent branch or existing project
     """
     target = target.resolve()
+    _guard_init(target)
     if not target.exists():
         target.mkdir(parents=True)
 
@@ -254,38 +306,20 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
 
     global_prompt_path = aipass_dir / "aipass_global_prompt.md"
     if not global_prompt_path.exists():
-        global_prompt_path.write_text(
-            sc.with_source(sc.global_prompt_md(name), global_prompt_path),
-            encoding="utf-8",
-        )
+        global_prompt_path.write_text(_resolve_global_prompt(name, aipass_home, global_prompt_path), encoding="utf-8")
         created.append(str(global_prompt_path))
 
-    # 3. CLAUDE.md
-    claude_md_path = target / "CLAUDE.md"
-    if not claude_md_path.exists():
-        claude_md_path.write_text(
-            sc.with_source(sc.claude_md(name), claude_md_path),
-            encoding="utf-8",
-        )
-        created.append(str(claude_md_path))
-
-    # 4. AGENTS.md (Codex)
-    agents_md_path = target / "AGENTS.md"
-    if not agents_md_path.exists():
-        agents_md_path.write_text(
-            sc.with_source(sc.agents_md(name), agents_md_path),
-            encoding="utf-8",
-        )
-        created.append(str(agents_md_path))
-
-    # 5. GEMINI.md
-    gemini_md_path = target / "GEMINI.md"
-    if not gemini_md_path.exists():
-        gemini_md_path.write_text(
-            sc.with_source(sc.gemini_md(name), gemini_md_path),
-            encoding="utf-8",
-        )
-        created.append(str(gemini_md_path))
+    # 3-5. CLAUDE.md, AGENTS.md, GEMINI.md — copy from AIPass source of truth
+    for md_name in ("CLAUDE.md", "AGENTS.md", "GEMINI.md"):
+        dest = target / md_name
+        if dest.exists():
+            continue
+        source = Path(aipass_home) / md_name if aipass_home else None
+        if source and source.is_file():
+            shutil.copy2(str(source), str(dest))
+            created.append(str(dest))
+        else:
+            logging.getLogger(__name__).warning("Source %s not found at AIPASS_HOME, skipping", md_name)
 
     # 6. README.md
     readme_md_path = target / "README.md"
@@ -344,6 +378,14 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     if not init_py.exists():
         init_py.write_text(f'"""{raw_name} — created with aipass init."""\n', encoding="utf-8")
         created.append(str(init_py))
+
+    # 11. .venv symlink → AIPass shared runtime
+    venv_link = target / ".venv"
+    if not venv_link.exists() and aipass_home:
+        aipass_venv = Path(aipass_home) / ".venv"
+        if aipass_venv.is_dir():
+            venv_link.symlink_to(aipass_venv)
+            created.append(f".venv (symlink to AIPass runtime: {aipass_venv})")
 
     return {
         "registry_id": registry_id,
@@ -405,7 +447,8 @@ def update_project(target: Path) -> dict:
     # --- Managed files: write only when content has changed ---
 
     global_prompt_path = aipass_dir / "aipass_global_prompt.md"
-    generated = sc.with_source(sc.global_prompt_md(name), global_prompt_path)
+    aipass_home = aipass_home or _detect_aipass_home()
+    generated = _resolve_global_prompt(name, aipass_home, global_prompt_path)
     if not global_prompt_path.exists() or global_prompt_path.read_text(encoding="utf-8") != generated:
         global_prompt_path.write_text(generated, encoding="utf-8")
         updated.append(str(global_prompt_path))
@@ -434,29 +477,19 @@ def update_project(target: Path) -> dict:
         else:
             already_current.append(str(settings_path))
 
-    claude_md_path = target / "CLAUDE.md"
-    generated = sc.with_source(sc.claude_md(name), claude_md_path)
-    if not claude_md_path.exists() or claude_md_path.read_text(encoding="utf-8") != generated:
-        claude_md_path.write_text(generated, encoding="utf-8")
-        updated.append(str(claude_md_path))
-    else:
-        already_current.append(str(claude_md_path))
-
-    agents_md_path = target / "AGENTS.md"
-    generated = sc.with_source(sc.agents_md(name), agents_md_path)
-    if not agents_md_path.exists() or agents_md_path.read_text(encoding="utf-8") != generated:
-        agents_md_path.write_text(generated, encoding="utf-8")
-        updated.append(str(agents_md_path))
-    else:
-        already_current.append(str(agents_md_path))
-
-    gemini_md_path = target / "GEMINI.md"
-    generated = sc.with_source(sc.gemini_md(name), gemini_md_path)
-    if not gemini_md_path.exists() or gemini_md_path.read_text(encoding="utf-8") != generated:
-        gemini_md_path.write_text(generated, encoding="utf-8")
-        updated.append(str(gemini_md_path))
-    else:
-        already_current.append(str(gemini_md_path))
+    # CLAUDE.md, AGENTS.md, GEMINI.md — sync from AIPass source of truth
+    for md_name in ("CLAUDE.md", "AGENTS.md", "GEMINI.md"):
+        dest = target / md_name
+        source = Path(aipass_home) / md_name if aipass_home else None
+        if not source or not source.is_file():
+            already_current.append(str(dest))
+            continue
+        source_content = source.read_text(encoding="utf-8")
+        if not dest.exists() or dest.read_text(encoding="utf-8") != source_content:
+            shutil.copy2(str(source), str(dest))
+            updated.append(str(dest))
+        else:
+            already_current.append(str(dest))
 
     # .claude/commands/prep.md — managed slash command, refresh to latest
     # Only prep.md — memo.md belongs at provider level (~/.claude/commands/)
@@ -484,6 +517,14 @@ def update_project(target: Path) -> dict:
         str(target / ".gitignore"),
     ):
         skipped.append(skip_name)
+
+    # .venv symlink → AIPass shared runtime (create if missing)
+    venv_link = target / ".venv"
+    if not venv_link.exists() and aipass_home:
+        aipass_venv = Path(aipass_home) / ".venv"
+        if aipass_venv.is_dir():
+            venv_link.symlink_to(aipass_venv)
+            updated.append(f".venv (symlink to AIPass runtime: {aipass_venv})")
 
     return {
         "project_name": name,

@@ -18,5 +18,4 @@ build/
 logs/
 DASHBOARD.local.json
 docs.local/
-tools/aipass-dev
 stress_test_s117.md

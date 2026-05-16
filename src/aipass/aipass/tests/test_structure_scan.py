@@ -13,9 +13,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
+    _detect_package_names,
     check_placement,
     check_pyproject,
     check_registry_consistency,
+    check_root_artifacts,
     detect_pollution,
     find_project_root,
     find_registry,
@@ -163,6 +165,113 @@ class TestCheckPlacement:
 
 
 # =============================================================================
+# TestDetectPackageNames
+# =============================================================================
+
+
+class TestDetectPackageNames:
+    def test_no_pyproject(self, tmp_path: Path) -> None:
+        """Returns empty set when no pyproject.toml."""
+        result = _detect_package_names(tmp_path)
+        assert result == set()
+
+    def test_hatch_packages(self, tmp_path: Path) -> None:
+        """Detects package from hatch build config."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[tool.hatch.build.targets.wheel]\npackages = ["src/aipl"]\n',
+            encoding="utf-8",
+        )
+        result = _detect_package_names(tmp_path)
+        assert "aipl" in result
+
+    def test_setuptools_packages(self, tmp_path: Path) -> None:
+        """Detects package from setuptools config."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[tool.setuptools]\npackages = ["mypackage"]\n',
+            encoding="utf-8",
+        )
+        result = _detect_package_names(tmp_path)
+        assert "mypackage" in result
+
+    def test_corrupt_pyproject(self, tmp_path: Path) -> None:
+        """Returns empty set for corrupt TOML."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not valid toml {{{", encoding="utf-8")
+        result = _detect_package_names(tmp_path)
+        assert result == set()
+
+    def test_pyproject_without_packages(self, tmp_path: Path) -> None:
+        """Returns empty set when pyproject has no package declarations."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"\n', encoding="utf-8")
+        result = _detect_package_names(tmp_path)
+        assert result == set()
+
+
+# =============================================================================
+# TestPackageAwarePlacement
+# =============================================================================
+
+
+class TestPackageAwarePlacement:
+    def test_agent_inside_package_passes(self, tmp_path: Path) -> None:
+        """Agent at src/<pkg>/<agent>/ passes when package is defined."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[tool.hatch.build.targets.wheel]\npackages = ["src/aipl"]\n',
+            encoding="utf-8",
+        )
+        _make_agent(tmp_path, "polyglot", subdir="aipl")
+        agents = scan_agents(tmp_path)
+        issues = check_placement(agents, tmp_path)
+        assert issues == []
+
+    def test_agent_sibling_of_package_warned(self, tmp_path: Path) -> None:
+        """Agent at src/<other>/ flagged when package exists at src/<pkg>/."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[tool.hatch.build.targets.wheel]\npackages = ["src/aipl"]\n',
+            encoding="utf-8",
+        )
+        _make_agent(tmp_path, "polyglot")
+        agents = scan_agents(tmp_path)
+        issues = check_placement(agents, tmp_path)
+        assert len(issues) == 1
+        assert issues[0].agent_name == "polyglot"
+        assert "outside package framework" in issues[0].expected_pattern
+
+    def test_package_dir_itself_passes(self, tmp_path: Path) -> None:
+        """Package dir at src/<pkg>/ with passport passes (it IS the package)."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[tool.hatch.build.targets.wheel]\npackages = ["src/aipl"]\n',
+            encoding="utf-8",
+        )
+        _make_agent(tmp_path, "aipl")
+        agents = scan_agents(tmp_path)
+        issues = check_placement(agents, tmp_path)
+        assert issues == []
+
+    def test_no_pyproject_unchanged(self, tmp_path: Path) -> None:
+        """Without pyproject, src/<agent>/ still passes (original behavior)."""
+        _make_agent(tmp_path, "myagent")
+        agents = scan_agents(tmp_path)
+        issues = check_placement(agents, tmp_path)
+        assert issues == []
+
+    def test_pyproject_without_packages_unchanged(self, tmp_path: Path) -> None:
+        """pyproject without package declarations doesn't flag anything."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"\n', encoding="utf-8")
+        _make_agent(tmp_path, "myagent")
+        agents = scan_agents(tmp_path)
+        issues = check_placement(agents, tmp_path)
+        assert issues == []
+
+
+# =============================================================================
 # TestDetectPollution
 # =============================================================================
 
@@ -281,6 +390,49 @@ class TestCheckPyproject:
 
 
 # =============================================================================
+# TestCheckRootArtifacts
+# =============================================================================
+
+
+class TestCheckRootArtifacts:
+    def test_no_artifacts(self, tmp_path: Path) -> None:
+        """Clean root returns empty list."""
+        hits = check_root_artifacts(tmp_path)
+        assert hits == []
+
+    def test_chroma_detected(self, tmp_path: Path) -> None:
+        """Detects .chroma/ at project root."""
+        (tmp_path / ".chroma").mkdir()
+        hits = check_root_artifacts(tmp_path)
+        assert len(hits) == 1
+        assert hits[0].name == ".chroma"
+        assert hits[0].artifact_type == "chroma"
+        assert hits[0].severity == "warn"
+
+    def test_venv_is_info(self, tmp_path: Path) -> None:
+        """.venv/ at root is info severity, not warn."""
+        (tmp_path / ".venv").mkdir()
+        hits = check_root_artifacts(tmp_path)
+        assert len(hits) == 1
+        assert hits[0].severity == "info"
+
+    def test_multiple_artifacts(self, tmp_path: Path) -> None:
+        """Multiple misplaced items all detected."""
+        (tmp_path / ".chroma").mkdir()
+        (tmp_path / "logs").mkdir()
+        (tmp_path / ".ai_mail.local").mkdir()
+        hits = check_root_artifacts(tmp_path)
+        names = {h.name for h in hits}
+        assert names == {".chroma", "logs", ".ai_mail.local"}
+
+    def test_nonexistent_ignored(self, tmp_path: Path) -> None:
+        """Only existing artifacts are reported."""
+        (tmp_path / ".chroma").mkdir()
+        hits = check_root_artifacts(tmp_path)
+        assert all(h.name != "logs" for h in hits)
+
+
+# =============================================================================
 # TestCheckStructureIntegration
 # =============================================================================
 
@@ -308,6 +460,18 @@ class TestCheckStructureIntegration:
         glyphs = {r.glyph for r in results}
         assert GLYPH_FAIL not in glyphs
         assert GLYPH_WARN not in glyphs
+
+    def test_root_artifacts_reported(self, tmp_path: Path) -> None:
+        """Root artifacts show up as WARN in structure check."""
+        _make_agent(tmp_path, "agent1", "uuid-1")
+        _make_registry(tmp_path, [{"name": "agent1", "path": str(tmp_path / "src" / "agent1")}])
+        (tmp_path / "pyproject.toml").write_text("[project]", encoding="utf-8")
+        (tmp_path / ".chroma").mkdir()
+        with patch("aipass.aipass.apps.modules.doctor.find_project_root", return_value=tmp_path):
+            results = _check_structure()
+        root_results = [r for r in results if "root:" in r.label]
+        assert len(root_results) >= 1
+        assert root_results[0].glyph == GLYPH_WARN
 
     def test_pollution_reported(self, tmp_path: Path) -> None:
         """Duplicate registry_id shows up as FAIL in structure check."""

@@ -44,6 +44,7 @@ def print_help():
     console.print("  [green]sync-registry[/green]                 Repair registry against filesystem")
     console.print("  [green]sync-templates[/green]                Pull managed files from source")
     console.print("  [green]regenerate-registry[/green]           Regenerate template registry hashes")
+    console.print("  [green]repair[/green] <project_path>           Scan and fix project structure")
     console.print()
     console.print("[bold cyan]CITIZEN CLASSES:[/bold cyan]")
     console.print()
@@ -197,6 +198,7 @@ def print_introspection():
     console.print("    - sync_templates.py (handle_sync_templates — template synchronization)")
     console.print("    - regenerate_registry.py (handle_regenerate_registry — regenerate template registry)")
     console.print("    - passport.py (handle_passport — grant birthright citizenship)")
+    console.print("    - repair.py (handle_repair — project structure repair)")
     console.print()
 
 
@@ -251,6 +253,11 @@ def main():
         from aipass.spawn.apps.modules.regenerate_registry import handle_regenerate_registry
 
         return handle_regenerate_registry(remaining)
+
+    if command == "repair":
+        from aipass.spawn.apps.modules.repair import handle_repair
+
+        return handle_repair(remaining)
 
     error(f"Unknown command: {command}", suggestion="Run 'drone @spawn --help' for available commands")
     return 1

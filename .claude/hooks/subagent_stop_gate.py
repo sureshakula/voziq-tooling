@@ -45,28 +45,33 @@ def _get_cwd_branch() -> str | None:
 def get_modified_py_files() -> list[str]:
     """Get Python files modified in the working tree, scoped to the CWD branch.
 
-    Only returns files inside the current branch's directory (or repo-root files).
-    This prevents dispatched agents' changes from triggering violations on the
-    orchestrator or other agents sharing the worktree.
+    Uses drone @git status (branch-scoped) instead of raw git to comply with
+    git_gate enforcement. Only returns .py files inside the current branch.
     """
     if AIPASS_ROOT is None:
         return []
+    cwd_branch = _get_cwd_branch()
+    branch_dir = AIPASS_ROOT / "src" / "aipass" / cwd_branch if cwd_branch else None
+    if not branch_dir or not branch_dir.exists():
+        return []
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, timeout=5, cwd=str(AIPASS_ROOT)
+            ["drone", "@git", "status"], capture_output=True, text=True, timeout=10, cwd=str(branch_dir)
         )
-        cwd_branch = _get_cwd_branch()
         files = []
         for line in result.stdout.strip().split("\n"):
             line = line.strip()
-            if line.endswith(".py") and not line.startswith(".claude/"):
-                if cwd_branch and line.startswith("src/aipass/"):
-                    file_branch = line.split("/")[2] if len(line.split("/")) > 2 else None
-                    if file_branch and file_branch != cwd_branch:
-                        continue
-                full = AIPASS_ROOT / line
-                if full.exists():
-                    files.append(str(full))
+            if not line or "file(s) changed" in line:
+                continue
+            parts = line.split(None, 1)
+            if len(parts) != 2:
+                continue
+            _, filepath = parts
+            if not filepath.endswith(".py") or filepath.startswith(".claude/"):
+                continue
+            full = AIPASS_ROOT / filepath
+            if full.exists():
+                files.append(str(full))
         return files
     except Exception:
         return []
@@ -104,11 +109,26 @@ def check_hook_readme_accountability() -> str | None:
     """Check if hook files changed but README wasn't updated. Returns reminder or None."""
     if AIPASS_ROOT is None:
         return None
+    cwd_branch = _get_cwd_branch()
+    branch_dir = AIPASS_ROOT / "src" / "aipass" / cwd_branch if cwd_branch else None
+    if not branch_dir or not branch_dir.exists():
+        return None
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD"], capture_output=True, text=True, timeout=5, cwd=str(AIPASS_ROOT)
+            ["drone", "@git", "status", "--all"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=str(branch_dir),
         )
-        changed = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
+        changed = []
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if not line or "file(s) changed" in line:
+                continue
+            parts = line.split(None, 1)
+            if len(parts) == 2:
+                changed.append(parts[1])
 
         hook_files_changed = any(f.startswith(".claude/hooks/") and f.endswith(".py") for f in changed)
         readme_changed = ".claude/hooks/README.md" in changed

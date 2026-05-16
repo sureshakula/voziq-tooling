@@ -14,7 +14,7 @@
     ],
     "limits": {
       "max_lines": 600,
-      "note": "Auto-rollover when max_lines exceeded"
+      "note": "DO NOT trim, prune, or delete entries. Auto-rollover to @memory when max_lines exceeded."
     },
     "status": {
       "health": "healthy",
