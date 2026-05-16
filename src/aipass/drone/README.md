@@ -186,7 +186,7 @@ drone/
 │           └── hook_sounds_plugin.py  # Toggle notification sounds on/off
 ├── docs/                          # Public documentation
 ├── docs.local/                    # Investigation reports and policies
-└── tests/                         # 704 tests across 21 test files
+└── tests/                         # 729 tests across 22 test files
 ```
 
 ### Routing Flow
@@ -315,11 +315,11 @@ Tip: set AIPASS_HOME=/path/to/AIPass to access all branches
 
 ## Testing
 
-704 tests across 21 test files, covering all layers:
+729 tests across 22 test files, covering all layers:
 
 | Area | Files | Tests |
 |------|-------|-------|
-| Core routing | `test_resolver.py`, `test_router.py`, `test_activation.py` | ~128 |
+| Core routing | `test_resolver.py`, `test_router.py`, `test_activation.py`, `test_registry.py` | ~148 |
 | Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py`, `test_git_access.py` | ~150 |
 | Handlers | `test_executor.py`, `test_registry_handler.py`, `test_discovery.py` | ~99 |
 | Infrastructure | `test_generic_adapter.py`, `test_module_registry.py`, `test_config.py` | ~66 |
@@ -338,7 +338,7 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ---
 
-**Seedgo:** 99% | **Tests:** 704 pass, 4 skip | **Last Updated:** 2026-05-12
+**Seedgo:** 99% | **Tests:** 729 pass, 4 skip | **Last Updated:** 2026-05-16
 
 ---
 [← Back to AIPass](../../../README.md)

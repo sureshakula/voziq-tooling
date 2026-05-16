@@ -69,7 +69,7 @@ MODEL_MAP = {
     "opus": "claude-opus-4-6",
     "haiku": "claude-haiku-4-5-20251001",
 }
-DEFAULT_MODEL = "opus"
+DEFAULT_MODEL = "sonnet"
 
 # Branches that cannot be woken manually by cross-branch drone commands.
 # Dispatch-send path (dispatch.py._orchestrate_dispatch_send) bypasses this check.
@@ -556,7 +556,7 @@ if __name__ == "__main__":
         print("  --fresh          Start fresh session (claude -p) instead of resuming (claude -c -p)")
         print("  --auto           Respect autonomous_pause (used by daemon). Manual wake ignores it.")
         print("  --sender @branch Set return-to-sender for bounce emails (default: @devpulse)")
-        print("  --model NAME     Model to use: opus (default), sonnet, haiku, or full model ID")
+        print("  --model NAME     Model to use: sonnet (default), opus, haiku, or full model ID")
         print()
         print("Output: Step-by-step status of the dispatch pipeline:")
         print("  ✅ resolve → @branch found at /path/to/branch")
