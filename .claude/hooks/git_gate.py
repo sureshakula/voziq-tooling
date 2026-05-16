@@ -165,6 +165,22 @@ def main():
                 if re.search(r"\bgit\b|\bgh\b", cmd):
                     _block(GIT_REDIRECT)
 
+            # Script-file bypass detection — read file contents when bash/sh runs a script.
+            script_match = re.search(r"(?:^|[;&|]\s*)(?:bash|sh|source|\.)\s+([^\s;&|]+)", cmd)
+            if script_match:
+                script_path = script_match.group(1)
+                if not os.path.isabs(script_path):
+                    script_path = os.path.join(cwd, script_path)
+                try:
+                    content = Path(script_path).read_text(encoding="utf-8", errors="ignore")
+                    if BLOCKED_GIT_RE.search(content) or BLOCKED_GIT_PATH_RE.search(content):
+                        _block(GIT_REDIRECT)
+                    if BLOCKED_GH_RE.search(content) or BLOCKED_GH_PATH_RE.search(content):
+                        if not (_cwd_branch(cwd) in TRUSTED_HOOK_EDITORS or _is_project_owner(cwd)):
+                            _block(GH_REDIRECT)
+                except (OSError, UnicodeDecodeError):
+                    pass
+
             # Strip quoted strings before matching — text inside "..." or '...' is data
             # (PR descriptions, commit messages, examples in docs), not code to enforce.
             scan = re.sub(r'"(?:[^"\\]|\\.)*"', '""', cmd)
