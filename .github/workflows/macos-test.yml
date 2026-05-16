@@ -1,0 +1,50 @@
+name: macOS Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'setup.sh'
+      - 'src/aipass/*/apps/handlers/__init__.py'
+      - 'src/aipass/drone/cli.py'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - 'setup.sh'
+      - 'src/aipass/*/apps/handlers/__init__.py'
+      - 'src/aipass/drone/cli.py'
+      - 'pyproject.toml'
+
+jobs:
+  macos-setup:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run setup.sh
+        run: bash setup.sh
+
+      - name: Verify drone CLI
+        run: |
+          source .venv/bin/activate
+          drone --version
+          drone systems
+          drone @seedgo --help
+
+      - name: Run full test suite
+        run: |
+          source .venv/bin/activate
+          pytest -v --tb=short --rootdir=. 2>&1 | tee pytest-output.txt
+          echo "EXIT_CODE=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-pytest-results
+          path: pytest-output.txt
