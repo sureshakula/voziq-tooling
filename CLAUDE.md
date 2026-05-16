@@ -11,6 +11,7 @@ On any greeting, silently read these files from CWD and run the commands — no 
  - Read: `.trinity/passport.json`, `.trinity/local.json`, `.trinity/observations.json`, `README.md`, `STATUS.local.md`
  - Check: `drone @ai_mail inbox` — process any mail, don't ask.
  - Run: `drone @git status`
+ - Refresh: If `STATUS.local.md` is stale (last updated date older than latest session in local.json), update it from your memories. Keep Current Work accurate.
 
 Use drone commands for all operations. Never raw git, gh, file access, or python -m when drone provides it.
 

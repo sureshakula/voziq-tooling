@@ -146,8 +146,21 @@ Context just compacted. Below is your live state. Use it to continue seamlessly.
             if status:
                 sections.append(f"## STATUS.local.md\n{status}")
 
-        # Recovery instructions (lean)
-        sections.append("""## Recovery Protocol
+        # Recovery instructions — different for dispatched agents vs interactive
+        import os
+
+        is_dispatched = os.environ.get("AIPASS_SESSION_TYPE") == "dispatched"
+
+        if is_dispatched:
+            sections.append("""## DISPATCHED AGENT — SAVE STATE NOW
+Before continuing work, you MUST update your memories:
+1. Update .trinity/local.json — add/update current session with work done so far
+2. Update STATUS.local.md — ensure Current Work reflects what you've accomplished
+3. Then continue your task from where the summary left off
+
+This is non-optional. Compaction just happened — if you don't save now, work history is lost.""")
+        else:
+            sections.append("""## Recovery Protocol
 - Continue where the summary left off — don't restart or ask generic questions
 - .trinity/local.json has full session history and key_learnings — read it if you need more context
 - STATUS.local.md has current work, known issues, and todos
