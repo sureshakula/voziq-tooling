@@ -313,4 +313,124 @@ class TestEditBlocking:
         assert not matched, f"Should allow edit: {path}"
 
 
+_PY3 = "python3"
+
+
+class TestBypassDetection:
+    """Issue #561: bypass vectors that circumvent regex scanning."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, tmp_path):
+        """Create test script files for bypass detection tests."""
+        self.gate = HOOK_PATH
+        self.cwd = str(tmp_path)
+        evil_sh = tmp_path / "evil.sh"
+        evil_sh.write_text("#!/bin/bash\ngit commit -m hack\ngit push\n", encoding="utf-8")
+        self.evil_sh = str(evil_sh)
+        evil_py = tmp_path / "evil.py"
+        evil_py.write_text("import subprocess\nsubprocess.run(['git','push'])\n", encoding="utf-8")
+        self.evil_py = str(evil_py)
+        safe_sh = tmp_path / "safe.sh"
+        safe_sh.write_text("#!/bin/bash\necho hello\nls -la\n", encoding="utf-8")
+        self.safe_sh = str(safe_sh)
+
+    def _run(self, cmd):
+        """Pipe a command to git_gate.py and return exit code."""
+        import json
+        import subprocess
+        import sys
+
+        payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": self.cwd})
+        result = subprocess.run(
+            [sys.executable, str(self.gate)],
+            input=payload,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return result.returncode
+
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            f"{_PY3} -c \"import subprocess; subprocess.run(['git','commit'])\"",
+            f"{_PY3} -c \"import os; os.system('git push')\"",
+            f"{_PY3} -c \"from subprocess import Popen; Popen(['gh','pr','create'])\"",
+            f"{_PY3} -c \"from os import popen; popen('git merge')\"",
+            f"{_PY3} -c \"from os import system; system('git push')\"",
+        ],
+    )
+    def test_blocks_subprocess_bypass(self, cmd):
+        """Subprocess wrapping git/gh is detected and blocked."""
+        assert self._run(cmd) == 2, f"Should block subprocess bypass: {cmd}"
+
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "/usr/bin/git commit -m test",
+            "/usr/local/bin/git push",
+            "/snap/bin/gh pr create --title x",
+        ],
+    )
+    def test_blocks_full_path_bypass(self, cmd):
+        """Full binary paths to git/gh are detected and blocked."""
+        assert self._run(cmd) == 2, f"Should block full path: {cmd}"
+
+    def test_blocks_bash_script_with_git(self):
+        """Script containing git commands is blocked when run via bash."""
+        assert self._run(f"bash {self.evil_sh}") == 2
+
+    def test_blocks_sh_script_with_git(self):
+        """Script containing git commands is blocked when run via sh."""
+        assert self._run(f"sh {self.evil_sh}") == 2
+
+    def test_blocks_source_script_with_git(self):
+        """Script containing git commands is blocked when sourced."""
+        assert self._run(f"source {self.evil_sh}") == 2
+
+    def test_blocks_dot_source_script_with_git(self):
+        """Script containing git commands is blocked via dot-source."""
+        assert self._run(f". {self.evil_sh}") == 2
+
+    def test_blocks_python_script_with_git(self):
+        """Python script containing subprocess+git is blocked."""
+        assert self._run(f"{_PY3} {self.evil_py}") == 2
+
+    def test_blocks_cat_pipe_bash(self):
+        """Piping script contents to bash is detected and blocked."""
+        assert self._run(f"cat {self.evil_sh} | bash") == 2
+
+    def test_blocks_bash_stdin_redirect(self):
+        """Stdin redirect to bash is detected and blocked."""
+        assert self._run(f"bash < {self.evil_sh}") == 2
+
+    def test_blocks_xargs_git(self):
+        """Using xargs to construct git commands is blocked."""
+        assert self._run("echo commit | xargs git") == 2
+
+    def test_blocks_variable_expansion(self):
+        """Variable assignment of git followed by execution is blocked."""
+        assert self._run("cmd=git; $cmd commit -m test") == 2
+
+    def test_allows_safe_script(self):
+        """Script without git commands passes through."""
+        assert self._run(f"bash {self.safe_sh}") == 0
+
+    def test_allows_subprocess_no_git(self):
+        """Subprocess calls without git/gh are allowed."""
+        assert self._run(f"{_PY3} -c \"import subprocess; subprocess.run(['ls'])\"") == 0
+
+    def test_allows_read_only_full_path(self):
+        """Read-only git via full path is allowed."""
+        assert self._run("/usr/bin/git log --oneline") == 0
+
+    def test_allows_nonexistent_script(self):
+        """Nonexistent script passes through gracefully."""
+        assert self._run("bash /tmp/nonexistent_xyz.sh") == 0
+
+    def test_allows_echo(self):
+        """Normal commands without git are allowed."""
+        assert self._run("echo hello world") == 0
+
+
 # =============================================
