@@ -460,9 +460,9 @@ def test_model_map_has_expected_entries():
     assert "claude-opus-4-6" in MODEL_MAP["opus"]
 
 
-def test_default_model_is_opus():
-    """Default model should be opus."""
-    assert DEFAULT_MODEL == "opus"
+def test_default_model_is_sonnet():
+    """Default model should be sonnet."""
+    assert DEFAULT_MODEL == "sonnet"
 
 
 def test_model_map_values_are_full_ids():

@@ -5,11 +5,11 @@
 **Purpose:** Inter-agent messaging for AIPass. File-based email system that lets agents send, receive, and process messages using `@branch` addresses. No SMTP, no external services — just JSON files and symbolic routing.
 **Module:** `aipass.ai_mail`
 **Created:** 2025-11-08
-**Last Updated:** 2026-04-22
+**Last Updated:** 2026-05-16
 
 ---
 
-**Status:** Operational | **Seedgo:** 100% (34/34) | **Tests:** 355 pass | **Battle Tested:** S62
+**Status:** Operational | **Seedgo:** 99% | **Tests:** 712 pass
 
 ## Commands
 
@@ -149,25 +149,37 @@ ai_mail/
 │       ├── paths.py            # Shared find_repo_root() utility
 │       ├── notify.py           # Desktop notifications (dbus direct)
 │       └── central_writer.py   # Central inbox stats aggregation
-└── tests/                      # 355 tests across 16 test files
+└── tests/                      # 712 tests across 29 test files
     ├── conftest.py             # Shared fixtures (mock_logger, mock_json_handler)
-    ├── test_daemon.py          # Daemon config, state, kill switch, dispatch check
-    ├── test_dispatch_monitor.py # Monitor safety features, env stripping
-    ├── test_dispatch_status.py # Log I/O, age calculation
-    ├── test_dispatch_watchdog.py # Watchdog auto-spawn
-    ├── test_wake.py            # Branch resolution, PID checks, lock files
-    ├── test_wake_blocklist.py  # Wake protection for @devpulse
-    ├── test_delivery.py        # Inbox migration, private branches, pipeline
-    ├── test_send_identity.py   # Sender identity chain (36 tests)
-    ├── test_user_paths.py      # Mailbox path resolution (13 tests)
-    ├── test_contacts.py        # Address book operations
-    ├── test_inbox_ops.py       # Inbox loading + migration
-    ├── test_registry_read.py   # Registry parsing + branch lookup
     ├── test_central_writer.py  # Central stats aggregation
     ├── test_cli_routing.py     # CLI routing + help/version
+    ├── test_close_ops.py       # Batch close operations
+    ├── test_contacts.py        # Address book operations
+    ├── test_create.py          # Email file creation
+    ├── test_daemon.py          # Daemon config, state, kill switch, dispatch check
+    ├── test_delivery.py        # Inbox migration, private branches, pipeline
+    ├── test_dispatch_module.py # Dispatch module orchestration
+    ├── test_dispatch_monitor.py # Monitor safety features, env stripping
+    ├── test_dispatch_status.py # Log I/O, age calculation
+    ├── test_email_module.py    # Email module orchestration
+    ├── test_error_dispatch.py  # Error reporting via email
+    ├── test_footer.py          # Email footer rendering
+    ├── test_format.py          # Display formatting
+    ├── test_header.py          # Dispatch header injection
+    ├── test_inbox_cleanup.py   # Mark read/opened/closed + archive
+    ├── test_inbox_ops.py       # Inbox loading + migration
     ├── test_json_handler.py    # JSON I/O helpers
+    ├── test_misc_handlers.py   # Misc handler utilities
     ├── test_notify.py          # Desktop notification dbus calls
-    └── test_paths.py           # find_repo_root() utility
+    ├── test_paths.py           # find_repo_root() utility
+    ├── test_purge.py           # Auto-purge sent/deleted folders
+    ├── test_registry_read.py   # Registry parsing + branch lookup
+    ├── test_reply.py           # Reply + auto-close original
+    ├── test_send_helpers.py    # Send helper utilities
+    ├── test_send_identity.py   # Sender identity chain
+    ├── test_user_paths.py      # Mailbox path resolution
+    ├── test_wake.py            # Branch resolution, PID checks, lock files
+    └── test_wake_blocklist.py  # Wake protection for @devpulse
 ```
 
 ## Integration Points
