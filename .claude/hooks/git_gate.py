@@ -165,21 +165,51 @@ def main():
                 if re.search(r"\bgit\b|\bgh\b", cmd):
                     _block(GIT_REDIRECT)
 
-            # Script-file bypass detection — read file contents when bash/sh runs a script.
-            script_match = re.search(r"(?:^|[;&|]\s*)(?:bash|sh|source|\.)\s+([^\s;&|]+)", cmd)
+            # Script-file bypass detection — read file contents when an interpreter runs a file.
+            script_match = re.search(
+                r"(?:^|[;&|]\s*)(?:bash|sh|source|python3?|\.)\s+([^\s;&|]+)", cmd
+            )
             if script_match:
                 script_path = script_match.group(1)
-                if not os.path.isabs(script_path):
-                    script_path = os.path.join(cwd, script_path)
+                if not script_path.startswith("-"):
+                    if not os.path.isabs(script_path):
+                        script_path = os.path.join(cwd, script_path)
+                    try:
+                        content = Path(script_path).read_text(encoding="utf-8", errors="ignore")
+                        if BLOCKED_GIT_RE.search(content) or BLOCKED_GIT_PATH_RE.search(content):
+                            _block(GIT_REDIRECT)
+                        if re.search(r"\bgit\b|\bgh\b", content):
+                            if re.search(r"subprocess|os\.system|os\.popen|Popen", content):
+                                _block(GIT_REDIRECT)
+                        if BLOCKED_GH_RE.search(content) or BLOCKED_GH_PATH_RE.search(content):
+                            if not (_cwd_branch(cwd) in TRUSTED_HOOK_EDITORS or _is_project_owner(cwd)):
+                                _block(GH_REDIRECT)
+                    except (OSError, UnicodeDecodeError):
+                        pass
+
+            # Pipe-to-shell and stdin redirect: cat file | bash, bash < file
+            pipe_match = re.search(r"(?:cat|head|tail)\s+([^\s;&|]+)\s*\|\s*(?:bash|sh)\b", cmd)
+            if not pipe_match:
+                pipe_match = re.search(r"(?:bash|sh)\s*<\s*([^\s;&|]+)", cmd)
+            if pipe_match:
+                piped_path = pipe_match.group(1)
+                if not os.path.isabs(piped_path):
+                    piped_path = os.path.join(cwd, piped_path)
                 try:
-                    content = Path(script_path).read_text(encoding="utf-8", errors="ignore")
+                    content = Path(piped_path).read_text(encoding="utf-8", errors="ignore")
                     if BLOCKED_GIT_RE.search(content) or BLOCKED_GIT_PATH_RE.search(content):
                         _block(GIT_REDIRECT)
-                    if BLOCKED_GH_RE.search(content) or BLOCKED_GH_PATH_RE.search(content):
-                        if not (_cwd_branch(cwd) in TRUSTED_HOOK_EDITORS or _is_project_owner(cwd)):
-                            _block(GH_REDIRECT)
                 except (OSError, UnicodeDecodeError):
                     pass
+
+            # xargs with git/gh — command construction bypass
+            if re.search(r"\bxargs\b.*\bgit\b|\bxargs\b.*\bgh\b", cmd):
+                _block(GIT_REDIRECT)
+
+            # Variable assignment bypass: cmd=git; $cmd commit
+            if re.search(r"=\s*git\b|=\s*gh\b", cmd):
+                if re.search(r"\$\w*\s+" + "(" + "|".join(BLOCKED_GIT_VERBS) + ")", cmd):
+                    _block(GIT_REDIRECT)
 
             # Strip quoted strings before matching — text inside "..." or '...' is data
             # (PR descriptions, commit messages, examples in docs), not code to enforce.
