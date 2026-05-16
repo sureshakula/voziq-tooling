@@ -393,7 +393,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     if not pyproject_path.exists():
         pyproject_path.write_text(
             f'[project]\nname = "{package_name}"\nversion = "0.1.0"\nrequires-python = ">=3.10"\n\n'
-            f"[tool.pytest.ini_options]\ntestpaths = [\"src\"]\npythonpath = [\"src\"]\n",
+            f'[tool.pytest.ini_options]\ntestpaths = ["src"]\npythonpath = ["src"]\n',
             encoding="utf-8",
         )
         created.append(str(pyproject_path))
