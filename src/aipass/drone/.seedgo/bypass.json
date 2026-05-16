@@ -175,16 +175,6 @@
       "reason": "Test file — intentionally outside 3-layer structure. tests/ is a peer of apps/, not part of it."
     },
     {
-      "file": "apps/handlers/git/status_handler_gitpython.py",
-      "standard": "architecture",
-      "reason": "DPLAN-0140 Phase 1 prototype — intentionally unreferenced, awaiting Phase 2/3 FPLAN to wire into production."
-    },
-    {
-      "file": "handlers/git/status_handler_gitpython.py",
-      "standard": "dead_code",
-      "reason": "DPLAN-0140 Phase 1 prototype — intentionally unreferenced, awaiting Phase 2/3 FPLAN to wire into production."
-    },
-    {
       "file": "CLAUDE.md",
       "standard": "architecture",
       "reason": "Template builder expects CLAUDE.md — drone uses .aipass/aipass_local_prompt.md for branch context instead. Not a missing file."

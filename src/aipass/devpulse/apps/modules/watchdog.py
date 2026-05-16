@@ -325,6 +325,8 @@ def _handle_agent(sub_args: List[str]) -> bool:
         error("Usage: watchdog agent <branch> [--timeout SECONDS]")
         return True
 
+    error("WATCHDOG: Must be invoked via Monitor tool, never run_in_background")
+
     timeout = _DEFAULT_AGENT_TIMEOUT
     positional: List[str] = []
     i = 0

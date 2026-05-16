@@ -174,7 +174,6 @@ drone/
 │   │       ├── branches_handler.py          # List remote branches
 │   │       ├── delete_branch_handler.py     # Delete remote branch (main/dev protected)
 │   │       ├── status_handler.py            # Scoped git status (subprocess)
-│   │       ├── status_handler_gitpython.py  # [prototype] DPLAN-0140 Phase 1, not wired in
 │   │       └── sync_handler.py              # Safe main sync (--autostash support)
 │   └── plugins/
 │       ├── devpulse_ops/          # Privileged git operations (auth-gated)
@@ -333,7 +332,6 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ## Known Issues
 
-- `status_handler_gitpython.py` is an unreferenced prototype (DPLAN-0140 Phase 1) — awaiting Phase 2/3
 - `update_command()` and `command_exists()` in `ops.py` are tested CRUD API but unused from production
 - Pyright warns about `json` package name shadowing stdlib — works at runtime
 - Recurring sync errors when working tree is dirty — operational, not code bugs
