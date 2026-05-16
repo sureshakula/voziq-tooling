@@ -43,6 +43,12 @@ BLOCKED_GIT_RE = re.compile(
     r"(" + "|".join(BLOCKED_GIT_VERBS) + r")\b"
 )
 
+# Full binary path bypass: /usr/bin/git, /usr/local/bin/git, ./git, etc.
+BLOCKED_GIT_PATH_RE = re.compile(
+    r"/git\s+(?:--?[A-Za-z][A-Za-z0-9_-]*(?:[= ][^\s]+)?\s+)*"
+    r"(" + "|".join(BLOCKED_GIT_VERBS) + r")\b"
+)
+
 BLOCKED_GIT_STASH_RE = re.compile(r"(?<![@\w/.])git\s+stash\s+(drop|clear|pop|apply)\b")
 
 BLOCKED_GIT_BRANCH_RE = re.compile(
@@ -65,6 +71,12 @@ BLOCKED_GH_API_RE = re.compile(
 
 BLOCKED_GH_RE = re.compile(
     r"(?<![@\w/.])gh\s+(pr|issue|repo|release|workflow|run|cache|secret|variable|gist)"
+    r"\s+(?!list\b|view\b|status\b|diff\b|checks\b|comments\b)\w[\w-]*"
+)
+
+# Full binary path for gh: /usr/bin/gh, /usr/local/bin/gh, etc.
+BLOCKED_GH_PATH_RE = re.compile(
+    r"/gh\s+(pr|issue|repo|release|workflow|run|cache|secret|variable|gist)"
     r"\s+(?!list\b|view\b|status\b|diff\b|checks\b|comments\b)\w[\w-]*"
 )
 
@@ -159,13 +171,14 @@ def main():
             scan = re.sub(r"'(?:[^'\\]|\\.)*'", "''", cmd)
             if (
                 BLOCKED_GIT_RE.search(scan)
+                or BLOCKED_GIT_PATH_RE.search(scan)
                 or BLOCKED_GIT_STASH_RE.search(scan)
                 or BLOCKED_GIT_BRANCH_RE.search(scan)
                 or BLOCKED_GIT_TAG_RE.search(scan)
                 or BLOCKED_GIT_REMOTE_RE.search(scan)
             ):
                 _block(GIT_REDIRECT)
-            if BLOCKED_GH_API_RE.search(scan) or BLOCKED_GH_RE.search(scan):
+            if BLOCKED_GH_API_RE.search(scan) or BLOCKED_GH_RE.search(scan) or BLOCKED_GH_PATH_RE.search(scan):
                 if not (_cwd_branch(cwd) in TRUSTED_HOOK_EDITORS or _is_project_owner(cwd)):
                     _block(GH_REDIRECT)
             return
