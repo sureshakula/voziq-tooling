@@ -496,6 +496,16 @@
       "standard": "cli_flags",
       "file": "apps/__init__.py",
       "reason": "Package marker \u2014 not a CLI entry point. --version is in apps/prax.py."
+    },
+    {
+      "file": "tests/test_logging.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/ by convention, not in the 3-layer apps/ structure. False positive for test directory."
+    },
+    {
+      "file": "tests/test_logging.py",
+      "standard": "log_structure",
+      "reason": "Test assertions reference _AIPASS_PKG_ROOT which resolves to /home/ paths at runtime. Not log config \u2014 test path constants."
     }
   ],
   "notes": {

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # ===================AIPASS====================
 # META DATA HEADER
 # Name: __init__.py - Symbolic Memory Handler Package

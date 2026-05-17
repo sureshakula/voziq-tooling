@@ -98,6 +98,7 @@ def get_caller_info() -> tuple:
 
 _AIPASS_PKG_ROOT = Path(__file__).resolve().parents[4]  # logging/ → handlers/ → apps/ → prax/ → aipass/
 _SRC_ROOT = _AIPASS_PKG_ROOT.parent  # aipass/ → src/ (contains branches outside aipass namespace)
+_REPO_ROOT = _SRC_ROOT.parent  # src/ → AIPass repo root
 
 
 def detect_branch_from_path(module_path: str) -> Optional[str]:
@@ -149,5 +150,44 @@ def detect_branch_from_path(module_path: str) -> Optional[str]:
             return branch
     except ValueError:
         logger.info("Path %s is not relative to src root", module_path)
+
+    return None
+
+
+def detect_external_project(module_path: str) -> Optional[tuple]:
+    """Detect if a module path belongs to an external project (outside AIPass repo).
+
+    Walks up from the module path looking for a project root (.git or pyproject.toml).
+    Returns the project name and root path if found and the path is outside the AIPass repo.
+
+    Returns:
+        (project_name, project_root) or None if path is inside AIPass or unresolvable
+    """
+    if not module_path:
+        return None
+
+    path = Path(module_path).resolve()
+
+    # If the path is inside the AIPass repo, it's not external
+    try:
+        path.relative_to(_REPO_ROOT)
+        return None
+    except ValueError:
+        logger.info("Path %s is external to AIPass repo", module_path)
+
+    # Also check AIPASS_CALLER_CWD for cross-project dispatch
+    import os
+
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD")
+    search_path = path if path.exists() else (Path(caller_cwd) if caller_cwd else None)
+
+    if not search_path:
+        return None
+
+    # Walk up to find project root
+    for candidate in [search_path] + list(search_path.parents):
+        if (candidate / ".git").exists() or (candidate / "pyproject.toml").exists():
+            project_name = candidate.name.lower().replace(" ", "_").replace("-", "_")
+            return (project_name, candidate)
 
     return None

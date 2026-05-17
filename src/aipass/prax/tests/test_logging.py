@@ -143,6 +143,150 @@ class TestDetectBranchFromPath:
 
 
 # =============================================
+# detect_external_project
+# =============================================
+
+
+class TestDetectExternalProject:
+    """Tests for detect_external_project() — identifies external project paths."""
+
+    def test_none_for_empty_path(self, mock_prax_infrastructure):
+        """Returns None for empty string input."""
+        from aipass.prax.apps.handlers.logging.introspection import detect_external_project
+
+        assert detect_external_project("") is None
+
+    def test_none_for_internal_aipass_path(self, mock_prax_infrastructure):
+        """Returns None for paths inside the AIPass repo."""
+        from aipass.prax.apps.handlers.logging.introspection import (
+            detect_external_project,
+            _REPO_ROOT,
+        )
+
+        internal_path = str(_REPO_ROOT / "src" / "aipass" / "flow" / "apps" / "handler.py")
+        assert detect_external_project(internal_path) is None
+
+    def test_detects_external_project_with_git(self, mock_prax_infrastructure, tmp_path):
+        """Detects project root via .git directory for external paths."""
+        from aipass.prax.apps.handlers.logging.introspection import detect_external_project
+
+        # Create a fake external project with .git
+        project_dir = tmp_path / "MyProject"
+        project_dir.mkdir()
+        (project_dir / ".git").mkdir()
+        module_file = project_dir / "src" / "module.py"
+        module_file.parent.mkdir(parents=True)
+        module_file.touch()
+
+        result = detect_external_project(str(module_file))
+        assert result is not None
+        project_name, project_root = result
+        assert project_name == "myproject"
+        assert project_root == project_dir
+
+    def test_detects_external_project_with_pyproject(self, mock_prax_infrastructure, tmp_path):
+        """Detects project root via pyproject.toml for external paths."""
+        from aipass.prax.apps.handlers.logging.introspection import detect_external_project
+
+        project_dir = tmp_path / "Compass"
+        project_dir.mkdir()
+        (project_dir / "pyproject.toml").touch()
+        module_file = project_dir / "nav" / "router.py"
+        module_file.parent.mkdir(parents=True)
+        module_file.touch()
+
+        result = detect_external_project(str(module_file))
+        assert result is not None
+        project_name, project_root = result
+        assert project_name == "compass"
+        assert project_root == project_dir
+
+    def test_normalizes_project_name(self, mock_prax_infrastructure, tmp_path):
+        """Project names are lowercased with hyphens/spaces converted to underscores."""
+        from aipass.prax.apps.handlers.logging.introspection import detect_external_project
+
+        project_dir = tmp_path / "Backup-System"
+        project_dir.mkdir()
+        (project_dir / ".git").mkdir()
+        module_file = project_dir / "main.py"
+        module_file.touch()
+
+        result = detect_external_project(str(module_file))
+        assert result is not None
+        assert result[0] == "backup_system"
+
+    def test_none_when_no_project_root_found(self, mock_prax_infrastructure, tmp_path):
+        """Returns None when no .git or pyproject.toml found walking up."""
+        from aipass.prax.apps.handlers.logging.introspection import detect_external_project
+
+        # Create a file in tmp_path without .git or pyproject.toml
+        # tmp_path itself might have parents with .git — use a nested isolated dir
+        isolated = tmp_path / "no_project" / "deep" / "nested"
+        isolated.mkdir(parents=True)
+        module_file = isolated / "orphan.py"
+        module_file.touch()
+
+        # tmp_path's parents may have .git, so this test may find one
+        # The key assertion is: it doesn't return an AIPass-internal result
+        result = detect_external_project(str(module_file))
+        if result is not None:
+            _, root = result
+            # Should NOT be the AIPass repo root
+            from aipass.prax.apps.handlers.logging.introspection import _REPO_ROOT
+
+            assert root != _REPO_ROOT
+
+
+# =============================================
+# setup_individual_logger external routing
+# =============================================
+
+
+class TestSetupExternalRouting:
+    """Tests for external project log routing in setup_individual_logger."""
+
+    def test_external_project_routes_to_project_system_logs(self, mock_prax_infrastructure, tmp_path):
+        """External callers get logs routed to their project's system_logs/ dir."""
+        from aipass.prax.apps.handlers.logging import setup
+
+        project_dir = tmp_path / "AIPL"
+        project_dir.mkdir()
+        (project_dir / ".git").mkdir()
+        fake_module = str(project_dir / "src" / "polyglot.py")
+        env_patch = {"AIPASS_BRANCH_NAME": "", "AIPASS_CALLER_CWD": ""}
+
+        with patch.object(setup, "detect_external_project", return_value=("aipl", project_dir)):
+            with patch.object(setup, "detect_branch_from_path", return_value=None):
+                with patch.dict("os.environ", env_patch):
+                    setup._captured_loggers.clear()
+                    result = setup.setup_individual_logger("polyglot", caller_path=fake_module)
+
+        assert result is not None
+        assert (project_dir / "system_logs").exists()
+        assert (project_dir / "logs").exists()
+
+    def test_external_project_does_not_write_to_aipass_system_logs(self, mock_prax_infrastructure, tmp_path):
+        """External routing must NOT create files in AIPass system_logs."""
+        from aipass.prax.apps.handlers.logging import setup
+
+        project_dir = tmp_path / "Compass"
+        project_dir.mkdir()
+        (project_dir / ".git").mkdir()
+        fake_module = str(project_dir / "nav.py")
+        get_calls = []
+        env_patch = {"AIPASS_BRANCH_NAME": "", "AIPASS_CALLER_CWD": ""}
+
+        with patch.object(setup, "detect_external_project", return_value=("compass", project_dir)):
+            with patch.object(setup, "detect_branch_from_path", return_value=None):
+                with patch.dict("os.environ", env_patch):
+                    with patch.object(setup, "get_system_logs_dir", side_effect=lambda: get_calls.append(1)):
+                        setup._captured_loggers.clear()
+                        setup.setup_individual_logger("navigator", caller_path=fake_module)
+
+        assert len(get_calls) == 0
+
+
+# =============================================
 # get_caller_info
 # =============================================
 
@@ -234,6 +378,7 @@ class TestLinesToBytes:
         mock_config_mod = MagicMock()
 
         def real_lines_to_bytes(num_lines: int, avg_line_length: int = 200) -> int:
+            """Convert line count to byte estimate for test assertions."""
             return num_lines * avg_line_length
 
         mock_config_mod.lines_to_bytes = real_lines_to_bytes

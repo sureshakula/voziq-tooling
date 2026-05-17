@@ -31,7 +31,11 @@ from aipass.prax.apps.handlers.config.load import (
 )
 
 # Import introspection functions
-from aipass.prax.apps.handlers.logging.introspection import get_calling_module_path, detect_branch_from_path
+from aipass.prax.apps.handlers.logging.introspection import (
+    get_calling_module_path,
+    detect_branch_from_path,
+    detect_external_project,
+)
 
 from aipass.prax.apps.handlers.json import json_handler
 
@@ -126,39 +130,80 @@ def setup_individual_logger(
     import os
 
     branch_name: Optional[str] = caller_branch
+    resolved_module_path: Optional[str] = caller_path
     if not branch_name:
-        module_path = caller_path or get_calling_module_path()
-        branch_path = detect_branch_from_path(module_path) if module_path else None
+        resolved_module_path = caller_path or get_calling_module_path()
+        branch_path = detect_branch_from_path(resolved_module_path) if resolved_module_path else None
         branch_name = Path(branch_path).name if branch_path else None
 
     # Environment variable fallback (set by drone for dispatched commands)
     if not branch_name:
-        branch_name = os.environ.get("AIPASS_BRANCH_NAME") or "unknown_branch"
+        branch_name = os.environ.get("AIPASS_BRANCH_NAME")
+
+    # External project detection: route logs to the caller's own project
+    external_project = None
+    if not branch_name:
+        check_path = resolved_module_path or os.environ.get("AIPASS_CALLER_CWD")
+        if check_path:
+            external_project = detect_external_project(check_path)
+
+    if not branch_name and not external_project:
+        branch_name = "unknown_branch"
 
     # Create formatter (shared by all handlers)
     formatter = logging.Formatter(log_config["log_format"], log_config["date_format"])
 
-    # HANDLER 1: System-wide log (central aggregation)
-    system_log_file = get_system_logs_dir() / f"{branch_name}_{module_name}.log"
-    system_limits = log_config["system_logs"]
-    system_max_bytes = lines_to_bytes(system_limits["max_lines"])
-    system_handler = _safe_rotating_handler(system_log_file, system_max_bytes, system_limits["backup_count"])
-    system_handler.setFormatter(formatter)
-    logger.addHandler(system_handler)
+    if external_project:
+        # EXTERNAL PROJECT: route both handlers to the caller's project directory
+        project_name, project_root = external_project
+        ext_system_logs = project_root / "system_logs"
+        ext_system_logs.mkdir(parents=True, exist_ok=True)
+        ext_local_logs = project_root / "logs"
+        ext_local_logs.mkdir(parents=True, exist_ok=True)
 
-    # HANDLER 2: Branch-root local log (two-tier: system_logs/ + branch logs/)
-    local_logs_dir = get_module_logs_dir(branch_name)
-    module_log_file = local_logs_dir / f"{module_name}.log"
-    local_limits = log_config["local_logs"]
-    local_max_bytes = lines_to_bytes(local_limits["max_lines"])
-    local_handler = _safe_rotating_handler(module_log_file, local_max_bytes, local_limits["backup_count"])
-    local_handler.setFormatter(formatter)
-    logger.addHandler(local_handler)
+        # HANDLER 1: Project system log
+        system_log_file = ext_system_logs / f"{project_name}_{module_name}.log"
+        system_limits = log_config["system_logs"]
+        system_max_bytes = lines_to_bytes(system_limits["max_lines"])
+        system_handler = _safe_rotating_handler(system_log_file, system_max_bytes, system_limits["backup_count"])
+        system_handler.setFormatter(formatter)
+        logger.addHandler(system_handler)
 
-    if _system_logger:
-        _system_logger.info(
-            f"Logger created for {module_name} → system: {system_log_file} ({system_limits['max_lines']} lines), local: {module_log_file} ({local_limits['max_lines']} lines)"
-        )
+        # HANDLER 2: Project local log
+        module_log_file = ext_local_logs / f"{module_name}.log"
+        local_limits = log_config["local_logs"]
+        local_max_bytes = lines_to_bytes(local_limits["max_lines"])
+        local_handler = _safe_rotating_handler(module_log_file, local_max_bytes, local_limits["backup_count"])
+        local_handler.setFormatter(formatter)
+        logger.addHandler(local_handler)
+
+        if _system_logger:
+            _system_logger.info(
+                f"Logger created for {module_name} → external project '{project_name}': {system_log_file}, {module_log_file}"
+            )
+    else:
+        # INTERNAL: route to AIPass system_logs + branch-local logs
+        # HANDLER 1: System-wide log (central aggregation)
+        system_log_file = get_system_logs_dir() / f"{branch_name}_{module_name}.log"
+        system_limits = log_config["system_logs"]
+        system_max_bytes = lines_to_bytes(system_limits["max_lines"])
+        system_handler = _safe_rotating_handler(system_log_file, system_max_bytes, system_limits["backup_count"])
+        system_handler.setFormatter(formatter)
+        logger.addHandler(system_handler)
+
+        # HANDLER 2: Branch-root local log (two-tier: system_logs/ + branch logs/)
+        local_logs_dir = get_module_logs_dir(branch_name)
+        module_log_file = local_logs_dir / f"{module_name}.log"
+        local_limits = log_config["local_logs"]
+        local_max_bytes = lines_to_bytes(local_limits["max_lines"])
+        local_handler = _safe_rotating_handler(module_log_file, local_max_bytes, local_limits["backup_count"])
+        local_handler.setFormatter(formatter)
+        logger.addHandler(local_handler)
+
+        if _system_logger:
+            _system_logger.info(
+                f"Logger created for {module_name} → system: {system_log_file} ({system_limits['max_lines']} lines), local: {module_log_file} ({local_limits['max_lines']} lines)"
+            )
 
     # HANDLER 3: Terminal output (if enabled)
     if _terminal_output_enabled and _terminal_module_available:
