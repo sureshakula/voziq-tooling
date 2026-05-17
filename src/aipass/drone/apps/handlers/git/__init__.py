@@ -11,3 +11,4 @@ from . import checkout_handler as checkout_handler
 from . import dev_pr_handler as dev_pr_handler
 from . import branches_handler as branches_handler
 from . import delete_branch_handler as delete_branch_handler
+from . import close_pr_handler as close_pr_handler

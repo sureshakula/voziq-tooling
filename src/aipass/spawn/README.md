@@ -125,8 +125,7 @@ spawn/
 │   │   ├── delete.py                    # Delete CLI — archive + deregister
 │   │   ├── sync_registry.py             # Registry repair CLI
 │   │   ├── sync_templates.py            # Template sync CLI
-│   │   ├── regenerate_registry.py       # Template registry regeneration CLI
-│   │   └── repair.py                    # Project structure repair CLI (scan, relocate, clean)
+│   │   └── regenerate_registry.py       # Template registry regeneration CLI
 │   └── handlers/
 │       ├── class_registry.py            # Citizen class → template directory mapping
 │       ├── file_ops.py                  # Template copy, path renaming, registry regeneration
@@ -136,20 +135,19 @@ spawn/
 │       ├── meta_ops.py                  # Branch metadata generation, hash computation
 │       ├── change_detection.py          # ID-based file diff between template and branch
 │       ├── reconcile.py                 # Registry/filesystem reconciliation
-│       ├── passport_ops.py              # Passport grant implementation
+│       ├── passport_ops.py             # Passport grant implementation
 │       ├── update_ops.py                # Update workflow (Phase 0 snapshot → detect → execute)
 │       ├── delete_ops.py                # Delete workflow (resolve → archive → cleanup → deregister)
 │       ├── sync_registry_ops.py         # Registry sync (CWD-aware, external project support)
 │       ├── sync_templates_ops.py        # Template sync implementation
 │       ├── regenerate_registry_ops.py   # Template registry hash regeneration
-│       ├── repair_ops.py                # Project structure repair (scan, relocate, clean-pollution)
 │       ├── json_ops.py                  # JSON deep merge, backup utilities
 │       └── json/
 │           └── json_handler.py          # Standard JSON I/O, operation logging, 7 API functions
 ├── templates/
 │   ├── builder/                         # Full scaffold template (45 files, 24 dirs)
 │   └── birthright/                      # Minimal template
-├── tests/                               # 14 test files, 318 tests
+├── tests/                               # 14 test files, 316 tests
 ├── spawn_json/                          # JSON tracking directory
 ├── tools/                               # Branch verification utilities
 ├── docs/                                # Documentation
@@ -200,7 +198,7 @@ spawn/
 
 ## Tests
 
-**318 tests | 0 skipped | 0 failed** across 14 test files:
+**316 tests | 0 skipped | 0 failed** across 14 test files:
 
 | File | Focus |
 |------|-------|
@@ -214,7 +212,6 @@ spawn/
 | `test_cli_routing.py` | Command routing and argument parsing |
 | `test_contracts.py` | Handler contracts and interface compliance |
 | `test_spawn.py` | Basic CLI routing and help |
-| `test_repair.py` | Project structure repair (scan, relocate, clean-pollution) |
 | `test_error_resilience.py` | Error handling and edge cases |
 | `conftest.py` | Fixtures: mock templates, registry protection |
 
@@ -247,11 +244,14 @@ spawn/
 
 ## Metrics
 
-- **Tests:** 318 passed, 0 skipped, 0 failed
+- **Seedgo:** 100% (34/34)
+- **Tests:** 253 passed, 0 skipped, 0 failed
+- **Module coverage:** 23/23 (100%)
 - **Template registry:** 45 files, 24 dirs (builder)
+- **Battle test:** 17/17 commands pass (2026-04-22)
 
 ---
 
-*Last Updated: 2026-05-16*
+*Last Updated: 2026-05-15*
 
 [← Back to AIPass](../../../README.md)

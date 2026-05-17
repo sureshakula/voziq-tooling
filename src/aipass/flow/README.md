@@ -165,16 +165,17 @@ Vector verification displays in console: "Vectorized: N chunks in chroma" or "NO
 
 ## Quality
 
-- **Seedgo:** 100% (33/33 standards)
+- **Seedgo:** 100% (35/35 standards)
 - **Tests:** 733 passed, 87/87 public functions tested (100%)
 - **Source files:** 39 tracked by seedgo
-- **Last audit:** 2026-05-14
+- **Last audit:** 2026-05-16
 - **Battle test:** 16/16 commands pass via drone CLI (2026-04-22)
 
 ### Known Issues
 - Registry scan fires trigger events that are never handled (by design — foreground close handles everything)
 - Dashboard push warns on some closes
 - `mbank/process.py` at 669 lines (nearing 700 limit)
+- `close_ops.py` split into `close_ops.py` (647 lines) + `close_helpers.py` (260 lines) in 2026-05-16
 
 ---
 

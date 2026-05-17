@@ -189,7 +189,7 @@ trigger/
 
 ## Testing
 
-551 tests across 18 test modules, all passing. Coverage: 74/74 public functions (100%).
+551 tests across 18 test modules, all passing. Coverage: 76/76 public functions (100%).
 
 ```bash
 cd src/aipass/trigger && pytest    # Run all tests
@@ -199,7 +199,7 @@ Test files: `test_core`, `test_errors`, `test_medic`, `test_error_registry`, `te
 
 ## Compliance
 
-Seedgo: 99%. Zero type errors. All core categories at 100%.
+Seedgo: 100% (34/34 standards). Zero type errors. All categories at 100%.
 
 ---
 

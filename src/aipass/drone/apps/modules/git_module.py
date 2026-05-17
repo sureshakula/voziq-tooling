@@ -32,6 +32,7 @@ from aipass.drone.apps.handlers.git import (
     dev_pr_handler,
     branches_handler,
     delete_branch_handler,
+    close_pr_handler,
 )
 
 DRONE_MODULE = {
@@ -55,6 +56,7 @@ _COMMANDS = (
     "unlock",
     "dev-pr",
     "delete-branch",
+    "close-pr",
     "merge",
     "smart-sync",
     "fix",
@@ -108,6 +110,9 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         Dict with stdout, stderr, and exit_code.
     """
     if not args:
+        if command is None:
+            print_introspection()
+            return {"stdout": "", "stderr": "", "exit_code": 0}
         args = []
     if command in ("--help", "-h") or (args and args[0] in ("--help", "-h")):
         print_help()
@@ -144,6 +149,8 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         return _handle_dev_pr(args)
     if command == "delete-branch":
         return _handle_delete_branch(args)
+    if command == "close-pr":
+        return _handle_close_pr(args)
     if command == "commit":
         return _handle_commit(args)
     if command == "checkout":
@@ -245,12 +252,18 @@ def _handle_dev_pr(args: list[str]) -> dict:
 def _handle_delete_branch(args: list[str]) -> dict:
     """Handle the delete-branch subcommand (owner tier)."""
     if not args:
-        return {
-            "stdout": "",
-            "stderr": "Usage: drone @git delete-branch <name>",
-            "exit_code": 1,
-        }
+        return {"stdout": "", "stderr": "Usage: drone @git delete-branch <name>", "exit_code": 1}
     result = delete_branch_handler.delete_remote_branch(args[0])
+    if result["success"]:
+        return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+    return {"stdout": "", "stderr": result["message"], "exit_code": 1}
+
+
+def _handle_close_pr(args: list[str]) -> dict:
+    """Handle the close-pr subcommand (owner tier)."""
+    if not args:
+        return {"stdout": "", "stderr": "Usage: drone @git close-pr <number>", "exit_code": 1}
+    result = close_pr_handler.close_pr(args[0])
     if result["success"]:
         return {"stdout": result["message"], "stderr": "", "exit_code": 0}
     return {"stdout": "", "stderr": result["message"], "exit_code": 1}
@@ -259,37 +272,18 @@ def _handle_delete_branch(args: list[str]) -> dict:
 def _handle_merge(args: list[str], caller: str) -> dict:
     """Handle the merge subcommand (owner-tier, auth pre-checked)."""
     if not args:
-        return {
-            "stdout": "",
-            "stderr": "Usage: drone @git merge <PR#>",
-            "exit_code": 1,
-        }
-
-    pr_number = args[0]
+        return {"stdout": "", "stderr": "Usage: drone @git merge <PR#>", "exit_code": 1}
 
     try:
         from aipass.drone.apps.plugins.devpulse_ops.merge_plugin import merge_pr
     except ImportError as exc:
         logger.error("Failed to import devpulse_ops merge plugin: %s", exc)
-        return {
-            "stdout": "",
-            "stderr": f"devpulse_ops plugin not available: {exc}",
-            "exit_code": 1,
-        }
+        return {"stdout": "", "stderr": f"devpulse_ops plugin not available: {exc}", "exit_code": 1}
 
-    result = merge_pr(pr_number, caller)
-
+    result = merge_pr(args[0], caller)
     if result["success"]:
-        return {
-            "stdout": result["message"],
-            "stderr": "",
-            "exit_code": 0,
-        }
-    return {
-        "stdout": "",
-        "stderr": result["message"],
-        "exit_code": 1,
-    }
+        return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+    return {"stdout": "", "stderr": result["message"], "exit_code": 1}
 
 
 def _handle_smart_sync(caller: str) -> dict:
@@ -643,7 +637,6 @@ def get_introspective() -> str:
     """Return introspection text showing connected handlers."""
     return (
         "@git — Tier-based git workflow, dev branch model (v3.0.0)\n"
-        "\n"
         "Connected Handlers:\n"
         "  handlers/git/\n"
         "    - lock_handler.py (acquire_lock, release_lock, check_lock_status, force_unlock)\n"
@@ -656,11 +649,9 @@ def get_introspective() -> str:
         "    - dev_pr_handler.py (create_branch_pr, create_dev_pr — PR to main)\n"
         "    - branches_handler.py (list_remote_branches)\n"
         "    - delete_branch_handler.py (delete_remote_branch — protected: main/dev)\n"
-        "    - pr_handler.py (create_pr — DEPRECATED, kept for reference)\n"
         "\n"
         "  plugins/devpulse_ops/\n"
         "    - auth.py (verify_git_access — tier-based authorization)\n"
-        "    - pr_plugin.py (create_system_pr — DEPRECATED, use dev-pr)\n"
         "    - merge_plugin.py (merge_pr — merge PR + sync)\n"
         "    - sync_plugin.py (smart_sync — fetch + rebase if behind)\n"
         "    - fix_plugin.py (fix_git_state — detect/fix broken states)\n"
@@ -668,7 +659,7 @@ def get_introspective() -> str:
         "  gh passthrough:\n"
         "    - issue, run, workflow → subprocess gh <cmd> [args]\n"
         "\n"
-        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (pr, commit, checkout, dev-pr, delete-branch, sync, unlock, system-pr, merge, smart-sync, fix)\n"
+        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (pr, commit, checkout, dev-pr, delete-branch, sync, unlock, merge, smart-sync, fix)\n"
     )
 
 

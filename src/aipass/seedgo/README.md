@@ -12,7 +12,7 @@
 ## Overview
 
 ### What I Do
-- Audit all 11 core agents against 35 code standards + diagnostics (architecture, CLI, imports, logging, naming, silent catch, deep nesting, windows compat, etc.)
+- Audit all 11 core agents against 35 code standards + diagnostics (architecture, CLI, imports, logging, naming, silent catch, deep nesting, etc.)
 - Score files 0-100 per standard and report violations with actionable details
 - Manage bypass rules (`.seedgo/bypass.json`) for deliberate exceptions
 - Run pyright diagnostics across branches for type error detection
@@ -46,7 +46,7 @@ drone @seedgo audit aipass @flow                       # Audit single branch
 drone @seedgo audit inbox-ids                          # Inbox message-ID validation
 
 # Standards Query
-drone @seedgo standards_query aipass_standards         # List all 35 standards in pack
+drone @seedgo standards_query aipass_standards         # List all 33 standards in pack
 drone @seedgo standards_query aipass_standards cli     # Show specific standard content
 
 # Per-file Check
@@ -112,7 +112,7 @@ seedgo/
 │   │   ├── readme_update.py         # README generation module
 │   │   └── test_map.py              # Custom function test coverage mapping
 │   └── handlers/                    # 11 handler directories
-│       ├── aipass_standards/        # 35 checker standards (108 files)
+│       ├── aipass_standards/        # 34 checker standards (67 files)
 │       │   ├── *_check.py           # Checker implementations (score 0-100)
 │       │   ├── *_content.py         # Queryable standard content
 │       │   └── *.md                 # Standard documentation
@@ -136,7 +136,7 @@ seedgo/
 │       ├── json/                    # JSON tracking (json_handler)
 │       ├── readme/                  # README generator + branch resolution
 │       └── test_map/                # Function test coverage scanner
-├── tests/                           # 29 test files, 1131 tests
+├── tests/                           # 39 test files, 1192 tests
 ├── drone_adapter.py                 # Drone routing bridge
 ├── .trinity/                        # Identity + memory
 ├── .seedgo/                         # Self-bypass rules
@@ -157,7 +157,7 @@ seedgo/
 
 ---
 
-## The 35 Standards
+## The 34 Standards
 
 | Standard | Scope | What It Checks |
 |----------|-------|----------------|
@@ -195,7 +195,6 @@ seedgo/
 | todo | all_files | No unresolved TODO/FIXME/HACK comments |
 | trigger | all_files | Trigger integration patterns |
 | unused_function | branch_level | No unreferenced public functions |
-| windows_compat | all_files | POSIX-only APIs guarded for Windows compatibility |
 
 ---
 
@@ -223,8 +222,9 @@ The `bridge` module (`drone @seedgo bridge install`) manages hook installation t
 ## Tests
 
 - **39 test files**, **1192 tests**, all passing
+- **200 public functions**, 200 tested (100% coverage)
 - **0 type errors** (pyright)
-- Key test areas: standards audit, checklist, bypass, JSON handler, hooks (probe, track A/B/E, utility, bridge), proof, README, diagnostics, windows_compat, line coverage (plugin integrity, diagnostics, audit display, branch audit, architecture, checklist)
+- Key test areas: standards audit, checklist, bypass, JSON handler, hooks (probe, track A/B/E, utility, bridge), proof, README, diagnostics, line coverage (plugin integrity, diagnostics, audit display, branch audit, architecture, checklist)
 
 ---
 
@@ -256,12 +256,12 @@ The `bridge` module (`drone @seedgo bridge install`) manages hook installation t
 
 ---
 
-## Latest Audit (2026-05-16)
+## Latest Audit (2026-04-26)
 
-- **Seedgo score:** 99% (35/35 + diagnostics) — architecture (template dirs not in scope) + modules (hooks.py 608 lines, split needed)
-- **Tests:** 1192 passed, 0 failed, 0 skipped
+- **Seedgo score:** 100% (34/34 + diagnostics) — all standards green
+- **Tests:** 1131 passed, 0 failed, 0 skipped
+- **Coverage:** 200 public functions, 200 tested (100%)
 - **Type errors:** 0
-- **Custom test coverage:** 203/205 public functions tested
 
 ---
 

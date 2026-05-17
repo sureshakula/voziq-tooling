@@ -175,12 +175,12 @@ drone @prax monitor run
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
-| test_filesystem_handler.py | 172 | Codex/Gemini/Claude session adapters |
-| test_monitoring_handlers.py | 139 | Branch detector, log watcher, event stream |
-| test_operations.py | 99 | Dashboard operations |
-| test_log_watcher.py | 82 | Log file tailing |
-| test_monitor_module.py | 74 | Monitor commands |
-| test_logging_handlers.py | 41 | Logging setup, rotation, override |
+| test_filesystem_handler.py | 172 | Multi-CLI adapters, Codex/Gemini branch detection |
+| test_monitoring_handlers.py | 139 | Branch detector, stream output, event handling |
+| test_operations.py | 99 | Dashboard operations, write-through |
+| test_log_watcher.py | 82 | Log file tailing, agent activity parsing |
+| test_monitor_module.py | 74 | Monitor commands, thread lifecycle |
+| test_logging_handlers.py | 41 | Setup, rotation, introspection, direct logger |
 | test_logger_module.py | 40 | Logger init, routing, lifecycle |
 | test_monitoring_filters.py | 39 | Event filtering rules |
 | test_config.py | 38 | Config loading, path resolution |
@@ -193,6 +193,8 @@ drone @prax monitor run
 | test_central.py | 14 | Central reader |
 | test_log_audit.py | 10 | Log audit |
 | test_status.py | 8 | Status commands |
+
+134/136 public functions tested (99%).
 
 ## Integration Points
 
