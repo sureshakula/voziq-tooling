@@ -1,93 +1,69 @@
 # AIPASS
 
-**Purpose:** The friendly front door — concierge, librarian, first-run guide
-**Module:** `aipass.aipass`
-**Created:** 2026-04-16
-**Status:** Under construction (gitignored until Phase 8 reveal, DPLAN-0136)
+Concierge and librarian for AIPass. Greets new users, walks them through setup, answers how-things-work questions, hands off to their chosen CLI.
 
----
+## Invoke
 
-## Overview
-
-### What I Do
-
-I am the concierge of AIPass. New users land with me. I greet them, walk them through setup, answer how-things-work questions, and hand them off to their chosen CLI tool. I am also the librarian — I can read any branch, inspect any README, explain any pattern. I do not build.
-
-Drone is the engine. I am the front door.
-
-### How I Work
-
-- **Entry Point:** `apps/aipass.py` — thin CLI dispatch
-- **Pattern:** Subcommand routing — `help`, `doctor`, `init`, `profile`
-- **Restrictions:** Read-only by design. No writes outside my own `.trinity/`. No git. No real dispatches.
-
----
+```
+drone @aipass <command>
+```
 
 ## Architecture
 
 ```
 aipass/
 ├── apps/
-│   ├── aipass.py         # Entry point — subcommand dispatch
-│   ├── modules/          # doctor, help_chat, init_flow, handoff, profile
-│   ├── handlers/         # system_detect, ping_sweep, readme_map, ui
-│   └── plugins/          # Extensions
-├── docs/
-├── tests/
-├── .trinity/
-│   ├── passport.json     # Identity — concierge, read-only
-│   ├── local.json        # Session history + user profile + setup_progress
-│   └── observations.json # Patterns across users
+│   ├── aipass.py                          # Entry point — subcommand dispatch
+│   ├── modules/
+│   │   ├── doctor.py                      # System health aggregation
+│   │   ├── doctor_fix.py                  # Remediation report (--fix, --json)
+│   │   ├── doctor_wire.py                 # Auto-wire prompt helpers
+│   │   ├── handoff.py                     # CLI handoff (placeholder)
+│   │   ├── help_chat.py                   # README-backed Q&A
+│   │   ├── init_flow.py                   # 12-stage guided setup
+│   │   └── profile.py                     # User profile read/write
+│   ├── handlers/
+│   │   ├── handoff_platform/              # Platform-specific handoff detection
+│   │   ├── init/                          # bootstrap.py, scaffold_content.py
+│   │   ├── json/                          # JSON read/write utilities
+│   │   ├── ping_sweep/                    # Branch reachability verification
+│   │   ├── readme_map/                    # Live file reads + branch routing
+│   │   ├── structure_scan/                # Agent placement + pollution detection
+│   │   ├── system_detect/                 # OS, shell, Python, RAM, CPU
+│   │   └── ui/                            # Progress bars, menus, banners
+│   └── plugins/
+├── tests/                                 # 381 passing (12 test files)
+├── .trinity/                              # Identity + session history + observations
 └── README.md
 ```
 
----
-
 ## Commands
 
-```
-aipass              # Help banner
-aipass help [Q]     # Chatbot Q&A — "how does drone work?"
-aipass doctor       # System health — aggregates seedgo, pytest, registry, hooks
-aipass init         # Guided 12-stage setup for new users (resumable)
-aipass profile      # Show/edit what I remember about you
-aipass --version
-```
+| Command | Description |
+|---------|-------------|
+| `aipass` | Help banner |
+| `aipass help [Q]` | README-backed Q&A with branch routing |
+| `aipass doctor` | System health — structure, registry, hooks, pytest |
+| `aipass doctor --fix` | Remediation report with `drone @spawn repair` commands |
+| `aipass doctor --json` | JSON output for structure scan results |
+| `aipass init` | 12-stage guided setup (resumable) |
+| `aipass profile` | Show/edit user profile |
+| `aipass --version` | Version |
 
----
+## Integration
 
-## Integration Points
+**Depends on:** `@drone` (routing), `@seedgo` (audit), `@spawn` (first agent + repair), `@flow` (plan lifecycle), `@ai_mail` (test emails), `@prax` (health signals), `pytest`
 
-### Depends On
+**Provides to:** Humans only. Nothing in AIPass depends on this branch.
 
-- `@drone` — routing
-- `@seedgo` — audit aggregation
-- `@spawn` — creating the user's first agent
-- `@flow` — testing plan lifecycle (open/close empty plans)
-- `@ai_mail` — test-convention emails (no real dispatch)
-- `@prax` — health signals for doctor
-- `pytest` — test runner aggregation
-- External CLIs — Claude Code / Codex / Gemini (handoff targets)
+## Tests
 
-### Provides To
+381 passing — `pytest src/aipass/aipass/tests/`
 
-Nothing in AIPass depends on me. This is by design — I can be removed, replaced, or rebuilt without ripple. One-way arrow.
+## Known Issues
 
-My direct consumers are **humans** — new users, curious explorers, and anyone who'd rather ask a concierge than read docs.
+- `aipass.py` line 23: `from aipass.prax import logger` fails outside package context (ModuleNotFoundError). Works via drone routing only.
 
----
+## Last Updated
 
-## Build Plan
-
-See `devpulse/DPLAN-0136`. Nine phases:
-
-0. Scaffolding (spawn) ✓
-1. `aipass doctor`
-2. `aipass help`
-3. `aipass init`
-4. CLI handoff (tmux / wt.exe)
-5. Repo README flip back to project-focused
-6. pip entry point wiring
-7. Retire cli branch's `aipass init`
-8. Gitignore removal — public reveal
-9. Optional: VS Code auto-refresh
+2026-05-16

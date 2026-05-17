@@ -2,67 +2,35 @@
 
 # MEMORY
 
-**Purpose:** Central memory archive — vector search, rollover, and memory management for all AIPass branches.
-**Module:** `aipass.memory`
-**Created:** 2026-03-07
-**Last Updated:** 2026-05-10
-**Citizen Class:** builder
+**Central memory archive — vector search, rollover, and memory management for all AIPass branches.**
 
----
-
-## Overview
-
-Memory is the archival backbone of AIPass. Every branch accumulates session history and learnings in `.trinity/` files. When those files reach capacity, Memory archives the oldest entries into ChromaDB vectors — searchable, permanent, never lost.
-
-What Memory does:
-- **Rollover** — detects when `.trinity/local.json` or `observations.json` exceed limits, extracts oldest entries, embeds them via fastembed, stores in ChromaDB, trims the source file
-- **Search** — semantic search across all archived branch memories (4+ collections, 2200+ vectors)
-- **Templates** — distributes `.trinity/` schema updates across all branches (push, diff, status)
-- **Symbolic** — fragmented memory extraction from conversations (demo, analyze, extract, fragments, bootstrap, hook-test)
-- **Verify** — checks whether a flow plan is vectorized in ChromaDB
-- **Watch** — persistent file watcher that auto-triggers rollover on changes
+`drone @memory <command>` | Module: `aipass.memory` | Created: 2026-03-07
 
 ---
 
 ## Commands
 
-All commands via `drone @memory <command>`:
-
 ```bash
-# Introspection
-drone @memory                              # Module list, version
-drone @memory --help                       # Full command reference
-drone @memory --version                    # Version string
-
-# Rollover
-drone @memory rollover                     # Module introspection (handlers + subcommands)
 drone @memory rollover run                 # Execute rollover for files over limits
 drone @memory rollover status              # Show per-branch rollover statistics
-drone @memory rollover check               # Dry run — check what needs rollover
-drone @memory rollover sync-lines          # Update line count metadata for all branches
+drone @memory rollover check               # Dry run — what needs rollover
+drone @memory rollover sync-lines          # Update line count metadata
 
-# Search
-drone @memory search "error handling"      # Semantic search across all branch memories
-drone @memory search "query" --branch X    # Filter search by branch
-drone @memory search "query" --n 10        # Limit number of results
+drone @memory search "query"               # Semantic search across all branch memories
+drone @memory search "query" --branch X    # Filter by branch
+drone @memory search "query" --n 10        # Limit results
 
-# Symbolic
-drone @memory symbolic                     # Module introspection (6 handlers, subcommands)
-drone @memory symbolic demo                # Run v1 + v2 mock analysis demonstration
+drone @memory symbolic demo                # Mock analysis demonstration
 drone @memory symbolic fragments "query"   # Search stored symbolic fragments
 drone @memory symbolic extract <file>      # Extract fragments via LLM (requires API key)
 drone @memory symbolic bootstrap           # Populate fragments from session JSONLs
 drone @memory symbolic hook-test           # Test hook with sample conversation text
 
-# Templates
 drone @memory templates push-templates     # Push template updates to all branches
 drone @memory templates diff-templates     # Show template differences per branch
 drone @memory templates template-status    # Show template version and push status
 
-# Verify
 drone @memory verify FPLAN-XXXX            # Check if plan is vectorized in ChromaDB
-
-# Watch
 drone @memory watch                        # Auto-rollover watcher daemon (Ctrl+C to stop)
 ```
 
@@ -72,118 +40,93 @@ drone @memory watch                        # Auto-rollover watcher daemon (Ctrl+
 
 ```
 memory/
-├── .trinity/                    # Identity & memory
-│   ├── passport.json            # Branch identity
-│   ├── local.json               # Session history (v2 schema, entry-count limits)
-│   └── observations.json        # Collaboration patterns (v1 schema, line-count limits)
-├── .aipass/                     # Branch prompt
-├── .ai_mail.local/              # Mailbox
 ├── apps/
-│   ├── memory.py                # Entry point — auto-discovers modules via handle_command()
-│   ├── modules/                 # Business logic (5 modules)
-│   │   ├── rollover.py          # Rollover orchestration, status display, sync-lines
+│   ├── memory.py                # Entry point — auto-discovers modules
+│   ├── modules/                 # 5 modules
+│   │   ├── rollover.py          # Rollover orchestration, status, sync-lines
 │   │   ├── search.py            # Semantic query routing
-│   │   ├── verify.py            # Plan vectorization check
 │   │   ├── symbolic.py          # Fragmented memory extraction and search
-│   │   └── templates.py         # Template push, diff, status
-│   └── handlers/                # Implementation (14 handler groups, 35 files)
-│       ├── archive/             # indexer.py — memory archival indexing
-│       ├── intake/              # plans_processor.py, pool_processor.py — ingest pipelines
-│       ├── json/                # json_handler.py, memory_files.py — JSON operations
-│       ├── learnings/           # manager.py — learning extraction and management
-│       ├── monitor/             # detector.py, memory_watcher.py — rollover detection + auto-trigger
-│       ├── rollover/            # extractor.py, orchestrator.py — backup → extract → embed → store
-│       ├── schema/              # normalize.py — schema version normalization
-│       ├── search/              # query_executor.py, vector_search.py — semantic search impl
-│       ├── storage/             # chroma.py, chroma_subprocess.py — ChromaDB backend
-│       ├── symbolic/            # 6 handlers — chroma_client, deduplicator, extractor, hook, retriever, storage
-│       ├── templates/           # pusher.py, differ.py, spawn_pusher.py — template distribution
-│       ├── tracking/            # line_counter.py — metadata line count tracking
-│       ├── vector/              # embedder.py, embed_subprocess.py — fastembed embeddings
-│       └── central_writer.py    # Central memory write operations
+│   │   ├── templates.py         # Template push, diff, status
+│   │   └── verify.py            # Plan vectorization check
+│   └── handlers/                # 14 handler groups
+│       ├── archive/             # indexer.py
+│       ├── intake/              # plans_processor.py, pool_processor.py
+│       ├── json/                # json_handler.py, memory_files.py
+│       ├── learnings/           # manager.py
+│       ├── monitor/             # detector.py, memory_watcher.py
+│       ├── rollover/            # extractor.py, orchestrator.py
+│       ├── schema/              # normalize.py
+│       ├── search/              # query_executor.py, vector_search.py
+│       ├── storage/             # chroma.py, chroma_subprocess.py
+│       ├── symbolic/            # chroma_client, deduplicator, extractor, hook, retriever, storage
+│       ├── templates/           # pusher.py, differ.py, spawn_pusher.py
+│       ├── tracking/            # line_counter.py
+│       ├── vector/              # embedder.py, embed_subprocess.py
+│       └── central_writer.py
 ├── config/                      # memory.config.json — per-branch rollover limits
-├── templates/                   # LOCAL.template.json, OBS.template — schema templates
-├── tests/                       # 450 tests (16/16 module coverage)
-├── .chroma/                     # Global ChromaDB vector store
+├── templates/                   # LOCAL.template.json, OBSERVATIONS.template.json
+├── tests/                       # 839 tests (28 test files)
+├── .chroma/                     # ChromaDB vector store
 └── memory_json/                 # Operation log files (auto-created)
 ```
 
 ### Rollover Pipeline
 
 ```
-startup trigger → check_and_rollover()
-  → detector.check_all_branches()      # scan AIPASS_REGISTRY.json
-  → _should_rollover(file)             # v1: line_count >= max_lines
-                                       # v2: len(sessions) >= max_sessions, etc.
-  → orchestrator.execute_rollover()
-    → create_rollover_backup()         # safety copy to branch/.backup/
-    → extract_items()                  # v2: max(excess, 1) oldest entries
-    → embed via subprocess             # fastembed (ONNX) in memory .venv
-    → store in ChromaDB                # global + local collections
-    → trim source file                 # write back with oldest removed
+detector.check_all_branches()        # scan AIPASS_REGISTRY.json + external registries
+→ _should_rollover(file)             # v1: line_count >= max_lines (600)
+                                     # v2: len(sessions) >= max_sessions (20)
+→ orchestrator.execute_rollover()
+  → create_rollover_backup()         # safety copy to branch/.backup/
+  → extract_items()                  # v2: max(excess, 1) oldest entries
+  → embed via subprocess             # fastembed (ONNX) in memory .venv
+  → upsert in ChromaDB               # content-hash IDs (sha256[:16]), no duplicates
+  → trim source file                 # write back with oldest removed
 ```
-
-### Dual Schema Support
-
-- **v1** (line-count): `schema_version: "1.0.0"` — triggers at `current_lines >= max_lines` (default 600)
-- **v2** (entry-count): `schema_version: "2.0.0"` — triggers at `len(sessions) >= max_sessions` or `len(key_learnings) >= max_key_learnings`. Extractor uses `max(excess, 1)` guard to prevent Python's `list[-0:]` trap.
 
 ### Subprocess Isolation
 
-All ML operations (fastembed, chromadb) run via subprocess. The main process never imports these libraries. Each embedding call resolves a Python interpreter via `_get_memory_python()` (env var `AIPASS_MEMORY_PYTHON` → `memory/.venv/bin/python` → `sys.executable`) and runs a self-contained script that reads stdin JSON and writes stdout JSON.
+All ML operations (fastembed, chromadb) run via subprocess. The main process never imports these libraries. Python interpreter resolved via `_get_memory_python()` (env var `AIPASS_MEMORY_PYTHON` → `memory/.venv/bin/python` → `sys.executable`).
 
 ---
 
-## Dependencies
+## Integration Points
 
-### Runtime
-- `rich` — console output, panels, tables
-- Python stdlib (`json`, `pathlib`, `logging`, `importlib`, `signal`)
-- `prax` (internal) — logging via `get_system_logger()`
+**Depends on:**
+- `prax` — logging via `get_system_logger()`
+- `api` — API key for symbolic extraction (`get_api_key()`)
+- `AIPASS_REGISTRY.json` — branch discovery for rollover scanning
+- External `*_REGISTRY.json` — scanned via `AIPASS_CALLER_CWD`
 
-### ML (in memory `.venv/` only)
-- `fastembed` — embedding generation (ONNX, no torch required)
-- `chromadb` — vector storage and semantic search
-- `numpy` — numerical operations
-
-### Provides To
-- All branches — memory rollover and archival when `.trinity/` files hit limits
+**Provides to:**
+- All branches — rollover archival when `.trinity/` files hit limits
 - All branches — semantic search across archived memories
-- All branches — template schema distribution
-- All branches — line count metadata sync
+- All branches — `.trinity/` template distribution and sync
+
+**ML dependencies (memory `.venv/` only):**
+- `fastembed` — ONNX embeddings (model: `sentence-transformers/all-MiniLM-L6-v2`)
+- `chromadb` — vector storage and semantic search
+- `numpy`
 
 ---
 
 ## Quality
 
-- **Seedgo:** 100% (33/33 standards) — maintained since s12
-- **Tests:** 450 pass, 1 skip (test_vector.py gated with `importorskip` for numpy)
-- **Coverage:** 175 public functions, 102 tested (58%), 16/16 modules
-- **Type checking:** 35 files, 0 errors
+- **Tests:** 839 passed, 0 failures, 0 skips
+- **Test files:** 28
+- **Seedgo:** 100% — maintained since s12
 
 ---
 
 ## Known Issues
 
 - `search` requires fastembed in memory `.venv/` — fails without it
-- memory_watcher.py at 704 lines (near 700 threshold, bypassed in seedgo)
-- symbolic.py at 1604 lines (legacy port, bypassed)
-- manager.py at 1076 lines (complex learning extraction, bypassed)
-- `memory_threshold_exceeded` trigger event registered but never fired — rollover auto-runs at startup via watcher
-- `rollover status` shows 0 branches when `AIPASS_REGISTRY.json` path not resolved
+- `rollover status` shows 0 branches when registry path not resolved
+- `memory_threshold_exceeded` trigger event registered but never fired
 
 ---
 
-## Identity
-
-- **Passport:** `.trinity/passport.json`
-- **Session History:** `.trinity/local.json` (v2 schema, 20 sessions max, 25 key_learnings max)
-- **Observations:** `.trinity/observations.json` (v1 schema, 600 lines max)
-- **Branch Prompt:** `.aipass/aipass_local_prompt.md`
-
----
-
-*Last Updated: 2026-05-10*
+*Last Updated: 2026-05-16*
 
 ---
 [← Back to AIPass](../../../README.md)
