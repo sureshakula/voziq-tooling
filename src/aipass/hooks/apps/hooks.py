@@ -1,94 +1,141 @@
 # =================== AIPass ====================
 # Name: hooks.py
-# Version: 1.0.0
+# Version: 1.1.0
 # Description: Hook infrastructure — drone entry point
 # Branch: hooks
 # Layer: apps
 # Created: 2026-05-18
-# Modified: 2026-05-18
+# Modified: 2026-05-19
 # =============================================
 
 """
-HOOKS Branch — Hook infrastructure for AIPass.
+HOOKS Branch - Main Orchestrator
 
-Owns all hook dispatch via engine.py. Platform bridges (Claude, Codex, Gemini)
-call the engine, which reads per-project config and routes to handlers.
+Auto-discovery architecture:
+- Scans modules/ directory for .py files with handle_command()
+- Routes commands to discovered modules automatically
+- No manual imports or routing needed
 """
 
 import os
 import sys
+import importlib
 from pathlib import Path
+from typing import Any
 
 os.environ.setdefault("AIPASS_BRANCH_NAME", "hooks")
 
 from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: E402
+from aipass.cli.apps.modules import err_console  # noqa: E402
+
+CONSOLE = err_console
+
+# =============================================================================
+# MODULE DISCOVERY
+# =============================================================================
+
+MODULES_DIR = Path(__file__).parent / "modules"
 
 
-def print_help() -> None:
-    """Print hook system help."""
-    logger.info("[HOOKS] help requested")
-    sys.stdout.write(
-        "HOOKS - Hook infrastructure for AIPass\n"
-        "\n"
-        "USAGE:\n"
-        "  drone @hooks status        Show hook config for current project\n"
-        "  drone @hooks log           Tail recent hook activity\n"
-        "  drone @hooks test          Run hook test suite\n"
-        "  drone @hooks --help        This help\n"
-        "  drone @hooks --version     Version info\n"
-        "\n"
-        "MODULES:\n"
-        "  engine       Core dispatch — routes events to handlers via config\n"
-        "\n"
-        "BRIDGES:\n"
-        "  claude       Claude Code bridge (provider settings entry point)\n"
-        "  codex        Codex bridge (planned)\n"
-        "  gemini       Gemini bridge (planned)\n"
-    )
+def discover_modules() -> list[Any]:
+    """Auto-discover modules in modules/ directory."""
+    modules = []
+
+    if not MODULES_DIR.exists():
+        return modules
+
+    for file_path in sorted(MODULES_DIR.glob("*.py")):
+        if file_path.name.startswith("_"):
+            continue
+
+        module_names = [
+            f"aipass.hooks.apps.modules.{file_path.stem}",
+            f"apps.modules.{file_path.stem}",
+        ]
+
+        loaded = False
+        for module_name in module_names:
+            try:
+                module = importlib.import_module(module_name)
+                if hasattr(module, "handle_command"):
+                    modules.append(module)
+                loaded = True
+                break
+            except (ImportError, ModuleNotFoundError) as e:
+                logger.info("[HOOKS] Module %s not found: %s", module_name, e)
+                continue
+            except Exception as e:
+                logger.error("[HOOKS] Failed to load module %s: %s", module_name, e)
+                loaded = True
+                break
+
+        if not loaded:
+            logger.error("[HOOKS] Could not import module %s", file_path.stem)
+
+    return modules
 
 
-def print_introspection() -> dict:
-    """Return branch introspection data for drone discovery."""
-    return {
-        "branch": "hooks",
-        "role": "hook_infrastructure",
-        "commands": ["status", "log", "test"],
-        "modules": ["engine"],
-        "bridges": ["claude"],
-    }
+def print_introspection():
+    """Print branch introspection — discovered modules and capabilities."""
+    modules = discover_modules()
+    CONSOLE.print("[bold cyan]HOOKS[/bold cyan] — Hook Infrastructure for AIPass")
+    CONSOLE.print(f"  Modules discovered: {len(modules)}")
+    for module in modules:
+        name = module.__name__.split(".")[-1]
+        desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
+        CONSOLE.print(f"  {name:20} {desc}")
+
+
+def print_help():
+    """Print CLI help — usage instructions and available commands."""
+    modules = discover_modules()
+    CONSOLE.print("[bold cyan]HOOKS[/bold cyan] — Usage")
+    CONSOLE.print()
+    CONSOLE.print("  drone @hooks <command> [args...]")
+    CONSOLE.print()
+    CONSOLE.print("[bold]COMMANDS:[/bold]")
+    for module in modules:
+        name = module.__name__.split(".")[-1]
+        desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
+        CONSOLE.print(f"  {name:20} {desc}")
+    CONSOLE.print()
+    CONSOLE.print("[bold]BRIDGES:[/bold]")
+    CONSOLE.print("  claude             Claude Code bridge (provider settings entry point)")
+    CONSOLE.print()
+    CONSOLE.print("[bold]FLAGS:[/bold]")
+    CONSOLE.print("  --help, -h           Show this help message")
+    CONSOLE.print("  --version, -V        Show version")
+
+
+def route_command(command: str, args: list[str], modules: list[Any]) -> bool:
+    """Route command to appropriate module."""
+    for module in modules:
+        try:
+            if module.handle_command(command, args):
+                return True
+        except Exception as e:
+            logger.error("[HOOKS] Module %s error: %s", module.__name__, e)
+    return False
+
+
+# =============================================================================
+# MAIN ENTRY POINT
+# =============================================================================
 
 
 def handle_command(command: str, args: list) -> bool:
-    """Route commands to appropriate handler."""
-    if command == "status":
-        from aipass.hooks.apps.modules.engine import find_project_config
+    """Entry point for drone routing."""
+    modules = discover_modules()
 
-        config = find_project_config()
-        if config is None:
-            sys.stdout.write("No .aipass/hooks.json found for current project\n")
-        else:
-            enabled = config.get("hooks_enabled", True)
-            sys.stdout.write(f"Hooks enabled: {enabled}\n")
-            for event_type, hooks in config.items():
-                if event_type.startswith("_") or event_type == "hooks_enabled":
-                    continue
-                if isinstance(hooks, dict):
-                    active = sum(1 for h in hooks.values() if isinstance(h, dict) and h.get("enabled", True))
-                    total = sum(1 for h in hooks.values() if isinstance(h, dict))
-                    sys.stdout.write(f"  {event_type}: {active}/{total} hooks active\n")
+    if command in ["--help", "-h", "help"]:
+        print_help()
         return True
 
-    if command == "log":
-        log_file = Path(__file__).resolve().parent.parent / "logs" / "engine.jsonl"
-        if not log_file.exists():
-            sys.stdout.write("No engine log found\n")
-        else:
-            lines = log_file.read_text().strip().split("\n")
-            for line in lines[-20:]:
-                sys.stdout.write(line + "\n")
+    if command in ["--version", "-V"]:
+        CONSOLE.print("hooks 1.1.0")
         return True
 
-    return False
+    return route_command(command, args, modules)
 
 
 def main() -> int:
@@ -96,28 +143,13 @@ def main() -> int:
     args = sys.argv[1:]
 
     if not args:
-        data = print_introspection()
-        sys.stdout.write(f"HOOKS — {data['role']}\n")
-        sys.stdout.write(f"  Modules: {', '.join(data['modules'])}\n")
-        sys.stdout.write(f"  Bridges: {', '.join(data['bridges'])}\n")
-        sys.stdout.write(f"  Commands: {', '.join(data['commands'])}\n")
+        print_introspection()
         return 0
 
-    if args[0] in ("--help", "-h", "help"):
-        print_help()
+    if handle_command(args[0], args[1:]):
         return 0
 
-    if args[0] in ("--version", "-V"):
-        sys.stdout.write("hooks 1.0.0\n")
-        return 0
-
-    command = args[0]
-    remaining = args[1:] if len(args) > 1 else []
-
-    if handle_command(command, remaining):
-        return 0
-
-    sys.stdout.write(f"Unknown command: {command}. Try: drone @hooks --help\n")
+    CONSOLE.print(f"Unknown command: {args[0]}. Try: drone @hooks --help")
     return 1
 
 

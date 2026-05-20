@@ -1,44 +1,60 @@
 {
   "metadata": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "created": "2026-05-18",
+    "updated": "2026-05-19",
     "description": "Standards bypass configuration for this branch"
   },
   "bypass": [
     {
       "file": "apps/modules/engine.py",
-      "standard": "modules",
-      "reason": "Internal dispatch module called by bridges, not a drone-routable command module"
-    },
-    {
-      "file": "apps/modules/engine.py",
-      "standard": "introspection",
-      "reason": "Internal dispatch module, not discoverable via drone @hooks"
-    },
-    {
-      "file": "apps/modules/engine.py",
       "standard": "json_structure",
-      "reason": "Engine has its own JSONL diagnostic logging, does not use branch json_handler"
+      "reason": "Engine uses JSONL diagnostic logging, not branch json_handler — different purpose"
     },
     {
       "file": "apps/handlers/bridges/claude.py",
       "standard": "handlers",
-      "reason": "Bridges are designed to import engine module — that is their entire purpose"
+      "reason": "Bridges import engine module by design — that is their entire purpose"
     },
     {
       "file": "apps/handlers/bridges/claude.py",
       "standard": "json_structure",
-      "reason": "Bridge is a thin entry point, no JSON operations to log"
+      "reason": "Thin entry point, no JSON operations to log"
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "dead_code",
+      "reason": "Bridge called externally by provider settings subprocess — no internal import"
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "architecture",
+      "reason": "Bridge importing engine module is its architectural purpose"
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "imports",
+      "reason": "Bridge imports engine module by design — sole purpose"
     },
     {
       "file": "apps/hooks.py",
-      "standard": "cli",
-      "reason": "Drone-routed entry point, output via sys.stdout.write to drone subprocess capture, not CLI"
+      "standard": "unused_function",
+      "reason": "print_introspection() called by drone's discovery system, not internal code"
     },
     {
-      "file": "apps/hooks.py",
-      "standard": "cli_flags",
-      "reason": "Drone-routed entry point, --version handled in main(), not a standalone CLI binary"
+      "file": "apps/handlers/config/loader.py",
+      "standard": "json_structure",
+      "reason": "Config loader does $AIPASS_HOME variable expansion before JSON parse — json_handler does not support this"
+    },
+    {
+      "file": "apps/handlers/config/diagnostics.py",
+      "standard": "json_structure",
+      "reason": "JSONL append-only diagnostic log — different pattern from branch json_handler storage"
+    },
+    {
+      "file": "apps/handlers/notification/tool_sound.py",
+      "standard": "json_structure",
+      "reason": "Sound handler — no JSON operations, plays WAV files"
     },
     {
       "file": "tests/conftest.py",
@@ -46,9 +62,34 @@
       "reason": "Test fixtures live in tests/, not in the 3-layer apps structure"
     },
     {
+      "file": "tests/test_tool_sound.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
       "file": "tests/test_engine.py",
       "standard": "architecture",
       "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
     },
     {
       "file": "tests/test_engine.py",
@@ -59,36 +100,6 @@
       "file": "tests/test_engine.py",
       "standard": "help_text",
       "reason": "Test data contains command references as part of test fixtures, not user-facing help"
-    },
-    {
-      "file": "apps/handlers/bridges/claude.py",
-      "standard": "dead_code",
-      "reason": "Bridge called from provider settings (external subprocess), not internal imports"
-    },
-    {
-      "file": "apps/handlers/bridges/claude.py",
-      "standard": "architecture",
-      "reason": "Bridge intentionally imports engine module — bridges exist to call the engine"
-    },
-    {
-      "file": "apps/handlers/bridges/claude.py",
-      "standard": "imports",
-      "reason": "Bridge imports engine module by design — that is its sole purpose"
-    },
-    {
-      "file": "apps/hooks.py",
-      "standard": "unused_function",
-      "reason": "print_introspection() called by drone's discovery system, not internal code"
-    },
-    {
-      "file": "apps/handlers/bridges/claude.py",
-      "standard": "dead_code",
-      "reason": "Bridge called from provider settings (external subprocess), not imported internally"
-    },
-    {
-      "file": "handlers/bridges/claude.py",
-      "standard": "dead_code",
-      "reason": "Bridge called externally by provider settings subprocess — no internal import"
     },
     {
       "file": "tests/test_engine.py",
@@ -102,18 +113,6 @@
     }
   ],
   "notes": {
-    "usage": "Add entries to bypass specific seedgo standard violations",
-    "example": {
-      "file": "apps/example.py",
-      "standard": "imports",
-      "reason": "Legacy import required for compatibility"
-    },
-    "fields": {
-      "file": "Relative path to the file",
-      "standard": "Which standard to bypass (imports, cli, naming, etc.)",
-      "lines": "Optional array of line numbers",
-      "pattern": "Optional regex pattern to match",
-      "reason": "Why this bypass exists"
-    }
+    "removed_2026-05-19": "Stripped 4 illegitimate bypasses — hooks.py/cli, hooks.py/cli_flags, engine.py/modules, engine.py/introspection. Code fixed to meet standards instead."
   }
 }

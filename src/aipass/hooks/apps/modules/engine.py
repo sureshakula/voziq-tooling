@@ -1,20 +1,16 @@
 # =================== AIPass ====================
 # Name: engine.py
-# Version: 1.0.0
+# Version: 1.1.0
 # Description: Hook engine — unified dispatcher for all hook events
 # Branch: hooks
 # Layer: apps/modules
 # Created: 2026-05-18
-# Modified: 2026-05-18
+# Modified: 2026-05-19
 # =============================================
 
-"""
-Hook Engine — core dispatch logic.
+"""Hook engine — dispatches hook events to handlers, logs via prax + JSONL."""
 
-Reads per-project config (.aipass/hooks.json), routes to registered hooks,
-logs everything via prax + JSONL. Called by platform bridges, not directly.
-"""
-
+import importlib
 import json
 import os
 import subprocess
@@ -22,39 +18,12 @@ import time
 from pathlib import Path
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.cli.apps.modules import err_console
+from aipass.hooks.apps.handlers.config.loader import find_project_config
+from aipass.hooks.apps.handlers.config.diagnostics import log_entry as _log, tail_log
 
-AIPASS_HOME = os.environ.get("AIPASS_HOME", "")
+CONSOLE = err_console
 BRANCH_ROOT = Path(__file__).resolve().parent.parent.parent
-LOG_FILE = BRANCH_ROOT / "logs" / "engine.jsonl"
-
-
-def find_project_config() -> dict | None:
-    """Walk up from CWD looking for .aipass/hooks.json."""
-    search = Path.cwd()
-    home = Path.home()
-    while search != home and search.parent != search:
-        config = search / ".aipass" / "hooks.json"
-        if config.exists():
-            try:
-                raw = config.read_text(encoding="utf-8")
-                if AIPASS_HOME:
-                    raw = raw.replace("$AIPASS_HOME", AIPASS_HOME)
-                return json.loads(raw)
-            except (json.JSONDecodeError, OSError) as exc:
-                logger.error("[HOOKS] bad config %s: %s", config, exc)
-                return None
-        search = search.parent
-    return None
-
-
-def _log(entry: dict) -> None:
-    """Append a JSONL log entry for detailed diagnostics."""
-    try:
-        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except OSError as exc:
-        logger.error("[HOOKS] log write failed: %s", exc)
 
 
 def _run_hook(hook_cmd: str, stdin_data: str, timeout_s: int = 30) -> dict:
@@ -88,6 +57,27 @@ def _run_hook(hook_cmd: str, stdin_data: str, timeout_s: int = 30) -> dict:
         return {"exit_code": -1, "stdout": "", "stderr": str(exc), "elapsed_ms": round(elapsed_ms, 1)}
 
 
+def _run_handler(handler_path: str, hook_data: dict) -> dict:
+    """Call a handler function directly (no subprocess). Module imports handler."""
+    start = time.monotonic()
+    try:
+        module_path, func_name = handler_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        handler_func = getattr(module, func_name)
+        result = handler_func(hook_data)
+        elapsed_ms = (time.monotonic() - start) * 1000
+        return {
+            "exit_code": result.get("exit_code", 0),
+            "stdout": result.get("stdout", ""),
+            "stderr": "",
+            "elapsed_ms": round(elapsed_ms, 1),
+        }
+    except Exception as exc:
+        elapsed_ms = (time.monotonic() - start) * 1000
+        logger.error("[HOOKS] handler error %s: %s", handler_path, exc)
+        return {"exit_code": -1, "stdout": "", "stderr": str(exc), "elapsed_ms": round(elapsed_ms, 1)}
+
+
 def _matches(matcher: str, value: str) -> bool:
     """Check if a hook's matcher string matches the given value. Empty matcher = always match."""
     if not matcher:
@@ -96,11 +86,7 @@ def _matches(matcher: str, value: str) -> bool:
 
 
 def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
-    """Core dispatch — run hooks for event, return merged stdout.
-
-    Bail semantics: first hook returning exit=2 with {"decision":"block"} JSON
-    on stdout stops execution. Exit=2 without JSON = crash (log + continue).
-    """
+    """Core dispatch — run hooks for event, return merged stdout."""
     if not config.get("hooks_enabled", True):
         logger.info("[HOOKS] all hooks disabled")
         _log({"ts": time.time(), "event": event_type, "action": "all_hooks_disabled"})
@@ -112,6 +98,7 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
         return ""
 
     match_value = ""
+    parsed = {}
     try:
         parsed = json.loads(stdin_data) if stdin_data.strip() else {}
         match_value = parsed.get("tool_name", "") or parsed.get("compact_type", "") or parsed.get("type", "")
@@ -127,9 +114,10 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
             _log({"ts": time.time(), "event": event_type, "hook": hook_name, "action": "skipped_disabled"})
             continue
 
+        handler = hook_def.get("handler", "")
         command = hook_def.get("command", "")
         matcher = hook_def.get("matcher", "")
-        if not command:
+        if not handler and not command:
             continue
 
         if matcher and not _matches(matcher, match_value):
@@ -145,8 +133,11 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
             )
             continue
 
-        hook_timeout = hook_def.get("timeout", 30)
-        result = _run_hook(command, stdin_data, timeout_s=hook_timeout)
+        if handler:
+            result = _run_handler(handler, parsed)
+        else:
+            hook_timeout = hook_def.get("timeout", 30)
+            result = _run_hook(command, stdin_data, timeout_s=hook_timeout)
 
         logger.info(
             "[HOOKS] %s.%s exit=%d out=%db %dms",
@@ -224,3 +215,62 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
     )
 
     return "\n".join(outputs)
+
+
+# =============================================================================
+# MODULE INTERFACE (drone @hooks routing)
+# =============================================================================
+
+
+def print_introspection():
+    """Print module structure — connected handlers."""
+    CONSOLE.print("[bold cyan]engine[/bold cyan] Module")
+    CONSOLE.print("  Connected Handlers:")
+    handlers_root = BRANCH_ROOT / "apps" / "handlers"
+    for category_dir in sorted(handlers_root.iterdir()):
+        if not category_dir.is_dir() or category_dir.name.startswith("_"):
+            continue
+        handler_files = [f.name for f in sorted(category_dir.glob("*.py")) if not f.name.startswith("_")]
+        if handler_files:
+            CONSOLE.print(f"    handlers/{category_dir.name}/ — {', '.join(handler_files)}")
+
+
+def handle_command(command: str, args: list) -> bool:
+    """Route engine commands from drone @hooks."""
+    if not args and command in ("engine", ""):
+        print_introspection()
+        return True
+
+    if command in ("--help", "-h", "help"):
+        CONSOLE.print("[bold cyan]engine[/bold cyan] — Hook dispatch engine")
+        CONSOLE.print()
+        CONSOLE.print("  drone @hooks status    Show hook config for current project")
+        CONSOLE.print("  drone @hooks log       Tail recent hook activity")
+        return True
+
+    if command == "status":
+        config = find_project_config()
+        if config is None:
+            CONSOLE.print("No .aipass/hooks.json found for current project")
+        else:
+            enabled = config.get("hooks_enabled", True)
+            CONSOLE.print(f"Hooks enabled: {enabled}")
+            for event_type, hooks in config.items():
+                if event_type.startswith("_") or event_type == "hooks_enabled":
+                    continue
+                if isinstance(hooks, dict):
+                    active = sum(1 for h in hooks.values() if isinstance(h, dict) and h.get("enabled", True))
+                    total = sum(1 for h in hooks.values() if isinstance(h, dict))
+                    CONSOLE.print(f"  {event_type}: {active}/{total} hooks active")
+        return True
+
+    if command == "log":
+        lines = tail_log(20)
+        if not lines:
+            CONSOLE.print("No engine log found")
+        else:
+            for line in lines:
+                CONSOLE.print(line)
+        return True
+
+    return False

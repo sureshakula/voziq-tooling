@@ -7,6 +7,7 @@
   ],
   "PreToolUse": [
     {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/tool_use_sound.py"}]},
+    {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task", "hooks": [{"type": "command", "command": "/home/patrick/Projects/AIPass/.venv/bin/python3 /home/patrick/Projects/AIPass/src/aipass/hooks/apps/handlers/bridges/claude.py PreToolUse"}]},
     {"matcher": "Edit|MultiEdit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "python3 /home/patrick/.claude/hooks/pre_edit_gate.py"}]},
     {"matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "python3 /home/patrick/.claude/hooks/git_gate.py"}]}
   ],
@@ -17,9 +18,7 @@
   "SubagentStop": [
     {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/subagent_stop_gate.py"}]}
   ],
-  "Stop": [
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/stop_sound.py"}]}
-  ],
+  "Stop": [],
   "Notification": [
     {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/notification_sound.py"}]}
   ],

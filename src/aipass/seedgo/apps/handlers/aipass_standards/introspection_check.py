@@ -141,6 +141,18 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     introspection_check = check_print_introspection_exists(tree, path.name)
     checks.append(introspection_check)
 
+    # Check 1b: print_introspection produces output (not just returns data)
+    if introspection_check["passed"]:
+        behavior_check = check_introspection_output_behavior(tree, path.name)
+        if behavior_check:
+            checks.append(behavior_check)
+
+    # Check 1c: print_introspection uses dynamic discovery (no hardcoded module lists)
+    if introspection_check["passed"]:
+        discovery_check = check_introspection_dynamic_discovery(tree, path.name)
+        if discovery_check:
+            checks.append(discovery_check)
+
     # Check 2: Execution order (entry points only)
     if is_entry_point:
         order_check = check_execution_order(tree, content, path.name)
@@ -217,6 +229,122 @@ def check_print_introspection_exists(tree: ast.Module, filename: str) -> Dict:
         "passed": False,
         "message": f"Missing def print_introspection() in {filename}",
     }
+
+
+def _find_print_introspection(tree: ast.Module) -> Optional[ast.FunctionDef]:
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == "print_introspection":
+            return node
+    return None
+
+
+def _has_output_calls(func_node: ast.FunctionDef) -> bool:
+    for node in ast.walk(func_node):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Name):
+            name = node.func.id
+            if name == "print":
+                return True
+            # Delegation to helper functions counts as output production
+            if name.startswith("_"):
+                return True
+        if isinstance(node.func, ast.Attribute):
+            attr = node.func.attr
+            if attr in ("print", "write"):
+                return True
+    return False
+
+
+def _returns_data(func_node: ast.FunctionDef) -> Optional[int]:
+    for node in ast.walk(func_node):
+        if isinstance(node, ast.Return) and node.value is not None:
+            if not isinstance(node.value, ast.Constant) or node.value.value is not None:
+                return node.lineno
+    return None
+
+
+def check_introspection_output_behavior(tree: ast.Module, filename: str) -> Optional[Dict]:
+    """Verify print_introspection() produces output via print/console.print, not just returns data."""
+    func = _find_print_introspection(tree)
+    if func is None:
+        return None
+
+    has_output = _has_output_calls(func)
+    return_line = _returns_data(func)
+
+    if return_line is not None and not has_output:
+        return {
+            "name": "Introspection output",
+            "passed": False,
+            "message": (
+                f"print_introspection() in {filename} returns data (line {return_line}) "
+                f"but does not print — should use console.print() to display structure"
+            ),
+        }
+
+    if not has_output and return_line is None:
+        return {
+            "name": "Introspection output",
+            "passed": False,
+            "message": (
+                f"print_introspection() in {filename} produces no output — "
+                f"should use console.print() to display branch structure"
+            ),
+        }
+
+    return {
+        "name": "Introspection output",
+        "passed": True,
+        "message": "print_introspection() produces output",
+    }
+
+
+def check_introspection_dynamic_discovery(tree: ast.Module, filename: str) -> Optional[Dict]:
+    """Verify print_introspection() uses dynamic module discovery, not hardcoded lists."""
+    func = _find_print_introspection(tree)
+    if func is None:
+        return None
+
+    hardcoded_lists = []
+    for node in ast.walk(func):
+        if isinstance(node, ast.Return) and node.value is not None:
+            _collect_hardcoded_string_lists(node.value, hardcoded_lists)
+        if isinstance(node, ast.Assign):
+            _collect_hardcoded_string_lists(node.value, hardcoded_lists)
+
+    if hardcoded_lists:
+        items_preview = ", ".join(hardcoded_lists[:4])
+        extra = f" +{len(hardcoded_lists) - 4} more" if len(hardcoded_lists) > 4 else ""
+        return {
+            "name": "Introspection discovery",
+            "passed": False,
+            "message": (
+                f"print_introspection() in {filename} has hardcoded lists "
+                f"[{items_preview}{extra}] — should auto-discover modules via Path.glob or similar"
+            ),
+        }
+
+    return {
+        "name": "Introspection discovery",
+        "passed": True,
+        "message": "print_introspection() has no hardcoded module/handler lists",
+    }
+
+
+def _collect_hardcoded_string_lists(node: ast.AST, result: list) -> None:
+    if isinstance(node, ast.List):
+        string_vals = [elt.value for elt in node.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)]
+        if string_vals:
+            result.extend(string_vals)
+    elif isinstance(node, ast.Dict):
+        for value in node.values:
+            if value is not None:
+                _collect_hardcoded_string_lists(value, result)
+    elif isinstance(node, ast.Tuple):
+        string_vals = [elt.value for elt in node.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)]
+        if string_vals:
+            result.extend(string_vals)
 
 
 def check_execution_order(tree: ast.Module, content: str, filename: str) -> Optional[Dict]:

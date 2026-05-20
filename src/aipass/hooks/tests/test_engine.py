@@ -288,7 +288,7 @@ class TestFindProjectConfig:
         }
         (config_dir / "hooks.json").write_text(json.dumps(config))
         with patch("aipass.hooks.apps.modules.engine.Path.cwd", return_value=temp_test_dir):
-            with patch("aipass.hooks.apps.modules.engine.AIPASS_HOME", "/test/path"):
+            with patch("aipass.hooks.apps.handlers.config.loader.AIPASS_HOME", "/test/path"):
                 result = find_project_config()
         assert "/test/path/hook.py" in result["Stop"]["sound"]["command"]
 
@@ -298,7 +298,7 @@ class TestLog:
 
     def test_writes_jsonl_entry(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "test.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "Test", "action": "test_write"})
         lines = log_file.read_text().strip().split("\n")
         assert len(lines) == 1
@@ -308,13 +308,13 @@ class TestLog:
 
     def test_creates_parent_directory(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "subdir" / "test.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "Test"})
         assert log_file.exists()
 
     def test_appends_multiple_entries(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "test.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "A"})
             _log({"event": "B"})
         lines = log_file.read_text().strip().split("\n")
@@ -348,13 +348,13 @@ class TestHooksEntryPoint:
         with patch("sys.argv", ["hooks", "nonexistent_command"]):
             assert main() == 1
 
-    def test_print_introspection_returns_dict(self):
+    def test_print_introspection_prints_output(self, capsys):
         from aipass.hooks.apps.hooks import print_introspection
 
-        result = print_introspection()
-        assert isinstance(result, dict)
-        assert result["branch"] == "hooks"
-        assert "engine" in result["modules"]
+        print_introspection()
+        captured = capsys.readouterr()
+        assert "HOOKS" in captured.err
+        assert "Modules discovered" in captured.err
 
     def test_handle_command_returns_bool(self):
         from aipass.hooks.apps.hooks import handle_command
@@ -415,7 +415,7 @@ class TestErrorResilience:
 
     def test_log_write_failure_does_not_crash(self, mock_logger):
         with patch("builtins.open", side_effect=OSError("disk full")):
-            with patch("aipass.hooks.apps.modules.engine.LOG_FILE") as mock_path:
+            with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE") as mock_path:
                 mock_path.parent.mkdir = MagicMock()
                 _log({"event": "Test"})
 
@@ -434,7 +434,7 @@ class TestDataStructureContracts:
 
     def test_log_entry_has_required_fields(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "test.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"ts": 123.0, "event": "Test", "action": "check"})
         entry = json.loads(log_file.read_text().strip())
         assert "ts" in entry
@@ -483,7 +483,7 @@ class TestInitProvisioning:
 
     def test_log_auto_creates_directory(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "new_dir" / "engine.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "init_test"})
         assert log_file.parent.exists()
 
@@ -501,7 +501,7 @@ class TestInitProvisioning:
     def test_log_no_overwrite_on_append(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "test.jsonl"
         log_file.write_text('{"existing": true}\n')
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "new"})
         lines = log_file.read_text().strip().split("\n")
         assert len(lines) == 2
@@ -557,13 +557,13 @@ class TestConftest:
 class TestCliRouting:
     """Additional CLI routing tests for print_help and output capture."""
 
-    def test_print_help_writes_to_stdout(self, capsys):
+    def test_print_help_writes_output(self, capsys):
         from aipass.hooks.apps.hooks import print_help
 
         print_help()
         captured = capsys.readouterr()
-        assert "HOOKS" in captured.out
-        assert "drone @hooks" in captured.out
+        assert "HOOKS" in captured.err
+        assert "drone @hooks" in captured.err
 
     def test_output_capture_status(self, capsys):
         from aipass.hooks.apps.hooks import handle_command
@@ -571,7 +571,7 @@ class TestCliRouting:
         with patch("aipass.hooks.apps.modules.engine.find_project_config", return_value=None):
             handle_command("status", [])
         captured = capsys.readouterr()
-        assert "No .aipass/hooks.json" in captured.out
+        assert "No .aipass/hooks.json" in captured.err
 
     def test_version_output(self, capsys):
         from aipass.hooks.apps.hooks import main
@@ -579,7 +579,7 @@ class TestCliRouting:
         with patch("sys.argv", ["hooks", "--version"]):
             main()
         captured = capsys.readouterr()
-        assert "1.0.0" in captured.out
+        assert "1.1.0" in captured.err
 
 
 class TestConfigDataContracts:
@@ -596,7 +596,7 @@ class TestConfigDataContracts:
 
     def test_data_keys_in_log_entry(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "test.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"ts": 1.0, "event": "Test", "hook": "test_hook", "exit_code": 0})
         entry = json.loads(log_file.read_text().strip())
         assert "ts" in entry
@@ -609,7 +609,8 @@ class TestPathContracts:
     """Tests for path-returning functions."""
 
     def test_paths_return_path(self):
-        from aipass.hooks.apps.modules.engine import BRANCH_ROOT, LOG_FILE
+        from aipass.hooks.apps.modules.engine import BRANCH_ROOT
+        from aipass.hooks.apps.handlers.config.diagnostics import LOG_FILE
 
         assert isinstance(BRANCH_ROOT, Path)
         assert isinstance(LOG_FILE, Path)
@@ -638,7 +639,7 @@ class TestErrorResilienceExtended:
 
     def test_missing_file_in_log_path(self, temp_test_dir, mock_logger):
         missing = temp_test_dir / "missing" / "nonexistent.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", missing):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", missing):
             _log({"event": "test_missing"})
         assert missing.exists()
 
@@ -676,13 +677,13 @@ class TestJsonHandlerNotApplicable:
     def test_log_default_factory(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "factory.jsonl"
         assert not log_file.exists()
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "factory_test"})
         assert log_file.exists()
 
     def test_log_validate_json_output(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "validate.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "A", "ts": 1.0})
             _log({"event": "B", "ts": 2.0})
         for line in log_file.read_text().strip().split("\n"):
@@ -690,20 +691,20 @@ class TestJsonHandlerNotApplicable:
             assert isinstance(entry, dict)
 
     def test_log_get_path(self):
-        from aipass.hooks.apps.modules.engine import LOG_FILE
+        from aipass.hooks.apps.handlers.config.diagnostics import LOG_FILE
 
         assert LOG_FILE.name == "engine.jsonl"
         assert "logs" in str(LOG_FILE)
 
     def test_log_ensure_exists(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "new_dir" / "ensure.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"ensure": True})
         assert log_file.parent.exists()
 
     def test_log_save_entry(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "save.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"saved": True, "value": 42})
         entry = json.loads(log_file.read_text().strip())
         assert entry["saved"] is True
@@ -718,7 +719,7 @@ class TestJsonHandlerNotApplicable:
 
     def test_log_operation_recorded(self, temp_test_dir, mock_logger):
         log_file = temp_test_dir / "ops.jsonl"
-        with patch("aipass.hooks.apps.modules.engine.LOG_FILE", log_file):
+        with patch("aipass.hooks.apps.handlers.config.diagnostics.LOG_FILE", log_file):
             _log({"event": "PreToolUse", "hook": "test", "exit_code": 0})
         entry = json.loads(log_file.read_text().strip())
         assert entry["event"] == "PreToolUse"
