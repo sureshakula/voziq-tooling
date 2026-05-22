@@ -163,6 +163,8 @@ def resolve_branch(symbolic_name: str) -> str:
 
     branch_path = Path(branch["path"])
     project_root = get_registry_path().parent
+    if not branch_path.is_absolute():
+        branch_path = project_root / branch_path
     if not _validate_branch_path(branch_path, project_root, name):
         raise BranchNotFoundError(f"Branch '{symbolic_name}' path escapes project root — blocked for security")
 

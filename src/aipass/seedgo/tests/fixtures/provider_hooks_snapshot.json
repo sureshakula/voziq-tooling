@@ -1,31 +1,130 @@
 {
   "UserPromptSubmit": [
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/global_prompt_loader.py"}]},
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/branch_prompt_loader.py"}]},
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/identity_injector.py"}]},
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/email_notification.py"}]}
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:global_prompt"
+        }
+      ]
+    },
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:branch_prompt"
+        }
+      ]
+    },
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:identity_injector"
+        }
+      ]
+    },
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:email_notification"
+        }
+      ]
+    }
   ],
   "PreToolUse": [
-    {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/tool_use_sound.py"}]},
-    {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task", "hooks": [{"type": "command", "command": "/home/patrick/Projects/AIPass/.venv/bin/python3 /home/patrick/Projects/AIPass/src/aipass/hooks/apps/handlers/bridges/claude.py PreToolUse"}]},
-    {"matcher": "Edit|MultiEdit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "python3 /home/patrick/.claude/hooks/pre_edit_gate.py"}]},
-    {"matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "python3 /home/patrick/.claude/hooks/git_gate.py"}]}
+    {
+      "matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PreToolUse"
+        }
+      ]
+    }
   ],
   "PostToolUse": [
-    {"matcher": "Edit|MultiEdit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/auto_fix_diagnostics.py"}]},
-    {"matcher": "Bash", "hooks": [{"type": "command", "command": "python3 /home/patrick/.claude/hooks/auto_watchdog.py"}]}
+    {
+      "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PostToolUse"
+        }
+      ]
+    }
   ],
   "SubagentStop": [
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/subagent_stop_gate.py"}]}
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py SubagentStop"
+        }
+      ]
+    }
   ],
-  "Stop": [],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py Stop"
+        }
+      ]
+    }
+  ],
   "Notification": [
-    {"hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/notification_sound.py"}]}
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py Notification"
+        }
+      ]
+    }
   ],
   "PreCompact": [
-    {"matcher": "manual", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/pre_compact.py", "timeout": 60}]},
-    {"matcher": "auto", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/pre_compact.py", "timeout": 60}]},
-    {"matcher": "manual", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/pre_compact_rollover.py", "timeout": 120}]},
-    {"matcher": "auto", "hooks": [{"type": "command", "command": "python3 /home/patrick/Projects/AIPass/.claude/hooks/pre_compact_rollover.py", "timeout": 120}]}
+    {
+      "matcher": "manual",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PreCompact:pre_compact",
+          "timeout": 60
+        }
+      ]
+    },
+    {
+      "matcher": "auto",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PreCompact:pre_compact",
+          "timeout": 60
+        }
+      ]
+    },
+    {
+      "matcher": "manual",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PreCompact:pre_compact_rollover",
+          "timeout": 120
+        }
+      ]
+    },
+    {
+      "matcher": "auto",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PreCompact:pre_compact_rollover",
+          "timeout": 120
+        }
+      ]
+    }
   ]
 }

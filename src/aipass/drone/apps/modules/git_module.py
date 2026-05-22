@@ -567,6 +567,8 @@ def get_help(command: str | None = None) -> str:
         return (
             "git delete-branch <name> — Delete a remote branch [owner]\n  Protected: main and dev cannot be deleted.\n"
         )
+    if command == "close-pr":
+        return "git close-pr <number> — Close a GitHub pull request by number [owner]\n"
     if command == "commit":
         return (
             "git commit <message> [--all | file1 file2 ...] — Commit changes [owner]\n"
@@ -625,6 +627,7 @@ def get_help(command: str | None = None) -> str:
         "  pr <desc>              Push current branch and create PR to main\n"
         "  dev-pr <desc>          Push dev and create PR to main\n"
         "  delete-branch <name>   Delete a remote branch\n"
+        "  close-pr <number>      Close a PR\n"
         "  merge <PR#>            Merge a PR\n"
         "  sync [--autostash]     Checkout main and pull\n"
         "  smart-sync             Fetch + rebase if behind\n"
@@ -649,6 +652,7 @@ def get_introspective() -> str:
         "    - dev_pr_handler.py (create_branch_pr, create_dev_pr — PR to main)\n"
         "    - branches_handler.py (list_remote_branches)\n"
         "    - delete_branch_handler.py (delete_remote_branch — protected: main/dev)\n"
+        "    - close_pr_handler.py (close_pr — close PR by number)\n"
         "\n"
         "  plugins/devpulse_ops/\n"
         "    - auth.py (verify_git_access — tier-based authorization)\n"
@@ -659,7 +663,7 @@ def get_introspective() -> str:
         "  gh passthrough:\n"
         "    - issue, run, workflow → subprocess gh <cmd> [args]\n"
         "\n"
-        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (pr, commit, checkout, dev-pr, delete-branch, sync, unlock, merge, smart-sync, fix)\n"
+        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (pr, commit, checkout, dev-pr, delete-branch, close-pr, sync, unlock, merge, smart-sync, fix)\n"
     )
 
 

@@ -18,20 +18,13 @@ seedgo readme update @branch                     # README auto-update
 
 All modules also accept filename: `standards_audit`, `diagnostics_audit`, `readme_update`. Note: `proof`, `proof_query`, `test_map` currently not --help output (known TODO).
 
-## Hook Ownership
+## Hook Architecture
 
-I own hooks. Canonical runtime location `~/.claude/hooks/` (Anthropic global level — hooks must work across all projects, not per-project). Project-level `.claude/` settings only. Inventory:
+The **hooks branch** (`src/aipass/hooks/`) owns all hook infrastructure — engine, bridge, and 14 native handlers. Seedgo audits hooks via standards but does not own the hook system.
 
-- **auto_fix_diagnostics.py** (PostToolUse Edit/Write/NotebookEdit) — runs py_compile + ruff + pattern checks + `drone @seedgo checklist` + pyright on edited file, surfaces errors `additionalContext`, saves type errors state file edit gate
-- **pre_edit_gate.py** (PreToolUse Edit/Write) — blocks edits OTHER files while type error exists current file (branch-scoped — cross-branch edits allowed)
-- **subagent_stop_gate.py** — SubagentStop gate. Built, NOT wired settings.json 2026-04-14. Runs seedgo checklist all modified .py files, blocks sub-agent stop until clean. DevPass enforcement pattern. DPLAN-0131 discusses wiring.
-- **branch_prompt_loader.py** (UserPromptSubmit) — injects `.aipass/aipass_local_prompt.md` when CWD branch
-- **identity_injector.py** (UserPromptSubmit) — injects passport identity block
-- **email_notification.py** (UserPromptSubmit) — inbox banner
-- **pre_compact.py** (PreCompact manual+auto) — memory archival prep
-- Sounds (tool_use, stop, notification) — sound effects. Hook-sounds plugin itself drone's territory.
+Provider settings route all events through the bridge: `src/aipass/hooks/apps/handlers/bridges/claude.py <Event>:<handler>`. The bridge dispatches to native Python handlers in `hooks/apps/handlers/` (prompt, security, lifecycle, notification categories).
 
-Three locations drift today: `~/.claude/hooks/` (runtime), `AIPass/.claude/hooks/` (project-level copies), `AIPass/.claude/global_hooks/` (orphaned drift — `auto_fix_diagnostics.py` 35 lines behind). Consolidation part DPLAN-0131.
+Seedgo's bridge installer (`drone @seedgo bridge install`) manages hook installation to `~/.claude/settings.json`.
 
 ## Apps Layout (extra layer vs standard branch)
 

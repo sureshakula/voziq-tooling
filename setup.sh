@@ -499,82 +499,82 @@ fi
 # --- Install Claude Code hooks ---
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 
-if [ -d "$SCRIPT_DIR/.claude/hooks" ]; then
+# Determine python command for non-Claude provider hooks (Gemini, etc).
+# Claude hooks use bridge pattern with $AIPASS_HOME env var — no HOOK_PYTHON needed.
+# Linux: keep "python3" — distros ship 3.10+ and hooks import nothing
+# version-specific beyond that.
+# macOS: stock /usr/bin/python3 is 3.9.6 on macOS 12 and cannot parse
+# scripts that use PEP 604 union syntax (`X | None`). Use the venv python.
+# Windows: existing venv-python behavior.
+if [ "$IS_WINDOWS" -eq 1 ]; then
+    HOOK_PYTHON="$SCRIPT_DIR/.venv/Scripts/python.exe"
+elif [ "$IS_MACOS" -eq 1 ]; then
+    HOOK_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
+else
+    HOOK_PYTHON="python3"
+fi
+
+if [ -f "$SCRIPT_DIR/src/aipass/hooks/apps/handlers/bridges/claude.py" ]; then
     echo "Installing Claude Code hooks ..."
     mkdir -p "$HOME/.claude"
 
-    # Determine python command for hooks.
-    # Linux: keep "python3" — distros ship 3.10+ and hooks import nothing
-    # version-specific beyond that. Leaving this path unchanged per Linux stability.
-    # macOS: stock /usr/bin/python3 is 3.9.6 on macOS 12 and cannot parse hook
-    # scripts that use PEP 604 union syntax (`X | None`). Point at the venv
-    # python, which setup just built with a 3.10+ interpreter.
-    # Windows: existing venv-python behavior.
-    if [ "$IS_WINDOWS" -eq 1 ]; then
-        HOOK_PYTHON="$SCRIPT_DIR/.venv/Scripts/python.exe"
-    elif [ "$IS_MACOS" -eq 1 ]; then
-        HOOK_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
-    else
-        HOOK_PYTHON="python3"
-    fi
-
-    "$PYTHON" - "$SCRIPT_DIR" "$CLAUDE_SETTINGS" "$HOOK_PYTHON" << 'PYEOF'
+    "$PYTHON" - "$SCRIPT_DIR" "$CLAUDE_SETTINGS" << 'PYEOF'
 import json
+import os
 import sys
 from pathlib import Path
 
 repo_root = sys.argv[1]
 settings_path = Path(sys.argv[2])
-hook_python = sys.argv[3]
-hooks_dir = f"{repo_root}/.claude/hooks"
+
+# Bridge entry point — all hooks route through the engine via this bridge.
+# Uses $AIPASS_HOME env var (injected into settings.env below) so the
+# settings file stays relocatable.
+bridge = "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py"
 
 # Load existing settings or start fresh
 if settings_path.exists():
-    settings = json.loads(settings_path.read_text())
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
 else:
     settings = {}
 
-# Build hooks config with absolute paths
+# Build hooks config — bridge pattern
+# UserPromptSubmit: 4 separate entries (EventType:hook_name) to avoid output merging
+# PreToolUse, PostToolUse, SubagentStop, Stop, Notification: single aggregate entries
+# PreCompact: 2 hooks x 2 matchers (manual + auto) = 4 entries
 settings["hooks"] = {
     "UserPromptSubmit": [
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/global_prompt_loader.py"}]},
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/branch_prompt_loader.py"}]},
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/identity_injector.py"}]},
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/email_notification.py"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:global_prompt"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:branch_prompt"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:identity_injector"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:email_notification"}]},
     ],
     "PreToolUse": [
         {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
-         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/tool_use_sound.py"}]},
-        {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
-         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_edit_gate.py"}]},
-        {"matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit",
-         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/git_gate.py"}]},
+         "hooks": [{"type": "command", "command": f"{bridge} PreToolUse"}]},
     ],
     "PostToolUse": [
-        {"matcher": "Edit|MultiEdit|Write|NotebookEdit",
-         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/auto_fix_diagnostics.py"}]},
-        {"matcher": "Bash",
-         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/auto_watchdog.py"}]},
-    ],
-    "Stop": [
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/stop_sound.py"}]},
-    ],
-    "Notification": [
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/notification_sound.py"}]},
+        {"matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit",
+         "hooks": [{"type": "command", "command": f"{bridge} PostToolUse"}]},
     ],
     "SubagentStop": [
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/subagent_stop_gate.py"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} SubagentStop"}]},
+    ],
+    "Stop": [
+        {"hooks": [{"type": "command", "command": f"{bridge} Stop"}]},
+    ],
+    "Notification": [
+        {"hooks": [{"type": "command", "command": f"{bridge} Notification"}]},
     ],
     "PreCompact": [
-        {"matcher": "manual", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact.py", "timeout": 60}]},
-        {"matcher": "auto", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact.py", "timeout": 60}]},
-        {"matcher": "manual", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact_rollover.py", "timeout": 120}]},
-        {"matcher": "auto", "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_compact_rollover.py", "timeout": 120}]},
+        {"matcher": "manual", "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact", "timeout": 60}]},
+        {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact", "timeout": 60}]},
+        {"matcher": "manual", "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact_rollover", "timeout": 120}]},
+        {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact_rollover", "timeout": 120}]},
     ],
 }
 
 # Inject AIPASS_HOME into env block so dispatched agents find AIPass
-import os
 env_block = settings.get("env", {})
 env_block["AIPASS_HOME"] = repo_root
 env_block["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
@@ -643,12 +643,12 @@ permissions["ask"] = ask
 
 settings["permissions"] = permissions
 
-settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 print(f"  hooks -> {settings_path}")
 print(f"  AIPASS_HOME -> {repo_root} (in settings.json env)")
 PYEOF
 else
-    echo "Skipping hooks (no .claude/hooks/ directory found)"
+    echo "Skipping Claude hooks (bridge not found at src/aipass/hooks/apps/handlers/bridges/claude.py)"
 fi
 
 # --- Install Claude Code commands (provider level) ---

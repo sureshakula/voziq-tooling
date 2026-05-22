@@ -2,11 +2,16 @@
 
 > **Note:** The probe suite predates the `hook_log.py` always-on logger (S132, DPLAN-0167).
 > For most hook debugging, use `hook_report.py` and `hook_test.py` in the parent directory
-> instead — they cover all hooks automatically without manual wiring. The probes below remain
+> instead -- they cover all hooks automatically without manual wiring. The probes below remain
 > useful for one-off event investigation when you need to enable/disable individual events.
 
+> **Post-migration note (DPLAN-0184):** Production hooks now route through the bridge at
+> `src/aipass/hooks/apps/handlers/bridges/claude.py`. Probes are independent of the bridge
+> pipeline -- they wire directly into `~/.claude/settings.json` as standalone commands.
+> The wiring examples below still work as-is.
+
 This directory contains ping-response probe scripts for each Claude Code hook event type.
-Probes are **opt-in** — they are never auto-wired. See below for how to enable them.
+Probes are **opt-in** -- they are never auto-wired. See below for how to enable them.
 
 ---
 
@@ -14,7 +19,7 @@ Probes are **opt-in** — they are never auto-wired. See below for how to enable
 
 Each `probe_*.py` script in this directory is a passive observer for one Claude Code hook event.
 When enabled in `settings.json`, a probe fires on its event, records a structured entry to
-`last_ping.jsonl`, and exits 0 immediately — it never blocks execution.
+`last_ping.jsonl`, and exits 0 immediately -- it never blocks execution.
 
 ---
 
@@ -34,32 +39,32 @@ When enabled in `settings.json`, a probe fires on its event, records a structure
 
 ## How to enable probes (settings.json snippets)
 
-Add any subset of the following to your `.claude/settings.json` `hooks` object.
-**Replace `/path/to/AIPass` with your actual repo root.**
+Add any subset of the following to your `~/.claude/settings.json` `hooks` object.
+Use `$AIPASS_HOME` (set by provider settings) or replace with your actual repo root.
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_pre_tool_use.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_pre_tool_use.py"}]}
     ],
     "PostToolUse": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_post_tool_use.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_post_tool_use.py"}]}
     ],
     "UserPromptSubmit": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_user_prompt_submit.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_user_prompt_submit.py"}]}
     ],
     "SubagentStop": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_subagent_stop.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_subagent_stop.py"}]}
     ],
     "PreCompact": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_pre_compact.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_pre_compact.py"}]}
     ],
     "Stop": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_stop.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_stop.py"}]}
     ],
     "Notification": [
-      {"hooks": [{"type": "command", "command": "python3 /path/to/AIPass/.claude/hooks/probes/probe_notification.py"}]}
+      {"hooks": [{"type": "command", "command": "python3 $AIPASS_HOME/.claude/hooks/probes/probe_notification.py"}]}
     ]
   }
 }
@@ -102,7 +107,7 @@ drone @seedgo hooks probe --matrix
 
 ## Notes
 
-- `last_ping.jsonl` is gitignored — it is a live log file, not source.
+- `last_ping.jsonl` is gitignored -- it is a live log file, not source.
 - Probes are opt-in. The AIPass repo does **not** auto-wire them into `settings.json`.
 - Each probe script contains its own `settings.json` snippet in its module docstring.
-- Probes are pure stdlib Python — no aipass imports, no third-party packages.
+- Probes are pure stdlib Python -- no aipass imports, no third-party packages.

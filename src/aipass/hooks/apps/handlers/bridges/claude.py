@@ -14,7 +14,9 @@ Claude Code bridge.
 Thin entry point called from ~/.claude/settings.json hook entries.
 Normalizes Claude Code's stdin/stdout format and calls the engine.
 
-Called from provider settings as the sole hook entry point per event type.
+Supports two forms:
+  claude.py EventType          — dispatch ALL enabled hooks for that event
+  claude.py EventType:hook_name — dispatch ONLY that one hook (separate output)
 """
 
 import sys
@@ -26,10 +28,15 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 def main() -> None:
     """Entry point — receive event type from Claude Code, dispatch via engine."""
     if len(sys.argv) < 2:
-        sys.stderr.write("Usage: claude.py <EventType>\n")
+        sys.stderr.write("Usage: claude.py <EventType> or claude.py <EventType:hook_name>\n")
         sys.exit(1)
 
-    event_type = sys.argv[1]
+    arg = sys.argv[1]
+    hook_filter = None
+    if ":" in arg:
+        event_type, hook_filter = arg.split(":", 1)
+    else:
+        event_type = arg
 
     stdin_data = ""
     if not sys.stdin.isatty():
@@ -39,6 +46,11 @@ def main() -> None:
     if config is None:
         config = {"hooks_enabled": True}
         logger.info("[HOOKS:claude] no project config found, using defaults")
+
+    if hook_filter:
+        full_config: dict = config
+        hook_def = full_config.get(event_type, {}).get(hook_filter, {})
+        config = {"hooks_enabled": True, event_type: {hook_filter: hook_def}}
 
     output = dispatch(event_type, stdin_data, config)
     if output:

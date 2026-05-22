@@ -1,36 +1,61 @@
-#!/usr/bin/env python3
-"""
-Pre-Compact Rollover Hook — check branch memory files and run rollover if overdue.
+# =================== AIPass ====================
+# Name: rollover.py
+# Version: 1.0.0
+# Description: Checks branch memory files and runs rollover if overdue (PreCompact)
+# Branch: hooks
+# Layer: apps/handlers/lifecycle
+# Created: 2026-05-22
+# Modified: 2026-05-22
+# =============================================
 
-Runs alongside pre_compact.py on PreCompact events. Scans all branches'
-.trinity files for over-limit conditions and executes rollover via drone
-if any are found. Stdout stays clean (pre_compact.py owns stdout for
-context injection). All logging goes to stderr.
-
-Version: 1.0.0
-"""
+"""Scans all branches for over-limit memory files and triggers rollover via drone."""
 
 import json
+import os
 import subprocess
-import sys
+import tempfile
 from pathlib import Path
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 
-def _find_repo_root():
-    """Find the AIPass repo root (contains AIPASS_REGISTRY.json)."""
-    current = Path(__file__).resolve().parent
-    for parent in [current] + list(current.parents):
-        if (parent / "AIPASS_REGISTRY.json").exists():
-            return parent
+PIPER_BIN = Path.home() / ".local" / "share" / "piper" / "piper"
+PIPER_VOICE = Path.home() / ".local" / "share" / "piper-voices" / "en_US-amy-medium.onnx"
+
+
+def _speak(text: str) -> None:
+    if not PIPER_BIN.exists() or not PIPER_VOICE.exists():
+        return
+    try:
+        wav_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        wav_path = wav_file.name
+        wav_file.close()
+        result = subprocess.run(
+            [str(PIPER_BIN), "-m", str(PIPER_VOICE), "-f", wav_path],
+            input=text,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and Path(wav_path).exists():
+            subprocess.Popen(["aplay", "-q", wav_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        logger.info("[HOOKS] rollover: speak error: %s", exc)
+
+
+def _find_repo_root() -> Path | None:
+    aipass_home = os.environ.get("AIPASS_HOME", "")
+    if aipass_home:
+        p = Path(aipass_home)
+        if (p / "AIPASS_REGISTRY.json").exists():
+            return p
     cwd = Path.cwd()
-    for parent in [cwd] + list(cwd.parents):
+    for parent in [cwd, *list(cwd.parents)]:
         if (parent / "AIPASS_REGISTRY.json").exists():
             return parent
     return None
 
 
-def _read_registry(repo_root):
-    """Read branch list from AIPASS_REGISTRY.json."""
+def _read_registry(repo_root: Path) -> list[dict]:
     registry_path = repo_root / "AIPASS_REGISTRY.json"
     if not registry_path.exists():
         return []
@@ -44,31 +69,26 @@ def _read_registry(repo_root):
                 resolved = repo_root / raw_path
             branch["_resolved_path"] = resolved
         return branches
-    except Exception:
+    except Exception as exc:
+        logger.info("[HOOKS] rollover: registry read failed: %s", exc)
         return []
 
 
-def _check_file(file_path):
-    """Check if a .trinity memory file is overdue for rollover.
-
-    Returns (overdue: bool, description: str) or (False, "") if not overdue.
-    """
+def _check_file(file_path: Path) -> tuple[bool, str]:
     if not file_path.is_file():
         return False, ""
-
     try:
         raw = file_path.read_text(encoding="utf-8")
         data = json.loads(raw)
-    except Exception:
+    except Exception as exc:
+        logger.info("[HOOKS] rollover: file parse failed %s: %s", file_path, exc)
         return False, ""
 
-    metadata = data.get("document_metadata", {})
-    schema_version = metadata.get("schema_version", "1.0.0")
-    limits = metadata.get("limits", {})
+    limits = data.get("document_metadata", {}).get("limits", {})
 
     has_v2_limits = any(k in limits for k in ("max_sessions", "max_key_learnings", "max_observations"))
     if has_v2_limits:
-        reasons = []
+        reasons: list[str] = []
         max_sessions = limits.get("max_sessions")
         if max_sessions is not None:
             sessions = data.get("sessions", [])
@@ -91,7 +111,6 @@ def _check_file(file_path):
             return True, ", ".join(reasons)
         return False, ""
 
-    # v1: line-count based
     max_lines = limits.get("max_lines", 600)
     current_lines = raw.count("\n") + 1
     if current_lines >= max_lines:
@@ -99,28 +118,23 @@ def _check_file(file_path):
     return False, ""
 
 
-def _find_overdue(repo_root):
-    """Scan all branches for overdue memory files. Returns list of (branch, type, reason)."""
+def _find_overdue(repo_root: Path) -> list[tuple[str, str, str]]:
     branches = _read_registry(repo_root)
-    overdue = []
-
+    overdue: list[tuple[str, str, str]] = []
     for branch in branches:
         name = branch.get("name", "unknown")
         branch_path = branch.get("_resolved_path")
         if not branch_path or not branch_path.is_dir():
             continue
-
-        for memory_type in ["local", "observations"]:
+        for memory_type in ("local", "observations"):
             file_path = branch_path / ".trinity" / f"{memory_type}.json"
             is_overdue, reason = _check_file(file_path)
             if is_overdue:
                 overdue.append((name, memory_type, reason))
-
     return overdue
 
 
-def _run_rollover(repo_root):
-    """Execute rollover via drone subprocess. Returns (success, output)."""
+def _run_rollover(repo_root: Path) -> tuple[bool, str]:
     try:
         result = subprocess.run(
             ["drone", "@memory", "rollover", "run"],
@@ -131,44 +145,37 @@ def _run_rollover(repo_root):
         )
         return result.returncode == 0, result.stdout + result.stderr
     except subprocess.TimeoutExpired:
+        logger.info("[HOOKS] rollover: drone rollover timed out (110s)")
         return False, "Rollover timed out (110s)"
-    except Exception as e:
-        return False, str(e)
+    except Exception as exc:
+        logger.info("[HOOKS] rollover: drone rollover failed: %s", exc)
+        return False, str(exc)
 
 
-def main():
-    """Main hook entry point."""
-    try:
-        json.load(sys.stdin)
-    except Exception:
-        pass
+def handle(hook_data: dict) -> dict:
+    """Check memory files for overflow and trigger rollover if needed."""
+    _speak("pre compact rollover")
 
     try:
         repo_root = _find_repo_root()
         if not repo_root:
-            sys.exit(0)
+            return {"stdout": "", "exit_code": 0}
 
         overdue = _find_overdue(repo_root)
         if not overdue:
-            sys.exit(0)
+            return {"stdout": "", "exit_code": 0}
 
         summary = "; ".join(f"{name}.{mtype} ({reason})" for name, mtype, reason in overdue)
-        print(f"Pre-compact rollover: {len(overdue)} overdue — {summary}", file=sys.stderr)
+        logger.info("[HOOKS] rollover: %d overdue — %s", len(overdue), summary)
 
         success, output = _run_rollover(repo_root)
         if success:
-            print(f"Pre-compact rollover: complete ({len(overdue)} files processed)", file=sys.stderr)
+            logger.info("[HOOKS] rollover: complete (%d files processed)", len(overdue))
         else:
-            print(f"Pre-compact rollover: failed — {output[:200]}", file=sys.stderr)
+            logger.info("[HOOKS] rollover: failed — %s", output[:200])
 
-    except Exception as e:
-        print(f"Pre-compact rollover error: {e}", file=sys.stderr)
+        return {"stdout": "", "exit_code": 0}
 
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from hook_log import run_and_log
-
-    run_and_log("PreCompact", "provider", __file__, main)
+    except Exception as exc:
+        logger.info("[HOOKS] rollover: unexpected error: %s", exc)
+        return {"stdout": "", "exit_code": 0}

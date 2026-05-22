@@ -1,163 +1,141 @@
-# .claude/ — Claude Code Configuration
+# .claude/ -- Claude Code Configuration
 
 This directory configures Claude Code for the AIPass project.
 
-**Related:** DPLAN-0053 (Hook Migration) documents the research and decisions behind this architecture.
+**Related:** DPLAN-0184 (Hook Migration), DPLAN-0053 (original hook architecture research).
+
+## How Hooks Work (Post-Migration)
+
+All AIPass hooks run through a three-layer pipeline:
+
+```
+~/.claude/settings.json      Provider settings (Claude Code reads these)
+        |
+        v
+claude.py (bridge)           Thin entry point -- normalizes stdin, calls engine
+        |
+        v
+engine.py (dispatcher)       Reads .aipass/hooks.json, imports + calls handlers
+        |
+        v
+handlers/                    Native Python handlers (the actual hook logic)
+```
+
+Provider settings in `~/.claude/settings.json` call the bridge with an event type:
+
+```json
+{
+  "type": "command",
+  "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py PreToolUse"
+}
+```
+
+The bridge supports two invocation forms:
+- `claude.py EventType` -- dispatch ALL enabled hooks for that event
+- `claude.py EventType:hook_name` -- dispatch ONLY one specific hook (used for UserPromptSubmit where each hook needs its own system-reminder block)
+
+Per-project configuration lives in `.aipass/hooks.json`. Each hook entry specifies:
+- `enabled` -- whether the hook fires
+- `handler` -- dotted import path to the handler function
+- `matcher` -- tool name filter (empty string = match all)
+- `timeout` -- optional timeout in seconds
 
 ## Quick Setup
 
-AIPass hooks live in two places. The project hooks (`hooks/`) travel with the repo. The global hooks (`global_hooks/`) need to be copied to your `~/.claude/` directory.
-
-### Step 1: Copy global hooks
+Run `setup.sh` from the repo root. It creates the venv, installs the package, and wires bridge entries into `~/.claude/settings.json` automatically.
 
 ```bash
-# Copy hook scripts to your Anthropic hooks directory
-mkdir -p ~/.claude/hooks
-cp .claude/global_hooks/*.py ~/.claude/hooks/
-cp .claude/global_hooks/*.sh ~/.claude/
-
-# Optional: copy sounds (if you want audio feedback)
-mkdir -p ~/.claude/sounds
-cp .claude/sounds/* ~/.claude/sounds/ 2>/dev/null || true
+./setup.sh
 ```
 
-### Step 2: Configure global settings
+If hooks get out of sync, `aipass doctor --fix` can auto-wire missing hook entries.
 
-Add these entries to your `~/.claude/settings.json`. These use `git rev-parse` to find the repo — no hardcoded paths needed.
-
-**UserPromptSubmit hooks** (inject prompts every turn):
-```json
-"UserPromptSubmit": [
-  {
-    "hooks": [{ "type": "command", "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$REPO/.aipass/aipass_global_prompt.md\" ] && cat \"$REPO/.aipass/aipass_global_prompt.md\" || true" }]
-  },
-  {
-    "hooks": [{ "type": "command", "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$REPO/.claude/hooks/branch_prompt_loader.py\" ] && python3 \"$REPO/.claude/hooks/branch_prompt_loader.py\" || true" }]
-  },
-  {
-    "hooks": [{ "type": "command", "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$REPO/.claude/hooks/identity_injector.py\" ] && python3 \"$REPO/.claude/hooks/identity_injector.py\" || true" }]
-  },
-  {
-    "hooks": [{ "type": "command", "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$REPO/.claude/hooks/email_notification.py\" ] && python3 \"$REPO/.claude/hooks/email_notification.py\" || true" }]
-  },
-  {
-    "hooks": [{ "type": "command", "command": "echo \"# Current Time: $(date +'%A, %B %-d %Y — %-I:%M %p')\"" }]
-  }
-]
-```
-
-**PreCompact hooks** (save context before compaction):
-```json
-"PreCompact": [
-  { "matcher": "manual", "hooks": [{ "type": "command", "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$REPO/.claude/hooks/pre_compact.py\" ] && python3 \"$REPO/.claude/hooks/pre_compact.py\" || true", "timeout": 60 }] },
-  { "matcher": "auto", "hooks": [{ "type": "command", "command": "REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$REPO/.claude/hooks/pre_compact.py\" ] && python3 \"$REPO/.claude/hooks/pre_compact.py\" || true", "timeout": 60 }] }
-]
-```
-
-**Optional hooks** (sounds, auto-fix — from global_hooks/):
-```json
-"PreToolUse": [
-  { "matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
-    "hooks": [{ "type": "command", "command": "python3 ~/.claude/hooks/tool_use_sound.py" }] }
-],
-"PostToolUse": [
-  { "matcher": "Edit|MultiEdit|Write|NotebookEdit",
-    "hooks": [{ "type": "command", "command": "python3 ~/.claude/hooks/auto_fix_diagnostics.py" }] }
-],
-"Stop": [
-  { "hooks": [{ "type": "command", "command": "python3 ~/.claude/hooks/stop_sound.py" }] }
-],
-"Notification": [
-  { "hooks": [{ "type": "command", "command": "python3 ~/.claude/hooks/notification_sound.py" }] }
-]
-```
-
-### Step 3: Done
-
-Launch Claude from any branch subdirectory:
-```bash
-cd src/aipass/devpulse
-claude --permission-mode bypassPermissions
-```
-
-The hooks will auto-discover the repo root and inject the right prompts.
-
-## Why This Architecture
-
-Claude Code project settings (`.claude/settings.json`) don't fire `UserPromptSubmit` hooks from subdirectories — only from the repo root. Since AIPass citizens launch from `src/aipass/{name}/`, we can't use project settings for prompt injection.
-
-The solution: hooks live in **global settings** (`~/.claude/settings.json`) but use `git rev-parse --show-toplevel` to find the repo dynamically. No hardcoded paths. Works for any clone location, any user. Outside a git repo, hooks silently do nothing.
-
-See DPLAN-0053 for the full investigation and test results.
+No manual script copying is needed. No global_hooks directory. No `git rev-parse` tricks.
 
 ## What's In This Directory
 
 ```
 .claude/
-├── settings.json              # Project settings (permissions, env vars, PostToolUse, SubagentStop)
-├── hooks/                     # AIPass-specific hook scripts (travel with repo)
-│   ├── branch_prompt_loader.py    # Injects branch-specific prompt based on CWD
-│   ├── identity_injector.py       # Injects passport identity (role, traits, purpose)
-│   ├── email_notification.py      # Notifies if unread mail exists
-│   ├── pre_compact.py             # Saves session context before compaction
-│   ├── prompt_inject.sh           # Combined inject (reference, not used in production)
-│   └── .archive/                  # Archived/disabled hooks
-├── global_hooks/              # Scripts to copy to ~/.claude/hooks/ (user setup)
-│   ├── auto_fix_diagnostics.py    # Syntax check + seedgo checklist after edits
-│   ├── subagent_stop_gate.py      # Blocks subagent if modified files have violations
-│   ├── tool_use_sound.py          # Keypress sound on tool calls
-│   ├── stop_sound.py              # Sound on stop
-│   ├── notification_sound.py      # Sound on notification
-│   ├── hook_logger.sh             # Optional hook activity logger
-│   └── statusline.sh              # Statusline display (branch, model, context, cost)
+├── settings.json              # Project settings (permissions, env vars)
+├── hooks/                     # Legacy hook scripts (all disabled) + testing tools
+│   ├── *.py(disabled)             # 18 disabled scripts (pre-migration)
+│   ├── hook_log.py                # Shared logger -- hooks call run_and_log()
+│   ├── hook_report.py             # Report tool -- reads JSONL log, shows table
+│   ├── hook_test.py               # Test harness -- direct + integration tests
+│   └── probes/                    # Opt-in per-event diagnostic probes
 ├── agents/                    # Agent definitions
 │   └── builder.md
 ├── commands/                  # Slash commands
-│   └── memo.md                    # /memo — memory update workflow
+│   └── memo.md                    # /memo -- memory update workflow
 ├── sounds/                    # Audio files for sound hooks
 └── README.md                  # This file
 ```
 
+Hook logic has moved to `src/aipass/hooks/apps/handlers/`. See the handler README for the full layout.
+
+## Handler Layout
+
+All 14 hooks are native Python handlers organized by domain:
+
+```
+src/aipass/hooks/apps/handlers/
+├── bridges/
+│   └── claude.py              # Provider bridge (called from settings.json)
+├── config/
+│   ├── loader.py              # Finds and reads .aipass/hooks.json
+│   └── diagnostics.py         # JSONL logging for hook execution
+├── prompt/
+│   ├── global_loader.py       # UserPromptSubmit -- AIPass global prompt
+│   ├── branch_loader.py       # UserPromptSubmit -- branch-specific prompt
+│   └── identity.py            # UserPromptSubmit -- passport identity injection
+├── notification/
+│   ├── email.py               # UserPromptSubmit -- unread email count
+│   ├── tool_sound.py          # PreToolUse -- key-press sound
+│   ├── stop_sound.py          # Stop -- achievement bell
+│   └── announce.py            # Notification -- notification sound
+├── security/
+│   ├── git_gate.py            # PreToolUse -- blocks raw git/gh commands
+│   ├── edit_gate.py           # PreToolUse -- cross-branch write block
+│   └── subagent_gate.py       # SubagentStop -- seedgo checklist gate
+└── lifecycle/
+    ├── auto_fix.py            # PostToolUse -- pyright + ruff after edits
+    ├── auto_watchdog.py       # PostToolUse -- watchdog reminder after dispatch
+    ├── compact.py             # PreCompact -- save context before compaction
+    └── rollover.py            # PreCompact -- memory rollover on compaction
+```
+
 ## What Gets Injected Every Turn
 
-1. **Global Prompt** — system context, terminology, commands, rules (`.aipass/aipass_global_prompt.md`)
-2. **Branch Prompt** — branch-specific instructions based on CWD (`.aipass/aipass_local_prompt.md`)
-3. **Identity** — passport summary: role, traits, purpose (`.trinity/passport.json`)
-4. **Email** — notification only if unread mail exists (`.ai_mail.local/inbox.json`)
-5. **Time Clock** — current date and time for temporal awareness (added S72, inline shell command)
+1. **Global Prompt** -- system context, terminology, commands, rules (`.aipass/aipass_global_prompt.md`)
+2. **Branch Prompt** -- branch-specific instructions based on CWD (`.aipass/aipass_local_prompt.md`)
+3. **Identity** -- passport summary: role, traits, purpose (`.trinity/passport.json`)
+4. **Email** -- notification only if unread mail exists (`.ai_mail.local/inbox.json`)
+
+Each is dispatched as a separate `UserPromptSubmit:hook_name` call so it gets its own system-reminder block.
 
 ## Project Settings
 
-Defined in `settings.json` (this directory). These DO fire from subdirectories.
+Defined in `settings.json` (this directory). These fire from subdirectories.
 
 **Environment:**
-- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — makes PostToolUse hooks fire inside subagents
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` -- makes PostToolUse hooks fire inside subagents
+- `AIPASS_HOME` -- repo root path, used by bridge commands
 
 **Permissions:**
 - Denied: `git reset`, `git rebase`, `git config`, `git push --force`, `EnterPlanMode`
 - Default mode: `acceptEdits`
 
-**Project hooks:**
-- `PostToolUse` — auto-fix diagnostics after file edits (fires in subagents via env var)
-- `SubagentStop` — secondary gate checking modified files against seedgo standards
-
-## Time Clock Hook (S72)
-
-**What:** Injects `# Current Time: Thursday, April 2 2026 — 11:24 AM` as its own system-reminder every turn.
-
-**Why:** Claude has no temporal awareness by default — doesn't know what time it is, how long a session has been running, or whether it's day/night. The user requested this in S71 as the first step toward autonomous scheduling, task duration estimation, and personal reminders. A year-old wishlist item finally built.
-
-**How:** Pure inline shell — no script file. Added as a separate entry in `~/.claude/settings.json` UserPromptSubmit array so it gets its own system-reminder block (not buried in the 13.6KB global prompt output).
-
-**Important:** This hook lives ONLY in `~/.claude/settings.json` (global). It's not a repo script — it's a one-liner `echo` with `date`. First attempt put it inside `prompt_inject.sh` but it got truncated by the 2KB preview limit since the global prompt is 13.6KB. Moving it to its own hook entry fixed visibility.
-
-**Future:** This is proof-of-concept for a broader temporal awareness system — session duration tracking, task time estimation, reminders (bedtime, meals), autonomous work scheduling.
-
 ## Adding a New Hook
 
-1. Create the script in `.claude/hooks/`
-2. Add one entry to `~/.claude/settings.json` using the `git rev-parse` pattern:
-   ```
-   REPO=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f "$REPO/.claude/hooks/your_script.py" ] && python3 "$REPO/.claude/hooks/your_script.py" || true
-   ```
-3. Done — no hardcoded paths, works for any clone location
+1. Create a handler in `src/aipass/hooks/apps/handlers/<domain>/your_hook.py` with a `handle(event_type, stdin_data, config)` function
+2. Add an entry to `.aipass/hooks.json` under the appropriate event type
+3. If the hook needs its own system-reminder output (like prompt injectors), add a separate bridge entry in `~/.claude/settings.json` using the `EventType:hook_name` form
+4. Run `setup.sh` or `aipass doctor --fix` to sync provider settings
+
+## Architecture Notes
+
+**Why provider settings?** Claude Code project settings (`.claude/settings.json`) do not fire `UserPromptSubmit` hooks from subdirectories. Since AIPass citizens launch from `src/aipass/{name}/`, prompt injection must live in provider settings (`~/.claude/settings.json`). The bridge pattern makes this clean -- one bridge binary, many handlers.
+
+**Why separate bridge calls for UserPromptSubmit?** Each UserPromptSubmit hook entry gets its own system-reminder block in the conversation. Bundling them into one call would merge all prompt output into a single block, losing separation.
+
+**Why .aipass/hooks.json?** Decouples hook configuration from provider settings. The engine reads this at dispatch time, so hooks can be enabled/disabled without editing `~/.claude/settings.json`.

@@ -2,7 +2,7 @@
 
 # Seedgo
 
-**Purpose:** Standards compliance platform for AIPass. Audits all 11 core agents against 35 code standards + diagnostics, manages bypass rules, runs proof certification, owns the hook system, and provides per-file checklist validation consumed by auto-fix hooks.
+**Purpose:** Standards compliance platform for AIPass. Audits all 11 core agents against 35 code standards + diagnostics, manages bypass rules, runs proof certification, and provides per-file checklist validation consumed by auto-fix hooks.
 **Module:** `aipass.seedgo`
 **Version:** 2.0.0
 **Created:** 2026-03-05
@@ -16,7 +16,7 @@
 - Score files 0-100 per standard and report violations with actionable details
 - Manage bypass rules (`.seedgo/bypass.json`) for deliberate exceptions
 - Run pyright diagnostics across branches for type error detection
-- Own the hook system: auto-fix diagnostics, edit gate, subagent stop gate, bridge installer
+- Hook bridge installer (`drone @seedgo bridge install`) for `~/.claude/settings.json` management
 - Single-file checklist validation against all standards (consumed by PostToolUse auto-fix hook)
 - Proof certification via proof/proof_query (triplet, plugin integrity, README currency)
 - Custom function test coverage mapping via test_map
@@ -198,24 +198,30 @@ seedgo/
 
 ---
 
-## Hook Ownership
+## Hook Architecture
 
-Seedgo owns the AIPass hook system. Canonical runtime location: `AIPass/.claude/hooks/`.
+The **hooks branch** (`src/aipass/hooks/`) owns all hook infrastructure — engine, bridge, and 14 native handlers. Seedgo audits hooks via standards but does not own the hook system.
 
-| Hook | Event | What It Does |
-|------|-------|--------------|
-| auto_fix_diagnostics.py v5.2.0 | PostToolUse (Edit/Write) | py_compile + ruff + pattern checks + `drone @seedgo checklist` + pyright. Saves state for edit gate |
-| pre_edit_gate.py v1.3.0 | PreToolUse (Edit/Write) | Blocks edits to other files while type errors exist. Cross-branch inbox write protection |
-| subagent_stop_gate.py v1.0 | SubagentStop | Runs checklist on modified .py files, blocks stop until clean |
-| branch_prompt_loader.py | UserPromptSubmit | Injects `.aipass/aipass_local_prompt.md` when CWD is in a branch |
-| identity_injector.py | UserPromptSubmit | Injects passport identity block |
-| email_notification.py | UserPromptSubmit | Inbox banner |
-| pre_compact.py | PreCompact | Memory archival prep |
-| notification_sound.py | Notification | Sound effect |
-| stop_sound.py | Stop | Sound effect |
-| tool_use_sound.py | PreToolUse | Sound effect |
+Provider settings route all events through the bridge (`claude.py`), which dispatches to native Python handlers:
 
-The `bridge` module (`drone @seedgo bridge install`) manages hook installation to `~/.claude/settings.json` using the AIPASS_HOOK_MANIFEST (13 entries across 7 events).
+| Handler | Event | Category |
+|---------|-------|----------|
+| `prompt.global_loader` | UserPromptSubmit | prompt |
+| `prompt.branch_loader` | UserPromptSubmit | prompt |
+| `prompt.identity` | UserPromptSubmit | prompt |
+| `notification.email` | UserPromptSubmit | notification |
+| `security.edit_gate` | PreToolUse | security |
+| `security.git_gate` | PreToolUse | security |
+| `lifecycle.auto_fix` | PostToolUse | lifecycle |
+| `lifecycle.auto_watchdog` | PostToolUse | lifecycle |
+| `security.subagent_gate` | SubagentStop | security |
+| `notification.stop_sound` | Stop | notification |
+| `notification.announce` | Notification | notification |
+| `notification.tool_sound` | PreToolUse | notification |
+| `lifecycle.compact` | PreCompact | lifecycle |
+| `lifecycle.rollover` | PreCompact | lifecycle |
+
+The `bridge` module (`drone @seedgo bridge install`) manages hook installation to `~/.claude/settings.json`.
 
 ---
 
@@ -247,7 +253,8 @@ The `bridge` module (`drone @seedgo bridge install`) manages hook installation t
 ## Known Issues / Tech Debt
 
 - `audit_display.py`: 16 hardcoded display blocks for specific standards (DPLAN-0047 tracks dynamic refactor)
-- Hook location drift: `~/.claude/hooks/` vs `AIPass/.claude/hooks/` (DPLAN-0131)
+- `bridge_handler.py` AIPASS_HOOK_MANIFEST references old script paths — needs update to bridge architecture
+- `test_hooks_track_a/b/e.py` import old hook scripts from `.claude/hooks/` — should migrate to test new native handlers
 - `proof`, `proof_query`, `test_map` not listed in `--help` output
 - `documentation_check.py` 5-line lookahead limitation for multi-line function signatures
 - `dead_code_check.py` doesn't recognize `iterdir()` as valid discovery pattern

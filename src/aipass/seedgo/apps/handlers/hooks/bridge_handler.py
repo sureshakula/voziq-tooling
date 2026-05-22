@@ -82,7 +82,12 @@ def write_settings(path: Path, data: dict) -> bool:
 # Hook detection
 # ---------------------------------------------------------------------------
 
-_AIPASS_COMMAND_MARKERS = ("AIPass/.claude/hooks/", "$AIPASS_HOME", "aipass_global_prompt")
+_AIPASS_COMMAND_MARKERS = (
+    "AIPass/.claude/hooks/",
+    "$AIPASS_HOME",
+    "aipass_global_prompt",
+    "aipass/hooks/apps/handlers/bridges/claude.py",
+)
 
 
 def is_aipass_hook_entry(entry: dict) -> bool:
@@ -111,134 +116,79 @@ def count_aipass_hooks(settings: dict) -> int:
 # Hook manifest — the canonical set of AIPass hooks
 # ---------------------------------------------------------------------------
 
+_BRIDGE = "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py"
+
 AIPASS_HOOK_MANIFEST: dict[str, list[dict]] = {
     "UserPromptSubmit": [
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "cat $AIPASS_HOME/.aipass/aipass_global_prompt.md 2>/dev/null || true",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} UserPromptSubmit:global_prompt"}],
         },
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/branch_prompt_loader.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} UserPromptSubmit:branch_prompt"}],
         },
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/identity_injector.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} UserPromptSubmit:identity_injector"}],
         },
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/email_notification.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} UserPromptSubmit:email_notification"}],
         },
     ],
     "PreToolUse": [
         {
             "_aipass": True,
             "matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/tool_use_sound.py",
-                }
-            ],
-        },
-        {
-            "_aipass": True,
-            "matcher": "Edit|MultiEdit|Write|NotebookEdit",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/pre_edit_gate.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} PreToolUse"}],
         },
     ],
     "PostToolUse": [
         {
             "_aipass": True,
-            "matcher": "Edit|MultiEdit|Write|NotebookEdit",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/auto_fix_diagnostics.py",
-                }
-            ],
+            "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit",
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} PostToolUse"}],
         },
     ],
     "SubagentStop": [
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/subagent_stop_gate.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} SubagentStop"}],
         },
     ],
     "Stop": [
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/stop_sound.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} Stop"}],
         },
     ],
     "Notification": [
         {
             "_aipass": True,
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/notification_sound.py",
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} Notification"}],
         },
     ],
     "PreCompact": [
         {
             "_aipass": True,
             "matcher": "manual",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/pre_compact.py",
-                    "timeout": 60,
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} PreCompact:pre_compact", "timeout": 60}],
         },
         {
             "_aipass": True,
             "matcher": "auto",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": "python3 $AIPASS_HOME/.claude/hooks/pre_compact.py",
-                    "timeout": 60,
-                }
-            ],
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} PreCompact:pre_compact", "timeout": 60}],
+        },
+        {
+            "_aipass": True,
+            "matcher": "manual",
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} PreCompact:pre_compact_rollover", "timeout": 120}],
+        },
+        {
+            "_aipass": True,
+            "matcher": "auto",
+            "hooks": [{"type": "command", "command": f"{_BRIDGE} PreCompact:pre_compact_rollover", "timeout": 120}],
         },
     ],
 }

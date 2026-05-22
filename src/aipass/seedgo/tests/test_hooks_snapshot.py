@@ -58,17 +58,10 @@ def _normalize_command(cmd: str) -> str:
     so snapshots are comparable across machines (Linux vs Windows CI).
     Keeps the interpreter and script name, removes path prefixes.
     """
-    # Replace Windows backslashes with forward slashes first
     cmd = cmd.replace("\\", "/")
-    # Strip any absolute prefix up to and including the repo name
-    # e.g. "python3 /home/patrick/Projects/AIPass/.claude/hooks/x.py"
-    #   -> "python3 .claude/hooks/x.py"
-    # e.g. "python3 D:/a/AIPass/AIPass/.claude/hooks/x.py"
-    #   -> "python3 .claude/hooks/x.py"
-    cmd = re.sub(r"(?<= )([A-Za-z]:)?/.+?/AIPass/", "", cmd)
-    # Also strip home-dir provider hooks path:
-    # "python3 /home/patrick/.claude/hooks/x.py" -> "python3 .claude/hooks/x.py"
-    cmd = re.sub(r"(?<= )([A-Za-z]:)?/.+?/\.claude/", ".claude/", cmd)
+    cmd = re.sub(r"\$AIPASS_HOME/", "", cmd)
+    cmd = re.sub(r"(?:(?<=^)|(?<= ))([A-Za-z]:)?/.+?/AIPass/", "", cmd)
+    cmd = re.sub(r"(?:(?<=^)|(?<= ))([A-Za-z]:)?/.+?/\.claude/", ".claude/", cmd)
     return cmd
 
 

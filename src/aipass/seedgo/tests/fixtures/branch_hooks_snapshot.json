@@ -1,10 +1,1 @@
-{
-  "UserPromptSubmit": [
-    {"hooks": [{"type": "command", "command": "python3 .claude/hooks/branch_prompt_loader.py"}]},
-    {"hooks": [{"type": "command", "command": "python3 .claude/hooks/email_notification.py"}]},
-    {"hooks": [{"type": "command", "command": "python3 .claude/hooks/identity_injector.py"}]}
-  ],
-  "PreCompact": [
-    {"hooks": [{"type": "command", "command": "python3 .claude/hooks/pre_compact.py"}]}
-  ]
-}
+{}

@@ -55,6 +55,7 @@ drone @git pr "desc"             # Push current branch and create PR to main
 drone @git dev-pr "desc"         # Push dev and create PR to main
 drone @git merge <PR#>           # Merge a PR and sync local main
 drone @git delete-branch <name>  # Delete a remote branch (not main/dev)
+drone @git close-pr <number>     # Close a PR by number
 drone @git branches              # List remote branches
 drone @git sync                  # Pull latest (branch-aware: main or dev)
 drone @git sync --autostash      # Sync with autostash for dirty trees
@@ -173,6 +174,7 @@ drone/
 │   │       ├── dev_pr_handler.py            # Push dev and create PR to main
 │   │       ├── branches_handler.py          # List remote branches
 │   │       ├── delete_branch_handler.py     # Delete remote branch (main/dev protected)
+│   │       ├── close_pr_handler.py          # Close PR by number (gh pr close)
 │   │       ├── status_handler.py            # Scoped git status (subprocess)
 │   │       └── sync_handler.py              # Safe main sync (--autostash support)
 │   └── plugins/
@@ -216,7 +218,7 @@ Auth centralized via `verify_git_access()` in `apps/plugins/devpulse_ops/auth.py
 | Tier | Who | Commands |
 |------|-----|----------|
 | **Global** | All branches | `status`, `diff`, `log`, `lock`, `branches`, `issue`, `run`, `workflow` |
-| **Owner** | `devpulse` only | `pr`, `commit`, `checkout`, `dev-pr`, `delete-branch`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
+| **Owner** | `devpulse` only | `pr`, `commit`, `checkout`, `dev-pr`, `delete-branch`, `close-pr`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
 
 - Auth is checked once at the top of `git_module.handle_command()` before any handler is called
 - Unauthorized commands return a clear "Access denied" message with the caller's tier
@@ -230,7 +232,7 @@ All work happens on `dev`. Only devpulse has write access. Agents build and repo
 **`pr` vs `dev-pr`:** `pr` works from any branch — on main it auto-creates a temp branch from the description slug (`main:<slug>`), on other branches it pushes directly. Does NOT use `-u` so main's upstream tracking stays on `origin/main`. `dev-pr` is specific to the dev→main workflow.
 
 Enforcement layers:
-- `git_gate.py` PreToolUse hook blocks ALL raw git/gh commands
+- Git gate (PreToolUse hook) blocks ALL raw git/gh commands
 - Drone tier system restricts write commands to devpulse only
 - Prompt instructions tell agents they have zero git access
 

@@ -2,7 +2,7 @@
   "metadata": {
     "version": "1.1.0",
     "created": "2026-05-18",
-    "updated": "2026-05-19",
+    "updated": "2026-05-21",
     "description": "Standards bypass configuration for this branch"
   },
   "bypass": [
@@ -110,6 +110,286 @@
       "file": "tests/test_engine.py",
       "standard": "exception_contracts",
       "reason": "Hooks has no json_handler create_default/save_invalid/invalid_mode patterns"
+    },
+    {
+      "file": "apps/handlers/notification/announce.py",
+      "standard": "json_structure",
+      "reason": "Sound handler — no JSON operations, plays WAV files"
+    },
+    {
+      "file": "apps/handlers/notification/stop_sound.py",
+      "standard": "json_structure",
+      "reason": "Sound handler — no JSON operations, plays WAV files"
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "apps/handlers/notification/email.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads for inbox parsing — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_watchdog.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.dumps to produce additionalContext output — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_fix.py",
+      "standard": "json_structure",
+      "reason": "Diagnostics handler uses stdlib json for hook protocol responses and state file — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/security/edit_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/security/git_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/security/subagent_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/security/subagent_gate.py",
+      "standard": "open_encoding",
+      "reason": "NamedTemporaryFile creates binary wav for Piper TTS — encoding not applicable to binary audio"
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "commented_logger",
+      "reason": "Test data contains '# logger.debug(msg)' as input to pattern checker under test — not a commented-out call"
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "trigger",
+      "reason": "Test cleanup .unlink() removes temporary state files — not a production file deletion"
+    },
+    {
+      "file": "apps/handlers/prompt/identity.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads to read passport.json — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "apps/handlers/prompt/branch_loader.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations — reads markdown files and outputs text"
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "apps/handlers/prompt/global_loader.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations — reads markdown file and outputs text"
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "apps/handlers/lifecycle/compact.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads for local.json reading — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "apps/handlers/lifecycle/rollover.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads for registry and memory file checks — no JSON file ops needing json_handler"
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure"
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention"
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details"
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers"
     }
   ],
   "notes": {
