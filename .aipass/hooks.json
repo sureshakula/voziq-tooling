@@ -1,0 +1,104 @@
+{
+  "_comment": "Per-project hook configuration for the AIPass hook engine (DPLAN-0184)",
+  "hooks_enabled": true,
+
+  "UserPromptSubmit": {
+    "identity_injector": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.identity.handle",
+      "matcher": ""
+    },
+    "email_notification": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.notification.email.handle",
+      "matcher": ""
+    },
+    "branch_prompt": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.branch_loader.handle",
+      "matcher": ""
+    },
+    "global_prompt": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.global_loader.handle",
+      "matcher": ""
+    }
+  },
+
+  "PreToolUse": {
+    "tool_use_sound": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.notification.tool_sound.handle",
+      "matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task"
+    },
+    "pre_edit_gate": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.edit_gate.handle",
+      "matcher": "Edit|MultiEdit|Write|NotebookEdit"
+    },
+    "git_gate": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.git_gate.handle",
+      "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit"
+    },
+    "engine_test_sound": {
+      "enabled": false,
+      "command": "python3 $AIPASS_HOME/.claude/hooks/engine_test_sound.py",
+      "matcher": "WebSearch"
+    }
+  },
+
+  "PostToolUse": {
+    "auto_fix_diagnostics": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.auto_fix.handle",
+      "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+      "timeout": 45
+    },
+    "auto_watchdog": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.auto_watchdog.handle",
+      "matcher": "Bash"
+    }
+  },
+
+  "SubagentStop": {
+    "subagent_stop_gate": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.subagent_gate.handle",
+      "matcher": "",
+      "timeout": 60
+    }
+  },
+
+  "Stop": {
+    "stop_sound": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.notification.stop_sound.handle",
+      "matcher": ""
+    }
+  },
+
+  "Notification": {
+    "notification_sound": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.notification.announce.handle",
+      "matcher": ""
+    }
+  },
+
+  "PreCompact": {
+    "pre_compact": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.compact.handle",
+      "matcher": "",
+      "timeout": 60
+    },
+    "pre_compact_rollover": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.rollover.handle",
+      "matcher": "",
+      "timeout": 120
+    }
+  }
+}
