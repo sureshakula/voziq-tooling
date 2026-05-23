@@ -108,16 +108,10 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
     outputs = []
     total_start = time.monotonic()
 
-    muted = Path("/tmp/aipass-hooks-muted").exists()
-
     for hook_name, hook_def in event_hooks.items():
         if not hook_def.get("enabled", True):
             logger.info("[HOOKS] %s.%s skipped (disabled)", event_type, hook_name)
             _log({"ts": time.time(), "event": event_type, "hook": hook_name, "action": "skipped_disabled"})
-            continue
-
-        if muted and hook_def.get("audio"):
-            _log({"ts": time.time(), "event": event_type, "hook": hook_name, "action": "skipped_muted"})
             continue
 
         handler = hook_def.get("handler", "")

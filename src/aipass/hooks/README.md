@@ -21,7 +21,9 @@ Every hook event flows through one engine. Platform bridges normalize the event 
 |---|---|
 | `drone @hooks status` | Show hook config for current project |
 | `drone @hooks log` | Tail recent hook activity (last 20 JSONL entries) |
-| `drone @hooks test` | Run hook test suite (planned) |
+| `drone @hooks hooksound` | Show current sound mute status |
+| `drone @hooks hooksound off` | Mute all hook sounds |
+| `drone @hooks hooksound on` | Unmute all hook sounds |
 | `drone @hooks --help` | Full help reference |
 | `drone @hooks --version` | Version info |
 
@@ -32,8 +34,10 @@ src/aipass/hooks/
 ├── .trinity/                    # Identity & memory
 ├── apps/
 │   ├── hooks.py                 # Entry point (drone @hooks)
+│   ├── sound.py                 # Shared sound utilities (speak, play, mute)
 │   ├── modules/
-│   │   └── engine.py            # Core dispatch — routes events to handlers
+│   │   ├── engine.py            # Core dispatch — routes events to handlers
+│   │   └── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   ├── handlers/
 │   │   ├── bridges/             # One per provider (thin normalization)
 │   │   │   └── claude.py        # Claude Code bridge
@@ -44,7 +48,7 @@ src/aipass/hooks/
 │   └── config/                  # hooks.json validation
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-├── tests/
+├── tests/                       # 236 tests
 └── STATUS.local.md
 ```
 
@@ -70,7 +74,7 @@ src/aipass/hooks/
 
 All branches via hook dispatch. Every Claude Code session routes through the engine.
 
-*Last Updated: 2026-05-18*
+*Last Updated: 2026-05-22*
 
 ---
 

@@ -72,7 +72,6 @@ drone list                       # List registered custom command shortcuts
 drone remove <name>              # Remove a custom command shortcut
 
 # Utilities
-drone hook-sounds on|off         # Toggle hook notification sounds
 drone --version                  # Show version (v1.1.0)
 drone --help                     # Show usage information
 ```
@@ -184,8 +183,8 @@ drone/
 │       │   ├── merge_plugin.py    # PR merge (--merge) + local sync
 │       │   ├── sync_plugin.py     # Smart sync (fetch, divergence detect, rebase)
 │       │   └── fix_plugin.py      # Auto-fix stuck rebase / detached HEAD
-│       └── hook_sounds/
-│           └── hook_sounds_plugin.py  # Toggle notification sounds on/off
+│       └── hook_sounds/                   # DISABLED — moved to hooks branch (drone @hooks hooksound on/off)
+│           └── hook_sounds_plugin.py.disabled
 ├── docs/                          # Public documentation
 ├── docs.local/                    # Investigation reports and policies
 └── tests/                         # 704 tests across 21 test files
@@ -194,7 +193,7 @@ drone/
 ### Routing Flow
 
 1. **CLI input** → `drone.py:main()`
-2. **Built-in commands** checked first: `systems`, `scan`, `activate`, `list`, `remove`, `hook-sounds`
+2. **Built-in commands** checked first: `systems`, `scan`, `activate`, `list`, `remove`
 3. **`@target` routing** → branch resolution via `AIPASS_REGISTRY.json` → subprocess dispatch
 4. **Module fallback** → if branch not found but is a registered module, routes internally
 5. **Bare module names** → auto-discovered from `apps/modules/*.py`, routed via `importlib`
@@ -277,9 +276,9 @@ Auth-gated operations for system administration. `auth.py` walks CWD for `.trini
 | `sync_plugin` | `smart-sync` | Fetch + detect divergence + rebase |
 | `fix_plugin` | `fix` | Auto-fix stuck rebase / detached HEAD |
 
-### hook_sounds
+### hook_sounds (DISABLED)
 
-Simple toggle for hook notification sounds. Creates/removes `/tmp/aipass-hooks-muted` flag file.
+Moved to hooks branch as `drone @hooks hooksound on/off`. Plugin file renamed to `.disabled`.
 
 ---
 
@@ -325,7 +324,7 @@ Tip: set AIPASS_HOME=/path/to/AIPass to access all branches
 | Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py`, `test_git_access.py` | ~150 |
 | Handlers | `test_executor.py`, `test_registry_handler.py`, `test_discovery.py` | ~99 |
 | Infrastructure | `test_generic_adapter.py`, `test_module_registry.py`, `test_config.py` | ~66 |
-| Features | `test_commands.py`, `test_scan.py`, `test_hook_sounds.py`, `test_json_handler.py` | ~125 |
+| Features | `test_commands.py`, `test_scan.py`, `test_json_handler.py` | ~125 |
 | Standards | `test_cli_routing.py`, `test_contracts.py`, `test_error_resilience.py`, `test_init_provisioning.py` | ~21 |
 
 Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`

@@ -17,7 +17,7 @@ class TestRolloverHandler:
     def test_no_repo_root_returns_empty(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.rollover.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=None):
                 result = handle({})
 
@@ -27,7 +27,7 @@ class TestRolloverHandler:
     def test_no_overdue_returns_empty(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.rollover.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
                 with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue", return_value=[]):
                     result = handle({})
@@ -38,7 +38,7 @@ class TestRolloverHandler:
     def test_overdue_triggers_rollover(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.rollover.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
                 with patch(
                     "aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue",

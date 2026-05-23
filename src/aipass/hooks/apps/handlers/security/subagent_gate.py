@@ -13,35 +13,12 @@
 import json
 import os
 import subprocess
-import tempfile
 from pathlib import Path
 
+from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
-PIPER_BIN = Path.home() / ".local" / "share" / "piper" / "piper"
-PIPER_VOICE = Path.home() / ".local" / "share" / "piper-voices" / "en_US-amy-medium.onnx"
-
 _ALLOW = {"stdout": "", "exit_code": 0}
-
-
-def _speak(text: str) -> None:
-    if not PIPER_BIN.exists() or not PIPER_VOICE.exists():
-        return
-    try:
-        wav_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="wb")
-        wav_path = wav_file.name
-        wav_file.close()
-        result = subprocess.run(
-            [str(PIPER_BIN), "-m", str(PIPER_VOICE), "-f", wav_path],
-            input=text,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0 and Path(wav_path).exists():
-            subprocess.Popen(["aplay", "-q", wav_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.info("[HOOKS] subagent_gate: speak error: %s", exc)
 
 
 def _block(reason: str) -> dict:
@@ -160,7 +137,7 @@ def _check_hook_readme_accountability(cwd: str, repo_root: Path) -> str | None:
 
 def handle(hook_data: dict) -> dict:
     """Check modified files against seedgo standards on subagent stop."""
-    _speak("subagent stop gate")
+    speak("subagent stop gate")
 
     try:
         cwd = hook_data.get("cwd", "") or os.getcwd()

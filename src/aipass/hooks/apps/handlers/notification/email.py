@@ -11,45 +11,10 @@
 """Checks branch inbox for unread emails and returns notification text."""
 
 import json
-import subprocess
-import tempfile
 from pathlib import Path
 
+from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
-
-PIPER_BIN = Path.home() / ".local" / "share" / "piper" / "piper"
-PIPER_VOICE = Path.home() / ".local" / "share" / "piper-voices" / "en_US-amy-medium.onnx"
-
-
-def _speak(text: str) -> None:
-    """Generate speech via Piper TTS and play it (fire-and-forget)."""
-    if not PIPER_BIN.exists() or not PIPER_VOICE.exists():
-        logger.info("[HOOKS] email: piper not available")
-        return
-
-    try:
-        wav_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        wav_path = wav_file.name
-        wav_file.close()
-
-        piper_result = subprocess.run(
-            [str(PIPER_BIN), "-m", str(PIPER_VOICE), "-f", wav_path],
-            input=text,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        if piper_result.returncode == 0 and Path(wav_path).exists():
-            subprocess.Popen(
-                ["aplay", "-q", wav_path],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-    except subprocess.TimeoutExpired:
-        logger.info("[HOOKS] email: piper timed out")
-    except OSError as exc:
-        logger.info("[HOOKS] email: speak error: %s", exc)
 
 
 def _find_branch_root() -> Path | None:
@@ -132,7 +97,7 @@ def handle(hook_data: dict) -> dict:
         return {"stdout": "", "exit_code": 0}
 
     plural = "s" if new_count != 1 else ""
-    _speak(f"email notification: {new_count} new email{plural}")
+    speak(f"email notification: {new_count} new email{plural}")
     msg = f"You have {new_count} new email{plural} - check with: drone @ai_mail inbox | then: drone @ai_mail view <id> | close with: drone @ai_mail close <id>"
     logger.info("[HOOKS] email: %d new email%s", new_count, plural)
     return {"stdout": msg, "exit_code": 0}

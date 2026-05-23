@@ -12,34 +12,10 @@
 
 import json
 import os
-import subprocess
-import tempfile
 from pathlib import Path
 
+from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
-
-PIPER_BIN = Path.home() / ".local" / "share" / "piper" / "piper"
-PIPER_VOICE = Path.home() / ".local" / "share" / "piper-voices" / "en_US-amy-medium.onnx"
-
-
-def _speak(text: str) -> None:
-    if not PIPER_BIN.exists() or not PIPER_VOICE.exists():
-        return
-    try:
-        wav_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        wav_path = wav_file.name
-        wav_file.close()
-        result = subprocess.run(
-            [str(PIPER_BIN), "-m", str(PIPER_VOICE), "-f", wav_path],
-            input=text,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0 and Path(wav_path).exists():
-            subprocess.Popen(["aplay", "-q", wav_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.info("[HOOKS] edit_gate: speak error: %s", exc)
 
 
 STATE_FILE = Path(__file__).parent.parent.parent.parent.parent / ".diagnostics_state.json"
@@ -64,7 +40,7 @@ def handle(hook_data: dict) -> dict:
     Returns:
         Result dict with stdout (block JSON or empty) and exit_code.
     """
-    _speak("edit gate")
+    speak("edit gate")
 
     try:
         tool_name = hook_data.get("tool_name", "")

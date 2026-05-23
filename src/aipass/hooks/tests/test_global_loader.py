@@ -21,7 +21,7 @@ class TestGlobalLoaderHandler:
         prompt = aipass_dir / "aipass_global_prompt.md"
         prompt.write_text("# AIPass Global\nContext here", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.global_loader._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": str(tmp_path)}):
                 result = handle({})
 
@@ -32,7 +32,7 @@ class TestGlobalLoaderHandler:
     def test_returns_empty_when_no_aipass_home(self):
         from aipass.hooks.apps.handlers.prompt.global_loader import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.global_loader._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {}, clear=True):
                 result = handle({})
 
@@ -42,7 +42,7 @@ class TestGlobalLoaderHandler:
     def test_returns_empty_when_file_missing(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.global_loader import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.global_loader._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": str(tmp_path)}):
                 result = handle({})
 
@@ -56,7 +56,7 @@ class TestGlobalLoaderHandler:
         aipass_dir.mkdir()
         (aipass_dir / "aipass_global_prompt.md").write_text("content", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.global_loader._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": str(tmp_path)}):
                 result = handle({})
 

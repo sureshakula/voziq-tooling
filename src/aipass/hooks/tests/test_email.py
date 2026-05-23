@@ -1,17 +1,17 @@
 # =================== AIPass ====================
 # Name: test_email.py
-# Version: 1.1.0
+# Version: 1.2.0
 # Description: Tests for email notification handler
 # Branch: hooks
 # Created: 2026-05-21
-# Modified: 2026-05-21
+# Modified: 2026-05-22
 # =============================================
 
 """Tests for handlers/notification/email.py."""
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestEmailHandler:
@@ -46,7 +46,7 @@ class TestEmailHandler:
                 "aipass.hooks.apps.handlers.notification.email._find_branch_root",
                 return_value=tmp_path,
             ),
-            patch("aipass.hooks.apps.handlers.notification.email._speak"),
+            patch("aipass.hooks.apps.handlers.notification.email.speak"),
         ):
             result = handle({})
 
@@ -70,7 +70,7 @@ class TestEmailHandler:
                 "aipass.hooks.apps.handlers.notification.email._find_branch_root",
                 return_value=tmp_path,
             ),
-            patch("aipass.hooks.apps.handlers.notification.email._speak") as mock_speak,
+            patch("aipass.hooks.apps.handlers.notification.email.speak") as mock_speak,
         ):
             handle({})
 
@@ -92,7 +92,7 @@ class TestEmailHandler:
                 "aipass.hooks.apps.handlers.notification.email._find_branch_root",
                 return_value=tmp_path,
             ),
-            patch("aipass.hooks.apps.handlers.notification.email._speak") as mock_speak,
+            patch("aipass.hooks.apps.handlers.notification.email.speak") as mock_speak,
         ):
             handle({})
 
@@ -114,7 +114,7 @@ class TestEmailHandler:
                 "aipass.hooks.apps.handlers.notification.email._find_branch_root",
                 return_value=tmp_path,
             ),
-            patch("aipass.hooks.apps.handlers.notification.email._speak"),
+            patch("aipass.hooks.apps.handlers.notification.email.speak"),
         ):
             result = handle({})
 
@@ -145,7 +145,7 @@ class TestEmailHandler:
                 "aipass.hooks.apps.handlers.notification.email._find_branch_root",
                 return_value=tmp_path,
             ),
-            patch("aipass.hooks.apps.handlers.notification.email._speak"),
+            patch("aipass.hooks.apps.handlers.notification.email.speak"),
         ):
             result = handle({})
 
@@ -302,79 +302,3 @@ class TestFindBranchRoot:
             result = _find_branch_root()
 
         assert result is None
-
-
-class TestSpeakFunction:
-    """Piper TTS tests."""
-
-    def test_speak_calls_piper_then_aplay(self):
-        from aipass.hooks.apps.handlers.notification.email import _speak
-
-        with (
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_BIN") as mock_piper_bin,
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_VOICE") as mock_voice,
-            patch("aipass.hooks.apps.handlers.notification.email.subprocess") as mock_sub,
-            patch("aipass.hooks.apps.handlers.notification.email.tempfile") as mock_tmp,
-            patch("aipass.hooks.apps.handlers.notification.email.Path") as mock_path,
-        ):
-            mock_piper_bin.exists.return_value = True
-            mock_voice.exists.return_value = True
-            mock_file = MagicMock()
-            mock_file.name = "/tmp/test.wav"
-            mock_tmp.NamedTemporaryFile.return_value = mock_file
-            mock_sub.run.return_value = MagicMock(returncode=0)
-            mock_path.return_value.exists.return_value = True
-
-            _speak("test text")
-
-        mock_sub.run.assert_called_once()
-        mock_sub.Popen.assert_called_once()
-
-    def test_speak_skips_when_piper_missing(self):
-        from aipass.hooks.apps.handlers.notification.email import _speak
-
-        with (
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_BIN") as mock_piper_bin,
-            patch("aipass.hooks.apps.handlers.notification.email.subprocess") as mock_sub,
-        ):
-            mock_piper_bin.exists.return_value = False
-            _speak("test")
-
-        mock_sub.run.assert_not_called()
-
-    def test_speak_graceful_on_timeout(self):
-        import subprocess as real_sub
-        from aipass.hooks.apps.handlers.notification.email import _speak
-
-        with (
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_BIN") as mock_piper_bin,
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_VOICE") as mock_voice,
-            patch("aipass.hooks.apps.handlers.notification.email.subprocess") as mock_sub,
-            patch("aipass.hooks.apps.handlers.notification.email.tempfile") as mock_tmp,
-        ):
-            mock_piper_bin.exists.return_value = True
-            mock_voice.exists.return_value = True
-            mock_file = MagicMock()
-            mock_file.name = "/tmp/test.wav"
-            mock_tmp.NamedTemporaryFile.return_value = mock_file
-            mock_sub.run.side_effect = real_sub.TimeoutExpired("piper", 5)
-            mock_sub.TimeoutExpired = real_sub.TimeoutExpired
-
-            _speak("test")
-
-    def test_speak_graceful_on_os_error(self):
-        from aipass.hooks.apps.handlers.notification.email import _speak
-
-        with (
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_BIN") as mock_piper_bin,
-            patch("aipass.hooks.apps.handlers.notification.email.PIPER_VOICE") as mock_voice,
-            patch("aipass.hooks.apps.handlers.notification.email.subprocess.run", side_effect=OSError("broken")),
-            patch("aipass.hooks.apps.handlers.notification.email.tempfile") as mock_tmp,
-        ):
-            mock_piper_bin.exists.return_value = True
-            mock_voice.exists.return_value = True
-            mock_file = MagicMock()
-            mock_file.name = "/tmp/test.wav"
-            mock_tmp.NamedTemporaryFile.return_value = mock_file
-
-            _speak("test")

@@ -265,36 +265,6 @@ class TestMainList:
         mock_list.assert_called_once()
 
 
-class TestMainHookSounds:
-    """drone hook-sounds command."""
-
-    _HS = "aipass.drone.apps.plugins.hook_sounds.hook_sounds_plugin.handle_command"
-
-    def test_hook_sounds_on(self) -> None:
-        """hook-sounds on delegates to plugin."""
-        from aipass.drone.apps.drone import main
-
-        with (
-            patch.object(sys, "argv", ["drone", "hook-sounds", "on"]),
-            patch(self._HS) as mock_hs,
-        ):
-            result = main()
-        assert result == 0
-        mock_hs.assert_called_once_with("on")
-
-    def test_hook_sounds_no_arg(self) -> None:
-        """hook-sounds with no arg passes None."""
-        from aipass.drone.apps.drone import main
-
-        with (
-            patch.object(sys, "argv", ["drone", "hook-sounds"]),
-            patch(self._HS) as mock_hs,
-        ):
-            result = main()
-        assert result == 0
-        mock_hs.assert_called_once_with(None)
-
-
 class TestMainRemove:
     """drone remove command."""
 

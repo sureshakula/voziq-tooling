@@ -61,14 +61,14 @@ class TestAutoFixSkips:
     def test_skip_unknown_extension(self):
         from aipass.hooks.apps.handlers.lifecycle.auto_fix import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak"):
             result = handle({"tool_name": "Edit", "tool_input": {"file_path": "/tmp/file.xyz"}})
         assert result["stdout"] == ""
         assert result["exit_code"] == 0
 
 
 class TestAutofixPython:
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
@@ -81,7 +81,7 @@ class TestAutofixPython:
         parsed = json.loads(result["stdout"])
         assert parsed["systemMessage"] == "[diagnostics] ok"
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
@@ -97,7 +97,7 @@ class TestAutofixPython:
         assert "SYNTAX" in parsed["hookSpecificOutput"]["additionalContext"]
         assert "1 error(s)" in parsed["systemMessage"]
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
@@ -110,7 +110,7 @@ class TestAutofixPython:
         parsed = json.loads(result["stdout"])
         assert "LINT" in parsed["hookSpecificOutput"]["additionalContext"]
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_python_checks", return_value=[])
@@ -126,7 +126,7 @@ class TestAutofixPython:
         parsed = json.loads(result["stdout"])
         assert "TYPE: L42" in parsed["hookSpecificOutput"]["additionalContext"]
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_python_checks", return_value=[])
@@ -144,7 +144,7 @@ class TestAutofixPython:
 
 
 class TestAutoFixStateFile:
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured")
@@ -171,7 +171,7 @@ class TestAutoFixStateFile:
             if state_path.exists():
                 state_path.unlink()
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check", return_value=[])
     @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
@@ -194,7 +194,7 @@ class TestAutoFixStateFile:
 
 
 class TestAutoFixJson:
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     def test_json_valid(self, mock_speak, tmp_path):
         from aipass.hooks.apps.handlers.lifecycle.auto_fix import handle
 
@@ -205,7 +205,7 @@ class TestAutoFixJson:
         parsed = json.loads(result["stdout"])
         assert parsed["systemMessage"] == "[diagnostics] ok"
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     def test_json_invalid_syntax(self, mock_speak, tmp_path):
         from aipass.hooks.apps.handlers.lifecycle.auto_fix import handle
 
@@ -216,7 +216,7 @@ class TestAutoFixJson:
         parsed = json.loads(result["stdout"])
         assert "JSON SYNTAX" in parsed["hookSpecificOutput"]["additionalContext"]
 
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._speak")
+    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.speak")
     def test_json_corruption_detected(self, mock_speak, tmp_path):
         from aipass.hooks.apps.handlers.lifecycle.auto_fix import handle
 
@@ -226,51 +226,6 @@ class TestAutoFixJson:
         result = handle({"tool_name": "Edit", "tool_input": {"file_path": str(json_file)}})
         parsed = json.loads(result["stdout"])
         assert "EMOJI CORRUPTION" in parsed["hookSpecificOutput"]["additionalContext"]
-
-
-class TestAutoFixPiper:
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.PIPER_VOICE")
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.PIPER_BIN")
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_seedgo_checklist", return_value=[])
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_pyright_check", return_value=[])
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_ruff_lint_structured", return_value=[])
-    @patch("aipass.hooks.apps.handlers.lifecycle.auto_fix._run_python_checks", return_value=[])
-    @patch("subprocess.run")
-    @patch("subprocess.Popen")
-    def test_piper_fires_on_edit(
-        self,
-        mock_popen,
-        mock_run,
-        mock_py,
-        mock_ruff_s,
-        mock_pyright,
-        mock_seedgo,
-        mock_piper_bin,
-        mock_piper_voice,
-    ):
-        from aipass.hooks.apps.handlers.lifecycle.auto_fix import handle
-
-        mock_piper_bin.exists.return_value = True
-        mock_piper_voice.exists.return_value = True
-        mock_run_result = MagicMock()
-        mock_run_result.returncode = 0
-        mock_run.return_value = mock_run_result
-
-        with patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.Path") as mock_path_cls:
-            mock_path_cls.return_value.suffix.lower.return_value = ".py"
-            mock_path_cls.return_value.name = "test.py"
-            mock_path_cls.return_value.exists.return_value = True
-
-            handle({"tool_name": "Edit", "tool_input": {"file_path": "/tmp/test.py"}})
-
-        assert mock_run.called
-
-    def test_piper_skips_when_unavailable(self):
-        from aipass.hooks.apps.handlers.lifecycle.auto_fix import _speak
-
-        with patch("aipass.hooks.apps.handlers.lifecycle.auto_fix.PIPER_BIN") as mock_bin:
-            mock_bin.exists.return_value = False
-            _speak("test")
 
 
 class TestAutoFixSubprocessChecks:

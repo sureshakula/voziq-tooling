@@ -32,7 +32,7 @@ class TestCompactHandler:
         status = tmp_path / "STATUS.local.md"
         status.write_text("# Status\nCurrent work here", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.compact._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value="Git branch: dev"):
                 result = handle({"cwd": str(tmp_path)})
 
@@ -45,7 +45,7 @@ class TestCompactHandler:
     def test_returns_recovery_when_no_branch_dir(self):
         from aipass.hooks.apps.handlers.lifecycle.compact import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.compact._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value=None):
                 result = handle({"cwd": "/tmp/nonexistent"})
 
@@ -58,7 +58,7 @@ class TestCompactHandler:
         trinity = tmp_path / ".trinity"
         trinity.mkdir()
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.compact._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value=None):
                 with patch.dict("os.environ", {"AIPASS_SESSION_TYPE": "dispatched"}):
                     result = handle({"cwd": str(tmp_path)})
@@ -71,7 +71,7 @@ class TestCompactHandler:
         trinity = tmp_path / ".trinity"
         trinity.mkdir()
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.compact._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value=None):
                 result = handle({"cwd": str(tmp_path)})
 
@@ -80,7 +80,7 @@ class TestCompactHandler:
     def test_empty_hook_data(self):
         from aipass.hooks.apps.handlers.lifecycle.compact import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.compact._speak"):
+        with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value=None):
                 with patch("pathlib.Path.cwd", return_value=MagicMock(parts=("/", "tmp"))):
                     result = handle({})

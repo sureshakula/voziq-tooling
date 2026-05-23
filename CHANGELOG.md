@@ -27,12 +27,12 @@ versioned release with notes.
   can enable, disable, or customize individual hooks without touching
   provider-level settings. Previously hooks fired globally with no
   per-project control.
-- **Audio feedback on hook events** using Piper TTS (muted by default).
-  Tool usage, response completion, notifications, email alerts, and
-  sub-agent activity each produce distinct spoken audio cues so operators
-  can monitor sessions without watching the terminal. Toggle with
-  `drone hook-sounds on|off`. Audio hooks are tagged `"audio": true` in
-  `.aipass/hooks.json` and the engine skips them when muted.
+- **Audio feedback on hook events** using Piper TTS. All 14 handlers
+  produce distinct spoken audio cues so operators can monitor sessions
+  without watching the terminal. A shared sound module
+  (`hooks/apps/sound.py`) provides `speak()` and `play()` with built-in
+  mute support. Toggle with `drone @hooks hooksound on|off` — muting
+  silences all 14 handlers without skipping their functional logic.
 - **Hooks agent** — the 13th citizen in the AIPass registry, owning all
   hook infrastructure: the engine, bridge, handlers, and configuration
   schema.

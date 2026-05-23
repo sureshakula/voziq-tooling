@@ -11,7 +11,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 SAMPLE_PASSPORT = {
@@ -40,7 +40,7 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text(json.dumps(SAMPLE_PASSPORT), encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
@@ -51,7 +51,7 @@ class TestIdentityHandler:
     def test_returns_empty_when_no_passport(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.identity import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
@@ -67,7 +67,7 @@ class TestIdentityHandler:
         nested = tmp_path / "apps" / "handlers"
         nested.mkdir(parents=True)
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             result = handle({"cwd": str(nested)})
 
         assert "devpulse Identity" in result["stdout"]
@@ -80,7 +80,7 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text(json.dumps(SAMPLE_PASSPORT), encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             result = handle({"cwd": str(tmp_path)})
 
         out = result["stdout"]
@@ -100,7 +100,7 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text(json.dumps({"branch_info": {"branch_name": "test"}, "identity": {}}), encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
@@ -109,7 +109,7 @@ class TestIdentityHandler:
     def test_empty_hook_data(self):
         from aipass.hooks.apps.handlers.prompt.identity import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             with patch("pathlib.Path.cwd", return_value=Path("/tmp/nonexistent")):
                 result = handle({})
 
@@ -124,28 +124,8 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text("{broken json", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity._speak"):
+        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
             result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
-
-    @patch("subprocess.Popen")
-    @patch("subprocess.run")
-    def test_piper_fires(self, mock_run, mock_popen):
-        from aipass.hooks.apps.handlers.prompt.identity import handle
-
-        mock_run.return_value = MagicMock(returncode=0)
-
-        with patch.object(Path, "exists", return_value=True):
-            handle({"cwd": "/tmp/nonexistent"})
-
-        assert mock_run.called or mock_popen.called
-
-    def test_piper_skips_when_not_available(self):
-        from aipass.hooks.apps.handlers.prompt.identity import handle
-
-        with patch("aipass.hooks.apps.handlers.prompt.identity.PIPER_BIN", Path("/nonexistent/piper")):
-            result = handle({"cwd": "/tmp/nonexistent"})
-
-        assert result["exit_code"] == 0
