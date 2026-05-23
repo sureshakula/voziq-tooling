@@ -87,6 +87,9 @@ versioned release with notes.
   `(disabled)` suffix). Their logic now lives in native handler modules
   under `src/aipass/hooks/apps/handlers/`. The old files remain on disk for
   reference but are no longer executed.
+- **`drone hook-sounds` plugin** disabled. Sound control moved to hooks
+  branch as `drone @hooks hooksound on|off` with full mute support for
+  all 14 handlers (the old plugin only controlled 4).
 
 ---
 
