@@ -65,7 +65,7 @@ apps/
 
 ## Integration
 
-- **Depends on:** @drone (routing), @seedgo (audit), @spawn (first agent creation), @flow (plan test open/close), @ai_mail (test emails), @prax (health signals), pytest, CLI tools (Claude/Codex/Gemini)
+- **Depends on:** @drone (routing), @seedgo (audit), @spawn (first agent creation), @flow (plan test open/close), @ai_mail (test emails), @prax (health signals), pytest, CLI tools (Claude/Codex)
 - **Serves:** New users first. Also humans asking "how does this work?" anywhere ecosystem.
 - **Nothing depends on me.** One-way relationship. Can be removed/replaced without ripple.
 

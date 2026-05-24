@@ -71,7 +71,7 @@ aipass init agent my-agent            # Full agent: apps, mail, memory, identity
 - **Shared workspace.** All agents work on the same filesystem, same project, same time. No sandboxes.
 - **One command for everything.** AIPass ships with `drone`, a CLI router — `drone @agent command` reaches any agent. Learn it once, use it everywhere.
 
-**Runs on your existing CLI subscription.** Claude Pro/Max, Codex, or Gemini — AIPass uses the same CLI binary you already run. No extra API keys, no extra costs for core functionality.
+**Runs on your existing CLI subscription.** Claude Pro/Max or Codex — AIPass uses the same CLI binary you already run. No extra API keys, no extra costs for core functionality.
 
 ---
 
@@ -263,7 +263,7 @@ AIPass stores everything locally in your project directory. To remove it:
 ```bash
 # Remove AIPass files from your project
 rm -rf .aipass/ .claude/ .ai_mail.local/ hooks/ src/
-rm -f CLAUDE.md AGENTS.md GEMINI.md STATUS.local.md *_REGISTRY.json .gitignore
+rm -f CLAUDE.md AGENTS.md STATUS.local.md *_REGISTRY.json .gitignore
 
 # If you installed via pip
 pip uninstall aipass
@@ -288,7 +288,7 @@ This archives the agent's directory and removes it from the registry.
 
 ### Use your existing subscription
 
-AIPass runs on your **existing CLI subscription** — Claude Pro/Max, Codex, or Gemini. No API keys required for core functionality. No extra costs beyond your existing subscription.
+AIPass runs on your **existing CLI subscription** — Claude Pro/Max or Codex. No API keys required for core functionality. No extra costs beyond your existing subscription.
 
 This works because AIPass runs each CLI as an **official subprocess** — the same binary you'd run yourself in a terminal. It doesn't extract credentials, proxy API calls, or intercept tokens. Your subscription stays within the provider's infrastructure at all times.
 
@@ -299,7 +299,7 @@ This works because AIPass runs each CLI as an **official subprocess** — the sa
 - Bypass rate limits or prompt caching
 - Impersonate official CLI clients
 
-Claude Code is proprietary but officially supports hooks and subprocess usage. Codex and Gemini CLI are open source (Apache 2.0).
+Claude Code is proprietary but officially supports hooks and subprocess usage. Codex CLI is open source (Apache 2.0).
 
 > API keys are only needed for optional add-on agents (OpenRouter/OpenAI). For server/automated deployments, API key authentication is recommended per [Anthropic's guidance](https://code.claude.com/docs/en/legal-and-compliance).
 

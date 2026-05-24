@@ -50,7 +50,7 @@ Real-time unified console showing:
 - File changes, log events, drone commands, agent activity
 - **Caller attribution** — `CALLER → TARGET` for drone commands
 - **Model tags** — `[BRANCH/model]` (e.g., `[DEVPULSE/opus]`, `[DEVPULSE/gpt-5.4]`)
-- **Multi-CLI** — Claude Code (JSONL), Codex (JSONL), Gemini (JSON) session monitoring
+- **Multi-CLI** — Claude Code (JSONL), Codex (JSONL) session monitoring
 - **Polling fallback** — automatic fallback when inotify watches are exhausted
 - **Soft start** — only shows new activity after launch (seeks to EOF on startup)
 
@@ -165,7 +165,7 @@ drone @prax monitor run
 2. **Two-tier logging** — Each log entry goes to both `system_logs/` (central, all branches) and `<branch>/logs/` (branch-local), both with size-based rotation.
 3. **Self-healing** — Auto-creates missing log directories, falls back to `system_logs/external/` for unknown modules, provides NullLogger if prax itself fails to import.
 4. **Mission Control** — Three threads: display worker (pulls from event queue), file watcher (watchdog on branch `apps/` dirs), log watcher (tails `system_logs/*.log`). Falls back to polling when inotify is exhausted.
-5. **Multi-CLI monitoring** — Watches Claude Code JSONL, Codex JSONL, and Gemini JSON session files. Extracts agent activity (thinking, tool use, responses) with model detection and branch resolution.
+5. **Multi-CLI monitoring** — Watches Claude Code JSONL and Codex JSONL session files. Extracts agent activity (thinking, tool use, responses) with model detection and branch resolution.
 6. **Dashboard** — Template-based per-branch dashboard files. Refreshes from central files (`*.central.json`). Write-through API for services to update sections directly.
 7. **STATUS sync** — Scans all branch `STATUS.local.md` files, extracts State/Last update fields, builds aggregated `STATUS.md` at the repo root.
 
@@ -175,7 +175,7 @@ drone @prax monitor run
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
-| test_filesystem_handler.py | 172 | Multi-CLI adapters, Codex/Gemini branch detection |
+| test_filesystem_handler.py | 172 | Multi-CLI adapters, Codex branch detection |
 | test_monitoring_handlers.py | 139 | Branch detector, stream output, event handling |
 | test_operations.py | 99 | Dashboard operations, write-through |
 | test_log_watcher.py | 82 | Log file tailing, agent activity parsing |

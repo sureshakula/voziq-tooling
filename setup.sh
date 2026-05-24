@@ -499,7 +499,7 @@ fi
 # --- Install Claude Code hooks ---
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 
-# Determine python command for non-Claude provider hooks (Gemini, etc).
+# Determine python command for non-Claude provider hooks.
 # Claude hooks use bridge pattern with $AIPASS_HOME env var — no HOOK_PYTHON needed.
 # Linux: keep "python3" — distros ship 3.10+ and hooks import nothing
 # version-specific beyond that.
@@ -713,58 +713,6 @@ else
     echo "Skipping Codex CLI (not installed)"
 fi
 
-# --- Install Gemini CLI hooks ---
-if command -v gemini &>/dev/null; then
-    if [ -d "$SCRIPT_DIR/.gemini/hooks" ]; then
-        echo "Installing Gemini CLI hooks ..."
-
-        GEMINI_SETTINGS="$HOME/.gemini/settings.json"
-        mkdir -p "$HOME/.gemini"
-
-        # HOOK_PYTHON was set earlier in the Claude hooks block; reuse it.
-        # Fall back to python3 if this block runs without that setup (defensive).
-        GEMINI_HOOK_PYTHON="${HOOK_PYTHON:-python3}"
-
-        python3 - "$SCRIPT_DIR" "$GEMINI_SETTINGS" "$GEMINI_HOOK_PYTHON" << 'PYEOF'
-import json
-import sys
-from pathlib import Path
-
-repo_root = sys.argv[1]
-settings_path = Path(sys.argv[2])
-hook_python = sys.argv[3]
-hooks_dir = f"{repo_root}/.gemini/hooks"
-
-# Load existing settings or start fresh
-if settings_path.exists():
-    settings = json.loads(settings_path.read_text())
-else:
-    settings = {}
-
-# Build hooks config with absolute paths (Gemini uses different event names)
-settings["hooks"] = {
-    "SessionStart": [
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/session_start_identity.py", "timeout": 10}]}
-    ],
-    "BeforeModel": [
-        {"hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/prompt_inject.py", "timeout": 10}]}
-    ],
-    "BeforeTool": [
-        {"matcher": "Edit|Write",
-         "hooks": [{"type": "command", "command": f"{hook_python} {hooks_dir}/pre_edit_gate.py", "timeout": 5}]}
-    ],
-}
-
-settings_path.write_text(json.dumps(settings, indent=2) + "\n")
-print(f"  hooks -> {settings_path}")
-PYEOF
-    else
-        echo "Skipping Gemini hooks (no .gemini/hooks/ directory found in repo)"
-    fi
-else
-    echo "Skipping Gemini CLI (not installed)"
-fi
-
 # --- Set AIPASS_HOME + PATH so all services work from any project ---
 echo ""
 echo "Configuring cross-project access ..."
@@ -944,7 +892,6 @@ if [ "$FAIL" -eq 0 ]; then
     echo "CLI integrations:"
     echo "  Claude Code: hooks installed to ~/.claude/settings.json"
     command -v codex &>/dev/null && echo "  Codex CLI:   hooks at .codex/hooks.json + config at ~/.codex/config.toml"
-    command -v gemini &>/dev/null && echo "  Gemini CLI:  hooks installed to ~/.gemini/settings.json"
     echo ""
 else
     echo "=== Setup finished with errors ==="
