@@ -13,6 +13,8 @@
 
 AI agents that remember, collaborate, and never start from zero.
 
+![demo](assets/demo.gif)
+
 ---
 
 ## The Problem
