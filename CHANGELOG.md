@@ -8,6 +8,36 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
+## [2026.W22] - 2026-06-01
+
+### Added
+
+- **Registry descriptions** — all 13 branches now have one-liner descriptions
+  in `AIPASS_REGISTRY.json`. `drone systems` shows what each agent does
+  instead of blank lines. Closes [#607](https://github.com/AIOSAI/AIPass/issues/607).
+
+### Changed
+
+- **Edit gate now project-aware** — cross-branch write protection and daemon
+  confinement no longer hardcode `src/aipass/`. The package name is derived
+  dynamically from CWD, so any `src/<package>/<branch>/` project gets the
+  same security. 4 new tests for external projects. Addresses
+  [#605](https://github.com/AIOSAI/AIPass/issues/605).
+- **Hooks branch promoted to service** — registry profile changed from
+  "AIPass Workshop" to "library" so it appears in `drone systems` alongside
+  the other 12 services.
+
+### Removed
+
+- **Gemini CLI full removal** — deleted `.gemini/` directory (5 files) and
+  `GEMINI.md`. Stripped all references from `setup.sh` (~50 lines),
+  `README.md`, `bug-report.yml`, `aipass init` (bootstrap/scaffold/test),
+  hooks (README/prompt/passport), and prax monitoring (~300 lines). 21 files
+  changed, -927 lines. Closes
+  [#608](https://github.com/AIOSAI/AIPass/issues/608).
+
+---
+
 ## [2026.W21] - 2026-05-25
 
 First weekly release. AIPass now follows a Sunday release cadence: changes

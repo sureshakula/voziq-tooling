@@ -14,13 +14,12 @@ Business logic for `aipass init`. Creates the project scaffold:
    2. .aipass/aipass_global_prompt.md  — global prompt (injected every turn)
    3. CLAUDE.md                       — project prompt (Claude Code reads this)
    4. AGENTS.md                       — Codex equivalent of CLAUDE.md
-   5. GEMINI.md                       — Gemini equivalent of CLAUDE.md
-   6. README.md                       — getting started guide
-   7. STATUS.local.md                 — project status
-   8. .gitignore                      — standard AIPass ignores
-   9. .claude/settings.json           — Claude Code hooks configuration
-  10. src/                            — directory where agents live
-  11. .ai_mail.local/inbox.json       — empty project mailbox
+   5. README.md                       — getting started guide
+   6. STATUS.local.md                 — project status
+   7. .gitignore                      — standard AIPass ignores
+   8. .claude/settings.json           — Claude Code hooks configuration
+   9. src/                            — directory where agents live
+  10. .ai_mail.local/inbox.json       — empty project mailbox
 
 Projects are NOT citizens — no .trinity/ directory. Identity lives in the
 registry JSON. Init is re-runnable: existing files are skipped, not errors.

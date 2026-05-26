@@ -72,7 +72,6 @@ MONITOR_IGNORE_PATTERNS = [
     ".var",
     ".backup",
     ".antigravity",
-    ".gemini",
     # IDE and editor directories (auto-generated, large)
     ".vscode/cli",
     ".vscode/extensions",
@@ -280,10 +279,8 @@ def should_monitor(path: Path) -> bool:
     if ".claude.json.backup" in name or ".claude.json.tmp" in name:
         return False
 
-    # CLI session files: always monitor (override ignore patterns for .codex, .gemini)
+    # CLI session files: always monitor (override ignore patterns for .codex)
     if ".codex/sessions/" in path_str and name.endswith(".jsonl"):
-        return True
-    if ".gemini/tmp/" in path_str and "/chats/" in path_str and name.endswith(".json"):
         return True
 
     if _matches_always_patterns(path_str, parts, name):

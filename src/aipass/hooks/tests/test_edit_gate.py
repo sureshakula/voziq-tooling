@@ -120,3 +120,62 @@ class TestEditGateHandler:
 
         result = handle({})
         assert result["exit_code"] == 0
+
+
+class TestEditGateExternalProject:
+    """Verify edit gate works for non-AIPass projects (e.g. src/vera_studio/)."""
+
+    def test_block_cross_branch_external(self):
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        result = handle(
+            {
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "/home/user/Projects/vera/src/vera_studio/designer/apps/test.py"},
+                "cwd": "/home/user/Projects/vera/src/vera_studio/writer",
+            }
+        )
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+        assert "Cross-branch" in parsed["reason"]
+
+    def test_allow_own_branch_external(self):
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        result = handle(
+            {
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "/home/user/Projects/vera/src/vera_studio/writer/apps/test.py"},
+                "cwd": "/home/user/Projects/vera/src/vera_studio/writer",
+            }
+        )
+        assert result["exit_code"] == 0
+
+    def test_block_daemon_cross_branch_external(self):
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        with patch.dict("os.environ", {"AIPASS_SESSION_TYPE": "daemon"}):
+            result = handle(
+                {
+                    "tool_name": "Edit",
+                    "tool_input": {"file_path": "/home/user/Projects/vera/src/vera_studio/designer/apps/test.py"},
+                    "cwd": "/home/user/Projects/vera/src/vera_studio/writer",
+                }
+            )
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert "daemon" in parsed["reason"]
+
+    def test_allow_daemon_own_branch_external(self):
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        with patch.dict("os.environ", {"AIPASS_SESSION_TYPE": "daemon"}):
+            result = handle(
+                {
+                    "tool_name": "Edit",
+                    "tool_input": {"file_path": "/home/user/Projects/vera/src/vera_studio/writer/apps/test.py"},
+                    "cwd": "/home/user/Projects/vera/src/vera_studio/writer",
+                }
+            )
+        assert result["exit_code"] == 0

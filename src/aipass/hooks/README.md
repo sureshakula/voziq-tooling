@@ -2,7 +2,7 @@
 
 # Hooks
 
-> Hook infrastructure for AIPass. Single engine dispatches all hooks across platforms (Claude, Codex, Gemini) with per-project config, full logging, and testability. The 13th citizen.
+> Hook infrastructure for AIPass. Single engine dispatches all hooks across platforms (Claude, Codex) with per-project config, full logging, and testability. The 13th citizen.
 
 Every hook event flows through one engine. Platform bridges normalize the event format, the engine reads per-project config (.aipass/hooks.json), dispatches matching handlers, and logs everything to prax + JSONL.
 

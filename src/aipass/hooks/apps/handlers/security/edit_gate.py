@@ -23,10 +23,20 @@ EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 TRUSTED_CROSS_WRITERS: tuple[str, ...] = ("devpulse", "seedgo", "spawn")
 
 
-def _get_branch(file_path: str) -> str:
-    parts = Path(file_path).parts
+def _get_package_from_cwd(cwd: str) -> str:
+    parts = Path(cwd).parts
     for i, part in enumerate(parts):
-        if part == "aipass" and i > 0 and parts[i - 1] == "src" and i + 1 < len(parts):
+        if part == "src" and i + 2 < len(parts):
+            return parts[i + 1]
+    return ""
+
+
+def _get_branch(file_path: str, package: str = "") -> str:
+    parts = Path(file_path).parts
+    if not package:
+        return ""
+    for i, part in enumerate(parts):
+        if part == package and i > 0 and parts[i - 1] == "src" and i + 1 < len(parts):
             return parts[i + 1]
     return ""
 
@@ -59,11 +69,12 @@ def handle(hook_data: dict) -> dict:
             return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
 
         cwd = hook_data.get("cwd", "") or os.getcwd()
-        cwd_branch = _get_branch(cwd)
+        package = _get_package_from_cwd(cwd)
+        cwd_branch = _get_branch(cwd, package)
 
         session_type = os.environ.get("AIPASS_SESSION_TYPE", "interactive")
         if session_type == "daemon" and cwd_branch:
-            target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp))
+            target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp), package)
             if target_branch and target_branch != cwd_branch:
                 reason = (
                     f"Dispatched agent confined to own branch: '{cwd_branch}' "
@@ -76,13 +87,13 @@ def handle(hook_data: dict) -> dict:
                     repo_root = parent
                     break
             if repo_root and not target_branch:
-                allowed_prefix = str(repo_root / "src" / "aipass" / cwd_branch)
+                allowed_prefix = str(repo_root / "src" / package / cwd_branch)
                 resolved = str(fp.resolve()) if not fp.is_absolute() else str(fp)
                 if not resolved.startswith(allowed_prefix):
                     reason = f"Dispatched agent restricted to {allowed_prefix}. Cannot write to: {file_path}"
                     return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
 
-        target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp))
+        target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp), package)
 
         if cwd_branch and target_branch and cwd_branch != target_branch:
             if cwd_branch not in TRUSTED_CROSS_WRITERS:
@@ -120,8 +131,8 @@ def handle(hook_data: dict) -> dict:
         if current == errored:
             return {"stdout": "", "exit_code": 0}
 
-        current_branch = _get_branch(current)
-        errored_branch = _get_branch(errored)
+        current_branch = _get_branch(current, package)
+        errored_branch = _get_branch(errored, package)
         if not errored_branch:
             return {"stdout": "", "exit_code": 0}
         if current_branch and errored_branch and current_branch != errored_branch:

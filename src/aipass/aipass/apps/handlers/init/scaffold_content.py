@@ -52,7 +52,6 @@ def readme_md(name: str) -> str:
         "  .aipass/                 # Prompts (injected per-turn)\n"
         "  CLAUDE.md               # Claude Code instructions\n"
         "  AGENTS.md               # Codex instructions\n"
-        "  GEMINI.md               # Gemini instructions\n"
         "  STATUS.local.md         # Project status\n"
         "  src/                    # Agent directories live here\n"
         "    <agent_name>/         # Created via aipass init agent\n"

@@ -74,6 +74,7 @@ src/aipass/seedgo/apps/standards/aipass/pack.json
 # Claude Code local state
 .claude/hooks/__pycache__/
 .claude/hooks/.last_diagnostics_file
+.diagnostics_state.json
 .claude/hooks/probes/last_ping.jsonl
 .claude/worktrees/
 

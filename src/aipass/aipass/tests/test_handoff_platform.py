@@ -50,7 +50,7 @@ class TestBuildCliCmd:
 
     def test_other_cli(self) -> None:
         """Other CLI names are returned as-is with default variant."""
-        assert build_cli_cmd("gemini", "default") == "gemini"
+        assert build_cli_cmd("codex", "default") == "codex"
 
 
 # =============================================================================

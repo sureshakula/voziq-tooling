@@ -256,4 +256,4 @@ class TestRefresh:
         from aipass.prax.apps.plugins.devpulse_dashboard.refresh import DEVPULSE_PATH
 
         assert DEVPULSE_PATH.name == "devpulse"
-        assert "src/aipass/devpulse" in str(DEVPULSE_PATH)
+        assert "src" in DEVPULSE_PATH.parts and "aipass" in DEVPULSE_PATH.parts

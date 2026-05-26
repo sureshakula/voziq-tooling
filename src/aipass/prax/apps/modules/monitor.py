@@ -398,10 +398,6 @@ def _get_watch_directories(repo_root: Path) -> list[tuple[Path, bool]]:
     if codex_sessions.exists():
         dirs.append((codex_sessions, True))
 
-    gemini_tmp = Path.home() / ".gemini" / "tmp"
-    if gemini_tmp.exists():
-        dirs.append((gemini_tmp, True))
-
     return dirs
 
 

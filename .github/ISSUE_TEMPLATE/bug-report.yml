@@ -35,7 +35,7 @@ body:
       placeholder: |
         - OS: Ubuntu 24.04
         - Python: 3.12
-        - CLI: Claude Code / Codex / Gemini
+        - CLI: Claude Code / Codex
     validations:
       required: true
 

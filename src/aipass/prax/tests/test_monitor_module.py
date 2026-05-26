@@ -1409,16 +1409,3 @@ class TestGetWatchDirectoriesEdgeCases:
 
         paths = [p for p, _r in result]
         assert codex_sessions in paths
-
-    def test_includes_gemini_tmp(self, tmp_path):
-        """~/.gemini/tmp is included when it exists."""
-        mod = _import_monitor()
-        fakehome = tmp_path / "fakehome"
-        gemini_tmp = fakehome / ".gemini" / "tmp"
-        gemini_tmp.mkdir(parents=True)
-
-        with patch("pathlib.Path.home", return_value=fakehome):
-            result = mod._get_watch_directories(tmp_path)
-
-        paths = [p for p, _r in result]
-        assert gemini_tmp in paths
