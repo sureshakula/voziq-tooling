@@ -12,6 +12,8 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **README logo** — centered logo image replaces plain `# AIPass` header.
+  New `assets/logo.png` added to the repo.
 - **Registry descriptions** — all 13 branches now have one-liner descriptions
   in `AIPASS_REGISTRY.json`. `drone systems` shows what each agent does
   instead of blank lines. Closes [#607](https://github.com/AIOSAI/AIPass/issues/607).
@@ -26,6 +28,11 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 - **Hooks branch promoted to service** — registry profile changed from
   "AIPass Workshop" to "library" so it appears in `drone systems` alongside
   the other 12 services.
+
+### Release
+
+- **Version 2.4.0** published to PyPI. Trusted publishing via GitHub Actions
+  (`publish.yml` triggers on `v*` tags — no manual twine upload needed).
 
 ### Removed
 
