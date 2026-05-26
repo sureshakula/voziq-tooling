@@ -7,11 +7,11 @@
 [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass)
 [![OSS Health](https://oss-health-monitor.vercel.app/api/badge/AIOSAI/AIPass)](https://github.com/volotat/OSS-Health-Monitor)
 
-# AIPass
-
-**Persistent Agent Workspace**
-
-AI agents that remember, collaborate, and never start from zero.
+<p align="center">
+  <img src="assets/logo.png" alt="AIPass" width="400" />
+</p>
+<p align="center"><strong>Persistent Agent Workspace</strong></p>
+<p align="center"><em>AI agents that remember, collaborate, and never start from zero.</em></p>
 
 ![demo](assets/demo.gif)
 
