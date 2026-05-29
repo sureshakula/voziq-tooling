@@ -27,6 +27,9 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 - **OpenSSF Scorecard** — `.github/workflows/scorecard.yml` runs the official
   OSSF Scorecard action on push to `main` and weekly. Publishes a public security
   health score at scorecard.dev with a README badge. Actions pinned by SHA.
+- **GitHub Releases** — `publish.yml` now cuts a GitHub Release on each `v*` tag,
+  with notes pulled from the top CHANGELOG section and the built dist attached.
+  PyPI publish + GitHub Release now fire from the same tag.
 - **Registry descriptions** — all 13 branches now have one-liner descriptions
   in `AIPASS_REGISTRY.json`. `drone systems` shows what each agent does
   instead of blank lines. Closes [#607](https://github.com/AIOSAI/AIPass/issues/607).
