@@ -22,6 +22,7 @@ import pytest  # pyright: ignore[reportMissingImports]
 
 from aipass.aipass.apps.handlers.init import scaffold_content as sc
 from aipass.aipass.apps.handlers.init.bootstrap import (
+    _merge_hooks_json,
     _sanitize_name,
     init_project,
     update_project,
@@ -126,7 +127,7 @@ def test_init_project_creates_all_expected_files(tmp_path):
     created_basenames = [Path(f).name for f in result["created_files"]]
     for f in expected_files:
         assert f.name in created_basenames or f.exists(), f"Expected {f.name} in created_files"
-    assert len(result["created_files"]) >= 11
+    assert len(result["created_files"]) >= 12
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -324,7 +325,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) >= 11
+    assert len(result["created_files"]) >= 12
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -470,7 +471,7 @@ def test_update_project_already_current_after_init(tmp_path):
     result = update_project(target)
 
     assert len(result["updated_files"]) == 0
-    assert len(result["already_current"]) >= 4
+    assert len(result["already_current"]) >= 5
 
 
 def test_update_project_idempotent(tmp_path):
@@ -549,8 +550,8 @@ def test_update_project_creates_missing_managed_dirs(tmp_path):
 
     assert (target / ".aipass" / "aipass_global_prompt.md").exists()
     assert (target / ".claude" / "settings.json").exists()
-    # Managed files in deleted dirs re-written (global_prompt, settings, prep)
-    assert len(result["updated_files"]) == 3
+    # Managed files in deleted dirs re-written (global_prompt, hooks.json, settings, prep)
+    assert len(result["updated_files"]) == 4
     assert len(result["already_current"]) >= 2
 
 
@@ -629,7 +630,7 @@ def test_update_project_adds_aipass_home_if_missing(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# DPLAN-0139: Hook shipping + /memo tests
+# DPLAN-0190: hooks.json + /memo tests
 # ---------------------------------------------------------------------------
 
 
@@ -644,8 +645,8 @@ def test_init_project_no_memo_md(tmp_path):
     assert not memo_path.exists()
 
 
-def test_init_project_ships_hooks(tmp_path):
-    """init_project copies enforcement + injector hooks to target .claude/hooks/."""
+def test_init_project_creates_hooks_json(tmp_path):
+    """init_project creates .aipass/hooks.json from project_hooks.json template."""
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -654,16 +655,46 @@ def test_init_project_ships_hooks(tmp_path):
     if result["aipass_home"] is None:
         pytest.skip("AIPASS_HOME not detectable in this environment")
 
-    hooks_dir = target / ".claude" / "hooks"
-    # Post DPLAN-0184: hooks are native handlers in src/aipass/hooks/,
-    # no longer shipped as script copies. Directory may or may not exist.
-    if hooks_dir.exists():
-        shipped = [f.name for f in hooks_dir.iterdir()]
-        assert len(shipped) == 0, f"No hook scripts should be shipped post-migration: {shipped}"
+    hooks_json = target / ".aipass" / "hooks.json"
+    assert hooks_json.exists(), ".aipass/hooks.json should be created"
+    data = json.loads(hooks_json.read_text(encoding="utf-8"))
+    assert data.get("hooks_enabled") is True
+    assert "UserPromptSubmit" in data
 
 
-def test_init_project_hooks_not_shipped_without_aipass_home(tmp_path, monkeypatch):
-    """When AIPASS_HOME is not detectable, hooks are not shipped."""
+def test_init_project_hooks_json_matches_template(tmp_path):
+    """hooks.json content matches the project_hooks.json template."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="tmpl")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    hooks_json = target / ".aipass" / "hooks.json"
+    template = Path(result["aipass_home"]) / ".aipass" / "project_hooks.json"
+    if not template.exists():
+        pytest.skip("project_hooks.json template not found")
+
+    assert hooks_json.read_bytes() == template.read_bytes()
+
+
+def test_init_project_hooks_json_in_created_files(tmp_path):
+    """hooks.json path appears in created_files list."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="created")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    assert any("hooks.json" in f for f in result["created_files"])
+
+
+def test_init_project_no_hooks_json_without_aipass_home(tmp_path, monkeypatch):
+    """When AIPASS_HOME is not detectable, hooks.json is not created."""
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -674,55 +705,20 @@ def test_init_project_hooks_not_shipped_without_aipass_home(tmp_path, monkeypatc
 
     init_project(target, project_name="nohooks")
 
-    hooks_dir = target / ".claude" / "hooks"
-    assert not hooks_dir.exists() or len(list(hooks_dir.iterdir())) == 0
+    assert not (target / ".aipass" / "hooks.json").exists()
 
 
-def test_init_project_no_audio_hooks_shipped(tmp_path):
-    """Audio hooks (notification_sound, tool_use_sound, stop_sound) are never shipped."""
+def test_init_project_no_hook_scripts_shipped(tmp_path):
+    """No hook scripts are shipped to .claude/hooks/ (engine runs from $AIPASS_HOME)."""
     target = tmp_path / "proj"
     target.mkdir()
 
-    init_project(target, project_name="noaudio")
+    init_project(target, project_name="noscripts")
 
     hooks_dir = target / ".claude" / "hooks"
     if hooks_dir.exists():
         shipped = [f.name for f in hooks_dir.iterdir()]
-        assert "notification_sound.py" not in shipped
-        assert "tool_use_sound.py" not in shipped
-        assert "stop_sound.py" not in shipped
-
-
-def test_update_project_resyncs_hooks(tmp_path):
-    """update_project re-copies hooks when source differs from target."""
-    target = tmp_path / "proj"
-    target.mkdir()
-    result = init_project(target, project_name="resync")
-
-    if result["aipass_home"] is None:
-        pytest.skip("AIPASS_HOME not detectable in this environment")
-
-    # Post DPLAN-0184: hooks are native handlers, not shipped as copies.
-    # update_project no longer resyncs hook scripts.
-    result = update_project(target)
-    hooks_marker = str(Path(".claude") / "hooks")
-    hook_paths = [f for f in result["updated_files"] if hooks_marker in f]
-    assert len(hook_paths) == 0, "No hook scripts should be shipped post-migration"
-
-
-def test_init_project_hooks_idempotent_on_rerun(tmp_path):
-    """Re-running init does not create hook script copies."""
-    target = tmp_path / "proj"
-    target.mkdir()
-
-    result1 = init_project(target, project_name="idem")
-
-    if result1["aipass_home"] is None:
-        pytest.skip("AIPASS_HOME not detectable in this environment")
-
-    hooks_marker = str(Path(".claude") / "hooks")
-    hook_paths = [f for f in result1["created_files"] if hooks_marker in f]
-    assert len(hook_paths) == 0, "No hook scripts should be shipped post-migration"
+        assert len(shipped) == 0, f"No hook scripts should be shipped: {shipped}"
 
 
 def test_init_project_settings_has_no_hook_events(tmp_path):
@@ -734,6 +730,130 @@ def test_init_project_settings_has_no_hook_events(tmp_path):
 
     settings = json.loads((target / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert "hooks" not in settings
+
+
+def test_update_project_creates_hooks_json_if_missing(tmp_path):
+    """update_project creates hooks.json from template when missing."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    registry_data = {
+        "metadata": {
+            "id": "test-id",
+            "name": "MISS",
+            "version": "1.0.0",
+            "created": "2026-01-01",
+            "last_updated": "2026-01-01",
+            "total_branches": 0,
+        },
+        "branches": [],
+    }
+    (target / "MISS_REGISTRY.json").write_text(json.dumps(registry_data), encoding="utf-8")
+
+    hooks_json = target / ".aipass" / "hooks.json"
+    assert not hooks_json.exists()
+
+    result = update_project(target)
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    assert hooks_json.exists()
+    assert any("hooks.json" in f for f in result["updated_files"])
+    data = json.loads(hooks_json.read_text(encoding="utf-8"))
+    assert data.get("hooks_enabled") is True
+
+
+def test_update_project_union_merge_preserves_user_enabled(tmp_path):
+    """update preserves user's enabled=false for existing hooks."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    result = init_project(target, project_name="merge")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    hooks_json = target / ".aipass" / "hooks.json"
+    data = json.loads(hooks_json.read_text(encoding="utf-8"))
+    data["PreToolUse"]["git_gate"]["enabled"] = False
+    hooks_json.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+    update_project(target)
+
+    updated = json.loads(hooks_json.read_text(encoding="utf-8"))
+    assert updated["PreToolUse"]["git_gate"]["enabled"] is False
+
+
+def test_update_project_union_merge_adds_new_hooks(tmp_path):
+    """update adds hooks from template that user doesn't have."""
+    existing = {
+        "hooks_enabled": True,
+        "UserPromptSubmit": {
+            "identity_injector": {"enabled": True, "handler": "old.handler", "matcher": ""},
+        },
+    }
+    template = {
+        "hooks_enabled": True,
+        "UserPromptSubmit": {
+            "identity_injector": {"enabled": True, "handler": "new.handler", "matcher": ""},
+            "brand_new_hook": {"enabled": True, "handler": "brand.new", "matcher": ""},
+        },
+        "Stop": {
+            "stop_sound": {"enabled": True, "handler": "stop.handler", "matcher": ""},
+        },
+    }
+
+    merged = _merge_hooks_json(existing, template)
+
+    assert "brand_new_hook" in merged["UserPromptSubmit"]
+    assert "Stop" in merged
+    assert merged["Stop"]["stop_sound"]["enabled"] is True
+
+
+def test_update_project_union_merge_preserves_user_hooks():
+    """User's custom hooks not in template are kept."""
+    existing = {
+        "hooks_enabled": True,
+        "UserPromptSubmit": {
+            "my_custom_hook": {"enabled": True, "handler": "custom.handler", "matcher": ""},
+        },
+    }
+    template = {
+        "hooks_enabled": True,
+        "UserPromptSubmit": {
+            "identity_injector": {"enabled": True, "handler": "std.handler", "matcher": ""},
+        },
+    }
+
+    merged = _merge_hooks_json(existing, template)
+
+    assert "my_custom_hook" in merged["UserPromptSubmit"]
+    assert "identity_injector" in merged["UserPromptSubmit"]
+
+
+def test_merge_hooks_json_preserves_hooks_enabled_false():
+    """User's hooks_enabled=false is preserved over template's true."""
+    existing = {"hooks_enabled": False}
+    template = {"hooks_enabled": True, "Stop": {"s": {"enabled": True, "handler": "h", "matcher": ""}}}
+
+    merged = _merge_hooks_json(existing, template)
+
+    assert merged["hooks_enabled"] is False
+
+
+def test_update_project_hooks_json_already_current(tmp_path):
+    """update reports hooks.json as already_current when unchanged."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    result = init_project(target, project_name="curr")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    result = update_project(target)
+
+    assert not any("hooks.json" in f for f in result["updated_files"])
+    assert any("hooks.json" in f for f in result["already_current"])
 
 
 # ---------------------------------------------------------------------------

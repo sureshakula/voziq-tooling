@@ -12,6 +12,12 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **Hooks activate in every project** — `aipass init` now writes
+  `.aipass/hooks.json`, so new projects fire the hook engine out of the box
+  (previously: no config shipped, 0 hooks fired). `aipass init update`
+  union-merges the template, preserving any per-hook on/off choices the user
+  made. `aipass doctor` now checks for the config's presence. Dead hook-script
+  shipping (`_ship_hooks`) removed. (DPLAN-0190 Phase A)
 - **README logo** — centered logo image replaces plain `# AIPass` header.
   New `assets/logo.png` added to the repo.
 - **Registry descriptions** — all 13 branches now have one-liner descriptions

@@ -441,10 +441,8 @@ class TestProviderManifest:
 
         manifest = tmp_path / ".claude" / "provider_manifest.json"
         manifest.parent.mkdir(parents=True)
-        cmd_a = "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py Stop"
-        cmd_b = (
-            "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py Notification"
-        )
+        cmd_a = "$AIPASS_HOME/bin/hook-bridge Stop"
+        cmd_b = "$AIPASS_HOME/bin/hook-bridge Notification"
         manifest.write_text(
             json.dumps(
                 {
@@ -487,7 +485,7 @@ class TestProviderManifest:
 
         manifest = tmp_path / ".claude" / "provider_manifest.json"
         manifest.parent.mkdir(parents=True)
-        cmd = "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py Stop"
+        cmd = "$AIPASS_HOME/bin/hook-bridge Stop"
         manifest.write_text(
             json.dumps(
                 {
@@ -573,3 +571,44 @@ class TestProviderManifest:
         result = _find_manifest()
         assert result is not None
         assert result == manifest
+
+
+# =============================================================================
+# TestHooksJsonCheck
+# =============================================================================
+
+
+class TestHooksJsonCheck:
+    """Tests for hooks.json presence check in _check_identity (DPLAN-0190)."""
+
+    def test_hooks_json_present_returns_pass(self, tmp_path) -> None:
+        """When .aipass/hooks.json exists, check returns PASS."""
+        from aipass.aipass.apps.modules.doctor import _check_identity
+
+        registry = tmp_path / "TEST_REGISTRY.json"
+        registry.write_text(json.dumps({"metadata": {"id": "t"}, "branches": []}), encoding="utf-8")
+        hooks_dir = tmp_path / ".aipass"
+        hooks_dir.mkdir()
+        (hooks_dir / "hooks.json").write_text('{"hooks_enabled": true}', encoding="utf-8")
+
+        with patch("aipass.aipass.apps.modules.doctor._find_registry", return_value=registry):
+            results = _check_identity()
+
+        hooks_results = [r for r in results if r.label == "hooks.json"]
+        assert len(hooks_results) == 1
+        assert hooks_results[0].glyph == GLYPH_PASS
+
+    def test_hooks_json_missing_returns_warn(self, tmp_path) -> None:
+        """When .aipass/hooks.json is absent, check returns WARN."""
+        from aipass.aipass.apps.modules.doctor import _check_identity
+
+        registry = tmp_path / "TEST_REGISTRY.json"
+        registry.write_text(json.dumps({"metadata": {"id": "t"}, "branches": []}), encoding="utf-8")
+
+        with patch("aipass.aipass.apps.modules.doctor._find_registry", return_value=registry):
+            results = _check_identity()
+
+        hooks_results = [r for r in results if r.label == "hooks.json"]
+        assert len(hooks_results) == 1
+        assert hooks_results[0].glyph == GLYPH_WARN
+        assert "init update" in hooks_results[0].remediation

@@ -6,11 +6,7 @@
 # Modified: 2026-04-16
 # =============================================
 
-"""
-aipass doctor — system health aggregation
-
-Run: aipass doctor [--verbose] [--fix] [--fix --json]
-"""
+"""aipass doctor — system health aggregation."""
 
 from __future__ import annotations
 
@@ -60,10 +56,6 @@ from aipass.aipass.apps.handlers.ui.progress import (
     make_doctor_progress,
 )
 
-# =============================================================================
-# TYPES
-# =============================================================================
-
 _BRANCH_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -76,9 +68,7 @@ class CheckResult(NamedTuple):
     remediation: str
 
 
-# =============================================================================
-# IDENTITY HELPERS
-# =============================================================================
+# --- Identity helpers ---
 
 
 def _find_registry() -> Path | None:
@@ -97,9 +87,7 @@ def _find_registry() -> Path | None:
     return None
 
 
-# =============================================================================
-# CHECK GROUPS
-# =============================================================================
+# --- Check groups ---
 
 
 def _check_system() -> List[CheckResult]:
@@ -200,6 +188,20 @@ def _check_identity() -> List[CheckResult]:
         results.append(CheckResult("registry valid", GLYPH_PASS, "", ""))
     else:
         results.append(CheckResult("registry valid", GLYPH_FAIL, "missing 'branches' key", "Re-run 'aipass init'"))
+
+    # hooks.json presence (project-level hook config)
+    hooks_json = reg_path.parent / ".aipass" / "hooks.json"
+    if hooks_json.exists():
+        results.append(CheckResult("hooks.json", GLYPH_PASS, "present", ""))
+    else:
+        results.append(
+            CheckResult(
+                "hooks.json",
+                GLYPH_WARN,
+                "not found",
+                "Run 'aipass init update' to create .aipass/hooks.json",
+            )
+        )
 
     # Passport readable
     passport = _BRANCH_ROOT / ".trinity" / "passport.json"
@@ -478,9 +480,7 @@ def _check_community() -> List[CheckResult]:
     return results
 
 
-# =============================================================================
-# STRUCTURE CHECK GROUP
-# =============================================================================
+# --- Structure check group ---
 
 
 def _check_structure() -> List[CheckResult]:
@@ -558,9 +558,7 @@ def _check_structure() -> List[CheckResult]:
     return results
 
 
-# =============================================================================
-# MAIN DOCTOR RUN
-# =============================================================================
+# --- Main doctor run ---
 
 
 def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = False) -> int:
@@ -620,9 +618,7 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
     return error_count
 
 
-# =============================================================================
-# OUTPUT FORMATTING
-# =============================================================================
+# --- Output formatting ---
 
 
 def print_introspection() -> None:
@@ -652,9 +648,7 @@ def print_help() -> None:
     console.print()
 
 
-# =============================================================================
-# COMMAND HANDLER
-# =============================================================================
+# --- Command handler ---
 
 
 def handle_command(command: str, args: list[str]) -> bool:
