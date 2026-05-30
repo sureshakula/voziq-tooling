@@ -8,7 +8,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W22] - 2026-06-01
+## [2026.W22] - 2026-05-30
 
 ### Added
 
@@ -55,8 +55,9 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Release
 
-- **Version 2.4.0** published to PyPI. Trusted publishing via GitHub Actions
-  (`publish.yml` triggers on `v*` tags — no manual twine upload needed).
+- **Version 2.5.0** published to PyPI. Trusted publishing via GitHub Actions
+  (`publish.yml` triggers on `v*` tags — no manual twine upload needed). The
+  same tag now also cuts a GitHub Release with these notes attached.
 
 ### Removed
 

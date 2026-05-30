@@ -4,4 +4,4 @@ pip install aipass
 https://github.com/AIOSAI/AIPass
 """
 
-__version__ = "2.2.0"
+__version__ = "2.5.0"
