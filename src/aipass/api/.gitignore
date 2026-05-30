@@ -12,3 +12,5 @@ build/
 *.log
 *.tmp
 *.swp
+test_devto_driver.py
+test_bluesky_driver.py

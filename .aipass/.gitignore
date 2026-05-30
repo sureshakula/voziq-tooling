@@ -4,4 +4,5 @@
 !.gitignore
 !project_CLAUDE.md
 !project_global_prompt.md
-#Do not add other exceptions here without careful consideration. Developer permissions0ns needed. 
+!project_hooks.json
+#Do not add other exceptions here without careful consideration. Developer permissions0ns needed.

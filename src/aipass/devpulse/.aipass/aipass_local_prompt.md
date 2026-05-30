@@ -33,6 +33,7 @@ Task belongs to specialist domain → ask them. Investigate/fix small things you
 | Command routing | @drone | @branch resolution, subprocess |
 | Memory, vectors | @memory | ChromaDB, search, archival |
 | User onboarding, init | @aipass | Concierge, aipass init, doctor, scanner |
+| Hooks, engine, gates | @hooks | Hook engine, bridges, per-project config, sound |
 
 ## Git — Dev Branch, Drone Only, You Are Gatekeeper
 
@@ -82,9 +83,9 @@ drone @flow list open                                      # active plans
 drone systems                                              # all branches
 ```
 
-## 12 Core Branches
+## 13 Core Branches
 
-drone, seedgo, prax, cli, ai_mail, api, flow, spawn, trigger, memory, aipass, devpulse (you — coordinates via dispatch+agents)
+drone, seedgo, prax, cli, ai_mail, api, flow, spawn, trigger, memory, aipass, hooks, devpulse (you — coordinates via dispatch+agents)
 
 ## Working Habits
 

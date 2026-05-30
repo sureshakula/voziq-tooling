@@ -19,7 +19,6 @@ from pathlib import Path
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import err_console
-from aipass.hooks.apps.handlers.config.loader import find_project_config
 from aipass.hooks.apps.handlers.config.diagnostics import log_entry as _log, tail_log
 
 CONSOLE = err_console
@@ -237,31 +236,15 @@ def print_introspection():
 
 def handle_command(command: str, args: list) -> bool:
     """Route engine commands from drone @hooks."""
-    if not args and command in ("engine", ""):
-        print_introspection()
-        return True
+    if command in ("engine", ""):
+        if not args:
+            print_introspection()
+            return True
 
     if command in ("--help", "-h", "help"):
         CONSOLE.print("[bold cyan]engine[/bold cyan] — Hook dispatch engine")
         CONSOLE.print()
-        CONSOLE.print("  drone @hooks status    Show hook config for current project")
         CONSOLE.print("  drone @hooks log       Tail recent hook activity")
-        return True
-
-    if command == "status":
-        config = find_project_config()
-        if config is None:
-            CONSOLE.print("No .aipass/hooks.json found for current project")
-        else:
-            enabled = config.get("hooks_enabled", True)
-            CONSOLE.print(f"Hooks enabled: {enabled}")
-            for event_type, hooks in config.items():
-                if event_type.startswith("_") or event_type == "hooks_enabled":
-                    continue
-                if isinstance(hooks, dict):
-                    active = sum(1 for h in hooks.values() if isinstance(h, dict) and h.get("enabled", True))
-                    total = sum(1 for h in hooks.values() if isinstance(h, dict))
-                    CONSOLE.print(f"  {event_type}: {active}/{total} hooks active")
         return True
 
     if command == "log":

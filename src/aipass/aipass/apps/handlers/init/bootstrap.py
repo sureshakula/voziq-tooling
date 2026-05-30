@@ -43,60 +43,6 @@ from aipass.aipass.apps.handlers.init import scaffold_content as sc
 
 logger = logging.getLogger(__name__)
 
-# Hooks are NOT distributed to projects. All hooks fire from provider
-# settings (~/.claude/settings.json), installed by setup.sh. Provider hooks
-# use CWD-walking patterns that work from any directory in any project.
-# Hook files are shipped as reference copies only (for debugging/inspection).
-HOOKS_TO_SHIP = [
-    "branch_prompt_loader.py",
-    "email_notification.py",
-    "identity_injector.py",
-    "pre_compact.py",
-    "auto_fix_diagnostics.py",
-    "pre_edit_gate.py",
-    "subagent_stop_gate.py",
-]
-
-
-def _ship_hooks(aipass_home: str, target: Path) -> list[str]:
-    """Copy enforcement + injector hooks from AIPass install to target project.
-
-    Copies each hook file to {target}/.claude/hooks/. Looks for hooks in two
-    locations (first match wins):
-      1. {aipass_home}/.claude/hooks/  — dev install (git clone)
-      2. aipass/_hooks/                — pip install (wheel-bundled)
-
-    Skips audio hooks. Overwrites existing files only if source content
-    differs (idempotent re-sync). Returns list of files written.
-    """
-    source_dir = Path(aipass_home) / ".claude" / "hooks"
-    if not source_dir.is_dir():
-        # Fallback: pip install bundles hooks at aipass/_hooks/ inside the package
-        package_hooks = Path(__file__).resolve().parents[4] / "_hooks"
-        if package_hooks.is_dir():
-            source_dir = package_hooks
-        else:
-            logger.info("No hooks directory at %s or %s — skipping", source_dir, package_hooks)
-            return []
-
-    dest_dir = target / ".claude" / "hooks"
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    shipped: list[str] = []
-
-    for hook_name in HOOKS_TO_SHIP:
-        src = source_dir / hook_name
-        dst = dest_dir / hook_name
-        if not src.exists():
-            logger.info("Hook %s not found at %s — skipping", hook_name, src)
-            continue
-        src_content = src.read_bytes()
-        if dst.exists() and dst.read_bytes() == src_content:
-            continue
-        shutil.copy2(src, dst)
-        shipped.append(str(dst))
-
-    return shipped
-
 
 def _sanitize_name(raw: str) -> str:
     """Sanitize a project name for use in filenames.
@@ -201,6 +147,52 @@ def _merge_settings(existing: dict, generated: dict) -> dict:
     return merged
 
 
+def _merge_hooks_json(existing: dict, template: dict) -> dict:
+    """Union-merge hooks.json: preserve user enabled values, add new hooks/events."""
+    merged: dict = {}
+    meta_keys = {"_comment", "hooks_enabled"}
+
+    if "_comment" in template:
+        merged["_comment"] = template["_comment"]
+    elif "_comment" in existing:
+        merged["_comment"] = existing["_comment"]
+
+    if "hooks_enabled" in existing:
+        merged["hooks_enabled"] = existing["hooks_enabled"]
+    elif "hooks_enabled" in template:
+        merged["hooks_enabled"] = template["hooks_enabled"]
+
+    all_events: set[str] = set()
+    for key in existing:
+        if key not in meta_keys:
+            all_events.add(key)
+    for key in template:
+        if key not in meta_keys:
+            all_events.add(key)
+
+    for event in sorted(all_events):
+        existing_hooks = existing.get(event, {})
+        template_hooks = template.get(event, {})
+        merged_hooks: dict = {}
+
+        for hook_name, hook_data in existing_hooks.items():
+            merged_hooks[hook_name] = dict(hook_data)
+
+        for hook_name, hook_data in template_hooks.items():
+            if hook_name in merged_hooks:
+                user_enabled = merged_hooks[hook_name].get("enabled")
+                merged_hooks[hook_name] = dict(hook_data)
+                if user_enabled is not None:
+                    merged_hooks[hook_name]["enabled"] = user_enabled
+            else:
+                merged_hooks[hook_name] = dict(hook_data)
+
+        if merged_hooks:
+            merged[event] = merged_hooks
+
+    return merged
+
+
 def _claude_settings(aipass_home: str | None = None) -> str:
     """Generate .claude/settings.json — env and permissions only.
 
@@ -224,6 +216,7 @@ def _claude_settings(aipass_home: str | None = None) -> str:
             "Bash(rm -rf *)",
             "Bash(git push --force*)",
             "Bash(git reset --hard*)",
+            "EnterPlanMode",
         ],
     }
 
@@ -337,6 +330,16 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         global_prompt_path.write_text(_resolve_global_prompt(name, aipass_home, global_prompt_path), encoding="utf-8")
         created.append(str(global_prompt_path))
 
+    # 2b. .aipass/hooks.json — project hook config from template
+    hooks_json_path = aipass_dir / "hooks.json"
+    if not hooks_json_path.exists() and aipass_home:
+        template = Path(aipass_home) / ".aipass" / "project_hooks.json"
+        if template.is_file():
+            shutil.copy2(str(template), str(hooks_json_path))
+            created.append(str(hooks_json_path))
+        else:
+            logger.info("hooks template not found at %s — skipping", template)
+
     # 3-5. CLAUDE.md, AGENTS.md — project templates or AIPass source
     for md_name in ("CLAUDE.md", "AGENTS.md"):
         dest = target / md_name
@@ -394,11 +397,6 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     if not prep_path.exists():
         prep_path.write_text(sc.prep_md(), encoding="utf-8")
         created.append(str(prep_path))
-
-    # 9d. Ship enforcement + injector hooks from AIPass install
-    if aipass_home:
-        shipped = _ship_hooks(aipass_home, target)
-        created.extend(shipped)
 
     # 10. src/<project>/ package structure (pip-installable from day one)
     package_name = raw_name.lower().replace("-", "_").replace(" ", "_")
@@ -531,6 +529,34 @@ def update_project(target: Path) -> dict:
         else:
             already_current.append(str(settings_path))
 
+    # hooks.json — union-merge: preserve user enabled, add new hooks from template
+    hooks_json_path = aipass_dir / "hooks.json"
+    hook_home = aipass_home or _detect_aipass_home()
+    template_path = Path(hook_home) / ".aipass" / "project_hooks.json" if hook_home else None
+    if template_path and template_path.is_file():
+        template_data = json.loads(template_path.read_text(encoding="utf-8"))
+        if hooks_json_path.exists():
+            try:
+                existing_hooks = json.loads(hooks_json_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                logger.info("hooks.json parse failed, rebuilding: %s", exc)
+                existing_hooks = {}
+            merged_hooks = _merge_hooks_json(existing_hooks, template_data)
+            merged_hooks_content = json.dumps(merged_hooks, indent=2, ensure_ascii=False) + "\n"
+            if existing_hooks != merged_hooks:
+                hooks_json_path.write_text(merged_hooks_content, encoding="utf-8")
+                updated.append(str(hooks_json_path))
+            else:
+                already_current.append(str(hooks_json_path))
+        else:
+            hooks_json_path.write_text(
+                json.dumps(template_data, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
+            updated.append(str(hooks_json_path))
+    elif hooks_json_path.exists():
+        already_current.append(str(hooks_json_path))
+
     # CLAUDE.md, AGENTS.md — sync from project templates or AIPass source
     for md_name in ("CLAUDE.md", "AGENTS.md"):
         dest = target / md_name
@@ -556,12 +582,6 @@ def update_project(target: Path) -> dict:
         updated.append(str(prep_path))
     else:
         already_current.append(str(prep_path))
-
-    # Re-sync enforcement + injector hooks from AIPass install
-    hook_home = aipass_home or _detect_aipass_home()
-    if hook_home:
-        shipped = _ship_hooks(hook_home, target)
-        updated.extend(shipped)
 
     # --- User-owned files: always skip ---
     for skip_name in (

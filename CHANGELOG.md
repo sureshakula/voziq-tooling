@@ -8,31 +8,56 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W22] - 2026-06-01
+## [2026.W22] - 2026-05-30
 
 ### Added
 
+- **`drone @hooks status`** — read-only viewer for a project's hook config:
+  master switch, every hook's enabled state per event group, matchers, and an
+  enabled/total summary. Resolves the project's `.aipass/hooks.json` by walking
+  up from CWD. (DPLAN-0190 Phase B)
+- **Hooks activate in every project** — `aipass init` now writes
+  `.aipass/hooks.json`, so new projects fire the hook engine out of the box
+  (previously: no config shipped, 0 hooks fired). `aipass init update`
+  union-merges the template, preserving any per-hook on/off choices the user
+  made. `aipass doctor` now checks for the config's presence. Dead hook-script
+  shipping (`_ship_hooks`) removed. (DPLAN-0190 Phase A)
 - **README logo** — centered logo image replaces plain `# AIPass` header.
   New `assets/logo.png` added to the repo.
+- **OpenSSF Scorecard** — `.github/workflows/scorecard.yml` runs the official
+  OSSF Scorecard action on push to `main` and weekly. Publishes a public security
+  health score at scorecard.dev with a README badge. Actions pinned by SHA.
+- **GitHub Releases** — `publish.yml` now cuts a GitHub Release on each `v*` tag,
+  with notes pulled from the top CHANGELOG section and the built dist attached.
+  PyPI publish + GitHub Release now fire from the same tag.
 - **Registry descriptions** — all 13 branches now have one-liner descriptions
   in `AIPASS_REGISTRY.json`. `drone systems` shows what each agent does
   instead of blank lines. Closes [#607](https://github.com/AIOSAI/AIPass/issues/607).
 
 ### Changed
 
-- **Edit gate now project-aware** — cross-branch write protection and daemon
-  confinement no longer hardcode `src/aipass/`. The package name is derived
-  dynamically from CWD, so any `src/<package>/<branch>/` project gets the
-  same security. 4 new tests for external projects. Addresses
-  [#605](https://github.com/AIOSAI/AIPass/issues/605).
+- **Security gates fully project-aware** — both the edit gate *and* the
+  subagent stop gate now derive the package name dynamically from CWD instead
+  of hardcoding `src/aipass/`. Cross-branch write protection and branch
+  detection work for any `src/<package>/<branch>/` project; previously the
+  subagent gate silently no-opped outside AIPass. 9 new external-project tests.
+  Closes [#605](https://github.com/AIOSAI/AIPass/issues/605).
 - **Hooks branch promoted to service** — registry profile changed from
   "AIPass Workshop" to "library" so it appears in `drone systems` alongside
   the other 12 services.
+- **Hooks branch hardened to 100% seedgo** — the @hooks citizen took full
+  ownership of its branch: every handler verified wired + firing, README
+  rewritten (two-tier provider/project model, dynamic-dispatch design, event
+  table), 2 stale tests resolved (253 pass). Dead-code/unused-function flags
+  documented as architectural bypasses — the 15 handlers are invoked
+  dynamically via `importlib` from `hooks.json` paths, never statically
+  imported. (DPLAN-0191)
 
 ### Release
 
-- **Version 2.4.0** published to PyPI. Trusted publishing via GitHub Actions
-  (`publish.yml` triggers on `v*` tags — no manual twine upload needed).
+- **Version 2.5.0** published to PyPI. Trusted publishing via GitHub Actions
+  (`publish.yml` triggers on `v*` tags — no manual twine upload needed). The
+  same tag now also cuts a GitHub Release with these notes attached.
 
 ### Removed
 

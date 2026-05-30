@@ -125,3 +125,65 @@ class TestSubagentGateHandler:
         result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+
+
+class TestSubagentGateExternalProject:
+    """Verify subagent gate works for non-AIPass projects (e.g. src/vera_studio/)."""
+
+    def test_get_cwd_branch_external_package(self, tmp_path):
+        from aipass.hooks.apps.handlers.security.subagent_gate import _get_cwd_branch
+
+        # Use tmp_path for OS-native, drive-anchored paths — synthetic POSIX
+        # strings break on Windows where .resolve() anchors to the current drive.
+        repo_root = tmp_path / "vera"
+        cwd = repo_root / "src" / "vera_studio" / "quality"
+        cwd.mkdir(parents=True)
+        branch = _get_cwd_branch(str(cwd), repo_root)
+        assert branch == "quality"
+
+    def test_get_cwd_branch_aipass_still_works(self, tmp_path):
+        from aipass.hooks.apps.handlers.security.subagent_gate import _get_cwd_branch
+
+        repo_root = tmp_path / "AIPass"
+        cwd = repo_root / "src" / "aipass" / "hooks"
+        cwd.mkdir(parents=True)
+        branch = _get_cwd_branch(str(cwd), repo_root)
+        assert branch == "hooks"
+
+    def test_get_package_from_cwd_external(self):
+        from aipass.hooks.apps.handlers.security.subagent_gate import _get_package_from_cwd
+
+        assert _get_package_from_cwd("/home/user/Projects/vera/src/vera_studio/quality") == "vera_studio"
+        assert _get_package_from_cwd("/home/user/Projects/AIPass/src/aipass/hooks") == "aipass"
+        assert _get_package_from_cwd("/tmp/no-src-here") == ""
+
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
+    def test_violations_block_external_project(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+        from pathlib import Path
+
+        mock_root.return_value = Path("/fake/vera")
+        mock_modified.return_value = ["/fake/vera/src/vera_studio/quality/apps/bad.py"]
+        mock_seedgo.return_value = ["Missing docstring"]
+        result = handle({"cwd": "/fake/vera/src/vera_studio/quality"})
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+        assert "Missing docstring" in parsed["reason"]
+
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist", return_value=[])
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
+    def test_clean_files_allow_external_project(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+        from pathlib import Path
+
+        mock_root.return_value = Path("/fake/vera")
+        mock_modified.return_value = ["/fake/vera/src/vera_studio/quality/apps/clean.py"]
+        result = handle({"cwd": "/fake/vera/src/vera_studio/quality"})
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""

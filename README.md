@@ -12,6 +12,9 @@
 </p>
 <p align="center"><strong>Persistent Agent Workspace</strong></p>
 <p align="center"><em>AI agents that remember, collaborate, and never start from zero.</em></p>
+<p align="center">
+  <a href="https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass"><img src="https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge" alt="OpenSSF Scorecard" /></a>
+</p>
 
 ![demo](assets/demo.gif)
 

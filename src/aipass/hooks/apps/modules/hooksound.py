@@ -12,6 +12,7 @@
 
 from aipass.cli.apps.modules import err_console
 from aipass.hooks.apps.sound import MUTE_FLAG, is_muted
+from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: F401
 
 CONSOLE = err_console
 
@@ -25,7 +26,11 @@ def print_introspection():
 def handle_command(command: str, args: list) -> bool:
     """Route hooksound commands from drone @hooks."""
     if command == "hooksound":
-        sub = args[0] if args else None
+        if not args:
+            print_introspection()
+            return True
+
+        sub = args[0]
 
         if sub in ("--help", "-h", "help"):
             CONSOLE.print("[bold cyan]hooksound[/bold cyan] — Mute/unmute all hook audio")
@@ -44,16 +49,6 @@ def handle_command(command: str, args: list) -> bool:
             if MUTE_FLAG.exists():
                 MUTE_FLAG.unlink()
             CONSOLE.print("[green]Hook sounds ACTIVE[/green]")
-            return True
-
-        if sub is None:
-            if is_muted():
-                CONSOLE.print("[yellow]Hook sounds: MUTED[/yellow]")
-                CONSOLE.print(f"  Flag: {MUTE_FLAG}")
-                CONSOLE.print("  Run: drone @hooks hooksound on")
-            else:
-                CONSOLE.print("[green]Hook sounds: ACTIVE[/green]")
-                CONSOLE.print("  Run: drone @hooks hooksound off")
             return True
 
     return False

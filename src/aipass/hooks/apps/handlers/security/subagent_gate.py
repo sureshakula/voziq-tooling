@@ -25,6 +25,15 @@ def _block(reason: str) -> dict:
     return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
 
 
+def _get_package_from_cwd(cwd: str) -> str:
+    """Derive package name from CWD path (e.g., 'aipass' from src/aipass/hooks)."""
+    parts = Path(cwd).parts
+    for i, part in enumerate(parts):
+        if part == "src" and i + 2 < len(parts):
+            return parts[i + 1]
+    return ""
+
+
 def _find_repo_root(cwd: str) -> Path | None:
     """Walk up from AIPASS_HOME or CWD to find the git repo root."""
     for start in (os.environ.get("AIPASS_HOME", ""), cwd):
@@ -39,20 +48,25 @@ def _find_repo_root(cwd: str) -> Path | None:
 
 
 def _get_cwd_branch(cwd: str, repo_root: Path) -> str | None:
-    """Detect which branch directory (src/aipass/<name>) the CWD is in."""
-    src = repo_root / "src" / "aipass"
+    """Detect which branch directory (src/<package>/<name>) the CWD is in."""
+    package = _get_package_from_cwd(cwd)
+    if not package:
+        logger.info("[HOOKS] subagent_gate: CWD %s not inside src/<package>", cwd)
+        return None
+    src = repo_root / "src" / package
     try:
         rel = Path(cwd).resolve().relative_to(src)
         return rel.parts[0] if rel.parts else None
     except ValueError:
-        logger.info("[HOOKS] subagent_gate: CWD %s not inside src/aipass", cwd)
+        logger.info("[HOOKS] subagent_gate: CWD %s not inside %s", cwd, src)
         return None
 
 
 def _get_modified_py_files(cwd: str, repo_root: Path) -> list[str]:
     """Get modified .py files scoped to the CWD branch via drone."""
     cwd_branch = _get_cwd_branch(cwd, repo_root)
-    branch_dir = repo_root / "src" / "aipass" / cwd_branch if cwd_branch else None
+    package = _get_package_from_cwd(cwd)
+    branch_dir = repo_root / "src" / package / cwd_branch if (cwd_branch and package) else None
     if not branch_dir or not branch_dir.exists():
         return []
     result = subprocess.run(
@@ -105,7 +119,8 @@ def _run_seedgo_checklist(file_path: str, repo_root: Path) -> list[str]:
 def _check_hook_readme_accountability(cwd: str, repo_root: Path) -> str | None:
     """Return advisory if hook files changed without README update."""
     cwd_branch = _get_cwd_branch(cwd, repo_root)
-    branch_dir = repo_root / "src" / "aipass" / cwd_branch if cwd_branch else None
+    package = _get_package_from_cwd(cwd)
+    branch_dir = repo_root / "src" / package / cwd_branch if (cwd_branch and package) else None
     if not branch_dir or not branch_dir.exists():
         return None
     result = subprocess.run(

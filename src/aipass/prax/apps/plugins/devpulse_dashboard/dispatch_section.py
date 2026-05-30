@@ -56,7 +56,7 @@ def _read_lock(lock_path: Path) -> Dict:
 def build_dispatch_section(branch_path: Path) -> bool:
     """Build dispatch section data and write to dashboard.
 
-    Scans all 12 branches for active dispatch locks.
+    Scans all 13 branches for active dispatch locks.
 
     Args:
         branch_path: Path to devpulse branch root.

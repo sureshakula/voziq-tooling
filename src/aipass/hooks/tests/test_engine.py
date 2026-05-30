@@ -18,11 +18,11 @@ from unittest.mock import MagicMock, patch
 
 from aipass.hooks.apps.modules.engine import (
     dispatch,
-    find_project_config,
     _matches,
     _run_hook,
     _log,
 )
+from aipass.hooks.apps.handlers.config.loader import find_project_config
 
 
 class TestMatches:
@@ -365,7 +365,7 @@ class TestHooksEntryPoint:
     def test_status_command_returns_true(self):
         from aipass.hooks.apps.hooks import handle_command
 
-        with patch("aipass.hooks.apps.modules.engine.find_project_config", return_value=None):
+        with patch("aipass.hooks.apps.handlers.config.loader.find_project_config", return_value=None):
             result = handle_command("status", [])
         assert result is True
 
@@ -551,7 +551,6 @@ class TestConftest:
         from aipass.hooks.apps.modules import engine
 
         assert hasattr(engine, "dispatch")
-        assert hasattr(engine, "find_project_config")
 
 
 class TestCliRouting:
@@ -568,7 +567,7 @@ class TestCliRouting:
     def test_output_capture_status(self, capsys):
         from aipass.hooks.apps.hooks import handle_command
 
-        with patch("aipass.hooks.apps.modules.engine.find_project_config", return_value=None):
+        with patch("aipass.hooks.apps.modules.hookstatus.find_project_config", return_value=None):
             handle_command("status", [])
         captured = capsys.readouterr()
         assert "No .aipass/hooks.json" in captured.err

@@ -32,3 +32,28 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Extract latest CHANGELOG section
+        run: |
+          # Grab the topmost "## [...]" block from CHANGELOG.md as release notes.
+          awk '/^## \[/{c++} c==1' CHANGELOG.md | sed '/^---$/d' > release_notes.md
+          echo "Release notes:" && cat release_notes.md
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release_notes.md \
+            dist/*

@@ -73,7 +73,8 @@ class TestCompactHandler:
 
         with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value=None):
-                result = handle({"cwd": str(tmp_path)})
+                with patch.dict("os.environ", {"AIPASS_SESSION_TYPE": ""}):
+                    result = handle({"cwd": str(tmp_path)})
 
         assert "Recovery Protocol" in result["stdout"]
 

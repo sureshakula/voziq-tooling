@@ -21,7 +21,8 @@ Supports two forms:
 
 import sys
 
-from aipass.hooks.apps.modules.engine import dispatch, find_project_config
+from aipass.hooks.apps.modules.engine import dispatch
+from aipass.hooks.apps.handlers.config.loader import find_project_config
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 

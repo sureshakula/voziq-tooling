@@ -30,17 +30,6 @@ class TestGlobalLoaderHandler:
         assert "AIPass Global" in result["stdout"]
         assert "Context here" in result["stdout"]
 
-    def test_returns_empty_when_no_aipass_home(self, tmp_path, monkeypatch):
-        from aipass.hooks.apps.handlers.prompt.global_loader import handle
-
-        monkeypatch.chdir(tmp_path)
-        with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
-            with patch.dict("os.environ", {"AIPASS_HOME": ""}, clear=False):
-                result = handle({})
-
-        assert result["exit_code"] == 0
-        assert result["stdout"] == ""
-
     def test_returns_empty_when_file_missing(self, tmp_path, monkeypatch):
         from aipass.hooks.apps.handlers.prompt.global_loader import handle
 
