@@ -12,6 +12,15 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **External projects can call AIPass branches via drone** — `drone @api ...`
+  (and any `drone @X`) now resolves from a non-AIPass project CWD instead of
+  being blocked with "path escapes project root." The resolver was validating a
+  branch's path against the *primary* registry root even when the branch was
+  found via the `AIPASS_HOME` fallback, so any external project (Vera Studio,
+  Daemon) hit a false security block. `resolve_branch()` now validates
+  containment against the registry the branch was actually found in. Security is
+  unchanged — each branch is still contained within its own declaring registry's
+  root; genuine path escapes remain blocked. (#618)
 - **`aipass <command>` runs instead of printing an introspection banner** —
   `aipass` is a user-facing binary, so `aipass doctor` (and every other command)
   must execute, not describe itself. All 7 modules (`doctor`, `doctor_fix`,

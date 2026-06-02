@@ -447,3 +447,95 @@ class TestResolverPathContainment:
             assert "legit" in result
         finally:
             reset_registry_path()
+
+
+# ===========================================================================
+# Cross-project resolution (issue #618)
+# ===========================================================================
+
+
+class TestCrossProjectResolution:
+    """resolve_branch() uses the source registry root for containment, not always the primary."""
+
+    def test_cross_project_resolves_via_aipass_home(self, tmp_path: Path, monkeypatch):
+        """Branch found via AIPASS_HOME resolves even when primary registry is a different project."""
+        # External project with its own registry
+        ext_project = tmp_path / "external_project"
+        ext_project.mkdir()
+        ext_reg = ext_project / "EXT_REGISTRY.json"
+        _write_registry(ext_reg, [_make_branch("local_branch", "src/local_branch")])
+
+        # AIPass project with @target branch
+        aipass_root = tmp_path / "aipass"
+        target_dir = aipass_root / "src" / "aipass" / "target"
+        target_dir.mkdir(parents=True)
+        aipass_reg = aipass_root / "AIPASS_REGISTRY.json"
+        _write_registry(
+            aipass_reg,
+            [_make_branch("target", str(target_dir))],
+        )
+
+        # Primary registry = external project, AIPASS_HOME = aipass root
+        set_registry_path(ext_reg)
+        monkeypatch.setenv("AIPASS_HOME", str(aipass_root))
+        try:
+            result = resolve_branch("@target")
+            assert str(target_dir) in result
+        finally:
+            reset_registry_path()
+
+    def test_genuine_escape_still_blocked(self, tmp_path: Path, monkeypatch):
+        """Branch whose path escapes its OWN declaring registry root is still blocked."""
+        ext_project = tmp_path / "external_project"
+        ext_project.mkdir()
+        ext_reg = ext_project / "EXT_REGISTRY.json"
+        _write_registry(ext_reg, [])
+
+        aipass_root = tmp_path / "aipass"
+        aipass_root.mkdir()
+        aipass_reg = aipass_root / "AIPASS_REGISTRY.json"
+        _write_registry(
+            aipass_reg,
+            [_make_branch("evil", "../../../tmp/escape")],
+        )
+
+        set_registry_path(ext_reg)
+        monkeypatch.setenv("AIPASS_HOME", str(aipass_root))
+        try:
+            with pytest.raises(BranchNotFoundError):
+                resolve_branch("@evil")
+        finally:
+            reset_registry_path()
+
+    def test_same_project_regression(self, tmp_path: Path, monkeypatch):
+        """Same-project resolution still works (no regression)."""
+        branch_dir = tmp_path / "src" / "aipass" / "mybranch"
+        branch_dir.mkdir(parents=True)
+        reg_file = tmp_path / "AIPASS_REGISTRY.json"
+        _write_registry(
+            reg_file,
+            [_make_branch("mybranch", "src/aipass/mybranch")],
+        )
+
+        set_registry_path(reg_file)
+        monkeypatch.delenv("AIPASS_HOME", raising=False)
+        try:
+            result = resolve_branch("@mybranch")
+            assert "mybranch" in result
+        finally:
+            reset_registry_path()
+
+    def test_branch_exists_still_works(self, tmp_path: Path, monkeypatch):
+        """branch_exists() is unaffected by the get_branch_with_registry change."""
+        branch_dir = tmp_path / "src" / "aipass" / "alpha"
+        branch_dir.mkdir(parents=True)
+        reg_file = tmp_path / "AIPASS_REGISTRY.json"
+        _write_registry(reg_file, [_make_branch("alpha", "src/aipass/alpha")])
+
+        set_registry_path(reg_file)
+        monkeypatch.delenv("AIPASS_HOME", raising=False)
+        try:
+            assert branch_exists("@alpha") is True
+            assert branch_exists("@nonexistent") is False
+        finally:
+            reset_registry_path()

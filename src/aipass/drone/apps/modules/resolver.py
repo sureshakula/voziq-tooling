@@ -25,7 +25,7 @@ from aipass.drone.apps.handlers.registry_handler import (
     load_registry,
     get_all_branches,
     get_branch_by_name,
-    get_registry_path,
+    get_branch_with_registry,
     _validate_branch_path,
 )
 
@@ -156,13 +156,14 @@ def resolve_branch(symbolic_name: str) -> str:
         raise BranchNotFoundError(f"Branch name must use @ prefix: '@{symbolic_name}' (got '{symbolic_name}')")
 
     name = normalize_branch_name(symbolic_name).lower()
-    branch = get_branch_by_name(name)
+    result = get_branch_with_registry(name)
 
-    if branch is None:
+    if result is None:
         raise BranchNotFoundError(f"Branch '{symbolic_name}' not found in registry")
 
+    branch, source_registry = result
     branch_path = Path(branch["path"])
-    project_root = get_registry_path().parent
+    project_root = source_registry.parent
     if not branch_path.is_absolute():
         branch_path = project_root / branch_path
     if not _validate_branch_path(branch_path, project_root, name):
