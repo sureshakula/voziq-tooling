@@ -260,6 +260,41 @@
       "file": "apps/handlers/init/scaffold_content.py",
       "standard": "json_structure",
       "reason": "scaffold_content.py is Pure Python only (no module/prax/cli imports) by design — pure string-returning template generators extracted from bootstrap.py. Same constraint as bootstrap.py."
+    },
+    {
+      "file": "apps/modules/doctor.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass doctor runs the command; introspection via --info"
+    },
+    {
+      "file": "apps/modules/doctor_fix.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare invocation shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/doctor_wire.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare invocation shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/handoff.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass handoff shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/help_chat.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass help shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/init_flow.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass init shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/profile.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass profile runs the command; introspection via --info"
     }
   ]
 }

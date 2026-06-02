@@ -141,6 +141,10 @@ def handle_command(command: str, args: list[str]) -> bool:
         print_help()
         return True
 
+    if args[0] == "--info":
+        print_introspection()
+        return True
+
     if args[0] == "set":
         if len(args) < 3:
             error("Usage: aipass profile set <field> <value>")

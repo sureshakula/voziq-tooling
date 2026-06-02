@@ -304,12 +304,12 @@ def handle_command(command: str, args: list[str]) -> bool:
         return False
 
     if not args:
-        print_introspection()
-        json_handler.log_operation("doctor_fix_info", {"command": command})
+        console.print("[dim]Helper module — use: aipass doctor --fix [--json][/dim]")
+        json_handler.log_operation("doctor_fix_usage", {"command": command})
         return True
 
     if args[0] in ("--help", "-h", "help"):
-        print_introspection()
+        console.print("[dim]Helper module — use: aipass doctor --fix [--json][/dim]")
         json_handler.log_operation("doctor_fix_help", {"command": command})
         return True
 

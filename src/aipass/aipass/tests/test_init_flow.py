@@ -198,10 +198,17 @@ class TestHandleCommand:
         assert handle_command("doctor", []) is False
         assert handle_command("profile", ["set", "name", "X"]) is False
 
-    def test_no_args_shows_introspection(self, tmp_local_json) -> None:
-        """'init' with no args calls print_introspection."""
-        with patch("aipass.aipass.apps.modules.init_flow.print_introspection") as mock_intro:
+    def test_no_args_shows_help(self, tmp_local_json) -> None:
+        """'init' with no args calls print_help (not introspection banner)."""
+        with patch("aipass.aipass.apps.modules.init_flow.print_help") as mock_help:
             result = handle_command("init", [])
+        assert result is True
+        mock_help.assert_called_once()
+
+    def test_info_flag_calls_introspection(self, tmp_local_json) -> None:
+        """--info flag calls print_introspection."""
+        with patch("aipass.aipass.apps.modules.init_flow.print_introspection") as mock_intro:
+            result = handle_command("init", ["--info"])
         assert result is True
         mock_intro.assert_called_once()
 

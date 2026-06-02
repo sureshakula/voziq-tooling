@@ -283,13 +283,13 @@ def handle_command(command: str, args: list[str]) -> bool:
         return False
 
     if not args:
-        print_introspection()
-        json_handler.log_operation("doctor_wire_info", {"command": command})
+        console.print("[dim]Helper module — use: aipass doctor (auto-wire runs when needed)[/dim]")
+        json_handler.log_operation("doctor_wire_usage", {"command": command})
         return True
 
     if args[0] in ("--help", "-h", "help"):
-        print_introspection()
-        json_handler.log_operation("doctor_wire_info", {"command": command})
+        console.print("[dim]Helper module — use: aipass doctor (auto-wire runs when needed)[/dim]")
+        json_handler.log_operation("doctor_wire_help", {"command": command})
         return True
 
     if args[0] in ("--info", "info"):

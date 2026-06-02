@@ -645,13 +645,18 @@ def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bo
         "cli_choice": accumulated.get("cli", "claude"),
         "total_agents": 1,
         "system": system_data,
-        "note": "You are the first agent created in this project. You are the orchestrator. After dispatching work to other agents, monitor them with: drone @devpulse watchdog agent @target",
+        "note": (
+            "You are the first agent created in this project. You are the orchestrator."
+            " After dispatching work to other agents, monitor them with:"
+            " drone @devpulse watchdog agent @target"
+        ),
     }
     provider_gaps = accumulated.get("provider_gaps", {})
     if provider_gaps:
         report["provider_gaps"] = provider_gaps
         report["provider_action"] = (
-            "Provider settings need configuring. Tell the user what is missing and point them to provider_manifest.json for details."
+            "Provider settings need configuring. Tell the user what is missing"
+            " and point them to provider_manifest.json for details."
         )
     report_path = dropbox / "init_report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -917,11 +922,15 @@ def handle_command(command: str, args: list[str]) -> bool:
         return False
 
     if not args:
-        print_introspection()
+        print_help()
         return True
 
     if args[0] in ("--help", "-h", "help"):
         print_help()
+        return True
+
+    if args[0] == "--info":
+        print_introspection()
         return True
 
     if args[0] == "agent":

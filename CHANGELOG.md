@@ -8,6 +8,27 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
+## [2026.W23] - 2026-06-02
+
+### Fixed
+
+- **`aipass <command>` runs instead of printing an introspection banner** —
+  `aipass` is a user-facing binary, so `aipass doctor` (and every other command)
+  must execute, not describe itself. All 7 modules (`doctor`, `doctor_fix`,
+  `doctor_wire`, `handoff`, `help_chat`, `init_flow`, `profile`) previously hit a
+  no-args→introspection gate (a standard meant for `drone @branch <module>`
+  discovery) and showed a banner on bare invocation. Now bare invocation runs the
+  command or shows usage; the introspection banner moved to `--info`. The seedgo
+  introspection standard is bypassed for these binary-invoked modules (documented).
+- **Dashboard plan counts no longer zeroed on refresh** — a branch's
+  `active_plans` was reset to `0` by every `drone @prax dashboard refresh`, because
+  `PLANS.central.json` only held Flow's own plans (`location==FLOW_ROOT` filter).
+  The central file is now comprehensive: all plans grouped per-branch, so refresh
+  reports each branch's real count (e.g. devpulse now shows its 12 open plans
+  instead of 0).
+
+---
+
 ## [2026.W22] - 2026-05-30
 
 ### Added

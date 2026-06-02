@@ -52,20 +52,6 @@ _ENCODING = "utf-8"
 # =============================================================================
 
 
-def _call_handle_command_no_args():
-    """Call handle_command('help', []) with json_handler and console mocked."""
-    mock_console = MagicMock()
-    patches = [
-        patch("aipass.aipass.apps.modules.help_chat.json_handler"),
-        patch("aipass.aipass.apps.modules.help_chat.console", mock_console),
-    ]
-    with ExitStack() as stack:
-        for p in patches:
-            stack.enter_context(p)
-        result = handle_command("help", [])
-    return result, mock_console
-
-
 def _call_handle_command_drone_question(readme_content: str, readme_path: Path):
     """Call handle_command for 'what does drone do' with file I/O mocked."""
     patches = [
@@ -367,11 +353,21 @@ class TestHandleCommand:
         """COMMAND module constant must equal the string 'help'."""
         assert COMMAND == "help"
 
-    def test_no_args_returns_true_and_calls_console(self):
-        """handle_command('help', []) must return True and print usage via console."""
-        result, mock_console = _call_handle_command_no_args()
+    def test_no_args_returns_true_and_shows_help(self):
+        """handle_command('help', []) must return True and print usage help."""
+        with patch("aipass.aipass.apps.modules.help_chat.print_help") as mock_help:
+            with patch("aipass.aipass.apps.modules.help_chat.json_handler"):
+                result = handle_command("help", [])
         assert result is True
-        mock_console.print.assert_called()
+        mock_help.assert_called_once()
+
+    def test_info_flag_calls_introspection(self):
+        """--info flag triggers print_introspection."""
+        with patch("aipass.aipass.apps.modules.help_chat.print_introspection") as mock_intro:
+            with patch("aipass.aipass.apps.modules.help_chat.json_handler"):
+                result = handle_command("help", ["--info"])
+        assert result is True
+        mock_intro.assert_called_once()
 
     def test_valid_drone_question_returns_true(self):
         """A well-formed question about drone must return True."""

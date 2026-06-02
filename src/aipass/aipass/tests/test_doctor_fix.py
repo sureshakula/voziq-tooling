@@ -364,14 +364,15 @@ class TestDoctorFixHandleCommand:
         assert handle_command("doctor", []) is False
         assert handle_command("help", []) is False
 
-    def test_no_args_calls_introspection(self) -> None:
-        """No args triggers print_introspection."""
+    def test_no_args_shows_usage(self) -> None:
+        """No args shows usage message (not introspection banner)."""
         from aipass.aipass.apps.modules.doctor_fix import handle_command
 
-        with patch("aipass.aipass.apps.modules.doctor_fix.print_introspection") as mock:
+        with patch("aipass.aipass.apps.modules.doctor_fix.console") as mock_console:
             result = handle_command("doctor_fix", [])
         assert result is True
-        mock.assert_called_once()
+        printed = " ".join(str(c) for c in mock_console.print.call_args_list)
+        assert "aipass doctor --fix" in printed
 
     def test_info_flag(self) -> None:
         """--info triggers print_introspection."""

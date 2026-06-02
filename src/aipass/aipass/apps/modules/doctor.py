@@ -664,15 +664,11 @@ def handle_command(command: str, args: list[str]) -> bool:
     if command != "doctor":
         return False
 
-    if not args:
-        print_introspection()
-        return True
-
-    if args[0] in ("--help", "-h", "help"):
+    if args and args[0] in ("--help", "-h", "help"):
         print_help()
         return True
 
-    if args[0] == "--info":
+    if args and args[0] == "--info":
         print_introspection()
         return True
 
