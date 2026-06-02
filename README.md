@@ -4,7 +4,6 @@
 [![PyPI](https://img.shields.io/pypi/v/aipass)](https://pypi.org/project/aipass/)
 [![Give Feedback](https://img.shields.io/badge/Give-Feedback-brightgreen)](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml)
 [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass)
-[![OSS Health](https://oss-health-monitor.vercel.app/api/badge/AIOSAI/AIPass)](https://github.com/volotat/OSS-Health-Monitor)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge)](https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass)
 
 <p align="center">
