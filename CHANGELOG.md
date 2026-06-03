@@ -94,6 +94,10 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   GHSA-9hjg-9r4m-mvj7, GHSA-gc5v-m9x4-r6x2) — the oldest surfaced only because the
   dependency was declared without a version bound. No runtime change (the AIPass
   venv already ran a fixed release). (DPLAN-0193)
+- **Pinned the test container base image by digest** — `Dockerfile.test` now pins
+  `ubuntu:24.04` to its registry digest (`sha256:786a8b55…`) so the test image is
+  reproducible and tamper-evident, clearing the Scorecard `containerImage not
+  pinned by hash` finding. (DPLAN-0193)
 
 ---
 
