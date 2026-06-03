@@ -159,6 +159,31 @@
       "reason": "Test file — intentionally outside 3-layer structure. tests/ is a peer of apps/, not part of it."
     },
     {
+      "file": "tests/test_rm.py",
+      "standard": "architecture",
+      "reason": "Test file — intentionally outside 3-layer structure. tests/ is a peer of apps/, not part of it."
+    },
+    {
+      "file": "tests/test_rm.py",
+      "standard": "encapsulation",
+      "reason": "Test file imports rm_handler directly to test its public interface. Unit tests require direct access to implementation components."
+    },
+    {
+      "file": "tests/test_rm.py",
+      "standard": "documentation",
+      "reason": "Test class docstrings describe intent; per-method docstrings would be noise for assertion-named test methods."
+    },
+    {
+      "file": "tests/test_rm.py",
+      "standard": "meta",
+      "reason": "Test file — META blocks are for production source files, not test suites."
+    },
+    {
+      "file": "tests/test_rm.py",
+      "standard": "trigger",
+      "reason": "Test file exercises .unlink() to verify deletion behavior — not a production file operation requiring trigger events."
+    },
+    {
       "file": "CLAUDE.md",
       "standard": "architecture",
       "reason": "Template builder expects CLAUDE.md — drone uses .aipass/aipass_local_prompt.md for branch context instead. Not a missing file."

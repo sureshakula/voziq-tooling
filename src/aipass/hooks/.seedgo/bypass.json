@@ -35,6 +35,10 @@
     {"file": "apps/handlers/security/git_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.git_gate)."},
     {"file": "apps/handlers/security/git_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
 
+    {"file": "apps/handlers/security/rm_gate.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.rm_gate.handle' — not statically imported by design. Wired in PreToolUse.rm_gate."},
+    {"file": "apps/handlers/security/rm_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreToolUse.rm_gate."},
+    {"file": "apps/handlers/security/rm_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
+
     {"file": "apps/handlers/security/subagent_gate.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.subagent_gate.handle' — not statically imported by design. Verified wired in SubagentStop.subagent_stop_gate + fires in engine.jsonl."},
     {"file": "apps/handlers/security/subagent_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (SubagentStop.subagent_stop_gate)."},
     {"file": "apps/handlers/security/subagent_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
@@ -181,6 +185,11 @@
     {"file": "tests/test_git_gate.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
     {"file": "tests/test_git_gate.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
     {"file": "tests/test_git_gate.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
+
+    {"file": "tests/test_rm_gate.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
+    {"file": "tests/test_rm_gate.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
+    {"file": "tests/test_rm_gate.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
+    {"file": "tests/test_rm_gate.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
 
     {"file": "tests/test_sound.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
     {"file": "tests/test_sound.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},

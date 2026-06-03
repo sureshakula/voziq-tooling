@@ -61,6 +61,7 @@ src/aipass/hooks/
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
 │   │   │   ├── git_gate.py      #   Enforces git access tiers
+│   │   │   ├── rm_gate.py       #   Blocks raw recursive rm, teaches drone rm
 │   │   │   └── subagent_gate.py #   Blocks sub-agent stop until clean
 │   │   ├── lifecycle/           # Session management hooks
 │   │   │   ├── auto_fix.py      #   Post-edit diagnostics (ruff, pyright, py_compile)
@@ -77,7 +78,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-├── tests/                       # 253 tests across 19 test files
+├── tests/                       # 314 tests across 20 test files
 └── STATUS.local.md
 ```
 
@@ -100,7 +101,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 | Event | Hooks | Description |
 |---|---|---|
 | UserPromptSubmit | identity, email, branch_loader, global_loader | Prompt injection + inbox check |
-| PreToolUse | tool_sound, edit_gate, git_gate | Security gates + sound |
+| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
 | Stop | stop_sound | Achievement bell |
@@ -119,7 +120,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 All branches via hook dispatch. Every Claude Code session routes through the engine.
 
-*Last Updated: 2026-05-28*
+*Last Updated: 2026-06-02*
 
 ---
 

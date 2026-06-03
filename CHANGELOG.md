@@ -10,6 +10,24 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W23] - 2026-06-02
 
+### Added
+
+- **`drone rm` — provider-agnostic safe delete** — a contained recursive delete
+  that lets agents clean up scratch dirs without tripping the `rm -rf` block.
+  Deletes are confined to the project root and the system temp dirs (`/tmp` and
+  `$TMPDIR`), refusing anything outside (home, `/etc`, `/`, etc.). Even inside
+  those roots it hard-refuses protected internals — `.git`, `.trinity/`,
+  `.aipass/`, `.codex/`, `.agents/`, and sibling-branch worktrees — mirroring the
+  filesystem boundary an OS-sandboxed agent (e.g. Codex) enforces, so behavior is
+  consistent across CLIs. Pure-Python (`shutil.rmtree`), with a red-team test
+  suite for containment escapes (symlinks, traversal, sibling branches). (#630)
+- **`rm_gate` hook — block raw recursive `rm`, teach the safe path** — a
+  PreToolUse gate (mirroring `git_gate`) that blocks raw `rm -r`/`-rf`/`-fr`/
+  `--recursive` and redirects the agent to `drone rm`. Provider-agnostic (runs in
+  the hook engine, not tied to Claude Code permission rules), conservative
+  (unparseable targets are blocked, not allowed), and skips `drone rm` itself.
+  This makes the safe-delete path discoverable at the moment of friction. (#630)
+
 ### Fixed
 
 - **A release merge can no longer destroy the `dev` branch** — `drone @git merge`

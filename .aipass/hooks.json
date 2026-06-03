@@ -41,6 +41,11 @@
       "handler": "aipass.hooks.apps.handlers.security.git_gate.handle",
       "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit"
     },
+    "rm_gate": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.rm_gate.handle",
+      "matcher": "Bash"
+    },
     "engine_test_sound": {
       "enabled": false,
       "command": "python3 $AIPASS_HOME/.claude/hooks/engine_test_sound.py",
