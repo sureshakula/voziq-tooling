@@ -61,6 +61,7 @@ _COMMANDS = (
     "smart-sync",
     "fix",
     "pr",
+    "prune-temp",
 )
 
 _GH_PASSTHROUGH_COMMANDS = ("issue", "run", "workflow")
@@ -167,6 +168,8 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         return _handle_fix(args, caller)
     if command == "pr":
         return _handle_pr(args)
+    if command == "prune-temp":
+        return _handle_prune_temp()
 
     available = ", ".join(_COMMANDS)
     return {
@@ -217,6 +220,15 @@ def _handle_branches() -> dict:
             "exit_code": 0,
         }
     return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+
+
+def _handle_prune_temp() -> dict:
+    """Handle the prune-temp subcommand — delete merged citizen/* branches."""
+    result = branches_handler.prune_temp_branches()
+    lines = [result["message"]]
+    for name in result.get("pruned", []):
+        lines.append(f"  deleted: {name}")
+    return {"stdout": "\n".join(lines), "stderr": "", "exit_code": 0}
 
 
 def _handle_pr(args: list[str]) -> dict:
@@ -356,6 +368,8 @@ def _handle_status(args: list[str] | None = None) -> dict:
 
     _, branch_dir = detected
 
+    branch_name = detected[0]
+
     if show_all:
         repo_root = lock_handler.find_repo_root()
         result = status_handler.get_branch_status(repo_root)
@@ -366,6 +380,9 @@ def _handle_status(args: list[str] | None = None) -> dict:
     lines = [result["message"]]
     for f in result["files"]:
         lines.append(f"  {f['status']:>2} {f['path']}")
+
+    if not show_all:
+        lines.append(f"(showing {branch_name} scope — use --all for full repo)")
 
     return {
         "stdout": "\n".join(lines),
@@ -384,18 +401,18 @@ def _handle_diff(args: list[str]) -> dict:
             "exit_code": 1,
         }
 
-    _, branch_dir = detected
+    branch_name, branch_dir = detected
     staged = "--staged" in args
     show_all = "--all" in args
 
     target_dir = lock_handler.find_repo_root() if show_all else branch_dir
     result = diff_handler.get_branch_diff(target_dir, staged=staged)
 
-    return {
-        "stdout": result["diff"] if result["diff"] else result["message"],
-        "stderr": "",
-        "exit_code": 0,
-    }
+    output = result["diff"] if result["diff"] else result["message"]
+    if not show_all:
+        output += f"\n(showing {branch_name} scope — use --all for full repo)"
+
+    return {"stdout": output, "stderr": "", "exit_code": 0}
 
 
 def _handle_log(args: list[str]) -> dict:
@@ -610,17 +627,16 @@ def get_help(command: str | None = None) -> str:
 
     return (
         "git — Tier-based git workflow (dev branch model)\n"
-        "\n"
         "Global (all branches):\n"
         "  status                 Show git status for your branch\n"
         "  diff [--staged]        Show git diff for your branch\n"
         "  log [count]            Show recent git log (default: 10)\n"
         "  lock                   Check lock status\n"
         "  branches               List remote branches\n"
+        "  prune-temp             Delete merged citizen/* temp branches\n"
         "  issue [args]           Passthrough to gh issue\n"
         "  run [args]             Passthrough to gh run\n"
         "  workflow [args]        Passthrough to gh workflow\n"
-        "\n"
         "Owner (devpulse only):\n"
         "  commit <msg> [--all | files]  Commit changes (selective or --all)\n"
         "  checkout <main|dev>    Switch branches\n"
@@ -642,52 +658,34 @@ def get_introspective() -> str:
         "@git — Tier-based git workflow, dev branch model (v3.0.0)\n"
         "Connected Handlers:\n"
         "  handlers/git/\n"
-        "    - lock_handler.py (acquire_lock, release_lock, check_lock_status, force_unlock)\n"
-        "    - status_handler.py (get_branch_status — scoped git status)\n"
-        "    - diff_handler.py (get_branch_diff — scoped git diff)\n"
-        "    - log_handler.py (get_git_log — recent log entries)\n"
-        "    - commit_handler.py (commit_changes — selective files, --all, or pre-staged)\n"
-        "    - checkout_handler.py (checkout_branch — main/dev only)\n"
-        "    - sync_handler.py (sync_main — safe main synchronization)\n"
-        "    - dev_pr_handler.py (create_branch_pr, create_dev_pr — PR to main)\n"
-        "    - branches_handler.py (list_remote_branches)\n"
-        "    - delete_branch_handler.py (delete_remote_branch — protected: main/dev)\n"
-        "    - close_pr_handler.py (close_pr — close PR by number)\n"
-        "\n"
+        "    - lock_handler.py, status_handler.py, diff_handler.py, log_handler.py\n"
+        "    - commit_handler.py, checkout_handler.py, sync_handler.py\n"
+        "    - dev_pr_handler.py, branches_handler.py, delete_branch_handler.py, close_pr_handler.py\n"
         "  plugins/devpulse_ops/\n"
-        "    - auth.py (verify_git_access — tier-based authorization)\n"
-        "    - merge_plugin.py (merge_pr — merge PR + sync)\n"
-        "    - sync_plugin.py (smart_sync — fetch + rebase if behind)\n"
-        "    - fix_plugin.py (fix_git_state — detect/fix broken states)\n"
-        "\n"
-        "  gh passthrough:\n"
-        "    - issue, run, workflow → subprocess gh <cmd> [args]\n"
-        "\n"
-        "Access Tiers: global (status, diff, log, lock, branches, issue, run, workflow) | owner (pr, commit, checkout, dev-pr, delete-branch, close-pr, sync, unlock, merge, smart-sync, fix)\n"
+        "    - auth.py, merge_plugin.py, sync_plugin.py, fix_plugin.py\n"
+        "  gh passthrough: issue, run, workflow\n"
+        "Tiers: global (status,diff,log,lock,branches,prune-temp,issue,run,workflow)"
+        " | owner (pr,commit,checkout,dev-pr,delete-branch,close-pr,sync,unlock,merge,smart-sync,fix)\n"
     )
+
+
+def _get_console():
+    try:
+        from aipass.cli.apps.modules.display import console
+
+        return console
+    except ImportError:
+        logger.warning("CLI console not available, using fallback")
+        from rich.console import Console
+
+        return Console()
 
 
 def print_introspection() -> None:
     """Print introspection (seedgo compliance)."""
-    try:
-        from aipass.cli.apps.modules.display import console
-    except ImportError:
-        logger.warning("CLI console not available, using fallback")
-        from rich.console import Console
-
-        console = Console()
-
-    console.print(get_introspective())
+    _get_console().print(get_introspective())
 
 
 def print_help() -> None:
     """Print help (seedgo compliance)."""
-    try:
-        from aipass.cli.apps.modules.display import console
-    except ImportError:
-        logger.warning("CLI console not available, using fallback")
-        from rich.console import Console
-
-        console = Console()
-
-    console.print(get_help())
+    _get_console().print(get_help())

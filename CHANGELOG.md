@@ -12,6 +12,19 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **A release merge can no longer destroy the `dev` branch** — `drone @git merge`
+  passed `--delete-branch` to `gh pr merge` unconditionally, so merging a
+  `dev`→`main` PR deleted the persistent `dev` branch on the remote and stranded
+  the working tree on `main` (the next commit silently landing on main). Merge now
+  looks up the PR's head ref and **only deletes non-protected branches** — `dev`
+  and `main` are never deleted, and an undeterminable head ref fails safe (no
+  delete). After a merge it returns the working tree to `dev` (loud warning if it
+  can't). `drone @git branches` now runs `fetch --prune` before listing so it
+  reflects the live remote instead of stale cached refs, and a new
+  `drone @git prune-temp` cleans up merged temp PR branches. (#625)
+- **`drone @git status`/`diff` show their scope** — when scoped to a branch (no
+  `--all`), output now appends "(showing <branch> scope — use --all for full
+  repo)", so an empty scoped view is no longer mistaken for a clean repo. (#623)
 - **External projects can call AIPass branches via drone** — `drone @api ...`
   (and any `drone @X`) now resolves from a non-AIPass project CWD instead of
   being blocked with "path escapes project root." The resolver was validating a
