@@ -612,3 +612,133 @@ class TestHooksJsonCheck:
         assert len(hooks_results) == 1
         assert hooks_results[0].glyph == GLYPH_WARN
         assert "init update" in hooks_results[0].remediation
+
+
+# =============================================================================
+# TestReconcileStaleDeny
+# =============================================================================
+
+
+class TestReconcileStaleDeny:
+    """Tests for stale rm deny rule migration (DPLAN-0192 Phase 2)."""
+
+    def test_no_settings_file_returns_empty(self, tmp_path) -> None:
+        """Missing settings.json returns no results."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=False)
+        assert results == []
+
+    def test_no_stale_rules_returns_pass(self, tmp_path) -> None:
+        """Settings with no stale rm rules returns PASS."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"permissions": {"deny": ["Bash(git push --force*)", "Bash(git reset --hard*)"]}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=False)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_PASS
+        assert "no stale" in results[0][2]
+
+    def test_stale_rules_detected_without_fix(self, tmp_path) -> None:
+        """Stale rm rules present returns WARN when fix=False."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(git push --force*)", "Bash(rm -r *)"]}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=False)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_WARN
+        assert "rm -rf" in results[0][2]
+        assert "rm -r " in results[0][2]
+
+    def test_fix_removes_stale_rules(self, tmp_path) -> None:
+        """fix=True removes stale rules and preserves others."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        original = {
+            "permissions": {"deny": ["Bash(rm -rf*)", "Bash(git push --force*)", "Bash(rm -r *)"]},
+            "env": {"AIPASS_HOME": "/test"},
+        }
+        settings.write_text(json.dumps(original), encoding="utf-8")
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=True)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_PASS
+        assert "removed" in results[0][2]
+        updated = json.loads(settings.read_text(encoding="utf-8"))
+        assert "Bash(rm -rf*)" not in updated["permissions"]["deny"]
+        assert "Bash(rm -r *)" not in updated["permissions"]["deny"]
+        assert "Bash(git push --force*)" in updated["permissions"]["deny"]
+        assert updated["env"]["AIPASS_HOME"] == "/test"
+
+    def test_fix_single_stale_rule(self, tmp_path) -> None:
+        """fix=True works when only one of two stale rules is present."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(git reset --hard*)"]}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=True)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_PASS
+        updated = json.loads(settings.read_text(encoding="utf-8"))
+        assert updated["permissions"]["deny"] == ["Bash(git reset --hard*)"]
+
+    def test_fix_idempotent(self, tmp_path) -> None:
+        """Running fix twice is safe — second run returns PASS with no stale rules."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(rm -r *)"]}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            reconcile_stale_deny(fix=True)
+            results = reconcile_stale_deny(fix=True)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_PASS
+        assert "no stale" in results[0][2]
+
+    def test_empty_deny_list_returns_pass(self, tmp_path) -> None:
+        """Empty deny list returns PASS."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"permissions": {"deny": []}}), encoding="utf-8")
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=False)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_PASS
+
+    def test_no_permissions_key_returns_pass(self, tmp_path) -> None:
+        """Settings without permissions key returns PASS."""
+        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"env": {"FOO": "bar"}}), encoding="utf-8")
+        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+            results = reconcile_stale_deny(fix=False)
+        assert len(results) == 1
+        assert results[0][1] == GLYPH_PASS

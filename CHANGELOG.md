@@ -28,6 +28,17 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   (unparseable targets are blocked, not allowed), and skips `drone rm` itself.
   This makes the safe-delete path discoverable at the moment of friction. (#630)
 
+### Changed
+
+- **Retired the blanket `rm` deny from provider settings** — `setup.sh` and
+  `aipass init` no longer ship `Bash(rm -rf*)` / `Bash(rm -r *)` deny rules
+  (they were mis-filed among git rules, blocked all `/tmp` cleanup, and gave a
+  bare "permission denied" with no guidance). The `rm_gate` hook + `drone rm`
+  now own this — cross-provider, path-aware, and they teach. `aipass doctor`
+  detects the stale rules on existing installs and `aipass doctor --fix` removes
+  them (idempotent, preserves all other rules). Claude Code still natively
+  circuit-breaks `rm -rf /` and `rm -rf ~`. (#630)
+
 ### Fixed
 
 - **A release merge can no longer destroy the `dev` branch** — `drone @git merge`

@@ -51,6 +51,56 @@ ENV_DESCRIPTIONS: Dict[str, str] = {
 
 
 # =============================================================================
+# STALE DENY RULE MIGRATION
+# =============================================================================
+
+_STALE_RM_DENY_RULES = frozenset({"Bash(rm -rf*)", "Bash(rm -r *)"})
+
+
+def reconcile_stale_deny(fix: bool = False) -> list:
+    """Detect and optionally remove stale rm deny rules from provider settings.
+
+    Returns list of (label, glyph, detail, remediation) tuples matching
+    doctor.CheckResult shape — imported as tuples to avoid circular import.
+    """
+    from aipass.aipass.apps.handlers.ui.progress import GLYPH_PASS, GLYPH_WARN
+
+    results: list = []
+    settings_path = Path.home() / ".claude" / "settings.json"
+    if not settings_path.exists():
+        return results
+
+    data = json_handler.load_path(settings_path)
+    if data is None:
+        return results
+
+    deny = data.get("permissions", {}).get("deny", [])
+    stale = [r for r in deny if r in _STALE_RM_DENY_RULES]
+
+    if not stale:
+        results.append(("rm deny migration", GLYPH_PASS, "no stale rules", ""))
+        return results
+
+    if fix:
+        deny_cleaned = [r for r in deny if r not in _STALE_RM_DENY_RULES]
+        data.setdefault("permissions", {})["deny"] = deny_cleaned
+        json_handler.save_path(settings_path, data)
+        removed = ", ".join(stale)
+        results.append(("rm deny migration", GLYPH_PASS, f"removed: {removed}", ""))
+        logger.info("[doctor] removed stale deny rules: %s", stale)
+    else:
+        found = ", ".join(stale)
+        results.append(
+            (
+                "rm deny migration",
+                GLYPH_WARN,
+                f"stale rules: {found}",
+                "Run aipass doctor --fix to remove (rm_gate + drone rm replace these)",
+            )
+        )
+
+    return results
+
 
 # =============================================================================
 # AUTO-WIRE

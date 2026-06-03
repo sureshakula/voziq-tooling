@@ -38,6 +38,7 @@ from aipass.aipass.apps.modules.doctor_fix import (
 from aipass.aipass.apps.modules.doctor_wire import (
     _auto_wire_provider,
     prompt_auto_wire,
+    reconcile_stale_deny,
 )
 from aipass.aipass.apps.handlers.system_detect.system_detector import (
     detect_cpu,
@@ -68,9 +69,6 @@ class CheckResult(NamedTuple):
     remediation: str
 
 
-# --- Identity helpers ---
-
-
 def _find_registry() -> Path | None:
     """Walk up from CWD first (user's project), then branch root."""
     cwd = Path.cwd()
@@ -85,9 +83,6 @@ def _find_registry() -> Path | None:
         if candidate.exists():
             return candidate
     return None
-
-
-# --- Check groups ---
 
 
 def _check_system() -> List[CheckResult]:
@@ -147,11 +142,10 @@ def _check_identity() -> List[CheckResult]:
     """Run Identity group checks."""
     results: List[CheckResult] = []
 
-    # Project root — derived from registry location
-    reg = _find_registry()
-    project_root = str(reg.parent) if reg else ""
-    if project_root:
-        results.append(CheckResult("AIPASS_HOME", GLYPH_PASS, project_root, ""))
+    # Project root + registry — single lookup
+    reg_path = _find_registry()
+    if reg_path:
+        results.append(CheckResult("AIPASS_HOME", GLYPH_PASS, str(reg_path.parent), ""))
     else:
         home = os.environ.get("AIPASS_HOME", "")
         if home:
@@ -166,8 +160,6 @@ def _check_identity() -> List[CheckResult]:
                 )
             )
 
-    # Registry present
-    reg_path = _find_registry()
     if reg_path is None:
         results.append(CheckResult("registry", GLYPH_FAIL, "not found", "Run 'aipass init' to create registry"))
         return results
@@ -451,6 +443,10 @@ def _check_services(verbose: bool = False) -> List[CheckResult]:
     manifest_checks = _check_provider_manifest()
     results.extend(manifest_checks)
 
+    # stale rm deny rules — detect only (fix runs in run_doctor when --fix)
+    for tup in reconcile_stale_deny(fix=False):
+        results.append(CheckResult(*tup))
+
     return results
 
 
@@ -587,6 +583,12 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
             groups["Services"] = [
                 r for r in groups.get("Services", []) if r.label not in ("hooks", "env vars", "permissions")
             ] + manifest_results
+
+    if fix:
+        stale_results = [CheckResult(*tup) for tup in reconcile_stale_deny(fix=True)]
+        if stale_results:
+            services = groups.get("Services", [])
+            groups["Services"] = [r for r in services if r.label != "rm deny migration"] + stale_results
 
     pass_count = 0
     warn_count = 0
