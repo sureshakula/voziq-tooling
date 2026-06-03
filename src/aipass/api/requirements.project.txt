@@ -2,7 +2,7 @@
 # These are beyond the base AIPass requirements
 # Install with: pip install -r requirements.project.txt
 
-requests
+requests>=2.34.2
 rich
 google-auth
 google-auth-oauthlib

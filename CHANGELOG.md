@@ -84,6 +84,17 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   reports each branch's real count (e.g. devpulse now shows its 12 open plans
   instead of 0).
 
+### Security
+
+- **Pinned the `requests` floor to a non-vulnerable version** — raised
+  `requests` to `>=2.34.2` in `pyproject.toml` and the API branch's
+  `requirements.project.txt` (which previously listed it unconstrained). This
+  clears six OSV advisories the OpenSSF Scorecard flagged against the dependency
+  (PYSEC-2014-13, PYSEC-2014-14, PYSEC-2018-28, GHSA-9wx4-h78v-vm56,
+  GHSA-9hjg-9r4m-mvj7, GHSA-gc5v-m9x4-r6x2) — the oldest surfaced only because the
+  dependency was declared without a version bound. No runtime change (the AIPass
+  venv already ran a fixed release). (DPLAN-0193)
+
 ---
 
 ## [2026.W22] - 2026-05-30
