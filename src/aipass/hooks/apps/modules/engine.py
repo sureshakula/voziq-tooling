@@ -139,9 +139,10 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
             result = _run_hook(command, stdin_data, timeout_s=hook_timeout)
 
         logger.info(
-            "[HOOKS] %s.%s exit=%d out=%db %dms",
+            "[HOOKS] %s.%s agent=%s exit=%d out=%db %dms",
             event_type,
             hook_name,
+            parsed.get("agent_type", "") or "main",
             result["exit_code"],
             len(result["stdout"]),
             result["elapsed_ms"],
@@ -151,6 +152,8 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
                 "ts": time.time(),
                 "event": event_type,
                 "hook": hook_name,
+                "agent_type": parsed.get("agent_type", ""),
+                "agent_id": parsed.get("agent_id", ""),
                 "exit_code": result["exit_code"],
                 "elapsed_ms": result["elapsed_ms"],
                 "stdout_len": len(result["stdout"]),

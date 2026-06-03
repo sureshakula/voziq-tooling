@@ -27,6 +27,12 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   the hook engine, not tied to Claude Code permission rules), conservative
   (unparseable targets are blocked, not allowed), and skips `drone rm` itself.
   This makes the safe-delete path discoverable at the moment of friction. (#630)
+- **Hook engine logs `agent_type` / `agent_id` per fire** — the engine now
+  records which agent triggered each hook (e.g. `agent=main` vs `agent=Explore`)
+  in both `engine.jsonl` and the prax monitor stream. Previously the payload
+  flowed into handlers but was never logged, leaving no way to tell an internal
+  main-turn fire from a real sub-agent fire. Pure visibility; no behavior change.
+  Groundwork for #606. (#606)
 
 ### Changed
 
