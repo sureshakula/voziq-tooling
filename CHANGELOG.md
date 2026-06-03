@@ -33,6 +33,11 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   flowed into handlers but was never logged, leaving no way to tell an internal
   main-turn fire from a real sub-agent fire. Pure visibility; no behavior change.
   Groundwork for #606. (#606)
+- **OpenSSF Best Practices passing badge** — AIPass earned the OpenSSF Best
+  Practices (CII) **passing** badge (100% of criteria), added to the README badge
+  cluster. Self-certified across all six categories — basics, change control,
+  reporting, quality, security, and analysis. Complements the existing OpenSSF
+  Scorecard, lifting the `CII-Best-Practices` check from 0. (DPLAN-0193)
 
 ### Changed
 
