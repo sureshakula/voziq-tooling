@@ -76,8 +76,7 @@ def wheel(tmp_path_factory: pytest.TempPathFactory) -> Path:
     )
     if result.returncode != 0:
         raise RuntimeError(
-            "wheel build failed (exit "
-            f"{result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            f"wheel build failed (exit {result.returncode}).\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
         )
 
     wheels = sorted(dist_dir.glob("*.whl"))
