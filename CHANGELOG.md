@@ -12,6 +12,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **Cross-OS end-to-end WIRING test (`tests/e2e/`, `e2e-wheel.yml`)** — the first
+  CI gate that proves real AIPass *wiring* (not units-with-mocks) by building the
+  wheel, installing it into a clean venv, and asserting a 4-tier ladder: package
+  install + console scripts (T0), `aipass init` scaffolding (T1), a hook actually
+  firing via the bridge with an observable `engine.jsonl` record (T2a), and
+  `drone` resolving + subprocess-executing a real branch (T3). Runs on a 3-OS
+  matrix (ubuntu/windows/macos, `fail-fast: false`). Validated green on Linux;
+  Windows is **red-first by design** — the expected failures (unguarded `.venv`
+  symlink, `.venv/bin` vs `Scripts`, hardcoded `/tmp`) are the portability
+  fix-list, not regressions. (DPLAN-0194 / FPLAN-0239)
 - **`drone rm` — provider-agnostic safe delete** — a contained recursive delete
   that lets agents clean up scratch dirs without tripping the `rm -rf` block.
   Deletes are confined to the project root and the system temp dirs (`/tmp` and

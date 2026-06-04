@@ -1,0 +1,50 @@
+name: e2e-wheel
+
+# Cross-OS end-to-end WIRING test (FPLAN-0239, P1 of DPLAN-0194).
+# Builds the wheel, installs it into a clean venv (handled by the pytest
+# fixtures in tests/e2e/conftest.py), and runs the 4-tier wiring ladder.
+#
+# RED-FIRST: Windows is EXPECTED to fail in known places (symlink init,
+# bin-vs-Scripts, /tmp). Do not "fix" Windows here — the red is the deliverable.
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "tests/e2e/**"
+      - ".github/workflows/e2e-wheel.yml"
+      - "pyproject.toml"
+      - "src/**"
+  pull_request:
+    paths:
+      - "tests/e2e/**"
+      - ".github/workflows/e2e-wheel.yml"
+      - "pyproject.toml"
+      - "src/**"
+  workflow_dispatch:
+
+jobs:
+  e2e-wheel:
+    name: e2e-wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build pytest
+
+      - name: Run cross-OS e2e wiring harness
+        # conftest.py builds the wheel + clean venv internally; the outer env
+        # only needs build + pytest.
+        run: python -m pytest tests/e2e -v
