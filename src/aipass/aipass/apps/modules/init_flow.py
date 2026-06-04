@@ -690,10 +690,24 @@ def _preflight_check() -> str | None:
             "This directory is an agent branch (has .trinity/passport.json).\n"
             "Agents are managed by 'drone @spawn', not 'aipass init'."
         )
-    # Block if inside an existing AIPass project (registry above us)
+    # Block if inside an existing AIPass project (registry above us).
+    # Walking up to the filesystem root can hit ancestors that can't be
+    # enumerated or stat'd — e.g. locked Windows system entries at the drive
+    # root (pagefile.sys) raise OSError. Skip those rather than crash; on
+    # POSIX everything up to / is readable so behaviour is unchanged there.
     for parent in [cwd] + list(cwd.parents):
-        for f in parent.iterdir():
-            if f.is_file() and f.name.endswith("_REGISTRY.json"):
+        try:
+            entries = list(parent.iterdir())
+        except OSError as exc:
+            logger.info("[init_flow] skipping unreadable ancestor %s: %s", parent, exc)
+            entries = []
+        for f in entries:
+            try:
+                is_registry = f.is_file() and f.name.endswith("_REGISTRY.json")
+            except OSError as exc:
+                logger.info("[init_flow] skipping unstattable entry %s: %s", f, exc)
+                continue
+            if is_registry:
                 return (
                     f"Already inside an AIPass project (found {f.name} at {parent}).\n"
                     "Use 'aipass init update' to upgrade an existing project."

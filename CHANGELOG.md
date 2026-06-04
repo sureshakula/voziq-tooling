@@ -18,10 +18,12 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   install + console scripts (T0), `aipass init` scaffolding (T1), a hook actually
   firing via the bridge with an observable `engine.jsonl` record (T2a), and
   `drone` resolving + subprocess-executing a real branch (T3). Runs on a 3-OS
-  matrix (ubuntu/windows/macos, `fail-fast: false`). Validated green on Linux;
-  Windows is **red-first by design** — the expected failures (unguarded `.venv`
-  symlink, `.venv/bin` vs `Scripts`, hardcoded `/tmp`) are the portability
-  fix-list, not regressions. (DPLAN-0194 / FPLAN-0239)
+  matrix (ubuntu/windows/macos, `fail-fast: false`). Ran red-first on Windows by
+  design and immediately earned its keep — it caught two real, *previously
+  uncovered* Windows wiring bugs (`aipass init` preflight + `drone` stdout
+  encoding, both fixed below). Notably the layers we most feared — clean-wheel
+  install (T0) and hook firing (T2a) — passed on Windows. (DPLAN-0194 /
+  FPLAN-0239)
 - **`drone rm` — provider-agnostic safe delete** — a contained recursive delete
   that lets agents clean up scratch dirs without tripping the `rm -rf` block.
   Deletes are confined to the project root and the system temp dirs (`/tmp` and
@@ -62,6 +64,24 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **Two latent Windows portability bugs caught by the new e2e harness** — both
+  were always present in the code; they only surfaced now because this is the
+  first CI to run `aipass init` scaffolding and real-branch `drone` routing on
+  Windows (the old Windows CI ran an editable install, `aipass`-less, and only
+  routed to in-process modules, so both paths had zero Windows coverage). Pure
+  portability fixes — Linux/macOS behaviour is unchanged.
+  - **`aipass init` failed on Windows with a misleading "Unknown command: init".**
+    `_preflight_check` walks every ancestor of CWD up to the filesystem root
+    calling `iterdir()`/`is_file()`; at the Windows drive root a locked system
+    entry (e.g. `pagefile.sys`) raises `OSError`, which the CLI's `route_command`
+    swallowed and mislabeled. The ancestor walk now skips un-enumerable /
+    un-stattable entries (logged), so init proceeds normally.
+  - **`drone @branch` crashed on Windows with `UnicodeEncodeError ('charmap')`.**
+    `drone` resolved + subprocessed the branch correctly, then crashed *printing*
+    the captured output: Rich wrote Unicode through a cp1252 stdout. The existing
+    `PYTHONUTF8` guard only affected child interpreters, not the live process
+    streams — `drone`'s entry point now also `reconfigure()`s stdout/stderr to
+    UTF-8 in place. (DPLAN-0194)
 - **A release merge can no longer destroy the `dev` branch** — `drone @git merge`
   passed `--delete-branch` to `gh pr merge` unconditionally, so merging a
   `dev`→`main` PR deleted the persistent `dev` branch on the remote and stranded
