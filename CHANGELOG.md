@@ -70,18 +70,25 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   Windows (the old Windows CI ran an editable install, `aipass`-less, and only
   routed to in-process modules, so both paths had zero Windows coverage). Pure
   portability fixes — Linux/macOS behaviour is unchanged.
-  - **`aipass init` failed on Windows with a misleading "Unknown command: init".**
-    `_preflight_check` walks every ancestor of CWD up to the filesystem root
-    calling `iterdir()`/`is_file()`; at the Windows drive root a locked system
-    entry (e.g. `pagefile.sys`) raises `OSError`, which the CLI's `route_command`
-    swallowed and mislabeled. The ancestor walk now skips un-enumerable /
-    un-stattable entries (logged), so init proceeds normally.
-  - **`drone @branch` crashed on Windows with `UnicodeEncodeError ('charmap')`.**
-    `drone` resolved + subprocessed the branch correctly, then crashed *printing*
-    the captured output: Rich wrote Unicode through a cp1252 stdout. The existing
+  - **`aipass init` crashed on Windows (surfaced as a misleading "Unknown
+    command: init").** Init scaffolded the project correctly, then crashed
+    *printing its `✓ Project initialized` banner* — Rich wrote the ✓/box glyphs
+    through a cp1252 stdout, raising `UnicodeEncodeError ('charmap')`; the error
+    handler's `✗` message hit the same wall, bubbling up to the command router
+    which mislabeled it. The `aipass` entry point now reconfigures stdout/stderr
+    to UTF-8 in place on Windows. (The init preflight ancestor-walk was also
+    hardened to skip un-enumerable Windows drive-root entries — defensive, not
+    the trigger.)
+  - **`drone @branch` crashed on Windows with the same `UnicodeEncodeError
+    ('charmap')`.** `drone` resolved + subprocessed the branch correctly, then
+    crashed *printing* the captured output through cp1252 stdout. The existing
     `PYTHONUTF8` guard only affected child interpreters, not the live process
     streams — `drone`'s entry point now also `reconfigure()`s stdout/stderr to
-    UTF-8 in place. (DPLAN-0194)
+    UTF-8 in place.
+  - **CI unit lane no longer runs the e2e wheel tests.** `ci.yml`'s
+    `pytest --rootdir=.` swept in `tests/e2e/` (which build a wheel per the
+    dedicated `e2e-wheel.yml`), failing the unit lane; it now `--ignore`s them.
+    (DPLAN-0194)
 - **A release merge can no longer destroy the `dev` branch** — `drone @git merge`
   passed `--delete-branch` to `gh pr merge` unconditionally, so merging a
   `dev`→`main` PR deleted the persistent `dev` branch on the remote and stranded
