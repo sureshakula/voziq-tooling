@@ -203,21 +203,16 @@ def _calculate_quick_status_standalone(sections: Dict) -> Dict:
     """
     ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
-    commons = sections.get("commons_activity", {})
 
     new_mail_raw = ai_mail.get("new", ai_mail.get("unread", 0))
     opened_raw = ai_mail.get("opened", 0)
     active_plans_raw = flow.get("active_plans", 0)
-    commons_mentions_raw = commons.get("mentions", 0)
 
     new_mail = len(new_mail_raw) if isinstance(new_mail_raw, list) else int(new_mail_raw or 0)
     opened_mail = len(opened_raw) if isinstance(opened_raw, list) else int(opened_raw or 0)
     active_plans = len(active_plans_raw) if isinstance(active_plans_raw, list) else int(active_plans_raw or 0)
-    commons_mentions = (
-        len(commons_mentions_raw) if isinstance(commons_mentions_raw, list) else int(commons_mentions_raw or 0)
-    )
 
-    action_required = new_mail > 0 or active_plans > 0 or commons_mentions > 0
+    action_required = new_mail > 0 or active_plans > 0
 
     parts = []
     if new_mail > 0:
@@ -226,14 +221,11 @@ def _calculate_quick_status_standalone(sections: Dict) -> Dict:
         parts.append(f"{opened_mail} opened")
     if active_plans > 0:
         parts.append(f"{active_plans} active plans")
-    if commons_mentions > 0:
-        parts.append(f"{commons_mentions} mentions")
 
     return {
         "new_mail": new_mail,
         "opened_mail": opened_mail,
         "active_plans": active_plans,
-        "commons_mentions": commons_mentions,
         "action_required": action_required,
         "summary": ", ".join(parts) if parts else "All clear",
     }
