@@ -396,3 +396,35 @@ def get_branch_by_name(name: str) -> Optional[Dict[str, Any]]:
             logger.warning("get_branch_by_name: AIPass home registry unavailable for '%s': %s", name, exc)
 
     return None
+
+
+def get_branch_with_registry(name: str) -> Optional[tuple]:
+    """Get a branch and the registry path it was found in.
+
+    Same two-step lookup as get_branch_by_name (primary then AIPASS_HOME),
+    but returns (branch_dict, registry_path) so callers can determine
+    which project root the branch belongs to.
+    """
+    lower_name = name.lower()
+
+    try:
+        primary_path = get_registry_path()
+        registry = load_registry()
+        branch = registry.get("branches", {}).get(lower_name)
+        if branch is not None:
+            return branch, primary_path
+    except (RegistryNotFoundError, RegistryCorruptError, RegistryPermissionError) as exc:
+        logger.warning("get_branch_with_registry: primary registry unavailable for '%s': %s", name, exc)
+        primary_path = None
+
+    home_path = _get_aipass_home_registry_path()
+    if home_path is not None and home_path != primary_path:
+        try:
+            home_data = _load_registry_data(home_path)
+            branch = home_data.get("branches", {}).get(lower_name)
+            if branch is not None:
+                return branch, home_path
+        except (RegistryNotFoundError, RegistryCorruptError, RegistryPermissionError) as exc:
+            logger.warning("get_branch_with_registry: AIPass home registry unavailable for '%s': %s", name, exc)
+
+    return None

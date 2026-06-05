@@ -15,10 +15,24 @@ Auto-discovery architecture:
 - No manual imports or routing needed
 """
 
+import os
 import sys
 import importlib
 from pathlib import Path
 from typing import List, Any
+
+# Windows terminals/pipes default to cp1252, which can't encode the Unicode
+# Rich emits (✓/✗, box-drawing, arrows). PYTHONUTF8 only affects child
+# interpreters, not this process's already-open stdout/stderr — so we also
+# reconfigure the live streams to UTF-8 in place (Python 3.7+). Without this,
+# `aipass init` scaffolds correctly but crashes printing its success banner
+# with UnicodeEncodeError ('charmap') on Windows. Mirrors drone/cli.py.
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")  # for child subprocesses
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
 

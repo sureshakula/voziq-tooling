@@ -2,8 +2,8 @@
   "metadata": {
     "version": "2.0.0",
     "created": "2026-04-16",
-    "description": "Bypass config for @aipass citizen. While under construction (DPLAN-0136 Phase 0-3), module and handler files exist as documented placeholders with no implementation body. Each placeholder raises NotImplementedError and declares its phase. Bypass standards that fire on structural requirements the placeholders intentionally skip — json_handler import, print_introspection, CLI service wiring. Remove these entries in Phase N as each module gets its real body.",
-    "last_updated": "2026-04-16"
+    "description": "Bypass config for @aipass citizen. Modules operational: concierge/init/doctor/handoff/profile built and tested. Bypasses cover: binary-invocation introspection pattern (bare aipass <cmd> runs, --info for introspection), thin entry-point router (aipass.py uses bare print, no CLI imports), pure-python bootstrap (bootstrap.py/scaffold_content.py run before AIPass services exist), test-isolation patterns (architecture/encapsulation for tests/ directory), and CLI flag name references (permission_flags in test assertions and handoff platform).",
+    "last_updated": "2026-06-02"
   },
   "bypass": [
     {
@@ -32,44 +32,19 @@
       "reason": "Session info must print immediately after tmux spawn — returning data to module layer would lose the timing context. User needs attach/kill instructions right when the session starts."
     },
     {
-      "file": "apps/modules/handoff.py",
-      "standard": "introspection",
-      "reason": "Phase 4 placeholder — print_introspection() added with handoff build."
-    },
-    {
-      "file": "apps/modules/handoff.py",
-      "standard": "json_structure",
-      "reason": "Phase 4 placeholder — json_handler import added with handoff build."
-    },
-    {
-      "file": "apps/modules/handoff.py",
-      "standard": "cli",
-      "reason": "Phase 4 placeholder — CLI service imports added with handoff build."
-    },
-    {
-      "file": "apps/aipass.py",
-      "standard": "architecture",
-      "reason": "Phase 0 entry-point stub from spawn template. Full 3-layer wiring (modules/ discovery, handlers/ imports) added when first module comes online (Phase 1)."
-    },
-    {
       "file": "apps/aipass.py",
       "standard": "cli",
-      "reason": "Phase 0 entry-point stub — CLI service imports (console, header) added when modules come online (Phase 1+)."
+      "reason": "Thin command router — discovers and routes to modules, which own the CLI service layer. Adding console/header imports here couples the bootstrap entry point to Rich for 4 status lines."
     },
     {
       "file": "apps/aipass.py",
       "standard": "debug_print",
-      "reason": "Phase 0 entry-point stub uses bare print() for scaffold visibility. Replaced with console.print() when CLI services are wired in Phase 1+."
+      "reason": "Thin command router uses bare print() for version output and help banner (4 calls). These run before module discovery — importing Rich console for bootstrap output adds startup overhead for minimal benefit."
     },
     {
       "file": "apps/aipass.py",
       "standard": "introspection",
-      "reason": "Phase 0 — spawn template does not emit print_introspection(). Added when modules come online (Phase 1+)."
-    },
-    {
-      "file": "apps/aipass.py",
-      "standard": "log_structure",
-      "reason": "Phase 0 — logs/ directory exists (spawn-created), but prax logger import not wired yet. Added when first module uses it."
+      "reason": "Thin command router, not a module — it has no domain to introspect. Modules handle their own introspection via --info. No print_introspection() needed."
     },
     {
       "file": "apps/modules/doctor.py",
@@ -260,6 +235,41 @@
       "file": "apps/handlers/init/scaffold_content.py",
       "standard": "json_structure",
       "reason": "scaffold_content.py is Pure Python only (no module/prax/cli imports) by design — pure string-returning template generators extracted from bootstrap.py. Same constraint as bootstrap.py."
+    },
+    {
+      "file": "apps/modules/doctor.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass doctor runs the command; introspection via --info"
+    },
+    {
+      "file": "apps/modules/doctor_fix.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare invocation shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/doctor_wire.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare invocation shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/handoff.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass handoff shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/help_chat.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass help shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/init_flow.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass init shows usage; introspection via --info"
+    },
+    {
+      "file": "apps/modules/profile.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: aipass profile runs the command; introspection via --info"
     }
   ]
 }

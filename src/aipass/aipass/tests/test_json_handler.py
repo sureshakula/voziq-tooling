@@ -290,7 +290,9 @@ class TestReturnTypeContracts:
         """Doctor handle_command returns True for match, False otherwise."""
         from aipass.aipass.apps.modules.doctor import handle_command as doctor_cmd
 
-        assert doctor_cmd("doctor", []) is True
+        with patch("aipass.aipass.apps.modules.doctor.run_doctor", return_value=0):
+            with patch("aipass.aipass.apps.modules.doctor.json_handler"):
+                assert doctor_cmd("doctor", []) is True
         assert doctor_cmd("not_doctor", []) is False
 
     def test_help_chat_handle_command_returns_bool(self):

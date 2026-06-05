@@ -54,6 +54,20 @@ def print_introspection() -> None:
     console.print(f"[bold cyan]Version:[/bold cyan] {_VERSION}")
 
 
+def print_help() -> None:
+    """Print usage help for the help command."""
+    console.print()
+    console.print("[bold cyan]aipass help[/bold cyan] — README-backed Q&A")
+    console.print()
+    console.print("[yellow]USAGE:[/yellow]")
+    console.print("  [green]aipass help <question>[/green]  [dim]# Search branch READMEs[/dim]")
+    console.print()
+    console.print("[yellow]EXAMPLES:[/yellow]")
+    console.print("  [green]aipass help what does drone do[/green]")
+    console.print("  [green]aipass help how does ai_mail work[/green]")
+    console.print()
+
+
 # =============================================================================
 # KEYWORD EXTRACTION
 # =============================================================================
@@ -219,10 +233,14 @@ def handle_command(command: str, args: list[str]) -> bool:
     json_handler.ensure_module_jsons(_MODULE_NAME)
 
     if not args:
-        print_introspection()
+        print_help()
         return True
 
     if args[0] in ("--help", "-h", "help"):
+        print_help()
+        return True
+
+    if args[0] == "--info":
         print_introspection()
         return True
 

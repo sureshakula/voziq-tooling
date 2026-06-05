@@ -134,11 +134,15 @@ def handle_command(command: str, args: list[str]) -> bool:
         return False
 
     if not args:
-        print_introspection()
+        print_help()
         return True
 
     if args[0] in ("--help", "-h", "help"):
         print_help()
+        return True
+
+    if args[0] == "--info":
+        print_introspection()
         return True
 
     if args[0] == "launch":

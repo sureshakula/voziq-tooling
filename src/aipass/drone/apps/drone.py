@@ -85,6 +85,7 @@ def show_help() -> None:
     table.add_row("activate @target", "Register all commands from a branch")
     table.add_row("list", "List registered custom commands")
     table.add_row("remove <name>", "Remove a custom command")
+    table.add_row("rm <path> [<path>...]", "Contained safe-delete (project + tmp)")
     table.add_row("--help", "Show this help")
     table.add_row("--version", "Show version")
 
@@ -308,6 +309,18 @@ def _handle_remove(name: str) -> int:
     success = remove(name)
     format_removal(name, success)
     return 0 if success else 1
+
+
+def _handle_rm(args: list[str]) -> int:
+    """Handle ``drone rm <path> [<path>...]`` — contained safe-delete."""
+    from aipass.drone.apps.modules.rm import handle_command, print_help
+
+    if not args or args[0] in ("--help", "-h"):
+        print_help()
+        return 0
+
+    result = handle_command(args[0], args[1:] if len(args) > 1 else None)
+    return 0 if result else 1
 
 
 def _handle_custom_command(args: list[str]) -> int:
@@ -556,6 +569,10 @@ def main() -> int:
             err_console.print("drone: remove requires a command name (e.g., drone remove audit)")
             return 1
         return _handle_remove(args[1])
+
+    # rm — contained safe-delete
+    if command == "rm":
+        return _handle_rm(args[1:])
 
     # @target — route to branch or module
     if command.startswith("@"):

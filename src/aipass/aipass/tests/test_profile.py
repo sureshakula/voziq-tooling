@@ -170,9 +170,16 @@ class TestHandleCommand:
         assert handle_command("init", ["run"]) is False
 
     def test_no_args_calls_introspection(self, tmp_local_json) -> None:
-        """'profile' with no args calls print_introspection."""
+        """'profile' with no args shows the profile (runs the command)."""
         with patch("aipass.aipass.apps.modules.profile.print_introspection") as mock_pi:
             result = handle_command("profile", [])
+        assert result is True
+        mock_pi.assert_called_once()
+
+    def test_info_flag_calls_introspection(self, tmp_local_json) -> None:
+        """--info flag calls print_introspection."""
+        with patch("aipass.aipass.apps.modules.profile.print_introspection") as mock_pi:
+            result = handle_command("profile", ["--info"])
         assert result is True
         mock_pi.assert_called_once()
 

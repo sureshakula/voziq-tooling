@@ -40,6 +40,11 @@
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.security.git_gate.handle",
       "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit"
+    },
+    "rm_gate": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.rm_gate.handle",
+      "matcher": "Bash"
     }
   },
 

@@ -312,81 +312,74 @@ class TestLoadRegistry:
 
 
 # =============================================
-# 4. _extract_flow_plans
+# 4. _extract_plans_by_branch
 # =============================================
 
 
-class TestExtractFlowPlans:
-    """Tests for _extract_flow_plans."""
+class TestExtractPlansByBranch:
+    """Tests for _extract_plans_by_branch."""
 
-    def test_extracts_active_plans_matching_flow_root(self):
-        """Returns active plans where location matches FLOW_ROOT."""
+    def test_groups_plans_by_branch(self):
+        """Groups plans into per-branch sections by location path name."""
         mod = _import_mod()
-        flow_root = str(mod.FLOW_ROOT)
         registry = {
             "plans": {
                 "FPLAN-0001": {
-                    "subject": "Plan A",
+                    "subject": "Flow plan",
                     "status": "open",
                     "created": "2026-04-20",
                     "file_path": "/p/FPLAN-0001.md",
-                    "location": flow_root,
-                    "relative_path": "FPLAN-0001.md",
+                    "location": "/repo/src/aipass/flow",
+                },
+                "DPLAN-0001": {
+                    "subject": "Devpulse plan",
+                    "status": "open",
+                    "created": "2026-04-21",
+                    "file_path": "/p/DPLAN-0001.md",
+                    "location": "/repo/src/aipass/devpulse",
                 },
             }
         }
-        active, _ = mod._extract_flow_plans(registry)
-        assert len(active) == 1
-        assert active[0]["plan_id"] == "FPLAN-0001"
-        assert active[0]["subject"] == "Plan A"
-        assert active[0]["status"] == "open"
+        result = mod._extract_plans_by_branch(registry)
+        assert "flow" in result
+        assert "devpulse" in result
+        assert result["flow"]["statistics"]["active_count"] == 1
+        assert result["devpulse"]["statistics"]["active_count"] == 1
 
-    def test_extracts_closed_plans(self):
-        """Returns closed plans with closed metadata."""
+    def test_extracts_active_and_closed(self):
+        """Separates active and closed plans within a branch."""
         mod = _import_mod()
-        flow_root = str(mod.FLOW_ROOT)
         registry = {
             "plans": {
                 "FPLAN-0001": {
-                    "subject": "Done plan",
+                    "subject": "Open",
+                    "status": "open",
+                    "created": "2026-04-20",
+                    "file_path": "/p/FPLAN-0001.md",
+                    "location": "/repo/src/aipass/flow",
+                },
+                "FPLAN-0002": {
+                    "subject": "Closed",
                     "status": "closed",
                     "created": "2026-04-15",
-                    "closed": "2026-04-20",
-                    "closed_reason": "completed",
-                    "file_path": "/p/FPLAN-0001.md",
-                    "location": flow_root,
-                    "relative_path": "FPLAN-0001.md",
+                    "closed": "2026-04-18",
+                    "closed_reason": "done",
+                    "file_path": "/p/FPLAN-0002.md",
+                    "location": "/repo/src/aipass/flow",
                 },
             }
         }
-        active, closed = mod._extract_flow_plans(registry)
-        assert len(active) == 0
-        assert len(closed) == 1
-        assert closed[0]["closed"] == "2026-04-20"
-        assert closed[0]["closed_reason"] == "completed"
-
-    def test_excludes_plans_from_other_locations(self):
-        """Excludes plans where location does not match FLOW_ROOT."""
-        mod = _import_mod()
-        registry = {
-            "plans": {
-                "FPLAN-0001": {
-                    "subject": "Other branch plan",
-                    "status": "open",
-                    "created": "2026-04-20",
-                    "file_path": "/other/FPLAN-0001.md",
-                    "location": "/some/other/path",
-                },
-            }
-        }
-        active, closed = mod._extract_flow_plans(registry)
-        assert len(active) == 0
-        assert len(closed) == 0
+        result = mod._extract_plans_by_branch(registry)
+        flow = result["flow"]
+        assert flow["statistics"]["active_count"] == 1
+        assert flow["statistics"]["total_closed"] == 1
+        assert len(flow["active_plans"]) == 1
+        assert len(flow["recently_closed"]) == 1
+        assert flow["recently_closed"][0]["closed"] == "2026-04-18"
 
     def test_sorts_active_newest_first(self):
-        """Active plans are sorted by created date, newest first."""
+        """Active plans sorted by created date, newest first."""
         mod = _import_mod()
-        flow_root = str(mod.FLOW_ROOT)
         registry = {
             "plans": {
                 "FPLAN-0001": {
@@ -394,114 +387,110 @@ class TestExtractFlowPlans:
                     "status": "open",
                     "created": "2026-04-01",
                     "file_path": "/p/FPLAN-0001.md",
-                    "location": flow_root,
+                    "location": "/repo/src/aipass/flow",
                 },
                 "FPLAN-0002": {
                     "subject": "Newest",
                     "status": "open",
                     "created": "2026-04-25",
                     "file_path": "/p/FPLAN-0002.md",
-                    "location": flow_root,
-                },
-                "FPLAN-0003": {
-                    "subject": "Middle",
-                    "status": "open",
-                    "created": "2026-04-15",
-                    "file_path": "/p/FPLAN-0003.md",
-                    "location": flow_root,
+                    "location": "/repo/src/aipass/flow",
                 },
             }
         }
-        active, _ = mod._extract_flow_plans(registry)
+        result = mod._extract_plans_by_branch(registry)
+        active = result["flow"]["active_plans"]
         assert active[0]["subject"] == "Newest"
-        assert active[1]["subject"] == "Middle"
-        assert active[2]["subject"] == "Oldest"
+        assert active[1]["subject"] == "Oldest"
 
-    def test_closed_plans_limited_to_5(self):
-        """Recently closed plans are limited to 5."""
+    def test_closed_limited_to_5(self):
+        """Recently closed plans limited to 5 per branch."""
         mod = _import_mod()
-        flow_root = str(mod.FLOW_ROOT)
         plans = {}
         for i in range(1, 9):
             plans[f"FPLAN-{str(i).zfill(4)}"] = {
-                "subject": f"Closed plan {i}",
+                "subject": f"Closed {i}",
                 "status": "closed",
                 "created": "2026-04-01",
                 "closed": f"2026-04-{str(i + 10).zfill(2)}",
-                "closed_reason": "done",
                 "file_path": f"/p/FPLAN-{str(i).zfill(4)}.md",
-                "location": flow_root,
+                "location": "/repo/src/aipass/flow",
             }
-        registry = {"plans": plans}
-        _, closed = mod._extract_flow_plans(registry)
-        assert len(closed) == 5
+        result = mod._extract_plans_by_branch({"plans": plans})
+        assert len(result["flow"]["recently_closed"]) == 5
 
-    def test_closed_sorted_newest_first(self):
-        """Closed plans are sorted by closed date, newest first."""
+    def test_empty_registry(self):
+        """Returns empty dict for empty registry."""
         mod = _import_mod()
-        flow_root = str(mod.FLOW_ROOT)
+        result = mod._extract_plans_by_branch({"plans": {}})
+        assert result == {}
+
+    def test_missing_plans_key(self):
+        """Returns empty dict when registry has no plans key."""
+        mod = _import_mod()
+        result = mod._extract_plans_by_branch({})
+        assert result == {}
+
+    def test_skips_plans_without_location(self):
+        """Plans with empty location are skipped."""
+        mod = _import_mod()
         registry = {
             "plans": {
                 "FPLAN-0001": {
-                    "subject": "Old close",
-                    "status": "closed",
-                    "created": "2026-03-01",
-                    "closed": "2026-03-10",
+                    "subject": "No location",
+                    "status": "open",
+                    "created": "2026-04-20",
                     "file_path": "/p/FPLAN-0001.md",
-                    "location": flow_root,
-                },
-                "FPLAN-0002": {
-                    "subject": "New close",
-                    "status": "closed",
-                    "created": "2026-04-01",
-                    "closed": "2026-04-20",
-                    "file_path": "/p/FPLAN-0002.md",
-                    "location": flow_root,
+                    "location": "",
                 },
             }
         }
-        _, closed = mod._extract_flow_plans(registry)
-        assert closed[0]["subject"] == "New close"
-        assert closed[1]["subject"] == "Old close"
+        result = mod._extract_plans_by_branch(registry)
+        assert result == {}
 
-    def test_empty_registry(self):
-        """Returns empty lists for empty registry."""
+    def test_branch_section_structure(self):
+        """Each branch section has required keys."""
         mod = _import_mod()
-        active, closed = mod._extract_flow_plans({"plans": {}})
-        assert active == []
-        assert closed == []
-
-    def test_missing_plans_key(self):
-        """Returns empty lists when registry has no plans key."""
-        mod = _import_mod()
-        active, closed = mod._extract_flow_plans({})
-        assert active == []
-        assert closed == []
-
-    def test_plan_entry_structure(self):
-        """Plan entries have all required keys."""
-        mod = _import_mod()
-        flow_root = str(mod.FLOW_ROOT)
         registry = {
             "plans": {
                 "FPLAN-0001": {
-                    "subject": "Structured plan",
+                    "subject": "Structured",
                     "status": "open",
                     "created": "2026-04-20",
                     "file_path": "/p/FPLAN-0001.md",
                     "relative_path": "FPLAN-0001.md",
-                    "location": flow_root,
+                    "location": "/repo/src/aipass/flow",
                 },
             }
         }
-        active, _ = mod._extract_flow_plans(registry)
-        entry = active[0]
+        result = mod._extract_plans_by_branch(registry)
+        section = result["flow"]
+        assert section["branch_name"] == "FLOW"
+        assert section["branch_path"] == "/repo/src/aipass/flow"
+        assert "active_plans" in section
+        assert "recently_closed" in section
+        assert "statistics" in section
+        entry = section["active_plans"][0]
         assert "plan_id" in entry
         assert "subject" in entry
-        assert "status" in entry
-        assert "created" in entry
-        assert "file_path" in entry
-        assert "relative_path" in entry
+        assert "branch" in entry
+
+    def test_plan_entries_have_branch_field(self):
+        """Each plan entry includes the branch field."""
+        mod = _import_mod()
+        registry = {
+            "plans": {
+                "DPLAN-0001": {
+                    "subject": "Test",
+                    "status": "open",
+                    "created": "2026-04-20",
+                    "file_path": "/p/DPLAN-0001.md",
+                    "location": "/repo/src/aipass/devpulse",
+                },
+            }
+        }
+        result = mod._extract_plans_by_branch(registry)
+        assert result["devpulse"]["active_plans"][0]["branch"] == "devpulse"
 
 
 # =============================================
@@ -651,8 +640,15 @@ class TestPushToPlansCentral:
         ai_central = tmp_path / ".ai_central"
 
         mock_registry = {"plans": {}, "next_number": 1}
-        mock_active = [{"plan_id": "FPLAN-0001", "subject": "Test", "status": "open"}]
-        mock_closed: list = []
+        mock_branches = {
+            "flow": {
+                "branch_name": "FLOW",
+                "branch_path": str(mod.FLOW_ROOT),
+                "active_plans": [{"plan_id": "FPLAN-0001", "subject": "Test", "status": "open"}],
+                "recently_closed": [],
+                "statistics": {"active_count": 1, "total_closed": 0, "recently_closed_included": 0},
+            }
+        }
         mock_central = {
             "generated_at": "",
             "branches": {},
@@ -663,7 +659,7 @@ class TestPushToPlansCentral:
             patch.object(mod, "AI_CENTRAL_DIR", ai_central),
             patch.object(mod, "CENTRAL_FILE", central_file),
             patch.object(mod, "_load_registry", return_value=mock_registry),
-            patch.object(mod, "_extract_flow_plans", return_value=(mock_active, mock_closed)),
+            patch.object(mod, "_extract_plans_by_branch", return_value=mock_branches),
             patch.object(mod, "_load_central", return_value=mock_central),
             patch.object(mod, "aggregate_central_impl") as mock_agg,
         ):
@@ -703,30 +699,44 @@ class TestPushToPlansCentral:
         assert central_file.exists()
         written = json.loads(central_file.read_text(encoding="utf-8"))
         assert "branches" in written
-        assert "flow" in written["branches"]
         assert "global_statistics" in written
         assert "generated_at" in written
         assert written["generated_at"] != ""
 
-    def test_preserves_other_branches(self, tmp_path):
-        """Preserves other branch sections when updating flow."""
+    def test_writes_multiple_branches(self, tmp_path):
+        """Writes per-branch sections from registry data."""
         mod = _import_mod()
         central_file = tmp_path / "PLANS.central.json"
         ai_central = tmp_path / ".ai_central"
 
         mock_registry = {"plans": {}, "next_number": 1}
-        mock_central = {
-            "generated_at": "2026-04-01T00:00:00Z",
-            "branches": {
-                "drone": {"branch_name": "DRONE", "statistics": {"active_count": 3, "total_closed": 1}},
+        mock_branches = {
+            "flow": {
+                "branch_name": "FLOW",
+                "branch_path": "/repo/src/aipass/flow",
+                "active_plans": [],
+                "recently_closed": [],
+                "statistics": {"active_count": 0, "total_closed": 0, "recently_closed_included": 0},
             },
-            "global_statistics": {"total_active": 3, "total_closed": 1, "branches_reporting": 1},
+            "devpulse": {
+                "branch_name": "DEVPULSE",
+                "branch_path": "/repo/src/aipass/devpulse",
+                "active_plans": [{"plan_id": "DPLAN-0001"}],
+                "recently_closed": [],
+                "statistics": {"active_count": 1, "total_closed": 0, "recently_closed_included": 0},
+            },
+        }
+        mock_central = {
+            "generated_at": "",
+            "branches": {},
+            "global_statistics": {"total_active": 0, "total_closed": 0, "branches_reporting": 0},
         }
 
         with (
             patch.object(mod, "AI_CENTRAL_DIR", ai_central),
             patch.object(mod, "CENTRAL_FILE", central_file),
             patch.object(mod, "_load_registry", return_value=mock_registry),
+            patch.object(mod, "_extract_plans_by_branch", return_value=mock_branches),
             patch.object(mod, "_load_central", return_value=mock_central),
             patch.object(mod, "aggregate_central_impl"),
         ):
@@ -734,8 +744,8 @@ class TestPushToPlansCentral:
 
         assert result is True
         written = json.loads(central_file.read_text(encoding="utf-8"))
-        assert "drone" in written["branches"]
         assert "flow" in written["branches"]
+        assert "devpulse" in written["branches"]
 
     def test_creates_ai_central_dir(self, tmp_path):
         """Creates .ai_central directory if it does not exist."""
@@ -773,26 +783,25 @@ class TestPushToPlansCentral:
 
         assert result is False
 
-    def test_flow_section_has_correct_statistics(self, tmp_path):
-        """Flow section statistics reflect actual plan counts."""
+    def test_branch_section_has_correct_statistics(self, tmp_path):
+        """Branch section statistics reflect actual plan counts."""
         mod = _import_mod()
         central_file = tmp_path / "PLANS.central.json"
         ai_central = tmp_path / ".ai_central"
-        flow_root_str = str(mod.FLOW_ROOT)
 
-        mock_registry = {
-            "plans": {
-                "FPLAN-0001": {"status": "open", "location": flow_root_str},
-                "FPLAN-0002": {"status": "open", "location": flow_root_str},
-                "FPLAN-0003": {"status": "closed", "location": flow_root_str},
-            },
-            "next_number": 4,
+        mock_registry = {"plans": {}, "next_number": 4}
+        mock_branches = {
+            "flow": {
+                "branch_name": "FLOW",
+                "branch_path": str(mod.FLOW_ROOT),
+                "active_plans": [
+                    {"plan_id": "FPLAN-0001", "status": "open"},
+                    {"plan_id": "FPLAN-0002", "status": "open"},
+                ],
+                "recently_closed": [{"plan_id": "FPLAN-0003", "status": "closed"}],
+                "statistics": {"active_count": 2, "total_closed": 1, "recently_closed_included": 1},
+            }
         }
-        mock_active = [
-            {"plan_id": "FPLAN-0001", "status": "open"},
-            {"plan_id": "FPLAN-0002", "status": "open"},
-        ]
-        mock_closed = [{"plan_id": "FPLAN-0003", "status": "closed"}]
         mock_central = {
             "generated_at": "",
             "branches": {},
@@ -803,7 +812,7 @@ class TestPushToPlansCentral:
             patch.object(mod, "AI_CENTRAL_DIR", ai_central),
             patch.object(mod, "CENTRAL_FILE", central_file),
             patch.object(mod, "_load_registry", return_value=mock_registry),
-            patch.object(mod, "_extract_flow_plans", return_value=(mock_active, mock_closed)),
+            patch.object(mod, "_extract_plans_by_branch", return_value=mock_branches),
             patch.object(mod, "_load_central", return_value=mock_central),
             patch.object(mod, "aggregate_central_impl"),
         ):
@@ -817,18 +826,117 @@ class TestPushToPlansCentral:
         assert flow["branch_name"] == "FLOW"
 
     def test_global_statistics_updated(self, tmp_path):
-        """Global statistics are recalculated after flow section update."""
+        """Global statistics are recalculated from all branch sections."""
         mod = _import_mod()
         central_file = tmp_path / "PLANS.central.json"
         ai_central = tmp_path / ".ai_central"
 
         mock_registry = {"plans": {}, "next_number": 1}
+        mock_branches = {
+            "flow": {
+                "branch_name": "FLOW",
+                "branch_path": str(mod.FLOW_ROOT),
+                "active_plans": [],
+                "recently_closed": [],
+                "statistics": {"active_count": 0, "total_closed": 0, "recently_closed_included": 0},
+            },
+            "devpulse": {
+                "branch_name": "DEVPULSE",
+                "branch_path": "/repo/src/aipass/devpulse",
+                "active_plans": [{"plan_id": "DPLAN-0001"}],
+                "recently_closed": [],
+                "statistics": {"active_count": 5, "total_closed": 3, "recently_closed_included": 0},
+            },
+        }
         mock_central = {
             "generated_at": "",
-            "branches": {
-                "drone": {"statistics": {"active_count": 5, "total_closed": 3}},
+            "branches": {},
+            "global_statistics": {"total_active": 0, "total_closed": 0, "branches_reporting": 0},
+        }
+
+        with (
+            patch.object(mod, "AI_CENTRAL_DIR", ai_central),
+            patch.object(mod, "CENTRAL_FILE", central_file),
+            patch.object(mod, "_load_registry", return_value=mock_registry),
+            patch.object(mod, "_extract_plans_by_branch", return_value=mock_branches),
+            patch.object(mod, "_load_central", return_value=mock_central),
+            patch.object(mod, "aggregate_central_impl"),
+        ):
+            result = mod.push_to_plans_central()
+
+        assert result is True
+        written = json.loads(central_file.read_text(encoding="utf-8"))
+        stats = written["global_statistics"]
+        assert stats["total_active"] == 5
+        assert stats["total_closed"] == 3
+        assert stats["branches_reporting"] == 2
+
+    def test_log_operation_contains_expected_fields(self, tmp_path, mock_json_handler):
+        """Log operation includes active_plans and branches_reporting."""
+        mod = _import_mod()
+        central_file = tmp_path / "PLANS.central.json"
+        ai_central = tmp_path / ".ai_central"
+
+        mock_registry = {"plans": {}, "next_number": 1}
+        mock_branches = {
+            "flow": {
+                "branch_name": "FLOW",
+                "branch_path": str(mod.FLOW_ROOT),
+                "active_plans": [{"plan_id": "FPLAN-0001"}],
+                "recently_closed": [],
+                "statistics": {"active_count": 1, "total_closed": 0, "recently_closed_included": 0},
             },
-            "global_statistics": {"total_active": 5, "total_closed": 3, "branches_reporting": 1},
+        }
+        mock_central = {
+            "generated_at": "",
+            "branches": {},
+            "global_statistics": {"total_active": 0, "total_closed": 0, "branches_reporting": 0},
+        }
+
+        with (
+            patch.object(mod, "AI_CENTRAL_DIR", ai_central),
+            patch.object(mod, "CENTRAL_FILE", central_file),
+            patch.object(mod, "_load_registry", return_value=mock_registry),
+            patch.object(mod, "_extract_plans_by_branch", return_value=mock_branches),
+            patch.object(mod, "_load_central", return_value=mock_central),
+            patch.object(mod, "aggregate_central_impl"),
+        ):
+            mod.push_to_plans_central()
+
+        call_args = mock_json_handler.call_args
+        log_data = call_args[0][1]
+        assert log_data["active_plans"] == 1
+        assert "branches_reporting" in log_data
+
+    def test_non_flow_branch_plans_in_central(self, tmp_path):
+        """Regression: non-flow branch plans must appear in PLANS.central.json."""
+        mod = _import_mod()
+        central_file = tmp_path / "PLANS.central.json"
+        ai_central = tmp_path / ".ai_central"
+
+        mock_registry = {
+            "plans": {
+                "DPLAN-0181": {
+                    "subject": "Devpulse plan",
+                    "status": "open",
+                    "created": "2026-05-01",
+                    "file_path": "/repo/src/aipass/devpulse/DPLAN-0181.md",
+                    "location": "/repo/src/aipass/devpulse",
+                },
+                "FPLAN-0001": {
+                    "subject": "Flow plan",
+                    "status": "open",
+                    "created": "2026-05-02",
+                    "file_path": "/repo/src/aipass/flow/FPLAN-0001.md",
+                    "location": str(mod.FLOW_ROOT),
+                },
+            },
+            "next_number": 1,
+        }
+        mock_central = {
+            "generated_at": "",
+            "branches": {},
+            "global_statistics": {"total_active": 0, "total_closed": 0, "branches_reporting": 0},
         }
 
         with (
@@ -842,39 +950,9 @@ class TestPushToPlansCentral:
 
         assert result is True
         written = json.loads(central_file.read_text(encoding="utf-8"))
-        stats = written["global_statistics"]
-        # drone(5 active, 3 closed) + flow(0 active, 0 closed)
-        assert stats["total_active"] == 5
-        assert stats["total_closed"] == 3
-        assert stats["branches_reporting"] == 2
-
-    def test_log_operation_contains_expected_fields(self, tmp_path, mock_json_handler):
-        """Log operation includes active_plans, recently_closed, branches_reporting."""
-        mod = _import_mod()
-        central_file = tmp_path / "PLANS.central.json"
-        ai_central = tmp_path / ".ai_central"
-
-        mock_registry = {"plans": {}, "next_number": 1}
-        mock_active = [{"plan_id": "FPLAN-0001"}]
-        mock_closed = [{"plan_id": "FPLAN-0002"}, {"plan_id": "FPLAN-0003"}]
-        mock_central = {
-            "generated_at": "",
-            "branches": {},
-            "global_statistics": {"total_active": 0, "total_closed": 0, "branches_reporting": 0},
-        }
-
-        with (
-            patch.object(mod, "AI_CENTRAL_DIR", ai_central),
-            patch.object(mod, "CENTRAL_FILE", central_file),
-            patch.object(mod, "_load_registry", return_value=mock_registry),
-            patch.object(mod, "_extract_flow_plans", return_value=(mock_active, mock_closed)),
-            patch.object(mod, "_load_central", return_value=mock_central),
-            patch.object(mod, "aggregate_central_impl"),
-        ):
-            mod.push_to_plans_central()
-
-        call_args = mock_json_handler.call_args
-        log_data = call_args[0][1]
-        assert log_data["active_plans"] == 1
-        assert log_data["recently_closed"] == 2
-        assert "branches_reporting" in log_data
+        assert "devpulse" in written["branches"]
+        devpulse = written["branches"]["devpulse"]
+        assert devpulse["statistics"]["active_count"] == 1
+        assert len(devpulse["active_plans"]) == 1
+        assert devpulse["active_plans"][0]["plan_id"] == "DPLAN-0181"
+        assert devpulse["active_plans"][0]["branch"] == "devpulse"

@@ -22,6 +22,9 @@ from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.git.lock_handler import find_repo_root
 
 
+PROTECTED_BRANCHES = ("dev", "main")
+
+
 def merge_pr(pr_number: str, caller: str) -> dict:
     """Merge a PR and sync local main.
 
@@ -43,9 +46,30 @@ def merge_pr(pr_number: str, caller: str) -> dict:
     }
 
     try:
-        # Step 1: Merge the PR
+        # Step 0: Get PR head ref to decide delete-branch behavior
+        head_proc = subprocess.run(
+            ["gh", "pr", "view", pr_number, "--json", "headRefName", "--jq", ".headRefName"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        head_ref = head_proc.stdout.strip() if head_proc.returncode == 0 else ""
+
+        # Step 1: Merge the PR — only delete the head branch when we can
+        # POSITIVELY confirm it is a non-protected branch. If the head ref is
+        # unknown (gh lookup failed → empty string), fail SAFE and never delete:
+        # this is the exact path that destroyed `dev` in S183.
+        merge_cmd = ["gh", "pr", "merge", pr_number, "--merge"]
+        if head_ref and head_ref not in PROTECTED_BRANCHES:
+            merge_cmd.append("--delete-branch")
+        elif not head_ref:
+            logger.warning(
+                "merge_pr: could not determine PR #%s head ref — skipping --delete-branch (fail-safe)",
+                pr_number,
+            )
+
         merge = subprocess.run(
-            ["gh", "pr", "merge", pr_number, "--merge", "--delete-branch"],
+            merge_cmd,
             capture_output=True,
             text=True,
             cwd=str(repo_root),
@@ -125,6 +149,27 @@ def merge_pr(pr_number: str, caller: str) -> dict:
             cwd=str(repo_root),
         )
         title = title_proc.stdout.strip() if title_proc.returncode == 0 else "unknown"
+
+        # Step 5: Return to dev branch
+        current_branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        on_branch = current_branch.stdout.strip() if current_branch.returncode == 0 else ""
+        if on_branch != "dev":
+            checkout_dev = subprocess.run(
+                ["git", "checkout", "dev"],
+                capture_output=True,
+                text=True,
+                cwd=str(repo_root),
+            )
+            if checkout_dev.returncode != 0:
+                logger.warning(
+                    "merge_pr: WARNING — could not return to dev (on '%s'). Next commit may land on wrong branch!",
+                    on_branch,
+                )
 
         result["success"] = True
         result["title"] = title

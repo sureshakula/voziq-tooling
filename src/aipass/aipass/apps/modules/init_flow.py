@@ -645,13 +645,18 @@ def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bo
         "cli_choice": accumulated.get("cli", "claude"),
         "total_agents": 1,
         "system": system_data,
-        "note": "You are the first agent created in this project. You are the orchestrator. After dispatching work to other agents, monitor them with: drone @devpulse watchdog agent @target",
+        "note": (
+            "You are the first agent created in this project. You are the orchestrator."
+            " After dispatching work to other agents, monitor them with:"
+            " drone @devpulse watchdog agent @target"
+        ),
     }
     provider_gaps = accumulated.get("provider_gaps", {})
     if provider_gaps:
         report["provider_gaps"] = provider_gaps
         report["provider_action"] = (
-            "Provider settings need configuring. Tell the user what is missing and point them to provider_manifest.json for details."
+            "Provider settings need configuring. Tell the user what is missing"
+            " and point them to provider_manifest.json for details."
         )
     report_path = dropbox / "init_report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -685,10 +690,24 @@ def _preflight_check() -> str | None:
             "This directory is an agent branch (has .trinity/passport.json).\n"
             "Agents are managed by 'drone @spawn', not 'aipass init'."
         )
-    # Block if inside an existing AIPass project (registry above us)
+    # Block if inside an existing AIPass project (registry above us).
+    # Walking up to the filesystem root can hit ancestors that can't be
+    # enumerated or stat'd — e.g. locked Windows system entries at the drive
+    # root (pagefile.sys) raise OSError. Skip those rather than crash; on
+    # POSIX everything up to / is readable so behaviour is unchanged there.
     for parent in [cwd] + list(cwd.parents):
-        for f in parent.iterdir():
-            if f.is_file() and f.name.endswith("_REGISTRY.json"):
+        try:
+            entries = list(parent.iterdir())
+        except OSError as exc:
+            logger.info("[init_flow] skipping unreadable ancestor %s: %s", parent, exc)
+            entries = []
+        for f in entries:
+            try:
+                is_registry = f.is_file() and f.name.endswith("_REGISTRY.json")
+            except OSError as exc:
+                logger.info("[init_flow] skipping unstattable entry %s: %s", f, exc)
+                continue
+            if is_registry:
                 return (
                     f"Already inside an AIPass project (found {f.name} at {parent}).\n"
                     "Use 'aipass init update' to upgrade an existing project."
@@ -917,11 +936,15 @@ def handle_command(command: str, args: list[str]) -> bool:
         return False
 
     if not args:
-        print_introspection()
+        print_help()
         return True
 
     if args[0] in ("--help", "-h", "help"):
         print_help()
+        return True
+
+    if args[0] == "--info":
+        print_introspection()
         return True
 
     if args[0] == "agent":

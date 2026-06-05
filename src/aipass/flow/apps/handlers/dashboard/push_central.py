@@ -9,14 +9,13 @@
 """
 Push to Plans Central Handler
 
-Pushes Flow's plan data to the central PLANS.central.json file at .ai_central.
+Pushes plan data for ALL branches to the central PLANS.central.json file at .ai_central.
 This handler follows the 3-tier logging standard (no Prax imports, no logging).
 
 Features:
-- Reads fplan_registry.json to get Flow's plans
-- Extracts only plans where location='flow' (Flow's own plans)
-- Updates branches.flow section in PLANS.central.json
-- Preserves all other branch sections
+- Reads all per-type plan registries
+- Groups plans by branch (derived from location path)
+- Updates per-branch sections in PLANS.central.json
 - Calls aggregate_central_impl to rebuild top-level active_plans
 - Calculates global statistics across all branches
 - Pure handler - returns boolean for success/failure
@@ -124,26 +123,29 @@ def _load_registry() -> Dict[str, Any]:
     return merged
 
 
-def _extract_flow_plans(registry: Dict[str, Any]) -> tuple[List[Dict], List[Dict]]:
-    """Extract Flow's own plans from registry
+def _extract_plans_by_branch(registry: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Extract plans from registry grouped by branch.
 
     Args:
-        registry: The fplan_registry.json data
+        registry: Merged registry data (all plan types)
 
     Returns:
-        Tuple of (active_plans, recently_closed_plans)
+        Dict mapping branch_name -> branch section with active_plans,
+        recently_closed, and statistics.
     """
     plans = registry.get("plans", {})
-    active = []
-    closed = []
+    branch_buckets: Dict[str, Dict[str, List]] = {}
 
     for plan_key, plan_data in plans.items():
-        # Only include plans where location is 'flow' (Flow's own plans)
         location = plan_data.get("location", "")
-        if location != str(FLOW_ROOT):
+        if not location:
             continue
 
-        # plan_key is composite PREFIX-NNNN from merged registry
+        branch_name = Path(location).name
+
+        if branch_name not in branch_buckets:
+            branch_buckets[branch_name] = {"active": [], "closed": [], "location": location}
+
         plan_entry = {
             "plan_id": plan_key,
             "subject": plan_data.get("subject", ""),
@@ -151,24 +153,35 @@ def _extract_flow_plans(registry: Dict[str, Any]) -> tuple[List[Dict], List[Dict
             "created": plan_data.get("created", ""),
             "file_path": plan_data.get("file_path", ""),
             "relative_path": plan_data.get("relative_path", ""),
+            "branch": branch_name,
         }
 
         if plan_data.get("status") == "open":
-            active.append(plan_entry)
+            branch_buckets[branch_name]["active"].append(plan_entry)
         else:
-            # Add closed metadata
             plan_entry["closed"] = plan_data.get("closed", "")
             plan_entry["closed_reason"] = plan_data.get("closed_reason", "")
-            closed.append(plan_entry)
+            branch_buckets[branch_name]["closed"].append(plan_entry)
 
-    # Sort active by created date (newest first)
-    active.sort(key=lambda x: x.get("created", ""), reverse=True)
+    result: Dict[str, Dict[str, Any]] = {}
+    for branch_name, bucket in branch_buckets.items():
+        active = sorted(bucket["active"], key=lambda x: x.get("created", ""), reverse=True)
+        closed = sorted(bucket["closed"], key=lambda x: x.get("closed", ""), reverse=True)
+        recently_closed = closed[:5]
 
-    # Sort closed by closed date (newest first) and limit to last 5
-    closed.sort(key=lambda x: x.get("closed", ""), reverse=True)
-    recently_closed = closed[:5]
+        result[branch_name] = {
+            "branch_name": branch_name.upper(),
+            "branch_path": bucket["location"],
+            "active_plans": active,
+            "recently_closed": recently_closed,
+            "statistics": {
+                "active_count": len(active),
+                "total_closed": len(closed),
+                "recently_closed_included": len(recently_closed),
+            },
+        }
 
-    return active, recently_closed
+    return result
 
 
 def _load_central() -> Dict[str, Any]:
@@ -223,80 +236,45 @@ def _calculate_global_statistics(central_data: Dict[str, Any]) -> Dict[str, int]
 
 
 def push_to_plans_central() -> bool:
-    """Push Flow's plan data to .ai_central/PLANS.central.json
+    """Push plan data for ALL branches to .ai_central/PLANS.central.json
 
     Algorithm:
-    1. Read fplan_registry.json
-    2. Extract only plans where location='flow' (Flow's own plans)
-    3. Format for central structure with branch metadata
-    4. Read existing PLANS.central.json if exists
-    5. Update ONLY branches.flow section
-    6. Update global_statistics (total counts across all branches)
-    7. Preserve ALL other branch sections
-    8. Write back to PLANS.central.json
-    9. Call aggregate_central_impl to rebuild top-level active_plans with validation
+    1. Read all per-type plan registries
+    2. Group plans by branch (derived from location path)
+    3. Build per-branch sections with active/closed/stats
+    4. Write all branch sections to PLANS.central.json
+    5. Update global_statistics (total counts across all branches)
+    6. Call aggregate_central_impl to rebuild top-level active_plans with validation
 
     Returns:
         True on success, False on failure
     """
     try:
-        # Ensure .ai_central directory exists
         AI_CENTRAL_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Load registry
         registry = _load_registry()
+        branch_sections = _extract_plans_by_branch(registry)
 
-        # Extract Flow's plans
-        active_plans, recently_closed = _extract_flow_plans(registry)
-
-        # Build Flow's branch section
         now = datetime.now(timezone.utc).isoformat()
-        flow_section = {
-            "branch_name": "FLOW",
-            "branch_path": str(FLOW_ROOT),
-            "last_updated": now,
-            "active_plans": active_plans,
-            "recently_closed": recently_closed,
-            "statistics": {
-                "active_count": len(active_plans),
-                "total_closed": len(
-                    [
-                        p
-                        for p in registry.get("plans", {}).values()
-                        if p.get("location") == str(FLOW_ROOT) and p.get("status") == "closed"
-                    ]
-                ),
-            },
-        }
+        for section in branch_sections.values():
+            section["last_updated"] = now
 
-        # Load existing central file
         central_data = _load_central()
-
-        # Update Flow's section
-        if "branches" not in central_data:
-            central_data["branches"] = {}
-        central_data["branches"]["flow"] = flow_section
-
-        # Update global statistics
+        central_data["branches"] = branch_sections
         central_data["global_statistics"] = _calculate_global_statistics(central_data)
-
-        # Update generated_at timestamp
         central_data["generated_at"] = now
 
-        # Write back to central file
         with open(CENTRAL_FILE, "w", encoding="utf-8") as f:
             json.dump(central_data, f, indent=2, ensure_ascii=False)
 
-        # Call aggregate_central_impl to rebuild top-level arrays with validation
-        # This ensures active_plans is built from all branches and validates files exist
         aggregate_central_impl(heal=True, central_file=CENTRAL_FILE, central_dir=AI_CENTRAL_DIR)
 
+        total_active = sum(len(s.get("active_plans", [])) for s in branch_sections.values())
         json_handler.log_operation(
             "plans_central_pushed",
             {
-                "active_plans": len(active_plans),
-                "recently_closed": len(recently_closed),
-                "branches_reporting": central_data["global_statistics"].get("branches_reporting", 0),
+                "active_plans": total_active,
+                "branches_reporting": len(branch_sections),
                 "success": True,
             },
         )

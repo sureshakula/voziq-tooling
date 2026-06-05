@@ -2,19 +2,16 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/aipass)](https://pypi.org/project/aipass/)
-[![CLI](https://img.shields.io/badge/CLI-Claude%20Code-purple)](#cli-support)
 [![Give Feedback](https://img.shields.io/badge/Give-Feedback-brightgreen)](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml)
 [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass)
-[![OSS Health](https://oss-health-monitor.vercel.app/api/badge/AIOSAI/AIPass)](https://github.com/volotat/OSS-Health-Monitor)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge)](https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13095/badge)](https://www.bestpractices.dev/projects/13095)
 
 <p align="center">
   <img src="assets/logo.png" alt="AIPass" width="400" />
 </p>
 <p align="center"><strong>Persistent Agent Workspace</strong></p>
 <p align="center"><em>AI agents that remember, collaborate, and never start from zero.</em></p>
-<p align="center">
-  <a href="https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass"><img src="https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge" alt="OpenSSF Scorecard" /></a>
-</p>
 
 ![demo](assets/demo.gif)
 
