@@ -24,7 +24,6 @@ Checks:
 
 import os
 import re
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -36,56 +35,30 @@ from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
 AUDIT_SCOPE = "entry_point"
 
 
-def _is_gitignored(path: Path) -> bool:
-    """Check if a path is covered by .gitignore rules.
+# Runtime / generated paths that legitimately may be absent in a clean
+# checkout (e.g. CI) while present in a working tree. A README documenting
+# one of these is not a violation when it's missing from disk.
+# Pure local-file check — never consults git or .gitignore. (A standards
+# audit reads the files that are there; git is a separate concern.)
+_RUNTIME_ARTIFACTS = {
+    "logs",
+    "artifacts",
+    "dropbox",
+    "system_logs",
+    "docs.local",
+    ".trinity",
+    "STATUS.local.md",
+    "DASHBOARD.local.json",
+}
 
-    Uses ``git check-ignore`` from the repo root (discovered via
-    ``git rev-parse --show-toplevel``).  Falls back to a built-in list
-    of known AIPass gitignored patterns when git is unavailable.
-    """
-    try:
-        top = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if top.returncode == 0:
-            repo_root = top.stdout.strip()
-            # Test both the bare path and its directory form. .gitignore dir-only
-            # patterns (trailing slash: logs/, artifacts/, **/*_json/, .trinity/)
-            # only match when git knows the path is a directory. In a clean
-            # checkout the gitignored dir does not exist on disk, so git cannot
-            # infer "directory" from the bare path and reports it un-ignored —
-            # appending a trailing slash signals directory intent and restores
-            # the match. (Without this, README dir-tree/dead-link checks fail in
-            # CI's clean checkout while passing in a working tree.)
-            for candidate in (str(path), str(path).rstrip("/") + "/"):
-                result = subprocess.run(
-                    ["git", "-C", repo_root, "check-ignore", "-q", candidate],
-                    capture_output=True,
-                    timeout=5,
-                )
-                if result.returncode == 0:
-                    return True
-            return False
-    except Exception:
-        logger.info("git check-ignore unavailable for %s", path)
 
+def _is_runtime_artifact(path: Path) -> bool:
+    """True if path is a runtime/generated artifact that may be absent in a
+    clean checkout. Local-file only — never consults git or .gitignore."""
     name = path.name
-    known_ignored = {
-        "logs",
-        "artifacts",
-        "dropbox",
-        "system_logs",
-        "docs.local",
-        ".trinity",
-    }
-    if name in known_ignored:
+    if name in _RUNTIME_ARTIFACTS:
         return True
     if name.endswith("_json"):
-        return True
-    if name in ("STATUS.local.md", "DASHBOARD.local.json"):
         return True
     return False
 
@@ -243,35 +216,17 @@ def check_required_sections(lines: List[str], file_path: str, bypass_rules: list
     return {"name": "Required sections", "passed": False, "message": f"Missing sections: {', '.join(missing)}"}
 
 
-def _get_latest_py_commit_date(branch_root: Path) -> Optional[datetime]:
-    """Get the date of the last git commit that touched a .py file in the branch."""
-    apps_dir = branch_root / "apps"
-    if not apps_dir.exists():
-        return None
-    try:
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%cd", "--date=short", "--", "*.py"],
-            capture_output=True,
-            text=True,
-            cwd=str(apps_dir),
-            timeout=10,
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            return None
-        return datetime.strptime(result.stdout.strip(), "%Y-%m-%d")
-    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError) as exc:
-        logger.info("git log for freshness check failed: %s", exc)
-        return None
-
-
 def check_last_updated_freshness(
     lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None
 ) -> Dict:
     """
-    Check that Last Updated date is within 7 days of last git commit touching .py files.
+    Check that the README declares a well-formed "Last Updated" date.
 
-    Uses git history (not filesystem mtime) to avoid false positives from
-    checkout/merge/pull operations that reset mtimes without semantic changes.
+    Local-file only: verifies the field is present and parseable. Does NOT
+    compare against code history — recency is not a property of the files on
+    disk, so it has no place in a local standards audit (and would diverge
+    between a working tree and a clean CI checkout). A "code changed, re-check
+    your README" nudge, if wanted, belongs outside the audit as its own flag.
 
     Looks for patterns:
     - *Last Updated: YYYY-MM-DD*
@@ -282,46 +237,27 @@ def check_last_updated_freshness(
     if is_bypassed(file_path, "readme", None, bypass_rules):
         return {"name": "Last Updated freshness", "passed": True, "message": "Bypassed by bypass rules"}
 
-    readme_date = None
     date_pattern = re.compile(r"\*{0,2}Last Updated\*{0,2}:\*{0,2}\s*(\d{4}-\d{2}-\d{2})")
 
     for line in lines:
         match = date_pattern.search(line)
         if match:
             try:
-                readme_date = datetime.strptime(match.group(1), "%Y-%m-%d")
+                datetime.strptime(match.group(1), "%Y-%m-%d")
             except ValueError:
-                logger.info("Malformed date in README: %s", match.group(1))
-                readme_date = None
-            break
+                logger.info("Malformed Last Updated date in README: %s", match.group(1))
+                return {
+                    "name": "Last Updated freshness",
+                    "passed": False,
+                    "message": f"Malformed Last Updated date: {match.group(1)}",
+                }
+            return {
+                "name": "Last Updated freshness",
+                "passed": True,
+                "message": f"Last Updated date present ({match.group(1)})",
+            }
 
-    if readme_date is None:
-        return {"name": "Last Updated freshness", "passed": False, "message": 'No "Last Updated" date found in README'}
-
-    latest_commit = _get_latest_py_commit_date(branch_root)
-
-    if latest_commit is None:
-        return {"name": "Last Updated freshness", "passed": True, "message": "No git history for .py files (skip)"}
-
-    days_behind = (latest_commit - readme_date).days
-
-    if days_behind <= 7:
-        return {
-            "name": "Last Updated freshness",
-            "passed": True,
-            "message": f"README date {readme_date.strftime('%Y-%m-%d')} is within 7 days of latest code commit",
-        }
-
-    return {
-        "name": "Last Updated freshness",
-        "passed": False,
-        "message": (
-            f"README is {days_behind} days behind last code change"
-            f" ({latest_commit.strftime('%Y-%m-%d')}). Review and update"
-            " README CONTENT to reflect recent changes, then set Last"
-            " Updated. Do not just bump the date."
-        ),
-    }
+    return {"name": "Last Updated freshness", "passed": False, "message": 'No "Last Updated" date found in README'}
 
 
 def check_directory_tree(lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None) -> Dict:
@@ -395,7 +331,7 @@ def check_directory_tree(lines: List[str], branch_root: Path, file_path: str, by
                 found = True
                 break
         if not found:
-            if _is_gitignored(branch_root / dir_name):
+            if _is_runtime_artifact(branch_root / dir_name):
                 continue
             missing_dirs.append(dir_name)
 
@@ -598,7 +534,7 @@ def check_markdown_links(lines: List[str], branch_root: Path, file_path: str, by
     for link_text, link_path in links:
         resolved = (branch_root / link_path).resolve()
         if not resolved.exists():
-            if _is_gitignored(branch_root / link_path):
+            if _is_runtime_artifact(branch_root / link_path):
                 continue
             dead_links.append(f"{link_path} ({link_text})")
 

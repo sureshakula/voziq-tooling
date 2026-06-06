@@ -473,29 +473,54 @@ def test_check_module_missing_readme_has_8_failures(tmp_path):
     assert result["score"] == 0
 
 
-def test_is_gitignored_directory_only_pattern_nonexistent(tmp_path, monkeypatch):
-    """Dir-only .gitignore patterns match non-existent paths via the slash form.
-
-    Regression (DPLAN-0195): in a clean checkout (CI) the gitignored dir does
-    not exist on disk, so ``git check-ignore <bare-path>`` reports it un-ignored
-    because git cannot confirm "directory" to match a dir-only pattern (trailing
-    slash). ``_is_gitignored`` must also test the trailing-slash form. Without
-    this the README dir-tree/dead-link checks passed in a working tree but failed
-    in CI's clean checkout.
-    """
-    import subprocess
+def test_is_runtime_artifact_known_dirs():
+    """_is_runtime_artifact recognizes known runtime dirs and suffixes."""
+    from pathlib import Path
 
     from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
-        _is_gitignored,
+        _is_runtime_artifact,
     )
 
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / ".gitignore").write_text("logs/\n**/*_json/\n.trinity/\n")
-    monkeypatch.chdir(tmp_path)
+    assert _is_runtime_artifact(Path("/any/path/logs")) is True
+    assert _is_runtime_artifact(Path("/any/path/artifacts")) is True
+    assert _is_runtime_artifact(Path("/any/path/.trinity")) is True
+    assert _is_runtime_artifact(Path("/any/path/cli_json")) is True
+    assert _is_runtime_artifact(Path("/any/path/seedgo_json")) is True
+    assert _is_runtime_artifact(Path("/any/path/STATUS.local.md")) is True
+    assert _is_runtime_artifact(Path("/any/path/DASHBOARD.local.json")) is True
+    assert _is_runtime_artifact(Path("/any/path/docs.local")) is True
+    assert _is_runtime_artifact(Path("/any/path/dropbox")) is True
+    assert _is_runtime_artifact(Path("/any/path/system_logs")) is True
+    assert _is_runtime_artifact(Path("/any/path/src")) is False
+    assert _is_runtime_artifact(Path("/any/path/apps")) is False
+    assert _is_runtime_artifact(Path("/any/path/tests")) is False
 
-    # Non-existent dirs — only match when the trailing-slash form is tested.
-    assert _is_gitignored(tmp_path / "logs") is True
-    assert _is_gitignored(tmp_path / "cli_json") is True
-    assert _is_gitignored(tmp_path / ".trinity") is True
-    # A path not covered by any pattern stays un-ignored.
-    assert _is_gitignored(tmp_path / "src") is False
+
+def test_directory_tree_passes_absent_runtime_dir(tmp_path):
+    """Parity regression: README tree lists runtime dir (logs), dir absent on
+    disk, no git available — tree check passes via _is_runtime_artifact."""
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_directory_tree,
+    )
+
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    apps_dir = branch_root / "apps"
+    apps_dir.mkdir()
+    (apps_dir / "modules").mkdir()
+
+    lines = [
+        "## Architecture",
+        "```",
+        "mybranch/",
+        "├── apps/",
+        "│   └── modules/",
+        "├── logs/",
+        "├── cli_json/",
+        "└── artifacts/",
+        "```",
+    ]
+
+    result = check_directory_tree(lines, branch_root, str(apps_dir / "entry.py"))
+    assert result["passed"] is True
+    assert "verified" in result["message"]
