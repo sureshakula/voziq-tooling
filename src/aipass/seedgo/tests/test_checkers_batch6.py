@@ -163,16 +163,27 @@ class TestArchCheckFileSize:
         assert result["passed"] is True
         assert "getting heavy" in result["message"]
 
-    def test_oversized_file_fails(self):
-        """700+ lines fails the size check."""
+    def test_advisory_file_passes(self):
+        """700-1500 lines is advisory — passes but warns."""
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
             check_file_size,
         )
 
         lines: list[str] = ["x"] * 750
+        result = check_file_size(lines, "big.py")
+        assert result["passed"] is True
+        assert "advisory" in result["message"]
+
+    def test_oversized_file_fails(self):
+        """1500+ lines hard-fails the size check."""
+        from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
+            check_file_size,
+        )
+
+        lines: list[str] = ["x"] * 1600
         result = check_file_size(lines, "huge.py")
         assert result["passed"] is False
-        assert "consider splitting" in result["message"]
+        assert "must split" in result["message"]
 
 
 # -- check_handler_independence (architecture) --------------------------------

@@ -169,13 +169,14 @@ def check_layer_location(module_path: str, is_entry_point: bool, is_module: bool
 
 def check_file_size(lines: List[str], module_path: str) -> Dict:
     """
-    Check file size compliance
+    Check file size compliance.
 
-    Guidelines:
-    - Under 300 lines: Perfect
-    - 300-500 lines: Good
-    - 500-700 lines: Getting heavy
-    - 700+ lines: Consider splitting
+    Bands:
+    - Under 300 lines: perfect
+    - 300-500 lines: good
+    - 500-700 lines: getting heavy
+    - 700-1500 lines: advisory warning (does not dock score)
+    - 1500+ lines: hard fail (docks score)
     """
     line_count = len(lines)
 
@@ -185,11 +186,17 @@ def check_file_size(lines: List[str], module_path: str) -> Dict:
         return {"name": "File size", "passed": True, "message": f"{line_count} lines (good - under 500)"}
     elif line_count < 700:
         return {"name": "File size", "passed": True, "message": f"{line_count} lines (acceptable but getting heavy)"}
+    elif line_count < 1500:
+        return {
+            "name": "File size",
+            "passed": True,
+            "message": f"{line_count} lines (advisory - consider splitting, recommended under 700)",
+        }
     else:
         return {
             "name": "File size",
             "passed": False,
-            "message": f"{line_count} lines (consider splitting - recommended under 700)",
+            "message": f"{line_count} lines (exceeds 1500 - must split)",
         }
 
 

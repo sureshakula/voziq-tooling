@@ -339,7 +339,7 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ---
 
-**Seedgo:** 99% | **Tests:** 704 pass, 4 skip | **Last Updated:** 2026-05-12
+**Seedgo:** 100% | **Tests:** 772 pass, 4 skip | **Last Updated:** 2026-06-05
 
 ---
 [← Back to AIPass](../../../README.md)

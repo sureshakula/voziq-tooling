@@ -156,11 +156,6 @@
       "reason": "Redundant prefix is a known naming issue — rename deferred to avoid breaking imports across codebase"
     },
     {
-      "file": "apps/handlers/file/file_handler.py",
-      "standard": "naming",
-      "reason": "Redundant prefix is a known naming issue — rename deferred to avoid breaking imports across codebase"
-    },
-    {
       "file": "apps/handlers/readme/readme_generator.py",
       "standard": "naming",
       "reason": "Redundant prefix is a known naming issue — rename deferred to avoid breaking imports across codebase"

@@ -183,28 +183,88 @@ def test_required_sections_alternate_names():
 # ===========================================================================
 
 
-def test_last_updated_freshness_present(tmp_path):
-    """README with recent Last Updated passes."""
-    from datetime import datetime
+def test_last_updated_freshness_within_7_days(tmp_path):
+    """README date within 7 days of last git commit passes."""
+    from datetime import datetime, timedelta
+    from unittest.mock import patch
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    commit_date = datetime.now() - timedelta(days=3)
+    readme_date = datetime.now() - timedelta(days=5)
     lines: List[str] = [
         "# Branch",
-        f"*Last Updated: {today}*",
+        f"*Last Updated: {readme_date.strftime('%Y-%m-%d')}*",
         "",
     ]
     branch_root = tmp_path / "mybranch"
     branch_root.mkdir()
-    apps_dir = branch_root / "apps"
-    apps_dir.mkdir()
-    (apps_dir / "entry.py").write_text("pass", encoding="utf-8")
+    (branch_root / "apps").mkdir()
 
     from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
         check_last_updated_freshness,
     )
 
-    result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    with patch(
+        "aipass.seedgo.apps.handlers.aipass_standards.readme_check._get_latest_py_commit_date",
+        return_value=commit_date,
+    ):
+        result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
     assert result["passed"] is True
+
+
+def test_last_updated_freshness_stale(tmp_path):
+    """README date >7 days behind last git commit fails."""
+    from datetime import datetime, timedelta
+    from unittest.mock import patch
+
+    commit_date = datetime.now() - timedelta(days=2)
+    readme_date = datetime.now() - timedelta(days=20)
+    lines: List[str] = [
+        "# Branch",
+        f"**Last Updated:** {readme_date.strftime('%Y-%m-%d')}",
+        "",
+    ]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    (branch_root / "apps").mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    with patch(
+        "aipass.seedgo.apps.handlers.aipass_standards.readme_check._get_latest_py_commit_date",
+        return_value=commit_date,
+    ):
+        result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    assert result["passed"] is False
+    assert "days behind" in result["message"]
+    assert "Do not just bump" in result["message"]
+
+
+def test_last_updated_freshness_no_git_history(tmp_path):
+    """No git history for .py files passes gracefully."""
+    from unittest.mock import patch
+
+    lines: List[str] = [
+        "# Branch",
+        "*Last Updated: 2026-01-01*",
+        "",
+    ]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    (branch_root / "apps").mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    with patch(
+        "aipass.seedgo.apps.handlers.aipass_standards.readme_check._get_latest_py_commit_date",
+        return_value=None,
+    ):
+        result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    assert result["passed"] is True
+    assert "skip" in result["message"]
 
 
 def test_last_updated_freshness_missing():
@@ -219,12 +279,67 @@ def test_last_updated_freshness_missing():
         check_last_updated_freshness,
     )
 
-    # branch_root doesn't matter since date is missing
     from pathlib import Path
 
     result = check_last_updated_freshness(lines, Path("/nonexistent"), "/fake/apps/entry.py")
     assert result["passed"] is False
     assert "Last Updated" in result["message"]
+
+
+def test_last_updated_freshness_boundary_7_days(tmp_path):
+    """README exactly 7 days behind last commit passes (<=7)."""
+    from datetime import datetime, timedelta
+    from unittest.mock import patch
+
+    commit_date = datetime.now()
+    readme_date = commit_date - timedelta(days=7)
+    lines: List[str] = [
+        "# Branch",
+        f"*Last Updated: {readme_date.strftime('%Y-%m-%d')}*",
+        "",
+    ]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    (branch_root / "apps").mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    with patch(
+        "aipass.seedgo.apps.handlers.aipass_standards.readme_check._get_latest_py_commit_date",
+        return_value=commit_date,
+    ):
+        result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    assert result["passed"] is True
+
+
+def test_last_updated_freshness_boundary_8_days(tmp_path):
+    """README 8 days behind last commit fails (>7)."""
+    from datetime import datetime, timedelta
+    from unittest.mock import patch
+
+    commit_date = datetime.now()
+    readme_date = commit_date - timedelta(days=8)
+    lines: List[str] = [
+        "# Branch",
+        f"*Last Updated: {readme_date.strftime('%Y-%m-%d')}*",
+        "",
+    ]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    (branch_root / "apps").mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    with patch(
+        "aipass.seedgo.apps.handlers.aipass_standards.readme_check._get_latest_py_commit_date",
+        return_value=commit_date,
+    ):
+        result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    assert result["passed"] is False
 
 
 # ===========================================================================

@@ -95,7 +95,7 @@ seedgo/
 │   │   ├── permissions.py           # TRUSTED_CROSS_WRITERS list for hook + drone auth
 │   │   ├── readme_update.py         # README generation module
 │   │   └── test_map.py              # Custom function test coverage mapping
-│   └── handlers/                    # 10 handler directories
+│   └── handlers/                    # 9 handler directories
 │       ├── aipass_standards/        # 34 checker standards (67 files)
 │       │   ├── *_check.py           # Checker implementations (score 0-100)
 │       │   ├── *_content.py         # Queryable standard content
@@ -115,7 +115,6 @@ seedgo/
 │       │   └── ignore_handler.py    # .seedgo/ignore patterns
 │       ├── config/                  # Configuration handlers
 │       ├── diagnostics/             # Pyright integration + branch discovery
-│       ├── file/                    # File operations
 │       ├── json/                    # JSON tracking (json_handler)
 │       ├── readme/                  # README generator + branch resolution
 │       └── test_map/                # Function test coverage scanner

@@ -352,15 +352,25 @@ class TestCheckFileSizeEdgeCases:
         assert result["passed"] is True
         assert "getting heavy" in result["message"]
 
-    def test_exactly_700_lines(self):
+    def test_exactly_700_lines_advisory(self):
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
             check_file_size,
         )
 
         lines = ["x"] * 700
         result = check_file_size(lines, "f.py")
+        assert result["passed"] is True
+        assert "advisory" in result["message"]
+
+    def test_exactly_1500_lines_fails(self):
+        from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
+            check_file_size,
+        )
+
+        lines = ["x"] * 1500
+        result = check_file_size(lines, "f.py")
         assert result["passed"] is False
-        assert "consider splitting" in result["message"]
+        assert "must split" in result["message"]
 
     def test_empty_file(self):
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (

@@ -111,12 +111,7 @@ def print_help() -> None:
 
 
 def print_introspection() -> None:
-    """Alias for seedgo standard compliance (audit expects print_introspection)."""
-    show_introspection()
-
-
-def show_introspection() -> None:
-    """Show discovery view (no args) — auto-discovers modules."""
+    """Display branch overview — auto-discovers modules."""
     console.print()
     console.print("[bold cyan]Drone - Command Router & Discovery[/bold cyan]")
     console.print()

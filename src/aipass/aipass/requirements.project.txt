@@ -1,0 +1,3 @@
+# Project-specific Python dependencies beyond the base AIPass install.
+# Add packages here that the aipass branch requires but are not in the root pyproject.toml.
+# Install with: pip install -r requirements.project.txt

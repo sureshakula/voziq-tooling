@@ -24,6 +24,7 @@ Checks:
 
 import os
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -188,11 +189,35 @@ def check_required_sections(lines: List[str], file_path: str, bypass_rules: list
     return {"name": "Required sections", "passed": False, "message": f"Missing sections: {', '.join(missing)}"}
 
 
+def _get_latest_py_commit_date(branch_root: Path) -> Optional[datetime]:
+    """Get the date of the last git commit that touched a .py file in the branch."""
+    apps_dir = branch_root / "apps"
+    if not apps_dir.exists():
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cd", "--date=short", "--", "*.py"],
+            capture_output=True,
+            text=True,
+            cwd=str(apps_dir),
+            timeout=10,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        return datetime.strptime(result.stdout.strip(), "%Y-%m-%d")
+    except (subprocess.TimeoutExpired, FileNotFoundError, ValueError) as exc:
+        logger.info("git log for freshness check failed: %s", exc)
+        return None
+
+
 def check_last_updated_freshness(
     lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None
 ) -> Dict:
     """
-    Check that Last Updated date is within 7 days of newest .py file modification.
+    Check that Last Updated date is within 7 days of last git commit touching .py files.
+
+    Uses git history (not filesystem mtime) to avoid false positives from
+    checkout/merge/pull operations that reset mtimes without semantic changes.
 
     Looks for patterns:
     - *Last Updated: YYYY-MM-DD*
@@ -203,8 +228,6 @@ def check_last_updated_freshness(
     if is_bypassed(file_path, "readme", None, bypass_rules):
         return {"name": "Last Updated freshness", "passed": True, "message": "Bypassed by bypass rules"}
 
-    # Find Last Updated line
-    # Accept both italic (*) and bold (**) markdown formatting
     readme_date = None
     date_pattern = re.compile(r"\*{0,2}Last Updated\*{0,2}:\*{0,2}\s*(\d{4}-\d{2}-\d{2})")
 
@@ -215,45 +238,35 @@ def check_last_updated_freshness(
                 readme_date = datetime.strptime(match.group(1), "%Y-%m-%d")
             except ValueError:
                 logger.info("Malformed date in README: %s", match.group(1))
-                readme_date = None  # Malformed date string
+                readme_date = None
             break
 
     if readme_date is None:
         return {"name": "Last Updated freshness", "passed": False, "message": 'No "Last Updated" date found in README'}
 
-    # Find newest .py file modification time in the branch
-    newest_py_mtime = None
-    apps_dir = branch_root / "apps"
-    if apps_dir.exists():
-        for py_file in apps_dir.rglob("*.py"):
-            if py_file.name == "__init__.py":
-                continue
-            try:
-                mtime = datetime.fromtimestamp(py_file.stat().st_mtime)
-                if newest_py_mtime is None or mtime > newest_py_mtime:
-                    newest_py_mtime = mtime
-            except OSError:
-                logger.info("Cannot stat %s for freshness check", py_file)
-                continue
+    latest_commit = _get_latest_py_commit_date(branch_root)
 
-    if newest_py_mtime is None:
-        # No Python files to compare against - pass by default
-        return {"name": "Last Updated freshness", "passed": True, "message": "No .py files found to compare against"}
+    if latest_commit is None:
+        return {"name": "Last Updated freshness", "passed": True, "message": "No git history for .py files (skip)"}
 
-    # Compare: flag if README date is >7 days behind newest code change
-    days_behind = (newest_py_mtime - readme_date).days
+    days_behind = (latest_commit - readme_date).days
 
     if days_behind <= 7:
         return {
             "name": "Last Updated freshness",
             "passed": True,
-            "message": f"README date {readme_date.strftime('%Y-%m-%d')} is within 7 days of latest code change",
+            "message": f"README date {readme_date.strftime('%Y-%m-%d')} is within 7 days of latest code commit",
         }
 
     return {
         "name": "Last Updated freshness",
         "passed": False,
-        "message": f"README date {readme_date.strftime('%Y-%m-%d')} is {days_behind} days behind newest code change ({newest_py_mtime.strftime('%Y-%m-%d')})",
+        "message": (
+            f"README is {days_behind} days behind last code change"
+            f" ({latest_commit.strftime('%Y-%m-%d')}). Review and update"
+            " README CONTENT to reflect recent changes, then set Last"
+            " Updated. Do not just bump the date."
+        ),
     }
 
 
@@ -474,7 +487,11 @@ def check_test_count_accuracy(
     return {
         "name": "Test count accuracy",
         "passed": False,
-        "message": f"README claims {max_claimed} tests, actual count is {actual_count} ({drift_pct:.0f}% drift)",
+        "message": (
+            f"README claims {max_claimed} tests, actual count is"
+            f" {actual_count} ({drift_pct:.0f}% drift). Update the README"
+            f" to {actual_count}."
+        ),
     }
 
 

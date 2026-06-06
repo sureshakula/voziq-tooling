@@ -69,23 +69,6 @@ def _mock_infrastructure(monkeypatch):
     monkeypatch.setitem(sys.modules, "aipass.cli.apps", cli_apps)
     monkeypatch.setitem(sys.modules, "aipass.cli.apps.modules", cli_apps_modules)
 
-    # -- file handler (for hooks_ext) ---------------------------------------
-    file_handler_mod = MagicMock()
-    file_handler_mod.read_lines_safe = MagicMock(return_value=[])
-    file_handler_mod.read_text_safe = MagicMock(return_value=None)
-    monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.file", file_handler_mod)
-
-    # -- hooks handler (for hooks_ext) --------------------------------------
-    hooks_handler_mod = MagicMock()
-    hooks_handler_mod.run_pytest_file = MagicMock(return_value=(3, 0, 1.5))
-    monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.hooks", hooks_handler_mod)
-
-    # -- rich.table (for hooks_ext) -----------------------------------------
-    rich_table_mod = MagicMock()
-    monkeypatch.setitem(sys.modules, "rich.table", rich_table_mod)
-    monkeypatch.setitem(sys.modules, "rich", MagicMock())
-    monkeypatch.setitem(sys.modules, "rich.console", MagicMock())
-
     # Force re-imports so handler modules pick up fresh mocks
     for mod_name in [
         "aipass.seedgo.apps.handlers.audit.audit_display",
