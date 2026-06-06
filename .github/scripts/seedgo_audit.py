@@ -6,7 +6,7 @@ from pathlib import Path
 from aipass.seedgo.apps.handlers.audit.branch_audit import audit_branch
 from aipass.seedgo.apps.handlers.bypass.bypass_handler import load_bypass_rules
 
-THRESHOLD = 80
+THRESHOLD = 100
 
 src = Path("src/aipass")
 pack = src / "seedgo/apps/handlers/aipass_standards"
