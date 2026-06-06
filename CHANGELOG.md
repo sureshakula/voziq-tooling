@@ -90,6 +90,15 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **`Windows Test` / `macOS Test` are no longer path-filtered — they were
+  stalling PRs as required checks.** Both workflows only triggered when
+  `setup.sh`/`drone/cli.py`/`handlers/__init__.py`/`pyproject.toml` changed, but
+  branch protection lists `windows-setup`/`macos-setup` as *required*. On any PR
+  that didn't touch those paths the workflows never ran, so GitHub parked the
+  required checks as "Expected — waiting for status" indefinitely, blocking the
+  merge (the tests themselves were green — they simply didn't fire). They now run
+  on every push/PR to main/dev, like the other required lanes. (A required check
+  must never be path-filtered.)
 - **`seedgo-audit` CI gate was red despite 100% local audits — four checkers
   validated the working tree instead of committed source.** CI audits a clean
   `git checkout` (tracked files only — git ships no empty or gitignored dirs),
