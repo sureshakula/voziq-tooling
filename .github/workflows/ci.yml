@@ -58,7 +58,14 @@ jobs:
           python-version: "3.13"
       - run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          # Install the `memory` extra (numpy/chromadb/fastembed) alongside dev:
+          # the diagnostics standard runs pyright over every branch, and memory's
+          # handlers import chromadb/numpy. Without these deps installed, pyright
+          # reports them as unresolved imports (reportMissingImports=error) and
+          # memory scores <100 — a false failure from a missing CI dep, not a code
+          # defect. Installing the declared extra lets pyright resolve them so the
+          # audit measures real type-correctness (and matches a local audit).
+          pip install -e ".[dev,memory]"
       - name: Run seedgo standards audit
         run: python .github/scripts/seedgo_audit.py
 

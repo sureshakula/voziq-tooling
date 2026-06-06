@@ -111,7 +111,13 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   `cli_json`/`logs`/`artifacts` as "missing on disk" in CI only). The CI gate
   (`.github/scripts/seedgo_audit.py`) now also prints the failing standards and
   their check messages, so a sub-100 result says *why*, not just the percentage.
-  Clean-tree and working-tree audits both report 13/13 = 100%. (DPLAN-0195)
+  Finally, the `seedgo-audit` CI job now installs the `memory` extra
+  (`pip install -e ".[dev,memory]"`): the `diagnostics` standard runs pyright over
+  every branch, and memory's handlers import `chromadb`/`numpy` at module level —
+  without those declared deps installed, pyright reported them as unresolved
+  (`reportMissingImports=error`) and memory scored 55%, a false failure from a
+  missing CI dep rather than a code defect. Clean-tree and working-tree audits
+  both report 13/13 = 100%. (DPLAN-0195)
 - **Two latent Windows portability bugs caught by the new e2e harness** — both
   were always present in the code; they only surfaced now because this is the
   first CI to run `aipass init` scaffolding and real-branch `drone` routing on
