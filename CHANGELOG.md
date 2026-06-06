@@ -12,6 +12,8 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **HVTracker badge** added to the README badge cluster, linking to the public
+  agent profile at hvtracker.net (closes #628).
 - **`git_gate` read-verb allowlist — raw read-only git for every branch.** The
   PreToolUse `git_gate` previously blocked *all* raw git (forcing `drone @git`
   even for harmless reads), which left agents unable to inspect what git ships —

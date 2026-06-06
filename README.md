@@ -6,6 +6,7 @@
 [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge)](https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13095/badge)](https://www.bestpractices.dev/projects/13095)
+[![HVTracker](https://img.shields.io/badge/HVTracker-AIPass-blue)](https://hvtracker.net/agents/aipass/)
 
 <p align="center">
   <img src="assets/logo.png" alt="AIPass" width="400" />
