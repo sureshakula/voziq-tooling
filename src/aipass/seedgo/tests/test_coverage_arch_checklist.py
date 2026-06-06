@@ -278,7 +278,7 @@ class TestCheckModule:
         assert "3-layer pattern" not in check_names
 
     def test_entry_point_primary_triggers_template_baseline(self, tmp_path):
-        """Primary entry point (branch.py matching branch dir name) triggers template baseline."""
+        """Primary entry point with passport triggers template baseline."""
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
             check_module,
         )
@@ -288,7 +288,9 @@ class TestCheckModule:
         apps.mkdir(parents=True)
         entry = apps / "mybranch.py"
         entry.write_text("# entry\n", encoding="utf-8")
-        # No passport -> template baseline will fail at citizen_class step
+        trinity = branch / ".trinity"
+        trinity.mkdir()
+        (trinity / "passport.json").write_text('{"identity": {}}', encoding="utf-8")
         result = check_module(str(entry))
         check_names = [c["name"] for c in result["checks"]]
         assert any("Template baseline" in n or "citizen_class" in str(c) for n, c in zip(check_names, result["checks"]))

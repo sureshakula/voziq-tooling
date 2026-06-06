@@ -35,9 +35,15 @@ Task belongs to specialist domain → ask them. Investigate/fix small things you
 | User onboarding, init | @aipass | Concierge, aipass init, doctor, scanner |
 | Hooks, engine, gates | @hooks | Hook engine, bridges, per-project config, sound |
 
-## Git — Dev Branch, Drone Only, You Are Gatekeeper
+## Git — Dev Branch, You Are Gatekeeper
 
-Only branch with git write access. All git/gh blocked at project level. Drone bypasses via subprocess — tier system grants write to devpulse only.
+Only branch with git WRITE access. WRITE git (commit, push, checkout, merge, reset, rebase, clean, pull, fetch, tag, branch -D, clone, worktree…) is blocked raw → use `drone @git` (tier grants write to devpulse only).
+
+**READ git is allowed RAW** (S193, git_gate read allowlist) — just run it, no drone needed. Use this for investigation/forensics instead of reaching for drone or `find` fallbacks:
+- Allowed verbs: `ls-files, ls-tree, show, cat-file, rev-parse, rev-list, log, status, diff, blame, describe, for-each-ref, show-ref, symbolic-ref, shortlog, grep, archive, count-objects, var, help, version`.
+- NOT yet allowed (gap, S193): `check-ignore` → use `git ls-files <path>` (empty = ignored/untracked) or read `.gitignore` directly.
+- Reproduce a clean checkout (tracked-only, like CI): `git archive HEAD | tar -x -C /tmp/<dir>` (`drone rm` the dir first; `rm -rf` is gated).
+- Chained read+write blocks the whole command (e.g. `git log && git push` → blocked). Keep read and write in separate invocations.
 
 Three rules:
 1. Work on dev, merge to main when satisfied. `drone @git merge dev` squash-merges.

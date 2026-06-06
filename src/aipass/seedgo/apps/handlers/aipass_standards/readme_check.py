@@ -36,6 +36,49 @@ from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
 AUDIT_SCOPE = "entry_point"
 
 
+def _is_gitignored(path: Path) -> bool:
+    """Check if a path is covered by .gitignore rules.
+
+    Uses ``git check-ignore`` from the repo root (discovered via
+    ``git rev-parse --show-toplevel``).  Falls back to a built-in list
+    of known AIPass gitignored patterns when git is unavailable.
+    """
+    try:
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if top.returncode == 0:
+            repo_root = top.stdout.strip()
+            result = subprocess.run(
+                ["git", "-C", repo_root, "check-ignore", "-q", str(path)],
+                capture_output=True,
+                timeout=5,
+            )
+            return result.returncode == 0
+    except Exception:
+        logger.info("git check-ignore unavailable for %s", path)
+
+    name = path.name
+    known_ignored = {
+        "logs",
+        "artifacts",
+        "dropbox",
+        "system_logs",
+        "docs.local",
+        ".trinity",
+    }
+    if name in known_ignored:
+        return True
+    if name.endswith("_json"):
+        return True
+    if name in ("STATUS.local.md", "DASHBOARD.local.json"):
+        return True
+    return False
+
+
 def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     """
     Check if branch README follows standards
@@ -341,6 +384,8 @@ def check_directory_tree(lines: List[str], branch_root: Path, file_path: str, by
                 found = True
                 break
         if not found:
+            if _is_gitignored(branch_root / dir_name):
+                continue
             missing_dirs.append(dir_name)
 
     if not missing_dirs:
@@ -542,6 +587,8 @@ def check_markdown_links(lines: List[str], branch_root: Path, file_path: str, by
     for link_text, link_path in links:
         resolved = (branch_root / link_path).resolve()
         if not resolved.exists():
+            if _is_gitignored(branch_root / link_path):
+                continue
             dead_links.append(f"{link_path} ({link_text})")
 
     if not dead_links:

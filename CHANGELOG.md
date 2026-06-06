@@ -12,6 +12,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **`git_gate` read-verb allowlist — raw read-only git for every branch.** The
+  PreToolUse `git_gate` previously blocked *all* raw git (forcing `drone @git`
+  even for harmless reads), which left agents unable to inspect what git ships —
+  the exact forensics needed to diagnose the audit gap above. It now allows 22
+  read-only verbs raw (`ls-files`, `ls-tree`, `show`, `cat-file`, `rev-parse`,
+  `rev-list`, `log`, `status`, `diff`, `blame`, `archive`, `grep`, …) while
+  write operations stay `drone`-gated. Global options (`-C`, `-c`, `--git-dir`,
+  …) are skipped when extracting the verb, and chained commands are split on
+  `&&`/`||`/`;`/`|` so a read piped into a write still blocks the whole line.
+  (81 tests)
 - **Cross-OS end-to-end WIRING test (`tests/e2e/`, `e2e-wheel.yml`)** — the first
   CI gate that proves real AIPass *wiring* (not units-with-mocks) by building the
   wheel, installing it into a clean venv, and asserting a 4-tier ladder: package
@@ -80,6 +90,21 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **`seedgo-audit` CI gate was red despite 100% local audits — four checkers
+  validated the working tree instead of committed source.** CI audits a clean
+  `git checkout` (tracked files only — git ships no empty or gitignored dirs),
+  but the working tree carries runtime dirs (`logs/`, `*_json/`, `artifacts/`,
+  `.trinity/`, `passport.json`), so every branch scored ~97% in CI while passing
+  at 100% locally. Reproduced exactly with a tracked-only tree (`git archive HEAD`
+  audits to CI's 97%). Four checkers now measure what git actually ships:
+  `log_structure` no longer fails when the gitignored `logs/` dir is absent (it
+  still enforces no-hardcoded-paths); `readme` cross-references `.gitignore`
+  (via `git check-ignore` with a fallback list) and skips gitignored dirs/links
+  in the directory-tree and dead-link checks; `encapsulation` infers the branch
+  from the path when the gitignored `AIPASS_REGISTRY.json` is unavailable (and no
+  longer collides on the `aipass` branch); `architecture` skips cleanly when the
+  gitignored `passport.json` is absent. Clean-tree and working-tree audits now
+  both report 13/13 = 100%. (DPLAN-0195)
 - **Two latent Windows portability bugs caught by the new e2e harness** — both
   were always present in the code; they only surfaced now because this is the
   first CI to run `aipass init` scaffolding and real-branch `drone` routing on

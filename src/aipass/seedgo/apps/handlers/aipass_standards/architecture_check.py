@@ -443,8 +443,13 @@ def check_template_baseline(module_path: str, bypass_rules: list | None = None) 
     branch_name = branch_path.name
 
     # Read citizen class from passport
+    # .trinity/ is gitignored — absent in clean checkouts / CI.
+    # Skip the template baseline check entirely when passport is unavailable.
     citizen_class = _get_citizen_class(branch_path)
     if not citizen_class:
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if not passport_path.exists():
+            return []
         return [
             {
                 "name": "Template baseline",

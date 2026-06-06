@@ -24,6 +24,34 @@ RAW_GH_RE = re.compile(r"(?<![@\w/.])gh\s")
 
 GH_ALLOWED_SUBCOMMANDS = ("api",)
 
+READ_ALLOWED_GIT_SUBCOMMANDS = frozenset(
+    {
+        "ls-files",
+        "ls-tree",
+        "show",
+        "cat-file",
+        "rev-parse",
+        "rev-list",
+        "log",
+        "status",
+        "diff",
+        "blame",
+        "describe",
+        "for-each-ref",
+        "show-ref",
+        "symbolic-ref",
+        "shortlog",
+        "grep",
+        "archive",
+        "count-objects",
+        "var",
+        "help",
+        "version",
+    }
+)
+
+_GIT_OPTS_WITH_ARG = frozenset({"-C", "-c", "--git-dir", "--work-tree", "--exec-path", "--namespace"})
+
 BLOCKED_EDIT_PATTERNS = [
     re.compile(r"/\.claude/settings(\.local)?\.json$"),
     re.compile(r"/\.claude/hooks/"),
@@ -35,10 +63,8 @@ EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 TRUSTED_HOOK_EDITORS = ("devpulse", "seedgo")
 
 GIT_GH_REDIRECT = (
-    "All git/gh commands are blocked. Use drone instead:\n"
-    "  drone @git status        # working tree status\n"
-    "  drone @git diff           # see changes\n"
-    "  drone @git log            # commit history\n"
+    "Write git commands are blocked. Read-only verbs (status, log, diff, show, etc.) are allowed raw.\n"
+    "For write operations, use drone:\n"
     "  drone @git smart-sync     # fetch + rebase\n"
     "  drone @git sync           # checkout main + pull\n"
     "  drone @git issue list     # GitHub issues\n"
@@ -70,6 +96,42 @@ def _is_allowed_gh(cmd: str) -> bool:
     return False
 
 
+def _split_clauses(cmd: str) -> list[str]:
+    """Split on compound operators and subshell boundaries."""
+    parts = re.split(r"&&|\|\||[;|]", cmd)
+    clauses: list[str] = []
+    for part in parts:
+        clauses.extend(re.split(r"[$()`]", part))
+    return clauses
+
+
+def _extract_git_verb(tokens: list[str]) -> str | None:
+    """Extract the git subcommand verb, skipping global options."""
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if not tok.startswith("-"):
+            return tok
+        if tok in _GIT_OPTS_WITH_ARG:
+            i += 2
+            continue
+        i += 1
+    return None
+
+
+def _all_git_reads(scan: str) -> bool:
+    """Return True only if every git invocation in scan is a read-only verb."""
+    found_any = False
+    for clause in _split_clauses(scan):
+        for m in RAW_GIT_RE.finditer(clause):
+            found_any = True
+            after = clause[m.end() :].split()
+            verb = _extract_git_verb(after)
+            if verb is None or verb not in READ_ALLOWED_GIT_SUBCOMMANDS:
+                return False
+    return found_any
+
+
 def _block(reason: str) -> dict:
     return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
 
@@ -80,7 +142,7 @@ def _check_bash(tool_input: dict) -> dict:
         return _BLOCK_ALLOW
     scan = re.sub(r'"(?:[^"\\]|\\.)*"', '""', cmd)
     scan = re.sub(r"'(?:[^'\\]|\\.)*'", "''", scan)
-    if RAW_GIT_RE.search(scan):
+    if RAW_GIT_RE.search(scan) and not _all_git_reads(scan):
         return _block(GIT_GH_REDIRECT)
     if RAW_GH_RE.search(scan) and not _is_allowed_gh(cmd):
         return _block(GIT_GH_REDIRECT)

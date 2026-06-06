@@ -325,8 +325,8 @@ class TestCheckTemplateBaseline:
         assert result[0]["passed"] is False
         assert "Could not detect branch path" in result[0]["message"]
 
-    def test_missing_citizen_class(self, tmp_path):
-        """Branch without passport.json fails the citizen_class check."""
+    def test_missing_passport_skips(self, tmp_path):
+        """Branch without passport.json skips template baseline (gitignored)."""
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
             check_template_baseline,
         )
@@ -335,6 +335,24 @@ class TestCheckTemplateBaseline:
         apps_dir.mkdir(parents=True)
         entry = apps_dir / "mybranch.py"
         entry.write_text('"""Entry."""\n', encoding="utf-8")
+
+        result = check_template_baseline(str(entry))
+        assert result == []
+
+    def test_passport_without_citizen_class(self, tmp_path):
+        """Branch with passport.json but no citizen_class fails."""
+        from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
+            check_template_baseline,
+        )
+
+        apps_dir = tmp_path / "mybranch" / "apps"
+        apps_dir.mkdir(parents=True)
+        entry = apps_dir / "mybranch.py"
+        entry.write_text('"""Entry."""\n', encoding="utf-8")
+        trinity = tmp_path / "mybranch" / ".trinity"
+        trinity.mkdir()
+        passport = trinity / "passport.json"
+        passport.write_text('{"identity": {}}', encoding="utf-8")
 
         result = check_template_baseline(str(entry))
         assert len(result) >= 1
