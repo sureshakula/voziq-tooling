@@ -22,10 +22,17 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.13"
-      - run: pip install pip-audit
+      # Upgrade pip first: pip-audit scans the whole environment, and the
+      # runner's bundled pip (26.1.1) carries advisory PYSEC-2026-196 (fixed in
+      # 26.1.2). Upgrading removes the vulnerable version outright rather than
+      # suppressing it — and 26.1.2 also resolves CVE-2026-3219 / CVE-2026-6357,
+      # which is why those two stale --ignore-vuln entries are no longer needed.
+      - run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
       - run: pip install -e .
       - name: Pip audit
-        run: pip-audit --skip-editable --ignore-vuln CVE-2026-3219 --ignore-vuln CVE-2026-6357
+        run: pip-audit --skip-editable
 
   codeql:
     runs-on: ubuntu-latest

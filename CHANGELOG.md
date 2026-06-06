@@ -182,6 +182,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Security
 
+- **`dependency-scan` (pip-audit) green again — upgrade pip, drop stale ignores.**
+  The `Security Scan` workflow's `dependency-scan` job had gone red: pip-audit
+  scans the whole environment, and the runner's bundled pip (26.1.1) carries
+  advisory PYSEC-2026-196 (fixed in 26.1.2). The job now runs
+  `python -m pip install --upgrade pip` before auditing (it was the only CI job
+  not upgrading pip), removing the vulnerable version outright rather than
+  suppressing it. 26.1.2 also resolves CVE-2026-3219 and CVE-2026-6357, so the
+  two now-stale `--ignore-vuln` entries were removed — verified against a clean
+  reproduction of the job's environment, which audits to "No known
+  vulnerabilities found" with nothing ignored.
 - **Pinned the `requests` floor to a non-vulnerable version** — raised
   `requests` to `>=2.34.2` in `pyproject.toml` and the API branch's
   `requirements.project.txt` (which previously listed it unconstrained). This
