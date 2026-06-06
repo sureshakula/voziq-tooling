@@ -52,12 +52,23 @@ def _is_gitignored(path: Path) -> bool:
         )
         if top.returncode == 0:
             repo_root = top.stdout.strip()
-            result = subprocess.run(
-                ["git", "-C", repo_root, "check-ignore", "-q", str(path)],
-                capture_output=True,
-                timeout=5,
-            )
-            return result.returncode == 0
+            # Test both the bare path and its directory form. .gitignore dir-only
+            # patterns (trailing slash: logs/, artifacts/, **/*_json/, .trinity/)
+            # only match when git knows the path is a directory. In a clean
+            # checkout the gitignored dir does not exist on disk, so git cannot
+            # infer "directory" from the bare path and reports it un-ignored —
+            # appending a trailing slash signals directory intent and restores
+            # the match. (Without this, README dir-tree/dead-link checks fail in
+            # CI's clean checkout while passing in a working tree.)
+            for candidate in (str(path), str(path).rstrip("/") + "/"):
+                result = subprocess.run(
+                    ["git", "-C", repo_root, "check-ignore", "-q", candidate],
+                    capture_output=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    return True
+            return False
     except Exception:
         logger.info("git check-ignore unavailable for %s", path)
 

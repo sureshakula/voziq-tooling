@@ -103,8 +103,15 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   in the directory-tree and dead-link checks; `encapsulation` infers the branch
   from the path when the gitignored `AIPASS_REGISTRY.json` is unavailable (and no
   longer collides on the `aipass` branch); `architecture` skips cleanly when the
-  gitignored `passport.json` is absent. Clean-tree and working-tree audits now
-  both report 13/13 = 100%. (DPLAN-0195)
+  gitignored `passport.json` is absent. A follow-up refined `readme`'s
+  `git check-ignore` use: `.gitignore` dir-only patterns (trailing slash —
+  `logs/`, `**/*_json/`, `.trinity/`) don't match a clean checkout's
+  non-existent paths unless directory intent is signalled, so the check now
+  also tests the trailing-slash form (this was the last 1% — `readme` flagged
+  `cli_json`/`logs`/`artifacts` as "missing on disk" in CI only). The CI gate
+  (`.github/scripts/seedgo_audit.py`) now also prints the failing standards and
+  their check messages, so a sub-100 result says *why*, not just the percentage.
+  Clean-tree and working-tree audits both report 13/13 = 100%. (DPLAN-0195)
 - **Two latent Windows portability bugs caught by the new e2e harness** — both
   were always present in the code; they only surfaced now because this is the
   first CI to run `aipass init` scaffolding and real-branch `drone` routing on

@@ -471,3 +471,31 @@ def test_check_module_missing_readme_has_8_failures(tmp_path):
     result = check_module(str(entry))
     assert len(result["checks"]) == 8
     assert result["score"] == 0
+
+
+def test_is_gitignored_directory_only_pattern_nonexistent(tmp_path, monkeypatch):
+    """Dir-only .gitignore patterns match non-existent paths via the slash form.
+
+    Regression (DPLAN-0195): in a clean checkout (CI) the gitignored dir does
+    not exist on disk, so ``git check-ignore <bare-path>`` reports it un-ignored
+    because git cannot confirm "directory" to match a dir-only pattern (trailing
+    slash). ``_is_gitignored`` must also test the trailing-slash form. Without
+    this the README dir-tree/dead-link checks passed in a working tree but failed
+    in CI's clean checkout.
+    """
+    import subprocess
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        _is_gitignored,
+    )
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".gitignore").write_text("logs/\n**/*_json/\n.trinity/\n")
+    monkeypatch.chdir(tmp_path)
+
+    # Non-existent dirs — only match when the trailing-slash form is tested.
+    assert _is_gitignored(tmp_path / "logs") is True
+    assert _is_gitignored(tmp_path / "cli_json") is True
+    assert _is_gitignored(tmp_path / ".trinity") is True
+    # A path not covered by any pattern stays un-ignored.
+    assert _is_gitignored(tmp_path / "src") is False
