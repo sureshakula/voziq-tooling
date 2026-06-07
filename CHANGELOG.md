@@ -12,6 +12,17 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Changed
 
+- **No more cross-branch engine imports — `aipass init update` calls spawn via
+  subprocess (TDPLAN-0006 P3).** `init_flow.py` previously did
+  `from aipass.spawn.apps.modules.sync_registry import sync_registry` — the one
+  place aipass reached directly into spawn's Python. Replaced with a subprocess
+  call to the already-existing `drone @spawn sync-registry --fix` (same pattern as
+  `aipass init agent` → `drone @spawn create`), preserving graceful degradation
+  (a missing `drone`, non-zero exit, or timeout is silently skipped — registry
+  sync never hard-fails an update). The aipass branch now has **zero** direct
+  imports of another branch's engine code; the remaining cross-branch imports are
+  shared service layers only (cli Rich UI, prax logging, trigger events). (438
+  tests, seedgo 100%.)
 - **`aipass.common` shared library — dedup spawn/aipass scaffold machinery
   (TDPLAN-0006 P2).** `@spawn` and `@aipass` each carried their own copy of the
   JSON merge/handler utilities and registry discovery. Extracted them into a new

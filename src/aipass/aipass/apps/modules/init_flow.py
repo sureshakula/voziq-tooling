@@ -893,12 +893,14 @@ def _handle_init_update(args: list[str]) -> int:
             console.print(f"  ({len(current)} already up to date)")
         # Heal registry: prune stale entries (e.g. cross-project ../paths)
         try:
-            from aipass.spawn.apps.modules.sync_registry import sync_registry
-
-            sync_result = sync_registry(fix=True)
-            pruned = sync_result.get("stale", [])
-            if pruned:
-                console.print(f"  [green]Registry healed:[/green] removed {len(pruned)} stale entry(ies)")
+            sync_proc = subprocess.run(
+                ["drone", "@spawn", "sync-registry", "--fix"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if sync_proc.returncode == 0:
+                console.print("  [green]Registry synced.[/green]")
         except Exception as sync_exc:
             logger.warning("[init_flow] registry sync during update skipped: %s", sync_exc)
 
