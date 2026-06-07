@@ -1,8 +1,9 @@
 {
   "memory_pool": {
-    "enabled": false,
+    "enabled": true,
     "process_on_startup": false,
-    "extensions": [".md", ".txt"]
+    "keep_recent": 0,
+    "supported_extensions": [".md", ".txt"]
   },
   "rollover": {
     "defaults": {

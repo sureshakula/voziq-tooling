@@ -12,6 +12,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **Memory-pool auto-processing (TDPLAN-0005)** — dropped files in
+  `memory/memory_pool/` are now vectorized and archived automatically on
+  session-start and pre-compact, instead of requiring a manual
+  `drone @memory pool process`. A 3-branch build: `@memory` gains an intake
+  handler + `pool` module (processes then empties the pool, `keep_recent=0`),
+  `@hooks` adds a `lifecycle/auto_process` handler (session-guarded via
+  `CLAUDE_CODE_SESSION_ID`, since Claude Code has no SessionStart hook), and
+  `@trigger` gains event #15 (`memory_pool_auto_processed`) with a Medic error
+  path. Runtime pool dirs (`memory_pool/`, `memory_pool_archive/`) are now
+  gitignored.
 - **HVTracker badge** added to the README badge cluster, linking to the public
   agent profile at hvtracker.net (closes #628).
 - **`git_gate` read-verb allowlist — raw read-only git for every branch.** The

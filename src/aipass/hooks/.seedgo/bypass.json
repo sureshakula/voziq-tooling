@@ -60,6 +60,10 @@
     {"file": "apps/handlers/lifecycle/rollover.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreCompact.pre_compact_rollover — fires during compaction events."},
     {"file": "apps/handlers/lifecycle/rollover.py", "standard": "json_structure", "reason": "Uses stdlib json.loads for registry and memory file checks — no JSON file ops needing json_handler."},
 
+    {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_process.handle' — not statically imported by design. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."},
+    {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."},
+    {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "json_structure", "reason": "Delegates to @memory's auto_process() via importlib — no direct JSON file ops needing json_handler."},
+
     {"file": "apps/handlers/notification/announce.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.announce.handle' — not statically imported by design. Verified wired in Notification.notification_sound + fires in engine.jsonl."},
     {"file": "apps/handlers/notification/announce.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (Notification.notification_sound)."},
     {"file": "apps/handlers/notification/announce.py", "standard": "json_structure", "reason": "Sound handler — no JSON operations, plays WAV files."},
@@ -194,7 +198,12 @@
     {"file": "tests/test_sound.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
     {"file": "tests/test_sound.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
     {"file": "tests/test_sound.py", "standard": "encapsulation", "reason": "Tests import sound module directly to test implementation details."},
-    {"file": "tests/test_sound.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."}
+    {"file": "tests/test_sound.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
+
+    {"file": "tests/test_auto_process.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
+    {"file": "tests/test_auto_process.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
+    {"file": "tests/test_auto_process.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
+    {"file": "tests/test_auto_process.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."}
   ],
   "notes": {
     "removed_2026-05-19": "Stripped 4 illegitimate bypasses — hooks.py/cli, hooks.py/cli_flags, engine.py/modules, engine.py/introspection. Code fixed to meet standards instead.",

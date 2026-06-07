@@ -64,6 +64,7 @@ def setup_handlers():
     from .bulletin_created import handle_bulletin_created
     from .memory_template_updated import handle_memory_template_updated
     from .pr_status_sync import handle_pr_created, handle_pr_merged
+    from .memory_pool import handle_memory_pool_auto_processed
 
     trigger.on("startup", handle_startup)
     trigger.on("cli_header_displayed", handle_cli_header_displayed)
@@ -76,5 +77,6 @@ def setup_handlers():
     trigger.on("memory_template_updated", handle_memory_template_updated)
     trigger.on("pr_created", handle_pr_created)
     trigger.on("pr_merged", handle_pr_merged)
+    trigger.on("memory_pool_auto_processed", handle_memory_pool_auto_processed)
 
     json_handler.log_operation("handlers_registered", {"success": True})
