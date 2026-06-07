@@ -74,14 +74,17 @@ def deep_merge(template_data: Any, existing_data: Any) -> Any:
     return template_data
 
 
-def backup_json(file_path: Path) -> Path:
+def backup_json(file_path: Path, backup_dir: Path | None = None) -> Path:
     """Create a timestamped backup of a JSON file.
 
-    The backup is placed in a ``.recovery/`` directory alongside the file,
-    named with a timestamp suffix.
+    By default the backup is placed in a ``.recovery/`` directory alongside the
+    file. Callers can override with ``backup_dir`` to consolidate backups
+    elsewhere (e.g. ``.spawn/.recovery/``).
 
     Args:
         file_path: Path to the JSON file to back up.
+        backup_dir: Optional override for the backup destination directory.
+            Defaults to ``file_path.parent / ".recovery"``.
 
     Returns:
         Path to the backup file.
@@ -95,7 +98,9 @@ def backup_json(file_path: Path) -> Path:
     if not file_path.exists():
         raise FileNotFoundError(f"Cannot backup — file not found: {file_path}")
 
-    backup_dir = file_path.parent / ".recovery"
+    if backup_dir is None:
+        backup_dir = file_path.parent / ".recovery"
+    backup_dir = Path(backup_dir)
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

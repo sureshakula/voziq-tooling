@@ -12,6 +12,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Changed
 
+- **Spawn backups land in one namespace `.spawn/.recovery/` (TDPLAN-0006 P4).**
+  Spawn's pre-merge JSON backups previously dropped a `.recovery/` directory at
+  each branch root (which had accumulated 242 stale auto-generated `DASHBOARD`
+  backups across 10 branches). `aipass.common.json_ops.backup_json` gained an
+  optional `backup_dir` parameter (default unchanged), and spawn's update engine
+  now directs backups to `{branch}/.spawn/.recovery/` — tucked under the
+  spawn-managed `.spawn/` dir instead of cluttering the branch root. Memory stays
+  in the safety net (the engine simply never touches `.trinity/`/`DASHBOARD` on
+  update, so it never needs to back them up). Stale `.recovery/` backups cleaned
+  up. (315 tests, seedgo 100%.)
 - **No more cross-branch engine imports — `aipass init update` calls spawn via
   subprocess (TDPLAN-0006 P3).** `init_flow.py` previously did
   `from aipass.spawn.apps.modules.sync_registry import sync_registry` — the one

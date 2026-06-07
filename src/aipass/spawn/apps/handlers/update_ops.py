@@ -161,7 +161,7 @@ def update_branch(branch_name: str, dry_run: bool = False, trace: bool = False) 
                 logger.info("[update] SKIP .py: %s", resolved_path)
 
         elif dest.suffix == ".json":
-            result = _merge_json(template_file, dest, replacements, dry_run, trace)
+            result = _merge_json(template_file, dest, replacements, dry_run, trace, branch_dir / ".spawn" / ".recovery")
             if result == "updated":
                 counts["updates"] += 1
                 updates_detail.append({"template_path": rel_path, "branch_path": resolved_path})
@@ -301,6 +301,7 @@ def _merge_json(
     replacements: dict,
     dry_run: bool,
     trace: bool,
+    backup_dest: Path | None = None,
 ) -> str:
     """Deep-merge a template JSON file into the branch copy.
 
@@ -323,7 +324,7 @@ def _merge_json(
             return "unchanged"
 
         if not dry_run:
-            backup_json(dest)
+            backup_json(dest, backup_dir=backup_dest)
             dest.write_text(merged_text, encoding="utf-8")
 
         if trace:

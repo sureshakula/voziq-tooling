@@ -338,6 +338,22 @@ class TestBackupJson:
         # Content should match
         assert backup_path.read_text(encoding="utf-8") == '{"key": "value"}'
 
+    def test_custom_backup_dir(self, tmp_path):
+        """backup_dir override should place backup in the specified directory."""
+        from aipass.spawn.apps.handlers.json_ops import backup_json
+
+        source = tmp_path / "config.json"
+        source.write_text('{"a": 1}', encoding="utf-8")
+        custom_dir = tmp_path / ".spawn" / ".recovery"
+
+        backup_path = backup_json(source, backup_dir=custom_dir)
+
+        assert backup_path.exists()
+        assert backup_path.parent == custom_dir
+        assert "config.json" in backup_path.name
+        assert ".backup" in backup_path.name
+        assert backup_path.read_text(encoding="utf-8") == '{"a": 1}'
+
     def test_raises_on_missing_source(self, tmp_path):
         """Should raise FileNotFoundError for non-existent source."""
         from aipass.spawn.apps.handlers.json_ops import backup_json

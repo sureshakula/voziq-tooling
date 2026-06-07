@@ -426,6 +426,29 @@ class TestNeverUpdateGuard:
         assert result["renames"] == 0
         assert result.get("_renames_detail", []) == []
 
+    def test_backup_lands_in_spawn_recovery(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """JSON merge backups should land in .spawn/.recovery/, not branch root .recovery/."""
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+
+        config_tpl = template_dir / "config.json"
+        config_tpl.write_text(json.dumps({"version": "2.0", "new_key": "added"}, indent=2))
+        config_branch = branch_dir / "config.json"
+        config_branch.write_text(json.dumps({"version": "1.0"}, indent=2))
+
+        with (
+            patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
+            patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
+        ):
+            result = update_branch("test_branch")
+
+        assert result["updates"] >= 1
+        spawn_recovery = branch_dir / ".spawn" / ".recovery"
+        assert spawn_recovery.is_dir()
+        backups = list(spawn_recovery.glob("config.json.*.backup"))
+        assert len(backups) == 1
+        root_recovery = branch_dir / ".recovery"
+        assert not root_recovery.exists()
+
     def test_create_update_invariant(self, tmp_path, template_dir, branch_dir, mock_registry):
         """Fresh branch from template should show 0 changes on update."""
         from aipass.spawn.apps.handlers.update_ops import update_branch
