@@ -89,31 +89,33 @@ def handle_update(args: list[str]) -> int:
     """
     # Intercept --help before processing (argparse has add_help=False)
     if "--help" in args or "-h" in args:
-        warning("Usage: drone @spawn update <@branch|class --all> [--dry-run] [--trace]")
+        warning("Usage: drone @spawn update <@branch|class --all> [--apply] [--dry-run] [--trace]")
         console.print()
         console.print("  [green]@branch[/green]           Update a single branch (uses its own class)")
         console.print("  [green]builder --all[/green]     Update all builder-class branches")
         console.print("  [green]birthright --all[/green]  Update all birthright-class branches")
-        console.print("  [green]--dry-run[/green]         Preview changes without modifying files")
+        console.print("  [green]--apply[/green]           Execute changes (default is preview-only)")
+        console.print("  [green]--dry-run[/green]         Preview changes without modifying files [dim](default)[/dim]")
         console.print("  [green]--trace[/green]           Enable verbose logging")
         return 0
 
     if not args:
-        warning("Usage: drone @spawn update <@branch|class --all> [--dry-run] [--trace]")
+        warning("Usage: drone @spawn update <@branch|class --all> [--apply] [--dry-run] [--trace]")
         console.print()
         console.print("  [green]@branch[/green]           Update a single branch (uses its own class)")
         console.print("  [green]builder --all[/green]     Update all builder-class branches")
         console.print("  [green]birthright --all[/green]  Update all birthright-class branches")
-        console.print("  [green]--dry-run[/green]         Preview changes without modifying files")
+        console.print("  [green]--apply[/green]           Execute changes (default is preview-only)")
+        console.print("  [green]--dry-run[/green]         Preview changes without modifying files [dim](default)[/dim]")
         console.print("  [green]--trace[/green]           Enable verbose logging")
         return 1
 
     from aipass.spawn.apps.modules.core import validate_class, get_available_classes
 
-    dry_run = "--dry-run" in args
+    apply = "--apply" in args
+    dry_run = not apply
     trace = "--trace" in args
 
-    # Filter out flags to find positional args
     positional = [a for a in args if not a.startswith("--")]
 
     # Detect citizen class argument

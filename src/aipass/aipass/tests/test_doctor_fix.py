@@ -248,10 +248,13 @@ class TestFormatTextReport:
         assert "drone @spawn repair @test --relocate a b" in result
 
     def test_dry_run_hint(self) -> None:
-        """Report ends with dry-run suggestion."""
+        """Report shows preview (dry-run default) and explicit --apply hints."""
         items = [RemediationItem("info", "pyproject", "missing", "fix")]
         result = format_text_report(items, "myproj")
-        assert "drone @spawn repair @myproj --dry-run" in result
+        # Repair is dry-run by default now: preview form has no flag, apply form is explicit
+        assert "Preview all fixes:" in result
+        assert "drone @spawn repair @myproj" in result
+        assert "drone @spawn repair @myproj --apply" in result
 
     def test_critical_sorted_first(self) -> None:
         """Critical items appear before warning and info."""

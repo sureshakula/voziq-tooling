@@ -10,6 +10,28 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W23] - 2026-06-02
 
+### Fixed
+
+- **`drone @spawn update` no longer scrambles branches (#636, critical — TDPLAN-0006
+  P0+P1).** The update engine compared a freshly-created branch against the class
+  template by *content hash* with rename-detection, and because the CREATE path
+  regenerated template-registry IDs in filesystem-walk order (≠ the master's
+  hand-crafted IDs), a branch created seconds earlier produced **30 proposed renames**
+  that rotated identity/memory dirs into each other
+  (`apps→.trinity→.seedgo→.claude→.archive→.aipass`), turned `README` into
+  `DASHBOARD`, and deep-merged stale template into live `.trinity/` memory —
+  `update <class> --all` would have destroyed every citizen in one command. Rebuilt
+  `update_ops.py` (v2.0) on an explicit **named-managed-files + path-based** model:
+  `.trinity/*`, `DASHBOARD.local.json`, `artifacts/birth_certificate.json` and
+  `.seedgo/bypass.json` are delivered on **create only** and never touched on update;
+  the create==update invariant now yields **0 renames / 0 merges** on a fresh branch.
+  The old ID-based engine (`change_detection.py`, `reconcile.py`) is deleted.
+- **Destructive spawn ops are now dry-run by default (TDPLAN-0006 P0).** `drone @spawn
+  update` and `drone @spawn repair` preview by default and require an explicit
+  `--apply` to write — forgetting a flag is now a safe no-op instead of irreversible
+  damage (`--dry-run` kept as an alias). `aipass doctor` repair suggestions emit the
+  matching `--apply` form.
+
 ### Added
 
 - **Memory-pool auto-processing (TDPLAN-0005)** — dropped files in

@@ -71,7 +71,8 @@ def print_introspection():
     console.print("    - metadata.py (get_branch_name, normalize_branch_name, detect_profile — branch identity)")
     console.print("    - placeholders.py (build_replacements_dict, validate_no_placeholders — template substitution)")
     console.print(
-        "    - file_ops.py (copy_template, rename_placeholder_paths, regenerate_template_registry, ensure_directory — filesystem ops)"
+        "    - file_ops.py (copy_template, rename_placeholder_paths,"
+        " regenerate_template_registry, ensure_directory — filesystem ops)"
     )
     console.print(
         "    - meta_ops.py (load_template_registry, generate_branch_meta, save_branch_meta — branch metadata)"
@@ -80,7 +81,8 @@ def print_introspection():
         "    - registry.py (find_registry, add_to_registry, get_next_citizen_number — AIPASS_REGISTRY management)"
     )
     console.print(
-        "    - class_registry.py (validate_class, get_default_class, get_available_classes, get_template_dir — citizen class lookup)"
+        "    - class_registry.py (validate_class, get_default_class,"
+        " get_available_classes, get_template_dir — citizen class lookup)"
     )
     console.print()
 
