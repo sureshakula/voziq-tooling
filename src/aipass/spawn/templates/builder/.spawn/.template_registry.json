@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2026-06-06",
+    "last_updated": "2026-06-07",
     "description": "Template file tracking registry for ID-based updates"
   },
   "files": {
@@ -155,7 +155,7 @@
       "content_hash": "a4cf0a8e3b4f",
       "has_branch_placeholder": false
     },
-    "f015": {
+    "f026": {
       "path": "apps/modules/__init__.py",
       "name": "__init__.py",
       "content_hash": "e3b0c44298fc",
@@ -269,7 +269,7 @@
       "content_hash": "28e9ae373563",
       "has_branch_placeholder": false
     },
-    "f026": {
+    "f015": {
       "path": "apps/plugins/__init__.py",
       "name": "__init__.py",
       "content_hash": "e3b0c44298fc",

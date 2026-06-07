@@ -25,6 +25,8 @@ from typing import List, NamedTuple
 from aipass.cli.apps.modules import console
 from aipass.prax import logger
 
+from aipass.common.registry_discovery import find_registry as _discover_registry
+
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_placement,
@@ -32,7 +34,6 @@ from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_registry_consistency,
     check_root_artifacts,
     detect_pollution,
-    find_registry,
     scan_agents,
 )
 
@@ -58,8 +59,8 @@ class RemediationItem(NamedTuple):
 
 def detect_project_name(project_root: Path) -> str:
     """Derive project name from registry filename or directory name."""
-    reg = find_registry(project_root)
-    if reg:
+    reg = _discover_registry(start_path=project_root)
+    if reg and reg.exists():
         name = reg.stem.replace("_REGISTRY", "").lower()
         if name:
             return name
@@ -113,8 +114,8 @@ def _build_placement_items(agents: list, project_root: Path, project: str) -> Li
 def _build_registry_items(project_root: Path, agents: list, project: str) -> List[RemediationItem]:
     """Build remediation items for registry consistency issues."""
     items: List[RemediationItem] = []
-    reg_path = find_registry(project_root)
-    if not reg_path:
+    reg_path = _discover_registry(start_path=project_root)
+    if not reg_path or not reg_path.exists():
         return items
     for issue in check_registry_consistency(reg_path, agents):
         items.append(

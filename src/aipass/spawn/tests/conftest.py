@@ -95,5 +95,6 @@ def _isolate_spawn_json(tmp_path):
     """Auto-isolate spawn_json directory to prevent test pollution."""
     import aipass.spawn.apps.handlers.json.json_handler as _jh
 
-    with patch.object(_jh, "_JSON_DIR", tmp_path / "spawn_json"):
+    iso_dir = tmp_path / "spawn_json"
+    with patch.object(_jh, "_JSON_DIR", iso_dir), patch.object(_jh._handler, "_json_dir", iso_dir):
         yield

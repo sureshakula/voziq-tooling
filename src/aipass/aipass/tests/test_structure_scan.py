@@ -20,7 +20,6 @@ from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_root_artifacts,
     detect_pollution,
     find_project_root,
-    find_registry,
     scan_agents,
 )
 from aipass.aipass.apps.handlers.ui.progress import GLYPH_FAIL, GLYPH_WARN
@@ -357,16 +356,22 @@ class TestRegistryConsistency:
 
 class TestFindRegistry:
     def test_finds_registry(self, tmp_path: Path) -> None:
-        """Finds *_REGISTRY.json in project root."""
+        """Shared find_registry finds *_REGISTRY.json from start_path."""
+        from aipass.common.registry_discovery import find_registry
+
         (tmp_path / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
-        result = find_registry(tmp_path)
+        result = find_registry(start_path=tmp_path)
         assert result is not None
         assert result.name == "AIPASS_REGISTRY.json"
 
-    def test_returns_none(self, tmp_path: Path) -> None:
-        """Returns None when no registry file."""
-        result = find_registry(tmp_path)
-        assert result is None
+    def test_fallback_when_missing(self, tmp_path: Path) -> None:
+        """Shared find_registry returns fallback when no registry in isolated dir."""
+        from aipass.common.registry_discovery import find_registry
+
+        isolated = tmp_path / "no_registry"
+        isolated.mkdir()
+        result = find_registry(start_path=isolated)
+        assert result.parent != isolated or not result.exists()
 
 
 # =============================================================================

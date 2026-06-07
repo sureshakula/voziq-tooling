@@ -9,11 +9,12 @@
 """Tests for json_handler — default_factory, validate, get_path, ensure_exists, load, save, ensure_module."""
 
 import json
+
+import pytest
 from unittest.mock import patch
 
 from aipass.aipass.apps.handlers.json.json_handler import (
     AIPASS_JSON_DIR,
-    _default_template,
     ensure_json_exists,
     ensure_module_jsons,
     get_json_path,
@@ -30,31 +31,39 @@ from aipass.aipass.apps.handlers.json.json_handler import (
 
 
 class TestDefaultFactory:
-    """Tests for _default_template factory function."""
+    """Tests for default JSON creation via ensure_json_exists."""
 
-    def test_config_template(self):
+    def test_config_template(self, tmp_path):
         """Config template includes module_name, version, config, created."""
-        result = _default_template("config", "test_mod")
+        with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", tmp_path):
+            ensure_json_exists("test_mod", "config")
+            result = json.loads((tmp_path / "test_mod_config.json").read_text())
         assert result["module_name"] == "test_mod"
         assert result["version"] == "1.0.0"
         assert "config" in result
         assert "created" in result
 
-    def test_data_template(self):
+    def test_data_template(self, tmp_path):
         """Data template includes created and last_updated."""
-        result = _default_template("data", "test_mod")
+        with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", tmp_path):
+            ensure_json_exists("test_mod", "data")
+            result = json.loads((tmp_path / "test_mod_data.json").read_text())
         assert "created" in result
         assert "last_updated" in result
 
-    def test_log_template(self):
+    def test_log_template(self, tmp_path):
         """Log template is an empty list."""
-        result = _default_template("log", "test_mod")
+        with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", tmp_path):
+            ensure_json_exists("test_mod", "log")
+            result = json.loads((tmp_path / "test_mod_log.json").read_text())
         assert result == []
 
-    def test_unknown_type_returns_none(self):
-        """Unknown json_type returns None."""
-        result = _default_template("unknown_type", "test_mod")
-        assert result is None
+    def test_unknown_type_raises(self):
+        """Unknown json_type raises ValueError."""
+        from aipass.common.json_handler import JsonHandler
+
+        with pytest.raises(ValueError):
+            JsonHandler._create_default("unknown_type", "test_mod")
 
 
 # =============================================================================
@@ -200,10 +209,20 @@ class TestSave:
             assert saved["module_name"] == "s"
 
     def test_save_invalid_structure_rejected(self, tmp_path):
-        """Invalid structure is rejected with False."""
+        """Invalid structure raises ValueError."""
         with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", tmp_path):
-            result = save_json("s", "config", {"bad": True})
-            assert result is False
+            with pytest.raises(ValueError):
+                save_json("s", "config", {"bad": True})
+
+    def test_save_unknown_returns_false(self, tmp_path):
+        """save_json returns False when write fails (e.g. read-only dir)."""
+        ro_dir = tmp_path / "readonly"
+        ro_dir.mkdir()
+        with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", ro_dir):
+            data = {"module_name": "s", "version": "1.0.0", "config": {}, "created": "2026-01-01"}
+            with patch("aipass.common.json_handler.JsonHandler.write_json", return_value=False):
+                result = save_json("s", "config", data)
+                assert result is False
 
 
 # =============================================================================
@@ -239,7 +258,7 @@ class TestLoadPath:
         result = load_path(f)
         assert result == {"key": "value"}
 
-    def test_load_missing_file(self, tmp_path):
+    def test_unknown_file_returns_none(self, tmp_path):
         """Missing file returns None."""
         result = load_path(tmp_path / "nope.json")
         assert result is None
@@ -326,14 +345,14 @@ class TestExceptionContracts:
     """Tests that invalid inputs raise appropriate exceptions."""
 
     def test_invalid_mode_raises(self, tmp_path):
-        """save_json with invalid structure returns False (not silent pass)."""
+        """save_json with invalid structure raises ValueError."""
         with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", tmp_path):
-            result = save_json("x", "config", [])
-            assert result is False
-            result = save_json("x", "data", "string")
-            assert result is False
-            result = save_json("x", "log", {"not": "a list"})
-            assert result is False
+            with pytest.raises(ValueError):
+                save_json("x", "config", [])
+            with pytest.raises(ValueError):
+                save_json("x", "data", "string")
+            with pytest.raises(ValueError):
+                save_json("x", "log", {"not": "a list"})
 
 
 # =============================================================================
@@ -357,3 +376,13 @@ class TestInfrastructureMocking:
         assert callable(jh_mod.load_json)
         assert callable(jh_mod.save_json)
         assert callable(jh_mod.load_path)
+
+
+# =============================================================================
+# success_failure_paths: unknown_returns_false
+# =============================================================================
+
+
+def test_unknown_returns_false():
+    """validate_json_structure returns False for unrecognized json_type."""
+    assert validate_json_structure({}, "bogus") is False

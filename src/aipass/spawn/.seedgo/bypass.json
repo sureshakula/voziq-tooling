@@ -101,6 +101,11 @@
       "reason": "Imports metadata functions — passport creation needs branch name extraction. Metadata is a shared utility handler."
     },
     {
+      "file": "apps/handlers/json/json_handler.py",
+      "standard": "naming",
+      "reason": "Module-level names are function re-exports from aipass.common.json_handler.JsonHandler, not constants. Lowercase is correct for callable bindings."
+    },
+    {
       "file": "apps/handlers/delete_ops.py",
       "standard": "naming",
       "reason": "branch_entry, branch_dir are local variables inside delete_branch(), not module-level constants. Checker false positive on multi-line function scope."

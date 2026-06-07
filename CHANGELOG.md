@@ -10,6 +10,21 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W23] - 2026-06-02
 
+### Changed
+
+- **`aipass.common` shared library — dedup spawn/aipass scaffold machinery
+  (TDPLAN-0006 P2).** `@spawn` and `@aipass` each carried their own copy of the
+  JSON merge/handler utilities and registry discovery. Extracted them into a new
+  branch-free package `src/aipass/common/` (`json_ops` = `deep_merge` +
+  `backup_json`; `json_handler.JsonHandler`; `registry_discovery.find_registry`)
+  that both branches now import. `aipass.common` imports **zero** branch code, so
+  `aipass/bootstrap.py` (which runs before the drone runtime exists) can depend on
+  it without breaking the pre-infrastructure constraint. The duplicated copies are
+  deleted (spawn keeps a thin re-export shim; aipass's `json_handler` shrank
+  254 → 88 lines). The `save_json` contract is unified to **raise `ValueError`**
+  on invalid structure across both branches. (313 spawn + 434 aipass tests, both
+  seedgo 100%.)
+
 ### Fixed
 
 - **`drone @spawn update` no longer scrambles branches (#636, critical — TDPLAN-0006
