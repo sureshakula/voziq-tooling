@@ -28,9 +28,18 @@ the vectorized trail. Close when done.
 2. **`main` is a remote push-target, nothing more.** Local `main` can be 7000 commits
    behind — it does **not** matter. The only thing ever done to local main is a
    *cosmetic* pull. Never build on it, never read files from it.
-3. **NEVER check out `main`, and NEVER reset a HEAD.** Checking out main swaps your whole
-   working tree to main's (often stale) content — that is the file-revert scare. The flow
-   never needs it. Stay on `dev`.
+3. **NEVER move HEAD lightly.** Any HEAD move — `checkout` (switch branch), `reset`
+   (move backward), `rebase` onto a different base — changes what's in the working tree and
+   *always* causes confusion, even when the work is technically safe. Treat every HEAD move
+   as a deliberate, narrated step, never a reflex. In normal flow you should rarely move HEAD
+   at all: you commit (HEAD advances on dev) and push. That's it.
+   - **NEVER check out `main`, NEVER reset a HEAD.** Checking out main swaps your whole
+     working tree to main's (often stale) content — that's the file-revert scare. The flow
+     never needs it. Stay on `dev`.
+   - The only routine, safe HEAD advance is a **fast-forward of dev** when dev is purely
+     behind main (`git rev-list --left-right --count dev...origin/main` shows `0` ahead) —
+     done via `drone @git sync` **from dev** (stays on dev). If dev shows any commits *ahead*,
+     it's not a pure FF — stop and think, don't force it.
    - To reference main for a tag, use **`origin/main`** (the remote ref), never local main.
    - ⚠️ Your IDE's "switch to main" / "sync main" button does a `git checkout main` — **don't
      click it.** If you want local main fresh, `drone @git sync` **from dev** is safe (it
