@@ -23,6 +23,11 @@ on:
       - "src/**"
   workflow_dispatch:
 
+# Least-privilege token (Scorecard Token-Permissions). This workflow only
+# reads the repo to build + smoke-test the wheel; it needs no write scopes.
+permissions:
+  contents: read
+
 jobs:
   e2e-wheel:
     name: e2e-wheel (${{ matrix.os }})
