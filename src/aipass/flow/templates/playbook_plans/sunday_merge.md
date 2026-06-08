@@ -21,6 +21,38 @@ the vectorized trail. Close when done.
 
 ---
 
+## The Law (read first — these prevent the recurring git scares)
+
+1. **Local files on `dev` are the truth.** Git is just a transfer mechanism to the
+   remote. We live on `dev`, permanently.
+2. **`main` is a remote push-target, nothing more.** Local `main` can be 7000 commits
+   behind — it does **not** matter. The only thing ever done to local main is a
+   *cosmetic* pull. Never build on it, never read files from it.
+3. **NEVER check out `main`, and NEVER reset a HEAD.** Checking out main swaps your whole
+   working tree to main's (often stale) content — that is the file-revert scare. The flow
+   never needs it. Stay on `dev`.
+   - To reference main for a tag, use **`origin/main`** (the remote ref), never local main.
+   - ⚠️ Your IDE's "switch to main" / "sync main" button does a `git checkout main` — **don't
+     click it.** If you want local main fresh, `drone @git sync` **from dev** is safe (it
+     stays on dev); the IDE button is not.
+
+### Why `dev` shows "behind main" after a merge — and why it's fine
+
+`drone @git merge` does a **squash** merge: GitHub bundles dev's commits into **one brand-new
+commit** on main. Your `dev` branch keeps its **original** commits. Git compares by commit
+*identity*, not content — so it sees "main has 1 commit dev doesn't" → the UI shows
+**"dev is 1 behind main."**
+
+- **The files are identical. It is 100% cosmetic. You can always move forward** — the next
+  `dev-pr` compares real file changes and works perfectly regardless of this graph quirk.
+- Because it's a squash (not a fast-forward), **`dev` is NOT an ancestor of `main`**, so
+  `git merge --ff-only main` will **fail**. Do not use it after a squash merge.
+- **Optional**, only if you want the graph to show dev even/ahead: back-merge with
+  `git merge origin/main` while on dev (via `drone @git`) — creates a merge commit, dev moves
+  *ahead*, push normally (NO force, NO reset). **Do NOT rebase** (rewrites dev, needs force-push).
+
+---
+
 ## 1. Pre-flight
 
 - [ ] On `dev`, working tree understood: `drone @git status --all`
@@ -62,8 +94,9 @@ The PR gate (verified against `.github/workflows/`):
 
 ## 6. Post-merge realign
 
-- [ ] Pull main locally: `drone @git sync`
-- [ ] If merged via GitHub UI (bypassing `drone @git merge`), fast-forward dev to main so dev doesn't fall behind / revert main-only commits (e.g. Dependabot): dev is an ancestor → `git merge --ff-only main` is clean (via `drone @git`)
+- [ ] **Expect `dev` to show "1 behind main" — that's the squash artifact, it's cosmetic, keep going.** See "Why dev shows behind main" up top. Do NOT reach for `--ff-only` (it fails after a squash) or a rebase/reset.
+- [ ] **Stay on `dev`. Do not check out `main`.** Local main being behind is fine and expected — it's a push-target, not a thing to maintain.
+- [ ] (Optional, cosmetic only) If you want the graph to show dev even/ahead: back-merge `git merge origin/main` on dev (via `drone @git`), then normal push. Never rebase, never reset, never checkout main.
 - [ ] Dependabot / other PRs targeting main: they go green once main has the fix + bots rebase — check after the push
 
 ## 7. Release tag (only if cutting a release)
@@ -84,10 +117,11 @@ How the release fires (verified `publish.yml`): a `v*` **git tag push** runs bui
 Steps:
 - [ ] Bump the version in **BOTH** files (they must match the tag, or `__version__` ships wrong): `pyproject.toml` `version` **and** `src/aipass/__init__.py` `__version__`. Do it **on dev so it rides into the PR** (then main's merge commit carries the right version). ⚠️ These two drift easily — `__init__.py` is the one that gets forgotten.
 - [ ] Confirm the CHANGELOG top section is the release notes you want
-- [ ] After merge + `drone @git sync`, get the **real** merged-main sha: `git rev-parse HEAD`. **Verify the version on that exact commit BEFORE tagging:** `git show HEAD:pyproject.toml | grep '^version'` and `git show HEAD:src/aipass/__init__.py | grep __version__` — both must equal the tag.
-- [ ] **Push the tag — MANUAL (drone has no `tag` verb; devpulse can't push tags):** user runs it, via `!` or terminal. **Two SEPARATE lines, paste the real sha (no `<…>` placeholders, no `&&`):**
+- [ ] Get the **real** merged-main sha from the **remote ref** (stay on dev — never checkout main): `git fetch origin` then `git rev-parse origin/main`. **Verify the version on that exact commit BEFORE tagging:** `git show origin/main:pyproject.toml | grep '^version'` and `git show origin/main:src/aipass/__init__.py | grep __version__` — both must equal the tag. (If the user merged via the GitHub UI, their local `main` ref is stale until `git fetch` — always fetch first, always tag `origin/main`, never local `main`.)
+- [ ] **Push the tag — MANUAL (drone has no `tag` verb; devpulse can't push tags):** user runs it, via `!` or terminal. **Tag the remote ref directly so a stale local main can't poison it. Separate lines, no `&&`:**
       ```
-      git tag v<version> <real-sha-from-rev-parse>
+      git fetch origin
+      git tag v<version> origin/main
       git push origin v<version>
       ```
 - [ ] Verify PyPI shows the new version + the GitHub Release appeared (`curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`)
