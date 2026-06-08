@@ -8,6 +8,19 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
+## [2026.W24] - 2026-06-08
+
+### Security
+
+- **Least-privilege token on the `e2e-wheel` workflow.** `e2e-wheel.yml` was the
+  one CI workflow missing a top-level `permissions:` block (it was added during
+  the cross-OS work after PR #624 hardened the others), so it ran with the
+  default broad `GITHUB_TOKEN` scopes — dropping the OpenSSF Scorecard
+  Token-Permissions check to 0. Added `permissions: contents: read`; the
+  workflow only reads the repo to build and smoke-test the wheel.
+
+---
+
 ## [2026.W23] - 2026-06-02
 
 ### Fixed
