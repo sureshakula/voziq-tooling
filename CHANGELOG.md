@@ -18,6 +18,13 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   default broad `GITHUB_TOKEN` scopes — dropping the OpenSSF Scorecard
   Token-Permissions check to 0. Added `permissions: contents: read`; the
   workflow only reads the repo to build and smoke-test the wheel.
+- **Signed GitHub Releases via Sigstore (keyless).** The release workflow now
+  signs the built wheel + sdist with `sigstore/gh-action-sigstore-python`
+  (keyless OIDC — no signing key is generated, stored, or held by anyone) and
+  attaches the resulting `.sigstore.json` bundles to the GitHub Release. PyPI
+  uploads were already attested via Trusted Publishing; this extends verifiable
+  provenance to artifacts pulled from GitHub Releases and satisfies the OpenSSF
+  Scorecard Signed-Releases check. First proof lands on the next `v*` tag.
 
 ---
 
