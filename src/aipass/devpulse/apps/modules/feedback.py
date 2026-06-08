@@ -50,11 +50,11 @@ HELP_TEXT = """\
 def print_introspection() -> None:
     """Display module introspection info."""
     console.print()
-    console.print("feedback Module")
-    console.print("DevPulse personal feedback mailbox. Receives cross-project")
-    console.print("feedback messages from any agent via drone routing.")
+    console.print("[bold cyan]feedback Module[/bold cyan]")
+    console.print("[dim]DevPulse personal feedback mailbox. Receives cross-project[/dim]")
+    console.print("[dim]feedback messages from any agent via drone routing.[/dim]")
     console.print()
-    console.print("Subcommands: inbox, view, reply, send, clear")
+    console.print("[yellow]Subcommands:[/yellow] [cyan]inbox, view, reply, send, clear[/cyan]")
     console.print()
 
 

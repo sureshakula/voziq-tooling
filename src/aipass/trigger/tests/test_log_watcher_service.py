@@ -80,7 +80,7 @@ class TestPrintIntrospection:
         mod = _import_module()
         mod.print_introspection()
         captured = capsys.readouterr()
-        assert "systemd service" in captured.out
+        assert "systemd" in captured.out and "service" in captured.out
 
 
 # ---------------------------------------------------------------------------

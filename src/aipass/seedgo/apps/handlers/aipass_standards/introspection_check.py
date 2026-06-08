@@ -19,6 +19,7 @@ Checks:
 """
 
 import ast
+import re
 from pathlib import Path
 from typing import Dict, Optional
 from aipass.prax import logger
@@ -152,6 +153,12 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
         discovery_check = check_introspection_dynamic_discovery(tree, path.name)
         if discovery_check:
             checks.append(discovery_check)
+
+    # Check 1d: print_introspection uses Rich formatting (not flat plain strings)
+    if introspection_check["passed"]:
+        richness_check = check_introspection_rich_formatting(tree, path.name)
+        if richness_check:
+            checks.append(richness_check)
 
     # Check 2: Execution order (entry points only)
     if is_entry_point:
@@ -347,6 +354,90 @@ def _collect_hardcoded_string_lists(node: ast.AST, result: list) -> None:
             result.extend(string_vals)
 
 
+def check_introspection_rich_formatting(tree: ast.Module, filename: str) -> Optional[Dict]:
+    """Verify print_introspection() uses Rich markup tags, not flat plain strings.
+
+    AIPass design pattern requires consistent Rich formatting in introspection output.
+    Checks for square-bracket tags like [bold cyan], [dim], [yellow], [green], [/...].
+
+    Delegation: if print_introspection delegates to _-prefixed helpers in the same file,
+    walks into those helpers to find markup (treats delegation as valid if helper is styled).
+    """
+    func = _find_print_introspection(tree)
+    if func is None:
+        return None
+
+    if not _has_output_calls(func):
+        return None
+
+    if _has_rich_markup(func):
+        return {
+            "name": "Rich formatting",
+            "passed": True,
+            "message": "print_introspection() uses Rich markup tags",
+        }
+
+    delegated_helpers = _get_delegated_helpers(func)
+    if delegated_helpers:
+        helpers_map = _build_helpers_map(tree)
+        for helper_name in delegated_helpers:
+            helper_func = helpers_map.get(helper_name)
+            if helper_func and _has_rich_markup(helper_func):
+                return {
+                    "name": "Rich formatting",
+                    "passed": True,
+                    "message": f"print_introspection() delegates to {helper_name}() which uses Rich markup",
+                }
+        return {
+            "name": "Rich formatting",
+            "passed": False,
+            "message": (
+                f"print_introspection() in {filename} delegates to "
+                f"{', '.join(delegated_helpers)} but no Rich markup found — "
+                f"introspection output must use Rich formatting tags "
+                f"(e.g. [bold cyan], [dim], [yellow])"
+            ),
+        }
+
+    return {
+        "name": "Rich formatting",
+        "passed": False,
+        "message": (
+            f"print_introspection() in {filename} produces output but has no Rich "
+            f"markup tags — introspection must use Rich formatting "
+            f"(e.g. [bold cyan], [dim], [yellow]) for consistent design"
+        ),
+    }
+
+
+_RICH_TAG_RE = re.compile(r"\[/?(?:bold|dim|italic|cyan|yellow|green|red|blue|magenta|white|underline)[^\]]*\]")
+
+
+def _has_rich_markup(func_node: ast.FunctionDef) -> bool:
+    for node in ast.walk(func_node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if _RICH_TAG_RE.search(node.value):
+                return True
+    return False
+
+
+def _get_delegated_helpers(func_node: ast.FunctionDef) -> list:
+    helpers = []
+    for node in ast.walk(func_node):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id.startswith("_"):
+                helpers.append(node.func.id)
+    return helpers
+
+
+def _build_helpers_map(tree: ast.Module) -> dict:
+    result = {}
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("_"):
+            result[node.name] = node
+    return result
+
+
 def check_execution_order(tree: ast.Module, content: str, filename: str) -> Optional[Dict]:
     """
     In the main() function (or if __name__ block), verify that no-args check
@@ -402,7 +493,10 @@ def check_execution_order(tree: ast.Module, content: str, filename: str) -> Opti
             return {
                 "name": "Execution order",
                 "passed": False,
-                "message": f"--help check (line {help_check_line}) before no-args check (line {no_args_line}) — no-args should come first",
+                "message": (
+                    f"--help check (line {help_check_line}) before no-args check "
+                    f"(line {no_args_line}) — no-args should come first"
+                ),
             }
 
     # If only help check found (no no-args check)
@@ -503,7 +597,11 @@ def check_module_handle_command_gate(tree: ast.Module, filename: str) -> Optiona
     return {
         "name": "handle_command no-args gate",
         "passed": False,
-        "message": f"handle_command() in {filename} has no no-args gate calling print_introspection() — module will not show introspection when called with no arguments",
+        "message": (
+            f"handle_command() in {filename} has no no-args gate calling "
+            f"print_introspection() — module will not show introspection "
+            f"when called with no arguments"
+        ),
     }
 
 
@@ -638,7 +736,11 @@ def check_correct_dispatch(tree: ast.Module, filename: str) -> Optional[Dict]:
                 return {
                     "name": "Correct dispatch",
                     "passed": False,
-                    "message": f"No-args block calls print_help() in {filename} (line {node.lineno}) — should call print_introspection() (introspection != help)",
+                    "message": (
+                        f"No-args block calls print_help() in {filename} "
+                        f"(line {node.lineno}) — should call "
+                        f"print_introspection() (introspection != help)"
+                    ),
                 }
 
         # Check --help block — look for help strings in the condition
@@ -650,7 +752,11 @@ def check_correct_dispatch(tree: ast.Module, filename: str) -> Optional[Dict]:
                 return {
                     "name": "Correct dispatch",
                     "passed": False,
-                    "message": f"--help block calls {introspection_funcs.pop()}() in {filename} (line {node.lineno}) — should call print_help() (help != introspection)",
+                    "message": (
+                        f"--help block calls {introspection_funcs.pop()}() in "
+                        f"{filename} (line {node.lineno}) — should call "
+                        f"print_help() (help != introspection)"
+                    ),
                 }
 
         # Also check: condition contains --help string AND body calls introspection
@@ -662,7 +768,12 @@ def check_correct_dispatch(tree: ast.Module, filename: str) -> Optional[Dict]:
                 return {
                     "name": "Correct dispatch",
                     "passed": False,
-                    "message": f"Block with --help condition calls {introspection_funcs.pop()}() in {filename} (line {node.lineno}) — --help should show help, not introspection",
+                    "message": (
+                        f"Block with --help condition calls "
+                        f"{introspection_funcs.pop()}() in {filename} "
+                        f"(line {node.lineno}) — --help should show help, "
+                        f"not introspection"
+                    ),
                 }
 
     return {
@@ -717,7 +828,11 @@ def check_content_references(tree: ast.Module, filename: str) -> Optional[Dict]:
         return {
             "name": "Content references",
             "passed": False,
-            "message": f'Help/introspection text references python3 instead of drone commands: {refs_str} in {filename} — use "drone @branch command" instead',
+            "message": (
+                f"Help/introspection text references python3 instead of "
+                f"drone commands: {refs_str} in {filename} — "
+                f'use "drone @branch command" instead'
+            ),
         }
 
     return {
@@ -751,5 +866,7 @@ def check_module_help_interception(tree: ast.Module, filename: str) -> Optional[
     return {
         "name": "Module help interception",
         "passed": False,
-        "message": f"handle_command() in {filename} does not intercept --help — flag may fall through to business logic",
+        "message": (
+            f"handle_command() in {filename} does not intercept --help — flag may fall through to business logic"
+        ),
     }

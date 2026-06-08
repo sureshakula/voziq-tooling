@@ -112,15 +112,21 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("resolver Module")
-    console.print("Branch resolution logic — resolves symbolic @branch names to paths and metadata.")
+    console.print("[bold cyan]resolver Module[/bold cyan]")
+    console.print("[dim]Branch resolution logic — resolves symbolic @branch names to paths and metadata.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - registry_handler.py (load_registry — load and parse AIPASS_REGISTRY.json)")
-    console.print("    - registry_handler.py (get_all_branches — list branches with optional filters)")
-    console.print("    - registry_handler.py (get_branch_by_name — look up a single branch)")
-    console.print("    - exceptions.py (BranchNotFoundError — raised when branch not in registry)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](load_registry — load and parse AIPASS_REGISTRY.json)[/dim]"
+    )
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](get_all_branches — list branches with optional filters)[/dim]"
+    )
+    console.print("    - [cyan]registry_handler.py[/cyan] [dim](get_branch_by_name — look up a single branch)[/dim]")
+    console.print(
+        "    - [cyan]exceptions.py[/cyan] [dim](BranchNotFoundError — raised when branch not in registry)[/dim]"
+    )
     console.print()
 
 

@@ -27,13 +27,14 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("update Module")
+    console.print("[bold cyan]update Module[/bold cyan]")
     console.print("Branch updates — sync single or all branches against their class templates")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
     console.print(
-        "    - update_ops.py (update_branch, update_all — renames, additions, JSON merges, pruned file archival)"
+        "    [dim]- update_ops.py (update_branch, update_all"
+        " — renames, additions, JSON merges, pruned file archival)[/dim]"
     )
     console.print()
 

@@ -597,17 +597,17 @@ class TestHandleTarget:
             patch(f"{_DRONE}.is_module", return_value=True),
             patch(f"{_DRONE}._handle_module", return_value=0) as mock_hm,
         ):
-            result = _handle_target(["@git", "status"])
+            result = _handle_target(["@git", "diff"])
         assert result == 0
-        mock_hm.assert_called_once_with("git", ["status"])
+        mock_hm.assert_called_once_with("git", ["diff"])
 
     def test_no_args_introspection(self) -> None:
-        """@target with no args routes via route_command for introspection."""
+        """@target with no args routes via route_command with interactive=True."""
         from aipass.drone.apps.drone import _handle_target
         from aipass.drone.apps.handlers.executor import CommandResult
 
         mock_result = CommandResult(
-            stdout="introspection",
+            stdout="",
             stderr="",
             exit_code=0,
             branch="seedgo",
@@ -615,22 +615,31 @@ class TestHandleTarget:
         )
         with (
             patch(f"{_DRONE}.is_module", return_value=False),
-            patch(f"{_DRONE}.route_command", return_value=mock_result),
+            patch(f"{_DRONE}.route_command", return_value=mock_result) as mock_route,
         ):
             result = _handle_target(["@seedgo"])
         assert result == 0
+        mock_route.assert_called_once_with("@seedgo", interactive=True)
 
     def test_help_flag(self) -> None:
-        """@target --help routes via get_help."""
+        """@target --help routes via route_command with interactive=True."""
         from aipass.drone.apps.drone import _handle_target
+        from aipass.drone.apps.handlers.executor import CommandResult
 
-        mock_help = type("H", (), {"text": "Help text"})()
+        mock_result = CommandResult(
+            stdout="",
+            stderr="",
+            exit_code=0,
+            branch="seedgo",
+            command="--help",
+        )
         with (
             patch(f"{_DRONE}.is_module", return_value=False),
-            patch(f"{_DRONE}.get_help", return_value=mock_help),
+            patch(f"{_DRONE}.route_command", return_value=mock_result) as mock_route,
         ):
             result = _handle_target(["@seedgo", "--help"])
         assert result == 0
+        mock_route.assert_called_once_with("@seedgo", "--help", interactive=True)
 
     def test_command_routing(self) -> None:
         """@target command routes via route_command."""
@@ -650,6 +659,49 @@ class TestHandleTarget:
         ):
             result = _handle_target(["@seedgo", "audit", "aipass"])
         assert result == 0
+
+    def test_short_help_flag(self) -> None:
+        """@target -h routes via route_command with interactive=True."""
+        from aipass.drone.apps.drone import _handle_target
+        from aipass.drone.apps.handlers.executor import CommandResult
+
+        mock_result = CommandResult(stdout="", stderr="", exit_code=0, branch="seedgo", command="-h")
+        with (
+            patch(f"{_DRONE}.is_module", return_value=False),
+            patch(f"{_DRONE}.route_command", return_value=mock_result) as mock_route,
+        ):
+            result = _handle_target(["@seedgo", "-h"])
+        assert result == 0
+        mock_route.assert_called_once_with("@seedgo", "-h", interactive=True)
+
+    def test_status_routes_interactive(self) -> None:
+        """status command routes with interactive=True for Rich color output."""
+        from aipass.drone.apps.drone import _handle_target
+        from aipass.drone.apps.handlers.executor import CommandResult
+
+        mock_result = CommandResult(stdout="", stderr="", exit_code=0, branch="hooks", command="status")
+        with (
+            patch(f"{_DRONE}.is_module", return_value=False),
+            patch(f"{_DRONE}.route_command", return_value=mock_result) as mock_route,
+        ):
+            result = _handle_target(["@hooks", "status"])
+        assert result == 0
+        call_kwargs = mock_route.call_args.kwargs
+        assert call_kwargs["interactive"] is True
+
+    def test_help_flag_module_fallback(self) -> None:
+        """--help BranchNotFoundError for a module falls back to _handle_module."""
+        from aipass.drone.apps.drone import _handle_target
+        from aipass.drone.apps.modules import BranchNotFoundError
+
+        with (
+            patch(f"{_DRONE}.is_module", side_effect=[False, True]),
+            patch(f"{_DRONE}.route_command", side_effect=BranchNotFoundError("not found")),
+            patch(f"{_DRONE}._handle_module", return_value=0) as mock_hm,
+        ):
+            result = _handle_target(["@seedgo", "--help"])
+        assert result == 0
+        mock_hm.assert_called_once_with("seedgo", ["--help"])
 
     def test_branch_not_found_module_fallback(self) -> None:
         """BranchNotFoundError for a module falls back to _handle_module."""

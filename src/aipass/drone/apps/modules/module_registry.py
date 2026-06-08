@@ -54,19 +54,34 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("module_registry Module")
-    console.print("Internal module registry for drone — dynamic module loading and command delegation.")
+    console.print("[bold cyan]module_registry Module[/bold cyan]")
+    console.print("[dim]Internal module registry for drone — dynamic module loading and command delegation.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - module_registry_handler.py (ModuleInfo — module metadata dataclass)")
-    console.print("    - module_registry_handler.py (list_modules — list registered module names)")
-    console.print("    - module_registry_handler.py (is_module — check if a module is registered)")
-    console.print("    - module_registry_handler.py (get_module_info — retrieve module metadata)")
-    console.print("    - module_registry_handler.py (route_module_command — delegate command to module)")
-    console.print("    - module_registry_handler.py (get_module_help — get help text for a module)")
-    console.print("    - module_registry_handler.py (get_module_introspective — introspect module adapter)")
-    console.print("    - module_registry_handler.py (register_module — register a new module adapter)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    - [cyan]module_registry_handler.py[/cyan] [dim](ModuleInfo — module metadata dataclass)[/dim]")
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan] [dim](list_modules — list registered module names)[/dim]"
+    )
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan] [dim](is_module — check if a module is registered)[/dim]"
+    )
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan] [dim](get_module_info — retrieve module metadata)[/dim]"
+    )
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan] [dim](route_module_command — delegate command to module)[/dim]"
+    )
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan] [dim](get_module_help — get help text for a module)[/dim]"
+    )
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan]"
+        " [dim](get_module_introspective — introspect module adapter)[/dim]"
+    )
+    console.print(
+        "    - [cyan]module_registry_handler.py[/cyan] [dim](register_module — register a new module adapter)[/dim]"
+    )
     console.print()
 
 

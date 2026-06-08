@@ -199,6 +199,12 @@
       "standard": "unused_function",
       "lines": [108],
       "reason": "create_pr() is deprecated per FPLAN-0210 — pr command blocked at auth tier. Handler kept for backwards compatibility; still tested in test_git_module.py."
+    },
+    {
+      "file": "apps/modules/git_module.py",
+      "standard": "unused_function",
+      "lines": [655],
+      "reason": "get_introspective() called dynamically via getattr() by module_registry_handler.py:219 for internal module introspection. Also tested in test_git_module, test_system_pr, test_devpulse_plugins, test_git_access."
     }
   ],
   "notes": {

@@ -24,6 +24,10 @@ from aipass.hooks.apps.handlers.config.diagnostics import log_entry as _log, tai
 CONSOLE = err_console
 BRANCH_ROOT = Path(__file__).resolve().parent.parent.parent
 
+HELP_COMMANDS = [
+    ("log", "Tail recent hook activity (last 20 entries)"),
+]
+
 
 def _run_hook(hook_cmd: str, stdin_data: str, timeout_s: int = 30) -> dict:
     """Run a single hook subprocess, capture output and timing."""

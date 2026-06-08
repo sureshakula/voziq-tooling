@@ -24,12 +24,12 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("delete Module")
+    console.print("[bold cyan]delete Module[/bold cyan]")
     console.print("Branch deletion — archive directory and deregister from AIPASS_REGISTRY")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - delete_ops.py (delete_branch — resolve path, archive, remove from registry)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    [dim]- delete_ops.py (delete_branch — resolve path, archive, remove from registry)[/dim]")
     console.print()
 
 

@@ -45,17 +45,19 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("branch_log_events Module")
-    console.print("Branch log watcher — watches branch logs for ERROR entries and fires events")
+    console.print("[bold cyan]branch_log_events Module[/bold cyan]")
+    console.print("[dim]Branch log watcher — watches branch logs for ERROR entries and fires events[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - log_watcher.py (set_event_callback — set callback for detected events)")
-    console.print("    - log_watcher.py (start_branch_log_watcher — start filesystem watcher)")
-    console.print("    - log_watcher.py (stop_branch_log_watcher — stop filesystem watcher)")
-    console.print("    - log_watcher.py (is_branch_log_watcher_active — check watcher state)")
-    console.print("    - log_watcher.py (get_watcher_status — get full status dict)")
-    console.print("    - log_watcher.py (clear_seen_hashes — reset error deduplication)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print(
+        "    [cyan]•[/cyan] log_watcher.py [dim](set_event_callback — set callback for detected events)[/dim]"
+    )
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](start_branch_log_watcher — start filesystem watcher)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](stop_branch_log_watcher — stop filesystem watcher)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](is_branch_log_watcher_active — check watcher state)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](get_watcher_status — get full status dict)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](clear_seen_hashes — reset error deduplication)[/dim]")
     console.print()
 
 

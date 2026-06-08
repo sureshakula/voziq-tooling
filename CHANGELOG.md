@@ -12,6 +12,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Changed
 
+- **All 13 branches at seedgo 100% under the new introspection standard.**
+  Wrapped `print_introspection()` output in Rich markup across ai_mail, drone,
+  spawn, trigger, prax and devpulse (the rest were already compliant) —
+  presentation only, no logic change — so `drone @branch` with no args renders
+  consistent styled output everywhere.
+- **CLI polish for human-facing output.** `drone @hooks --help` rewritten (Rich,
+  with `hooksound on/off/status` now surfaced); `drone @spawn` repair help
+  clarified as distinct from `update` and showing the preview/`--apply` flow;
+  drone restores Rich colour on human-facing routed output (`--help`,
+  introspection, `status`) via the inherit path.
 - **Spawn backups land in one namespace `.spawn/.recovery/` (TDPLAN-0006 P4).**
   Spawn's pre-merge JSON backups previously dropped a `.recovery/` directory at
   each branch root (which had accumulated 242 stale auto-generated `DASHBOARD`
@@ -48,6 +58,13 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **Flow plan-type self-serve UX — register override, help, orphan cleanup.**
+  Explicit `drone @flow register <dir> <PREFIX>` now overrides an auto-derived
+  prefix instead of silently failing (guarded — refuses if the auto-registered
+  type already holds plans), so custom prefixes are settable when adding a new
+  plan type. `create`/`templates --help` rewritten to dynamically list registered
+  types + templates and document the add-a-new-type workflow. Stale orphan plan
+  registries removed; dead `prefix_exists()` dropped. (728 tests, seedgo 100%.)
 - **`drone @spawn update` no longer scrambles branches (#636, critical — TDPLAN-0006
   P0+P1).** The update engine compared a freshly-created branch against the class
   template by *content hash* with rename-detection, and because the CREATE path
@@ -70,6 +87,17 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **Introspection Rich-formatting standard (seedgo).** New
+  `check_introspection_rich_formatting` checker enforces that each branch's
+  `print_introspection()` output uses Rich markup (delegation-aware — it walks
+  `_`-prefixed helper functions), keeping no-arg `drone @branch` output styled and
+  consistent. Documented in `introspection.md`; all 13 branches brought into
+  compliance (see Changed).
+- **Playbook plan type (`PBPLAN`) — reusable SOP checklists (flow).** A new
+  `playbook_plans` template family for throwaway, vectorize-on-close operational
+  runbooks (first SOP: the Sunday merge). Drop a `.md` under
+  `templates/playbook_plans/`, register once, then
+  `drone @flow create . "subject" <sop>` stamps a run to tick through and close.
 - **Memory-pool auto-processing (TDPLAN-0005)** — dropped files in
   `memory/memory_pool/` are now vectorized and archived automatically on
   session-start and pre-compact, instead of requiring a manual

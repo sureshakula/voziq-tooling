@@ -236,6 +236,28 @@ Both levels use `print_introspection()` as the function name. Same name, differe
 
 ---
 
+## Rich Formatting Requirement
+
+Introspection output MUST use Rich markup tags for consistent presentation across all branches. Plain `console.print("flat text")` without any formatting tags fails the standard.
+
+**Required:** At least one Rich tag in introspection output strings (e.g. `[bold cyan]`, `[dim]`, `[yellow]`, `[green]`, `[/dim]`).
+
+```python
+# ✅ CORRECT - Rich formatting
+console.print("[bold cyan]Flow[/bold cyan] - PLAN Management System")
+console.print(f"[yellow]Discovered Modules:[/yellow] {count}")
+console.print(f"  [cyan]{name}[/cyan]")
+
+# ❌ WRONG - Flat plain strings
+console.print("Flow - PLAN Management System")
+console.print(f"Discovered Modules: {count}")
+console.print(f"  {name}")
+```
+
+**Delegation:** If `print_introspection()` delegates to a `_`-prefixed helper function (e.g. `_show_branch_introspection()`), the helper must contain Rich markup. The check walks into same-file helpers to verify formatting.
+
+---
+
 ## Compliance Checklist
 
 For entry points (`apps/{name}.py`):
@@ -247,6 +269,7 @@ For entry points (`apps/{name}.py`):
 - [ ] Filters modules by `handle_command()` presence
 - [ ] Lists discovered module names
 - [ ] Points to `--help` for usage
+- [ ] Uses Rich markup tags (not flat plain strings)
 
 For modules (`apps/modules/*.py`):
 
@@ -255,6 +278,7 @@ For modules (`apps/modules/*.py`):
 - [ ] Shows module name
 - [ ] Lists connected handlers grouped by domain
 - [ ] Points to `--help` for usage
+- [ ] Uses Rich markup tags (not flat plain strings)
 
 For execution order:
 

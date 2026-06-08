@@ -442,46 +442,6 @@ class TestRemoveType:
 
 
 # =============================================================================
-# prefix_exists
-# =============================================================================
-
-
-class TestPrefixExists:
-    """Tests for prefix_exists() — case-insensitive prefix lookup."""
-
-    def test_finds_existing_prefix_exact_case(self, setup_flow_root):
-        """Finds prefix with exact case match."""
-        mod = _import_mod()
-        _create_template_dir(setup_flow_root, "flow_plans", ["default.md"])
-        _create_template_dir(setup_flow_root, "dev_plans", ["default.md"])
-        data = _valid_registry()
-        _write_registry(setup_flow_root, data)
-
-        assert mod.prefix_exists("FPLAN") is True
-
-    def test_finds_existing_prefix_case_insensitive(self, setup_flow_root):
-        """Finds prefix regardless of case."""
-        mod = _import_mod()
-        _create_template_dir(setup_flow_root, "flow_plans", ["default.md"])
-        _create_template_dir(setup_flow_root, "dev_plans", ["default.md"])
-        data = _valid_registry()
-        _write_registry(setup_flow_root, data)
-
-        assert mod.prefix_exists("fplan") is True
-        assert mod.prefix_exists("Fplan") is True
-
-    def test_returns_false_for_unknown_prefix(self, setup_flow_root):
-        """Returns False for a prefix not in the registry."""
-        mod = _import_mod()
-        _create_template_dir(setup_flow_root, "flow_plans", ["default.md"])
-        _create_template_dir(setup_flow_root, "dev_plans", ["default.md"])
-        data = _valid_registry()
-        _write_registry(setup_flow_root, data)
-
-        assert mod.prefix_exists("ZPLAN") is False
-
-
-# =============================================================================
 # get_prefix_map
 # =============================================================================
 

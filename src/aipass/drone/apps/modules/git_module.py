@@ -683,7 +683,33 @@ def _get_console():
 
 def print_introspection() -> None:
     """Print introspection (seedgo compliance)."""
-    _get_console().print(get_introspective())
+    c = _get_console()
+    c.print()
+    c.print("[bold cyan]@git[/bold cyan] [dim]— Tier-based git workflow, dev branch model (v3.0.0)[/dim]")
+    c.print("[yellow]Connected Handlers:[/yellow]")
+    c.print("  [cyan]handlers/git/[/cyan]")
+    c.print(
+        "    - [cyan]lock_handler.py[/cyan], [cyan]status_handler.py[/cyan],"
+        " [cyan]diff_handler.py[/cyan], [cyan]log_handler.py[/cyan]"
+    )
+    c.print("    - [cyan]commit_handler.py[/cyan], [cyan]checkout_handler.py[/cyan], [cyan]sync_handler.py[/cyan]")
+    c.print(
+        "    - [cyan]dev_pr_handler.py[/cyan], [cyan]branches_handler.py[/cyan],"
+        " [cyan]delete_branch_handler.py[/cyan], [cyan]close_pr_handler.py[/cyan]"
+    )
+    c.print("  [cyan]plugins/devpulse_ops/[/cyan]")
+    c.print(
+        "    - [cyan]auth.py[/cyan], [cyan]merge_plugin.py[/cyan],"
+        " [cyan]sync_plugin.py[/cyan], [cyan]fix_plugin.py[/cyan]"
+    )
+    c.print("  [dim]gh passthrough: issue, run, workflow[/dim]")
+    c.print(
+        "[yellow]Tiers:[/yellow] [dim]global[/dim]"
+        " [dim](status,diff,log,lock,branches,prune-temp,issue,run,workflow)[/dim]"
+        " | [dim]owner[/dim]"
+        " [dim](pr,commit,checkout,dev-pr,delete-branch,close-pr,sync,unlock,merge,smart-sync,fix)[/dim]"
+    )
+    c.print()
 
 
 def print_help() -> None:

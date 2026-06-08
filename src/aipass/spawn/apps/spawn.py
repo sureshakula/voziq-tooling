@@ -31,21 +31,34 @@ def print_help():
     console.print()
     console.print("  [dim]drone @spawn create [class] <target_path> [options][/dim]")
     console.print("  [dim]drone @spawn passport <@dirname> [--role ...] [--purpose ...][/dim]")
-    console.print("  [dim]drone @spawn update <@branch | class --all> [--dry-run][/dim]")
+    console.print("  [dim]drone @spawn update <@branch | class --all> [--apply][/dim]")
+    console.print(
+        "  [dim]drone @spawn repair <project_path> [--clean-pollution | --relocate @branch <path>] [--apply][/dim]"
+    )
     console.print("  [dim]drone @spawn --help[/dim]")
     console.print()
     console.print("[bold cyan]COMMANDS:[/bold cyan]")
     console.print()
     console.print("  [green]create[/green] [class] <path>         Create a new branch from template")
     console.print("  [green]passport[/green] <@dirname>           Grant birthright citizenship (minimal)")
-    console.print("  [green]update[/green] <@branch>              Update single branch (preview-only by default)")
+    console.print(
+        "  [green]update[/green] <@branch>              Update single branch from templates (preview-only by default)"
+    )
     console.print("  [green]update[/green] <@branch> --apply      Update single branch (execute changes)")
     console.print("  [green]update[/green] <class> --all --apply  Update all branches of a class")
     console.print("  [green]delete[/green] <@branch>              Archive and deregister branch")
     console.print("  [green]sync-registry[/green]                 Repair registry against filesystem")
     console.print("  [green]sync-templates[/green]                Pull managed files from source")
     console.print("  [green]regenerate-registry[/green]           Regenerate template registry hashes")
-    console.print("  [green]repair[/green] <project_path>           Scan and fix project structure")
+    console.print(
+        "  [green]repair[/green] <project_path>           Scan project structure — paths/registry/pollution (read-only)"
+    )
+    console.print(
+        "  [green]repair[/green] <path> --clean-pollution  Archive+remove duplicate dirs (preview; add --apply)"
+    )
+    console.print(
+        "  [green]repair[/green] --relocate @branch <path> Move branch + update registry (preview; add --apply)"
+    )
     console.print()
     console.print("[bold cyan]CITIZEN CLASSES:[/bold cyan]")
     console.print()
@@ -188,19 +201,19 @@ def _dry_run_create(target_path, citizen_class, parsed):
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("spawn Entry Point")
+    console.print("[bold cyan]spawn Entry Point[/bold cyan]")
     console.print("Branch lifecycle manager — create, update, delete, and sync AIPass branches")
     console.print()
-    console.print("Connected Modules:")
-    console.print("  modules/")
-    console.print("    - core.py (handle_command, _spawn_agent — agent creation orchestrator)")
-    console.print("    - update.py (handle_update — single/all branch updates)")
-    console.print("    - delete.py (handle_delete — archive and deregister branch)")
-    console.print("    - sync_registry.py (handle_sync_registry — registry repair)")
-    console.print("    - sync_templates.py (handle_sync_templates — template synchronization)")
-    console.print("    - regenerate_registry.py (handle_regenerate_registry — regenerate template registry)")
-    console.print("    - passport.py (handle_passport — grant birthright citizenship)")
-    console.print("    - repair.py (handle_repair — project structure repair)")
+    console.print("[yellow]Connected Modules:[/yellow]")
+    console.print("  [cyan]modules/[/cyan]")
+    console.print("    [dim]- core.py (handle_command, _spawn_agent — agent creation orchestrator)[/dim]")
+    console.print("    [dim]- update.py (handle_update — single/all branch updates)[/dim]")
+    console.print("    [dim]- delete.py (handle_delete — archive and deregister branch)[/dim]")
+    console.print("    [dim]- sync_registry.py (handle_sync_registry — registry repair)[/dim]")
+    console.print("    [dim]- sync_templates.py (handle_sync_templates — template synchronization)[/dim]")
+    console.print("    [dim]- regenerate_registry.py (handle_regenerate_registry — regenerate template registry)[/dim]")
+    console.print("    [dim]- passport.py (handle_passport — grant birthright citizenship)[/dim]")
+    console.print("    [dim]- repair.py (handle_repair — project structure repair)[/dim]")
     console.print()
 
 

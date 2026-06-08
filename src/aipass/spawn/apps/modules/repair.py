@@ -29,12 +29,12 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("repair Module")
+    console.print("[bold cyan]repair Module[/bold cyan]")
     console.print("Project structure repair — move branches, clean pollution, fix registries")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - repair_ops.py (move_branch, cleanup_pollution, repair_project)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    [dim]- repair_ops.py (move_branch, cleanup_pollution, repair_project)[/dim]")
     console.print()
 
 

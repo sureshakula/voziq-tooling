@@ -27,12 +27,12 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("passport Module")
+    console.print("[bold cyan]passport Module[/bold cyan]")
     console.print("Grant birthright citizenship — minimal identity (.trinity/, .aipass/, README.md)")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - passport_ops.py (grant_passport — create minimal citizen identity and register)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    [dim]- passport_ops.py (grant_passport — create minimal citizen identity and register)[/dim]")
     console.print()
 
 

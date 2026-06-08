@@ -42,15 +42,15 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("log_events Module")
-    console.print("Centralized log watcher — watches system_logs/ for error and warning events")
+    console.print("[bold cyan]log_events Module[/bold cyan]")
+    console.print("[dim]Centralized log watcher — watches system_logs/ for error and warning events[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/watchers/")
-    console.print("    - log_watcher.py (start_log_watcher — start centralized log watcher)")
-    console.print("    - log_watcher.py (stop_log_watcher — stop centralized log watcher)")
-    console.print("    - log_watcher.py (is_log_watcher_active — check if watcher is running)")
-    console.print("    - log_watcher.py (SYSTEM_LOGS_DIR — monitored log directory path)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/watchers/[/cyan]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](start_log_watcher — start centralized log watcher)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](stop_log_watcher — stop centralized log watcher)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](is_log_watcher_active — check if watcher is running)[/dim]")
+    console.print("    [cyan]•[/cyan] log_watcher.py [dim](SYSTEM_LOGS_DIR — monitored log directory path)[/dim]")
     console.print()
 
 

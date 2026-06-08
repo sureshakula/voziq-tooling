@@ -37,14 +37,20 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("registry Module")
-    console.print("Registry operations for branch management — loading and querying AIPASS_REGISTRY.json.")
+    console.print("[bold cyan]registry Module[/bold cyan]")
+    console.print("[dim]Registry operations for branch management — loading and querying AIPASS_REGISTRY.json.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - registry_handler.py (load_registry — load and parse the registry file)")
-    console.print("    - registry_handler.py (get_all_branches — list branches with type/status filters)")
-    console.print("    - registry_handler.py (get_branch_by_name — look up a single branch by name)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](load_registry — load and parse the registry file)[/dim]"
+    )
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](get_all_branches — list branches with type/status filters)[/dim]"
+    )
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](get_branch_by_name — look up a single branch by name)[/dim]"
+    )
     console.print()
 
 

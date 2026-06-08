@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Tuple, List
 
+# ruff: noqa: E402
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py -> modules/ -> apps/ -> flow/ -> aipass/
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -124,24 +125,49 @@ def print_introspection():
 
 def print_help():
     """Print help information for create_plan module"""
+    from aipass.flow.apps.handlers.template.registry_ops import load_registry
+
     console.print()
     console.print("[bold cyan]create_plan[/bold cyan] — Create new PLAN file")
     console.print()
     console.print("[yellow]USAGE:[/yellow]")
+    console.print('  drone @flow create <location> "Subject" [type]')
     console.print('  drone @flow create <location> "Subject" [template] [type]')
     console.print()
-    console.print("[yellow]TEMPLATES:[/yellow]")
-    console.print("  default     Single task [dim](default)[/dim]")
-    console.print("  master      Multi-phase project")
-    console.print()
+
+    registry = load_registry()
+    types = registry.get("types", {})
     console.print("[yellow]TYPES:[/yellow]")
     console.print("  (none)      FPLAN [dim](default)[/dim]")
-    console.print("  dplan       DPLAN")
+    for dir_name, entry in sorted(types.items()):
+        prefix = entry.get("prefix", "???")
+        shorthand = entry.get("shorthand", prefix.lower())
+        if dir_name == "flow_plans":
+            continue
+        templates_dir = FLOW_ROOT / "templates" / dir_name
+        templates = sorted(p.stem for p in templates_dir.glob("*.md")) if templates_dir.is_dir() else []
+        tmpl_hint = f"  [dim]templates: {', '.join(templates)}[/dim]" if len(templates) > 1 else ""
+        console.print(f"  {shorthand:<12}  {prefix}{tmpl_hint}")
     console.print()
+
+    console.print("[yellow]TEMPLATE SELECTION:[/yellow]")
+    console.print("  The 4th arg selects a non-default template within a type.")
+    console.print("  Any .md file stem in the type's templates/ dir works.")
+    console.print('  [dim]drone @flow create . "Subject" sunday_merge pplan[/dim]')
+    console.print('  [dim]drone @flow create . "Subject" master[/dim]        # FPLAN master')
+    console.print()
+
     console.print("[yellow]EXAMPLES:[/yellow]")
     console.print('  [dim]drone @flow create . "Implementation task"[/dim]           # FPLAN default')
     console.print('  [dim]drone @flow create . "Multi-phase project" master[/dim]    # FPLAN master')
     console.print('  [dim]drone @flow create . "Design investigation" dplan[/dim]    # DPLAN')
+    console.print()
+
+    console.print("[bold]ADD A NEW PLAN TYPE:[/bold]")
+    console.print("  1. Create templates/<dirname>/ with .md template files")
+    console.print("  2. drone @flow register <dirname> <PREFIX>")
+    console.print('  3. drone @flow create . "Subject" <shorthand>')
+    console.print("  [dim]See: drone @flow templates --help[/dim]")
     console.print()
 
 

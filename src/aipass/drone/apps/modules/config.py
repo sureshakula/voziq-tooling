@@ -37,14 +37,20 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("config Module")
-    console.print("Registry configuration management — path resolution and overrides.")
+    console.print("[bold cyan]config Module[/bold cyan]")
+    console.print("[dim]Registry configuration management — path resolution and overrides.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - registry_handler.py (get_registry_path — return current registry file path)")
-    console.print("    - registry_handler.py (set_registry_path — override registry file location)")
-    console.print("    - registry_handler.py (reset_registry_path — restore default registry path)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](get_registry_path — return current registry file path)[/dim]"
+    )
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](set_registry_path — override registry file location)[/dim]"
+    )
+    console.print(
+        "    - [cyan]registry_handler.py[/cyan] [dim](reset_registry_path — restore default registry path)[/dim]"
+    )
     console.print()
 
 

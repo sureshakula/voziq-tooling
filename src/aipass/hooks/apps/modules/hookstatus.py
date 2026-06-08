@@ -16,6 +16,10 @@ from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: F40
 
 CONSOLE = err_console
 
+HELP_COMMANDS = [
+    ("status", "Show current project hook config"),
+]
+
 EVENT_TYPES = [
     "UserPromptSubmit",
     "PreToolUse",
