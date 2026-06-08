@@ -37,7 +37,7 @@ def readme_md(name: str) -> str:
         "aipass init agent my_agent\n"
         "\n"
         "# 2. Start a session\n"
-        "cd src/my_agent/\n"
+        f"cd src/{name.lower()}/my_agent/\n"
         "claude  # or your preferred AI CLI\n"
         "\n"
         "# 3. Check project health\n"
@@ -52,7 +52,7 @@ def readme_md(name: str) -> str:
         "  .aipass/                 # Prompts (injected per-turn)\n"
         "  CLAUDE.md               # Claude Code instructions\n"
         "  AGENTS.md               # Codex instructions\n"
-        "  src/                    # Agent directories live here\n"
+        f"  src/{name.lower()}/              # Project package\n"
         "    <agent_name>/         # Created via aipass init agent\n"
         "```\n"
         "\n"
@@ -79,6 +79,30 @@ def readme_md(name: str) -> str:
         "\n"
         f"*Initialized with [AIPass](https://github.com/AIOSAI/AIPass) on "
         f"{{date}}*\n"
+    )
+
+
+def agents_md(name: str) -> str:
+    """Generate AGENTS.md content — Codex equivalent of CLAUDE.md for projects."""
+    return (
+        f"# {name}\n"
+        "\n"
+        "Agent workspace powered by AIPass.\n"
+        "\n"
+        "# Startup protocol\n"
+        "\n"
+        "On any greeting, silently run this sequence — no narration, no announcing "
+        "steps. Just do it and respond with the status.\n"
+        "\n"
+        " - Read: `.trinity/passport.json`, `.trinity/local.json`, "
+        "`.trinity/observations.json`, `README.md`\n"
+        "\n"
+        "Use drone commands for all operations. Never raw git, gh, or file access "
+        "when drone provides it.\n"
+        "\n"
+        "# Memories\n"
+        "\n"
+        "Update `.trinity/` at natural breakpoints, after milestones, and on `/memo`.\n"
     )
 
 

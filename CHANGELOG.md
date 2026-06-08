@@ -10,6 +10,23 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W23] - 2026-06-02
 
+### Fixed
+
+- **`aipass init` scaffold correctness.** A fresh `aipass init` now generates a
+  project-specific `AGENTS.md` (new `agents_md()` generator) instead of falling
+  back to copying AIPass's own repo-root `AGENTS.md` boilerplate — Codex users
+  were getting the wrong file. Project `README.md` quick-start/structure paths
+  now reflect the real `src/<package>/<agent>/` layout.
+- **First-agent default name `my-agent` → `my_agent`.** `aipass init` seeded its
+  default agent with a hyphen, the lone source of a long-standing dir-vs-module
+  mismatch (the directory kept the hyphen while the importable module, `@address`
+  and registry name all normalize to underscore). Defaulting to `my_agent` makes
+  directory, module, `@address` and the README example all consistent.
+- **Dead `citizenship.registry_path` removed from spawn templates.** The field
+  pointed at a non-existent `.aipass/registry.json`; it was never read anywhere
+  (registry is located by `find_registry()` glob), so it's dropped from the
+  `builder` and `birthright` passport templates.
+
 ### Removed
 
 - **The entire STATUS flow is decommissioned (TDPLAN-0007).** The per-branch

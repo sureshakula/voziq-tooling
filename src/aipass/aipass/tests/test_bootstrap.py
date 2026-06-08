@@ -234,15 +234,15 @@ def test_init_project_raises_on_empty_name(tmp_path):
 
 
 def test_init_project_agents_md_content(tmp_path):
-    """AGENTS.md is copied from AIPass source of truth."""
+    """AGENTS.md contains project-specific content from generator."""
     target = tmp_path / "proj"
     target.mkdir()
 
     init_project(target, project_name="alpha")
 
     content = (target / "AGENTS.md").read_text(encoding="utf-8")
-    assert "# AIPass" in content
-    assert "Multi-agent framework" in content
+    assert "# ALPHA" in content
+    assert "AIPass" in content
 
 
 def test_init_project_gitignore_content(tmp_path):
@@ -411,16 +411,15 @@ def test_init_project_returns_dict(tmp_path):
 
 
 def test_init_project_agents_md_no_trinity(tmp_path):
-    """AGENTS.md is copied from AIPass source (may reference .trinity/ as part of agent docs)."""
+    """AGENTS.md references .trinity/ as part of startup protocol docs."""
     target = tmp_path / "proj"
     target.mkdir()
 
     init_project(target, project_name="keep")
 
     content = (target / "AGENTS.md").read_text(encoding="utf-8")
-    # Source file legitimately references .trinity/ as part of startup protocol docs
-    assert "# AIPass" in content
-    assert "Multi-agent framework" in content
+    assert "# KEEP" in content
+    assert ".trinity/" in content
 
 
 # ---------------------------------------------------------------------------

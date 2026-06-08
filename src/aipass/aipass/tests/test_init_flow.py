@@ -507,14 +507,14 @@ class TestStages:
         assert result["docker"] == "skipped"
 
     def test_stage_8_non_interactive_creates_my_agent(self, tmp_local_json) -> None:
-        """non_interactive=True uses 'my-agent' as default name."""
+        """non_interactive=True uses 'my_agent' as default name."""
         mock_proc = MagicMock(returncode=0)
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.subprocess.run", return_value=mock_proc):
                 with patch(f"{_MOD}._resolve_package_dir", return_value=None):
                     result = stage_8_first_agent(non_interactive=True)
-        assert result["agent_name"] == "my-agent"
-        assert result["agent_path"] == "src/my-agent"
+        assert result["agent_name"] == "my_agent"
+        assert result["agent_path"] == "src/my_agent"
 
     def test_stage_8_drone_not_found(self, tmp_local_json) -> None:
         """FileNotFoundError from drone is handled gracefully."""

@@ -348,6 +348,9 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
             content = template.read_text(encoding="utf-8").replace("{name}", name)
             dest.write_text(content, encoding="utf-8")
             created.append(str(dest))
+        elif md_name == "AGENTS.md":
+            dest.write_text(sc.agents_md(name), encoding="utf-8")
+            created.append(str(dest))
         else:
             source = Path(aipass_home) / md_name if aipass_home else None
             if source and source.is_file():
