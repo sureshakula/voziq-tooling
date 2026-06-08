@@ -26,7 +26,8 @@ the vectorized trail. Close when done.
 - [ ] On `dev`, working tree understood: `drone @git status --all`
 - [ ] Confirm what's shipping this week — scan uncommitted changes + already-pushed dev commits ahead of main: `git rev-list --count main..dev` (read git, raw ok)
 - [ ] No surprise files (stray `/tmp` artifacts, test pollution, `.recovery`/`.archive` churn). Clean = archive, never delete.
-- [ ] Decide: **release tag this week?** (tag = PyPI publish + GitHub Release). If yes, note target version.
+- [ ] **Version state check** (informs the bump decision): read the **two** release-tied versions — `grep '^version' pyproject.toml` and `grep __version__ src/aipass/__init__.py` (they should match; if drifted, note it) — and what PyPI already has: `curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`. PyPI rejects a duplicate, so the target must be > published.
+- [ ] Decide: **release tag this week?** (tag = PyPI publish + GitHub Release). If yes, note target version. (Significance call is the user's — the PATCH-default rule below is guidance, and the actual release history is a useful tie-breaker.)
 
 ## 2. Verify, commit, CHANGELOG
 
@@ -56,6 +57,7 @@ The PR gate (verified against `.github/workflows/`):
 
 - [ ] **User's call to merge** — confirm GO
 - [ ] `drone @git merge <PR#>` (squash-merge)
+- [ ] ⚠️ The merge command **echoes the PR's ORIGINAL opening description** — often stale if the PR accumulated more work after it was opened. Don't trust it as the merge summary; the real contents are `git log main..dev` from before the merge.
 - [ ] ⚠️ **Verify `dev` SURVIVES the merge** (the #625 scar — empirical, every time): `drone @git branches` → `dev` still present; `git rev-parse dev` resolves
 
 ## 6. Post-merge realign
@@ -80,10 +82,15 @@ How the release fires (verified `publish.yml`): a `v*` **git tag push** runs bui
 - GitHub Release notes = the **topmost `## [...]` CHANGELOG block** (awk-extracted).
 
 Steps:
-- [ ] Bump `pyproject.toml` version per the rule above, **on dev so it rides into the PR** (then main's merge commit carries the right version)
+- [ ] Bump the version in **BOTH** files (they must match the tag, or `__version__` ships wrong): `pyproject.toml` `version` **and** `src/aipass/__init__.py` `__version__`. Do it **on dev so it rides into the PR** (then main's merge commit carries the right version). ⚠️ These two drift easily — `__init__.py` is the one that gets forgotten.
 - [ ] Confirm the CHANGELOG top section is the release notes you want
-- [ ] **Push the tag — MANUAL (drone has no `tag` verb):** Patrick, or raw `git tag v<version> <main-sha>` + `git push origin v<version>` via `!`, on the merged main commit
-- [ ] Verify PyPI shows the new version + the GitHub Release appeared
+- [ ] After merge + `drone @git sync`, get the **real** merged-main sha: `git rev-parse HEAD`. **Verify the version on that exact commit BEFORE tagging:** `git show HEAD:pyproject.toml | grep '^version'` and `git show HEAD:src/aipass/__init__.py | grep __version__` — both must equal the tag.
+- [ ] **Push the tag — MANUAL (drone has no `tag` verb; devpulse can't push tags):** user runs it, via `!` or terminal. **Two SEPARATE lines, paste the real sha (no `<…>` placeholders, no `&&`):**
+      ```
+      git tag v<version> <real-sha-from-rev-parse>
+      git push origin v<version>
+      ```
+- [ ] Verify PyPI shows the new version + the GitHub Release appeared (`curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`)
 - [ ] Record the tag → Run Summary
 
 ## 8. Wrap
