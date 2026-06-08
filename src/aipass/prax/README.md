@@ -13,7 +13,7 @@
 
 Prax is the logging and monitoring backbone of the AIPass ecosystem. Any branch imports `logger` and gets automatic log routing — prax detects the caller via stack introspection and writes to the correct per-module log file. No configuration needed.
 
-On top of logging, prax provides Mission Control (a real-time terminal console for file changes, log events, and agent activity), a log audit system, a dashboard infrastructure, and cross-branch STATUS.md synchronization.
+On top of logging, prax provides Mission Control (a real-time terminal console for file changes, log events, and agent activity), a log audit system, and a dashboard infrastructure.
 
 ## Quick Start
 
@@ -60,7 +60,7 @@ Interactive commands inside the monitor: `help`, `status`, `quit`/`exit`.
 
 ```bash
 drone @prax status                       # System health (modules, loggers, watcher state)
-drone @prax status sync                  # Build STATUS.md from all branch STATUS.local.md
+drone @prax status sync                  # DORMANT — STATUS.md sync decommissioned (TDPLAN-0007)
 drone @prax status --help                # Status usage
 ```
 
@@ -127,7 +127,7 @@ prax/
 │   │   ├── logger.py                  # SystemLogger — auto-routing, two-tier logging
 │   │   ├── monitor.py                 # Mission Control — 3-thread real-time monitoring
 │   │   ├── dashboard.py               # Dashboard — template management, refresh, write-through
-│   │   ├── status.py                  # System status — health display, STATUS.md sync
+│   │   ├── status.py                  # System status — health display (STATUS.md sync dormant)
 │   │   └── log_audit.py              # Log audit — scan, health summary, enforce limits
 │   └── handlers/                      # Implementation details (11 handler directories)
 │       ├── central/                   # Central file reader (.ai_central/*.central.json)
@@ -139,7 +139,7 @@ prax/
 │       ├── logging/                   # Setup, rotation, introspection, override, direct logger
 │       ├── monitoring/                # Event queue, branch detector, stream output, log watcher
 │       ├── registry/                  # Module registry load/save
-│       ├── status/                    # STATUS.md sync handler
+│       ├── status/                    # STATUS.md sync handler (dormant — TDPLAN-0007)
 │       └── watcher/                   # Background system watchers
 ├── prax_json/                         # Auto-created per-module config/data/log files
 ├── templates/                         # Dashboard template schema (DASHBOARD.template.json)
@@ -167,7 +167,7 @@ drone @prax monitor run
 4. **Mission Control** — Three threads: display worker (pulls from event queue), file watcher (watchdog on branch `apps/` dirs), log watcher (tails `system_logs/*.log`). Falls back to polling when inotify is exhausted.
 5. **Multi-CLI monitoring** — Watches Claude Code JSONL and Codex JSONL session files. Extracts agent activity (thinking, tool use, responses) with model detection and branch resolution.
 6. **Dashboard** — Template-based per-branch dashboard files. Refreshes from central files (`*.central.json`). Write-through API for services to update sections directly.
-7. **STATUS sync** — Scans all branch `STATUS.local.md` files, extracts State/Last update fields, builds aggregated `STATUS.md` at the repo root.
+7. **STATUS sync** — *(Dormant — TDPLAN-0007)* Previously scanned all branch `STATUS.local.md` files and built aggregated `STATUS.md`. Engine code intact but no longer triggered.
 
 ## Tests
 
@@ -208,7 +208,7 @@ drone @prax monitor run
 - All branches — Unified logging via `from aipass.prax import logger`
 - All branches — Real-time monitoring via Mission Control
 - All branches — Per-branch dashboard files
-- System — `STATUS.md` sync, log audit enforcement
+- System — Log audit enforcement
 
 ## Known Issues
 - **inotify exhaustion** — System often near `max_user_watches` limit. Monitor uses polling fallback (functional but slower).

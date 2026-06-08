@@ -89,7 +89,6 @@ Steps:
 ## 8. Wrap
 
 - [ ] Update `.trinity/` memories (session log: what merged, PR#, tag)
-- [ ] Update `STATUS.local.md`
 - [ ] Fill **Run Summary** below (PR numbers, tag, anything that broke)
 - [ ] Close this playbook → vectorizes the run
 

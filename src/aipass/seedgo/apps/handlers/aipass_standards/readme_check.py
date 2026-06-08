@@ -47,7 +47,6 @@ _RUNTIME_ARTIFACTS = {
     "system_logs",
     "docs.local",
     ".trinity",
-    "STATUS.local.md",
     "DASHBOARD.local.json",
 }
 

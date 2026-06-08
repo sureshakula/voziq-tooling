@@ -123,8 +123,7 @@ seedgo/
 ├── .trinity/                        # Identity + memory
 ├── .seedgo/                         # Self-bypass rules
 ├── .ai_mail.local/                  # Mailbox
-├── CLAUDE.md                        # Branch startup instructions
-└── STATUS.local.md                  # Current state summary
+└── CLAUDE.md                        # Branch startup instructions
 ```
 
 ### Key Patterns

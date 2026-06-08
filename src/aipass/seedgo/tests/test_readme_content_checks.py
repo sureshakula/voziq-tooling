@@ -486,7 +486,7 @@ def test_is_runtime_artifact_known_dirs():
     assert _is_runtime_artifact(Path("/any/path/.trinity")) is True
     assert _is_runtime_artifact(Path("/any/path/cli_json")) is True
     assert _is_runtime_artifact(Path("/any/path/seedgo_json")) is True
-    assert _is_runtime_artifact(Path("/any/path/STATUS.local.md")) is True
+    assert _is_runtime_artifact(Path("/any/path/STATUS.local.md")) is False
     assert _is_runtime_artifact(Path("/any/path/DASHBOARD.local.json")) is True
     assert _is_runtime_artifact(Path("/any/path/docs.local")) is True
     assert _is_runtime_artifact(Path("/any/path/dropbox")) is True

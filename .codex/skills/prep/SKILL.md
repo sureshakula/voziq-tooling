@@ -38,7 +38,7 @@ Purpose: Button up everything at the end of a session — or before a /compact. 
 ## 5. Loose Ends
 
 - Flag anything in-flight: running background agents, dispatched branches waiting for replies, pending decisions
-- If anything can't survive compaction, write it to STATUS.local.md Notepad
+- If anything can't survive compaction, write it to local.json todos[]
 
 ## Confirm
 

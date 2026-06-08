@@ -62,6 +62,13 @@
       "subject": "Codex + Gemini log monitoring adapters for prax monitor",
       "date_closed": "2026-04-10",
       "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0245",
+      "type": "FPLAN",
+      "subject": "STATUS decommission — prax dashboard todo_count + engine dormant",
+      "date_closed": "2026-06-08",
+      "location": "prax"
     }
   ],
   "document_metadata": {
@@ -71,14 +78,14 @@
     "tags": [
       "session_tracking",
       "work_log",
-      "PRAX"
+      "prax"
     ],
     "limits": {
       "max_sessions": 20,
       "max_key_learnings": 25,
       "session_summary_max_chars": 150,
       "learning_value_max_chars": 200,
-      "note": "Auto-rollover to @memory when limits exceeded. Oldest entries trimmed first."
+      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries."
     },
     "status": {
       "health": "healthy",

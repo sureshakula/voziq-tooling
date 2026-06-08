@@ -380,7 +380,7 @@ def _get_watch_directories(repo_root: Path) -> list[tuple[Path, bool]]:
                 apps_dir = branch_path / "apps"
                 if apps_dir.exists():
                     dirs.append((apps_dir, True))
-                # Branch root non-recursive — STATUS.local.md, README.md
+                # Branch root non-recursive — README.md
                 dirs.append((branch_path, False))
                 # .trinity/ non-recursive — identity files
                 trinity_dir = branch_path / ".trinity"

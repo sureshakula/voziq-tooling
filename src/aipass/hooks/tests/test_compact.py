@@ -29,9 +29,6 @@ class TestCompactHandler:
             ),
             encoding="utf-8",
         )
-        status = tmp_path / "STATUS.local.md"
-        status.write_text("# Status\nCurrent work here", encoding="utf-8")
-
         with patch("aipass.hooks.apps.handlers.lifecycle.compact.speak"):
             with patch("aipass.hooks.apps.handlers.lifecycle.compact._get_git_info", return_value="Git branch: dev"):
                 result = handle({"cwd": str(tmp_path)})
@@ -40,7 +37,7 @@ class TestCompactHandler:
         assert "POST-COMPACT RECOVERY" in result["stdout"]
         assert "Git branch: dev" in result["stdout"]
         assert "did stuff" in result["stdout"]
-        assert "Current work here" in result["stdout"]
+        assert "STATUS.local.md" not in result["stdout"]
 
     def test_returns_recovery_when_no_branch_dir(self):
         from aipass.hooks.apps.handlers.lifecycle.compact import handle
@@ -64,6 +61,7 @@ class TestCompactHandler:
                     result = handle({"cwd": str(tmp_path)})
 
         assert "SAVE STATE NOW" in result["stdout"]
+        assert "STATUS.local.md" not in result["stdout"]
 
     def test_interactive_gets_recovery_protocol(self, tmp_path):
         from aipass.hooks.apps.handlers.lifecycle.compact import handle
@@ -77,6 +75,7 @@ class TestCompactHandler:
                     result = handle({"cwd": str(tmp_path)})
 
         assert "Recovery Protocol" in result["stdout"]
+        assert "STATUS.local.md" not in result["stdout"]
 
     def test_empty_hook_data(self):
         from aipass.hooks.apps.handlers.lifecycle.compact import handle

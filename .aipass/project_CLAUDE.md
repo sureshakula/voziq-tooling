@@ -6,7 +6,7 @@ Agent workspace powered by AIPass.
 
 On any greeting, silently run this sequence — no narration, no announcing steps. Just do it and respond with the status.
 
- - Read: `.trinity/passport.json`, `.trinity/local.json`, `.trinity/observations.json`, `README.md`, `STATUS.local.md`
+ - Read: `.trinity/passport.json`, `.trinity/local.json`, `.trinity/observations.json`, `README.md`
 
 Use drone commands for all operations. Never raw git, gh, file access, or python -m when drone provides it.
 

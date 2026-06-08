@@ -15,11 +15,10 @@ Business logic for `aipass init`. Creates the project scaffold:
    3. CLAUDE.md                       — project prompt (Claude Code reads this)
    4. AGENTS.md                       — Codex equivalent of CLAUDE.md
    5. README.md                       — getting started guide
-   6. STATUS.local.md                 — project status
-   7. .gitignore                      — standard AIPass ignores
-   8. .claude/settings.json           — Claude Code hooks configuration
-   9. src/                            — directory where agents live
-  10. .ai_mail.local/inbox.json       — empty project mailbox
+   6. .gitignore                      — standard AIPass ignores
+   7. .claude/settings.json           — Claude Code hooks configuration
+   8. src/                            — directory where agents live
+   9. .ai_mail.local/inbox.json       — empty project mailbox
 
 Projects are NOT citizens — no .trinity/ directory. Identity lives in the
 registry JSON. Init is re-runnable: existing files are skipped, not errors.
@@ -364,16 +363,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         readme_md_path.write_text(readme_content, encoding="utf-8")
         created.append(str(readme_md_path))
 
-    # 7. STATUS.local.md
-    status_md_path = target / "STATUS.local.md"
-    if not status_md_path.exists():
-        status_md_path.write_text(
-            f"# {name}\n\n**State:** New\n**Last update:** {today}\n\n## Current Work\n\n## Known Issues\n- None\n",
-            encoding="utf-8",
-        )
-        created.append(str(status_md_path))
-
-    # 8. .gitignore
+    # 7. .gitignore
     gitignore_path = target / ".gitignore"
     if not gitignore_path.exists():
         gitignore_path.write_text(sc.gitignore(), encoding="utf-8")
@@ -450,7 +440,7 @@ def update_project(target: Path) -> dict:
     """Update managed scaffold files in an existing AIPass project.
 
     Overwrites managed prompt and config files with the latest templates while
-    leaving all user-owned files (registry, README, STATUS.local.md, .gitignore,
+    leaving all user-owned files (registry, README, .gitignore,
     src/) untouched.
 
     Args:
@@ -586,7 +576,6 @@ def update_project(target: Path) -> dict:
     for skip_name in (
         str(registry_path),
         str(target / "README.md"),
-        str(target / "STATUS.local.md"),
         str(target / ".gitignore"),
     ):
         skipped.append(skip_name)

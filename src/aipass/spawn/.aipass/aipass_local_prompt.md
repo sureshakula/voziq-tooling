@@ -1,6 +1,6 @@
 # SPAWN — Branch Prompt
 
-*Injected every turn. Breadcrumbs only — details: README, --help, .trinity/ memories, STATUS.local.md.*
+*Injected every turn. Breadcrumbs only — details: README, --help, .trinity/ memories.*
 
 ## Identity
 

@@ -10,7 +10,7 @@ DevPulse handles the day-to-day: working with the user to plan, design, troubles
 
 | You want to | Read |
 |---|---|
-| What's happening right now | [STATUS.local.md](STATUS.local.md) |
+| What's happening right now | `DASHBOARD.local.json` |
 | Identity, memory, session history | [`.trinity/`](.trinity/) |
 | Active plans | `drone @flow list open` |
 | Branch list | `drone systems` |
@@ -46,7 +46,7 @@ src/aipass/devpulse/
 ├── artifacts/                   # Birth certificate, reports
 ├── dropbox/                     # Received files, archived plans, install audit
 ├── docs/                        # Transition notes
-└── STATUS.local.md              # Current work beacon
+└── DASHBOARD.local.json         # Live state (refreshed by prax)
 ```
 
 ## Commands

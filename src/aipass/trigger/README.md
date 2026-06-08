@@ -74,7 +74,7 @@ result = report_error(
 
 ## Events
 
-15 events registered via `handlers/events/registry.py` on first `Trigger.fire()`. All fire through the event bus.
+15 events defined, 13 active (2 decommissioned by TDPLAN-0007). Registered via `handlers/events/registry.py` on first `Trigger.fire()`. All fire through the event bus.
 
 | Event | Handler | Trigger | Action |
 |-------|---------|---------|--------|
@@ -90,8 +90,8 @@ result = report_error(
 | `memory_template_updated` | `memory_template_updated.py` | Memory template changed | Pushes template updates to branches |
 | `memory_saved` | `memory.py` | Memory file written | Placeholder for future rollover trigger |
 | `cli_header_displayed` | `cli.py` | CLI displays headers | Registration hook |
-| `pr_created` | `pr_status_sync.py` | PR opened on GitHub | Runs `drone @prax status sync` (fire-and-forget) |
-| `pr_merged` | `pr_status_sync.py` | PR merged on GitHub | Runs `drone @prax status sync` (fire-and-forget) |
+| `pr_created` | `pr_status_sync.py` | PR opened on GitHub | ~~Runs `drone @prax status sync`~~ **Decommissioned** (TDPLAN-0007) |
+| `pr_merged` | `pr_status_sync.py` | PR merged on GitHub | ~~Runs `drone @prax status sync`~~ **Decommissioned** (TDPLAN-0007) |
 | `memory_pool_auto_processed` | `memory_pool.py` | Hook engine runs `auto_process()` | Logs result; on failure fires `error_detected` for Medic dispatch |
 
 ## Medic
@@ -148,7 +148,7 @@ trigger/
 │       ├── json/
 │       │   └── json_handler.py     # JSON structure logging
 │       ├── events/
-│       │   ├── registry.py         # Auto-registers all 15 event handlers
+│       │   ├── registry.py         # Auto-registers 13 active event handlers
 │       │   ├── startup.py          # Startup catch-up scan
 │       │   ├── error_detected.py   # 8-gate Medic dispatch
 │       │   ├── error_logged.py     # Monitor-only (no dispatch)
@@ -159,7 +159,7 @@ trigger/
 │       │   ├── memory_template_updated.py
 │       │   ├── memory.py           # memory_saved placeholder
 │       │   ├── cli.py              # cli_header_displayed hook
-│       │   ├── pr_status_sync.py   # PR → prax status sync
+│       │   ├── pr_status_sync.py   # PR → prax status sync (decommissioned TDPLAN-0007)
 │       │   └── memory_pool.py     # Pool auto-process observability
 │       └── watchers/
 │           └── log_watcher.py      # System log watcher (system_logs/ dir)

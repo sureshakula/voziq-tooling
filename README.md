@@ -264,7 +264,7 @@ AIPass stores everything locally in your project directory. To remove it:
 ```bash
 # Remove AIPass files from your project
 rm -rf .aipass/ .claude/ .ai_mail.local/ hooks/ src/
-rm -f CLAUDE.md AGENTS.md STATUS.local.md *_REGISTRY.json .gitignore
+rm -f CLAUDE.md AGENTS.md *_REGISTRY.json .gitignore
 
 # If you installed via pip
 pip uninstall aipass

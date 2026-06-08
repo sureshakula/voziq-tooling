@@ -10,6 +10,24 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W23] - 2026-06-02
 
+### Removed
+
+- **The entire STATUS flow is decommissioned (TDPLAN-0007).** The per-branch
+  hand-maintained `STATUS.local.md` beacon and the auto-aggregated central
+  `STATUS.md` (853 lines / 70 KB nobody read) are gone — deleted from disk
+  across all 13 branches and scrubbed from every prompt, doc, startup protocol,
+  `/prep` + `/memo` skill, the compact-recovery hook, the email footer, and
+  `aipass init` / spawn scaffolding. Live branch state was already fully covered
+  by `DASHBOARD.local.json` (prax) and history by `.trinity/local.json`. The
+  status-sync engine is kept **intact but inert** — made dormant by unwiring its
+  3-line trigger registration (`trigger registry.py`), so the code stays
+  revivable. The one thing STATUS uniquely gave us — a quick scratch todo — is
+  replaced by an operational `todos[]` section in `.trinity/local.json`
+  (@memory-owned schema, capped, never vectorized by rollover), pushed to all 13
+  branches and surfaced as a `todo_count` on the dashboard. Shipped as one
+  coordinated cross-branch change (memory, prax, trigger, aipass, spawn, hooks,
+  ai_mail, seedgo + devpulse).
+
 ### Changed
 
 - **All 13 branches at seedgo 100% under the new introspection standard.**

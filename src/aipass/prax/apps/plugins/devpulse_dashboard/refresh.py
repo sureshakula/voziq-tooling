@@ -41,6 +41,7 @@ def refresh(branch_path: Optional[Path] = None) -> Dict:
         ("git", _refresh_git),
         ("session", _refresh_session),
         ("dispatch", _refresh_dispatch),
+        ("todo", _refresh_todo),
     ]
 
     for name, builder_fn in builders:
@@ -70,3 +71,9 @@ def _refresh_dispatch(branch_path: Path) -> None:
     from .dispatch_section import build_dispatch_section
 
     build_dispatch_section(branch_path)
+
+
+def _refresh_todo(branch_path: Path) -> None:
+    from .todo_section import build_todo_section
+
+    build_todo_section(branch_path)

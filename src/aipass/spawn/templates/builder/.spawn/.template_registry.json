@@ -26,7 +26,7 @@
     "f004": {
       "path": ".aipass/aipass_local_prompt.md",
       "name": "aipass_local_prompt.md",
-      "content_hash": "5f8e2a3859a9",
+      "content_hash": "bf82b35fa7d5",
       "has_branch_placeholder": false
     },
     "f005": {
@@ -113,12 +113,6 @@
       "content_hash": "ad99517a50f9",
       "has_branch_placeholder": false
     },
-    "f018": {
-      "path": "STATUS.local.md",
-      "name": "STATUS.local.md",
-      "content_hash": "059295ad4d4e",
-      "has_branch_placeholder": false
-    },
     "f019": {
       "path": "apps/README.md",
       "name": "README.md",
@@ -155,7 +149,7 @@
       "content_hash": "a4cf0a8e3b4f",
       "has_branch_placeholder": false
     },
-    "f015": {
+    "f018": {
       "path": "apps/modules/__init__.py",
       "name": "__init__.py",
       "content_hash": "e3b0c44298fc",
@@ -269,7 +263,7 @@
       "content_hash": "28e9ae373563",
       "has_branch_placeholder": false
     },
-    "f026": {
+    "f015": {
       "path": "apps/plugins/__init__.py",
       "name": "__init__.py",
       "content_hash": "e3b0c44298fc",

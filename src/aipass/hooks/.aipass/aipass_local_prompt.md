@@ -1,6 +1,6 @@
 # HOOKS -- Branch Prompt
 
-Injected every turn. Breadcrumbs only -- details in README, --help, .trinity/, STATUS.local.md.
+Injected every turn. Breadcrumbs only -- details in README, --help, .trinity/.
 
 ## Identity
 

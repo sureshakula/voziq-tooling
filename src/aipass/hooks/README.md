@@ -10,7 +10,6 @@ Every hook event flows through one engine. Platform bridges normalize the event 
 
 | You want to | Read |
 |---|---|
-| What's happening right now | [STATUS.local.md](STATUS.local.md) |
 | Identity, memory, session history | [`.trinity/`](.trinity/) |
 | Hook engine design | `DPLAN-0184` |
 | Per-project config | `.aipass/hooks.json` |
@@ -78,8 +77,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-├── tests/                       # 385 tests across 20 test files
-└── STATUS.local.md
+└── tests/                       # 385 tests across 20 test files
 ```
 
 ## How It Works

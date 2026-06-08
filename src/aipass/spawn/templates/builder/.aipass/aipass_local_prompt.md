@@ -17,7 +17,7 @@ PRINCIPLES:
 - Include concrete reference data — lookup tables, checklists, decision trees.
 - If you can run `drone @{{BRANCH}} --help` to get it, don't duplicate it here.
 - This file should be STABLE. If it changes every session, that content belongs in
-  STATUS.local.md or .trinity/ instead.
+  .trinity/ instead.
 
 WHEN YOU'RE DONE:
 - Delete this instruction block
@@ -25,7 +25,7 @@ WHEN YOU'RE DONE:
 - What remains should be pure operational reference
 -->
 
-*Injected every turn. Breadcrumbs only — details in README, --help, .trinity/ memories, STATUS.local.md.*
+*Injected every turn. Breadcrumbs only — details in README, --help, .trinity/ memories.*
 
 ## Identity
 

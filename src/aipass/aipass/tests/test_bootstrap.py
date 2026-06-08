@@ -102,7 +102,6 @@ def test_init_project_creates_all_expected_files(tmp_path):
         target / "CLAUDE.md",
         target / "AGENTS.md",
         target / "README.md",
-        target / "STATUS.local.md",
         target / ".gitignore",
         target / ".claude" / "settings.json",
         target / ".claude" / "commands" / "prep.md",
@@ -127,7 +126,7 @@ def test_init_project_creates_all_expected_files(tmp_path):
     created_basenames = [Path(f).name for f in result["created_files"]]
     for f in expected_files:
         assert f.name in created_basenames or f.exists(), f"Expected {f.name} in created_files"
-    assert len(result["created_files"]) >= 12
+    assert len(result["created_files"]) >= 11
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -325,7 +324,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) >= 12
+    assert len(result["created_files"]) >= 11
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -364,7 +363,6 @@ def test_init_project_skips_existing_optional_files(tmp_path):
     (target / "CLAUDE.md").write_text("# Custom CLAUDE\n", encoding="utf-8")
     (target / "AGENTS.md").write_text("# Custom AGENTS\n", encoding="utf-8")
     (target / "README.md").write_text("# Custom README\n", encoding="utf-8")
-    (target / "STATUS.local.md").write_text("# Custom status\n", encoding="utf-8")
     (target / ".gitignore").write_text("# Custom\n", encoding="utf-8")
 
     claude_dir = target / ".claude"
@@ -518,7 +516,6 @@ def test_update_project_never_touches_user_owned_files(tmp_path):
 
     # Modify user-owned files
     (target / "README.md").write_text("# My custom README\n", encoding="utf-8")
-    (target / "STATUS.local.md").write_text("# Custom status\n", encoding="utf-8")
     (target / ".gitignore").write_text("# custom\n", encoding="utf-8")
 
     result = update_project(target)
@@ -526,12 +523,10 @@ def test_update_project_never_touches_user_owned_files(tmp_path):
     skipped = result["skipped_files"]
     assert any("REGISTRY" in s for s in skipped)
     assert any("README.md" in s for s in skipped)
-    assert any("STATUS.local.md" in s for s in skipped)
     assert any(".gitignore" in s for s in skipped)
 
     # User customisations are preserved
     assert (target / "README.md").read_text(encoding="utf-8") == "# My custom README\n"
-    assert (target / "STATUS.local.md").read_text(encoding="utf-8") == "# Custom status\n"
 
 
 def test_update_project_creates_missing_managed_dirs(tmp_path):
@@ -556,15 +551,15 @@ def test_update_project_creates_missing_managed_dirs(tmp_path):
 
 
 def test_update_project_skipped_files_count(tmp_path):
-    """update_project skips 4 user-owned files + existing mailbox = 5 total."""
+    """update_project skips 3 user-owned files."""
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="count")
 
     result = update_project(target)
 
-    # 4 user-owned (registry, README, STATUS, .gitignore)
-    assert len(result["skipped_files"]) == 4
+    # 3 user-owned (registry, README, .gitignore)
+    assert len(result["skipped_files"]) == 3
 
 
 # ---------------------------------------------------------------------------

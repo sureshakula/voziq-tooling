@@ -376,6 +376,12 @@
       "reason": "PR event handlers (handle_pr_created, handle_pr_merged) are event handlers registered in registry.py, not trigger-specific naming violations."
     },
     {
+      "file": "apps/handlers/events/pr_status_sync.py",
+      "standard": "unused_function",
+      "pattern": "handle_pr_created, handle_pr_merged",
+      "reason": "TDPLAN-0007: status-sync decommissioned. Handlers unregistered in registry.py but module + tests kept intact for future revival."
+    },
+    {
       "file": "apps/handlers/log_watcher.py",
       "standard": "silent_catch",
       "lines": [

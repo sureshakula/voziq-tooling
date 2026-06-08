@@ -203,10 +203,12 @@ def _calculate_quick_status_standalone(sections: Dict) -> Dict:
     """
     ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
+    todo = sections.get("todo", {})
 
     new_mail_raw = ai_mail.get("new", ai_mail.get("unread", 0))
     opened_raw = ai_mail.get("opened", 0)
     active_plans_raw = flow.get("active_plans", 0)
+    todo_count = int(todo.get("todo_count", 0) or 0)
 
     new_mail = len(new_mail_raw) if isinstance(new_mail_raw, list) else int(new_mail_raw or 0)
     opened_mail = len(opened_raw) if isinstance(opened_raw, list) else int(opened_raw or 0)
@@ -221,11 +223,14 @@ def _calculate_quick_status_standalone(sections: Dict) -> Dict:
         parts.append(f"{opened_mail} opened")
     if active_plans > 0:
         parts.append(f"{active_plans} active plans")
+    if todo_count > 0:
+        parts.append(f"{todo_count} todos")
 
     return {
         "new_mail": new_mail,
         "opened_mail": opened_mail,
         "active_plans": active_plans,
+        "todo_count": todo_count,
         "action_required": action_required,
         "summary": ", ".join(parts) if parts else "All clear",
     }
