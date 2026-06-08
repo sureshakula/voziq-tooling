@@ -11,7 +11,7 @@ Patterns here are exact. Don't guess command syntax — examples are the API. Mi
 
 # AIPL — Terse Writing Convention
 
-When writing .trinity/, ai_mail, STATUS.local.md, plans: use AIPL. Human-facing output (CLI, logs, README): use English.
+When writing .trinity/, ai_mail, plans: use AIPL. Human-facing output (CLI, logs, README): use English.
 
 Rules:
 - Drop grammar: the, a, an, for, with, on, in, at, to, from, of, by, and, but, or, was, were, been
@@ -151,19 +151,16 @@ Never create plan files manually. Always `drone @flow create`. Flow handles numb
 
 `.trinity/` files are your memories — experiential, personal, yours. How you persist across sessions.
 
-`STATUS.local.md` is different — live status beacon for ecosystem. Auto-synced to central `STATUS.md` on PR create/merge. Other agents read STATUS to see your state without digging into memories. Crossover with `local.json` fine — same fact, different purpose: `local.json` for you, `STATUS.local.md` for ecosystem.
-
-Four files:
+Three files:
 - `passport.json` — IDENTITY. Role, purpose, principles. Update only when identity genuinely evolves.
-- `local.json` — YOUR MEMORY. Session log (`sessions[]`) + `key_learnings`. What happened, what learned, what matters next.
+- `local.json` — YOUR MEMORY. Session log (`sessions[]`) + `key_learnings` + `todos[]`. What happened, what learned, what matters next.
 - `observations.json` — MEMORY OF THE USER. Preferences, style, friction, breakthroughs. Skip if nothing new this session.
-- `STATUS.local.md` — PUBLIC BEACON. Current work, issues, todos, recently completed. Notepad for quick captures.
 
 Where to put what:
 - "Worked on DPLAN-0125, learned about peak hours" → `local.json`
 - "User prefers short replies" → `observations.json`
-- "PR #266 needs merge, Track G blocked" → `STATUS.local.md`
-- "Fix drone help formatting" as reminder → `STATUS.local.md` Notepad
+- "PR #266 needs merge, Track G blocked" → `local.json` todos[]
+- "Fix drone help formatting" as reminder → `local.json` todos[]
 - "Role shifted from builder to orchestrator" → `passport.json`
 
 Save proactively. Triggers: after milestone, decision, learning, before switching topics.
@@ -195,7 +192,7 @@ Use sub-agents for:
 Do it yourself only when:
 - User explicitly asks you to read or look at something
 - Tiny edits — fix a typo, update a memory file, small config change
-- Writing memories, STATUS, plan updates (your own files)
+- Writing memories, plan updates (your own files)
 - Quick one-line commands — drone status, inbox check
 
 How to use them:
@@ -247,7 +244,7 @@ Small knowledge traces trigger awareness. Not full knowledge — enough to know 
 
 Prompts: plant breadcrumbs, not encyclopedias. Two lines ("this exists, look here") beat twenty explaining how.
 
-Prompts are signposts, not journals. Injected every turn — keep minimal. Never track state/sessions/context in prompts. State → `.trinity/` + `STATUS.local.md`. Prompts guide; memories record; registries catalog.
+Prompts are signposts, not journals. Injected every turn — keep minimal. Never track state/sessions/context in prompts. State → `.trinity/` + `DASHBOARD.local.json`. Prompts guide; memories record; registries catalog.
 
 If `drone` can't find the AIPass registry, set `AIPASS_HOME=/path/to/AIPass` in shell profile and `~/.claude/settings.json` env block.
 

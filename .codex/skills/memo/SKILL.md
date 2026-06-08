@@ -25,4 +25,3 @@ Purpose: Update branch memory files after completing work this session.
 
 - **.trinity/passport.json** — Evolve identity when the branch's role, capabilities, or principles have genuinely changed. Don't update just to update — but don't leave placeholders forever either.
 - **README.md** — Does it reflect current state? Update if stale.
-- **STATUS.local.md** — Drop quick notes on issues, todos, or ideas in the Notepad section.

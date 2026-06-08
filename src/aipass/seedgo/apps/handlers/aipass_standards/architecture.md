@@ -127,7 +127,8 @@ Result: ImportError on all drone commands, system broken
 - **Under 300 lines:** Perfect - AI quick scan, full comprehension, few errors
 - **300-500 lines:** Good - manageable for AI and humans (most Spawn modules here)
 - **500-700 lines:** Getting heavy - watch it
-- **700+ lines:** Consider splitting - AI context degrades, humans struggle (example: `spawn/apps/modules/update_branch.py` at 916 lines)
+- **700-1500 lines:** Advisory warning - consider splitting (does not dock score)
+- **1500+ lines:** Hard fail - must split (docks score)
 
 **WHY:** AI comprehension drops with file size. Small files mean faster processing, cleaner context, fewer errors. Read a summary in seconds vs spending minutes processing a massive file.
 

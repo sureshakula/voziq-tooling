@@ -290,6 +290,7 @@ class TestFindProjectConfig:
         with patch("aipass.hooks.apps.modules.engine.Path.cwd", return_value=temp_test_dir):
             with patch("aipass.hooks.apps.handlers.config.loader.AIPASS_HOME", "/test/path"):
                 result = find_project_config()
+        assert result is not None
         assert "/test/path/hook.py" in result["Stop"]["sound"]["command"]
 
 
@@ -354,7 +355,7 @@ class TestHooksEntryPoint:
         print_introspection()
         captured = capsys.readouterr()
         assert "HOOKS" in captured.err
-        assert "Modules discovered" in captured.err
+        assert "Discovered Modules" in captured.err
 
     def test_handle_command_returns_bool(self):
         from aipass.hooks.apps.hooks import handle_command
@@ -563,6 +564,44 @@ class TestCliRouting:
         captured = capsys.readouterr()
         assert "HOOKS" in captured.err
         assert "drone @hooks" in captured.err
+
+    def test_print_help_surfaces_subcommands(self, capsys):
+        from aipass.hooks.apps.hooks import print_help
+
+        print_help()
+        captured = capsys.readouterr()
+        assert "hooksound on" in captured.err
+        assert "hooksound off" in captured.err
+        assert "status" in captured.err
+        assert "log" in captured.err
+
+    def test_print_help_has_examples_section(self, capsys):
+        from aipass.hooks.apps.hooks import print_help
+
+        print_help()
+        captured = capsys.readouterr()
+        assert "EXAMPLES" in captured.err
+        assert "drone @hooks status" in captured.err
+        assert "drone @hooks hooksound off" in captured.err
+
+    def test_print_help_has_usage_section(self, capsys):
+        from aipass.hooks.apps.hooks import print_help
+
+        print_help()
+        captured = capsys.readouterr()
+        assert "USAGE" in captured.err
+        assert "drone @hooks <command>" in captured.err
+
+    def test_help_commands_auto_discovered(self, capsys):
+        from aipass.hooks.apps.hooks import print_help
+        from aipass.hooks.apps.modules.hooksound import HELP_COMMANDS as hs_cmds
+        from aipass.hooks.apps.modules.hookstatus import HELP_COMMANDS as hst_cmds
+        from aipass.hooks.apps.modules.engine import HELP_COMMANDS as eng_cmds
+
+        print_help()
+        captured = capsys.readouterr()
+        for cmd, _ in hs_cmds + hst_cmds + eng_cmds:
+            assert cmd in captured.err
 
     def test_output_capture_status(self, capsys):
         from aipass.hooks.apps.hooks import handle_command

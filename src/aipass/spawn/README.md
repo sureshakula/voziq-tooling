@@ -56,12 +56,13 @@ drone @spawn passport @dirname --role "Observer" --purpose "Monitoring"
 
 ### Update
 
+Update is **preview-only by default** — `--apply` required to execute changes.
+
 ```bash
-drone @spawn update @branch_name                               # Single branch (uses passport class)
-drone @spawn update builder --all                              # All builder-class branches
-drone @spawn update birthright --all                           # All birthright-class branches
-drone @spawn update @branch_name --dry-run                     # Preview changes
-drone @spawn update builder --all --dry-run                    # Preview batch update
+drone @spawn update @branch_name                               # Preview changes (dry-run default)
+drone @spawn update @branch_name --apply                       # Execute changes
+drone @spawn update builder --all --apply                      # All builder-class branches
+drone @spawn update @branch_name --dry-run                     # Explicit preview (same as default)
 ```
 
 ### Delete
@@ -79,12 +80,12 @@ drone @spawn sync-templates                                    # Pull managed fi
 drone @spawn regenerate-registry                               # Regenerate builder template hashes
 drone @spawn regenerate-registry --all                         # All template classes
 
-# Repair
-drone @spawn repair <project_path>                             # Scan project for structural issues
-drone @spawn repair <project_path> --dry-run                   # Preview only
-drone @spawn repair --relocate @branch src/pkg/branch          # Move branch to new location
-drone @spawn repair --relocate @branch path --relocate-artifacts  # Move branch + .chroma/ into it
-drone @spawn repair <project_path> --clean-pollution            # Archive + remove duplicate dirs
+# Repair (preview-only by default — --apply required to execute)
+drone @spawn repair <project_path>                             # Preview structural issues (dry-run default)
+drone @spawn repair <project_path> --apply                     # Execute fixes
+drone @spawn repair --relocate @branch src/pkg/branch --apply  # Move branch to new location
+drone @spawn repair --relocate @branch path --relocate-artifacts --apply  # Move + .chroma/
+drone @spawn repair <project_path> --clean-pollution --apply    # Archive + remove duplicate dirs
 ```
 
 ### Introspection

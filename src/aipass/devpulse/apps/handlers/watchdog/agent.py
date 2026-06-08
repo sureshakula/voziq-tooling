@@ -319,7 +319,7 @@ def _classify_exit(
 def watch_agent(
     agent_id: str,
     timeout_seconds: int = 600,
-    poll_interval: float = 2.0,
+    poll_interval: float = 5.0,
 ) -> dict:
     """Block until the dispatched agent at `agent_id` exits.
 
@@ -327,7 +327,10 @@ def watch_agent(
         agent_id: Branch token like ``@drone`` (or bare ``drone``).
         timeout_seconds: Maximum wait. Default 10 min — catches crashes + silent-finishes
             fast; long agent watches should pass an explicit ``--timeout``.
-        poll_interval: Seconds between checks. Default 2.0.
+        poll_interval: Seconds between checks. Default 5.0 — the per-tick work (lock
+            stat, PID liveness, one-dir JSONL size scan) is cheap, so a tight cadence
+            just burns CPU. 5s keeps completion latency invisible on multi-minute
+            dispatches while the 120s stall threshold has ample resolution.
 
     Returns:
         dict with keys: woke, reason, elapsed, agent_state, exit_code, agent_id.

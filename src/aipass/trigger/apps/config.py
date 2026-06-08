@@ -120,6 +120,6 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("config Module")
-    console.print("Path constants — TRIGGER_ROOT and AIPASS_PKG_ROOT used by all trigger modules")
+    console.print("[bold cyan]config Module[/bold cyan]")
+    console.print("[dim]Path constants — TRIGGER_ROOT and AIPASS_PKG_ROOT used by all trigger modules[/dim]")
     console.print()

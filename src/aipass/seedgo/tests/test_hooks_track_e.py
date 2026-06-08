@@ -1,22 +1,20 @@
 # =================== AIPass ====================
 # Name: test_hooks_track_e.py
 # Description: DPLAN-0139 Track E — single-path enforcement tests
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-04-21
-# Modified: 2026-04-21
+# Modified: 2026-06-05
 # =============================================
 """Tests for DPLAN-0139 Track E — single-path enforcement.
 
 Covers:
   - permissions.py: TRUSTED_CROSS_WRITERS, is_trusted_caller(), identify_caller()
-  - pre_edit_gate.py v1.3.0: inbox lock rule + cross-branch write rule
   - drone auth.py: ALLOWED_CALLERS derived from TRUSTED_CROSS_WRITERS
   - inbox_audit.py: handle_command routing + _scan_inbox validation
   - delivery.py: deliver_to_inbox_file single-path helper
 """
 
 import importlib.util
-import io
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -39,19 +37,6 @@ def _find_repo_root() -> Path:
 
 
 REPO_ROOT = _find_repo_root()
-HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
-
-
-def _load_hook(name: str):
-    """Import a hook script by filename via importlib (outside package)."""
-    path = HOOKS_DIR / name
-    if not path.exists():
-        pytest.skip(f"Hook script not found: {path}")
-    spec = importlib.util.spec_from_file_location(name.replace(".py", ""), path)
-    assert spec is not None and spec.loader is not None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)  # type: ignore[union-attr]
-    return mod
 
 
 # ---------------------------------------------------------------------------
@@ -128,117 +113,6 @@ def test_identify_caller_falls_back_to_identity_name(tmp_path):
     passport.write_text(json.dumps({"identity": {"name": "fallback_branch"}}), encoding="utf-8")
     result = identify_caller(str(tmp_path))
     assert result == "fallback_branch"
-
-
-# ---------------------------------------------------------------------------
-# pre_edit_gate.py v1.3.0 — Track E rules
-# ---------------------------------------------------------------------------
-
-
-def test_gate_allows_non_edit_tool():
-    """Non-edit tools (Read) must pass through without blocking."""
-    mod = _load_hook("pre_edit_gate.py")
-    payload = json.dumps({"tool_name": "Read", "tool_input": {"file_path": "/tmp/foo.py"}})
-    with patch("sys.stdin", io.StringIO(payload)):
-        mod.main()
-
-
-def test_gate_blocks_inbox_json_write(capsys):
-    """Any write targeting .ai_mail.local/inbox.json must be blocked."""
-    mod = _load_hook("pre_edit_gate.py")
-    inbox_path = "/home/user/Projects/AIPass/src/aipass/flow/.ai_mail.local/inbox.json"
-    payload = json.dumps({"tool_name": "Write", "tool_input": {"file_path": inbox_path}})
-    with patch("sys.stdin", io.StringIO(payload)):
-        with pytest.raises(SystemExit) as exc_info:
-            mod.main()
-    assert exc_info.value.code == 2
-    captured = capsys.readouterr()
-    result = json.loads(captured.out)
-    assert result["decision"] == "block"
-    assert "inbox.json" in result["reason"].lower() or "drone" in result["reason"].lower()
-
-
-def test_gate_blocks_cross_branch_write_from_untrusted(capsys):
-    """Untrusted branch writing to a different branch must be blocked."""
-    mod = _load_hook("pre_edit_gate.py")
-    payload = json.dumps(
-        {
-            "tool_name": "Edit",
-            "tool_input": {"file_path": "/repo/src/aipass/flow/apps/modules/foo.py"},
-            "cwd": "/repo/src/aipass/memory",
-        }
-    )
-    with patch("sys.stdin", io.StringIO(payload)):
-        with pytest.raises(SystemExit) as exc_info:
-            mod.main()
-    assert exc_info.value.code == 2
-    captured = capsys.readouterr()
-    result = json.loads(captured.out)
-    assert result["decision"] == "block"
-
-
-def test_gate_allows_cross_branch_write_from_devpulse(capsys):
-    """devpulse may write to any branch without being blocked."""
-    mod = _load_hook("pre_edit_gate.py")
-    payload = json.dumps(
-        {
-            "tool_name": "Edit",
-            "tool_input": {"file_path": "/repo/src/aipass/flow/apps/modules/foo.py"},
-            "cwd": "/repo/src/aipass/devpulse",
-        }
-    )
-    with patch("sys.stdin", io.StringIO(payload)):
-        mod.main()
-    captured = capsys.readouterr()
-    assert captured.out == ""
-
-
-def test_gate_allows_cross_branch_write_from_seedgo(capsys):
-    """seedgo may write to any branch without being blocked."""
-    mod = _load_hook("pre_edit_gate.py")
-    payload = json.dumps(
-        {
-            "tool_name": "Edit",
-            "tool_input": {"file_path": "/repo/src/aipass/flow/apps/modules/foo.py"},
-            "cwd": "/repo/src/aipass/seedgo",
-        }
-    )
-    with patch("sys.stdin", io.StringIO(payload)):
-        mod.main()
-    captured = capsys.readouterr()
-    assert captured.out == ""
-
-
-def test_gate_allows_cross_branch_write_from_spawn(capsys):
-    """spawn may write to any branch without being blocked."""
-    mod = _load_hook("pre_edit_gate.py")
-    payload = json.dumps(
-        {
-            "tool_name": "Write",
-            "tool_input": {"file_path": "/repo/src/aipass/prax/apps/modules/bar.py"},
-            "cwd": "/repo/src/aipass/spawn",
-        }
-    )
-    with patch("sys.stdin", io.StringIO(payload)):
-        mod.main()
-    captured = capsys.readouterr()
-    assert captured.out == ""
-
-
-def test_gate_allows_same_branch_write(capsys):
-    """Writes within the same branch must not be blocked by the cross-branch rule."""
-    mod = _load_hook("pre_edit_gate.py")
-    payload = json.dumps(
-        {
-            "tool_name": "Edit",
-            "tool_input": {"file_path": "/repo/src/aipass/flow/apps/modules/foo.py"},
-            "cwd": "/repo/src/aipass/flow",
-        }
-    )
-    with patch("sys.stdin", io.StringIO(payload)):
-        mod.main()
-    captured = capsys.readouterr()
-    assert captured.out == ""
 
 
 # ---------------------------------------------------------------------------

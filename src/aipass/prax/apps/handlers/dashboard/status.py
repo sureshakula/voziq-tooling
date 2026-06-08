@@ -46,10 +46,12 @@ def calculate_quick_status(sections: Dict) -> Dict:
     """
     ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
+    todo = sections.get("todo", {})
 
     new_mail = ai_mail.get("new", ai_mail.get("unread", 0))
     opened_mail = ai_mail.get("opened", 0)
     active_plans = flow.get("active_plans", 0)
+    todo_count = todo.get("todo_count", 0)
 
     action_required = new_mail > 0 or active_plans > 0
 
@@ -60,11 +62,14 @@ def calculate_quick_status(sections: Dict) -> Dict:
         summary_parts.append(f"{opened_mail} opened")
     if active_plans:
         summary_parts.append(f"{active_plans} active plans")
+    if todo_count:
+        summary_parts.append(f"{todo_count} todos")
 
     result = {
         "new_mail": new_mail,
         "opened_mail": opened_mail,
         "active_plans": active_plans,
+        "todo_count": todo_count,
         "action_required": action_required,
         "summary": ", ".join(summary_parts) if summary_parts else "All clear",
     }
@@ -75,6 +80,7 @@ def calculate_quick_status(sections: Dict) -> Dict:
             "action_required": action_required,
             "new_mail": new_mail,
             "active_plans": active_plans,
+            "todo_count": todo_count,
         },
     )
 

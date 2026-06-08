@@ -29,12 +29,14 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("core Module")
-    console.print("Trigger event bus — fire events, register handlers, deferred queue processing")
+    console.print("[bold cyan]core Module[/bold cyan]")
+    console.print("[dim]Trigger event bus — fire events, register handlers, deferred queue processing[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/events/")
-    console.print("    - registry.py (setup_handlers — auto-register all event handlers on first use)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/events/[/cyan]")
+    console.print(
+        "    [cyan]•[/cyan] registry.py [dim](setup_handlers — auto-register all event handlers on first use)[/dim]"
+    )
     console.print()
 
 

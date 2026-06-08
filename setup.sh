@@ -540,15 +540,16 @@ else:
     settings = {}
 
 # Build hooks config — bridge pattern
-# UserPromptSubmit: 4 separate entries (EventType:hook_name) to avoid output merging
+# UserPromptSubmit: 5 separate entries (EventType:hook_name) to avoid output merging
 # PreToolUse, PostToolUse, SubagentStop, Stop, Notification: single aggregate entries
-# PreCompact: 2 hooks x 2 matchers (manual + auto) = 4 entries
+# PreCompact: 3 hooks x 2 matchers (manual + auto) = 6 entries
 settings["hooks"] = {
     "UserPromptSubmit": [
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:global_prompt"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:branch_prompt"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:identity_injector"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:email_notification"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:auto_process", "timeout": 120}]},
     ],
     "PreToolUse": [
         {"matcher": "Bash|Edit|MultiEdit|Write|Read|Grep|Glob|WebSearch|WebFetch|Task",
@@ -572,6 +573,8 @@ settings["hooks"] = {
         {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact", "timeout": 60}]},
         {"matcher": "manual", "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact_rollover", "timeout": 120}]},
         {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact_rollover", "timeout": 120}]},
+        {"matcher": "manual", "hooks": [{"type": "command", "command": f"{bridge} PreCompact:auto_process", "timeout": 120}]},
+        {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:auto_process", "timeout": 120}]},
     ],
 }
 

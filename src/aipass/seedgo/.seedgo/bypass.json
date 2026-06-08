@@ -11,11 +11,6 @@
       "reason": "Test file lives in tests/ by convention — outside the 3-layer apps/ structure by design."
     },
     {
-      "file": "tests/test_hooks_probe.py",
-      "standard": "architecture",
-      "reason": "Test file lives in tests/ by convention — outside the 3-layer apps/ structure by design."
-    },
-    {
       "file": "tests/test_checkers_batch5.py",
       "standard": "encapsulation",
       "reason": "Unit tests must import handlers directly to test them in isolation. Same pattern as test_checkers_batch4.py."
@@ -161,11 +156,6 @@
       "reason": "Redundant prefix is a known naming issue — rename deferred to avoid breaking imports across codebase"
     },
     {
-      "file": "apps/handlers/file/file_handler.py",
-      "standard": "naming",
-      "reason": "Redundant prefix is a known naming issue — rename deferred to avoid breaking imports across codebase"
-    },
-    {
       "file": "apps/handlers/readme/readme_generator.py",
       "standard": "naming",
       "reason": "Redundant prefix is a known naming issue — rename deferred to avoid breaking imports across codebase"
@@ -244,26 +234,6 @@
       "file": "apps/modules/permissions.py",
       "standard": "unused_function",
       "reason": "is_trusted_caller() and identify_caller() are public API consumed by pre_edit_gate.py (hook layer) and drone auth.py. Checker cannot trace cross-file dynamic dispatch to the hook scripts."
-    },
-    {
-      "file": "apps/handlers/hooks/bridge_handler.py",
-      "standard": "help_text",
-      "reason": "python3 references appear in AIPASS_HOOK_MANIFEST command strings (hook definitions), not user-facing help text. Data constants, not documentation."
-    },
-    {
-      "file": "tests/test_hook_bridge.py",
-      "standard": "architecture",
-      "reason": "Test file lives in tests/ by convention — outside the 3-layer apps/ structure by design."
-    },
-    {
-      "file": "tests/test_hook_bridge.py",
-      "standard": "encapsulation",
-      "reason": "Unit tests must import handlers directly to test them in isolation. Same pattern as test_checkers_batch5.py."
-    },
-    {
-      "file": "tests/test_hook_bridge.py",
-      "standard": "help_text",
-      "reason": "python3 references appear in test data strings (hook command fixtures), not user-facing help text."
     },
     {
       "file": "tests/test_coverage_audit.py",

@@ -23,13 +23,14 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("regenerate_registry Module")
+    console.print("[bold cyan]regenerate_registry Module[/bold cyan]")
     console.print("Regenerate .template_registry.json for spawn template directories")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
     console.print(
-        "    - regenerate_registry_ops.py (regenerate_template_registry — walk template, hash files, build registry)"
+        "    [dim]- regenerate_registry_ops.py"
+        " (regenerate_template_registry — walk template, hash files, build registry)[/dim]"
     )
     console.print()
 

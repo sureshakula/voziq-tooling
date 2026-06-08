@@ -17,9 +17,9 @@ aipass/
 │   ├── modules/
 │   │   ├── doctor.py                      # System health aggregation
 │   │   ├── doctor_fix.py                  # Remediation report (--fix, --json)
-│   │   ├── doctor_wire.py                 # Auto-wire prompt helpers
+│   │   ├── doctor_wire.py                 # Auto-wire provider settings + stale-deny re-export
 │   │   ├── handoff.py                     # CLI handoff (placeholder)
-│   │   ├── help_chat.py                   # README-backed Q&A
+│   │   ├── help_chat.py                   # README-backed Q&A (reads via readme_map handler)
 │   │   ├── init_flow.py                   # 12-stage guided setup
 │   │   └── profile.py                     # User profile read/write
 │   ├── handlers/
@@ -27,12 +27,14 @@ aipass/
 │   │   ├── init/                          # bootstrap.py, scaffold_content.py
 │   │   ├── json/                          # JSON read/write utilities
 │   │   ├── ping_sweep/                    # Branch reachability verification
+│   │   ├── provider_reconcile.py           # Stale deny-rule detection + fix
 │   │   ├── readme_map/                    # Live file reads + branch routing
 │   │   ├── structure_scan/                # Agent placement + pollution detection
 │   │   ├── system_detect/                 # OS, shell, Python, RAM, CPU
 │   │   └── ui/                            # Progress bars, menus, banners
 │   └── plugins/
-├── tests/                                 # 412 passing
+├── tests/                                 # 432 passing
+├── requirements.project.txt               # Project-specific Python dependencies
 ├── .trinity/                              # Identity + session history + observations
 └── README.md
 ```
@@ -68,7 +70,7 @@ Humans only. Nothing in AIPass depends on this branch.
 
 ## Tests
 
-412 passing — `pytest src/aipass/aipass/tests/`
+432 passing — `pytest src/aipass/aipass/tests/`
 
 ## Known Issues
 
@@ -76,4 +78,4 @@ Humans only. Nothing in AIPass depends on this branch.
 
 ## Last Updated
 
-Last Updated: 2026-05-28
+Last Updated: 2026-06-05

@@ -345,6 +345,19 @@
       "reason": "Systemd service \u2014 uses print() to journald, not prax logger. Importing prax adds unnecessary dependency for a standalone daemon."
     },
     {
+      "file": "apps/handlers/events/memory_pool.py",
+      "standard": "silent_catch",
+      "pattern": "_log_warning except",
+      "reason": "Meta-logging helper: _log_warning() writes directly to file. Its own except block cannot log \u2014 you cannot log a failure to log."
+    },
+    {
+      "file": "apps/handlers/events/memory_pool.py",
+      "standard": "error_handling",
+      "lines": [43],
+      "pattern": "except Exception: pass",
+      "reason": "Meta-logging helper _log_warning() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
+    },
+    {
       "file": "apps/handlers/events/pr_status_sync.py",
       "standard": "silent_catch",
       "pattern": "_log_info except",
@@ -361,6 +374,12 @@
       "standard": "trigger",
       "pattern": "handle_pr",
       "reason": "PR event handlers (handle_pr_created, handle_pr_merged) are event handlers registered in registry.py, not trigger-specific naming violations."
+    },
+    {
+      "file": "apps/handlers/events/pr_status_sync.py",
+      "standard": "unused_function",
+      "pattern": "handle_pr_created, handle_pr_merged",
+      "reason": "TDPLAN-0007: status-sync decommissioned. Handlers unregistered in registry.py but module + tests kept intact for future revival."
     },
     {
       "file": "apps/handlers/log_watcher.py",
@@ -505,6 +524,26 @@
       "standard": "cli_flags",
       "file": "apps/config.py",
       "reason": "Config module \u2014 not a CLI entry point. --version is in apps/trigger.py."
+    },
+    {
+      "file": "apps/handlers/events/memory_pool.py",
+      "standard": "trigger",
+      "lines": [37],
+      "pattern": "prax logger docstring mention",
+      "reason": "Docstring mentions 'prax logger' to explain WHY this file uses file-based logging instead. Not an import — same pattern as bulletin_created.py, pr_status_sync.py, etc."
+    },
+    {
+      "file": "tests/test_memory_pool_handler.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file \u2014 tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_memory_pool_handler.py",
+      "standard": "encapsulation",
+      "lines": [40],
+      "pattern": "handler imported directly",
+      "reason": "Test helper _import_module() must import the handler module directly to test it. All trigger test files follow this pattern."
     }
   ],
   "notes": {

@@ -97,18 +97,18 @@ Examples:
 def print_introspection() -> None:
     """Display module introspection info."""
     console.print()
-    console.print("watchdog Module")
-    console.print("Devpulse-local directed wake system. Wakes devpulse when a")
-    console.print("watched condition fires (agent exit, timer, schedule).")
+    console.print("[bold cyan]watchdog Module[/bold cyan]")
+    console.print("[dim]Devpulse-local directed wake system. Wakes devpulse when a[/dim]")
+    console.print("[dim]watched condition fires (agent exit, timer, schedule).[/dim]")
     console.print()
-    console.print("Subcommands:")
+    console.print("[yellow]Subcommands:[/yellow]")
     for sub in _VALID_SUBCOMMANDS:
         marker = "active" if sub in ("agent", "status") else f"phase {_PHASE_BY_SUB.get(sub, '?')}"
-        console.print(f"  {sub:<10} ({marker})")
+        console.print(f"  [cyan]{sub:<10}[/cyan] [dim]({marker})[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/watchdog/")
-    console.print("    - agent.py (watch_agent — block until dispatched agent exits)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/watchdog/[/cyan]")
+    console.print("    [dim]- agent.py (watch_agent — block until dispatched agent exits)[/dim]")
     console.print()
 
 
@@ -360,7 +360,8 @@ def _handle_agent(sub_args: List[str]) -> bool:
     if state == "completed_silent":
         console.print(
             f"watchdog: {agent_id} stopped (state={state}) -- CHECK DELIVERABLES. "
-            f'Next: drone @ai_mail dispatch {agent_id} "check in" "You finished your last task but did not send a reply. '
+            f'Next: drone @ai_mail dispatch {agent_id} "check in" '
+            '"You finished your last task but did not send a reply. '
             f'Please reply with your results now via drone @ai_mail email @devpulse."'
         )
     elif state == "completed_replied":

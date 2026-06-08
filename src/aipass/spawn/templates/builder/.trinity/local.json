@@ -17,7 +17,9 @@
       "max_key_learnings": 25,
       "session_summary_max_chars": 150,
       "learning_value_max_chars": 200,
-      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries."
+      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries. todos[] is OPERATIONAL — never vectorized/trimmed by rollover; completing/removing a todo is normal.",
+      "max_todos": 10,
+      "todo_text_max_chars": 200
     },
     "status": {
       "health": "healthy",
@@ -25,6 +27,7 @@
       "current_lines": 0
     }
   },
+  "todos": [],
   "key_learnings": {},
   "sessions": [
     {

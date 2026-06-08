@@ -16,12 +16,10 @@
 - Score files 0-100 per standard and report violations with actionable details
 - Manage bypass rules (`.seedgo/bypass.json`) for deliberate exceptions
 - Run pyright diagnostics across branches for type error detection
-- Hook bridge installer (`drone @seedgo bridge install`) for `~/.claude/settings.json` management
 - Single-file checklist validation against all standards (consumed by PostToolUse auto-fix hook)
 - Proof certification via proof/proof_query (triplet, plugin integrity, README currency)
 - Custom function test coverage mapping via test_map
 - README auto-generation and freshness checking
-- Hook testing, listing, and probe infrastructure
 
 ### What I Don't Do
 - Runtime monitoring (that's prax)
@@ -65,17 +63,6 @@ drone @seedgo test_map @seedgo                         # Function-level test cov
 
 # README
 drone @seedgo readme update @flow                      # README auto-generation for a branch
-
-# Hooks
-drone @seedgo hooks test                               # Run hook test suite (pytest per file)
-drone @seedgo hooks list                               # Show all wired hooks from settings
-drone @seedgo hooks probe                              # Hook event probe infrastructure
-
-# Bridge
-drone @seedgo bridge install                           # Install AIPass hooks to ~/.claude/settings.json
-drone @seedgo bridge uninstall                         # Remove AIPass hooks
-drone @seedgo bridge reinstall                         # Clean reinstall
-drone @seedgo bridge status                            # Show hook installation status
 ```
 
 ### Via Python Module
@@ -97,21 +84,18 @@ seedgo/
 │   ├── seedgo.py                    # Entry point — thin router (~290 lines)
 │   │                                #   discover_modules() loads apps/modules/*.py
 │   │                                #   route_command() dispatches to first handler returning True
-│   ├── modules/                     # 13 business logic modules
+│   ├── modules/                     # 9 business logic modules
 │   │   ├── standards_audit.py       # Pack-aware compliance audit orchestrator
 │   │   ├── standards_query.py       # Pack-aware content query
 │   │   ├── diagnostics_audit.py     # Pyright diagnostics via audit pipeline
 │   │   ├── checklist.py             # Per-file/dir standards check (hook consumer)
 │   │   ├── seedgo_proof.py          # Proof certification orchestrator
 │   │   ├── proof_query.py           # Proof content query
-│   │   ├── hook_bridge.py           # Hook bridge installer (install/uninstall/reinstall/status)
-│   │   ├── hooks.py                 # Hook probe display and testing
-│   │   ├── hooks_ext.py             # Hook test + list subcommands (split from hooks.py)
 │   │   ├── inbox_audit.py           # Inbox message-ID validation
 │   │   ├── permissions.py           # TRUSTED_CROSS_WRITERS list for hook + drone auth
 │   │   ├── readme_update.py         # README generation module
 │   │   └── test_map.py              # Custom function test coverage mapping
-│   └── handlers/                    # 11 handler directories
+│   └── handlers/                    # 9 handler directories
 │       ├── aipass_standards/        # 34 checker standards (67 files)
 │       │   ├── *_check.py           # Checker implementations (score 0-100)
 │       │   ├── *_content.py         # Queryable standard content
@@ -131,18 +115,15 @@ seedgo/
 │       │   └── ignore_handler.py    # .seedgo/ignore patterns
 │       ├── config/                  # Configuration handlers
 │       ├── diagnostics/             # Pyright integration + branch discovery
-│       ├── file/                    # File operations
-│       ├── hooks/                   # Hook test runner
 │       ├── json/                    # JSON tracking (json_handler)
 │       ├── readme/                  # README generator + branch resolution
 │       └── test_map/                # Function test coverage scanner
-├── tests/                           # 39 test files, 1192 tests
+├── tests/                           # 34 test files, 1045 tests
 ├── drone_adapter.py                 # Drone routing bridge
 ├── .trinity/                        # Identity + memory
 ├── .seedgo/                         # Self-bypass rules
 ├── .ai_mail.local/                  # Mailbox
-├── CLAUDE.md                        # Branch startup instructions
-└── STATUS.local.md                  # Current state summary
+└── CLAUDE.md                        # Branch startup instructions
 ```
 
 ### Key Patterns
@@ -221,16 +202,13 @@ Provider settings route all events through the bridge (`claude.py`), which dispa
 | `lifecycle.compact` | PreCompact | lifecycle |
 | `lifecycle.rollover` | PreCompact | lifecycle |
 
-The `bridge` module (`drone @seedgo bridge install`) manages hook installation to `~/.claude/settings.json`.
-
 ---
 
 ## Tests
 
-- **39 test files**, **1192 tests**, all passing
-- **200 public functions**, 200 tested (100% coverage)
+- **34 test files**, all passing
 - **0 type errors** (pyright)
-- Key test areas: standards audit, checklist, bypass, JSON handler, hooks (probe, track A/B/E, utility, bridge), proof, README, diagnostics, line coverage (plugin integrity, diagnostics, audit display, branch audit, architecture, checklist)
+- Key test areas: standards audit, checklist, bypass, JSON handler, hooks snapshot, permissions, proof, README, diagnostics, line coverage (plugin integrity, diagnostics, audit display, branch audit, architecture, checklist)
 
 ---
 
@@ -253,13 +231,10 @@ The `bridge` module (`drone @seedgo bridge install`) manages hook installation t
 ## Known Issues / Tech Debt
 
 - `audit_display.py`: 16 hardcoded display blocks for specific standards (DPLAN-0047 tracks dynamic refactor)
-- `bridge_handler.py` AIPASS_HOOK_MANIFEST references old script paths — needs update to bridge architecture
-- `test_hooks_track_a/b/e.py` import old hook scripts from `.claude/hooks/` — should migrate to test new native handlers
 - `proof`, `proof_query`, `test_map` not listed in `--help` output
 - `documentation_check.py` 5-line lookahead limitation for multi-line function signatures
 - `dead_code_check.py` doesn't recognize `iterdir()` as valid discovery pattern
 - Cross-branch file write detection recommended but not yet in standards (S73 finding)
-- Test coverage: 200/200 public functions (100%) but line coverage still has gaps in 6 handler files
 
 ---
 
@@ -272,7 +247,7 @@ The `bridge` module (`drone @seedgo bridge install`) manages hook installation t
 
 ---
 
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-06-05
 
 ---
 [<- Back to AIPass](../../../README.md)

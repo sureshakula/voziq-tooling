@@ -22,6 +22,12 @@
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.prompt.global_loader.handle",
       "matcher": ""
+    },
+    "auto_process": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.auto_process.handle",
+      "matcher": "",
+      "timeout": 120
     }
   },
 
@@ -102,6 +108,12 @@
     "pre_compact_rollover": {
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.lifecycle.rollover.handle",
+      "matcher": "",
+      "timeout": 120
+    },
+    "auto_process": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.auto_process.handle",
       "matcher": "",
       "timeout": 120
     }

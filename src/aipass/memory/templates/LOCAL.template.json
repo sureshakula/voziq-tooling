@@ -15,9 +15,11 @@
     "limits": {
       "max_sessions": 20,
       "max_key_learnings": 25,
+      "max_todos": 10,
       "session_summary_max_chars": 150,
       "learning_value_max_chars": 200,
-      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries."
+      "todo_text_max_chars": 200,
+      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries. todos[] is OPERATIONAL — completing/removing items is normal, not data destruction."
     },
     "status": {
       "health": "healthy",
@@ -26,6 +28,7 @@
     }
   },
   "key_learnings": {},
+  "todos": [],
   "sessions": [
     {
       "session_number": 1,

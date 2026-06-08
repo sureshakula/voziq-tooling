@@ -110,7 +110,6 @@ src/aipass/*/apps/integrations/**
 !src/aipass/spawn/templates/builder/docs.local/
 !src/aipass/spawn/templates/builder/docs.local/**
 !src/aipass/spawn/templates/builder/DASHBOARD.local.json
-!src/aipass/spawn/templates/builder/STATUS.local.md
 
 # CI artifacts
 windows-pytest-results/
@@ -126,3 +125,4 @@ claude_4_7_transition_notes.md
 README_ORIGINAL_DISABLED.md
 *.bak
 test/
+sandbox_test/

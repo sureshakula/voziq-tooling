@@ -408,23 +408,26 @@ def _orchestrate_daemon() -> bool:
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("dispatch Module")
+    console.print("[bold cyan]dispatch Module[/bold cyan]")
     console.print(
-        "Orchestrates dispatch commands: combined send+wake, status tracking, daemon management, and manual wake."
+        "[dim]Orchestrates dispatch commands: combined send+wake,"
+        " status tracking, daemon management, and manual wake.[/dim]"
     )
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/dispatch/")
-    console.print("    - status.py (load_dispatch_log — load dispatch log entries)")
-    console.print("    - status.py (check_pid_status — check if a spawned process is still running)")
-    console.print("    - status.py (calculate_age — calculate age string from timestamp)")
-    console.print("    - wake.py (wake_branch — manually wake a branch by spawning an agent)")
-    console.print("    - daemon.py (run_daemon — start the continuous dispatch daemon)")
-    console.print("  handlers/email/ (used by combined dispatch)")
-    console.print("    - send.py (resolve_sender_info, send_to_single — send email pipeline)")
-    console.print("    - create.py (create_email_file, load_email_file — email file creation)")
-    console.print("    - delivery.py (deliver_email_to_branch — inbox delivery)")
-    console.print("    - header.py (prepend_dispatch_header — dispatch header injection)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/dispatch/[/cyan]")
+    console.print("    - [cyan]status.py[/cyan] [dim](load_dispatch_log — load dispatch log entries)[/dim]")
+    console.print(
+        "    - [cyan]status.py[/cyan] [dim](check_pid_status — check if a spawned process is still running)[/dim]"
+    )
+    console.print("    - [cyan]status.py[/cyan] [dim](calculate_age — calculate age string from timestamp)[/dim]")
+    console.print("    - [cyan]wake.py[/cyan] [dim](wake_branch — manually wake a branch by spawning an agent)[/dim]")
+    console.print("    - [cyan]daemon.py[/cyan] [dim](run_daemon — start the continuous dispatch daemon)[/dim]")
+    console.print("  [cyan]handlers/email/[/cyan] [dim](used by combined dispatch)[/dim]")
+    console.print("    - [cyan]send.py[/cyan] [dim](resolve_sender_info, send_to_single — send email pipeline)[/dim]")
+    console.print("    - [cyan]create.py[/cyan] [dim](create_email_file, load_email_file — email file creation)[/dim]")
+    console.print("    - [cyan]delivery.py[/cyan] [dim](deliver_email_to_branch — inbox delivery)[/dim]")
+    console.print("    - [cyan]header.py[/cyan] [dim](prepend_dispatch_header — dispatch header injection)[/dim]")
     console.print()
 
 

@@ -55,22 +55,26 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("errors Module")
-    console.print("Error registry management — view, filter, suppress, and resolve tracked errors")
+    console.print("[bold cyan]errors Module[/bold cyan]")
+    console.print("[dim]Error registry management — view, filter, suppress, and resolve tracked errors[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - error_registry.py (query — search/filter error entries)")
-    console.print("    - error_registry.py (get_entry — get single error by fingerprint)")
-    console.print("    - error_registry.py (update_status — change error status)")
-    console.print("    - error_registry.py (clear_resolved — purge old resolved entries)")
-    console.print("    - error_registry.py (get_stats — summary statistics)")
-    console.print("    - error_registry.py (get_circuit_breaker_status — circuit breaker state)")
-    console.print("    - error_registry.py (circuit_breaker_reset — reset circuit breaker)")
-    console.print("    - error_registry.py (update_source_fix_status — update fix tracking)")
-    console.print("    - error_registry.py (purge_stale — remove entries older than N days)")
-    console.print("    - error_reporter.py (report_error — cross-branch push error reporting)")
-    console.print("    - error_reporter.py (send_source_fix_email — notify branch to fix error)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](query — search/filter error entries)[/dim]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](get_entry — get single error by fingerprint)[/dim]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](update_status — change error status)[/dim]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](clear_resolved — purge old resolved entries)[/dim]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](get_stats — summary statistics)[/dim]")
+    console.print(
+        "    [cyan]•[/cyan] error_registry.py [dim](get_circuit_breaker_status — circuit breaker state)[/dim]"
+    )
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](circuit_breaker_reset — reset circuit breaker)[/dim]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](update_source_fix_status — update fix tracking)[/dim]")
+    console.print("    [cyan]•[/cyan] error_registry.py [dim](purge_stale — remove entries older than N days)[/dim]")
+    console.print("    [cyan]•[/cyan] error_reporter.py [dim](report_error — cross-branch push error reporting)[/dim]")
+    console.print(
+        "    [cyan]•[/cyan] error_reporter.py [dim](send_source_fix_email — notify branch to fix error)[/dim]"
+    )
     console.print()
 
 

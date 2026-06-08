@@ -20,6 +20,8 @@ from typing import Dict, List, NamedTuple
 from aipass.cli.apps.modules import console
 from aipass.prax import logger
 
+from aipass.common.registry_discovery import find_registry as _discover_registry
+
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_placement,
@@ -28,7 +30,6 @@ from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_root_artifacts,
     detect_pollution,
     find_project_root,
-    find_registry,
     scan_agents,
 )
 from aipass.aipass.apps.modules.doctor_fix import (
@@ -70,19 +71,9 @@ class CheckResult(NamedTuple):
 
 
 def _find_registry() -> Path | None:
-    """Walk up from CWD first (user's project), then branch root."""
-    cwd = Path.cwd()
-    for parent in (cwd, *cwd.parents):
-        candidates = list(parent.glob("*_REGISTRY.json"))
-        if candidates:
-            return candidates[0]
-        if parent == parent.parent:
-            break
-    for parent in (_BRANCH_ROOT, *_BRANCH_ROOT.parents):
-        candidate = parent / "AIPASS_REGISTRY.json"
-        if candidate.exists():
-            return candidate
-    return None
+    """Find *_REGISTRY.json via shared discovery (walk-up from CWD + branch root)."""
+    result = _discover_registry(package_root=str(_BRANCH_ROOT))
+    return result if result.exists() else None
 
 
 def _check_system() -> List[CheckResult]:
@@ -521,8 +512,8 @@ def _check_structure() -> List[CheckResult]:
         results.append(CheckResult("pollution", GLYPH_PASS, "no duplicates", ""))
 
     # Registry consistency
-    reg_path = find_registry(project_root)
-    if reg_path:
+    reg_path = _discover_registry(start_path=project_root)
+    if reg_path and reg_path.exists():
         reg_issues = check_registry_consistency(reg_path, agents)
         if reg_issues:
             for issue in reg_issues:

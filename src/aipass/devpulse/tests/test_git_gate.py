@@ -140,8 +140,8 @@ class TestEscapedQuoteBypass:
         assert _is_blocked(_bash(cmd)) == should_block, f"{'Should block' if should_block else 'Should allow'}: {cmd}"
 
 
-class TestReadOnlyBlocked:
-    """New handler blocks ALL raw git — read-only included. Use drone."""
+class TestReadVerbsAllowed:
+    """Read-only git verbs in the allowlist run raw (S193, DPLAN-0195)."""
 
     @pytest.mark.parametrize(
         "cmd",
@@ -149,15 +149,49 @@ class TestReadOnlyBlocked:
             "git status",
             "git log --oneline",
             "git diff",
+            "git show HEAD",
+            "git ls-files",
+            "git ls-tree HEAD",
+            "git rev-parse --show-toplevel",
+            "git blame README.md",
+            "git grep TODO",
+            "git archive HEAD",
+            "git for-each-ref",
+            "git -C /tmp/x log",
+        ],
+    )
+    def test_allows_read_verbs(self, cmd):
+        """Allowlisted read verbs are not blocked — raw is fine."""
+        assert not _is_blocked(_bash(cmd)), f"Read verb should be allowed: {cmd}"
+
+
+class TestNonAllowlistedGitBlocked:
+    """Git verbs outside the read allowlist stay blocked — conservative."""
+
+    @pytest.mark.parametrize(
+        "cmd",
+        [
             "git fetch",
             "git branch",
             "git tag",
             "git remote -v",
         ],
     )
-    def test_blocks_read_only_raw_git(self, cmd):
-        """Read-only raw git is also blocked — use drone instead."""
-        assert _is_blocked(_bash(cmd)), f"Should block raw git (use drone): {cmd}"
+    def test_blocks_non_allowlisted(self, cmd):
+        """Reads not on the allowlist (fetch/branch/tag/remote) still block."""
+        assert _is_blocked(_bash(cmd)), f"Should block (use drone): {cmd}"
+
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "git log && git push",
+            "git status; git commit -m x",
+            "git diff | git apply",
+        ],
+    )
+    def test_blocks_chained_read_then_write(self, cmd):
+        """A read chained with a write blocks the whole command."""
+        assert _is_blocked(_bash(cmd)), f"Chained read+write should block: {cmd}"
 
 
 class TestDroneNotBlocked:

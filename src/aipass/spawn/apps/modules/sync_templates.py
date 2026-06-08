@@ -24,12 +24,14 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("sync_templates Module")
+    console.print("[bold cyan]sync_templates Module[/bold cyan]")
     console.print("Template synchronization — pull managed files from source branches into templates")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - sync_templates_ops.py (sync_templates — compare hashes and pull updates from source branches)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print(
+        "    [dim]- sync_templates_ops.py (sync_templates — compare hashes and pull updates from source branches)[/dim]"
+    )
     console.print()
 
 

@@ -155,13 +155,15 @@ def print_introspection() -> None:
         console = Console()
 
     console.print()
-    console.print("commands Module")
-    console.print("Custom command shortcuts — map short names to full drone commands.")
+    console.print("[bold cyan]commands Module[/bold cyan]")
+    console.print("[dim]Custom command shortcuts — map short names to full drone commands.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/command_registry/")
-    console.print("    - ops.py (add_command, remove_command, update_command, command_exists)")
-    console.print("    - lookup.py (lookup_command, match_command, list_commands, list_commands_by_branch)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/command_registry/[/cyan]")
+    console.print("    - [cyan]ops.py[/cyan] [dim](add_command, remove_command, update_command, command_exists)[/dim]")
+    console.print(
+        "    - [cyan]lookup.py[/cyan] [dim](lookup_command, match_command, list_commands, list_commands_by_branch)[/dim]"
+    )
     console.print()
 
 

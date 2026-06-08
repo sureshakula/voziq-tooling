@@ -8,7 +8,7 @@ User: user
 
 On any greeting, silently read these files from CWD and run the commands — no narration, no announcing steps. Just do it and respond with the status.
 
- - Read: `.trinity/passport.json`, `.trinity/local.json`, `.trinity/observations.json`, `README.md`, `STATUS.local.md`
+ - Read: `.trinity/passport.json`, `.trinity/local.json`, `.trinity/observations.json`, `README.md`
  - Check: `drone @ai_mail inbox` — process any mail, don't ask.
  - Run: `drone @git status`
 

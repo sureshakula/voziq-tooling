@@ -117,3 +117,18 @@ def list_branches() -> list[str]:
     Reflects the filesystem state at the time the map was first built.
     """
     return list(_get_map().keys())
+
+
+def read_readme_lines(branch: str) -> list[str] | None:
+    """Live-read README.md for a branch. Returns list of lines, or None on error.
+
+    Content is NEVER cached — every call reads the current file.
+    """
+    readme_path = get_readme_path(branch)
+    if readme_path is None:
+        return None
+    try:
+        with open(readme_path, encoding="utf-8") as fh:
+            return fh.readlines()
+    except OSError:
+        return None

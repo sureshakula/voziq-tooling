@@ -5,7 +5,7 @@
 **Purpose:** System-wide logging, real-time monitoring, and dashboard infrastructure for AIPass.
 **Module:** `aipass.prax`
 **Version:** 2.0.0
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-06-05
 
 ---
 
@@ -13,7 +13,7 @@
 
 Prax is the logging and monitoring backbone of the AIPass ecosystem. Any branch imports `logger` and gets automatic log routing — prax detects the caller via stack introspection and writes to the correct per-module log file. No configuration needed.
 
-On top of logging, prax provides Mission Control (a real-time terminal console for file changes, log events, and agent activity), a log audit system, a dashboard infrastructure, and cross-branch STATUS.md synchronization.
+On top of logging, prax provides Mission Control (a real-time terminal console for file changes, log events, and agent activity), a log audit system, and a dashboard infrastructure.
 
 ## Quick Start
 
@@ -60,7 +60,7 @@ Interactive commands inside the monitor: `help`, `status`, `quit`/`exit`.
 
 ```bash
 drone @prax status                       # System health (modules, loggers, watcher state)
-drone @prax status sync                  # Build STATUS.md from all branch STATUS.local.md
+drone @prax status sync                  # DORMANT — STATUS.md sync decommissioned (TDPLAN-0007)
 drone @prax status --help                # Status usage
 ```
 
@@ -127,7 +127,7 @@ prax/
 │   │   ├── logger.py                  # SystemLogger — auto-routing, two-tier logging
 │   │   ├── monitor.py                 # Mission Control — 3-thread real-time monitoring
 │   │   ├── dashboard.py               # Dashboard — template management, refresh, write-through
-│   │   ├── status.py                  # System status — health display, STATUS.md sync
+│   │   ├── status.py                  # System status — health display (STATUS.md sync dormant)
 │   │   └── log_audit.py              # Log audit — scan, health summary, enforce limits
 │   └── handlers/                      # Implementation details (11 handler directories)
 │       ├── central/                   # Central file reader (.ai_central/*.central.json)
@@ -139,11 +139,11 @@ prax/
 │       ├── logging/                   # Setup, rotation, introspection, override, direct logger
 │       ├── monitoring/                # Event queue, branch detector, stream output, log watcher
 │       ├── registry/                  # Module registry load/save
-│       ├── status/                    # STATUS.md sync handler
+│       ├── status/                    # STATUS.md sync handler (dormant — TDPLAN-0007)
 │       └── watcher/                   # Background system watchers
 ├── prax_json/                         # Auto-created per-module config/data/log files
 ├── templates/                         # Dashboard template schema (DASHBOARD.template.json)
-└── tests/                             # 912 tests across 18 files
+└── tests/                             # 901 tests across 19 files
 ```
 
 ### Design Pattern
@@ -167,34 +167,33 @@ drone @prax monitor run
 4. **Mission Control** — Three threads: display worker (pulls from event queue), file watcher (watchdog on branch `apps/` dirs), log watcher (tails `system_logs/*.log`). Falls back to polling when inotify is exhausted.
 5. **Multi-CLI monitoring** — Watches Claude Code JSONL and Codex JSONL session files. Extracts agent activity (thinking, tool use, responses) with model detection and branch resolution.
 6. **Dashboard** — Template-based per-branch dashboard files. Refreshes from central files (`*.central.json`). Write-through API for services to update sections directly.
-7. **STATUS sync** — Scans all branch `STATUS.local.md` files, extracts State/Last update fields, builds aggregated `STATUS.md` at the repo root.
+7. **STATUS sync** — *(Dormant — TDPLAN-0007)* Previously scanned all branch `STATUS.local.md` files and built aggregated `STATUS.md`. Engine code intact but no longer triggered.
 
 ## Tests
 
-912 tests across 18 files, covering all major components:
+901 tests across 19 files, covering all major components:
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
-| test_filesystem_handler.py | 172 | Multi-CLI adapters, Codex branch detection |
+| test_filesystem_handler.py | 142 | Multi-CLI adapters, Codex branch detection |
 | test_monitoring_handlers.py | 139 | Branch detector, stream output, event handling |
 | test_operations.py | 99 | Dashboard operations, write-through |
 | test_log_watcher.py | 82 | Log file tailing, agent activity parsing |
-| test_monitor_module.py | 74 | Monitor commands, thread lifecycle |
+| test_monitor_module.py | 73 | Monitor commands, thread lifecycle |
 | test_logging_handlers.py | 41 | Setup, rotation, introspection, direct logger |
+| test_logging.py | 41 | Core logging system |
 | test_logger_module.py | 40 | Logger init, routing, lifecycle |
 | test_monitoring_filters.py | 39 | Event filtering rules |
 | test_config.py | 38 | Config loading, path resolution |
 | test_event_queue.py | 35 | Thread-safe event buffering |
-| test_logging.py | 33 | Core logging system |
 | test_discovery.py | 25 | Module scanning |
 | test_watcher.py | 23 | File watcher behavior |
 | test_registry.py | 22 | Module registry |
 | test_json_handler.py | 18 | JSON auto-creation |
 | test_central.py | 14 | Central reader |
+| test_devpulse_dashboard_plugin.py | 12 | Dashboard plugin (git, session, dispatch) |
 | test_log_audit.py | 10 | Log audit |
 | test_status.py | 8 | Status commands |
-
-134/136 public functions tested (99%).
 
 ## Integration Points
 
@@ -209,7 +208,7 @@ drone @prax monitor run
 - All branches — Unified logging via `from aipass.prax import logger`
 - All branches — Real-time monitoring via Mission Control
 - All branches — Per-branch dashboard files
-- System — `STATUS.md` sync, log audit enforcement
+- System — Log audit enforcement
 
 ## Known Issues
 - **inotify exhaustion** — System often near `max_user_watches` limit. Monitor uses polling fallback (functional but slower).
@@ -217,7 +216,7 @@ drone @prax monitor run
 
 ---
 
-*Last Updated: 2026-05-16*
+*Last Updated: 2026-06-05*
 
 ---
 [← Back to AIPass](../../../README.md)

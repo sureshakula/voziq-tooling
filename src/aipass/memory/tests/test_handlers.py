@@ -12,6 +12,7 @@ Covers:
   - rollover/extractor.py  (_extract_items_v2, _detect_growing_array, helpers)
   - tracking/line_counter.py (_count_physical_lines, update_line_count)
   - schema/normalize.py (normalize_memory_file)
+  - todos[] operational schema (rollover ignores, caps enforced)
 
 All tests use mocks/tmp_path -- no live filesystem or infrastructure access.
 """
@@ -542,3 +543,115 @@ class TestNormalizeMemoryFile:
         assert "max_word_count" not in data["document_metadata"]["limits"]
         assert "max_token_count" not in data["document_metadata"]["limits"]
         assert data["document_metadata"]["limits"]["max_lines"] == 600
+
+
+class TestTodosOperational:
+    """Confirm rollover treats todos[] as operational — never vectorized or trimmed."""
+
+    def _make_data_with_todos(self, num_sessions=5, max_sessions=3, num_todos=5):
+        """Build v2 data that includes a populated todos[] array."""
+        sessions = [
+            {"session_number": i, "date": f"2026-01-{i:02d}", "summary": f"Session {i}"}
+            for i in range(1, num_sessions + 1)
+        ]
+        todos = [{"id": f"t{i}", "text": f"Todo item {i}", "created": f"2026-06-0{i}"} for i in range(1, num_todos + 1)]
+        return {
+            "document_metadata": {
+                "schema_version": "2.0.0",
+                "limits": {
+                    "max_sessions": max_sessions,
+                    "max_key_learnings": 25,
+                    "max_todos": 10,
+                    "todo_text_max_chars": 200,
+                },
+                "status": {"current_lines": 100},
+            },
+            "sessions": sessions,
+            "key_learnings": {},
+            "todos": todos,
+        }
+
+    def test_v2_extraction_leaves_todos_untouched(self, monkeypatch, tmp_path):
+        """v2 rollover trims sessions but never touches todos[]."""
+        ext, _ = _import_extractor(monkeypatch)
+        data = self._make_data_with_todos(num_sessions=6, max_sessions=3, num_todos=5)
+
+        mem_file = tmp_path / ".trinity" / "local.json"
+        mem_file.parent.mkdir(parents=True)
+        mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        def fake_write(fp, d):
+            fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
+
+        with patch.object(ext, "_write_memory_file", side_effect=fake_write):
+            result = ext._extract_items_v2(mem_file, data)
+
+        assert result["success"] is True
+        assert len(data["sessions"]) == 3
+        assert len(data["todos"]) == 5
+        assert data["todos"][0]["id"] == "t1"
+        assert data["todos"][4]["id"] == "t5"
+
+    def test_v1_detect_growing_array_ignores_todos(self, monkeypatch):
+        """v1 _detect_growing_array does NOT consider todos as a growing array."""
+        ext, _ = _import_extractor(monkeypatch)
+        data = {
+            "sessions": [{"session_number": 1}],
+            "todos": [{"id": "t1", "text": "Something"}],
+        }
+        result = ext._detect_growing_array(data)
+        assert result == "sessions"
+
+    def test_v1_detect_growing_array_skips_todos_only(self, monkeypatch):
+        """If only todos[] exists (no memory arrays), _detect_growing_array returns None."""
+        ext, _ = _import_extractor(monkeypatch)
+        data = {
+            "todos": [{"id": "t1", "text": "Something"}],
+            "key_learnings": {"k1": "v1"},
+        }
+        result = ext._detect_growing_array(data)
+        assert result is None
+
+    def test_todos_schema_shape(self):
+        """Validate the expected todos[] item schema: id, text, created, optional priority."""
+        todo_item = {"id": "t1", "text": "Fix the bug", "created": "2026-06-07"}
+        assert "id" in todo_item
+        assert "text" in todo_item
+        assert "created" in todo_item
+
+        todo_with_priority = {**todo_item, "priority": "high"}
+        assert todo_with_priority["priority"] == "high"
+
+    def test_todos_cap_enforced(self):
+        """max_todos and todo_text_max_chars are the cap boundaries."""
+        limits = {
+            "max_todos": 10,
+            "todo_text_max_chars": 200,
+        }
+        todos = [{"id": f"t{i}", "text": "x" * 200, "created": "2026-06-07"} for i in range(10)]
+        assert len(todos) <= limits["max_todos"]
+        assert all(len(t["text"]) <= limits["todo_text_max_chars"] for t in todos)
+
+        over_cap = todos + [{"id": "t11", "text": "extra", "created": "2026-06-07"}]
+        assert len(over_cap) > limits["max_todos"]
+
+    def test_todos_survives_full_extraction_cycle(self, monkeypatch, tmp_path):
+        """End-to-end: extract_items on a file with todos[] preserves them completely."""
+        ext, _ = _import_extractor(monkeypatch)
+        data = self._make_data_with_todos(num_sessions=25, max_sessions=20, num_todos=8)
+
+        mem_file = tmp_path / ".trinity" / "local.json"
+        mem_file.parent.mkdir(parents=True)
+        mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        def fake_write(fp, d):
+            fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
+
+        with patch.object(ext, "_write_memory_file", side_effect=fake_write):
+            result = ext._extract_items_v2(mem_file, data)
+
+        assert result["success"] is True
+        assert result["extracted_count"] > 0
+        assert len(data["todos"]) == 8
+        for i, todo in enumerate(data["todos"], 1):
+            assert todo["id"] == f"t{i}"

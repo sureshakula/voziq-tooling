@@ -1,7 +1,7 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2026-05-22",
+    "last_updated": "2026-06-07",
     "description": "Template file tracking registry for ID-based updates"
   },
   "files": {
@@ -26,7 +26,7 @@
     "f004": {
       "path": ".aipass/aipass_local_prompt.md",
       "name": "aipass_local_prompt.md",
-      "content_hash": "5f8e2a3859a9",
+      "content_hash": "bf82b35fa7d5",
       "has_branch_placeholder": false
     },
     "f005": {
@@ -86,7 +86,7 @@
     "f012": {
       "path": ".trinity/local.json",
       "name": "local.json",
-      "content_hash": "df2ba4a97f0a",
+      "content_hash": "8f8a98e42d92",
       "has_branch_placeholder": false
     },
     "f013": {
@@ -98,7 +98,7 @@
     "f014": {
       "path": ".trinity/passport.json",
       "name": "passport.json",
-      "content_hash": "3f5a0c2037d2",
+      "content_hash": "a05a4352e7a9",
       "has_branch_placeholder": false
     },
     "f016": {
@@ -111,12 +111,6 @@
       "path": "README.md",
       "name": "README.md",
       "content_hash": "ad99517a50f9",
-      "has_branch_placeholder": false
-    },
-    "f018": {
-      "path": "STATUS.local.md",
-      "name": "STATUS.local.md",
-      "content_hash": "059295ad4d4e",
       "has_branch_placeholder": false
     },
     "f019": {
@@ -155,7 +149,7 @@
       "content_hash": "a4cf0a8e3b4f",
       "has_branch_placeholder": false
     },
-    "f015": {
+    "f018": {
       "path": "apps/modules/__init__.py",
       "name": "__init__.py",
       "content_hash": "e3b0c44298fc",
@@ -269,7 +263,7 @@
       "content_hash": "28e9ae373563",
       "has_branch_placeholder": false
     },
-    "f026": {
+    "f015": {
       "path": "apps/plugins/__init__.py",
       "name": "__init__.py",
       "content_hash": "e3b0c44298fc",

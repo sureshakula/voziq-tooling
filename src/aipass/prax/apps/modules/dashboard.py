@@ -76,6 +76,7 @@ DASHBOARD_TEMPLATE = {
         "new_mail": 0,
         "opened_mail": 0,
         "active_plans": 0,
+        "todo_count": 0,
         "action_required": False,
         "summary": "",
     },

@@ -65,8 +65,14 @@ class TestDetectProjectName:
 
     def test_fallback_to_dirname(self, tmp_path: Path) -> None:
         """Falls back to directory name when no registry."""
-        result = detect_project_name(tmp_path)
-        assert result == tmp_path.name.lower()
+        no_reg = tmp_path / "empty_project"
+        no_reg.mkdir()
+        with patch(
+            "aipass.aipass.apps.modules.doctor_fix._discover_registry",
+            return_value=no_reg / "MISSING_REGISTRY.json",
+        ):
+            result = detect_project_name(no_reg)
+        assert result == "empty_project"
 
     def test_registry_name_lowered(self, tmp_path: Path) -> None:
         """Registry name is lowercased."""
@@ -248,10 +254,13 @@ class TestFormatTextReport:
         assert "drone @spawn repair @test --relocate a b" in result
 
     def test_dry_run_hint(self) -> None:
-        """Report ends with dry-run suggestion."""
+        """Report shows preview (dry-run default) and explicit --apply hints."""
         items = [RemediationItem("info", "pyproject", "missing", "fix")]
         result = format_text_report(items, "myproj")
-        assert "drone @spawn repair @myproj --dry-run" in result
+        # Repair is dry-run by default now: preview form has no flag, apply form is explicit
+        assert "Preview all fixes:" in result
+        assert "drone @spawn repair @myproj" in result
+        assert "drone @spawn repair @myproj --apply" in result
 
     def test_critical_sorted_first(self) -> None:
         """Critical items appear before warning and info."""

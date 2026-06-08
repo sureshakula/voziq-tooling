@@ -35,6 +35,33 @@ from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
 AUDIT_SCOPE = "entry_point"
 
 
+# Runtime / generated paths that legitimately may be absent in a clean
+# checkout (e.g. CI) while present in a working tree. A README documenting
+# one of these is not a violation when it's missing from disk.
+# Pure local-file check — never consults git or .gitignore. (A standards
+# audit reads the files that are there; git is a separate concern.)
+_RUNTIME_ARTIFACTS = {
+    "logs",
+    "artifacts",
+    "dropbox",
+    "system_logs",
+    "docs.local",
+    ".trinity",
+    "DASHBOARD.local.json",
+}
+
+
+def _is_runtime_artifact(path: Path) -> bool:
+    """True if path is a runtime/generated artifact that may be absent in a
+    clean checkout. Local-file only — never consults git or .gitignore."""
+    name = path.name
+    if name in _RUNTIME_ARTIFACTS:
+        return True
+    if name.endswith("_json"):
+        return True
+    return False
+
+
 def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     """
     Check if branch README follows standards
@@ -192,7 +219,13 @@ def check_last_updated_freshness(
     lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None
 ) -> Dict:
     """
-    Check that Last Updated date is within 7 days of newest .py file modification.
+    Check that the README declares a well-formed "Last Updated" date.
+
+    Local-file only: verifies the field is present and parseable. Does NOT
+    compare against code history — recency is not a property of the files on
+    disk, so it has no place in a local standards audit (and would diverge
+    between a working tree and a clean CI checkout). A "code changed, re-check
+    your README" nudge, if wanted, belongs outside the audit as its own flag.
 
     Looks for patterns:
     - *Last Updated: YYYY-MM-DD*
@@ -203,58 +236,27 @@ def check_last_updated_freshness(
     if is_bypassed(file_path, "readme", None, bypass_rules):
         return {"name": "Last Updated freshness", "passed": True, "message": "Bypassed by bypass rules"}
 
-    # Find Last Updated line
-    # Accept both italic (*) and bold (**) markdown formatting
-    readme_date = None
     date_pattern = re.compile(r"\*{0,2}Last Updated\*{0,2}:\*{0,2}\s*(\d{4}-\d{2}-\d{2})")
 
     for line in lines:
         match = date_pattern.search(line)
         if match:
             try:
-                readme_date = datetime.strptime(match.group(1), "%Y-%m-%d")
+                datetime.strptime(match.group(1), "%Y-%m-%d")
             except ValueError:
-                logger.info("Malformed date in README: %s", match.group(1))
-                readme_date = None  # Malformed date string
-            break
+                logger.info("Malformed Last Updated date in README: %s", match.group(1))
+                return {
+                    "name": "Last Updated freshness",
+                    "passed": False,
+                    "message": f"Malformed Last Updated date: {match.group(1)}",
+                }
+            return {
+                "name": "Last Updated freshness",
+                "passed": True,
+                "message": f"Last Updated date present ({match.group(1)})",
+            }
 
-    if readme_date is None:
-        return {"name": "Last Updated freshness", "passed": False, "message": 'No "Last Updated" date found in README'}
-
-    # Find newest .py file modification time in the branch
-    newest_py_mtime = None
-    apps_dir = branch_root / "apps"
-    if apps_dir.exists():
-        for py_file in apps_dir.rglob("*.py"):
-            if py_file.name == "__init__.py":
-                continue
-            try:
-                mtime = datetime.fromtimestamp(py_file.stat().st_mtime)
-                if newest_py_mtime is None or mtime > newest_py_mtime:
-                    newest_py_mtime = mtime
-            except OSError:
-                logger.info("Cannot stat %s for freshness check", py_file)
-                continue
-
-    if newest_py_mtime is None:
-        # No Python files to compare against - pass by default
-        return {"name": "Last Updated freshness", "passed": True, "message": "No .py files found to compare against"}
-
-    # Compare: flag if README date is >7 days behind newest code change
-    days_behind = (newest_py_mtime - readme_date).days
-
-    if days_behind <= 7:
-        return {
-            "name": "Last Updated freshness",
-            "passed": True,
-            "message": f"README date {readme_date.strftime('%Y-%m-%d')} is within 7 days of latest code change",
-        }
-
-    return {
-        "name": "Last Updated freshness",
-        "passed": False,
-        "message": f"README date {readme_date.strftime('%Y-%m-%d')} is {days_behind} days behind newest code change ({newest_py_mtime.strftime('%Y-%m-%d')})",
-    }
+    return {"name": "Last Updated freshness", "passed": False, "message": 'No "Last Updated" date found in README'}
 
 
 def check_directory_tree(lines: List[str], branch_root: Path, file_path: str, bypass_rules: list | None = None) -> Dict:
@@ -328,6 +330,8 @@ def check_directory_tree(lines: List[str], branch_root: Path, file_path: str, by
                 found = True
                 break
         if not found:
+            if _is_runtime_artifact(branch_root / dir_name):
+                continue
             missing_dirs.append(dir_name)
 
     if not missing_dirs:
@@ -474,7 +478,11 @@ def check_test_count_accuracy(
     return {
         "name": "Test count accuracy",
         "passed": False,
-        "message": f"README claims {max_claimed} tests, actual count is {actual_count} ({drift_pct:.0f}% drift)",
+        "message": (
+            f"README claims {max_claimed} tests, actual count is"
+            f" {actual_count} ({drift_pct:.0f}% drift). Update the README"
+            f" to {actual_count}."
+        ),
     }
 
 
@@ -525,6 +533,8 @@ def check_markdown_links(lines: List[str], branch_root: Path, file_path: str, by
     for link_text, link_path in links:
         resolved = (branch_root / link_path).resolve()
         if not resolved.exists():
+            if _is_runtime_artifact(branch_root / link_path):
+                continue
             dead_links.append(f"{link_path} ({link_text})")
 
     if not dead_links:

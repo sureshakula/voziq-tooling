@@ -126,17 +126,19 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("router Module")
-    console.print("Command routing logic for the AIPass drone module.")
+    console.print("[bold cyan]router Module[/bold cyan]")
+    console.print("[dim]Command routing logic for the AIPass drone module.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - router_handler.py (execute_branch_command — resolves and executes branch commands)")
-    console.print("    - executor.py (CommandResult — subprocess execution result dataclass)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print(
+        "    - [cyan]router_handler.py[/cyan] [dim](execute_branch_command — resolves and executes branch commands)[/dim]"
+    )
+    console.print("    - [cyan]executor.py[/cyan] [dim](CommandResult — subprocess execution result dataclass)[/dim]")
     console.print()
-    console.print("Connected Modules:")
-    console.print("  modules/")
-    console.print("    - resolver.py (resolve_branch, list_branches — branch name resolution)")
+    console.print("[yellow]Connected Modules:[/yellow]")
+    console.print("  [cyan]modules/[/cyan]")
+    console.print("    - [cyan]resolver.py[/cyan] [dim](resolve_branch, list_branches — branch name resolution)[/dim]")
     console.print()
 
 

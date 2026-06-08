@@ -240,54 +240,57 @@ class TestMatchBranches:
 
 
 class TestSearchReadme:
-    """Tests for _search_readme: live file reads, scoring, and error handling."""
+    """Tests for _search_readme: live file reads via handler, scoring, and error handling."""
+
+    def _mock_lines(self, content):
+        """Return a patch that makes read_readme_lines return content as lines."""
+        lines = content.splitlines(keepends=True)
+        return patch("aipass.aipass.apps.modules.help_chat.read_readme_lines", return_value=lines)
 
     def test_returns_matching_lines_with_line_numbers(self):
         """Matching lines must be returned as (int, str) tuples."""
-        with patch("builtins.open", mock_open(read_data=_SAMPLE_README)):
-            results = _search_readme(_FAKE_README_PATH, ["drone"])
+        with self._mock_lines(_SAMPLE_README):
+            results = _search_readme("drone", ["drone"])
         assert len(results) > 0
         assert all(isinstance(ln, int) for ln, _ in results)
 
     def test_line_numbers_are_1_indexed(self):
         """Line numbers in results must start at 1, not 0."""
-        with patch("builtins.open", mock_open(read_data=_SAMPLE_README)):
-            results = _search_readme(_FAKE_README_PATH, ["drone"])
+        with self._mock_lines(_SAMPLE_README):
+            results = _search_readme("drone", ["drone"])
         assert all(ln >= 1 for ln, _ in results)
 
     def test_returns_at_most_5_matches(self):
         """Result list must contain no more than 5 entries."""
         content = "\n".join([f"drone line {i}" for i in range(10)])
-        with patch("builtins.open", mock_open(read_data=content)):
-            results = _search_readme(_FAKE_README_PATH, ["drone"])
+        with self._mock_lines(content):
+            results = _search_readme("drone", ["drone"])
         assert len(results) <= 5
 
     def test_no_keyword_match_returns_empty(self):
         """Keyword with no hits in the README must return an empty list."""
-        with patch("builtins.open", mock_open(read_data=_SAMPLE_README)):
-            results = _search_readme(_FAKE_README_PATH, ["xyzzy999"])
+        with self._mock_lines(_SAMPLE_README):
+            results = _search_readme("drone", ["xyzzy999"])
         assert results == []
 
-    def test_oserror_returns_empty_and_logs_warning(self):
-        """OSError on open must return [] and call logger.warning exactly once."""
-        with patch("builtins.open", side_effect=OSError("not found")):
+    def test_handler_returns_none_returns_empty_and_logs(self):
+        """None from handler must return [] and call logger.warning."""
+        with patch("aipass.aipass.apps.modules.help_chat.read_readme_lines", return_value=None):
             with patch("aipass.aipass.apps.modules.help_chat.logger") as mock_logger:
-                results = _search_readme(_FAKE_README_PATH, ["drone"])
+                results = _search_readme("nonexistent", ["drone"])
         assert results == []
         mock_logger.warning.assert_called_once()
 
     def test_matching_is_case_insensitive(self):
         """Uppercase keyword in README must still match a lowercase query keyword."""
-        content = "DRONE does routing\n"
-        with patch("builtins.open", mock_open(read_data=content)):
-            results = _search_readme(_FAKE_README_PATH, ["drone"])
+        with self._mock_lines("DRONE does routing\n"):
+            results = _search_readme("drone", ["drone"])
         assert len(results) == 1
 
     def test_higher_scoring_lines_ranked_first(self):
         """Lines matching more keywords must appear before lines matching fewer."""
-        content = "drone flow spawn\ndrone only\nflow only\n"
-        with patch("builtins.open", mock_open(read_data=content)):
-            results = _search_readme(_FAKE_README_PATH, ["drone", "flow"])
+        with self._mock_lines("drone flow spawn\ndrone only\nflow only\n"):
+            results = _search_readme("drone", ["drone", "flow"])
         first_text = results[0][1]
         assert "drone" in first_text and "flow" in first_text
 

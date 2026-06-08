@@ -6,7 +6,7 @@
 **Module:** `aipass.flow`
 **Version:** 2.2.1
 **Created:** 2025-11-15
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-06-05
 
 ---
 
@@ -98,7 +98,7 @@ flow/
 │   ├── team_dev_plans/          # TDPLAN templates (default)
 │   └── audit_plans/             # APLAN templates (default)
 ├── flow_json/                   # Per-type registries + template_registry.json
-├── tests/                       # 733 tests, 24 test files
+├── tests/                       # 734 tests, 22 test files
 └── .archive/                    # Archived legacy code
 ```
 
@@ -159,27 +159,28 @@ Vector verification displays in console: "Vectorized: N chunks in chroma" or "NO
 ### Provides To
 - All branches — plan creation, tracking, closure, and archival
 - `aipass.devpulse` — plan status aggregation for system dashboards
-- Central reporting — `PLANS.central.json` via aggregate
+- Central reporting — `PLANS.central.json` with per-branch plan sections (all branches, not just flow)
 
 ---
 
 ## Quality
 
 - **Seedgo:** 100% (35/35 standards)
-- **Tests:** 733 passed, 87/87 public functions tested (100%)
-- **Source files:** 39 tracked by seedgo
-- **Last audit:** 2026-05-16
+- **Tests:** 734 passed, 87/87 public functions tested (100%)
+- **Source files:** 40 tracked by seedgo
+- **Last audit:** 2026-06-05
 - **Battle test:** 16/16 commands pass via drone CLI (2026-04-22)
 
 ### Known Issues
 - Registry scan fires trigger events that are never handled (by design — foreground close handles everything)
 - Dashboard push warns on some closes
 - `mbank/process.py` at 669 lines (nearing 700 limit)
-- `close_ops.py` split into `close_ops.py` (647 lines) + `close_helpers.py` (260 lines) in 2026-05-16
+- `close_ops.py` split into `close_ops.py` (647 lines) + `close_helpers.py` (260 lines)
+- `push_central.py` comprehensive rewrite (2026-06-02): now pushes all branches' plans, not just flow's — fixed dashboard refresh zeroing other branches' plan counts
 
 ---
 
-*Last Updated: 2026-05-16*
+*Last Updated: 2026-06-05*
 
 ---
 [← Back to AIPass](../../../README.md)

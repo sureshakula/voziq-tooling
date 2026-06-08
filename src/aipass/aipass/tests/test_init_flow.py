@@ -19,6 +19,7 @@ from aipass.aipass.apps.modules.init_flow import (
     TOTAL_STAGES,
     _get_last_completed_stage,
     _get_setup_progress,
+    _handle_init_update,
     _save_stage,
     handle_command,
     print_help,
@@ -506,14 +507,14 @@ class TestStages:
         assert result["docker"] == "skipped"
 
     def test_stage_8_non_interactive_creates_my_agent(self, tmp_local_json) -> None:
-        """non_interactive=True uses 'my-agent' as default name."""
+        """non_interactive=True uses 'my_agent' as default name."""
         mock_proc = MagicMock(returncode=0)
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.subprocess.run", return_value=mock_proc):
                 with patch(f"{_MOD}._resolve_package_dir", return_value=None):
                     result = stage_8_first_agent(non_interactive=True)
-        assert result["agent_name"] == "my-agent"
-        assert result["agent_path"] == "src/my-agent"
+        assert result["agent_name"] == "my_agent"
+        assert result["agent_path"] == "src/my_agent"
 
     def test_stage_8_drone_not_found(self, tmp_local_json) -> None:
         """FileNotFoundError from drone is handled gracefully."""
@@ -574,3 +575,87 @@ class TestStages:
         assert result == {}
         stored = json.loads(tmp_local_json.read_text())
         assert stored["setup_progress"]["last_completed_stage"] == 12
+
+
+# =============================================================================
+# init_update_registry_sync: subprocess_sync
+# =============================================================================
+
+
+_MOD_UPDATE = "aipass.aipass.apps.modules.init_flow"
+
+
+class TestInitUpdateRegistrySync:
+    """Tests for registry sync subprocess call in _handle_init_update."""
+
+    def test_sync_success_prints_message(self, tmp_path: Path) -> None:
+        """Successful drone sync-registry prints 'Registry synced.'"""
+        mock_result = MagicMock(returncode=0)
+        with (
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.update_project",
+                return_value={"updated_files": [], "already_current": []},
+            ),
+            patch(f"{_MOD_UPDATE}.subprocess.run", return_value=mock_result) as mock_run,
+            patch(f"{_MOD_UPDATE}.console") as mock_console,
+            patch(f"{_MOD_UPDATE}.json_handler"),
+        ):
+            rc = _handle_init_update([str(tmp_path)])
+        assert rc == 0
+        mock_run.assert_called_once_with(
+            ["drone", "@spawn", "sync-registry", "--fix"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        sync_calls = [c for c in mock_console.print.call_args_list if "Registry synced" in str(c)]
+        assert len(sync_calls) == 1
+
+    def test_sync_failure_degrades_silently(self, tmp_path: Path) -> None:
+        """Non-zero exit from drone sync-registry is silently skipped."""
+        mock_result = MagicMock(returncode=1)
+        with (
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.update_project",
+                return_value={"updated_files": [], "already_current": []},
+            ),
+            patch(f"{_MOD_UPDATE}.subprocess.run", return_value=mock_result),
+            patch(f"{_MOD_UPDATE}.console") as mock_console,
+            patch(f"{_MOD_UPDATE}.json_handler"),
+        ):
+            rc = _handle_init_update([str(tmp_path)])
+        assert rc == 0
+        sync_calls = [c for c in mock_console.print.call_args_list if "Registry synced" in str(c)]
+        assert len(sync_calls) == 0
+
+    def test_sync_missing_drone_degrades_silently(self, tmp_path: Path) -> None:
+        """FileNotFoundError (no drone binary) degrades gracefully."""
+        with (
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.update_project",
+                return_value={"updated_files": [], "already_current": []},
+            ),
+            patch(f"{_MOD_UPDATE}.subprocess.run", side_effect=FileNotFoundError("drone not found")),
+            patch(f"{_MOD_UPDATE}.console") as mock_console,
+            patch(f"{_MOD_UPDATE}.json_handler"),
+        ):
+            rc = _handle_init_update([str(tmp_path)])
+        assert rc == 0
+        sync_calls = [c for c in mock_console.print.call_args_list if "Registry synced" in str(c)]
+        assert len(sync_calls) == 0
+
+    def test_sync_timeout_degrades_silently(self, tmp_path: Path) -> None:
+        """subprocess.TimeoutExpired degrades gracefully."""
+        import subprocess as _sp
+
+        with (
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.update_project",
+                return_value={"updated_files": [], "already_current": []},
+            ),
+            patch(f"{_MOD_UPDATE}.subprocess.run", side_effect=_sp.TimeoutExpired(cmd="drone", timeout=30)),
+            patch(f"{_MOD_UPDATE}.console"),
+            patch(f"{_MOD_UPDATE}.json_handler"),
+        ):
+            rc = _handle_init_update([str(tmp_path)])
+        assert rc == 0

@@ -24,13 +24,14 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("sync_registry Module")
+    console.print("[bold cyan]sync_registry Module[/bold cyan]")
     console.print("Registry repair — detect and fix mismatches between AIPASS_REGISTRY and filesystem")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
     console.print(
-        "    - sync_registry_ops.py (sync_registry — scan filesystem, detect stale/unregistered, auto-repair)"
+        "    [dim]- sync_registry_ops.py"
+        " (sync_registry — scan filesystem, detect stale/unregistered, auto-repair)[/dim]"
     )
     console.print()
 

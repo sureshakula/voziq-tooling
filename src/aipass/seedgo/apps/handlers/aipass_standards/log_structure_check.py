@@ -87,18 +87,20 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
         }
 
     # Check 1: Branch-root log placement — logs/ directory at the branch root
+    # logs/ is gitignored (runtime artifact, created on first log write).
+    # Only check when the directory actually exists; absence in a clean
+    # checkout or CI environment is expected and not a violation.
     branch_root = _find_branch_root(path)
     logs_dir = branch_root / "logs"
     has_logs_dir = logs_dir.is_dir()
-    checks.append(
-        {
-            "name": "Branch-root logs/ directory",
-            "passed": has_logs_dir,
-            "message": f"logs/ directory exists at branch root {branch_root}/"
-            if has_logs_dir
-            else f"Missing logs/ directory at branch root {branch_root}/ — two-tier model requires logs/ at branch root",
-        }
-    )
+    if has_logs_dir:
+        checks.append(
+            {
+                "name": "Branch-root logs/ directory",
+                "passed": True,
+                "message": f"logs/ directory exists at branch root {branch_root}/",
+            }
+        )
 
     # Check 2-3: Scan file for hardcoded log paths
     try:

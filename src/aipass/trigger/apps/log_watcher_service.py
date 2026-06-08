@@ -22,6 +22,7 @@ import signal
 import sys
 import threading
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.trigger.apps.modules.branch_log_events import (
     start as start_branch_watcher,
     stop as stop_branch_watcher,
@@ -34,10 +35,18 @@ from aipass.trigger.apps.modules.log_events import (
 
 def print_introspection():
     """Display module introspection info."""
-    print()
-    print("log_watcher_service Module")
-    print("Persistent log watcher process — starts branch and system watchers as systemd service")
-    print()
+    try:
+        from aipass.cli.apps.modules.display import console
+    except ImportError:
+        logger.info("CLI console not available, using rich fallback")
+        from rich.console import Console
+
+        console = Console()
+
+    console.print()
+    console.print("[bold cyan]log_watcher_service Module[/bold cyan]")
+    console.print("[dim]Persistent log watcher process — starts branch and system watchers as systemd service[/dim]")
+    console.print()
 
 
 def main() -> None:
@@ -77,4 +86,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("--version", "-V"):
+        print("log_watcher_service 1.0.0")
+        sys.exit(0)
     main()

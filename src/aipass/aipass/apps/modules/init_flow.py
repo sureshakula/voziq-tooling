@@ -454,9 +454,9 @@ def stage_8_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
     console.print("Let's create your first AI agent (citizen).")
 
     if non_interactive:
-        agent_name = "my-agent"
+        agent_name = "my_agent"
     else:
-        agent_name = _prompt("Agent name (letters, hyphens, no spaces)", "my-agent") or "my-agent"
+        agent_name = _prompt("Agent name (letters, underscores, no spaces)", "my_agent") or "my_agent"
 
     package_dir = _resolve_package_dir()
     if package_dir:
@@ -560,7 +560,7 @@ def stage_10_smoke_test(non_interactive: bool = False, dry_run: bool = False) ->
 def stage_11_handoff(
     cli_choice: str = "claude",
     flag_variant: str = "default",
-    agent_path: str = "src/my-agent",
+    agent_path: str = "src/my_agent",
     non_interactive: bool = False,
     dry_run: bool = False,
     accumulated: Dict[str, Any] | None = None,
@@ -771,7 +771,7 @@ def run_init(
             lambda: stage_11_handoff(
                 accumulated.get("cli", "claude"),
                 accumulated.get("flag_variant", "default"),
-                accumulated.get("agent_path", "src/my-agent"),
+                accumulated.get("agent_path", "src/my_agent"),
                 non_interactive,
                 dry_run=dry_run,
                 accumulated=accumulated,
@@ -893,12 +893,14 @@ def _handle_init_update(args: list[str]) -> int:
             console.print(f"  ({len(current)} already up to date)")
         # Heal registry: prune stale entries (e.g. cross-project ../paths)
         try:
-            from aipass.spawn.apps.modules.sync_registry import sync_registry
-
-            sync_result = sync_registry(fix=True)
-            pruned = sync_result.get("stale", [])
-            if pruned:
-                console.print(f"  [green]Registry healed:[/green] removed {len(pruned)} stale entry(ies)")
+            sync_proc = subprocess.run(
+                ["drone", "@spawn", "sync-registry", "--fix"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if sync_proc.returncode == 0:
+                console.print("  [green]Registry synced.[/green]")
         except Exception as sync_exc:
             logger.warning("[init_flow] registry sync during update skipped: %s", sync_exc)
 

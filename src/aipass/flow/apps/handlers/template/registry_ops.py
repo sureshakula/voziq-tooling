@@ -278,6 +278,45 @@ def save_registry(data: Dict[str, Any]) -> bool:
         return False
 
 
+def _try_override_auto_entry(registry: Dict[str, Any], dir_name: str, new_prefix: str) -> str | None:
+    """Remove an auto-registered entry so add_type() can re-add with explicit prefix.
+
+    Returns an error message on failure, or None on success.
+    """
+    existing = registry["types"][dir_name]
+    old_shorthand = existing.get("shorthand", existing.get("prefix", "").lower())
+    old_prefix = existing.get("prefix", "")
+
+    if old_prefix.upper() != new_prefix.upper():
+        old_reg = FLOW_ROOT / "flow_json" / f"{old_shorthand}_registry.json"
+        if old_reg.exists():
+            has_plans = _auto_reg_has_plans(old_reg)
+            if has_plans:
+                return f"Cannot override auto-registered '{dir_name}' — {old_reg.name} has existing plans"
+            old_reg.unlink()
+
+    del registry["types"][dir_name]
+    logger.info(
+        "[%s] Overriding auto-registered type '%s' (%s -> %s)",
+        MODULE_NAME,
+        dir_name,
+        old_prefix,
+        new_prefix,
+    )
+    return None
+
+
+def _auto_reg_has_plans(reg_path: Path) -> bool:
+    """Check whether a plan registry file contains any plans."""
+    try:
+        with open(reg_path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return bool(data.get("plans"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("[%s] Could not read plan registry %s: %s", MODULE_NAME, reg_path.name, exc)
+        return False
+
+
 def add_type(
     dir_name: str,
     prefix: str,
@@ -304,17 +343,26 @@ def add_type(
     """
     registry = load_registry()
 
-    # Validate: dir_name not already registered
-    if dir_name in registry["types"]:
+    # Allow override of auto-registered entries with explicit prefix
+    existing = registry["types"].get(dir_name)
+    if existing and existing.get("registered_by") != "auto":
         logger.error(
-            "[%s] Type '%s' is already registered",
+            "[%s] Type '%s' is already registered (by %s)",
             MODULE_NAME,
             dir_name,
+            existing.get("registered_by", "unknown"),
         )
         return False
 
-    # Validate: prefix not already taken (case-insensitive)
-    if prefix_exists(prefix):
+    if existing and existing.get("registered_by") == "auto":
+        override_err = _try_override_auto_entry(registry, dir_name, prefix)
+        if override_err:
+            logger.error("[%s] %s", MODULE_NAME, override_err)
+            return False
+
+    # Validate: prefix not already taken by another type (case-insensitive)
+    upper = prefix.upper()
+    if any(entry.get("prefix", "").upper() == upper for d, entry in registry["types"].items() if d != dir_name):
         logger.error(
             "[%s] Prefix '%s' is already in use by another type",
             MODULE_NAME,
@@ -425,20 +473,6 @@ def remove_type(dir_name: str) -> bool:
 # ---------------------------------------------------------------------------
 # Lookup helpers
 # ---------------------------------------------------------------------------
-
-
-def prefix_exists(prefix: str) -> bool:
-    """Check whether any registered type uses *prefix* (case-insensitive).
-
-    Args:
-        prefix: The prefix to look for.
-
-    Returns:
-        True if the prefix is already in use.
-    """
-    registry = load_registry()
-    upper = prefix.upper()
-    return any(entry.get("prefix", "").upper() == upper for entry in registry["types"].values())
 
 
 def get_prefix_map() -> Dict[str, str]:

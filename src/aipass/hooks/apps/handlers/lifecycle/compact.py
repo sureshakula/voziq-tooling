@@ -31,17 +31,6 @@ def _find_branch_dir(cwd: str) -> Path | None:
     return None
 
 
-def _read_status_local(branch_dir: Path) -> str | None:
-    for name in ("STATUS.local.md", "dev.local.md"):
-        path = branch_dir / name
-        if path.is_file():
-            try:
-                return path.read_text(encoding="utf-8")[:3000]
-            except Exception as exc:
-                logger.info("[HOOKS] compact: read status failed: %s", exc)
-    return None
-
-
 def _read_last_session(branch_dir: Path) -> str | None:
     local_path = branch_dir / ".trinity" / "local.json"
     if not local_path.is_file():
@@ -115,18 +104,13 @@ def handle(hook_data: dict) -> dict:
             if session_info:
                 sections.append(f"## Last Session\n{session_info}")
 
-            status = _read_status_local(branch_dir)
-            if status:
-                sections.append(f"## STATUS.local.md\n{status}")
-
         is_dispatched = os.environ.get("AIPASS_SESSION_TYPE") == "dispatched"
         if is_dispatched:
             sections.append(
                 "## DISPATCHED AGENT — SAVE STATE NOW\n"
                 "Before continuing work, you MUST update your memories:\n"
                 "1. Update .trinity/local.json — add/update current session with work done so far\n"
-                "2. Update STATUS.local.md — ensure Current Work reflects what you've accomplished\n"
-                "3. Then continue your task from where the summary left off\n\n"
+                "2. Then continue your task from where the summary left off\n\n"
                 "This is non-optional. Compaction just happened — if you don't save now, work history is lost."
             )
         else:
@@ -134,7 +118,6 @@ def handle(hook_data: dict) -> dict:
                 "## Recovery Protocol\n"
                 "- Continue where the summary left off — don't restart or ask generic questions\n"
                 "- .trinity/local.json has full session history and key_learnings — read it if you need more context\n"
-                "- STATUS.local.md has current work, known issues, and todos\n"
                 "- Save memories proactively — compaction just proved you need to\n"
                 "- Match the conversation tone from before compaction"
             )

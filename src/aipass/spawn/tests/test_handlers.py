@@ -6,7 +6,7 @@
 # Modified: 2026-03-07
 # =============================================
 
-"""Tests for spawn handler modules: meta_ops, reconcile, change_detection, json_ops."""
+"""Tests for spawn handler modules: meta_ops, json_ops."""
 
 import pytest
 from pathlib import Path
@@ -314,303 +314,6 @@ class TestDeepMerge:
 
 
 # =============================================================================
-# detect_changes tests
-# =============================================================================
-
-
-class TestDetectChanges:
-    """Tests for detect_changes()."""
-
-    def test_detects_additions(self, tmp_path):
-        """Files in template but not in branch should be additions."""
-        from aipass.spawn.apps.handlers.change_detection import detect_changes
-
-        template_registry = {
-            "files": {
-                "f001": {"current_name": "old.txt", "path": "old.txt", "content_hash": "aaa111"},
-                "f002": {"current_name": "new.txt", "path": "new.txt", "content_hash": "bbb222"},
-            },
-            "directories": {},
-        }
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "old.txt",
-                    "current_name": "old.txt",
-                    "current_path": "old.txt",
-                    "content_hash": "aaa111",
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = detect_changes(template_registry, branch_meta, tmp_path)
-
-        assert len(result["additions"]) == 1
-        assert result["additions"][0]["file_id"] == "f002"
-        assert result["additions"][0]["template_path"] == "new.txt"
-
-    def test_detects_pruned(self, tmp_path):
-        """Files in branch but not in template should be pruned."""
-        from aipass.spawn.apps.handlers.change_detection import detect_changes
-
-        template_registry = {
-            "files": {
-                "f001": {"current_name": "kept.txt", "path": "kept.txt", "content_hash": "aaa"},
-            },
-            "directories": {},
-        }
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "kept.txt",
-                    "current_name": "kept.txt",
-                    "current_path": "kept.txt",
-                    "content_hash": "aaa",
-                },
-                "f099": {
-                    "template_name": "removed.txt",
-                    "current_name": "removed.txt",
-                    "current_path": "removed.txt",
-                    "content_hash": "zzz",
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = detect_changes(template_registry, branch_meta, tmp_path)
-
-        assert len(result["pruned"]) == 1
-        assert result["pruned"][0]["file_id"] == "f099"
-
-    def test_detects_updates(self, tmp_path):
-        """Files with same ID but different hashes should be updates."""
-        from aipass.spawn.apps.handlers.change_detection import detect_changes
-
-        template_registry = {
-            "files": {
-                "f001": {"current_name": "config.json", "path": "config.json", "content_hash": "newhash12345"},
-            },
-            "directories": {},
-        }
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "config.json",
-                    "current_name": "config.json",
-                    "current_path": "config.json",
-                    "content_hash": "oldhash67890",
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = detect_changes(template_registry, branch_meta, tmp_path)
-
-        assert len(result["updates"]) == 1
-        assert result["updates"][0]["file_id"] == "f001"
-        assert result["updates"][0]["template_hash"] == "newhash12345"
-        assert result["updates"][0]["branch_hash"] == "oldhash67890"
-
-    def test_detects_renames(self, tmp_path):
-        """Files with same ID but different template paths should be renames."""
-        from aipass.spawn.apps.handlers.change_detection import detect_changes
-
-        template_registry = {
-            "files": {
-                "f001": {
-                    "current_name": "new_name.txt",
-                    "path": "docs/new_name.txt",
-                    "content_hash": "samehash1234",
-                },
-            },
-            "directories": {},
-        }
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "docs/old_name.txt",
-                    "current_name": "old_name.txt",
-                    "current_path": "docs/old_name.txt",
-                    "content_hash": "samehash1234",
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = detect_changes(template_registry, branch_meta, tmp_path)
-
-        assert len(result["renames"]) == 1
-        assert result["renames"][0]["file_id"] == "f001"
-        assert result["renames"][0]["old_name"] == "docs/old_name.txt"
-        assert result["renames"][0]["new_name"] == "docs/new_name.txt"
-
-    def test_no_changes(self, tmp_path):
-        """Identical template and branch should produce no changes."""
-        from aipass.spawn.apps.handlers.change_detection import detect_changes
-
-        template_registry = {
-            "files": {
-                "f001": {"current_name": "a.txt", "path": "a.txt", "content_hash": "abc123"},
-            },
-            "directories": {
-                "d001": {"current_name": "apps", "path": "apps"},
-            },
-        }
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "a.txt",
-                    "current_name": "a.txt",
-                    "current_path": "a.txt",
-                    "content_hash": "abc123",
-                },
-            },
-            "directory_tracking": {
-                "d001": {
-                    "template_name": "apps",
-                    "current_name": "apps",
-                    "current_path": "apps",
-                },
-            },
-        }
-
-        result = detect_changes(template_registry, branch_meta, tmp_path)
-
-        assert result["additions"] == []
-        assert result["updates"] == []
-        assert result["renames"] == []
-        assert result["pruned"] == []
-
-
-# =============================================================================
-# reconcile_branch_state tests
-# =============================================================================
-
-
-class TestReconcileBranchState:
-    """Tests for reconcile_branch_state()."""
-
-    def test_detects_missing_files(self, tmp_path):
-        """Files tracked in meta but not on disk should be reported as missing."""
-        from aipass.spawn.apps.handlers.reconcile import reconcile_branch_state
-
-        # Branch with no actual files
-        branch_dir = tmp_path / "branch"
-        branch_dir.mkdir()
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "README.md",
-                    "current_name": "README.md",
-                    "current_path": "README.md",
-                    "content_hash": "abc123def456",
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = reconcile_branch_state(branch_dir, branch_meta)
-
-        assert result["needs_update"] is True
-        assert len(result["missing_files"]) == 1
-        assert result["missing_files"][0]["file_id"] == "f001"
-        assert result["missing_files"][0]["path"] == "README.md"
-
-    def test_detects_hash_mismatches(self, tmp_path):
-        """Files with changed content should be reported as hash mismatches."""
-        from aipass.spawn.apps.handlers.reconcile import reconcile_branch_state
-        from aipass.spawn.apps.handlers.meta_ops import compute_file_hash
-
-        branch_dir = tmp_path / "branch"
-        branch_dir.mkdir()
-
-        # Create file with known content
-        readme = branch_dir / "README.md"
-        readme.write_text("modified content", encoding="utf-8")
-        actual_hash = compute_file_hash(readme)
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "README.md",
-                    "current_name": "README.md",
-                    "current_path": "README.md",
-                    "content_hash": "differenthash",  # stale hash
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = reconcile_branch_state(branch_dir, branch_meta)
-
-        assert result["needs_update"] is True
-        assert len(result["hash_mismatches"]) == 1
-        assert result["hash_mismatches"][0]["file_id"] == "f001"
-        assert result["hash_mismatches"][0]["current_hash"] == actual_hash
-
-    def test_clean_state_no_update_needed(self, tmp_path):
-        """Consistent state should report needs_update=False."""
-        from aipass.spawn.apps.handlers.reconcile import reconcile_branch_state
-        from aipass.spawn.apps.handlers.meta_ops import compute_file_hash
-
-        branch_dir = tmp_path / "branch"
-        branch_dir.mkdir()
-
-        readme = branch_dir / "README.md"
-        readme.write_text("stable content", encoding="utf-8")
-        actual_hash = compute_file_hash(readme)
-
-        branch_meta = {
-            "file_tracking": {
-                "f001": {
-                    "template_name": "README.md",
-                    "current_name": "README.md",
-                    "current_path": "README.md",
-                    "content_hash": actual_hash,
-                },
-            },
-            "directory_tracking": {},
-        }
-
-        result = reconcile_branch_state(branch_dir, branch_meta)
-
-        assert result["needs_update"] is False
-        assert result["missing_files"] == []
-        assert result["hash_mismatches"] == []
-
-    def test_detects_missing_directories(self, tmp_path):
-        """Tracked directories missing from disk should be reported."""
-        from aipass.spawn.apps.handlers.reconcile import reconcile_branch_state
-
-        branch_dir = tmp_path / "branch"
-        branch_dir.mkdir()
-
-        branch_meta = {
-            "file_tracking": {},
-            "directory_tracking": {
-                "d001": {
-                    "template_name": "apps",
-                    "current_name": "apps",
-                    "current_path": "apps",
-                },
-            },
-        }
-
-        result = reconcile_branch_state(branch_dir, branch_meta)
-
-        assert result["needs_update"] is True
-        assert len(result["missing_dirs"]) == 1
-        assert result["missing_dirs"][0]["dir_id"] == "d001"
-
-
-# =============================================================================
 # backup_json tests
 # =============================================================================
 
@@ -634,6 +337,22 @@ class TestBackupJson:
 
         # Content should match
         assert backup_path.read_text(encoding="utf-8") == '{"key": "value"}'
+
+    def test_custom_backup_dir(self, tmp_path):
+        """backup_dir override should place backup in the specified directory."""
+        from aipass.spawn.apps.handlers.json_ops import backup_json
+
+        source = tmp_path / "config.json"
+        source.write_text('{"a": 1}', encoding="utf-8")
+        custom_dir = tmp_path / ".spawn" / ".recovery"
+
+        backup_path = backup_json(source, backup_dir=custom_dir)
+
+        assert backup_path.exists()
+        assert backup_path.parent == custom_dir
+        assert "config.json" in backup_path.name
+        assert ".backup" in backup_path.name
+        assert backup_path.read_text(encoding="utf-8") == '{"a": 1}'
 
     def test_raises_on_missing_source(self, tmp_path):
         """Should raise FileNotFoundError for non-existent source."""

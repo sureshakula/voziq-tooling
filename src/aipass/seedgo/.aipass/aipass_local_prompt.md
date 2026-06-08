@@ -24,8 +24,6 @@ The **hooks branch** (`src/aipass/hooks/`) owns all hook infrastructure — engi
 
 Provider settings route all events through the bridge: `src/aipass/hooks/apps/handlers/bridges/claude.py <Event>:<handler>`. The bridge dispatches to native Python handlers in `hooks/apps/handlers/` (prompt, security, lifecycle, notification categories).
 
-Seedgo's bridge installer (`drone @seedgo bridge install`) manages hook installation to `~/.claude/settings.json`.
-
 ## Apps Layout (extra layer vs standard branch)
 
 ```

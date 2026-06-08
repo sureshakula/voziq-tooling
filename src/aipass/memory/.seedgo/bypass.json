@@ -87,6 +87,11 @@
       "reason": "Architectural: rollover orchestrator coordinates monitor, tracking, storage, dashboard, intake, and trigger handlers. Central pipeline hub."
     },
     {
+      "file": "apps/handlers/intake/auto_process.py",
+      "standard": "handlers",
+      "reason": "Architectural: auto-process entry point coordinates pool (intake), rollover (orchestrator), and detection (monitor) for session-start hook. TDPLAN-0005."
+    },
+    {
       "file": "apps/handlers/learnings/manager.py",
       "standard": "handlers",
       "reason": "Architectural: imports json.memory_files for learning data read/write and vector.embedder for semantic operations."
@@ -605,6 +610,26 @@
       "file": "tests/test_orchestrator_exec.py",
       "standard": "meta",
       "reason": "Test file — META block present at lines 1-8; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
     }
   ],
   "notes": {

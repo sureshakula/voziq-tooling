@@ -93,19 +93,25 @@ def print_introspection():
         console = Console()
 
     console.print()
-    console.print("discovery Module")
-    console.print("Module and command discovery for AIPass branch introspection.")
+    console.print("[bold cyan]discovery Module[/bold cyan]")
+    console.print("[dim]Module and command discovery for AIPass branch introspection.[/dim]")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - discovery_handler.py (HelpResult — structured help query result)")
-    console.print("    - discovery_handler.py (discover_modules — list available commands for a branch)")
-    console.print("    - discovery_handler.py (get_help — get structured help for a branch/command)")
-    console.print("    - discovery_handler.py (get_system_help — aggregate help across all branches)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    - [cyan]discovery_handler.py[/cyan] [dim](HelpResult — structured help query result)[/dim]")
+    console.print(
+        "    - [cyan]discovery_handler.py[/cyan] [dim](discover_modules — list available commands for a branch)[/dim]"
+    )
+    console.print(
+        "    - [cyan]discovery_handler.py[/cyan] [dim](get_help — get structured help for a branch/command)[/dim]"
+    )
+    console.print(
+        "    - [cyan]discovery_handler.py[/cyan] [dim](get_system_help — aggregate help across all branches)[/dim]"
+    )
     console.print()
-    console.print("Connected Modules:")
-    console.print("  modules/")
-    console.print("    - resolver.py (resolve_branch, list_branches — branch name resolution)")
+    console.print("[yellow]Connected Modules:[/yellow]")
+    console.print("  [cyan]modules/[/cyan]")
+    console.print("    - [cyan]resolver.py[/cyan] [dim](resolve_branch, list_branches — branch name resolution)[/dim]")
     console.print()
 
 

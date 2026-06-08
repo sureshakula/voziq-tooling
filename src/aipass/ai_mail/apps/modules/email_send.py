@@ -250,18 +250,18 @@ def _send_broadcast(subject, message, user_info, auto_execute, no_memory_save, r
 
 def print_introspection():
     """Print module introspection for seedgo compliance."""
-    console.print("\n" + "=" * 70)
-    console.print("EMAIL SEND ORCHESTRATION")
-    console.print("=" * 70)
-    console.print("\nFunctions provided:")
-    console.print("  - handle_send(args) -> bool")
-    console.print("  - _send_direct(...) -> bool")
-    console.print("  - _send_interactive() -> bool")
-    console.print("  - _send_broadcast(...) -> bool")
-    console.print("  - _fire_dispatch_trigger(to_branch, subject) -> None")
-    console.print("  - _delivery_callback(branch_path, new_count, opened_count, total)")
     console.print()
-    console.print("=" * 70 + "\n")
+    console.print("[bold cyan]email_send Module[/bold cyan]")
+    console.print("[dim]Send orchestration — direct, interactive, and broadcast email delivery.[/dim]")
+    console.print()
+    console.print("[yellow]Functions provided:[/yellow]")
+    console.print("  - [cyan]handle_send[/cyan][dim](args) -> bool[/dim]")
+    console.print("  - [cyan]_send_direct[/cyan][dim](...) -> bool[/dim]")
+    console.print("  - [cyan]_send_interactive[/cyan][dim]() -> bool[/dim]")
+    console.print("  - [cyan]_send_broadcast[/cyan][dim](...) -> bool[/dim]")
+    console.print("  - [cyan]_fire_dispatch_trigger[/cyan][dim](to_branch, subject) -> None[/dim]")
+    console.print("  - [cyan]_delivery_callback[/cyan][dim](branch_path, new_count, opened_count, total)[/dim]")
+    console.print()
 
 
 if __name__ == "__main__":

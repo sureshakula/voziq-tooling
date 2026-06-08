@@ -56,11 +56,19 @@ def _mock_infrastructure(monkeypatch):
     bypass_ignore = MagicMock()
     bypass_ignore.get_template_ignore_patterns = MagicMock(return_value=[])
     bypass_pkg.ignore_handler = bypass_ignore
+    bypass_utils = MagicMock()
+    bypass_utils.is_bypassed = MagicMock(return_value=False)
+    bypass_pkg.utils = bypass_utils
     monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.bypass", bypass_pkg)
     monkeypatch.setitem(
         sys.modules,
         "aipass.seedgo.apps.handlers.bypass.ignore_handler",
         bypass_ignore,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "aipass.seedgo.apps.handlers.bypass.utils",
+        bypass_utils,
     )
 
     # Force re-imports so checkers pick up fresh mocks
@@ -1016,6 +1024,110 @@ class TestCheckModuleHelpInterception:
         content = "def compute():\n    return 42\n"
         tree = ast.parse(content)
         result = check_module_help_interception(tree, "test.py")
+        assert result is None
+
+
+# -- check_introspection_rich_formatting ------------------------------------
+
+
+class TestCheckIntrospectionRichFormatting:
+    """Tests for check_introspection_rich_formatting."""
+
+    def test_styled_introspection_passes(self):
+        """print_introspection with Rich markup tags passes."""
+        from aipass.seedgo.apps.handlers.aipass_standards.introspection_check import (
+            check_introspection_rich_formatting,
+        )
+
+        content = (
+            "def print_introspection():\n"
+            "    console.print('[bold cyan]Flow[/bold cyan] - PLAN Management')\n"
+            "    console.print(f'[yellow]Modules:[/yellow] {count}')\n"
+        )
+        tree = ast.parse(content)
+        result = check_introspection_rich_formatting(tree, "test.py")
+        assert result is not None
+        assert result["passed"] is True
+        assert "Rich markup" in result["message"]
+
+    def test_flat_introspection_fails(self):
+        """print_introspection with only plain strings fails."""
+        from aipass.seedgo.apps.handlers.aipass_standards.introspection_check import (
+            check_introspection_rich_formatting,
+        )
+
+        content = (
+            "def print_introspection():\n"
+            "    console.print('spawn Entry Point')\n"
+            "    console.print('Branch lifecycle manager')\n"
+            "    console.print('Connected Modules:')\n"
+        )
+        tree = ast.parse(content)
+        result = check_introspection_rich_formatting(tree, "test.py")
+        assert result is not None
+        assert result["passed"] is False
+        assert "no Rich markup" in result["message"]
+
+    def test_delegation_to_styled_helper_passes(self):
+        """print_introspection delegating to a styled _helper passes."""
+        from aipass.seedgo.apps.handlers.aipass_standards.introspection_check import (
+            check_introspection_rich_formatting,
+        )
+
+        content = (
+            "def _show_branch_introspection():\n"
+            "    console.print('[bold cyan]Branch[/bold cyan]')\n"
+            "    console.print(f'[yellow]Modules:[/yellow]')\n"
+            "\n"
+            "def print_introspection():\n"
+            "    _show_branch_introspection()\n"
+        )
+        tree = ast.parse(content)
+        result = check_introspection_rich_formatting(tree, "test.py")
+        assert result is not None
+        assert result["passed"] is True
+        assert "delegates" in result["message"]
+
+    def test_delegation_to_flat_helper_fails(self):
+        """print_introspection delegating to a flat _helper fails."""
+        from aipass.seedgo.apps.handlers.aipass_standards.introspection_check import (
+            check_introspection_rich_formatting,
+        )
+
+        content = (
+            "def _show_info():\n"
+            "    console.print('Plain text only')\n"
+            "    console.print('No formatting here')\n"
+            "\n"
+            "def print_introspection():\n"
+            "    _show_info()\n"
+        )
+        tree = ast.parse(content)
+        result = check_introspection_rich_formatting(tree, "test.py")
+        assert result is not None
+        assert result["passed"] is False
+        assert "no Rich markup" in result["message"]
+
+    def test_no_print_introspection_returns_none(self):
+        """File without print_introspection returns None."""
+        from aipass.seedgo.apps.handlers.aipass_standards.introspection_check import (
+            check_introspection_rich_formatting,
+        )
+
+        content = "def compute():\n    return 42\n"
+        tree = ast.parse(content)
+        result = check_introspection_rich_formatting(tree, "test.py")
+        assert result is None
+
+    def test_no_output_returns_none(self):
+        """print_introspection that produces no output returns None."""
+        from aipass.seedgo.apps.handlers.aipass_standards.introspection_check import (
+            check_introspection_rich_formatting,
+        )
+
+        content = "def print_introspection():\n    return {'name': 'test'}\n"
+        tree = ast.parse(content)
+        result = check_introspection_rich_formatting(tree, "test.py")
         assert result is None
 
 

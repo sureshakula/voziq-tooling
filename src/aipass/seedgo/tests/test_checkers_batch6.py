@@ -163,16 +163,27 @@ class TestArchCheckFileSize:
         assert result["passed"] is True
         assert "getting heavy" in result["message"]
 
-    def test_oversized_file_fails(self):
-        """700+ lines fails the size check."""
+    def test_advisory_file_passes(self):
+        """700-1500 lines is advisory — passes but warns."""
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
             check_file_size,
         )
 
         lines: list[str] = ["x"] * 750
+        result = check_file_size(lines, "big.py")
+        assert result["passed"] is True
+        assert "advisory" in result["message"]
+
+    def test_oversized_file_fails(self):
+        """1500+ lines hard-fails the size check."""
+        from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
+            check_file_size,
+        )
+
+        lines: list[str] = ["x"] * 1600
         result = check_file_size(lines, "huge.py")
         assert result["passed"] is False
-        assert "consider splitting" in result["message"]
+        assert "must split" in result["message"]
 
 
 # -- check_handler_independence (architecture) --------------------------------
@@ -314,8 +325,8 @@ class TestCheckTemplateBaseline:
         assert result[0]["passed"] is False
         assert "Could not detect branch path" in result[0]["message"]
 
-    def test_missing_citizen_class(self, tmp_path):
-        """Branch without passport.json fails the citizen_class check."""
+    def test_missing_passport_skips(self, tmp_path):
+        """Branch without passport.json skips template baseline (gitignored)."""
         from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
             check_template_baseline,
         )
@@ -324,6 +335,24 @@ class TestCheckTemplateBaseline:
         apps_dir.mkdir(parents=True)
         entry = apps_dir / "mybranch.py"
         entry.write_text('"""Entry."""\n', encoding="utf-8")
+
+        result = check_template_baseline(str(entry))
+        assert result == []
+
+    def test_passport_without_citizen_class(self, tmp_path):
+        """Branch with passport.json but no citizen_class fails."""
+        from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
+            check_template_baseline,
+        )
+
+        apps_dir = tmp_path / "mybranch" / "apps"
+        apps_dir.mkdir(parents=True)
+        entry = apps_dir / "mybranch.py"
+        entry.write_text('"""Entry."""\n', encoding="utf-8")
+        trinity = tmp_path / "mybranch" / ".trinity"
+        trinity.mkdir()
+        passport = trinity / "passport.json"
+        passport.write_text('{"identity": {}}', encoding="utf-8")
 
         result = check_template_baseline(str(entry))
         assert len(result) >= 1

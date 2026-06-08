@@ -283,12 +283,6 @@ def detect_pollution(agents: List[AgentInfo]) -> List[PollutionHit]:
 # =============================================================================
 
 
-def find_registry(project_root: Path) -> Optional[Path]:
-    """Find *_REGISTRY.json under project_root."""
-    candidates = list(project_root.glob("*_REGISTRY.json"))
-    return candidates[0] if candidates else None
-
-
 def check_registry_consistency(
     registry_path: Path,
     agents: List[AgentInfo],

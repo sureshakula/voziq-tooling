@@ -133,6 +133,7 @@ def branch_dir(tmp_path):
     (branch / "tests" / "__init__.py").write_text("")
     (branch / ".archive").mkdir()
     (branch / "docs").mkdir()
+    (branch / ".spawn").mkdir()
 
     return branch
 
@@ -346,33 +347,12 @@ class TestUpdateBranch:
         assert "{{branchname}}" not in content
         assert "test_branch" in content
 
-    def test_pruned_files_archived(self, tmp_path, template_dir, branch_dir, mock_registry):
-        """Files removed from template should be archived, not deleted."""
+    def test_extra_files_not_pruned(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """P1 engine never prunes — extra branch files are left untouched."""
         from aipass.spawn.apps.handlers.update_ops import update_branch
 
-        # Create a file in the branch that's tracked in branch_meta but NOT in template
         extra_file = branch_dir / "old_config.json"
         extra_file.write_text(json.dumps({"old": True}))
-
-        # Create branch_meta that tracks this file
-        spawn_dir = branch_dir / ".spawn"
-        spawn_dir.mkdir(exist_ok=True)
-
-        # Generate branch meta, then add the extra file tracking manually
-        from aipass.spawn.apps.handlers.meta_ops import generate_branch_meta, save_branch_meta, compute_file_hash
-
-        reg_path = template_dir / ".spawn" / ".template_registry.json"
-        template_registry = json.loads(reg_path.read_text())
-
-        meta = generate_branch_meta(branch_dir, template_registry)
-        # Add the extra file with a unique ID that's NOT in the template
-        meta["file_tracking"]["f_extra"] = {
-            "template_name": "old_config.json",
-            "current_name": "old_config.json",
-            "current_path": "old_config.json",
-            "content_hash": compute_file_hash(extra_file),
-        }
-        save_branch_meta(branch_dir, meta)
 
         with (
             patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
@@ -381,15 +361,109 @@ class TestUpdateBranch:
             result = update_branch("test_branch")
 
         assert result["success"] is True
-        assert result["pruned"] >= 1
+        assert result["pruned"] == 0
+        assert extra_file.exists()
 
-        # Original file should be gone from its original location
-        assert not extra_file.exists()
 
-        # Should be in .archive/
-        archive_dir = branch_dir / ".archive"
-        archived_files = list(archive_dir.glob("old_config.json*"))
-        assert len(archived_files) >= 1
+class TestNeverUpdateGuard:
+    """Tests for create-only file protection (P1 engine, TDPLAN-0006)."""
+
+    def test_trinity_files_never_touched(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """Update must never modify .trinity/ files even when template has them."""
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+
+        # Add .trinity/ to template
+        trinity_tpl = template_dir / ".trinity"
+        trinity_tpl.mkdir(exist_ok=True)
+        (trinity_tpl / "passport.json").write_text('{"identity": {"role": "template"}}')
+        (trinity_tpl / "local.json").write_text('{"sessions": []}')
+
+        # Add .trinity/ to branch with different content
+        trinity_branch = branch_dir / ".trinity"
+        trinity_branch.mkdir(exist_ok=True)
+        (trinity_branch / "passport.json").write_text('{"identity": {"role": "real_agent"}}')
+        (trinity_branch / "local.json").write_text('{"sessions": [{"id": 1}]}')
+
+        passport_before = (trinity_branch / "passport.json").read_text()
+        local_before = (trinity_branch / "local.json").read_text()
+
+        with (
+            patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
+            patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
+        ):
+            result = update_branch("test_branch")
+
+        assert result["success"] is True
+        assert (trinity_branch / "passport.json").read_text() == passport_before
+        assert (trinity_branch / "local.json").read_text() == local_before
+
+    def test_dashboard_never_touched(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """Update must never modify DASHBOARD.local.json even when template differs."""
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+
+        dashboard = branch_dir / "DASHBOARD.local.json"
+        dashboard_before = dashboard.read_text()
+
+        with (
+            patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
+            patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
+        ):
+            result = update_branch("test_branch")
+
+        assert result["success"] is True
+        assert dashboard.read_text() == dashboard_before
+
+    def test_zero_renames_always(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """P1 engine never proposes renames."""
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+
+        with (
+            patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
+            patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
+        ):
+            result = update_branch("test_branch", dry_run=True)
+
+        assert result["renames"] == 0
+        assert result.get("_renames_detail", []) == []
+
+    def test_backup_lands_in_spawn_recovery(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """JSON merge backups should land in .spawn/.recovery/, not branch root .recovery/."""
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+
+        config_tpl = template_dir / "config.json"
+        config_tpl.write_text(json.dumps({"version": "2.0", "new_key": "added"}, indent=2))
+        config_branch = branch_dir / "config.json"
+        config_branch.write_text(json.dumps({"version": "1.0"}, indent=2))
+
+        with (
+            patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
+            patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
+        ):
+            result = update_branch("test_branch")
+
+        assert result["updates"] >= 1
+        spawn_recovery = branch_dir / ".spawn" / ".recovery"
+        assert spawn_recovery.is_dir()
+        backups = list(spawn_recovery.glob("config.json.*.backup"))
+        assert len(backups) == 1
+        root_recovery = branch_dir / ".recovery"
+        assert not root_recovery.exists()
+
+    def test_create_update_invariant(self, tmp_path, template_dir, branch_dir, mock_registry):
+        """Fresh branch from template should show 0 changes on update."""
+        from aipass.spawn.apps.handlers.update_ops import update_branch
+
+        with (
+            patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
+            patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
+        ):
+            result = update_branch("test_branch", dry_run=True)
+
+        assert result["success"] is True
+        assert result["additions"] == 0
+        assert result["renames"] == 0
+        assert result["updates"] == 0
+        assert result["pruned"] == 0
 
 
 class TestUpdateAll:

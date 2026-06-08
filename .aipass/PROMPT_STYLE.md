@@ -17,7 +17,7 @@ Goal: signal density over prose. Prompts are injected every turn — every line 
 
 # What NOT to put in a prompt
 
- - Session state, current work, in-flight issues. That goes in `STATUS.local.md` and `.trinity/local.json`.
+ - Session state, current work, in-flight issues. That goes in `.trinity/local.json` (todos[]) and `DASHBOARD.local.json`.
  - Long explanations of how a system works. Plant a breadcrumb ("see `@branch --help`") and move on.
  - Personal notes ("remember, you like short replies"). That goes in `.trinity/observations.json`.
  - Version numbers, PR numbers, dates. Those rot within days.

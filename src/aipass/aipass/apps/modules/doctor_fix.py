@@ -25,6 +25,8 @@ from typing import List, NamedTuple
 from aipass.cli.apps.modules import console
 from aipass.prax import logger
 
+from aipass.common.registry_discovery import find_registry as _discover_registry
+
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_placement,
@@ -32,7 +34,6 @@ from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_registry_consistency,
     check_root_artifacts,
     detect_pollution,
-    find_registry,
     scan_agents,
 )
 
@@ -58,8 +59,8 @@ class RemediationItem(NamedTuple):
 
 def detect_project_name(project_root: Path) -> str:
     """Derive project name from registry filename or directory name."""
-    reg = find_registry(project_root)
-    if reg:
+    reg = _discover_registry(start_path=project_root)
+    if reg and reg.exists():
         name = reg.stem.replace("_REGISTRY", "").lower()
         if name:
             return name
@@ -83,7 +84,7 @@ def _build_pollution_items(agents: list, project: str) -> List[RemediationItem]:
                     f"Registry pollution: {len(hit.locations)} copies of "
                     f"{hit.agent_name} share registry_id {hit.registry_id}"
                 ),
-                fix_command=f"drone @spawn repair @{project} --clean-pollution",
+                fix_command=f"drone @spawn repair @{project} --clean-pollution --apply",
             )
         )
     return items
@@ -104,7 +105,7 @@ def _build_placement_items(agents: list, project_root: Path, project: str) -> Li
                 severity="warning",
                 category="placement",
                 description=f"Misplaced agent: {issue.agent_name} at {rel_path}",
-                fix_command=f"drone @spawn repair @{project} --relocate {rel_path} {suggested}",
+                fix_command=f"drone @spawn repair @{project} --relocate {rel_path} {suggested} --apply",
             )
         )
     return items
@@ -113,8 +114,8 @@ def _build_placement_items(agents: list, project_root: Path, project: str) -> Li
 def _build_registry_items(project_root: Path, agents: list, project: str) -> List[RemediationItem]:
     """Build remediation items for registry consistency issues."""
     items: List[RemediationItem] = []
-    reg_path = find_registry(project_root)
-    if not reg_path:
+    reg_path = _discover_registry(start_path=project_root)
+    if not reg_path or not reg_path.exists():
         return items
     for issue in check_registry_consistency(reg_path, agents):
         items.append(
@@ -122,7 +123,7 @@ def _build_registry_items(project_root: Path, agents: list, project: str) -> Lis
                 severity="warning",
                 category="registry",
                 description=f"Registry {issue.problem}: {issue.branch_name} at {issue.registered_path}",
-                fix_command=f"drone @spawn repair @{project} --dedup-registry",
+                fix_command=f"drone @spawn repair @{project} --dedup-registry --apply",
             )
         )
     return items
@@ -145,7 +146,7 @@ def generate_remediation(project_root: Path) -> List[RemediationItem]:
                 severity="info",
                 category="pyproject",
                 description="Missing pyproject.toml",
-                fix_command=f"drone @spawn repair @{project} --add-pyproject",
+                fix_command=f"drone @spawn repair @{project} --add-pyproject --apply",
             )
         )
 
@@ -156,7 +157,7 @@ def generate_remediation(project_root: Path) -> List[RemediationItem]:
                 severity=severity,
                 category="root_artifact",
                 description=f"{hit.description}: {hit.name}/",
-                fix_command=f"drone @spawn repair @{project} --relocate-root {hit.name}",
+                fix_command=f"drone @spawn repair @{project} --relocate-root {hit.name} --apply",
             )
         )
 
@@ -184,7 +185,8 @@ def format_text_report(items: List[RemediationItem], project_name: str) -> str:
         lines.append(f"[{item.severity.upper()}] {item.description}")
         lines.append(f"  Fix: {item.fix_command}")
         lines.append("")
-    lines.append(f"Preview all fixes: drone @spawn repair @{project_name} --dry-run")
+    lines.append(f"Preview all fixes: drone @spawn repair @{project_name}")
+    lines.append(f"Apply all fixes:  drone @spawn repair @{project_name} --apply")
     return "\n".join(lines)
 
 

@@ -471,3 +471,56 @@ def test_check_module_missing_readme_has_8_failures(tmp_path):
     result = check_module(str(entry))
     assert len(result["checks"]) == 8
     assert result["score"] == 0
+
+
+def test_is_runtime_artifact_known_dirs():
+    """_is_runtime_artifact recognizes known runtime dirs and suffixes."""
+    from pathlib import Path
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        _is_runtime_artifact,
+    )
+
+    assert _is_runtime_artifact(Path("/any/path/logs")) is True
+    assert _is_runtime_artifact(Path("/any/path/artifacts")) is True
+    assert _is_runtime_artifact(Path("/any/path/.trinity")) is True
+    assert _is_runtime_artifact(Path("/any/path/cli_json")) is True
+    assert _is_runtime_artifact(Path("/any/path/seedgo_json")) is True
+    assert _is_runtime_artifact(Path("/any/path/STATUS.local.md")) is False
+    assert _is_runtime_artifact(Path("/any/path/DASHBOARD.local.json")) is True
+    assert _is_runtime_artifact(Path("/any/path/docs.local")) is True
+    assert _is_runtime_artifact(Path("/any/path/dropbox")) is True
+    assert _is_runtime_artifact(Path("/any/path/system_logs")) is True
+    assert _is_runtime_artifact(Path("/any/path/src")) is False
+    assert _is_runtime_artifact(Path("/any/path/apps")) is False
+    assert _is_runtime_artifact(Path("/any/path/tests")) is False
+
+
+def test_directory_tree_passes_absent_runtime_dir(tmp_path):
+    """Parity regression: README tree lists runtime dir (logs), dir absent on
+    disk, no git available — tree check passes via _is_runtime_artifact."""
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_directory_tree,
+    )
+
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    apps_dir = branch_root / "apps"
+    apps_dir.mkdir()
+    (apps_dir / "modules").mkdir()
+
+    lines = [
+        "## Architecture",
+        "```",
+        "mybranch/",
+        "├── apps/",
+        "│   └── modules/",
+        "├── logs/",
+        "├── cli_json/",
+        "└── artifacts/",
+        "```",
+    ]
+
+    result = check_directory_tree(lines, branch_root, str(apps_dir / "entry.py"))
+    assert result["passed"] is True
+    assert "verified" in result["message"]

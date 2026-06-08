@@ -16,6 +16,12 @@ from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: F40
 
 CONSOLE = err_console
 
+HELP_COMMANDS = [
+    ("hooksound on", "Unmute all hook sounds"),
+    ("hooksound off", "Mute all hook sounds"),
+    ("hooksound", "Show current sound status"),
+]
+
 
 def print_introspection():
     """Print module structure for drone routing."""

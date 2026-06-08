@@ -183,21 +183,16 @@ def test_required_sections_alternate_names():
 # ===========================================================================
 
 
-def test_last_updated_freshness_present(tmp_path):
-    """README with recent Last Updated passes."""
-    from datetime import datetime
-
-    today = datetime.now().strftime("%Y-%m-%d")
+def test_last_updated_freshness_date_present(tmp_path):
+    """Well-formed Last Updated date passes."""
     lines: List[str] = [
         "# Branch",
-        f"*Last Updated: {today}*",
+        "*Last Updated: 2026-06-01*",
         "",
     ]
     branch_root = tmp_path / "mybranch"
     branch_root.mkdir()
-    apps_dir = branch_root / "apps"
-    apps_dir.mkdir()
-    (apps_dir / "entry.py").write_text("pass", encoding="utf-8")
+    (branch_root / "apps").mkdir()
 
     from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
         check_last_updated_freshness,
@@ -205,6 +200,47 @@ def test_last_updated_freshness_present(tmp_path):
 
     result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
     assert result["passed"] is True
+    assert "present" in result["message"]
+
+
+def test_last_updated_freshness_bold_format(tmp_path):
+    """Bold markdown format for Last Updated date passes."""
+    lines: List[str] = [
+        "# Branch",
+        "**Last Updated:** 2026-05-18",
+        "",
+    ]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    (branch_root / "apps").mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    assert result["passed"] is True
+    assert "2026-05-18" in result["message"]
+
+
+def test_last_updated_freshness_malformed_date(tmp_path):
+    """Malformed date (regex matches but strptime fails) fails."""
+    lines: List[str] = [
+        "# Branch",
+        "*Last Updated: 2026-13-45*",
+        "",
+    ]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+    (branch_root / "apps").mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py")
+    assert result["passed"] is False
+    assert "Malformed" in result["message"]
 
 
 def test_last_updated_freshness_missing():
@@ -219,12 +255,26 @@ def test_last_updated_freshness_missing():
         check_last_updated_freshness,
     )
 
-    # branch_root doesn't matter since date is missing
     from pathlib import Path
 
     result = check_last_updated_freshness(lines, Path("/nonexistent"), "/fake/apps/entry.py")
     assert result["passed"] is False
     assert "Last Updated" in result["message"]
+
+
+def test_last_updated_freshness_bypassed(tmp_path):
+    """Bypassed freshness check passes immediately."""
+    lines: List[str] = ["# Branch", "No date.", ""]
+    branch_root = tmp_path / "mybranch"
+    branch_root.mkdir()
+
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_last_updated_freshness,
+    )
+
+    bypass = [{"file": "/fake/apps/entry.py", "standard": "readme"}]
+    result = check_last_updated_freshness(lines, branch_root, "/fake/apps/entry.py", bypass)
+    assert result["passed"] is True
 
 
 # ===========================================================================

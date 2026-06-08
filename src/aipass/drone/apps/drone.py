@@ -25,7 +25,6 @@ from rich.text import Text
 from aipass.prax import logger
 from aipass.cli.apps.modules import console, err_console
 from aipass.drone.apps.modules import BranchNotFoundError, CommandExecutionError, RegistryError
-from aipass.drone.apps.modules.discovery import get_help
 from aipass.drone.apps.modules.resolver import get_all_branches
 from aipass.drone.apps.modules.router import route_command
 from aipass.drone.apps.modules.module_registry import (
@@ -41,7 +40,7 @@ VERSION = "1.1.0"
 MODULES_DIR = Path(__file__).parent / "modules"
 
 # Interactive mode — commands/branches that bypass capture + timeout for live terminal output.
-INTERACTIVE_COMMANDS = ("monitor", "audit", "watchdog")
+INTERACTIVE_COMMANDS = ("monitor", "audit", "watchdog", "status")
 INTERACTIVE_BRANCHES = ("cli",)
 
 
@@ -111,12 +110,7 @@ def print_help() -> None:
 
 
 def print_introspection() -> None:
-    """Alias for seedgo standard compliance (audit expects print_introspection)."""
-    show_introspection()
-
-
-def show_introspection() -> None:
-    """Show discovery view (no args) — auto-discovers modules."""
+    """Display branch overview — auto-discovers modules."""
     console.print()
     console.print("[bold cyan]Drone - Command Router & Discovery[/bold cyan]")
     console.print()
@@ -413,8 +407,9 @@ def _handle_target(args: List[str]) -> int:
     rest = args[1:]
     module_name = target.lstrip("@").lower()
 
-    first_cmd = rest[0] if rest and rest[0] != "--help" else None
-    needs_interactive = first_cmd in INTERACTIVE_COMMANDS or module_name in INTERACTIVE_BRANCHES
+    first_cmd = rest[0] if rest and rest[0] not in ("--help", "-h") else None
+    is_presentational = not rest or first_cmd is None
+    needs_interactive = is_presentational or first_cmd in INTERACTIVE_COMMANDS or module_name in INTERACTIVE_BRANCHES
 
     # Route to internal module — unless command needs interactive terminal,
     # in which case fall through to branch (subprocess) routing so Rich
@@ -422,10 +417,10 @@ def _handle_target(args: List[str]) -> int:
     if is_module(module_name) and not needs_interactive:
         return _handle_module(module_name, rest)
 
-    # No args = pass through to branch (introspection)
+    # No args = pass through to branch (introspection — inherit terminal for color)
     if not rest:
         try:
-            result = route_command(target)
+            result = route_command(target, interactive=True)
         except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
             if isinstance(exc, BranchNotFoundError) and is_module(module_name):
                 logger.info("Falling back to module routing for @%s (not in local registry)", module_name)
@@ -435,30 +430,22 @@ def _handle_target(args: List[str]) -> int:
             if isinstance(exc, BranchNotFoundError) and not os.environ.get("AIPASS_HOME"):
                 err_console.print("  Tip: set AIPASS_HOME=/path/to/AIPass to access core branches.")
             return 1
-        if result.stdout:
-            console.print(result.stdout, end="", highlight=False)
-        if result.stderr:
-            err_console.print(result.stderr, end="", highlight=False)
         return result.exit_code
 
-    # --help = show help
-    if rest == ["--help"]:
+    # --help / -h = help (inherit terminal for color)
+    if rest in (["--help"], ["-h"]):
         try:
-            result = get_help(target)
-            if result.text:
-                console.print(result.text, end="", highlight=False)
-            else:
-                console.print(f"No help available for {target}.")
+            result = route_command(target, rest[0], interactive=True)
         except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
             if isinstance(exc, BranchNotFoundError) and is_module(module_name):
-                logger.info("Falling back to module routing for @%s --help (not in local registry)", module_name)
+                logger.info("Falling back to module routing for @%s %s (not in local registry)", module_name, rest[0])
                 return _handle_module(module_name, rest)
             logger.warning("Help lookup failed for %s: %s", target, exc)
             err_console.print(f"drone: {exc}")
             if isinstance(exc, BranchNotFoundError) and not os.environ.get("AIPASS_HOME"):
                 err_console.print("  Tip: set AIPASS_HOME=/path/to/AIPass to access core branches.")
             return 1
-        return 0
+        return result.exit_code
 
     # drone @branch command [args...]
     command = rest[0]

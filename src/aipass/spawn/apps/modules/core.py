@@ -63,24 +63,32 @@ DEFAULT_TEMPLATE = Path(__file__).parents[2] / "templates" / "builder"
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("core Module")
+    console.print("[bold cyan]core Module[/bold cyan]")
     console.print("Agent creation orchestrator — full spawn workflow from template to registry")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - metadata.py (get_branch_name, normalize_branch_name, detect_profile — branch identity)")
-    console.print("    - placeholders.py (build_replacements_dict, validate_no_placeholders — template substitution)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
     console.print(
-        "    - file_ops.py (copy_template, rename_placeholder_paths, regenerate_template_registry, ensure_directory — filesystem ops)"
+        "    [dim]- metadata.py (get_branch_name, normalize_branch_name, detect_profile — branch identity)[/dim]"
     )
     console.print(
-        "    - meta_ops.py (load_template_registry, generate_branch_meta, save_branch_meta — branch metadata)"
+        "    [dim]- placeholders.py (build_replacements_dict, validate_no_placeholders — template substitution)[/dim]"
     )
     console.print(
-        "    - registry.py (find_registry, add_to_registry, get_next_citizen_number — AIPASS_REGISTRY management)"
+        "    [dim]- file_ops.py (copy_template, rename_placeholder_paths,"
+        " regenerate_template_registry, ensure_directory — filesystem ops)[/dim]"
     )
     console.print(
-        "    - class_registry.py (validate_class, get_default_class, get_available_classes, get_template_dir — citizen class lookup)"
+        "    [dim]- meta_ops.py"
+        " (load_template_registry, generate_branch_meta, save_branch_meta — branch metadata)[/dim]"
+    )
+    console.print(
+        "    [dim]- registry.py"
+        " (find_registry, add_to_registry, get_next_citizen_number — AIPASS_REGISTRY management)[/dim]"
+    )
+    console.print(
+        "    [dim]- class_registry.py (validate_class, get_default_class,"
+        " get_available_classes, get_template_dir — citizen class lookup)[/dim]"
     )
     console.print()
 

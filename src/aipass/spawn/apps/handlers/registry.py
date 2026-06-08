@@ -8,7 +8,6 @@
 
 """*_REGISTRY.json discovery and CRUD operations."""
 
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -34,59 +33,20 @@ def branches_as_list(branches):
     return []
 
 
-def _glob_registry(directory):
-    """Find the first *_REGISTRY.json in a directory (sorted for consistency).
-
-    Args:
-        directory: Path to search in
-
-    Returns:
-        Path to the registry file, or None if not found
-    """
-    matches = sorted(directory.glob("*_REGISTRY.json"))
-    return matches[0] if matches else None
-
-
 def find_registry(start_path=None):
-    """
-    Find *_REGISTRY.json — walks up from __file__ and start_path/cwd.
+    """Find *_REGISTRY.json — delegates to aipass.common.registry_discovery.
 
-    The first *_REGISTRY.json found while walking up IS the project boundary.
-    If multiple exist in the same directory, picks the first alphabetically.
-
-    Priority:
-    1. AIPASS_REGISTRY environment variable
-    2. Walk up from __file__ — first dir containing *_REGISTRY.json
-    3. Walk up from start_path/cwd — first dir containing *_REGISTRY.json
-    4. Last resort: cwd / AIPASS_REGISTRY.json (backwards compat)
+    Passes spawn's package root as the fallback for editable installs.
 
     Args:
-        start_path: Directory to start searching from
+        start_path: Directory to start searching from.
 
     Returns:
-        Path to *_REGISTRY.json
+        Path to *_REGISTRY.json.
     """
-    # Check environment variable first (same as drone's config.py)
-    env_path = os.environ.get("AIPASS_REGISTRY")
-    if env_path:
-        return Path(env_path)
+    from aipass.common.registry_discovery import find_registry as _common_find
 
-    # Walk up from start_path or cwd FIRST — user's location takes priority
-    current = Path(start_path).resolve() if start_path else Path.cwd()
-    for parent in [current] + list(current.parents):
-        found = _glob_registry(parent)
-        if found:
-            return found
-
-    # Walk up from package location (fallback for editable installs)
-    pkg_dir = Path(__file__).resolve().parent
-    for parent in [pkg_dir] + list(pkg_dir.parents):
-        found = _glob_registry(parent)
-        if found:
-            return found
-
-    # Last resort: cwd
-    return Path.cwd() / "AIPASS_REGISTRY.json"
+    return _common_find(start_path=start_path, package_root=Path(__file__).resolve().parent)
 
 
 def load_registry(registry_path):

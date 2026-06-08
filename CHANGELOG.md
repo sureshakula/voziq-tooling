@@ -10,8 +10,151 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W23] - 2026-06-02
 
+### Fixed
+
+- **`aipass init` scaffold correctness.** A fresh `aipass init` now generates a
+  project-specific `AGENTS.md` (new `agents_md()` generator) instead of falling
+  back to copying AIPass's own repo-root `AGENTS.md` boilerplate — Codex users
+  were getting the wrong file. Project `README.md` quick-start/structure paths
+  now reflect the real `src/<package>/<agent>/` layout.
+- **First-agent default name `my-agent` → `my_agent`.** `aipass init` seeded its
+  default agent with a hyphen, the lone source of a long-standing dir-vs-module
+  mismatch (the directory kept the hyphen while the importable module, `@address`
+  and registry name all normalize to underscore). Defaulting to `my_agent` makes
+  directory, module, `@address` and the README example all consistent.
+- **Dead `citizenship.registry_path` removed from spawn templates.** The field
+  pointed at a non-existent `.aipass/registry.json`; it was never read anywhere
+  (registry is located by `find_registry()` glob), so it's dropped from the
+  `builder` and `birthright` passport templates.
+
+### Removed
+
+- **The entire STATUS flow is decommissioned (TDPLAN-0007).** The per-branch
+  hand-maintained `STATUS.local.md` beacon and the auto-aggregated central
+  `STATUS.md` (853 lines / 70 KB nobody read) are gone — deleted from disk
+  across all 13 branches and scrubbed from every prompt, doc, startup protocol,
+  `/prep` + `/memo` skill, the compact-recovery hook, the email footer, and
+  `aipass init` / spawn scaffolding. Live branch state was already fully covered
+  by `DASHBOARD.local.json` (prax) and history by `.trinity/local.json`. The
+  status-sync engine is kept **intact but inert** — made dormant by unwiring its
+  3-line trigger registration (`trigger registry.py`), so the code stays
+  revivable. The one thing STATUS uniquely gave us — a quick scratch todo — is
+  replaced by an operational `todos[]` section in `.trinity/local.json`
+  (@memory-owned schema, capped, never vectorized by rollover), pushed to all 13
+  branches and surfaced as a `todo_count` on the dashboard. Shipped as one
+  coordinated cross-branch change (memory, prax, trigger, aipass, spawn, hooks,
+  ai_mail, seedgo + devpulse).
+
+### Changed
+
+- **All 13 branches at seedgo 100% under the new introspection standard.**
+  Wrapped `print_introspection()` output in Rich markup across ai_mail, drone,
+  spawn, trigger, prax and devpulse (the rest were already compliant) —
+  presentation only, no logic change — so `drone @branch` with no args renders
+  consistent styled output everywhere.
+- **CLI polish for human-facing output.** `drone @hooks --help` rewritten (Rich,
+  with `hooksound on/off/status` now surfaced); `drone @spawn` repair help
+  clarified as distinct from `update` and showing the preview/`--apply` flow;
+  drone restores Rich colour on human-facing routed output (`--help`,
+  introspection, `status`) via the inherit path.
+- **Spawn backups land in one namespace `.spawn/.recovery/` (TDPLAN-0006 P4).**
+  Spawn's pre-merge JSON backups previously dropped a `.recovery/` directory at
+  each branch root (which had accumulated 242 stale auto-generated `DASHBOARD`
+  backups across 10 branches). `aipass.common.json_ops.backup_json` gained an
+  optional `backup_dir` parameter (default unchanged), and spawn's update engine
+  now directs backups to `{branch}/.spawn/.recovery/` — tucked under the
+  spawn-managed `.spawn/` dir instead of cluttering the branch root. Memory stays
+  in the safety net (the engine simply never touches `.trinity/`/`DASHBOARD` on
+  update, so it never needs to back them up). Stale `.recovery/` backups cleaned
+  up. (315 tests, seedgo 100%.)
+- **No more cross-branch engine imports — `aipass init update` calls spawn via
+  subprocess (TDPLAN-0006 P3).** `init_flow.py` previously did
+  `from aipass.spawn.apps.modules.sync_registry import sync_registry` — the one
+  place aipass reached directly into spawn's Python. Replaced with a subprocess
+  call to the already-existing `drone @spawn sync-registry --fix` (same pattern as
+  `aipass init agent` → `drone @spawn create`), preserving graceful degradation
+  (a missing `drone`, non-zero exit, or timeout is silently skipped — registry
+  sync never hard-fails an update). The aipass branch now has **zero** direct
+  imports of another branch's engine code; the remaining cross-branch imports are
+  shared service layers only (cli Rich UI, prax logging, trigger events). (438
+  tests, seedgo 100%.)
+- **`aipass.common` shared library — dedup spawn/aipass scaffold machinery
+  (TDPLAN-0006 P2).** `@spawn` and `@aipass` each carried their own copy of the
+  JSON merge/handler utilities and registry discovery. Extracted them into a new
+  branch-free package `src/aipass/common/` (`json_ops` = `deep_merge` +
+  `backup_json`; `json_handler.JsonHandler`; `registry_discovery.find_registry`)
+  that both branches now import. `aipass.common` imports **zero** branch code, so
+  `aipass/bootstrap.py` (which runs before the drone runtime exists) can depend on
+  it without breaking the pre-infrastructure constraint. The duplicated copies are
+  deleted (spawn keeps a thin re-export shim; aipass's `json_handler` shrank
+  254 → 88 lines). The `save_json` contract is unified to **raise `ValueError`**
+  on invalid structure across both branches. (313 spawn + 434 aipass tests, both
+  seedgo 100%.)
+
+### Fixed
+
+- **Flow plan-type self-serve UX — register override, help, orphan cleanup.**
+  Explicit `drone @flow register <dir> <PREFIX>` now overrides an auto-derived
+  prefix instead of silently failing (guarded — refuses if the auto-registered
+  type already holds plans), so custom prefixes are settable when adding a new
+  plan type. `create`/`templates --help` rewritten to dynamically list registered
+  types + templates and document the add-a-new-type workflow. Stale orphan plan
+  registries removed; dead `prefix_exists()` dropped. (728 tests, seedgo 100%.)
+- **`drone @spawn update` no longer scrambles branches (#636, critical — TDPLAN-0006
+  P0+P1).** The update engine compared a freshly-created branch against the class
+  template by *content hash* with rename-detection, and because the CREATE path
+  regenerated template-registry IDs in filesystem-walk order (≠ the master's
+  hand-crafted IDs), a branch created seconds earlier produced **30 proposed renames**
+  that rotated identity/memory dirs into each other
+  (`apps→.trinity→.seedgo→.claude→.archive→.aipass`), turned `README` into
+  `DASHBOARD`, and deep-merged stale template into live `.trinity/` memory —
+  `update <class> --all` would have destroyed every citizen in one command. Rebuilt
+  `update_ops.py` (v2.0) on an explicit **named-managed-files + path-based** model:
+  `.trinity/*`, `DASHBOARD.local.json`, `artifacts/birth_certificate.json` and
+  `.seedgo/bypass.json` are delivered on **create only** and never touched on update;
+  the create==update invariant now yields **0 renames / 0 merges** on a fresh branch.
+  The old ID-based engine (`change_detection.py`, `reconcile.py`) is deleted.
+- **Destructive spawn ops are now dry-run by default (TDPLAN-0006 P0).** `drone @spawn
+  update` and `drone @spawn repair` preview by default and require an explicit
+  `--apply` to write — forgetting a flag is now a safe no-op instead of irreversible
+  damage (`--dry-run` kept as an alias). `aipass doctor` repair suggestions emit the
+  matching `--apply` form.
+
 ### Added
 
+- **Introspection Rich-formatting standard (seedgo).** New
+  `check_introspection_rich_formatting` checker enforces that each branch's
+  `print_introspection()` output uses Rich markup (delegation-aware — it walks
+  `_`-prefixed helper functions), keeping no-arg `drone @branch` output styled and
+  consistent. Documented in `introspection.md`; all 13 branches brought into
+  compliance (see Changed).
+- **Playbook plan type (`PBPLAN`) — reusable SOP checklists (flow).** A new
+  `playbook_plans` template family for throwaway, vectorize-on-close operational
+  runbooks (first SOP: the Sunday merge). Drop a `.md` under
+  `templates/playbook_plans/`, register once, then
+  `drone @flow create . "subject" <sop>` stamps a run to tick through and close.
+- **Memory-pool auto-processing (TDPLAN-0005)** — dropped files in
+  `memory/memory_pool/` are now vectorized and archived automatically on
+  session-start and pre-compact, instead of requiring a manual
+  `drone @memory pool process`. A 3-branch build: `@memory` gains an intake
+  handler + `pool` module (processes then empties the pool, `keep_recent=0`),
+  `@hooks` adds a `lifecycle/auto_process` handler (session-guarded via
+  `CLAUDE_CODE_SESSION_ID`, since Claude Code has no SessionStart hook), and
+  `@trigger` gains event #15 (`memory_pool_auto_processed`) with a Medic error
+  path. Runtime pool dirs (`memory_pool/`, `memory_pool_archive/`) are now
+  gitignored.
+- **HVTracker badge** added to the README badge cluster, linking to the public
+  agent profile at hvtracker.net (closes #628).
+- **`git_gate` read-verb allowlist — raw read-only git for every branch.** The
+  PreToolUse `git_gate` previously blocked *all* raw git (forcing `drone @git`
+  even for harmless reads), which left agents unable to inspect what git ships —
+  the exact forensics needed to diagnose the audit gap above. It now allows 22
+  read-only verbs raw (`ls-files`, `ls-tree`, `show`, `cat-file`, `rev-parse`,
+  `rev-list`, `log`, `status`, `diff`, `blame`, `archive`, `grep`, …) while
+  write operations stay `drone`-gated. Global options (`-C`, `-c`, `--git-dir`,
+  …) are skipped when extracting the verb, and chained commands are split on
+  `&&`/`||`/`;`/`|` so a read piped into a write still blocks the whole line.
+  (81 tests)
 - **Cross-OS end-to-end WIRING test (`tests/e2e/`, `e2e-wheel.yml`)** — the first
   CI gate that proves real AIPass *wiring* (not units-with-mocks) by building the
   wheel, installing it into a clean venv, and asserting a 4-tier ladder: package
@@ -53,6 +196,22 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Changed
 
+- **Standards floor raised to genuine 100% across all 13 branches** — completed
+  the campaign that lifted the seedgo gate threshold from 80 to 100. Rather than
+  bypass failing files, two check *flaws* were fixed at the root: (1) the
+  **file-size / architecture check is now advisory** (warn-only for 700–1500 line
+  files with no docstring nudge, hard-fail only above 1500) — large files are a
+  smell, not a defect; (2) **readme-freshness now compares against git history,
+  not file mtime** — `git checkout`/`merge` reset mtimes without any semantic
+  change, so the old check false-positived (flow + prax shared an identical
+  mtime from one git event, not real edits). It now diffs the README's "Last
+  Updated" against the last commit that touched `.py`. Genuine content fixes
+  where warranted (aipass requirements template + handler routing; honest README
+  content refreshes on flow, prax, devpulse). The readme-freshness **failure
+  message now teaches** the right fix ("update README content, then set the date
+  — don't just bump it"). Also optimized the devpulse watchdog poll cadence
+  (2s → 5s; the loop is cheap, so the tighter interval was wasted CPU). (#631)
+
 - **Retired the blanket `rm` deny from provider settings** — `setup.sh` and
   `aipass init` no longer ship `Bash(rm -rf*)` / `Bash(rm -r *)` deny rules
   (they were mis-filed among git rules, blocked all `/tmp` cleanup, and gave a
@@ -64,6 +223,43 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Fixed
 
+- **`Windows Test` / `macOS Test` are no longer path-filtered — they were
+  stalling PRs as required checks.** Both workflows only triggered when
+  `setup.sh`/`drone/cli.py`/`handlers/__init__.py`/`pyproject.toml` changed, but
+  branch protection lists `windows-setup`/`macos-setup` as *required*. On any PR
+  that didn't touch those paths the workflows never ran, so GitHub parked the
+  required checks as "Expected — waiting for status" indefinitely, blocking the
+  merge (the tests themselves were green — they simply didn't fire). They now run
+  on every push/PR to main/dev, like the other required lanes. (A required check
+  must never be path-filtered.)
+- **`seedgo-audit` CI gate was red despite 100% local audits — four checkers
+  validated the working tree instead of committed source.** CI audits a clean
+  `git checkout` (tracked files only — git ships no empty or gitignored dirs),
+  but the working tree carries runtime dirs (`logs/`, `*_json/`, `artifacts/`,
+  `.trinity/`, `passport.json`), so every branch scored ~97% in CI while passing
+  at 100% locally. Reproduced exactly with a tracked-only tree (`git archive HEAD`
+  audits to CI's 97%). Four checkers now measure what git actually ships:
+  `log_structure` no longer fails when the gitignored `logs/` dir is absent (it
+  still enforces no-hardcoded-paths); `readme` cross-references `.gitignore`
+  (via `git check-ignore` with a fallback list) and skips gitignored dirs/links
+  in the directory-tree and dead-link checks; `encapsulation` infers the branch
+  from the path when the gitignored `AIPASS_REGISTRY.json` is unavailable (and no
+  longer collides on the `aipass` branch); `architecture` skips cleanly when the
+  gitignored `passport.json` is absent. A follow-up refined `readme`'s
+  `git check-ignore` use: `.gitignore` dir-only patterns (trailing slash —
+  `logs/`, `**/*_json/`, `.trinity/`) don't match a clean checkout's
+  non-existent paths unless directory intent is signalled, so the check now
+  also tests the trailing-slash form (this was the last 1% — `readme` flagged
+  `cli_json`/`logs`/`artifacts` as "missing on disk" in CI only). The CI gate
+  (`.github/scripts/seedgo_audit.py`) now also prints the failing standards and
+  their check messages, so a sub-100 result says *why*, not just the percentage.
+  Finally, the `seedgo-audit` CI job now installs the `memory` extra
+  (`pip install -e ".[dev,memory]"`): the `diagnostics` standard runs pyright over
+  every branch, and memory's handlers import `chromadb`/`numpy` at module level —
+  without those declared deps installed, pyright reported them as unresolved
+  (`reportMissingImports=error`) and memory scored 55%, a false failure from a
+  missing CI dep rather than a code defect. Clean-tree and working-tree audits
+  both report 13/13 = 100%. (DPLAN-0195)
 - **Two latent Windows portability bugs caught by the new e2e harness** — both
   were always present in the code; they only surfaced now because this is the
   first CI to run `aipass init` scaffolding and real-branch `drone` routing on
@@ -128,6 +324,16 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Security
 
+- **`dependency-scan` (pip-audit) green again — upgrade pip, drop stale ignores.**
+  The `Security Scan` workflow's `dependency-scan` job had gone red: pip-audit
+  scans the whole environment, and the runner's bundled pip (26.1.1) carries
+  advisory PYSEC-2026-196 (fixed in 26.1.2). The job now runs
+  `python -m pip install --upgrade pip` before auditing (it was the only CI job
+  not upgrading pip), removing the vulnerable version outright rather than
+  suppressing it. 26.1.2 also resolves CVE-2026-3219 and CVE-2026-6357, so the
+  two now-stale `--ignore-vuln` entries were removed — verified against a clean
+  reproduction of the job's environment, which audits to "No known
+  vulnerabilities found" with nothing ignored.
 - **Pinned the `requests` floor to a non-vulnerable version** — raised
   `requests` to `>=2.34.2` in `pyproject.toml` and the API branch's
   `requirements.project.txt` (which previously listed it unconstrained). This

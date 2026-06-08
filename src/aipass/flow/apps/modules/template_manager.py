@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 from typing import List
 
+# ruff: noqa: E402
 # INFRASTRUCTURE IMPORT PATTERN
 _PKG_ROOT = Path(__file__).resolve().parents[3]  # file.py -> modules/ -> apps/ -> flow/ -> aipass/
 FLOW_ROOT = _PKG_ROOT / "flow"
@@ -84,6 +85,19 @@ def print_help():
     console.print("  drone @flow register <dir> <PREFIX>      Register new plan type")
     console.print("  drone @flow unregister <dir>             Remove plan type registration")
     console.print("  drone @flow scan                         Find unregistered template directories")
+    console.print()
+    console.print("[bold]HOW TO ADD A NEW PLAN TYPE / SOP TEMPLATE:[/bold]")
+    console.print("  1. Create a directory under templates/ (e.g. templates/playbook_plans/)")
+    console.print("  2. Add one or more .md template files (e.g. default.md, sunday_merge.md)")
+    console.print("  3. Register with your chosen prefix:")
+    console.print("     drone @flow register playbook_plans PBPLAN")
+    console.print("  4. Create plans:")
+    console.print('     drone @flow create . "Subject" pbplan')
+    console.print('     drone @flow create . "Subject" sunday_merge pbplan')
+    console.print()
+    console.print("  [dim]Auto-registration runs on any flow command if you skip step 3,[/dim]")
+    console.print("  [dim]but derives the prefix automatically. Use register to choose your own.[/dim]")
+    console.print("  [dim]Register overrides an auto-derived prefix if no plans exist yet.[/dim]")
     console.print()
     console.print("[yellow]EXAMPLES:[/yellow]")
     console.print("  [dim]# Register testing/ as TPLAN[/dim]")

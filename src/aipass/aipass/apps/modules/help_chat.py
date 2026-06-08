@@ -27,7 +27,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from aipass.aipass.apps.handlers.json import json_handler
-from aipass.aipass.apps.handlers.readme_map import get_readme_path, list_branches
+from aipass.aipass.apps.handlers.readme_map import get_readme_path, list_branches, read_readme_lines
 from aipass.cli.apps.modules import console, error, header
 from aipass.prax import logger
 
@@ -166,17 +166,15 @@ def _match_branches(keywords: list[str]) -> list[str]:
 # =============================================================================
 
 
-def _search_readme(readme_path: Path, keywords: list[str]) -> list[tuple[int, str]]:
-    """Live-read readme_path. Return (line_num, line_text) for matching lines.
+def _search_readme(branch: str, keywords: list[str]) -> list[tuple[int, str]]:
+    """Live-read branch README via handler. Return (line_num, line_text) for matching lines.
 
     Reads every call — never cached. Scores lines by number of keyword hits.
     Returns up to 5 best matches.
     """
-    try:
-        with open(readme_path, encoding="utf-8") as fh:
-            lines = fh.readlines()
-    except OSError as exc:
-        logger.warning("[help_chat] Could not read README %s: %s", readme_path, exc)
+    lines = read_readme_lines(branch)
+    if lines is None:
+        logger.warning("[help_chat] Could not read README for branch %s", branch)
         return []
 
     scored: list[tuple[int, int, str]] = []  # (score, line_num, line_text)
@@ -262,7 +260,7 @@ def handle_command(command: str, args: list[str]) -> bool:
         readme_path = get_readme_path(branch)
         if not readme_path:
             continue
-        matches = _search_readme(readme_path, keywords)
+        matches = _search_readme(branch, keywords)
         if matches:
             found_any = True
             answer = _format_answer(branch, readme_path, matches)

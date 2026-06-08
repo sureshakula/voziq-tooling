@@ -27,13 +27,14 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("update Module")
+    console.print("[bold cyan]update Module[/bold cyan]")
     console.print("Branch updates — sync single or all branches against their class templates")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
     console.print(
-        "    - update_ops.py (update_branch, update_all — renames, additions, JSON merges, pruned file archival)"
+        "    [dim]- update_ops.py (update_branch, update_all"
+        " — renames, additions, JSON merges, pruned file archival)[/dim]"
     )
     console.print()
 
@@ -89,31 +90,33 @@ def handle_update(args: list[str]) -> int:
     """
     # Intercept --help before processing (argparse has add_help=False)
     if "--help" in args or "-h" in args:
-        warning("Usage: drone @spawn update <@branch|class --all> [--dry-run] [--trace]")
+        warning("Usage: drone @spawn update <@branch|class --all> [--apply] [--dry-run] [--trace]")
         console.print()
         console.print("  [green]@branch[/green]           Update a single branch (uses its own class)")
         console.print("  [green]builder --all[/green]     Update all builder-class branches")
         console.print("  [green]birthright --all[/green]  Update all birthright-class branches")
-        console.print("  [green]--dry-run[/green]         Preview changes without modifying files")
+        console.print("  [green]--apply[/green]           Execute changes (default is preview-only)")
+        console.print("  [green]--dry-run[/green]         Preview changes without modifying files [dim](default)[/dim]")
         console.print("  [green]--trace[/green]           Enable verbose logging")
         return 0
 
     if not args:
-        warning("Usage: drone @spawn update <@branch|class --all> [--dry-run] [--trace]")
+        warning("Usage: drone @spawn update <@branch|class --all> [--apply] [--dry-run] [--trace]")
         console.print()
         console.print("  [green]@branch[/green]           Update a single branch (uses its own class)")
         console.print("  [green]builder --all[/green]     Update all builder-class branches")
         console.print("  [green]birthright --all[/green]  Update all birthright-class branches")
-        console.print("  [green]--dry-run[/green]         Preview changes without modifying files")
+        console.print("  [green]--apply[/green]           Execute changes (default is preview-only)")
+        console.print("  [green]--dry-run[/green]         Preview changes without modifying files [dim](default)[/dim]")
         console.print("  [green]--trace[/green]           Enable verbose logging")
         return 1
 
     from aipass.spawn.apps.modules.core import validate_class, get_available_classes
 
-    dry_run = "--dry-run" in args
+    apply = "--apply" in args
+    dry_run = not apply
     trace = "--trace" in args
 
-    # Filter out flags to find positional args
     positional = [a for a in args if not a.startswith("--")]
 
     # Detect citizen class argument

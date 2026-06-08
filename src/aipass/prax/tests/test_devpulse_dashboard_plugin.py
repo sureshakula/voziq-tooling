@@ -219,13 +219,101 @@ class TestDispatchSection:
         assert dispatch["details"]["seedgo"]["subject"] == "unknown"
 
 
+class TestTodoSection:
+    """Tests for todo_section.py."""
+
+    def test_build_todo_section_with_todos(self, branch_path):
+        """Test todo section reads todos[] from local.json correctly."""
+        from aipass.prax.apps.plugins.devpulse_dashboard.todo_section import build_todo_section
+
+        trinity = branch_path / ".trinity"
+        trinity.mkdir()
+        local_data = {
+            "todos": [
+                {"id": "t1", "text": "Fix the bug", "created": "2026-06-07"},
+                {"id": "t2", "text": "Write tests", "created": "2026-06-07", "priority": "high"},
+            ],
+        }
+        (trinity / "local.json").write_text(json.dumps(local_data))
+
+        result = build_todo_section(branch_path)
+        assert result is True
+
+        dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
+        todo = dash["sections"]["todo"]
+        assert todo["managed_by"] == "devpulse"
+        assert todo["todo_count"] == 2
+        assert len(todo["todos"]) == 2
+        assert todo["todos"][0]["id"] == "t1"
+
+    def test_build_todo_section_empty_todos(self, branch_path):
+        """Test todo section with empty todos list."""
+        from aipass.prax.apps.plugins.devpulse_dashboard.todo_section import build_todo_section
+
+        trinity = branch_path / ".trinity"
+        trinity.mkdir()
+        (trinity / "local.json").write_text(json.dumps({"todos": []}))
+
+        result = build_todo_section(branch_path)
+        assert result is True
+
+        dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
+        todo = dash["sections"]["todo"]
+        assert todo["todo_count"] == 0
+        assert todo["todos"] == []
+
+    def test_build_todo_section_no_local_json(self, branch_path):
+        """Test todo section when local.json doesn't exist."""
+        from aipass.prax.apps.plugins.devpulse_dashboard.todo_section import build_todo_section
+
+        result = build_todo_section(branch_path)
+        assert result is True
+
+        dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
+        todo = dash["sections"]["todo"]
+        assert todo["todo_count"] == 0
+        assert todo["todos"] == []
+
+    def test_build_todo_section_corrupt_json(self, branch_path):
+        """Test todo section handles corrupt local.json."""
+        from aipass.prax.apps.plugins.devpulse_dashboard.todo_section import build_todo_section
+
+        trinity = branch_path / ".trinity"
+        trinity.mkdir()
+        (trinity / "local.json").write_text("not valid json{{{")
+
+        result = build_todo_section(branch_path)
+        assert result is True
+
+        dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
+        todo = dash["sections"]["todo"]
+        assert todo["todo_count"] == 0
+
+    def test_build_todo_section_no_todos_key(self, branch_path):
+        """Test todo section when local.json has no todos key."""
+        from aipass.prax.apps.plugins.devpulse_dashboard.todo_section import build_todo_section
+
+        trinity = branch_path / ".trinity"
+        trinity.mkdir()
+        (trinity / "local.json").write_text(json.dumps({"sessions": []}))
+
+        result = build_todo_section(branch_path)
+        assert result is True
+
+        dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
+        todo = dash["sections"]["todo"]
+        assert todo["todo_count"] == 0
+        assert todo["todos"] == []
+
+
 class TestRefresh:
     """Tests for refresh.py orchestrator."""
 
+    @patch("aipass.prax.apps.plugins.devpulse_dashboard.todo_section.build_todo_section")
     @patch("aipass.prax.apps.plugins.devpulse_dashboard.git_section.build_git_section")
     @patch("aipass.prax.apps.plugins.devpulse_dashboard.session_section.build_session_section")
     @patch("aipass.prax.apps.plugins.devpulse_dashboard.dispatch_section.build_dispatch_section")
-    def test_refresh_all_success(self, mock_dispatch, mock_session, mock_git, branch_path):
+    def test_refresh_all_success(self, mock_dispatch, mock_session, mock_git, mock_todo, branch_path):
         """Test refresh orchestrator calls all builders."""
         from aipass.prax.apps.plugins.devpulse_dashboard.refresh import refresh
 
@@ -233,14 +321,17 @@ class TestRefresh:
         assert results["git"]["success"] is True
         assert results["session"]["success"] is True
         assert results["dispatch"]["success"] is True
+        assert results["todo"]["success"] is True
         mock_git.assert_called_once_with(branch_path)
         mock_session.assert_called_once_with(branch_path)
         mock_dispatch.assert_called_once_with(branch_path)
+        mock_todo.assert_called_once_with(branch_path)
 
+    @patch("aipass.prax.apps.plugins.devpulse_dashboard.todo_section.build_todo_section")
     @patch("aipass.prax.apps.plugins.devpulse_dashboard.git_section.build_git_section")
     @patch("aipass.prax.apps.plugins.devpulse_dashboard.session_section.build_session_section")
     @patch("aipass.prax.apps.plugins.devpulse_dashboard.dispatch_section.build_dispatch_section")
-    def test_refresh_partial_failure(self, mock_dispatch, mock_session, mock_git, branch_path):
+    def test_refresh_partial_failure(self, mock_dispatch, mock_session, mock_git, mock_todo, branch_path):
         """Test refresh continues when one section fails."""
         from aipass.prax.apps.plugins.devpulse_dashboard.refresh import refresh
 
@@ -250,6 +341,7 @@ class TestRefresh:
         assert "No .git" in results["git"]["error"]
         assert results["session"]["success"] is True
         assert results["dispatch"]["success"] is True
+        assert results["todo"]["success"] is True
 
     def test_refresh_default_path(self):
         """Test refresh uses DEVPULSE_PATH by default."""

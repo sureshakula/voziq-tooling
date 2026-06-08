@@ -39,18 +39,40 @@ def _find_registry() -> Path:
     return Path.cwd() / "AIPASS_REGISTRY.json"
 
 
+def _infer_branch_from_path(file_path: str) -> Optional[Dict]:
+    """Infer branch info from filesystem path when registry is unavailable.
+
+    Looks for the ``src/aipass/{branch}/apps/`` or ``{branch}/apps/`` pattern
+    and returns a minimal branch dict with name and path.
+    """
+    resolved = Path(file_path).resolve()
+    parts = resolved.parts
+    for i, part in enumerate(parts):
+        if part == "apps" and i >= 1:
+            candidate = Path(*parts[:i])
+            branch_name = parts[i - 1]
+            if branch_name == "src":
+                continue
+            return {"name": branch_name, "path": str(candidate)}
+    return None
+
+
 def get_branch_from_path(file_path: str) -> Optional[Dict]:
-    """Detect which branch a file belongs to using AIPASS_REGISTRY.json."""
+    """Detect which branch a file belongs to using AIPASS_REGISTRY.json.
+
+    Falls back to path-based inference when the registry is unavailable
+    (e.g. in CI clean-checkout environments where the registry is gitignored).
+    """
     try:
         registry_path = _find_registry()
         if not registry_path.exists():
-            return None
+            return _infer_branch_from_path(file_path)
 
         with open(registry_path, "r", encoding="utf-8") as f:
             registry = json.load(f)
 
         if not registry:
-            return None
+            return _infer_branch_from_path(file_path)
 
         registry_dir = registry_path.parent
         resolved_path = str(Path(file_path).resolve())
@@ -67,10 +89,10 @@ def get_branch_from_path(file_path: str) -> Optional[Dict]:
             if resolved_path.startswith(branch_path_str + "/") or resolved_path == branch_path_str:
                 return branch
 
-        return None
+        return _infer_branch_from_path(file_path)
     except Exception:
         logger.info("Cannot determine branch for path: %s", file_path)
-        return None
+        return _infer_branch_from_path(file_path)
 
 
 def extract_branch_from_import(import_line: str) -> Optional[str]:
@@ -531,7 +553,9 @@ def check_cross_package_imports(
         return {
             "name": "Cross-package handler imports",
             "passed": False,
-            "message": f"Line {first['line']}: handlers.{first['from_package']} imported from handlers.{first['to_package']}",
+            "message": (
+                f"Line {first['line']}: handlers.{first['from_package']} imported from handlers.{first['to_package']}"
+            ),
         }
 
     return {

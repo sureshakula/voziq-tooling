@@ -69,23 +69,6 @@ def _mock_infrastructure(monkeypatch):
     monkeypatch.setitem(sys.modules, "aipass.cli.apps", cli_apps)
     monkeypatch.setitem(sys.modules, "aipass.cli.apps.modules", cli_apps_modules)
 
-    # -- file handler (for hooks_ext) ---------------------------------------
-    file_handler_mod = MagicMock()
-    file_handler_mod.read_lines_safe = MagicMock(return_value=[])
-    file_handler_mod.read_text_safe = MagicMock(return_value=None)
-    monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.file", file_handler_mod)
-
-    # -- hooks handler (for hooks_ext) --------------------------------------
-    hooks_handler_mod = MagicMock()
-    hooks_handler_mod.run_pytest_file = MagicMock(return_value=(3, 0, 1.5))
-    monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.hooks", hooks_handler_mod)
-
-    # -- rich.table (for hooks_ext) -----------------------------------------
-    rich_table_mod = MagicMock()
-    monkeypatch.setitem(sys.modules, "rich.table", rich_table_mod)
-    monkeypatch.setitem(sys.modules, "rich", MagicMock())
-    monkeypatch.setitem(sys.modules, "rich.console", MagicMock())
-
     # Force re-imports so handler modules pick up fresh mocks
     for mod_name in [
         "aipass.seedgo.apps.handlers.audit.audit_display",
@@ -93,7 +76,6 @@ def _mock_infrastructure(monkeypatch):
         "aipass.seedgo.apps.handlers.json.json_handler",
         "aipass.seedgo.apps.handlers.readme.readme_ops",
         "aipass.seedgo.apps.handlers.readme.readme_generator",
-        "aipass.seedgo.apps.modules.hooks_ext",
     ]:
         monkeypatch.delitem(sys.modules, mod_name, raising=False)
 
@@ -569,39 +551,3 @@ def test_update_readme_auto_sections_missing_markers(tmp_path):
     result = update_readme_auto_sections(str(branch_dir))
     # Some sections should report missing markers
     assert len(result["missing_markers"]) > 0 or len(result["updated"]) == 0
-
-
-# ===========================================================================
-# 10. hooks_ext -- run_hooks_test
-# ===========================================================================
-
-
-def test_run_hooks_test_no_files(tmp_path):
-    """run_hooks_test with no test files shows warning."""
-    from aipass.seedgo.apps.modules.hooks_ext import run_hooks_test
-
-    # repo_root with no test_hooks*.py files
-    run_hooks_test(tmp_path)
-    # Should call warning() -- verify through mock
-    import sys
-
-    cli_modules = sys.modules["aipass.cli.apps.modules"]
-    cli_modules.warning.assert_called()
-
-
-def test_run_hooks_test_with_files(tmp_path):
-    """run_hooks_test with test files builds and prints table."""
-    import sys
-
-    # Create the expected directory structure
-    test_dir = tmp_path / "src" / "aipass" / "seedgo" / "tests"
-    test_dir.mkdir(parents=True)
-    (test_dir / "test_hooks_basic.py").write_text("pass", encoding="utf-8")
-
-    from aipass.seedgo.apps.modules.hooks_ext import run_hooks_test
-
-    run_hooks_test(tmp_path)
-
-    # Verify console.print was called (table output)
-    cli_mod = sys.modules["aipass.cli"]
-    assert cli_mod.console.print.called

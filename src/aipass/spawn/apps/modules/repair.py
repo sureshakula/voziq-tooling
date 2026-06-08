@@ -29,12 +29,12 @@ from aipass.spawn.apps.handlers.json import json_handler
 def print_introspection():
     """Display module introspection info."""
     console.print()
-    console.print("repair Module")
+    console.print("[bold cyan]repair Module[/bold cyan]")
     console.print("Project structure repair — move branches, clean pollution, fix registries")
     console.print()
-    console.print("Connected Handlers:")
-    console.print("  handlers/")
-    console.print("    - repair_ops.py (move_branch, cleanup_pollution, repair_project)")
+    console.print("[yellow]Connected Handlers:[/yellow]")
+    console.print("  [cyan]handlers/[/cyan]")
+    console.print("    [dim]- repair_ops.py (move_branch, cleanup_pollution, repair_project)[/dim]")
     console.print()
 
 
@@ -83,7 +83,8 @@ def handle_repair(args: list[str]) -> int:
         _print_help()
         return 1
 
-    dry_run = "--dry-run" in args
+    apply = "--apply" in args
+    dry_run = not apply
 
     if "--relocate" in args:
         return _handle_relocate(args, dry_run)
@@ -101,7 +102,7 @@ def handle_repair(args: list[str]) -> int:
 
 def _handle_relocate(args, dry_run):
     """Handle --relocate @branch new/path [--relocate-artifacts]."""
-    flags = {"--dry-run", "--relocate", "--relocate-artifacts"}
+    flags = {"--dry-run", "--apply", "--relocate", "--relocate-artifacts"}
     positional = [a for a in args if a not in flags]
     relocate_artifacts = "--relocate-artifacts" in args
 
@@ -137,7 +138,7 @@ def _handle_relocate(args, dry_run):
 
 def _handle_clean_pollution(args, dry_run):
     """Handle --clean-pollution <project_path>."""
-    flags = {"--dry-run", "--clean-pollution"}
+    flags = {"--dry-run", "--apply", "--clean-pollution"}
     positional = [a for a in args if a not in flags]
 
     if not positional:
@@ -159,7 +160,7 @@ def _handle_clean_pollution(args, dry_run):
 
 def _handle_scan(args, dry_run):
     """Handle default scan mode — report structural issues."""
-    flags = {"--dry-run"}
+    flags = {"--dry-run", "--apply"}
     positional = [a for a in args if a not in flags]
 
     if not positional:
@@ -189,7 +190,8 @@ def _print_help():
     warning("Usage: drone @spawn repair <project_path> [options]")
     console.print()
     console.print("  [green]<project_path>[/green]           Path to project root")
-    console.print("  [green]--dry-run[/green]                Preview changes without modifying")
+    console.print("  [green]--apply[/green]                  Execute changes (default is preview-only)")
+    console.print("  [green]--dry-run[/green]                Preview changes without modifying [dim](default)[/dim]")
     console.print("  [green]--relocate[/green] @branch path  Move a branch to a new location")
     console.print(
         "  [green]--relocate-artifacts[/green]    Move .chroma/ into branch (with --relocate, single-branch only)"

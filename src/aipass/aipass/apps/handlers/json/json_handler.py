@@ -1,254 +1,88 @@
 # =================== AIPass ====================
 # Name: json_handler.py
-# Description: Auto-Creating JSON Handler for aipass branch
-# Version: 1.0.0
+# Description: Branch-local shim — delegates to aipass.common.json_handler
+# Version: 2.0.0
 # Created: 2026-04-16
-# Modified: 2026-04-16
+# Modified: 2026-06-06
 # =============================================
 
-"""
-JSON Handler - Auto-Creating & Self-Healing JSON System
+"""Branch-local JSON handler — thin shim over the shared ``aipass.common`` library.
 
-Handles default JSON files (config, data, log) for aipass modules.
-Never manually create JSONs - they build themselves.
+All logic lives in ``aipass.common.json_handler.JsonHandler``.
+This module binds a ``JsonHandler`` instance to the aipass branch's
+``aipass_json/`` directory and re-exports the public API as module-level
+functions so existing callers (``json_handler.log_operation(...)``) keep working.
 """
 
 from __future__ import annotations
 
 import inspect
-import json
-import os
-import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from aipass.prax import logger
+from aipass.common.json_handler import JsonHandler
 
-# =============================================================================
-# INFRASTRUCTURE SETUP
-# =============================================================================
 
-# json_handler.py lives at: src/aipass/aipass/apps/handlers/json/json_handler.py
-# parents[0] = json/, [1] = handlers/, [2] = apps/, [3] = aipass/, [4] = src/aipass/
+def _get_caller_module_name() -> str:
+    """Auto-detect calling module name from call stack."""
+    stack = inspect.stack()
+    if len(stack) > 2:
+        caller_path = Path(stack[2].filename)
+        module_name = caller_path.stem
+        if module_name and not module_name.startswith("_"):
+            return module_name
+    return "unknown"
+
+
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
-# Constants
 AIPASS_BRANCH_ROOT = _PKG_ROOT / "aipass"
 AIPASS_JSON_DIR = AIPASS_BRANCH_ROOT / "aipass_json"
 
 
-# =============================================================================
-# INTERNAL HELPERS
-# =============================================================================
+def _handler() -> JsonHandler:
+    """Create a handler bound to the current AIPASS_JSON_DIR."""
+    return JsonHandler(AIPASS_JSON_DIR)
 
 
-def _get_caller_module_name() -> str:
-    """Auto-detect calling module name from call stack.
-
-    Returns:
-        Module name (e.g., "doctor" from doctor.py)
-    """
-    try:
-        stack = inspect.stack()
-        # Skip frames: [0]=this function, [1]=log_operation, [2]=actual caller
-        if len(stack) > 2:
-            caller_frame = stack[2]
-            caller_path = Path(caller_frame.filename)
-            module_name = caller_path.stem
-
-            if module_name and not module_name.startswith("_"):
-                return module_name
-
-        return "unknown"
-    except Exception as exc:
-        logger.warning("[json_handler] Failed to detect caller module name: %s", exc)
-        return "unknown"
+def load_path(file_path: Path) -> Optional[dict]:
+    """Load JSON from an arbitrary file path."""
+    return JsonHandler.read_json(file_path)
 
 
-def _default_template(json_type: str, module_name: str) -> Any:
-    """Return inline default structure for a JSON type — no file templates needed."""
-    today = datetime.now().date().isoformat()
-    if json_type == "config":
-        return {
-            "module_name": module_name,
-            "version": "1.0.0",
-            "config": {
-                "max_log_entries": 100,
-            },
-            "created": today,
-        }
-    if json_type == "data":
-        return {
-            "created": today,
-            "last_updated": today,
-        }
-    if json_type == "log":
-        return []
-    return None
-
-
-def _atomic_write_json(target_path: Path, data: Any) -> None:
-    """Write JSON data atomically via temp file + rename.
-
-    Prevents corruption from concurrent processes writing the same file.
-    """
-    fd, tmp_path = tempfile.mkstemp(dir=str(target_path.parent), suffix=".tmp", prefix=target_path.stem)
-    succeeded = False
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        os.replace(tmp_path, str(target_path))
-        succeeded = True
-    finally:
-        if not succeeded and Path(tmp_path).exists():
-            logger.warning("[json_handler] Cleaning up temp file after write failure: %s", tmp_path)
-            os.unlink(tmp_path)
-
-
-# =============================================================================
-# VALIDATION
-# =============================================================================
+def save_path(file_path: Path, data: Any, indent: int = 2) -> bool:
+    """Write JSON data to an arbitrary file path atomically."""
+    return JsonHandler.write_json(file_path, data, indent)
 
 
 def validate_json_structure(data: Any, json_type: str) -> bool:
-    """Validate JSON structure matches expected type."""
-    if json_type == "config":
-        if not isinstance(data, dict):
-            return False
-        required = ["module_name", "version", "config"]
-        return all(key in data for key in required)
-
-    elif json_type == "data":
-        if not isinstance(data, dict):
-            return False
-        required = ["created", "last_updated"]
-        return all(key in data for key in required)
-
-    elif json_type == "log":
-        return isinstance(data, list)
-
-    return False
-
-
-# =============================================================================
-# PUBLIC API
-# =============================================================================
-
-
-def load_path(path: Path) -> Any:
-    """Load JSON from an arbitrary file path with consistent error handling."""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError) as exc:
-        logger.warning("[json_handler] Failed to load %s: %s", path, exc)
-        return None
-
-
-def save_path(path: Path, data: Any) -> bool:
-    """Write JSON data to an arbitrary file path atomically."""
-    os.makedirs(path.parent, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp", prefix=path.stem)
-    succeeded = False
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp_path, str(path))
-        succeeded = True
-        return True
-    except OSError as exc:
-        logger.warning("[json_handler] Failed to save %s: %s", path, exc)
-        return False
-    finally:
-        if not succeeded and Path(tmp_path).exists():
-            os.unlink(tmp_path)
+    """Validate that data matches the expected shape for json_type."""
+    return JsonHandler.validate_json_structure(data, json_type)
 
 
 def get_json_path(module_name: str, json_type: str) -> Path:
-    """Get path for module JSON file."""
-    filename = f"{module_name}_{json_type}.json"
-    return AIPASS_JSON_DIR / filename
+    """Return the filesystem path for a module's JSON file."""
+    return _handler().get_json_path(module_name, json_type)
 
 
 def ensure_json_exists(module_name: str, json_type: str) -> bool:
-    """Ensure JSON file exists, create from template if missing."""
-    AIPASS_JSON_DIR.mkdir(parents=True, exist_ok=True)
-
-    json_path = get_json_path(module_name, json_type)
-
-    if json_path.exists():
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            if validate_json_structure(data, json_type):
-                return True
-        except Exception as exc:
-            logger.warning(
-                "[json_handler] Corrupted JSON file for '%s/%s', regenerating: %s",
-                module_name,
-                json_type,
-                exc,
-            )
-
-    template = _default_template(json_type, module_name)
-    if template is None:
-        return False
-
-    try:
-        _atomic_write_json(json_path, template)
-        return True
-    except Exception as exc:
-        logger.error(
-            "[json_handler] Failed to write JSON template for '%s/%s': %s",
-            module_name,
-            json_type,
-            exc,
-        )
-        return False
-
-
-def load_json(module_name: str, json_type: str) -> Optional[Any]:
-    """Load JSON file, auto-create if missing."""
-    if not ensure_json_exists(module_name, json_type):
-        return None
-
-    json_path = get_json_path(module_name, json_type)
-
-    try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as exc:
-        logger.error("[json_handler] Failed to load JSON for '%s/%s': %s", module_name, json_type, exc)
-        return None
-
-
-def save_json(module_name: str, json_type: str, data: Any) -> bool:
-    """Save JSON file."""
-    json_path = get_json_path(module_name, json_type)
-
-    if not validate_json_structure(data, json_type):
-        return False
-
-    if json_type == "data" and isinstance(data, dict):
-        data["last_updated"] = datetime.now().date().isoformat()
-
-    try:
-        _atomic_write_json(json_path, data)
-        return True
-    except Exception as exc:
-        logger.error("[json_handler] Failed to save JSON for '%s/%s': %s", module_name, json_type, exc)
-        return False
+    """Ensure a single JSON file exists; create with defaults if missing."""
+    return _handler().ensure_json_exists(module_name, json_type)
 
 
 def ensure_module_jsons(module_name: str) -> bool:
-    """Ensure all 3 JSON files exist for a module."""
-    ensure_json_exists(module_name, "config")
-    ensure_json_exists(module_name, "data")
-    ensure_json_exists(module_name, "log")
-    return True
+    """Ensure all three JSON files (config, data, log) exist for a module."""
+    return _handler().ensure_module_jsons(module_name)
+
+
+def load_json(module_name: str, json_type: str) -> Optional[Any]:
+    """Load a module's JSON file, auto-creating it if missing."""
+    return _handler().load_json(module_name, json_type)
+
+
+def save_json(module_name: str, json_type: str, data: Any) -> bool:
+    """Save JSON file. Raises ValueError on invalid structure."""
+    return _handler().save_json(module_name, json_type, data)
 
 
 def log_operation(
@@ -256,42 +90,7 @@ def log_operation(
     data: Dict[str, Any] | None = None,
     module_name: str | None = None,
 ) -> bool:
-    """Add entry to module log with automatic rotation.
-
-    Auto-detects calling module if module_name not provided.
-    Implements config-controlled log limits to prevent unbounded growth.
-    When max_log_entries is reached, removes oldest entries (FIFO).
-
-    Args:
-        operation: Operation name to log
-        data: Optional data dict
-        module_name: Optional module name (auto-detected if not provided)
-
-    Returns:
-        True if successful, False otherwise
-    """
+    """Add entry to module operation log with automatic rotation."""
     if module_name is None:
         module_name = _get_caller_module_name()
-
-    ensure_module_jsons(module_name)
-
-    config = load_json(module_name, "config")
-    max_entries = 100
-    if config and "config" in config:
-        max_entries = config["config"].get("max_log_entries", 100)
-
-    log = load_json(module_name, "log")
-    if log is None:
-        log = []
-
-    entry: Dict[str, Any] = {"timestamp": datetime.now().isoformat(), "operation": operation}
-
-    if data:
-        entry["data"] = data
-
-    log.append(entry)
-
-    if len(log) > max_entries:
-        log = log[-max_entries:]
-
-    return save_json(module_name, "log", log)
+    return _handler().log_operation(operation, data, module_name)

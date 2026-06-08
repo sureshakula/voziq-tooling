@@ -2,19 +2,14 @@ name: macOS Test
 
 on:
   workflow_dispatch:
+  # Run on every push/PR to main/dev — NOT path-filtered. This is a branch-
+  # protection *required* check; a path filter makes it skip on unrelated PRs,
+  # which GitHub then parks as "Expected — waiting for status" forever, blocking
+  # the merge. Required checks must run on every PR to report a status.
   push:
     branches: [main, dev]
-    paths:
-      - 'setup.sh'
-      - 'src/aipass/*/apps/handlers/__init__.py'
-      - 'src/aipass/drone/cli.py'
-      - 'pyproject.toml'
   pull_request:
-    paths:
-      - 'setup.sh'
-      - 'src/aipass/*/apps/handlers/__init__.py'
-      - 'src/aipass/drone/cli.py'
-      - 'pyproject.toml'
+    branches: [main, dev]
 
 permissions:
   contents: read

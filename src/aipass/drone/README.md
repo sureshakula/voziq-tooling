@@ -243,6 +243,14 @@ By default, drone captures subprocess output (`capture_output=True`) with a 30s 
 
 Commands in the interactive tuple bypass capture and inherit the terminal directly — enabling live Rich output, colors, and no timeout.
 
+**Always interactive** — these presentational commands always inherit the terminal for Rich color on a TTY, plain when piped:
+
+| Pattern        | Reason                                      |
+|----------------|---------------------------------------------|
+| `@branch`      | No-args introspection (branch overview)     |
+| `@branch --help` | Help output with Rich formatting          |
+| `@branch -h`   | Short help flag (same as --help)            |
+
 **Per-command allowlist** (in `apps/drone.py`):
 
 | Command      | Reason                                      |
@@ -250,6 +258,7 @@ Commands in the interactive tuple bypass capture and inherit the terminal direct
 | `monitor`    | Prax real-time monitoring (live TUI)        |
 | `audit`      | Seedgo audit (Rich progress bars)           |
 | `watchdog`   | Devpulse watchdog (live monitoring)         |
+| `status`     | Branch status with Rich formatted output    |
 
 **Per-branch allowlist** — all commands from these branches get interactive mode:
 
@@ -339,7 +348,7 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ---
 
-**Seedgo:** 99% | **Tests:** 704 pass, 4 skip | **Last Updated:** 2026-05-12
+**Seedgo:** 100% | **Tests:** 775 pass, 4 skip | **Last Updated:** 2026-06-07
 
 ---
 [← Back to AIPass](../../../README.md)

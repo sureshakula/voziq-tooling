@@ -1708,7 +1708,7 @@ class TestEmailSendIntrospection:
 
         print_introspection()
         combined = "\n".join(printed)
-        assert "EMAIL SEND ORCHESTRATION" in combined
+        assert "email_send Module" in combined
         assert "handle_send" in combined
         assert "_send_direct" in combined
         assert "_send_broadcast" in combined

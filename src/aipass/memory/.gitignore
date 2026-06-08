@@ -13,3 +13,5 @@ build/
 *.log
 *.tmp
 *.swp
+memory_pool
+memory_pool_archive
