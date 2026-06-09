@@ -357,3 +357,34 @@ def test_resolve_dispatch_target_tilde_path():
     result = resolve_dispatch_target("~/Projects/flow", True, get_branch_info_fn=None)
 
     assert result == "@flow"
+
+
+# ---- parse_send_args multi-arg message tests (S84 fix) --------
+
+
+def test_parse_send_args_joins_split_message():
+    """When message body is split into multiple args, all are joined."""
+    from aipass.ai_mail.apps.handlers.email.send_args import parse_send_args
+
+    result = parse_send_args(["@target", "Subject", "Line one", "Line two", "Line three"])
+    assert result["mode"] == "direct"
+    assert result["subject"] == "Subject"
+    assert result["message"] == "Line one Line two Line three"
+
+
+def test_parse_send_args_single_message_unchanged():
+    """Single message arg is not altered."""
+    from aipass.ai_mail.apps.handlers.email.send_args import parse_send_args
+
+    result = parse_send_args(["@target", "Subject", "Complete body here"])
+    assert result["mode"] == "direct"
+    assert result["message"] == "Complete body here"
+
+
+def test_parse_send_args_multiline_body_preserved():
+    """A single arg with embedded newlines passes through intact."""
+    from aipass.ai_mail.apps.handlers.email.send_args import parse_send_args
+
+    body = "First line\nSecond line\nThird line"
+    result = parse_send_args(["@target", "Subject", body])
+    assert result["message"] == body

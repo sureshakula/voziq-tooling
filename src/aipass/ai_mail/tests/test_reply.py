@@ -268,3 +268,38 @@ def test_send_reply_re_prefix_not_duplicated(tmp_path):
     assert success is True
     # Should keep "RE: Already replied", not "RE: RE: Already replied"
     assert deliver_calls[0][1]["subject"] == "RE: Already replied"
+
+
+def test_send_reply_multiline_body_preserved(tmp_path):
+    """Multi-line reply body is stored intact, not truncated to first line."""
+    from_branch_path = tmp_path / "hooks"
+    from_branch_path.mkdir()
+    sender_info = {"email": "@hooks", "name": "HOOKS"}
+    target_branch = {"email": "@devpulse", "name": "DEVPULSE", "path": str(tmp_path / "devpulse")}
+    original = _make_original_email()
+
+    deliver_calls = []
+
+    def mock_deliver(to_branch, email_data):
+        deliver_calls.append((to_branch, email_data))
+        return (True, "")
+
+    multiline_body = "Investigation: cadence findings\n\nDetails:\n1. First finding\n2. Second finding\n3. Third finding"
+
+    with (
+        patch(_PATCH_BRANCH_DETECTION, return_value=sender_info),
+        patch(_PATCH_DELIVERY, side_effect=mock_deliver),
+        patch(_PATCH_ALL_BRANCHES, return_value=[target_branch]),
+        patch(_PATCH_CLOSE_ARCHIVE, return_value=(True, "closed")),
+    ):
+        success, _message, _reply_id = send_reply(from_branch_path, original, multiline_body)
+
+    assert success is True
+    assert deliver_calls[0][1]["message"] == multiline_body
+
+    sent_folder = from_branch_path / ".ai_mail.local" / "sent"
+    sent_files = list(sent_folder.glob("*.json"))
+    assert len(sent_files) == 1
+    with open(sent_files[0], "r", encoding="utf-8") as f:
+        sent_data = json.load(f)
+    assert sent_data["message"] == multiline_body

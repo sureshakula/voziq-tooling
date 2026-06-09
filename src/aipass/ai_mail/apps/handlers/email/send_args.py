@@ -103,7 +103,7 @@ def parse_send_args(args: List[str]) -> Dict[str, Any]:
     if recipients and len(rest) >= 2:
         mode = "direct"
         subject = rest[0]
-        message = rest[1]
+        message = " ".join(rest[1:])
     elif not recipients and not rest:
         mode = "interactive"
         subject = None

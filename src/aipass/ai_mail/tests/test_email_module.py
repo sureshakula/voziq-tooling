@@ -1761,3 +1761,62 @@ class TestSendInteractiveExtended:
         assert result is True
         assert any("@alpha" in p for p in printed)
         assert any("sent" in p.lower() for p in printed)
+
+
+class TestHandleReplyMultiArg:
+    """Regression tests for multi-line reply body truncation (S84 fix)."""
+
+    def test_reply_joins_split_args_into_body(self, tmp_path, monkeypatch):
+        """When shell splits body into multiple args, all are joined into message."""
+        original = {"id": "msg1", "from": "@devpulse", "subject": "test dispatch"}
+        captured_msg = []
+
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.modules.email._resolve_branch_path",
+            lambda: tmp_path,
+        )
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.modules.email.get_email_by_id",
+            lambda inbox_file, msg_id: original,
+        )
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.modules.email.send_reply",
+            lambda bp, orig, msg: (captured_msg.append(msg), "Reply sent", "r1")[1:],
+        )
+        mock_console = MagicMock()
+        monkeypatch.setattr("aipass.ai_mail.apps.modules.email.console", mock_console)
+        _write_inbox(tmp_path)
+
+        from aipass.ai_mail.apps.modules.email import handle_reply
+
+        result = handle_reply(["msg1", "Line one", "Line two", "Line three"])
+        assert result is True
+        assert len(captured_msg) == 1
+        assert captured_msg[0] == "Line one Line two Line three"
+
+    def test_reply_single_arg_unchanged(self, tmp_path, monkeypatch):
+        """Single-arg reply body remains unchanged (no extra spaces)."""
+        original = {"id": "msg1", "from": "@devpulse", "subject": "test"}
+        captured_msg = []
+
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.modules.email._resolve_branch_path",
+            lambda: tmp_path,
+        )
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.modules.email.get_email_by_id",
+            lambda inbox_file, msg_id: original,
+        )
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.modules.email.send_reply",
+            lambda bp, orig, msg: (captured_msg.append(msg), "Reply sent", "r1")[1:],
+        )
+        mock_console = MagicMock()
+        monkeypatch.setattr("aipass.ai_mail.apps.modules.email.console", mock_console)
+        _write_inbox(tmp_path)
+
+        from aipass.ai_mail.apps.modules.email import handle_reply
+
+        result = handle_reply(["msg1", "Complete single-line reply"])
+        assert result is True
+        assert captured_msg[0] == "Complete single-line reply"
