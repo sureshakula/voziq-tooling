@@ -64,6 +64,10 @@
     {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."},
     {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "json_structure", "reason": "Delegates to @memory's auto_process() via importlib — no direct JSON file ops needing json_handler."},
 
+    {"file": "apps/modules/cadence.py", "standard": "dead_code", "reason": "Cadence module — should_fire() called from global_loader.py and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."},
+    {"file": "apps/modules/cadence.py", "standard": "unused_function", "reason": "should_fire() called from global_loader.py + branch_loader.py; reset_counter() called from compact.py. All callers are dynamically dispatched handlers."},
+    {"file": "apps/modules/cadence.py", "standard": "json_structure", "reason": "Uses stdlib json for /tmp state file (turn counter) and hooks_json/custom_config/cadence_config.json config loading — lightweight ephemeral state, not branch data storage."},
+
     {"file": "apps/handlers/notification/announce.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.announce.handle' — not statically imported by design. Verified wired in Notification.notification_sound + fires in engine.jsonl."},
     {"file": "apps/handlers/notification/announce.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (Notification.notification_sound)."},
     {"file": "apps/handlers/notification/announce.py", "standard": "json_structure", "reason": "Sound handler — no JSON operations, plays WAV files."},
@@ -90,6 +94,8 @@
     {"file": "apps/modules/hooksound.py", "standard": "trigger", "reason": "MUTE_FLAG.unlink() removes a /tmp mute flag file for sound toggle — not a tracked resource or production data deletion. Deliberate user action via 'drone @hooks hooksound on'."},
 
     {"file": "apps/modules/hookstatus.py", "standard": "json_structure", "reason": "Read-only config viewer — delegates JSON loading to config/loader.py, no direct JSON file ops."},
+
+    {"file": "apps/modules/cadence.py", "standard": "modules", "reason": "Cadence module reads /tmp state file and hooks_json/custom_config/cadence_config.json with stdlib json — lightweight ephemeral state (turn counter) + tunable config. json_handler is for persistent branch data, not /tmp session state or config knobs."},
 
     {"file": "apps/hooks.py", "standard": "unused_function", "reason": "print_introspection() called by drone's discovery system, not internal code."},
 
@@ -203,7 +209,12 @@
     {"file": "tests/test_auto_process.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
     {"file": "tests/test_auto_process.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
     {"file": "tests/test_auto_process.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_auto_process.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."}
+    {"file": "tests/test_auto_process.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
+
+    {"file": "tests/test_cadence.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
+    {"file": "tests/test_cadence.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
+    {"file": "tests/test_cadence.py", "standard": "encapsulation", "reason": "Tests import modules and handlers directly to test implementation details."},
+    {"file": "tests/test_cadence.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."}
   ],
   "notes": {
     "removed_2026-05-19": "Stripped 4 illegitimate bypasses — hooks.py/cli, hooks.py/cli_flags, engine.py/modules, engine.py/introspection. Code fixed to meet standards instead.",

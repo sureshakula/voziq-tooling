@@ -85,6 +85,14 @@ def handle(hook_data: dict) -> dict:
     speak("pre compact")
 
     try:
+        import importlib
+
+        cadence = importlib.import_module("aipass.hooks.apps.modules.cadence")
+        cadence.reset_counter()
+    except Exception as exc:
+        logger.info("[HOOKS] compact: cadence reset failed: %s", exc)
+
+    try:
         cwd = hook_data.get("cwd", "") or str(Path.cwd())
         branch_dir = _find_branch_dir(cwd)
         branch_name = branch_dir.name if branch_dir else "unknown"

@@ -34,6 +34,15 @@ def handle(hook_data: dict) -> dict:
     speak("global prompt")
 
     try:
+        import importlib
+
+        cadence = importlib.import_module("aipass.hooks.apps.modules.cadence")
+        if not cadence.should_fire("global"):
+            return {"stdout": "", "exit_code": 0}
+    except Exception as exc:
+        logger.info("[HOOKS] global_loader: cadence check failed, firing anyway: %s", exc)
+
+    try:
         aipass_home = os.environ.get("AIPASS_HOME", "")
         cwd = str(Path.cwd())
 

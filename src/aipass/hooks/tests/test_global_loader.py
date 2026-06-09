@@ -9,7 +9,14 @@
 
 """Tests for handlers/prompt/global_loader.py."""
 
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+
+
+def _mock_cadence_fires():
+    """Return a mock cadence module where should_fire always returns True."""
+    mock = MagicMock()
+    mock.should_fire.return_value = True
+    return mock
 
 
 class TestGlobalLoaderHandler:
@@ -24,7 +31,8 @@ class TestGlobalLoaderHandler:
 
         with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": str(tmp_path)}):
-                result = handle({})
+                with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+                    result = handle({})
 
         assert result["exit_code"] == 0
         assert "AIPass Global" in result["stdout"]
@@ -36,7 +44,8 @@ class TestGlobalLoaderHandler:
         monkeypatch.chdir(tmp_path)
         with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": str(tmp_path)}):
-                result = handle({})
+                with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+                    result = handle({})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
@@ -51,7 +60,8 @@ class TestGlobalLoaderHandler:
 
         with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": str(tmp_path)}):
-                result = handle({})
+                with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+                    result = handle({})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == "content"
@@ -69,7 +79,8 @@ class TestGlobalLoaderHandler:
 
         with patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"):
             with patch.dict("os.environ", {"AIPASS_HOME": "/some/other/path"}):
-                result = handle({})
+                with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+                    result = handle({})
 
         assert result["exit_code"] == 0
         assert "Project Prompt" in result["stdout"]

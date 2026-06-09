@@ -25,6 +25,7 @@ Every hook event flows through one engine. Platform bridges normalize the event 
 | `drone @hooks hooksound` | Show current sound mute status |
 | `drone @hooks hooksound off` | Mute all hook sounds |
 | `drone @hooks hooksound on` | Unmute all hook sounds |
+| `drone @hooks cadence` | Show prompt injection cadence config and state |
 | `drone @hooks --help` | Full help reference |
 | `drone @hooks --version` | Version info |
 
@@ -47,6 +48,7 @@ src/aipass/hooks/
 │   ├── hooks.py                 # Entry point (drone @hooks)
 │   ├── sound.py                 # Shared sound utilities (speak, play, mute)
 │   ├── modules/
+│   │   ├── cadence.py           # Prompt injection cadence (every-Nth-turn gating)
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   └── hookstatus.py        # Config viewer (drone @hooks status)
@@ -77,7 +79,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 385 tests across 20 test files
+└── tests/                       # 435 tests across 21 test files
 ```
 
 ## How It Works

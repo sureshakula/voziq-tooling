@@ -33,6 +33,15 @@ def handle(hook_data: dict) -> dict:
     speak("branch prompt")
 
     try:
+        import importlib
+
+        cadence = importlib.import_module("aipass.hooks.apps.modules.cadence")
+        if not cadence.should_fire("branch"):
+            return {"stdout": "", "exit_code": 0}
+    except Exception as exc:
+        logger.info("[HOOKS] branch_loader: cadence check failed, firing anyway: %s", exc)
+
+    try:
         cwd = hook_data.get("cwd", "") or str(Path.cwd())
         branch_root = _find_branch_root(cwd)
         if not branch_root:
