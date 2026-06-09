@@ -40,22 +40,22 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text(json.dumps(SAMPLE_PASSPORT), encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            result = handle({"cwd": str(tmp_path)})
+        result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
         assert "devpulse Identity" in result["stdout"]
         assert "orchestration_hub" in result["stdout"]
         assert "Pragmatic" in result["stdout"]
+        assert result["sound"] == "identity"
 
     def test_returns_empty_when_no_passport(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.identity import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            result = handle({"cwd": str(tmp_path)})
+        result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_walks_up_to_find_passport(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.identity import handle
@@ -67,8 +67,7 @@ class TestIdentityHandler:
         nested = tmp_path / "apps" / "handlers"
         nested.mkdir(parents=True)
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            result = handle({"cwd": str(nested)})
+        result = handle({"cwd": str(nested)})
 
         assert "devpulse Identity" in result["stdout"]
 
@@ -80,8 +79,7 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text(json.dumps(SAMPLE_PASSPORT), encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            result = handle({"cwd": str(tmp_path)})
+        result = handle({"cwd": str(tmp_path)})
 
         out = result["stdout"]
         assert "Path: src/aipass/devpulse" in out
@@ -100,21 +98,21 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text(json.dumps({"branch_info": {"branch_name": "test"}, "identity": {}}), encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            result = handle({"cwd": str(tmp_path)})
+        result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
         assert "test Identity" in result["stdout"]
+        assert result["sound"] == "identity"
 
     def test_empty_hook_data(self):
         from aipass.hooks.apps.handlers.prompt.identity import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            with patch("pathlib.Path.cwd", return_value=Path("/tmp/nonexistent")):
-                result = handle({})
+        with patch("pathlib.Path.cwd", return_value=Path("/tmp/nonexistent")):
+            result = handle({})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_corrupt_passport_json(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.identity import handle
@@ -124,8 +122,8 @@ class TestIdentityHandler:
         passport = trinity / "passport.json"
         passport.write_text("{broken json", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.identity.speak"):
-            result = handle({"cwd": str(tmp_path)})
+        result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result

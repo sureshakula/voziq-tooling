@@ -10,6 +10,40 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W24] - 2026-06-08
 
+### Added
+
+- **Prompt-injection cadence — fire the big loaders every Nth turn.** The global
+  and branch prompts are large and were re-injected on *every* turn even though a
+  prior copy stays in the conversation. They now fire together every 5th turn
+  (config-tunable via `hooks_json/custom_config/cadence_config.json`), with a
+  per-session turn counter that resets on a new session and after compaction so
+  context is always rebuilt when it's actually needed. Identity and the mail flag
+  stay every-turn (tiny, want freshness). Cuts recurring per-turn context cost.
+- **Hook fire/skip observability.** Cadence emits a structured
+  `[HOOKS] cadence fired|skipped loader= turn= period= offset=` line; the prax
+  monitor renders hook events distinctly so the cadence is visible live.
+
+### Changed
+
+- **Action-gated hook sound.** Piper now speaks only when a hook actually *does*
+  something — handlers return a `sound` key the engine plays, instead of
+  announcing on every invocation. Skipped loaders are silent. Quieter and honest.
+- **README: hardcoded metrics → live badges + qualitative.** Version is now a
+  live PyPI badge, test/PR counts replaced with a codecov coverage badge (75%
+  minimum) and qualitative wording — no more stale numbers to hand-maintain.
+
+### Fixed
+
+- **Cadence counter separate-process race.** Each `UserPromptSubmit` hook runs as
+  its own OS process, so a module-level turn cache double-incremented and the
+  loaders leapfrogged (firing erratically instead of together). Fixed with an
+  mtime debounce + transcript-size token + `flock` so the counter advances exactly
+  once per real turn, verified against the live execution model.
+- **`auto_fix` ran no diagnostics.** A leftover `speak()` call (its import removed
+  in the sound refactor) raised `NameError` on every edit, swallowed by the
+  handler's broad `except` — so auto-fix silently surfaced nothing on any
+  `.py`/`.json` edit. Removed the dead call; diagnostics run again.
+
 ### Security
 
 - **Least-privilege token on the `e2e-wheel` workflow.** `e2e-wheel.yml` was the

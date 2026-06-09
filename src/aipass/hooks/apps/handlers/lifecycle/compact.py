@@ -15,7 +15,6 @@ import os
 import subprocess
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -82,8 +81,6 @@ def _get_git_info() -> str | None:
 
 def handle(hook_data: dict) -> dict:
     """Inject live branch state for post-compact recovery."""
-    speak("pre compact")
-
     try:
         import importlib
 
@@ -130,7 +127,7 @@ def handle(hook_data: dict) -> dict:
                 "- Match the conversation tone from before compaction"
             )
 
-        return {"stdout": "\n\n".join(sections), "exit_code": 0}
+        return {"stdout": "\n\n".join(sections), "exit_code": 0, "sound": "pre compact"}
 
     except Exception as exc:
         logger.info("[HOOKS] compact: unexpected error: %s", exc)

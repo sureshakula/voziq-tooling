@@ -31,13 +31,13 @@ class TestBranchLoaderHandler:
         prompt = aipass_dir / "aipass_local_prompt.md"
         prompt.write_text("# Test Branch\nSome instructions", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(tmp_path)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(tmp_path)})
 
         assert result["exit_code"] == 0
         assert "Branch Context:" in result["stdout"]
         assert "Some instructions" in result["stdout"]
+        assert result["sound"] == "branch prompt"
 
     def test_loads_private_integrations(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
@@ -49,11 +49,11 @@ class TestBranchLoaderHandler:
         private = integration / "private_prompt.md"
         private.write_text("# Private Integration\nSecret stuff", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(tmp_path)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(tmp_path)})
 
         assert "Private Integration" in result["stdout"]
+        assert result["sound"] == "branch prompt"
 
     def test_loads_both_prompt_and_integrations(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
@@ -67,9 +67,8 @@ class TestBranchLoaderHandler:
         integration.mkdir(parents=True)
         (integration / "private_prompt.md").write_text("Compass prompt", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(tmp_path)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(tmp_path)})
 
         assert "Branch prompt" in result["stdout"]
         assert "Compass prompt" in result["stdout"]
@@ -77,11 +76,11 @@ class TestBranchLoaderHandler:
     def test_returns_empty_when_no_branch_root(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(tmp_path)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(tmp_path)})
 
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_stops_at_repo_root(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
@@ -90,11 +89,11 @@ class TestBranchLoaderHandler:
         nested = tmp_path / "some" / "deep" / "path"
         nested.mkdir(parents=True)
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(nested)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(nested)})
 
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_walks_up_to_find_branch(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
@@ -107,22 +106,23 @@ class TestBranchLoaderHandler:
         nested = tmp_path / "apps" / "handlers" / "security"
         nested.mkdir(parents=True)
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(nested)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(nested)})
 
         assert "Found it" in result["stdout"]
 
     def test_empty_hook_data(self):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
+        # Path.cwd patch must be OUTSIDE the importlib patch — mock.patch uses
+        # importlib.import_module to resolve "pathlib", which the inner mock hijacks.
+        with patch("pathlib.Path.cwd", return_value=Path("/tmp/nonexistent")):
             with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                with patch("pathlib.Path.cwd", return_value=Path("/tmp/nonexistent")):
-                    result = handle({})
+                result = handle({})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_no_prompt_file_but_has_branch_root(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
@@ -130,11 +130,11 @@ class TestBranchLoaderHandler:
         trinity = tmp_path / ".trinity"
         trinity.mkdir()
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(tmp_path)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(tmp_path)})
 
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_includes_source_path_in_output(self, tmp_path):
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
@@ -145,8 +145,7 @@ class TestBranchLoaderHandler:
         aipass_dir.mkdir()
         (aipass_dir / "aipass_local_prompt.md").write_text("content", encoding="utf-8")
 
-        with patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"):
-            with patch("importlib.import_module", return_value=_mock_cadence_fires()):
-                result = handle({"cwd": str(tmp_path)})
+        with patch("importlib.import_module", return_value=_mock_cadence_fires()):
+            result = handle({"cwd": str(tmp_path)})
 
         assert "Source:" in result["stdout"]

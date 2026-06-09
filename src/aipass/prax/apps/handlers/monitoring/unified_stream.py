@@ -185,6 +185,28 @@ def print_command_separator(branch: str, command: str, caller: Optional[str] = N
         console.print(f"[bold {branch_color}]{'─' * 60}[/bold {branch_color}]")
 
 
+def print_hook_event(branch: str, message: str, action: str = "unknown"):
+    """Print a hook event with distinct fired/skipped styling.
+
+    Args:
+        branch: Branch the hook event originated from
+        message: Hook event summary (e.g. "cadence:fired loader=global turn=35")
+        action: "fired" or "skipped" (controls color)
+    """
+    with _print_lock:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        if action == "fired":
+            style = "bold green"
+            symbol = "⚡"
+        elif action == "skipped":
+            style = "dim"
+            symbol = "·"
+        else:
+            style = "white"
+            symbol = "?"
+        console.print(f"[dim]{timestamp}[/dim] [{style}]{symbol} HOOK {message}[/{style}]")
+
+
 def print_status(watched_branches: List[str], verbosity: int, filters: Optional[Dict] = None):
     """
     Display current monitoring status

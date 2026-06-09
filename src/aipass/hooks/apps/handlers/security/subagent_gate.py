@@ -15,14 +15,13 @@ import os
 import subprocess
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 _ALLOW = {"stdout": "", "exit_code": 0}
 
 
 def _block(reason: str) -> dict:
-    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2, "sound": "subagent gate"}
 
 
 def _get_package_from_cwd(cwd: str) -> str:
@@ -152,8 +151,6 @@ def _check_hook_readme_accountability(cwd: str, repo_root: Path) -> str | None:
 
 def handle(hook_data: dict) -> dict:
     """Check modified files against seedgo standards on subagent stop."""
-    speak("subagent stop gate")
-
     try:
         cwd = hook_data.get("cwd", "") or os.getcwd()
         repo_root = _find_repo_root(cwd)

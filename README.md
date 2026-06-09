@@ -47,7 +47,7 @@ my-project/
 ├── .aipass/                # Project config + prompts
 ├── .claude/                # Hooks (injected automatically)
 ├── src/my_project/
-│   └── my-agent/
+│   └── my_agent/
 │       ├── .trinity/       # Identity + memory (3 JSON files)
 │       ├── .ai_mail.local/ # Local mailbox
 │       ├── apps/           # Your agent's code
@@ -91,7 +91,7 @@ That's it. Your agent has identity, memory, a mailbox, and access to every AIPas
 
 ```bash
 aipass init                           # Just the scaffold (no guided setup)
-aipass init agent my-agent            # Add another agent
+aipass init agent my_agent            # Add another agent
 aipass doctor                         # Check system health
 ```
 
@@ -112,8 +112,8 @@ claude                                # Talk to the orchestrator
 
 ```bash
 # Things you can do:
-aipass doctor                            # Check system health (15+ checks)
-drone @seedgo audit aipass               # Run 36 quality checks across all agents
+aipass doctor                            # Check system health
+drone @seedgo audit aipass               # Run automated quality checks across all agents
 drone @flow create . "Add user auth"     # Create a work plan
 drone @ai_mail dispatch @agent "Sub" "Body"  # Send task + wake an agent
 ```
@@ -141,7 +141,7 @@ drone @branch command [args]    # Every agent, every task. Drone handles routing
 ```
 
 ```bash
-drone @seedgo audit my-project               # Run quality checks on everything
+drone @seedgo audit my_project               # Run quality checks on everything
 drone @flow create . "Refactor auth module"  # Create a work plan
 drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 30 days"
 ```
@@ -161,7 +161,7 @@ AIPass ships with 13 core agents that maintain and develop the framework itself 
 devpulse (orchestrator)
    ├── aipass   — concierge + onboarding (aipass init, doctor, profile)
    ├── drone    — command routing + @agent resolution
-   ├── seedgo   — 36 automated quality standards
+   ├── seedgo   — automated quality standards
    ├── prax     — real-time monitoring across all agents
    ├── ai_mail  — agent-to-agent communication + task dispatch
    ├── flow     — plan lifecycle, templates, auto-archival
@@ -195,9 +195,9 @@ These agents work on the **same filesystem, same project, same time** — no san
 
 | Agent | Role |
 |-------|------|
-| [**seedgo**](src/aipass/seedgo/README.md) | 36 automated quality standards, enforced across all agents |
+| [**seedgo**](src/aipass/seedgo/README.md) | Automated quality standards, enforced across all agents |
 | [**prax**](src/aipass/prax/README.md) | Real-time monitoring, logs, dashboards |
-| [**flow**](src/aipass/flow/README.md) | Plan lifecycle — 6 template types, auto-archival, vector verification |
+| [**flow**](src/aipass/flow/README.md) | Plan lifecycle — multiple template types, auto-archival, vector verification |
 | [**hooks**](src/aipass/hooks/README.md) | Hook engine — per-project config, sound control, event dispatch |
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
 | [**cli**](src/aipass/cli/README.md) | Terminal formatting and rich output |
@@ -212,7 +212,7 @@ AIPass is built and tested with **Claude Code** on Linux/WSL.
 
 | CLI | Autonomous Mode | Status |
 |-----|----------------|--------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `claude -p "prompt" --permission-mode bypassPermissions` | Fully tested |
+| [Claude Code](https://code.claude.com/docs) | `claude -p "prompt" --permission-mode bypassPermissions` | Fully tested |
 | [Codex](https://github.com/openai/codex) | `codex exec "prompt" --dangerously-bypass-approvals-and-sandbox` | Experimental |
 
 setup.sh auto-detects which CLIs are installed and configures hooks for each.
@@ -225,11 +225,11 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 
 | Metric | Value |
 |--------|-------|
-| Version | 2.4.0 |
+| Version | [![PyPI](https://img.shields.io/pypi/v/aipass?label=)](https://pypi.org/project/aipass/) |
 | Agents | 13 core + user-created |
-| Quality standards | 36 automated checks |
-| Tests | 8,400+ (across all agents) |
-| PRs merged | 600+ (human-AI collaboration) |
+| Quality | Automated standards enforced across every agent |
+| Coverage | [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass) — 75% minimum, CI-gated |
+| Tests | Extensive — every agent ships its own suite |
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 
@@ -238,7 +238,7 @@ Each agent documents its own operational status in its branch README — what wo
 ## Requirements
 
 - Python 3.10+
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+- [Claude Code](https://code.claude.com/docs)
 - Linux, macOS, or WSL (all CI-tested)
 - `sudo` access optional (for `/usr/local/bin` symlinks — falls back to `~/.local/bin` without sudo)
 - API keys optional (OpenRouter/OpenAI — for optional add-on agents)

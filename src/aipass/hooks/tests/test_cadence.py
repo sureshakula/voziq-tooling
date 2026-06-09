@@ -7,21 +7,40 @@
 # Modified: 2026-06-08
 # =============================================
 
-"""Tests for apps/modules/cadence.py."""
+"""Tests for apps/modules/cadence.py.
+
+Cadence runs MULTI-PROCESS in production: each UserPromptSubmit hook is a
+separate OS process. Tests model that by resetting the module _turn cache
+between calls (= new process) and aging the state file past the mtime
+debounce window (= a real prior turn, not a sibling in the same turn).
+"""
 
 import json
 import importlib
+import os
+import time
 from unittest.mock import patch
 
 MODULE = "aipass.hooks.apps.modules.cadence"
 
 
 def _reset_module_globals():
-    """Reset module-level caches between tests."""
+    """Reset module-level caches between tests (also = simulate a new process)."""
     import aipass.hooks.apps.modules.cadence as mod
 
     mod._turn = None
     mod._config = None
+
+
+def _write_state(tmp_path, turn, token=-1, session="test-session", aged=True):
+    """Write a cadence state file. aged=True backdates mtime past the debounce
+    window so it reads as a PREVIOUS turn; aged=False = sibling in same turn."""
+    state_file = tmp_path / f"aipass-cadence-{session}.json"
+    state_file.write_text(json.dumps({"turn": turn, "token": token}))
+    if aged:
+        old = time.time() - 10
+        os.utime(state_file, (old, old))
+    return state_file
 
 
 class TestShouldFire:
@@ -55,8 +74,7 @@ class TestShouldFire:
     def test_non_fire_turn_returns_false(self, tmp_path):
         from aipass.hooks.apps.modules.cadence import should_fire
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 0}))
+        _write_state(tmp_path, turn=0)
 
         with (
             patch(f"{MODULE}._GUARD_DIR", tmp_path),
@@ -68,8 +86,7 @@ class TestShouldFire:
     def test_fire_turn_returns_true(self, tmp_path):
         from aipass.hooks.apps.modules.cadence import should_fire
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 3}))
+        _write_state(tmp_path, turn=3)
 
         config = tmp_path / "cadence.json"
         config.write_text(json.dumps({"enabled": True, "period": 5, "loaders": {"global": {"offset": 4}}}))
@@ -110,11 +127,12 @@ class TestShouldFire:
             with patch.dict("os.environ", env, clear=True):
                 assert should_fire("global") is True
 
-    def test_counter_increments_once_per_process(self, tmp_path):
+    def test_counter_increments_once_across_sibling_processes(self, tmp_path):
+        """Each loader is a SEPARATE OS process. The counter must advance
+        exactly once per real turn no matter how many siblings call it."""
         from aipass.hooks.apps.modules.cadence import should_fire
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 3}))
+        state_file = _write_state(tmp_path, turn=3)
 
         with (
             patch(f"{MODULE}._GUARD_DIR", tmp_path),
@@ -122,9 +140,60 @@ class TestShouldFire:
             patch(f"{MODULE}._CONFIG_PATH", tmp_path / "cadence.json"),
         ):
             should_fire("global")
-            should_fire("branch")
+            for _ in range(4):  # 4 more siblings, each a fresh process
+                _reset_module_globals()
+                should_fire("branch")
             data = json.loads(state_file.read_text())
             assert data["turn"] == 4
+
+    def test_sibling_processes_agree_on_turn_no_leapfrog(self, tmp_path):
+        """The S210 live bug: global saw turn N, branch saw N+1 — they
+        leapfrogged and never both fired. Both siblings must see the SAME
+        turn and make the SAME decision."""
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        _write_state(tmp_path, turn=4)  # next real turn = 5 = fire (5 % 5 == 0)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", tmp_path / "cadence.json"),
+        ):
+            assert should_fire("global") is True
+            _reset_module_globals()  # branch runs as a separate process
+            assert should_fire("branch") is True
+
+    def test_token_backstop_blocks_double_increment(self, tmp_path):
+        """Even past the debounce window, an unchanged transcript token means
+        no new turn happened — the counter must not advance."""
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text("x" * 100)
+        state_file = _write_state(tmp_path, turn=3, token=100)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", tmp_path / "cadence.json"),
+        ):
+            should_fire("global", {"transcript_path": str(transcript)})
+            assert json.loads(state_file.read_text())["turn"] == 3
+
+    def test_reset_special_case_survives_debounce(self, tmp_path):
+        """turn < 0 (post-compact reset) must ALWAYS increment to 0, even when
+        the reset just happened (fresh mtime would normally debounce)."""
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        state_file = _write_state(tmp_path, turn=-1, aged=False)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", tmp_path / "cadence.json"),
+        ):
+            assert should_fire("global") is True
+            assert json.loads(state_file.read_text())["turn"] == 0
 
     def test_period_zero_always_fires(self, tmp_path):
         from aipass.hooks.apps.modules.cadence import should_fire
@@ -148,8 +217,7 @@ class TestShouldFire:
             json.dumps({"enabled": True, "period": 5, "loaders": {"global": {"offset": 0}, "branch": {"offset": 2}}})
         )
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 4}))
+        _write_state(tmp_path, turn=4)
 
         from aipass.hooks.apps.modules.cadence import should_fire
 
@@ -164,8 +232,7 @@ class TestShouldFire:
     def test_unknown_loader_uses_offset_zero(self, tmp_path):
         from aipass.hooks.apps.modules.cadence import should_fire
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 4}))
+        _write_state(tmp_path, turn=4)
 
         with (
             patch(f"{MODULE}._GUARD_DIR", tmp_path),
@@ -312,8 +379,7 @@ class TestPerSessionIsolation:
     def test_different_sessions_use_different_files(self, tmp_path):
         from aipass.hooks.apps.modules.cadence import should_fire
 
-        state_a = tmp_path / "aipass-cadence-session-a.json"
-        state_a.write_text(json.dumps({"turn": 4}))
+        state_a = _write_state(tmp_path, turn=4, session="session-a")
 
         with (
             patch(f"{MODULE}._GUARD_DIR", tmp_path),
@@ -391,35 +457,35 @@ class TestLoaderCadenceGuard:
         _reset_module_globals()
 
     def test_global_loader_skips_on_non_fire_turn(self, tmp_path):
+        """Skip = empty stdout AND no sound key — a skipped loader is SILENT."""
         from aipass.hooks.apps.handlers.prompt.global_loader import handle
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 0}))
+        _write_state(tmp_path, turn=0)  # next turn = 1 = skip
 
         with (
             patch(f"{MODULE}._GUARD_DIR", tmp_path),
             patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
             patch(f"{MODULE}._CONFIG_PATH", tmp_path / "cadence.json"),
-            patch("aipass.hooks.apps.handlers.prompt.global_loader.speak"),
         ):
             result = handle({})
 
         assert result["stdout"] == ""
         assert result["exit_code"] == 0
+        assert "sound" not in result
 
     def test_branch_loader_skips_on_non_fire_turn(self, tmp_path):
+        """Skip = empty stdout AND no sound key — a skipped loader is SILENT."""
         from aipass.hooks.apps.handlers.prompt.branch_loader import handle
 
-        state_file = tmp_path / "aipass-cadence-test-session.json"
-        state_file.write_text(json.dumps({"turn": 0}))
+        _write_state(tmp_path, turn=0)  # next turn = 1 = skip
 
         with (
             patch(f"{MODULE}._GUARD_DIR", tmp_path),
             patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
             patch(f"{MODULE}._CONFIG_PATH", tmp_path / "cadence.json"),
-            patch("aipass.hooks.apps.handlers.prompt.branch_loader.speak"),
         ):
             result = handle({})
 
         assert result["stdout"] == ""
         assert result["exit_code"] == 0
+        assert "sound" not in result

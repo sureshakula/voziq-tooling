@@ -16,7 +16,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -321,8 +320,6 @@ def handle(hook_data: dict) -> dict:
         if ext in SKIP_EXTENSIONS:
             return {"stdout": "", "exit_code": 0}
 
-        speak("auto fix diagnostics")
-
         errors: list[str] = []
 
         if file_path.endswith(".py"):
@@ -358,7 +355,7 @@ def handle(hook_data: dict) -> dict:
                 },
                 "systemMessage": f"[AUTO-FIX] {len(errors)} error(s) — fix before continuing",
             }
-            return {"stdout": json.dumps(result), "exit_code": 0}
+            return {"stdout": json.dumps(result), "exit_code": 0, "sound": "auto fix diagnostics"}
 
         result = {"systemMessage": "[diagnostics] ok"}
         return {"stdout": json.dumps(result), "exit_code": 0}

@@ -13,7 +13,6 @@
 import os
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -31,13 +30,11 @@ def _find_project_prompt() -> Path | None:
 
 def handle(hook_data: dict) -> dict:
     """Load global prompt — project-local if outside AIPass, AIPass-internal if inside."""
-    speak("global prompt")
-
     try:
         import importlib
 
         cadence = importlib.import_module("aipass.hooks.apps.modules.cadence")
-        if not cadence.should_fire("global"):
+        if not cadence.should_fire("global", hook_data):
             return {"stdout": "", "exit_code": 0}
     except Exception as exc:
         logger.info("[HOOKS] global_loader: cadence check failed, firing anyway: %s", exc)
@@ -55,7 +52,7 @@ def handle(hook_data: dict) -> dict:
             return {"stdout": "", "exit_code": 0}
 
         content = prompt_file.read_text(encoding="utf-8")
-        return {"stdout": content, "exit_code": 0}
+        return {"stdout": content, "exit_code": 0, "sound": "global prompt"}
 
     except Exception as exc:
         logger.info("[HOOKS] global_loader: unexpected error: %s", exc)

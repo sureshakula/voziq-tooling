@@ -284,7 +284,9 @@ def test_send_reply_multiline_body_preserved(tmp_path):
         deliver_calls.append((to_branch, email_data))
         return (True, "")
 
-    multiline_body = "Investigation: cadence findings\n\nDetails:\n1. First finding\n2. Second finding\n3. Third finding"
+    multiline_body = (
+        "Investigation: cadence findings\n\nDetails:\n1. First finding\n2. Second finding\n3. Third finding"
+    )
 
     with (
         patch(_PATCH_BRANCH_DETECTION, return_value=sender_info),

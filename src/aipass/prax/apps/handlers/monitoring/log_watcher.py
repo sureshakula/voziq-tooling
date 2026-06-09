@@ -102,8 +102,12 @@ class LogFileWatcher(FileSystemEventHandler):
         self.last_command_per_branch: Dict[str, str] = {}
 
     def _process_log_line(self, branch: str, line: str, file_path: str) -> None:
-        """Process a single log line: detect commands or emit as log event."""
+        """Process a single log line: detect hooks, commands, or emit as log event."""
         if not line.strip():
+            return
+        hook_info = self._extract_hook_info(line)
+        if hook_info:
+            self._emit_hook_event(branch, hook_info)
             return
         command_info = self._extract_command_info(line)
         if command_info:
@@ -158,6 +162,52 @@ class LogFileWatcher(FileSystemEventHandler):
 
         except Exception as e:
             logger.info(f"Error reading log file {file_path}: {e}")
+
+    _HOOK_PATTERN = re.compile(r"\[HOOKS\]\s+(\w+)\s+.*?action=(\w+)")
+
+    def _extract_hook_info(self, log_line: str) -> Optional[Dict[str, str]]:
+        """Extract hook event info from structured [HOOKS] log lines.
+
+        Matches lines like:
+            [HOOKS] cadence fired  loader=global action=fired turn=35 period=5 ...
+            [HOOKS] cadence skipped loader=branch action=skipped turn=37 period=5 ...
+        """
+        match = self._HOOK_PATTERN.search(log_line)
+        if not match:
+            return None
+        name = match.group(1)
+        action = match.group(2)
+        details: Dict[str, str] = {"name": name, "action": action}
+        for kv_match in re.finditer(r"(\w+)=(\S+)", log_line):
+            details[kv_match.group(1)] = kv_match.group(2)
+        return details
+
+    def _emit_hook_event(self, branch: str, hook_info: Dict[str, str]) -> None:
+        """Emit a hook event to the monitoring queue."""
+        action = hook_info.get("action", "unknown")
+        name = hook_info.get("name", "hook")
+        loader = hook_info.get("loader", "")
+        turn = hook_info.get("turn", "")
+
+        parts = [f"{name}:{action}"]
+        if loader:
+            parts.append(f"loader={loader}")
+        if turn:
+            parts.append(f"turn={turn}")
+        message = " ".join(parts)
+
+        level = "success" if action == "fired" else "info"
+
+        hook_event = MonitoringEvent(
+            priority=2,
+            event_type="hook",
+            branch=branch,
+            action=action,
+            message=message,
+            level=level,
+            timestamp=datetime.now(),
+        )
+        self.event_queue.enqueue(hook_event)
 
     def _should_display_log(self, _log_line: str) -> bool:
         """Check if log line should be displayed. No filtering — show everything."""

@@ -38,6 +38,7 @@ from aipass.prax.apps.handlers.json import json_handler
 from aipass.prax.apps.handlers.monitoring import (
     print_event,  # unified_stream.py
     print_command_separator,  # unified_stream.py - command headers
+    print_hook_event,  # unified_stream.py - hook fire/skip display
     MonitoringQueue,  # event_queue.py
     ModuleTracker,  # module_tracker.py
 )
@@ -338,6 +339,8 @@ def _render_event(event) -> None:
             if len(parts) == 2 and parts[1]:
                 target = parts[1]
         print_command_separator(event.branch, event.message, caller, target)
+    elif event.event_type == "hook":
+        print_hook_event(event.branch, event.message, event.action)
     else:
         print_event(event.event_type, event.branch, event.message, event.level, pid=branch_pid)
 

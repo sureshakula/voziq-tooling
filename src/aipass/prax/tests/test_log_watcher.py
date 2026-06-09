@@ -1063,3 +1063,105 @@ class TestInitializePositionsAdditional:
             watcher.initialize_positions()
 
         assert str(log_file) not in watcher.log_positions
+
+
+class TestExtractHookInfo:
+    """Test _extract_hook_info for structured [HOOKS] log lines."""
+
+    def test_fired_line_extracted(self):
+        """Should extract name, action, and key-value details from a fired line."""
+        mod = _import_log_watcher()
+        watcher, _ = _make_watcher(mod)
+
+        line = "[HOOKS] cadence fired  loader=global action=fired turn=35 period=5 offset=0 session=abc12345"
+        result = watcher._extract_hook_info(line)
+        assert result is not None
+        assert result["name"] == "cadence"
+        assert result["action"] == "fired"
+        assert result["loader"] == "global"
+        assert result["turn"] == "35"
+
+    def test_skipped_line_extracted(self):
+        """Should extract skipped hook events."""
+        mod = _import_log_watcher()
+        watcher, _ = _make_watcher(mod)
+
+        line = "[HOOKS] cadence skipped loader=branch action=skipped turn=37 period=5 offset=0 session=abc12345"
+        result = watcher._extract_hook_info(line)
+        assert result is not None
+        assert result["name"] == "cadence"
+        assert result["action"] == "skipped"
+        assert result["loader"] == "branch"
+
+    def test_non_hook_line_returns_none(self):
+        """Non-hook log lines should return None."""
+        mod = _import_log_watcher()
+        watcher, _ = _make_watcher(mod)
+
+        result = watcher._extract_hook_info("[FLOW] Creating plan FPLAN-0099")
+        assert result is None
+
+    def test_hook_line_without_action_returns_none(self):
+        """A [HOOKS] line without action= should return None."""
+        mod = _import_log_watcher()
+        watcher, _ = _make_watcher(mod)
+
+        result = watcher._extract_hook_info("[HOOKS] something happened no structured data")
+        assert result is None
+
+
+class TestEmitHookEvent:
+    """Test _emit_hook_event queues properly."""
+
+    def test_fired_event_queued_with_correct_kwargs(self):
+        """Fired hook events should pass event_type=hook, level=success to MonitoringEvent."""
+        mod = _import_log_watcher()
+        watcher, mock_queue = _make_watcher(mod)
+
+        mock_event_cls = MagicMock()
+        with patch.object(mod, "MonitoringEvent", mock_event_cls):
+            hook_info = {"name": "cadence", "action": "fired", "loader": "global", "turn": "35"}
+            watcher._emit_hook_event("HOOKS", hook_info)
+
+        mock_event_cls.assert_called_once()
+        kwargs = mock_event_cls.call_args[1]
+        assert kwargs["event_type"] == "hook"
+        assert kwargs["action"] == "fired"
+        assert kwargs["level"] == "success"
+        assert "cadence:fired" in kwargs["message"]
+        assert "loader=global" in kwargs["message"]
+        assert "turn=35" in kwargs["message"]
+
+    def test_skipped_event_queued_with_info_level(self):
+        """Skipped hook events should pass level=info to MonitoringEvent."""
+        mod = _import_log_watcher()
+        watcher, mock_queue = _make_watcher(mod)
+
+        mock_event_cls = MagicMock()
+        with patch.object(mod, "MonitoringEvent", mock_event_cls):
+            hook_info = {"name": "cadence", "action": "skipped", "loader": "branch", "turn": "37"}
+            watcher._emit_hook_event("HOOKS", hook_info)
+
+        kwargs = mock_event_cls.call_args[1]
+        assert kwargs["action"] == "skipped"
+        assert kwargs["level"] == "info"
+
+    def test_process_log_line_routes_hook_to_emit(self):
+        """Hook lines in _process_log_line should route to _emit_hook_event, not _emit_log_event."""
+        mod = _import_log_watcher()
+        watcher, mock_queue = _make_watcher(mod)
+
+        with (
+            patch.object(watcher, "_emit_hook_event") as mock_hook,
+            patch.object(watcher, "_emit_command_separator") as mock_cmd,
+            patch.object(watcher, "_emit_log_event") as mock_log,
+        ):
+            watcher._process_log_line(
+                "HOOKS",
+                "[HOOKS] cadence fired  loader=global action=fired turn=35 period=5 offset=0 session=abc",
+                "/fake/file.log",
+            )
+
+        mock_hook.assert_called_once()
+        mock_cmd.assert_not_called()
+        mock_log.assert_not_called()

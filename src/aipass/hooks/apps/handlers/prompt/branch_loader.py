@@ -12,7 +12,6 @@
 
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -30,13 +29,11 @@ def _find_branch_root(cwd: str) -> Path | None:
 
 def handle(hook_data: dict) -> dict:
     """Load branch prompt and private integration prompts."""
-    speak("branch prompt")
-
     try:
         import importlib
 
         cadence = importlib.import_module("aipass.hooks.apps.modules.cadence")
-        if not cadence.should_fire("branch"):
+        if not cadence.should_fire("branch", hook_data):
             return {"stdout": "", "exit_code": 0}
     except Exception as exc:
         logger.info("[HOOKS] branch_loader: cadence check failed, firing anyway: %s", exc)
@@ -63,7 +60,7 @@ def handle(hook_data: dict) -> dict:
         if not parts:
             return {"stdout": "", "exit_code": 0}
 
-        return {"stdout": "\n".join(parts), "exit_code": 0}
+        return {"stdout": "\n".join(parts), "exit_code": 0, "sound": "branch prompt"}
 
     except Exception as exc:
         logger.info("[HOOKS] branch_loader: unexpected error: %s", exc)

@@ -17,39 +17,37 @@ class TestRolloverHandler:
     def test_no_repo_root_returns_empty(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover.speak"):
-            with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=None):
-                result = handle({})
+        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=None):
+            result = handle({})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_no_overdue_returns_empty(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover.speak"):
-            with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
-                with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue", return_value=[]):
-                    result = handle({})
+        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
+            with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue", return_value=[]):
+                result = handle({})
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_overdue_triggers_rollover(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover.speak"):
-            with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
-                with patch(
-                    "aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue",
-                    return_value=[("devpulse", "local", "21/20 sessions")],
-                ):
-                    with patch(
-                        "aipass.hooks.apps.handlers.lifecycle.rollover._run_rollover", return_value=(True, "ok")
-                    ):
-                        result = handle({})
+        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
+            with patch(
+                "aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue",
+                return_value=[("devpulse", "local", "21/20 sessions")],
+            ):
+                with patch("aipass.hooks.apps.handlers.lifecycle.rollover._run_rollover", return_value=(True, "ok")):
+                    result = handle({})
 
         assert result["exit_code"] == 0
+        assert result["sound"] == "pre compact rollover"
 
     def test_check_file_v2_sessions_overdue(self, tmp_path):
         from aipass.hooks.apps.handlers.lifecycle.rollover import _check_file

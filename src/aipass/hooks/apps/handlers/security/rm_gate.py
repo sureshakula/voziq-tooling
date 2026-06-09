@@ -13,7 +13,6 @@
 import json
 import re
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -28,7 +27,7 @@ _BLOCK_ALLOW = {"stdout": "", "exit_code": 0}
 
 
 def _block(reason: str) -> dict:
-    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2, "sound": "rm gate"}
 
 
 def _strip_quotes(cmd: str) -> str:
@@ -84,8 +83,6 @@ def handle(hook_data: dict) -> dict:
     Returns:
         Result dict with stdout (block JSON or empty) and exit_code.
     """
-    speak("rm gate")
-
     try:
         tool_name = hook_data.get("tool_name", "")
         if tool_name != "Bash":

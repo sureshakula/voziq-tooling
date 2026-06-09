@@ -15,7 +15,6 @@ import os
 import re
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -133,7 +132,7 @@ def _all_git_reads(scan: str) -> bool:
 
 
 def _block(reason: str) -> dict:
-    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2, "sound": "git gate"}
 
 
 def _check_bash(tool_input: dict) -> dict:
@@ -170,8 +169,6 @@ def handle(hook_data: dict) -> dict:
     Returns:
         Result dict with stdout (block JSON or empty) and exit_code.
     """
-    speak("git gate")
-
     try:
         tool_name = hook_data.get("tool_name", "")
         tool_input = hook_data.get("tool_input", {})
