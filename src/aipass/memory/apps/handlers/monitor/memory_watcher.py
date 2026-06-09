@@ -43,11 +43,11 @@ except ImportError:
     FileSystemEventHandler = object  # type: ignore[assignment,misc]
     logger.info("Optional dependency 'watchdog' not available")
 
-# Handler imports (relative within package)
-from aipass.memory.apps.handlers.tracking.line_counter import update_line_count
-from aipass.memory.apps.handlers.monitor.detector import check_single_file
-from aipass.prax.apps.modules.logger import get_system_logger
-from aipass.memory.apps.handlers.json import json_handler
+# Handler imports (relative within package — after conditional watchdog block)
+from aipass.memory.apps.handlers.tracking.line_counter import update_line_count  # noqa: E402
+from aipass.memory.apps.handlers.monitor.detector import check_single_file  # noqa: E402
+from aipass.prax.apps.modules.logger import get_system_logger  # noqa: E402
+from aipass.memory.apps.handlers.json import json_handler  # noqa: E402
 
 logger = get_system_logger()
 
@@ -200,8 +200,6 @@ def check_and_rollover() -> Dict[str, Any]:
         return results
 
     # Check each branch for memory files over limit
-    # Also sync current_lines metadata to keep it accurate
-    lines_synced = 0
     for branch_path in branch_paths:
         branch = Path(branch_path)
         # Find memory files in .trinity/ subdirectory
@@ -213,33 +211,23 @@ def check_and_rollover() -> Dict[str, Any]:
                 results["files_checked"] += 1
 
                 try:
-                    line_count = len(memory_file.read_text(encoding="utf-8").splitlines())
+                    # Auto-heal: reconcile file against template (strips orphan keys)
+                    from aipass.memory.apps.handlers.schema.normalize import normalize_memory_file
 
-                    # Sync current_lines metadata if stale
-                    try:
-                        import json as _json
-
-                        _data = _json.loads(memory_file.read_text(encoding="utf-8"))
-                        meta_lines = _data.get("document_metadata", {}).get("status", {}).get("current_lines")
-                        if meta_lines != line_count:
-                            sync_result = update_line_count(memory_file)
-                            if sync_result.get("success"):
-                                lines_synced += 1
-                    except Exception as e:
-                        logger.warning(f"[memory_watcher] Non-critical metadata sync failed for {memory_file}: {e}")
+                    normalize_memory_file(memory_file)
 
                     # Use detector for trigger decision (handles both v1 line-based and v2 entry-count)
                     from aipass.memory.apps.handlers.monitor.detector import _should_rollover
 
-                    triggered, _, _, _, _ = _should_rollover(memory_file)
+                    triggered, current_lines, _, _, _ = _should_rollover(memory_file)
                     if triggered:
                         results["files_over_limit"].append(
-                            {"file": str(memory_file), "lines": line_count, "threshold": 0}
+                            {"file": str(memory_file), "lines": current_lines, "threshold": 0}
                         )
                 except Exception as e:
                     logger.warning(f"[memory_watcher] Failed to read memory file {memory_file}: {e}")
 
-    results["lines_synced"] = lines_synced
+    results["lines_synced"] = 0
 
     # Trigger rollover if any files are over limit
     if results["files_over_limit"]:
@@ -537,19 +525,23 @@ class MemoryFileWatcher(FileSystemEventHandler):  # type: ignore[misc]
 
         logger.info(f"[memory_watcher] Detected modification: {file_path.name}")
 
-        # Step 1: Update line count metadata
+        # Step 1: Auto-heal schema drift (strips orphan keys)
+        from aipass.memory.apps.handlers.schema.normalize import normalize_memory_file
+
+        norm_result = normalize_memory_file(file_path)
+        if norm_result.get("changes"):
+            self._recent_modifications.add(file_key)
+
+        # Step 2: Update health check metadata
         update_result = update_line_count(file_path)
 
         if not update_result["success"]:
             logger.error(
-                f"[memory_watcher] Failed to update line count for {file_path.name}: {update_result.get('error')}"
+                f"[memory_watcher] Failed to update metadata for {file_path.name}: {update_result.get('error')}"
             )
             return
 
-        current_lines = update_result.get("lines", 0)
-        logger.info(f"[memory_watcher] Updated {file_path.name}: {current_lines} lines")
-
-        # Step 2: Check if rollover needed
+        # Step 3: Check if rollover needed
         check_result = check_single_file(file_path)
 
         if not check_result["success"]:

@@ -350,7 +350,7 @@ class TestCountPhysicalLines:
 
     def test_counts_lines_correctly(self, monkeypatch, tmp_path):
         lc, _ = _import_line_counter(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         f.write_text("line1\nline2\nline3\n", encoding="utf-8")
         assert lc._count_physical_lines(f) == 3
 
@@ -376,7 +376,7 @@ class TestUpdateLineCount:
 
     def test_updates_line_count_successfully(self, monkeypatch, tmp_path):
         lc, mocks = _import_line_counter(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         f.write_text('{\n  "a": 1\n}\n', encoding="utf-8")
 
         result = lc.update_line_count(f)
@@ -387,7 +387,7 @@ class TestUpdateLineCount:
     def test_reports_failure_when_metadata_update_fails(self, monkeypatch, tmp_path):
         lc, mocks = _import_line_counter(monkeypatch)
         mocks["memory_files"].update_metadata.return_value = {"success": False, "error": "write error"}
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         f.write_text("{}\n", encoding="utf-8")
 
         result = lc.update_line_count(f)
@@ -413,12 +413,12 @@ class TestNormalizeMemoryFile:
 
     def test_moves_root_limits_into_metadata(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
-                "document_metadata": {"status": {"current_lines": 10}},
-                "limits": {"max_lines": 600},
+                "document_metadata": {"status": {}},
+                "limits": {"max_sessions": 20},
                 "sessions": [],
             },
         )
@@ -427,19 +427,19 @@ class TestNormalizeMemoryFile:
 
         data = json.loads(f.read_text(encoding="utf-8"))
         assert "limits" not in {k for k in data if k != "document_metadata"}
-        assert data["document_metadata"]["limits"]["max_lines"] == 600
+        assert data["document_metadata"]["limits"]["max_sessions"] == 20
 
     def test_merges_root_limits_preserving_metadata_values(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
                 "document_metadata": {
-                    "limits": {"max_lines": 500},
-                    "status": {"current_lines": 10},
+                    "limits": {"max_sessions": 20},
+                    "status": {},
                 },
-                "limits": {"max_lines": 600, "extra_field": 42},
+                "limits": {"max_sessions": 30, "max_key_learnings": 25},
                 "sessions": [],
             },
         )
@@ -447,19 +447,19 @@ class TestNormalizeMemoryFile:
         assert result["success"] is True
 
         data = json.loads(f.read_text(encoding="utf-8"))
-        # metadata value (500) wins over root value (600)
-        assert data["document_metadata"]["limits"]["max_lines"] == 500
-        # extra_field from root gets merged in
-        assert data["document_metadata"]["limits"]["extra_field"] == 42
+        # metadata value (20) wins over root value (30)
+        assert data["document_metadata"]["limits"]["max_sessions"] == 20
+        # valid key from root gets merged in
+        assert data["document_metadata"]["limits"]["max_key_learnings"] == 25
 
     def test_removes_root_status(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
-                "document_metadata": {"status": {"current_lines": 10}},
-                "status": {"health": "ok", "current_lines": 5},
+                "document_metadata": {"status": {"last_health_check": "2026-01-01"}},
+                "status": {"health": "ok"},
                 "sessions": [],
             },
         )
@@ -472,12 +472,12 @@ class TestNormalizeMemoryFile:
 
     def test_removes_auto_compress_at(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
                 "document_metadata": {
-                    "status": {"current_lines": 10, "auto_compress_at": 500},
+                    "status": {"auto_compress_at": 500, "last_health_check": "2026-01-01"},
                 },
                 "sessions": [],
             },
@@ -490,7 +490,7 @@ class TestNormalizeMemoryFile:
 
     def test_dry_run_does_not_write(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         original = {
             "document_metadata": {},
             "limits": {"max_lines": 600},
@@ -508,13 +508,13 @@ class TestNormalizeMemoryFile:
 
     def test_no_changes_when_already_normalized(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
                 "document_metadata": {
                     "limits": {"max_sessions": 20},
-                    "status": {"current_lines": 10, "last_health_check": "2026-03-31"},
+                    "status": {"last_health_check": "2026-03-31"},
                 },
                 "sessions": [],
             },
@@ -525,13 +525,13 @@ class TestNormalizeMemoryFile:
 
     def test_removes_unused_limit_fields(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
-        f = tmp_path / "test.json"
+        f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
                 "document_metadata": {
-                    "limits": {"max_lines": 600, "max_word_count": 9999, "max_token_count": 5000},
-                    "status": {"current_lines": 10, "last_health_check": "2026-03-31"},
+                    "limits": {"max_sessions": 20, "max_lines": 600, "max_word_count": 9999, "max_token_count": 5000},
+                    "status": {"last_health_check": "2026-03-31"},
                 },
                 "sessions": [],
             },
@@ -542,7 +542,8 @@ class TestNormalizeMemoryFile:
         data = json.loads(f.read_text(encoding="utf-8"))
         assert "max_word_count" not in data["document_metadata"]["limits"]
         assert "max_token_count" not in data["document_metadata"]["limits"]
-        assert data["document_metadata"]["limits"]["max_lines"] == 600
+        assert "max_lines" not in data["document_metadata"]["limits"]
+        assert data["document_metadata"]["limits"]["max_sessions"] == 20
 
 
 class TestTodosOperational:
