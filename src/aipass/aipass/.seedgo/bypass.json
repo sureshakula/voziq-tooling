@@ -275,6 +275,21 @@
       "file": "apps/handlers/json/json_handler.py",
       "standard": "test_quality",
       "reason": "save_json now raises ValueError on invalid structure (aipass.common contract, TDPLAN-0006 P2). Tested via pytest.raises — no False return path to test."
+    },
+    {
+      "file": "tests/test_sandbox_check.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_sandbox_check.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly (sandbox_checker, progress) to test them in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "tests/test_sandbox_check.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names (test_flag_off_by_default, test_bwrap_functional_live) that are self-documenting. Adding docstrings to 41 test functions adds noise without value."
     }
   ]
 }

@@ -51,7 +51,8 @@ src/aipass/hooks/
 │   │   ├── cadence.py           # Prompt injection cadence (every-Nth-turn gating)
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
-│   │   └── hookstatus.py        # Config viewer (drone @hooks status)
+│   │   ├── hookstatus.py        # Config viewer (drone @hooks status)
+│   │   └── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
 │   ├── handlers/
 │   │   ├── bridges/             # One per provider (thin normalization)
 │   │   │   └── claude.py        # Claude Code bridge
@@ -62,7 +63,7 @@ src/aipass/hooks/
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
 │   │   │   ├── git_gate.py      #   Enforces git access tiers
-│   │   │   ├── rm_gate.py       #   Blocks raw recursive rm, teaches drone rm
+│   │   │   ├── rm_gate.py       #   Guardrail — catches accidental rm -rf, teaches drone rm
 │   │   │   └── subagent_gate.py #   Blocks sub-agent stop until clean
 │   │   ├── lifecycle/           # Session management hooks
 │   │   │   ├── auto_fix.py      #   Post-edit diagnostics (ruff, pyright, py_compile)
@@ -79,7 +80,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 435 tests across 21 test files
+└── tests/                       # 472 tests across 22 test files
 ```
 
 ## How It Works
@@ -101,12 +102,39 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 | Event | Hooks | Description |
 |---|---|---|
 | UserPromptSubmit | identity, email, branch_loader, global_loader | Prompt injection + inbox check |
-| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + sound |
+| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
 | Stop | stop_sound | Achievement bell |
 | Notification | announce | Announcement tone |
 | PreCompact | compact, rollover | Memory archival + rollover |
+
+## Kernel Sandbox (srt/bwrap)
+
+The sandbox module (`apps/modules/sandbox.py`) provides the kernel-level filesystem boundary for agent sessions. It wraps Anthropic's `@anthropic-ai/sandbox-runtime` (srt) library, which uses bubblewrap (bwrap) + Landlock + seccomp on Linux to enforce write/read restrictions at the OS level.
+
+### Key Functions
+
+| Function | What it does |
+|---|---|
+| `build_policy(branch_path)` | Generates per-role writable/RO map from branch passport |
+| `sandbox_launch(cmd, cwd, policy)` | Resolves bwrap command via srt, spawns sandboxed process |
+| `build_srt_config(policy)` | Converts policy dict to srt config format |
+
+### Policy Rules
+
+- **Every agent**: own branch tree + /tmp + shared channels (system_logs, .ai_central, memory_pool, AIPASS_REGISTRY.json, flow_json) + sibling mail/dashboard carve-ins + ~/.claude/projects/
+- **devpulse only**: .git writable (the only committer)
+- **All other agents**: .git read-only, sibling source trees read-only
+- **Deny**: broker_secret (deny_read + deny_write for all roles)
+
+Bind-mount, not isolation: the sandbox preserves the shared live filesystem. Reads stay open everywhere. Only writes to protected paths are blocked at the kernel level (EROFS).
+
+### Architecture
+
+The Node helper (`_srt_resolve.mjs`) resolves the globally-installed srt library via `process.execPath` (ESM resolution doesn't walk to global node_modules). The resolver runs with CWD set to `/var/tmp` to prevent srt's mandatory-deny mask files from polluting the branch directory.
+
+The @drone broker validates sandbox policy before agent launch. @ai_mail's dispatch_monitor wires `build_policy` + `sandbox_launch` at the launch seam.
 
 ## Integration Points
 
@@ -118,9 +146,10 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 ### Provides To
 
-All branches via hook dispatch. Every Claude Code session routes through the engine.
+- All branches via hook dispatch — every Claude Code session routes through the engine
+- @ai_mail dispatch_monitor — sandbox_launch + build_policy for agent launch boundary
 
-*Last Updated: 2026-06-02*
+*Last Updated: 2026-06-10*
 
 ---
 

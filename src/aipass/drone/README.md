@@ -143,7 +143,8 @@ drone/
 │   │   ├── registry.py            # Registry query operations
 │   │   ├── commands.py            # Custom command shortcut orchestrator
 │   │   ├── git_module.py          # Git workflow (tier-based access, 16 commands)
-│   │   └── scan.py                # Branch command scanning
+│   │   ├── scan.py                # Branch command scanning
+│   │   └── broker.py             # Broker daemon orchestrator (sandbox delete)
 │   ├── handlers/                  # Implementation details
 │   │   ├── executor.py            # Safe subprocess execution (timeout, no shell)
 │   │   ├── exceptions.py          # Exception hierarchy (10 exception types)
@@ -153,6 +154,11 @@ drone/
 │   │   ├── module_registry_handler.py  # Module loading (internal + external)
 │   │   ├── generic_adapter.py     # StringIO capture for external modules
 │   │   ├── routing_config.json    # External module declarations
+│   │   ├── broker/
+│   │   │   ├── daemon.py          # Broker daemon (unix socket, openat2, audit)
+│   │   │   ├── client.py          # Broker client (inherited fd transport)
+│   │   │   ├── path_resolver.py   # openat2 RESOLVE_BENEATH path resolution
+│   │   │   └── protocol.py       # Typed JSON-line IPC (BrokerRequest/Response)
 │   │   ├── json/
 │   │   │   └── json_handler.py    # Structured operation logging
 │   │   ├── scanning/
@@ -187,7 +193,8 @@ drone/
 │           └── hook_sounds_plugin.py.disabled
 ├── docs/                          # Public documentation
 ├── docs.local/                    # Investigation reports and policies
-└── tests/                         # 704 tests across 21 test files
+├── artifacts/                     # Live acceptance test scripts
+└── tests/                         # 807 tests across 22 test files
 ```
 
 ### Routing Flow
@@ -325,7 +332,7 @@ Tip: set AIPASS_HOME=/path/to/AIPass to access all branches
 
 ## Testing
 
-704 tests across 21 test files, covering all layers:
+807 tests across 22 test files, covering all layers:
 
 | Area | Files | Tests |
 |------|-------|-------|
@@ -333,7 +340,8 @@ Tip: set AIPASS_HOME=/path/to/AIPass to access all branches
 | Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py`, `test_git_access.py` | ~150 |
 | Handlers | `test_executor.py`, `test_registry_handler.py`, `test_discovery.py` | ~99 |
 | Infrastructure | `test_generic_adapter.py`, `test_module_registry.py`, `test_config.py` | ~66 |
-| Features | `test_commands.py`, `test_scan.py`, `test_json_handler.py` | ~125 |
+| Features | `test_commands.py`, `test_scan.py`, `test_json_handler.py`, `test_rm.py` | ~181 |
+| Broker | `test_broker.py` | ~55 |
 | Standards | `test_cli_routing.py`, `test_contracts.py`, `test_error_resilience.py`, `test_init_provisioning.py` | ~21 |
 
 Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
@@ -348,7 +356,7 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ---
 
-**Seedgo:** 100% | **Tests:** 775 pass, 4 skip | **Last Updated:** 2026-06-07
+**Seedgo:** 100% | **Tests:** 830 pass, 4 skip | **Last Updated:** 2026-06-10
 
 ---
 [← Back to AIPass](../../../README.md)

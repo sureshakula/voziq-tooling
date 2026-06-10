@@ -23,6 +23,16 @@ from aipass.prax import logger
 from aipass.common.registry_discovery import find_registry as _discover_registry
 
 from aipass.aipass.apps.handlers.json import json_handler
+from aipass.aipass.apps.handlers.sandbox_check.sandbox_checker import (
+    check_broker_alive,
+    check_bwrap_functional,
+    check_bwrap_present,
+    check_node_present,
+    check_rg_present,
+    check_sandbox_flag,
+    check_srt_resolvable,
+    is_linux,
+)
 from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     check_placement,
     check_pyproject,
@@ -545,11 +555,105 @@ def _check_structure() -> List[CheckResult]:
     return results
 
 
+# --- Sandbox check group ---
+
+
+def _check_sandbox() -> List[CheckResult]:
+    """Run Sandbox group checks — kernel sandbox prerequisites."""
+    results: List[CheckResult] = []
+
+    if not is_linux():
+        results.append(CheckResult("sandbox", GLYPH_PASS, "kernel sandbox: Linux-only, not checked", ""))
+        return results
+
+    flag = check_sandbox_flag()
+    flag_on = flag["enabled"]
+    flag_label = "ON" if flag_on else "OFF"
+    results.append(CheckResult("sandbox flag", GLYPH_PASS, f"AIPASS_SANDBOX_ENABLED={flag_label}", ""))
+
+    def _sev(ok: bool) -> str:
+        if ok:
+            return GLYPH_PASS
+        return GLYPH_FAIL if flag_on else GLYPH_WARN
+
+    def _suffix(ok: bool) -> str:
+        if ok or flag_on:
+            return ""
+        return " (inert — flag is off)"
+
+    bwrap = check_bwrap_present()
+    results.append(
+        CheckResult(
+            "bwrap",
+            _sev(bwrap["found"]),
+            bwrap["path"] or "not found" + _suffix(bwrap["found"]),
+            "" if bwrap["found"] else "sudo apt install bubblewrap",
+        )
+    )
+
+    if bwrap["found"]:
+        func = check_bwrap_functional()
+        detail = func["detail"]
+        if not func["ok"] and func["sysctl_value"] is not None:
+            detail = f"{detail} (apparmor_restrict_unprivileged_userns={func['sysctl_value']})"
+        results.append(
+            CheckResult(
+                "bwrap functional",
+                _sev(func["ok"]),
+                detail + _suffix(func["ok"]),
+                "",
+            )
+        )
+
+    node = check_node_present()
+    results.append(
+        CheckResult(
+            "node",
+            _sev(node["found"]),
+            node["path"] or "not found" + _suffix(node["found"]),
+            "" if node["found"] else "Install Node.js: https://nodejs.org/",
+        )
+    )
+
+    srt = check_srt_resolvable()
+    results.append(
+        CheckResult(
+            "srt (@anthropic-ai/sandbox-runtime)",
+            _sev(srt["found"]),
+            srt["path"] or "not found" + _suffix(srt["found"]),
+            "" if srt["found"] else srt["install_hint"],
+        )
+    )
+
+    rg = check_rg_present()
+    results.append(
+        CheckResult(
+            "rg (ripgrep)",
+            _sev(rg["found"]),
+            rg["path"] or "not found" + _suffix(rg["found"]),
+            "" if rg["found"] else "sudo apt install ripgrep  (or static binary to ~/.local/bin/rg)",
+        )
+    )
+
+    project_root = find_project_root(Path.cwd())
+    broker = check_broker_alive(project_root)
+    results.append(
+        CheckResult(
+            "broker daemon",
+            _sev(broker["alive"]),
+            broker["detail"] + _suffix(broker["alive"]),
+            "",
+        )
+    )
+
+    return results
+
+
 # --- Main doctor run ---
 
 
 def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = False) -> int:
-    """Run all five groups and print results. Returns error count."""
+    """Run all six groups and print results. Returns error count."""
     console.print()
     console.print("[bold cyan]aipass doctor[/bold cyan]")
     console.print()
@@ -560,6 +664,7 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
         ("Services", lambda: _check_services(verbose=verbose)),
         ("Community", _check_community),
         ("Structure", _check_structure),
+        ("Sandbox", _check_sandbox),
     ]
     groups: Dict[str, List[CheckResult]] = {}
     with make_doctor_progress() as progress:
@@ -620,7 +725,7 @@ def print_introspection() -> None:
     console.print("[bold cyan]doctor Module[/bold cyan]")
     console.print("System health aggregation — flutter-doctor-style output")
     console.print()
-    console.print("[yellow]Groups:[/yellow] System, Identity, Services, Community, Structure")
+    console.print("[yellow]Groups:[/yellow] System, Identity, Services, Community, Structure, Sandbox")
     console.print("[yellow]Next:[/yellow]  [green]aipass doctor[/green] / [green]aipass doctor --fix[/green]")
     console.print()
 

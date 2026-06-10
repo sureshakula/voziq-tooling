@@ -84,6 +84,31 @@
       "standard": "help_text",
       "file": "tools/hook_engine_poc/test_engine.py",
       "reason": "POC test harness — usage example in docstring."
+    },
+    {
+      "standard": "debug_print",
+      "file": "tools/rm_shim/redteam_suite.py",
+      "reason": "Standalone red-team diagnostic runner (FPLAN-0250 Phase 6) — print() IS the report output, same as broker_acceptance_test.py."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "tools/rm_shim/redteam_suite.py",
+      "reason": "Red-team tool imports the real broker daemon/client + sandbox module directly to exercise them under live conditions — that is the point of an integration probe, not a handler."
+    },
+    {
+      "standard": "imports",
+      "file": "tools/rm_shim/redteam_suite.py",
+      "reason": "Standalone script run via 'python tools/...' — sys.path insert lets it import the production modules it red-teams without being pip-installed."
+    },
+    {
+      "standard": "help_text",
+      "file": "tools/rm_shim/redteam_suite.py",
+      "reason": "Diagnostic script — docstring shows the 'python tools/...' invocation; it is not a drone-routed module."
+    },
+    {
+      "standard": "documentation",
+      "file": "tools/rm_shim/redteam_suite.py",
+      "reason": "Result.ok/bad are 2-line internal report helpers in a diagnostic script — self-evident, docstrings redundant."
     }
   ],
   "notes": {

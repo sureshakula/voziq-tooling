@@ -12,6 +12,27 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **Kernel filesystem boundary for agent containment (DPLAN-0202 / FPLAN-0250).**
+  Every autonomous agent can now launch inside a kernel-enforced mount namespace
+  (`@anthropic-ai/sandbox-runtime` → bwrap+seccomp) where reads stay fully open
+  (the shared live filesystem is preserved — a bind-mount, *not* isolation: own-tree
+  writes land live on the real FS instantly) but deletes/overwrites of protected
+  paths (`.git`, sibling branch trees) fail at the kernel no matter how the call is
+  phrased — `rm`, `python os.remove`, `find -delete`, Write tool all hit EROFS.
+  `/tmp` and the agent's own tree stay writable; `.git` is RW for devpulse, RO for
+  builders. A per-role policy generator (`@hooks build_policy`) derives each branch's
+  writable/RO map from its passport. Privileged deletes route through an
+  out-of-sandbox **drone-broker** daemon: identity-scoped allowlist, `openat2`
+  RESOLVE_BENEATH path re-resolution (confused-deputy proof), HMAC identity handshake
+  over a pre-connected inherited fd, JSONL audit. `aipass doctor` gained a **Sandbox**
+  check group (bwrap present+functional, node, srt, rg, broker socket) that is LOUD
+  when the flag is on and a prereq is missing — never a silent unsandboxed launch.
+  Proven by a live 16-check red-team suite. **Inert by default** — gated behind
+  `AIPASS_SANDBOX_ENABLED` (off); flag-off is byte-identical to the old dispatch path.
+- **rm_gate demoted to guardrail.** Now framed honestly as early-feedback that
+  catches the accidental `rm -rf` and teaches `drone rm` — belt-and-suspenders, with
+  the kernel sandbox as the actual filesystem boundary.
+
 - **Prompt-injection cadence — fire the big loaders every Nth turn.** The global
   and branch prompts are large and were re-injected on *every* turn even though a
   prior copy stays in the conversation. They now fire together every 5th turn

@@ -93,7 +93,12 @@
     {
       "file": "apps/handlers/dispatch/dispatch_monitor.py",
       "standard": "handlers",
-      "reason": "Imports notify.send_notification — same-branch cross-handler import for bounce/completion notifications."
+      "reason": "Imports notify.send_notification (same-branch cross-handler) for bounce/completion notifications. Lazy-imports drone.apps.handlers.broker.client.create_identified_connection inside _connect_broker() for Phase 6b broker-fd handshake (FPLAN-0250) — cross-branch handler import authorized by brief."
+    },
+    {
+      "file": "apps/handlers/dispatch/dispatch_monitor.py",
+      "standard": "encapsulation",
+      "reason": "Lazy-imports drone.apps.handlers.broker.client.create_identified_connection inside _connect_broker() — cross-branch handler import for Phase 6b broker-fd handshake (FPLAN-0250). Brief explicitly authorizes this import path."
     },
     {
       "file": "apps/handlers/dispatch/wake.py",

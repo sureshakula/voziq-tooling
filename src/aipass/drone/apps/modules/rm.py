@@ -20,6 +20,10 @@ from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.rm_handler import (
     safe_delete as _safe_delete,
 )
+from aipass.drone.apps.handlers.broker.client import (
+    is_sandboxed as _is_sandboxed,
+    broker_delete as _broker_delete,
+)
 
 DRONE_MODULE = {
     "name": "rm",
@@ -32,8 +36,16 @@ def safe_delete(paths: list[str]) -> list[tuple[str, bool, str]]:
     """Delete paths with containment checks.
 
     Returns list of ``(original_path, success, message)`` tuples.
+    When sandboxed (AIPASS_BROKER_FD set), routes through the broker daemon.
     """
     logger.info("rm: requested deletion of %d path(s)", len(paths))
+    if _is_sandboxed():
+        json_handler.log_operation("rm_broker", {"paths": paths})
+        results: list[tuple[str, bool, str]] = []
+        for path_str in paths:
+            ok, message = _broker_delete(path_str)
+            results.append((path_str, ok, message))
+        return results
     return _safe_delete(paths)
 
 
