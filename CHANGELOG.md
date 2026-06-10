@@ -22,6 +22,13 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 - **Hook fire/skip observability.** Cadence emits a structured
   `[HOOKS] cadence fired|skipped loader= turn= period= offset=` line; the prax
   monitor renders hook events distinctly so the cadence is visible live.
+- **Slim global prompt — context-on-demand.** The always-injected global prompt
+  was rewritten from a ~13.8KB encyclopedia into a ~7.8KB navigation map
+  (DPLAN-0201): `drone` pinned as the router, the framework tree, all 13 agents
+  as short bios, and one drilled reflex — run `drone @agent --help` before using
+  a branch. Detail now lives in each agent's `--help`, fetched on demand. This
+  also dissolves the harness ~10k-char truncation that was silently dropping the
+  old prompt's tail; the slim prompt injects whole. Backup retained alongside.
 
 ### Changed
 
@@ -43,6 +50,12 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   in the sound refactor) raised `NameError` on every edit, swallowed by the
   handler's broad `except` — so auto-fix silently surfaced nothing on any
   `.py`/`.json` edit. Removed the dead call; diagnostics run again.
+- **Hook events never colored in the monitor.** The prax log-watcher's
+  `_HOOK_PATTERN` required an `action=` field that cadence never emits (it logs
+  the action as the bare second word, `fired`/`skipped`), so extraction failed
+  and events fell through to plain rendering instead of the styled
+  bold-green ⚡ / dim · treatment. Fixed the regex to capture the bare action
+  word and enriched the event detail (period, offset, short session id).
 
 ### Security
 
