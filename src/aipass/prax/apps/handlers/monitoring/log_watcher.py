@@ -28,8 +28,8 @@ from typing import Optional, Dict, Any
 import re
 
 from aipass.prax.apps.modules.logger import get_direct_logger
-from watchdog.observers import Observer as WatchdogObserver
-from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer as WatchdogObserver  # type: ignore
+from watchdog.events import FileSystemEventHandler  # type: ignore
 
 # Import from prax config
 from aipass.prax.apps.handlers.config.load import get_system_logs_dir
@@ -163,14 +163,16 @@ class LogFileWatcher(FileSystemEventHandler):
         except Exception as e:
             logger.info(f"Error reading log file {file_path}: {e}")
 
-    _HOOK_PATTERN = re.compile(r"\[HOOKS\]\s+(\w+)\s+.*?action=(\w+)")
+    _HOOK_PATTERN = re.compile(r"\[HOOKS\]\s+(\w+)\s+(\w+)")
 
     def _extract_hook_info(self, log_line: str) -> Optional[Dict[str, str]]:
         """Extract hook event info from structured [HOOKS] log lines.
 
-        Matches lines like:
-            [HOOKS] cadence fired  loader=global action=fired turn=35 period=5 ...
-            [HOOKS] cadence skipped loader=branch action=skipped turn=37 period=5 ...
+        The action is the bare second word (matches what hooks emits), e.g.:
+            [HOOKS] cadence fired loader=global turn=35 period=5 offset=0 session=...
+            [HOOKS] cadence skipped loader=branch turn=37 period=5 offset=0 session=...
+        group(1)=name (cadence), group(2)=action (fired/skipped). Remaining
+        key=value fields are parsed by the finditer loop below.
         """
         match = self._HOOK_PATTERN.search(log_line)
         if not match:
@@ -188,12 +190,21 @@ class LogFileWatcher(FileSystemEventHandler):
         name = hook_info.get("name", "hook")
         loader = hook_info.get("loader", "")
         turn = hook_info.get("turn", "")
+        period = hook_info.get("period", "")
+        offset = hook_info.get("offset", "")
+        session = hook_info.get("session", "")
 
         parts = [f"{name}:{action}"]
         if loader:
             parts.append(f"loader={loader}")
         if turn:
-            parts.append(f"turn={turn}")
+            parts.append(f"t={turn}")
+        if period:
+            parts.append(f"p={period}")
+        if offset and offset != "0":
+            parts.append(f"off={offset}")
+        if session:
+            parts.append(f"s={session[:8]}")
         message = " ".join(parts)
 
         level = "success" if action == "fired" else "info"
@@ -533,7 +544,7 @@ def start_log_watcher(event_queue: MonitoringQueue, use_polling: bool = False) -
 
     # Create observer — polling fallback when inotify unavailable
     if use_polling:
-        from watchdog.observers.polling import PollingObserver
+        from watchdog.observers.polling import PollingObserver  # type: ignore
 
         observer = PollingObserver(timeout=1)
         logger.info("Log watcher using polling observer (1s interval)")
