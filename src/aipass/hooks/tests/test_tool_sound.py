@@ -1,15 +1,13 @@
 # =================== AIPass ====================
 # Name: test_tool_sound.py
-# Version: 1.2.0
+# Version: 1.3.0
 # Description: Tests for tool_sound notification handler
 # Branch: hooks
 # Created: 2026-05-19
-# Modified: 2026-05-22
+# Modified: 2026-06-09
 # =============================================
 
 """Tests for handlers/notification/tool_sound.py."""
-
-from unittest.mock import patch
 
 
 class TestToolSoundHandler:
@@ -18,8 +16,7 @@ class TestToolSoundHandler:
     def test_handle_returns_result_dict(self):
         from aipass.hooks.apps.handlers.notification.tool_sound import handle
 
-        with patch("aipass.hooks.apps.handlers.notification.tool_sound.speak"):
-            result = handle({"tool_name": "Bash"})
+        result = handle({"tool_name": "Bash"})
 
         assert isinstance(result, dict)
         assert "stdout" in result
@@ -27,26 +24,23 @@ class TestToolSoundHandler:
         assert result["stdout"] == ""
         assert result["exit_code"] == 0
 
-    def test_speaks_tool_name(self):
+    def test_sound_key_includes_tool_name(self):
         from aipass.hooks.apps.handlers.notification.tool_sound import handle
 
-        with patch("aipass.hooks.apps.handlers.notification.tool_sound.speak") as mock_speak:
-            handle({"tool_name": "Edit"})
+        result = handle({"tool_name": "Edit"})
 
-        mock_speak.assert_called_once_with("tool sound: Edit")
+        assert result["sound"] == "tool sound: Edit"
 
-    def test_no_speak_when_no_tool_name(self):
+    def test_no_sound_when_no_tool_name(self):
         from aipass.hooks.apps.handlers.notification.tool_sound import handle
 
-        with patch("aipass.hooks.apps.handlers.notification.tool_sound.speak") as mock_speak:
-            handle({})
+        result = handle({})
 
-        mock_speak.assert_not_called()
+        assert result.get("sound", "") == ""
 
-    def test_no_speak_when_empty_tool_name(self):
+    def test_no_sound_when_empty_tool_name(self):
         from aipass.hooks.apps.handlers.notification.tool_sound import handle
 
-        with patch("aipass.hooks.apps.handlers.notification.tool_sound.speak") as mock_speak:
-            handle({"tool_name": ""})
+        result = handle({"tool_name": ""})
 
-        mock_speak.assert_not_called()
+        assert result.get("sound", "") == ""

@@ -13,7 +13,6 @@
 import json
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -97,7 +96,13 @@ def handle(hook_data: dict) -> dict:
         return {"stdout": "", "exit_code": 0}
 
     plural = "s" if new_count != 1 else ""
-    speak(f"email notification: {new_count} new email{plural}")
-    msg = f"You have {new_count} new email{plural} - check with: drone @ai_mail inbox | then: drone @ai_mail view <id> | close with: drone @ai_mail close <id>"
+    msg = (
+        f"You have {new_count} new email{plural} - check with: drone @ai_mail inbox"
+        " | then: drone @ai_mail view <id> | close with: drone @ai_mail close <id>"
+    )
     logger.info("[HOOKS] email: %d new email%s", new_count, plural)
-    return {"stdout": msg, "exit_code": 0}
+    return {
+        "stdout": msg,
+        "exit_code": 0,
+        "sound": f"email notification: {new_count} new email{plural}",
+    }

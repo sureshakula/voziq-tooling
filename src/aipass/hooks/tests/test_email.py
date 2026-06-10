@@ -1,10 +1,10 @@
 # =================== AIPass ====================
 # Name: test_email.py
-# Version: 1.2.0
+# Version: 1.3.0
 # Description: Tests for email notification handler
 # Branch: hooks
 # Created: 2026-05-21
-# Modified: 2026-05-22
+# Modified: 2026-06-09
 # =============================================
 
 """Tests for handlers/notification/email.py."""
@@ -41,12 +41,9 @@ class TestEmailHandler:
             encoding="utf-8",
         )
 
-        with (
-            patch(
-                "aipass.hooks.apps.handlers.notification.email._find_branch_root",
-                return_value=tmp_path,
-            ),
-            patch("aipass.hooks.apps.handlers.notification.email.speak"),
+        with patch(
+            "aipass.hooks.apps.handlers.notification.email._find_branch_root",
+            return_value=tmp_path,
         ):
             result = handle({})
 
@@ -54,7 +51,7 @@ class TestEmailHandler:
         assert "drone @ai_mail inbox" in result["stdout"]
         assert result["exit_code"] == 0
 
-    def test_handle_speaks_when_new_emails(self, tmp_path):
+    def test_handle_sets_sound_when_new_emails(self, tmp_path):
         from aipass.hooks.apps.handlers.notification.email import handle
 
         inbox_dir = tmp_path / ".ai_mail.local"
@@ -65,18 +62,15 @@ class TestEmailHandler:
             encoding="utf-8",
         )
 
-        with (
-            patch(
-                "aipass.hooks.apps.handlers.notification.email._find_branch_root",
-                return_value=tmp_path,
-            ),
-            patch("aipass.hooks.apps.handlers.notification.email.speak") as mock_speak,
+        with patch(
+            "aipass.hooks.apps.handlers.notification.email._find_branch_root",
+            return_value=tmp_path,
         ):
-            handle({})
+            result = handle({})
 
-        mock_speak.assert_called_once_with("email notification: 1 new email")
+        assert result["sound"] == "email notification: 1 new email"
 
-    def test_handle_does_not_speak_when_no_emails(self, tmp_path):
+    def test_handle_no_sound_when_no_emails(self, tmp_path):
         from aipass.hooks.apps.handlers.notification.email import handle
 
         inbox_dir = tmp_path / ".ai_mail.local"
@@ -87,16 +81,13 @@ class TestEmailHandler:
             encoding="utf-8",
         )
 
-        with (
-            patch(
-                "aipass.hooks.apps.handlers.notification.email._find_branch_root",
-                return_value=tmp_path,
-            ),
-            patch("aipass.hooks.apps.handlers.notification.email.speak") as mock_speak,
+        with patch(
+            "aipass.hooks.apps.handlers.notification.email._find_branch_root",
+            return_value=tmp_path,
         ):
-            handle({})
+            result = handle({})
 
-        mock_speak.assert_not_called()
+        assert result.get("sound", "") == ""
 
     def test_handle_returns_empty_when_no_new_emails(self, tmp_path):
         from aipass.hooks.apps.handlers.notification.email import handle
@@ -109,12 +100,9 @@ class TestEmailHandler:
             encoding="utf-8",
         )
 
-        with (
-            patch(
-                "aipass.hooks.apps.handlers.notification.email._find_branch_root",
-                return_value=tmp_path,
-            ),
-            patch("aipass.hooks.apps.handlers.notification.email.speak"),
+        with patch(
+            "aipass.hooks.apps.handlers.notification.email._find_branch_root",
+            return_value=tmp_path,
         ):
             result = handle({})
 
@@ -140,12 +128,9 @@ class TestEmailHandler:
             encoding="utf-8",
         )
 
-        with (
-            patch(
-                "aipass.hooks.apps.handlers.notification.email._find_branch_root",
-                return_value=tmp_path,
-            ),
-            patch("aipass.hooks.apps.handlers.notification.email.speak"),
+        with patch(
+            "aipass.hooks.apps.handlers.notification.email._find_branch_root",
+            return_value=tmp_path,
         ):
             result = handle({})
 
