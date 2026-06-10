@@ -15,6 +15,7 @@ paths stay silent (no "sound" key).
 """
 
 import json
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -259,6 +260,8 @@ class TestAutoFixSubprocessChecks:
         errors = _check_ruff_lint("/tmp/bad.py")
         assert len(errors) == 1
         assert "LINT" in errors[0]
+        # bare "ruff" relies on PATH the hook env doesn't have — must go through the venv interpreter
+        assert mock_run.call_args[0][0][:3] == [sys.executable, "-m", "ruff"]
 
     @patch("subprocess.run")
     def test_check_ruff_format_drift(self, mock_run):
@@ -268,6 +271,7 @@ class TestAutoFixSubprocessChecks:
         errors = _check_ruff_format("/tmp/unformatted.py")
         assert len(errors) == 1
         assert "FORMAT" in errors[0]
+        assert mock_run.call_args[0][0][:3] == [sys.executable, "-m", "ruff"]
 
     @patch("subprocess.run")
     def test_run_ruff_lint_structured_returns_dicts(self, mock_run):
@@ -285,6 +289,7 @@ class TestAutoFixSubprocessChecks:
         assert len(errors) == 1
         assert errors[0]["line"] == 5
         assert "F401" in errors[0]["message"]
+        assert mock_run.call_args[0][0][:3] == [sys.executable, "-m", "ruff"]
 
     @patch("subprocess.run")
     def test_run_ruff_lint_structured_skips_claude_hooks(self, mock_run):

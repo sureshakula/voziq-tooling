@@ -5,7 +5,7 @@
 # Branch: hooks
 # Layer: apps/handlers/lifecycle
 # Created: 2026-05-22
-# Modified: 2026-05-22
+# Modified: 2026-06-09
 # =============================================
 
 """Runs diagnostics on edited files and surfaces errors for the agent to fix."""
@@ -71,15 +71,18 @@ def _check_syntax(file_path: str) -> list[str]:
 def _check_ruff_lint(file_path: str) -> list[str]:
     try:
         result = subprocess.run(
-            ["ruff", "check", "--select=E,F,W", "--output-format=text", file_path],
+            [sys.executable, "-m", "ruff", "check", "--select=E,F,W", "--output-format=concise", file_path],
             capture_output=True,
             text=True,
             timeout=10,
         )
+        if result.returncode not in (0, 1):
+            logger.info("[HOOKS] auto_fix: ruff lint error: %s", result.stderr.strip())
+            return []
         if result.stdout.strip():
-            return [f"LINT: {line}" for line in result.stdout.strip().split("\n")[:5]]
-    except FileNotFoundError:
-        logger.info("[HOOKS] auto_fix: ruff not found")
+            lines = result.stdout.strip().split("\n")
+            violations = [line for line in lines if ".py:" in line]
+            return [f"LINT: {line}" for line in violations[:5]]
     except Exception as exc:
         logger.info("[HOOKS] auto_fix: ruff lint failed: %s", exc)
     return []
@@ -88,16 +91,16 @@ def _check_ruff_lint(file_path: str) -> list[str]:
 def _check_ruff_format(file_path: str) -> list[str]:
     try:
         result = subprocess.run(
-            ["ruff", "format", "--check", file_path],
+            [sys.executable, "-m", "ruff", "format", "--check", file_path],
             capture_output=True,
             text=True,
             timeout=10,
         )
-        if result.returncode != 0:
+        if result.returncode == 1:
             name = Path(file_path).name
             return [f"FORMAT: {name} needs ruff format (run: ruff format {name})"]
-    except FileNotFoundError:
-        logger.info("[HOOKS] auto_fix: ruff not found")
+        if result.returncode not in (0, 1):
+            logger.info("[HOOKS] auto_fix: ruff format error: %s", result.stderr.strip())
     except Exception as exc:
         logger.info("[HOOKS] auto_fix: ruff format check failed: %s", exc)
     return []
@@ -151,11 +154,14 @@ def _run_ruff_lint_structured(file_path: str) -> list[dict]:
         return []
     try:
         result = subprocess.run(
-            ["ruff", "check", "--select=E,F,W", "--output-format=json", file_path],
+            [sys.executable, "-m", "ruff", "check", "--select=E,F,W", "--output-format=json", file_path],
             capture_output=True,
             text=True,
             timeout=10,
         )
+        if result.returncode not in (0, 1):
+            logger.info("[HOOKS] auto_fix: ruff structured lint error: %s", result.stderr.strip())
+            return []
         if not result.stdout.strip():
             return []
         violations = json.loads(result.stdout)
@@ -168,8 +174,6 @@ def _run_ruff_lint_structured(file_path: str) -> list[dict]:
             message = v.get("message", "unknown")[:100]
             errors.append({"line": line, "message": f"{code}: {message}"})
         return errors
-    except FileNotFoundError:
-        logger.info("[HOOKS] auto_fix: ruff not found for structured lint")
     except json.JSONDecodeError as exc:
         logger.info("[HOOKS] auto_fix: ruff JSON parse failed: %s", exc)
     except subprocess.TimeoutExpired:
