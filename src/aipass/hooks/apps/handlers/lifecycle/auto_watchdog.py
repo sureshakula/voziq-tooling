@@ -12,8 +12,6 @@
 
 import json
 
-from aipass.hooks.apps.sound import speak
-
 
 def handle(hook_data: dict) -> dict:
     """Return additionalContext reminder if dispatch detected without watchdog.
@@ -39,8 +37,6 @@ def handle(hook_data: dict) -> dict:
     if "dispatch wake" in command and "dispatch @" not in command:
         return {"stdout": "", "exit_code": 0}
 
-    speak("auto watchdog")
-
     result = {
         "additionalContext": (
             "[AUTO-WATCHDOG] Dispatch detected — arm watchdog NOW. "
@@ -48,4 +44,4 @@ def handle(hook_data: dict) -> dict:
             "run_in_background: true and timeout: 600000."
         )
     }
-    return {"stdout": json.dumps(result), "exit_code": 0}
+    return {"stdout": json.dumps(result), "exit_code": 0, "sound": "auto watchdog"}
