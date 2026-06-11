@@ -1,14 +1,14 @@
 # =================== AIPass ====================
 # Name: json_handler.py
-# Description: Branch-local shim — delegates to aipass.common.json_handler
+# Description: Branch-local shim — delegates to aipass.aipass.shared.json_handler
 # Version: 2.0.0
 # Created: 2026-04-16
 # Modified: 2026-06-06
 # =============================================
 
-"""Branch-local JSON handler — thin shim over the shared ``aipass.common`` library.
+"""Branch-local JSON handler — thin shim over the shared ``aipass.aipass.shared`` library.
 
-All logic lives in ``aipass.common.json_handler.JsonHandler``.
+All logic lives in ``aipass.aipass.shared.json_handler.JsonHandler``.
 This module binds a ``JsonHandler`` instance to the aipass branch's
 ``aipass_json/`` directory and re-exports the public API as module-level
 functions so existing callers (``json_handler.log_operation(...)``) keep working.
@@ -20,7 +20,7 @@ import inspect
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from aipass.common.json_handler import JsonHandler
+from aipass.aipass.shared.json_handler import JsonHandler
 
 
 def _get_caller_module_name() -> str:

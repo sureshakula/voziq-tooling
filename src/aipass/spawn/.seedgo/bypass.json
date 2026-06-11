@@ -103,7 +103,7 @@
     {
       "file": "apps/handlers/json/json_handler.py",
       "standard": "naming",
-      "reason": "Module-level names are function re-exports from aipass.common.json_handler.JsonHandler, not constants. Lowercase is correct for callable bindings."
+      "reason": "Module-level names are function re-exports from aipass.aipass.shared.json_handler.JsonHandler, not constants. Lowercase is correct for callable bindings."
     },
     {
       "file": "apps/handlers/delete_ops.py",

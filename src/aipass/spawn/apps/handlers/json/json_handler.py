@@ -1,12 +1,12 @@
 # =================== AIPass ====================
 # Name: json_handler.py
-# Description: Spawn JSON handler — configured instance of aipass.common
+# Description: Spawn JSON handler — configured instance of aipass.aipass.shared
 # Version: 3.0.0
 # Created: 2026-03-07
-# Modified: 2026-06-06
+# Modified: 2026-06-10
 # =============================================
 
-"""Spawn JSON handler — thin shim over aipass.common.json_handler.
+"""Spawn JSON handler — thin shim over aipass.aipass.shared.json_handler.
 
 Creates a JsonHandler instance configured with spawn's json_dir.
 All functions are re-exported for backward-compatible imports.
@@ -14,7 +14,7 @@ All functions are re-exported for backward-compatible imports.
 
 from pathlib import Path
 
-from aipass.common.json_handler import JsonHandler
+from aipass.aipass.shared.json_handler import JsonHandler
 
 _SPAWN_ROOT = Path(__file__).resolve().parents[3]
 _JSON_DIR = _SPAWN_ROOT / "spawn_json"

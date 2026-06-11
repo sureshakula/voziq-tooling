@@ -53,6 +53,17 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Changed
 
+- **Shared leaf library re-homed: `aipass.common` → `aipass.aipass.shared` (FPLAN-0260).**
+  `src/aipass/common/` was the only non-citizen directory in the agent namespace —
+  a shared lib (json_handler / json_ops / registry_discovery, extracted in
+  TDPLAN-0006 P2) parked as a sibling to the agents with no owner. Per @seedgo
+  design review it now lives inside its steward at `src/aipass/aipass/shared/`,
+  owned by @aipass; @spawn imports across (same blessed shared-infra category as
+  `aipass.prax`/`aipass.cli`). Content byte-identical; ~9 import/doc sites updated
+  across aipass+spawn. A new subprocess guard test pins the bootstrap-safety
+  invariant: importing `shared/` loads zero branch dependencies, so `aipass init`
+  keeps working pre-drone on fresh machines. Note: `aipass.common` shipped in the
+  v2.5.2 wheel; it was internal plumbing — no deprecation shim.
 - **Action-gated hook sound.** Piper now speaks only when a hook actually *does*
   something — handlers return a `sound` key the engine plays, instead of
   announcing on every invocation. Skipped loaders are silent. Quieter and honest.

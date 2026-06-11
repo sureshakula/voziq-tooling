@@ -20,7 +20,7 @@ from typing import Dict, List, NamedTuple
 from aipass.cli.apps.modules import console
 from aipass.prax import logger
 
-from aipass.common.registry_discovery import find_registry as _discover_registry
+from aipass.aipass.shared.registry_discovery import find_registry as _discover_registry
 
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.sandbox_check.sandbox_checker import (
