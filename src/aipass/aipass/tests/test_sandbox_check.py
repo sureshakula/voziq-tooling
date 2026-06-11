@@ -11,6 +11,7 @@
 import shutil
 import socket
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -291,6 +292,7 @@ class TestCheckBrokerAlive:
         assert result["alive"] is False
         assert "missing" in result["detail"]
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="AF_UNIX broker sockets are Linux-only")
     def test_socket_connect_success(self, tmp_path):
         ai_central = tmp_path / ".ai_central"
         ai_central.mkdir()
@@ -306,6 +308,7 @@ class TestCheckBrokerAlive:
         finally:
             server.close()
 
+    @pytest.mark.skipif(sys.platform != "linux", reason="AF_UNIX broker sockets are Linux-only")
     def test_socket_connect_refused(self, tmp_path):
         ai_central = tmp_path / ".ai_central"
         ai_central.mkdir()

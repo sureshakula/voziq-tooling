@@ -29,10 +29,15 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   bypasses the test-only broker `start_background` (intentional API, not dead code).
 - **windows-setup CI: guard Linux-only sandbox tests.** The kernel-sandbox build
   is Linux-only (bwrap, `AF_UNIX` sockets, `openat2`); the code already guards on
-  `sys.platform`, but `drone/tests/test_broker.py` and `hooks/tests/test_sandbox.py`
-  ran unconditionally and failed on `windows-latest`. Added module-level
-  `pytestmark = pytest.mark.skipif(sys.platform != "linux", …)` so they skip on
-  Windows and run unchanged on Linux.
+  `sys.platform`, but four test surfaces ran unconditionally and failed on
+  `windows-latest`. Module-level `pytestmark = pytest.mark.skipif(sys.platform !=
+  "linux", …)` on `drone/tests/test_broker.py` and `hooks/tests/test_sandbox.py`;
+  scoped guards on the remaining `AF_UNIX` broker-socket tests —
+  `ai_mail/.../test_dispatch_monitor.py::TestBrokerRealE2E` (class) and
+  `aipass/.../test_sandbox_check.py::TestCheckBrokerAlive` socket-connect tests
+  (method-level, so the graceful no-broker paths still run on Windows). All skip on
+  Windows and run unchanged on Linux. windows-setup was green pre-sandbox-merge
+  (`00edd8b`) and red since (`0b4ba63`); this closes it.
 
 ### Added
 

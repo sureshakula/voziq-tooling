@@ -1721,6 +1721,7 @@ class TestBrokerFdHandshake:
         assert env_snapshots[0]["AIPASS_BROKER_FD"] == "10"
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="AF_UNIX broker daemon is Linux-only")
 class TestBrokerRealE2E:
     """Real multi-process e2e: broker daemon, identified connection, child reads fd."""
 
