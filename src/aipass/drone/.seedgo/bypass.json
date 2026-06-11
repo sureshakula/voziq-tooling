@@ -266,6 +266,12 @@
       "standard": "unused_function",
       "lines": [655],
       "reason": "get_introspective() called dynamically via getattr() by module_registry_handler.py:219 for internal module introspection. Also tested in test_git_module, test_system_pr, test_devpulse_plugins, test_git_access."
+    },
+    {
+      "file": "apps/handlers/broker/daemon.py",
+      "standard": "unused_function",
+      "lines": [420],
+      "reason": "Threaded broker entrypoint, exercised by tests/test_broker.py; production uses blocking start(); intentionally not called in shipped non-test code."
     }
   ],
   "notes": {

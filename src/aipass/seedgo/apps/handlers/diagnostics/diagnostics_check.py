@@ -25,12 +25,11 @@ from typing import Dict, List, Optional
 
 from rich.console import Console
 
-console = Console()
-
-# Import ignore patterns from bypass handler
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.bypass.ignore_handler import get_audit_ignore_patterns
 from aipass.seedgo.apps.handlers.json import json_handler
+
+console = Console()
 
 AUDIT_SCOPE = "branch_level"
 
@@ -86,19 +85,29 @@ def check_file(file_path: str) -> Dict:
     try:
         # Run pyright with JSON output
         result = subprocess.run(
-            ["python3", "-m", "pyright", "--outputjson", str(path)], capture_output=True, text=True, timeout=30
+            [sys.executable, "-m", "pyright", "--pythonpath", sys.executable, "--outputjson", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
 
         # Parse JSON output
         try:
             output = json.loads(result.stdout)
         except json.JSONDecodeError:
-            logger.info("Failed to parse pyright JSON output for %s", file_path)
+            logger.error("Failed to parse pyright JSON output for %s", file_path)
             return {
                 "file": str(file_path),
-                "errors": 0,
+                "errors": 1,
                 "warnings": 0,
-                "diagnostics": [],
+                "diagnostics": [
+                    {
+                        "line": 0,
+                        "severity": "error",
+                        "message": "Pyright failed to run — cannot parse output",
+                        "rule": "",
+                    }
+                ],
                 "error": f"Failed to parse pyright output: {result.stderr or result.stdout}",
             }
 
@@ -125,11 +134,23 @@ def check_file(file_path: str) -> Dict:
         return {"file": str(file_path), "errors": errors, "warnings": warnings, "diagnostics": diagnostics}
 
     except subprocess.TimeoutExpired:
-        logger.info("Pyright timed out for %s", file_path)
-        return {"file": str(file_path), "errors": 0, "warnings": 0, "diagnostics": [], "error": "Pyright timed out"}
+        logger.error("Pyright timed out for %s", file_path)
+        return {
+            "file": str(file_path),
+            "errors": 1,
+            "warnings": 0,
+            "diagnostics": [{"line": 0, "severity": "error", "message": "Pyright timed out", "rule": ""}],
+            "error": "Pyright timed out",
+        }
     except Exception as e:
-        logger.info("Pyright check failed for %s: %s", file_path, e)
-        return {"file": str(file_path), "errors": 0, "warnings": 0, "diagnostics": [], "error": str(e)}
+        logger.error("Pyright check failed for %s: %s", file_path, e)
+        return {
+            "file": str(file_path),
+            "errors": 1,
+            "warnings": 0,
+            "diagnostics": [{"line": 0, "severity": "error", "message": f"Pyright failed: {e}", "rule": ""}],
+            "error": str(e),
+        }
 
 
 def check_directory(directory: str, pattern: str = "**/*.py") -> Dict:
@@ -164,7 +185,7 @@ def check_directory(directory: str, pattern: str = "**/*.py") -> Dict:
     # Run pyright on entire directory for efficiency
     try:
         result = subprocess.run(
-            ["python3", "-m", "pyright", "--outputjson", str(path)],
+            [sys.executable, "-m", "pyright", "--pythonpath", sys.executable, "--outputjson", str(path)],
             capture_output=True,
             text=True,
             timeout=300,  # 5 minutes for full directory
@@ -173,13 +194,27 @@ def check_directory(directory: str, pattern: str = "**/*.py") -> Dict:
         try:
             output = json.loads(result.stdout)
         except json.JSONDecodeError:
-            logger.info("Failed to parse pyright JSON output for directory %s", directory)
+            logger.error("Failed to parse pyright JSON output for directory %s", directory)
             return {
                 "total_files": 0,
-                "files_with_errors": 0,
-                "total_errors": 0,
+                "files_with_errors": 1,
+                "total_errors": 1,
                 "total_warnings": 0,
-                "results": [],
+                "results": [
+                    {
+                        "file": str(directory),
+                        "errors": 1,
+                        "warnings": 0,
+                        "diagnostics": [
+                            {
+                                "line": 0,
+                                "severity": "error",
+                                "message": "Pyright failed to run — cannot parse output",
+                                "rule": "",
+                            }
+                        ],
+                    }
+                ],
                 "error": "Failed to parse pyright output",
             }
 
@@ -227,23 +262,37 @@ def check_directory(directory: str, pattern: str = "**/*.py") -> Dict:
         }
 
     except subprocess.TimeoutExpired:
-        logger.info("Pyright timed out for directory %s", directory)
+        logger.error("Pyright timed out for directory %s", directory)
         return {
             "total_files": 0,
-            "files_with_errors": 0,
-            "total_errors": 0,
+            "files_with_errors": 1,
+            "total_errors": 1,
             "total_warnings": 0,
-            "results": [],
+            "results": [
+                {
+                    "file": str(directory),
+                    "errors": 1,
+                    "warnings": 0,
+                    "diagnostics": [{"line": 0, "severity": "error", "message": "Pyright timed out", "rule": ""}],
+                }
+            ],
             "error": "Pyright timed out (directory too large?)",
         }
     except Exception as e:
-        logger.info("Pyright directory check failed for %s: %s", directory, e)
+        logger.error("Pyright directory check failed for %s: %s", directory, e)
         return {
             "total_files": 0,
-            "files_with_errors": 0,
-            "total_errors": 0,
+            "files_with_errors": 1,
+            "total_errors": 1,
             "total_warnings": 0,
-            "results": [],
+            "results": [
+                {
+                    "file": str(directory),
+                    "errors": 1,
+                    "warnings": 0,
+                    "diagnostics": [{"line": 0, "severity": "error", "message": f"Pyright failed: {e}", "rule": ""}],
+                }
+            ],
             "error": str(e),
         }
 

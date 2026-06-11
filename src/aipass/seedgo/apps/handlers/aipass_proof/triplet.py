@@ -23,9 +23,10 @@ from pathlib import Path
 
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS
 
 # Directories to skip entirely
-_SKIP_DIRS = {".archive", ".sorting_unprocessed", "__pycache__"}
+_SKIP_DIRS = SOURCE_SKIP_DIRS
 
 
 def _top_level_files(pack_dir: Path) -> list[Path]:

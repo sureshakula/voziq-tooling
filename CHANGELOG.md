@@ -10,6 +10,24 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ## [2026.W24] - 2026-06-08
 
+### Fixed
+
+- **seedgo audit local↔CI parity (FPLAN-0261).** The local `seedgo` audit could
+  silently diverge from CI, breaking the "pass locally first, then ship" gate.
+  Three independent causes, all closed without coupling any checker to git
+  (`.gitignore` is git's concern, not the audit's): (1) usage-scanning checkers
+  (`unused_function`, `dead_code`, +4) `rglob`'d gitignored *output* dirs
+  (`artifacts/`, `dropbox/`), so a stray local file could mark a function "used"
+  that a clean checkout correctly flags — every per-checker skip list hoisted to
+  one shared `SOURCE_SKIP_DIRS` (output dirs simply aren't source). (2) The
+  `diagnostics` standard shelled out to bare `python3 -m pyright` (system python,
+  no pyright) and, on the resulting JSON-parse failure, returned *0 errors = clean*
+  — a silent false-green; now uses `sys.executable` and **fails loud**. (3) pyright
+  resolved imports against PATH-python, so results flipped with `.venv` activation
+  — pinned via `--pythonpath sys.executable`. The audit is now deterministic
+  local == CI (proven all-13-branches-100% in an unactivated shell). Also: `drone`
+  bypasses the test-only broker `start_background` (intentional API, not dead code).
+
 ### Added
 
 - **Kernel filesystem boundary for agent containment (DPLAN-0202 / FPLAN-0250).**

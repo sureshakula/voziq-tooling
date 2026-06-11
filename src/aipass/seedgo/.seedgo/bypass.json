@@ -261,6 +261,16 @@
     {
       "file": "tests/test_coverage_arch_checklist.py",
       "reason": "Test file: outside 3-layer structure by convention, imports handlers directly for unit testing, and test functions omit docstrings by pytest convention."
+    },
+    {
+      "file": "apps/handlers/aipass_standards/skip_dirs.py",
+      "standard": "json_structure",
+      "reason": "Pure constants module — defines SOURCE_SKIP_DIRS frozenset only, no operations to log."
+    },
+    {
+      "file": "apps/handlers/aipass_proof/",
+      "standard": "handlers",
+      "reason": "Proof handlers import SOURCE_SKIP_DIRS from aipass_standards/skip_dirs.py — shared constant, same-branch cross-handler import, intentional (FPLAN-0261)."
     }
   ],
   "notes": {
