@@ -23,7 +23,6 @@ import json
 import socket
 import os
 import stat
-import time
 from pathlib import Path
 
 import pytest
@@ -125,7 +124,6 @@ def broker(tmp_path: Path, repo_root: Path) -> BrokerDaemon:
 def running_broker(broker: BrokerDaemon):
     """Start a broker in background, yield it, stop on teardown."""
     t = broker.start_background()
-    time.sleep(0.15)
     yield broker
     broker.stop()
     t.join(timeout=3)
@@ -367,7 +365,6 @@ class TestBrokerDaemon:
     def test_stop_cleans_socket(self, broker: BrokerDaemon) -> None:
         """Stopping the broker removes the socket file."""
         t = broker.start_background()
-        time.sleep(0.15)
         assert broker.socket_path.exists()
         broker.stop()
         t.join(timeout=3)
@@ -574,7 +571,6 @@ class TestIdentity:
             secret_path=secret_path,
         )
         t1 = d1.start_background()
-        time.sleep(0.15)
         secret1 = secret_path.read_bytes()
         d1.stop()
         t1.join(timeout=3)
@@ -586,7 +582,6 @@ class TestIdentity:
             secret_path=secret_path,
         )
         t2 = d2.start_background()
-        time.sleep(0.15)
         secret2 = secret_path.read_bytes()
         d2.stop()
         t2.join(timeout=3)

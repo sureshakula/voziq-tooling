@@ -270,7 +270,7 @@
     {
       "file": "apps/handlers/broker/daemon.py",
       "standard": "unused_function",
-      "lines": [420],
+      "lines": [422],
       "reason": "Threaded broker entrypoint, exercised by tests/test_broker.py; production uses blocking start(); intentionally not called in shipped non-test code."
     }
   ],

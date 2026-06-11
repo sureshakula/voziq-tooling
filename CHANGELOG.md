@@ -38,6 +38,15 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   (method-level, so the graceful no-broker paths still run on Windows). All skip on
   Windows and run unchanged on Linux. windows-setup was green pre-sandbox-merge
   (`00edd8b`) and red since (`0b4ba63`); this closes it.
+- **Broker `start_background` connect-before-bind race.** `drone`'s out-of-sandbox
+  broker daemon started via `start_background()`, which returned *before* the
+  `AF_UNIX` socket was bound — callers then raced the bind, and on a slower machine
+  `create_identified_connection()` hit `FileNotFoundError` (socket not yet present).
+  Deterministic locally (`test_delete_nested_file` 0/5), green in CI only by timing
+  luck — latent flakiness. Fixed with a `threading.Event` set right after `listen()`;
+  `start_background(timeout=5.0)` now blocks on it and **raises** if the socket never
+  binds, so callers never guess a `sleep`. Removed the 4 blind `time.sleep(0.15)`
+  waits from the broker tests. Verified 55/55 broker tests, formerly-failing test 10/10.
 
 ### Added
 

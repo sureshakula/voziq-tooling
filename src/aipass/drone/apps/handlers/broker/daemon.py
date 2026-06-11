@@ -125,6 +125,7 @@ class BrokerDaemon:
         self._secret: bytes = b""
         self._server: socket.socket | None = None
         self._running = False
+        self._listening = threading.Event()
         self._lock = threading.Lock()
         json_handler.log_operation(
             "broker_init",
@@ -400,6 +401,7 @@ class BrokerDaemon:
         self._server.listen(5)
         self._server.settimeout(1.0)
         self._running = True
+        self._listening.set()
 
         logger.info("broker: listening on %s", self.socket_path)
         json_handler.log_operation("broker_start", {"socket": str(self.socket_path)})
@@ -417,10 +419,13 @@ class BrokerDaemon:
                     logger.error("broker: accept error: %s", exc)
                 break
 
-    def start_background(self) -> threading.Thread:
-        """Start the broker in a background thread. Returns the thread."""
+    def start_background(self, timeout: float = 5.0) -> threading.Thread:
+        """Start the broker in a background thread, blocking until listening."""
+        self._listening.clear()
         t = threading.Thread(target=self.start, daemon=True, name="drone-broker")
         t.start()
+        if not self._listening.wait(timeout):
+            raise RuntimeError(f"broker failed to start listening within {timeout}s")
         return t
 
     def stop(self) -> None:
