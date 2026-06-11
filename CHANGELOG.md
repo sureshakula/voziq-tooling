@@ -50,6 +50,13 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ### Added
 
+- **`aipass init` detects missing Claude Code.** Stage 6 (CLI choice) now checks
+  `shutil.which("claude")` when the picked CLI is Claude Code. If absent: interactive
+  runs prompt `Install now? [Y/n]` and run the canonical installer on yes (native
+  `claude.ai/install.sh`, PowerShell on Windows, `npm` fallback, 300s timeout, loud on
+  failure); non-interactive runs warn and continue. The whole system routes through
+  Claude Code (hook bridge, dispatch, prompt injection), so init no longer silently
+  assumes the runtime is present. Only fires when the chosen CLI is `claude`.
 - **Kernel filesystem boundary for agent containment (DPLAN-0202 / FPLAN-0250).**
   Every autonomous agent can now launch inside a kernel-enforced mount namespace
   (`@anthropic-ai/sandbox-runtime` → bwrap+seccomp) where reads stay fully open

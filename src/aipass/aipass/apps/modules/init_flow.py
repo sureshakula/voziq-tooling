@@ -377,6 +377,54 @@ def stage_5_style_questions(
     return {"style": style}
 
 
+def _install_claude_code() -> bool:
+    """Run the canonical Claude Code installer, platform-aware. Returns True on success."""
+    if sys.platform == "win32":
+        cmd = ["powershell", "-Command", "irm https://claude.ai/install.ps1 | iex"]
+    else:
+        cmd = ["bash", "-c", "curl -fsSL https://claude.ai/install.sh | bash"]
+
+    try:
+        result = subprocess.run(cmd, timeout=300)
+        if result.returncode == 0 and shutil.which("claude"):
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        logger.warning("[init_flow] Claude Code installer failed: %s", exc)
+
+    if shutil.which("npm"):
+        console.print("[dim]Native installer didn't work — trying npm fallback...[/dim]")
+        try:
+            result = subprocess.run(
+                ["npm", "install", "-g", "@anthropic-ai/claude-code"],
+                timeout=300,
+            )
+            if result.returncode == 0 and shutil.which("claude"):
+                return True
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+            logger.warning("[init_flow] npm fallback install failed: %s", exc)
+
+    return False
+
+
+def _handle_missing_claude(non_interactive: bool) -> None:
+    """Prompt to install Claude Code when missing, or warn in non-interactive mode."""
+    if non_interactive:
+        warning("[bold yellow]Claude Code ('claude') is not installed.[/bold yellow]")
+        console.print("  Stage 11 handoff requires it. Install manually before then.")
+        return
+
+    raw = _prompt("Claude Code ('claude') not found. Install now? [Y/n]", "Y")
+    if raw.lower() in ("y", "yes", ""):
+        console.print("[dim]Installing Claude Code...[/dim]")
+        if _install_claude_code():
+            console.print("[green]✓[/green] Claude Code installed successfully.")
+        else:
+            warning("[bold yellow]Installation failed.[/bold yellow]")
+            console.print("  Install manually: https://claude.ai/download")
+    else:
+        console.print("[dim]Skipped. Stage 11 handoff will need 'claude' on PATH.[/dim]")
+
+
 def stage_6_tool_choice(
     non_interactive: bool = False,
     cli_override: str | None = None,
@@ -392,6 +440,9 @@ def stage_6_tool_choice(
         cli_choice = "claude"
     else:
         cli_choice = _choose("Which CLI tool do you use?", CLI_CHOICES, default="claude")
+
+    if cli_choice == "claude" and not shutil.which("claude"):
+        _handle_missing_claude(non_interactive)
 
     if non_interactive:
         flag_variant = "default"
