@@ -1,17 +1,17 @@
-# {plan_number} - {subject} (SUNDAY MERGE)
+# {plan_number} - {subject} (MERGE)
 
 **Created**: {today}
 **Branch**: {location}
 **Status**: Active
-**Type**: Playbook — Sunday Merge SOP
+**Type**: Playbook — Merge SOP
 
 ---
 
 ## Purpose
 
-The weekly `dev → main` merge + release tag. Run by **devpulse** (only branch with git
-write). Tick each step as you go; fill the **Run Summary** with PR numbers and tags for
-the vectorized trail. Close when done.
+The `dev → main` merge + release tag — run on-demand, not on a fixed weekly cadence.
+Run by **devpulse** (only branch with git write). Tick each step as you go; fill the
+**Run Summary** with PR numbers and tags for the vectorized trail. Close when done.
 
 > All git writes go through `drone @git` — **run drone from a branch dir** (it needs
 > `.trinity/passport.json` in the cwd; running from the repo root fails with "No
@@ -21,24 +21,65 @@ the vectorized trail. Close when done.
 
 ---
 
+## The Law (read first — these prevent the recurring git scares)
+
+1. **Local files on `dev` are the truth.** Git is just a transfer mechanism to the
+   remote. We live on `dev`, permanently.
+2. **`main` is a remote push-target, nothing more.** Local `main` can be 7000 commits
+   behind — it does **not** matter. The only thing ever done to local main is a
+   *cosmetic* pull. Never build on it, never read files from it.
+3. **NEVER move HEAD lightly.** Any HEAD move — `checkout` (switch branch), `reset`
+   (move backward), `rebase` onto a different base — changes what's in the working tree and
+   *always* causes confusion, even when the work is technically safe. Treat every HEAD move
+   as a deliberate, narrated step, never a reflex. In normal flow you should rarely move HEAD
+   at all: you commit (HEAD advances on dev) and push. That's it.
+   - **NEVER check out `main`, NEVER reset a HEAD.** Checking out main swaps your whole
+     working tree to main's (often stale) content — that's the file-revert scare. The flow
+     never needs it. Stay on `dev`.
+   - The only routine, safe HEAD advance is a **fast-forward of dev** when dev is purely
+     behind main (`git rev-list --left-right --count dev...origin/main` shows `0` ahead) —
+     done via `drone @git sync` **from dev** (stays on dev). If dev shows any commits *ahead*,
+     it's not a pure FF — stop and think, don't force it.
+   - To reference main for a tag, use **`origin/main`** (the remote ref), never local main.
+   - ⚠️ Your IDE's "switch to main" / "sync main" button does a `git checkout main` — **don't
+     click it.** If you want local main fresh, `drone @git sync` **from dev** is safe (it
+     stays on dev); the IDE button is not.
+
+### Why `dev` shows "behind main" after a merge — and why it's fine
+
+`drone @git merge` does a **squash** merge: GitHub bundles dev's commits into **one brand-new
+commit** on main. Your `dev` branch keeps its **original** commits. Git compares by commit
+*identity*, not content — so it sees "main has 1 commit dev doesn't" → the UI shows
+**"dev is 1 behind main."**
+
+- **The files are identical. It is 100% cosmetic. You can always move forward** — the next
+  `dev-pr` compares real file changes and works perfectly regardless of this graph quirk.
+- Because it's a squash (not a fast-forward), **`dev` is NOT an ancestor of `main`**, so
+  `git merge --ff-only main` will **fail**. Do not use it after a squash merge.
+- **Optional**, only if you want the graph to show dev even/ahead: back-merge with
+  `git merge origin/main` while on dev (via `drone @git`) — creates a merge commit, dev moves
+  *ahead*, push normally (NO force, NO reset). **Do NOT rebase** (rewrites dev, needs force-push).
+
+---
+
 ## 1. Pre-flight
 
 - [ ] On `dev`, working tree understood: `drone @git status --all`
-- [ ] Confirm what's shipping this week — scan uncommitted changes + already-pushed dev commits ahead of main: `git rev-list --count main..dev` (read git, raw ok)
+- [ ] Confirm what's shipping — scan uncommitted changes + already-pushed dev commits ahead of main: `git rev-list --count main..dev` (read git, raw ok)
 - [ ] No surprise files (stray `/tmp` artifacts, test pollution, `.recovery`/`.archive` churn). Clean = archive, never delete.
 - [ ] **Version state check** (informs the bump decision): read the **two** release-tied versions — `grep '^version' pyproject.toml` and `grep __version__ src/aipass/__init__.py` (they should match; if drifted, note it) — and what PyPI already has: `curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`. PyPI rejects a duplicate, so the target must be > published.
-- [ ] Decide: **release tag this week?** (tag = PyPI publish + GitHub Release). If yes, note target version. (Significance call is the user's — the PATCH-default rule below is guidance, and the actual release history is a useful tie-breaker.)
+- [ ] Decide: **release tag this merge?** (tag = PyPI publish + GitHub Release). If yes, note target version. (Significance call is the user's — the PATCH-default rule below is guidance, and the actual release history is a useful tie-breaker.)
 
 ## 2. Verify, commit, CHANGELOG
 
 - [ ] **Run the CI audit gate LOCALLY before pushing** (local == CI, S199 parity — catches red before the PR): `cd <repo-root> && .venv/bin/python .github/scripts/seedgo_audit.py` → expect all 13 branches `>=100%`, exit 0. Uses a relative `src/aipass` path, so run from the repo **root**, not a branch dir.
-- [ ] Update `CHANGELOG.md` — add entries under the current week's `[YYYY.WNN]` section (don't batch; mostly done as work landed). Sort into Added / Changed / Fixed.
+- [ ] Update `CHANGELOG.md` — add entries under a dated section header `## [YYYY-MM-DD]` (the merge date), one section per merge. Sort into Added / Changed / Fixed.
 - [ ] Commit: `drone @git commit "msg" --all` (from a branch dir, e.g. devpulse). New/untracked files (e.g. new templates) — confirm they got staged: `git ls-files <path>` after; `--all` may not pick up untracked.
 - [ ] Every commit pushed — local-only commits are invisible
 
 ## 3. Open / update the PR
 
-- [ ] `drone @git dev-pr "Week summary: what's shipping"`
+- [ ] `drone @git dev-pr "Merge summary: what's shipping"`
 - [ ] "PR already open" in output = push succeeded onto the existing PR (expected on re-runs)
 - [ ] Record the PR number → Run Summary
 
@@ -62,18 +103,19 @@ The PR gate (verified against `.github/workflows/`):
 
 ## 6. Post-merge realign
 
-- [ ] Pull main locally: `drone @git sync`
-- [ ] If merged via GitHub UI (bypassing `drone @git merge`), fast-forward dev to main so dev doesn't fall behind / revert main-only commits (e.g. Dependabot): dev is an ancestor → `git merge --ff-only main` is clean (via `drone @git`)
+- [ ] **Expect `dev` to show "1 behind main" — that's the squash artifact, it's cosmetic, keep going.** See "Why dev shows behind main" up top. Do NOT reach for `--ff-only` (it fails after a squash) or a rebase/reset.
+- [ ] **Stay on `dev`. Do not check out `main`.** Local main being behind is fine and expected — it's a push-target, not a thing to maintain.
+- [ ] (Optional, cosmetic only) If you want the graph to show dev even/ahead: back-merge `git merge origin/main` on dev (via `drone @git`), then normal push. Never rebase, never reset, never checkout main.
 - [ ] Dependabot / other PRs targeting main: they go green once main has the fix + bots rebase — check after the push
 
 ## 7. Release tag (only if cutting a release)
 
-**Versioning rule — bump by SIGNIFICANCE, not cadence** (keeps the version from inflating weekly):
-- **PATCH** (`x.y.Z+1`) = fix / internal / standards / UX only → the default, most weeks
+**Versioning rule — bump by SIGNIFICANCE, not cadence:**
+- **PATCH** (`x.y.Z+1`) = fix / internal / standards / UX only → the default for most merges
 - **MINOR** (`x.Y+1.0`) = a new backward-compatible user-facing feature shipped
 - **MAJOR** (`X+1.0.0`) = breaking public-API change
 
-(aipass is a 2.x library others pin → keep SemVer; the CHANGELOG keeps its `YYYY.WNN` header as a date index.)
+(aipass is a 2.x library others pin → keep SemVer; the CHANGELOG uses `YYYY-MM-DD` dated section headers.)
 
 How the release fires (verified `publish.yml`): a `v*` **git tag push** runs build → PyPI publish → GitHub Release. Key facts:
 - PyPI version = `pyproject.toml [project] version` at the tagged commit — **NOT** the tag string (the tag only *triggers* the build).
@@ -84,10 +126,11 @@ How the release fires (verified `publish.yml`): a `v*` **git tag push** runs bui
 Steps:
 - [ ] Bump the version in **BOTH** files (they must match the tag, or `__version__` ships wrong): `pyproject.toml` `version` **and** `src/aipass/__init__.py` `__version__`. Do it **on dev so it rides into the PR** (then main's merge commit carries the right version). ⚠️ These two drift easily — `__init__.py` is the one that gets forgotten.
 - [ ] Confirm the CHANGELOG top section is the release notes you want
-- [ ] After merge + `drone @git sync`, get the **real** merged-main sha: `git rev-parse HEAD`. **Verify the version on that exact commit BEFORE tagging:** `git show HEAD:pyproject.toml | grep '^version'` and `git show HEAD:src/aipass/__init__.py | grep __version__` — both must equal the tag.
-- [ ] **Push the tag — MANUAL (drone has no `tag` verb; devpulse can't push tags):** user runs it, via `!` or terminal. **Two SEPARATE lines, paste the real sha (no `<…>` placeholders, no `&&`):**
+- [ ] Get the **real** merged-main sha from the **remote ref** (stay on dev — never checkout main): `git fetch origin` then `git rev-parse origin/main`. **Verify the version on that exact commit BEFORE tagging:** `git show origin/main:pyproject.toml | grep '^version'` and `git show origin/main:src/aipass/__init__.py | grep __version__` — both must equal the tag. (If the user merged via the GitHub UI, their local `main` ref is stale until `git fetch` — always fetch first, always tag `origin/main`, never local `main`.)
+- [ ] **Push the tag — MANUAL (drone has no `tag` verb; devpulse can't push tags):** user runs it, via `!` or terminal. **Tag the remote ref directly so a stale local main can't poison it. Separate lines, no `&&`:**
       ```
-      git tag v<version> <real-sha-from-rev-parse>
+      git fetch origin
+      git tag v<version> origin/main
       git push origin v<version>
       ```
 - [ ] Verify PyPI shows the new version + the GitHub Release appeared (`curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`)
@@ -116,7 +159,7 @@ Steps:
 
 ## Listen (TTS-friendly summary)
 
-Write a plain English summary of this Sunday merge here when done. No markdown, no symbols,
+Write a plain English summary of this merge here when done. No markdown, no symbols,
 no tables, no code blocks, no asterisks, no bullet points. Just natural sentences for text to speech.
 
 ---

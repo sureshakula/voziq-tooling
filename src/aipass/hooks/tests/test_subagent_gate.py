@@ -18,24 +18,23 @@ from aipass.hooks.apps.handlers.security.subagent_gate import handle
 class TestSubagentGateHandler:
     def test_no_repo_root_allows(self):
         with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root", return_value=None):
-            with patch("aipass.hooks.apps.handlers.security.subagent_gate.speak"):
-                result = handle({"cwd": "/tmp/nowhere"})
+            result = handle({"cwd": "/tmp/nowhere"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     def test_no_modified_files_allows(self):
         with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root", return_value=None):
-            with patch("aipass.hooks.apps.handlers.security.subagent_gate.speak"):
-                result = handle({"cwd": "/tmp/somewhere"})
+            result = handle({"cwd": "/tmp/somewhere"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_modified_files_no_violations_allows(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+    def test_modified_files_no_violations_allows(self, mock_root, mock_modified, mock_seedgo, mock_readme):
         from pathlib import Path
 
         mock_root.return_value = Path("/fake/repo")
@@ -43,13 +42,13 @@ class TestSubagentGateHandler:
         result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_violations_blocks(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+    def test_violations_blocks(self, mock_root, mock_modified, mock_seedgo, mock_readme):
         from pathlib import Path
 
         mock_root.return_value = Path("/fake/repo")
@@ -62,10 +61,10 @@ class TestSubagentGateHandler:
         assert "Missing docstring" in parsed["reason"]
         assert "No tests" in parsed["reason"]
         assert "bad.py" in parsed["reason"]
+        assert result["sound"] == "subagent gate"
 
     @patch("subprocess.run")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_skip_claude_hooks_from_modified_files(self, mock_speak, mock_run, tmp_path):
+    def test_skip_claude_hooks_from_modified_files(self, mock_run, tmp_path):
 
         src = tmp_path / "src" / "aipass" / "hooks"
         src.mkdir(parents=True)
@@ -91,8 +90,7 @@ class TestSubagentGateHandler:
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_readme_accountability_advisory(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+    def test_readme_accountability_advisory(self, mock_root, mock_modified, mock_seedgo, mock_readme):
         from pathlib import Path
 
         mock_root.return_value = Path("/fake/repo")
@@ -106,18 +104,18 @@ class TestSubagentGateHandler:
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "allow"
         assert "README" in parsed["reason"]
+        assert "sound" not in result
 
     def test_empty_hook_data_allows(self):
         with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root", return_value=None):
-            with patch("aipass.hooks.apps.handlers.security.subagent_gate.speak"):
-                result = handle({})
+            result = handle({})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_exception_in_get_modified_allows(self, mock_speak, mock_root, mock_modified):
+    def test_exception_in_get_modified_allows(self, mock_root, mock_modified):
         from pathlib import Path
 
         mock_root.return_value = Path("/fake/repo")
@@ -125,6 +123,7 @@ class TestSubagentGateHandler:
         result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result
 
 
 class TestSubagentGateExternalProject:
@@ -161,8 +160,7 @@ class TestSubagentGateExternalProject:
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_violations_block_external_project(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+    def test_violations_block_external_project(self, mock_root, mock_modified, mock_seedgo, mock_readme):
         from pathlib import Path
 
         mock_root.return_value = Path("/fake/vera")
@@ -173,13 +171,13 @@ class TestSubagentGateExternalProject:
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "block"
         assert "Missing docstring" in parsed["reason"]
+        assert result["sound"] == "subagent gate"
 
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist", return_value=[])
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
-    @patch("aipass.hooks.apps.handlers.security.subagent_gate.speak")
-    def test_clean_files_allow_external_project(self, mock_speak, mock_root, mock_modified, mock_seedgo, mock_readme):
+    def test_clean_files_allow_external_project(self, mock_root, mock_modified, mock_seedgo, mock_readme):
         from pathlib import Path
 
         mock_root.return_value = Path("/fake/vera")
@@ -187,3 +185,4 @@ class TestSubagentGateExternalProject:
         result = handle({"cwd": "/fake/vera/src/vera_studio/quality"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+        assert "sound" not in result

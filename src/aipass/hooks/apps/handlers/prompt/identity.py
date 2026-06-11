@@ -13,7 +13,6 @@
 import json
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -69,8 +68,6 @@ def _format_identity(data: dict) -> str:
 
 def handle(hook_data: dict) -> dict:
     """Inject branch identity from passport.json into prompt context."""
-    speak("identity")
-
     try:
         cwd = hook_data.get("cwd", "") or str(Path.cwd())
         passport = _find_passport(cwd)
@@ -82,7 +79,7 @@ def handle(hook_data: dict) -> dict:
         if not output:
             return {"stdout": "", "exit_code": 0}
 
-        return {"stdout": f"\n{output}", "exit_code": 0}
+        return {"stdout": f"\n{output}", "exit_code": 0, "sound": "identity"}
 
     except Exception as exc:
         logger.info("[HOOKS] identity: unexpected error: %s", exc)

@@ -23,8 +23,7 @@
     },
     "status": {
       "health": "healthy",
-      "last_health_check": "{{DATE}}",
-      "current_lines": 0
+      "last_health_check": "{{DATE}}"
     }
   },
   "key_learnings": {},

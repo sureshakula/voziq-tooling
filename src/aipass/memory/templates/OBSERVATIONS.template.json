@@ -13,12 +13,11 @@
       "{{BRANCHNAME}}"
     ],
     "limits": {
-      "max_lines": 600,
-      "note": "DO NOT trim, prune, or delete entries. Auto-rollover to @memory when max_lines exceeded."
+      "max_observations": 25,
+      "note": "DO NOT trim, prune, or delete entries. Auto-rollover to @memory when max_observations exceeded."
     },
     "status": {
       "health": "healthy",
-      "current_lines": 0,
       "last_health_check": "{{DATE}}"
     }
   },

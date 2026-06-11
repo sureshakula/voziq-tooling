@@ -23,6 +23,8 @@ is guaranteed.
 
 import json
 import os
+import shlex
+import socket
 import sys
 import subprocess
 import time
@@ -39,6 +41,43 @@ RATE_LIMIT_DELAY = 30
 HARD_TIMEOUT = 7200  # 2 hours
 # How often to poll stdout during startup check
 POLL_INTERVAL = 5
+
+
+def _is_sandbox_enabled() -> bool:
+    """Check if dispatch sandbox is enabled via AIPASS_SANDBOX_ENABLED env var."""
+    return os.environ.get("AIPASS_SANDBOX_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _wrap_for_sandbox(cmd: list, branch_path: Path) -> list:
+    """Wrap a claude command in the srt kernel sandbox.
+
+    Uses @hooks sandbox building blocks to resolve the bwrap command,
+    then returns a shell invocation list compatible with Popen.
+
+    Raises on ANY failure — caller must not silently fall back to unsandboxed.
+    """
+    from aipass.hooks.apps.modules.sandbox import build_policy, build_srt_config, resolve_bwrap_command
+
+    policy = build_policy(branch_path)
+    srt_config = build_srt_config(policy)
+    cmd_str = shlex.join(cmd)
+    bwrap_cmd = resolve_bwrap_command(cmd_str, srt_config)
+    return ["/bin/bash", "-c", bwrap_cmd]
+
+
+def _connect_broker(repo_root: Path, branch_name: str) -> socket.socket:
+    """Create an identified broker connection for the target branch.
+
+    Returns a connected, HMAC-authenticated socket ready to be inherited
+    by the sandboxed child via pass_fds + AIPASS_BROKER_FD.
+
+    Raises on ANY failure — caller must not silently skip the broker.
+    """
+    from aipass.drone.apps.handlers.broker.client import create_identified_connection
+
+    socket_path = repo_root / ".ai_central" / "drone_broker.sock"
+    secret_path = repo_root / ".ai_central" / "broker_secret"
+    return create_identified_connection(socket_path, secret_path, branch_name)
 
 
 def _send_bounce(branch_email: str, reason: str, sender: str, lock_file: str, stderr_log: str) -> bool:
@@ -176,7 +215,7 @@ def _kill_process(process: subprocess.Popen, branch_email: str):
 
 
 def _run_with_startup_check(
-    claude_cmd: list, stdout_log: str, stderr_fh, cwd: str, spawn_env: dict, branch_email: str
+    claude_cmd: list, stdout_log: str, stderr_fh, cwd: str, spawn_env: dict, branch_email: str, pass_fds: tuple = ()
 ) -> tuple:
     """
     Run claude with startup timeout check.
@@ -194,13 +233,16 @@ def _run_with_startup_check(
         logger.warning("[monitor] Failed to open stdout log %s: %s", stdout_log, e)
 
     try:
-        process = subprocess.Popen(
-            claude_cmd,
-            stdout=stdout_fh if stdout_fh is not None else subprocess.DEVNULL,
-            stderr=stderr_fh,
-            cwd=cwd,
-            env=spawn_env,
-        )
+        popen_kwargs = {
+            "stdout": stdout_fh if stdout_fh is not None else subprocess.DEVNULL,
+            "stderr": stderr_fh,
+            "cwd": cwd,
+            "env": spawn_env,
+        }
+        if pass_fds:
+            popen_kwargs["close_fds"] = True
+            popen_kwargs["pass_fds"] = pass_fds
+        process = subprocess.Popen(claude_cmd, **popen_kwargs)
     except Exception as e:
         logger.warning("[monitor] Failed to spawn %s: %s", branch_email, e)
         if stdout_fh is not None:
@@ -338,6 +380,11 @@ def main():
 
     start_time = time.time()
 
+    # ─── Sandbox Gate ─────────────────────────────────────
+    sandbox_enabled = _is_sandbox_enabled()
+    if sandbox_enabled:
+        logger.info("[monitor] Sandbox ENABLED for %s", branch_email)
+
     # ─── Retry Loop: 3 Strikes ─────────────────────────────
     # Strike 1: original command (resume if -c was passed)
     # Strike 2: same command again (transient failure)
@@ -356,13 +403,59 @@ def main():
             cmd = claude_cmd
             mode = "resume" if has_resume else "fresh"
 
+        # Sandbox wrap + broker fd: when enabled, wrap cmd and connect broker.
+        # On failure: abort — NEVER silently launch unsandboxed.
+        run_cmd = cmd
+        broker_sock = None
+        attempt_pass_fds: tuple = ()
+        if sandbox_enabled:
+            try:
+                run_cmd = _wrap_for_sandbox(cmd, branch_path)
+            except Exception as e:
+                logger.error(
+                    "[monitor] Sandbox init FAILED for %s: %s — ABORTING (will NOT launch unsandboxed)",
+                    branch_email,
+                    e,
+                )
+                exit_code = -4
+                attempts.append({"attempt": attempt, "exit_code": exit_code, "startup_failed": False, "mode": mode})
+                break
+
+            try:
+                broker_sock = _connect_broker(_repo_root, branch_email.lstrip("@"))
+                broker_fd = broker_sock.fileno()
+                spawn_env["AIPASS_BROKER_FD"] = str(broker_fd)
+                attempt_pass_fds = (broker_fd,)
+                logger.info("[monitor] Broker fd %d connected for %s", broker_fd, branch_email)
+            except Exception as e:
+                logger.error(
+                    "[monitor] Broker connect FAILED for %s: %s — ABORTING",
+                    branch_email,
+                    e,
+                )
+                exit_code = -4
+                attempts.append({"attempt": attempt, "exit_code": exit_code, "startup_failed": False, "mode": mode})
+                break
+
         if stderr_fh is not None:
             stderr_fh.write(f"\n--- Attempt {attempt}/3 ({mode}) at {time.strftime('%H:%M:%S')} ---\n")
             stderr_fh.flush()
 
         exit_code, startup_failed = _run_with_startup_check(
-            cmd, stdout_log, stderr_fh if stderr_fh is not None else subprocess.DEVNULL, cwd, spawn_env, branch_email
+            run_cmd,
+            stdout_log,
+            stderr_fh if stderr_fh is not None else subprocess.DEVNULL,
+            cwd,
+            spawn_env,
+            branch_email,
+            pass_fds=attempt_pass_fds,
         )
+
+        # Close parent's broker socket copy — child owns the fd now.
+        if broker_sock is not None:
+            broker_sock.close()
+            broker_sock = None
+            spawn_env.pop("AIPASS_BROKER_FD", None)
 
         attempts.append({"attempt": attempt, "exit_code": exit_code, "startup_failed": startup_failed, "mode": mode})
 

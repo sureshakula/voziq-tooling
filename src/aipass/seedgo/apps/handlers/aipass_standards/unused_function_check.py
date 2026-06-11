@@ -32,34 +32,12 @@ from pathlib import Path
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS
 
 AUDIT_SCOPE = "branch_level"
 
 # -- Directories to skip when collecting source files -------------------------
-SKIP_DIRS = {
-    "__pycache__",
-    ".archive",
-    "logs",
-    "tests",
-    "json_templates",
-    "tools",
-    ".trinity",
-    ".aipass",
-    ".ai_mail.local",
-    ".venv",
-    "venv",
-    "node_modules",
-    ".git",
-    "site-packages",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".pytest_cache",
-    ".spawn",
-    "backups",
-    "reports",
-    "docs",
-    ".sorting_unprocessed",
-}
+SKIP_DIRS = SOURCE_SKIP_DIRS | {"tests", "json_templates"}
 
 # -- Function names excluded from analysis ------------------------------------
 EXCLUDED_NAMES = {

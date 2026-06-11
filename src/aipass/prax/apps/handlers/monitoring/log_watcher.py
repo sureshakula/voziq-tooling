@@ -28,8 +28,8 @@ from typing import Optional, Dict, Any
 import re
 
 from aipass.prax.apps.modules.logger import get_direct_logger
-from watchdog.observers import Observer as WatchdogObserver
-from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer as WatchdogObserver  # type: ignore
+from watchdog.events import FileSystemEventHandler  # type: ignore
 
 # Import from prax config
 from aipass.prax.apps.handlers.config.load import get_system_logs_dir
@@ -102,8 +102,12 @@ class LogFileWatcher(FileSystemEventHandler):
         self.last_command_per_branch: Dict[str, str] = {}
 
     def _process_log_line(self, branch: str, line: str, file_path: str) -> None:
-        """Process a single log line: detect commands or emit as log event."""
+        """Process a single log line: detect hooks, commands, or emit as log event."""
         if not line.strip():
+            return
+        hook_info = self._extract_hook_info(line)
+        if hook_info:
+            self._emit_hook_event(branch, hook_info)
             return
         command_info = self._extract_command_info(line)
         if command_info:
@@ -158,6 +162,63 @@ class LogFileWatcher(FileSystemEventHandler):
 
         except Exception as e:
             logger.info(f"Error reading log file {file_path}: {e}")
+
+    _HOOK_PATTERN = re.compile(r"\[HOOKS\]\s+(\w+)\s+(\w+)")
+
+    def _extract_hook_info(self, log_line: str) -> Optional[Dict[str, str]]:
+        """Extract hook event info from structured [HOOKS] log lines.
+
+        The action is the bare second word (matches what hooks emits), e.g.:
+            [HOOKS] cadence fired loader=global turn=35 period=5 offset=0 session=...
+            [HOOKS] cadence skipped loader=branch turn=37 period=5 offset=0 session=...
+        group(1)=name (cadence), group(2)=action (fired/skipped). Remaining
+        key=value fields are parsed by the finditer loop below.
+        """
+        match = self._HOOK_PATTERN.search(log_line)
+        if not match:
+            return None
+        name = match.group(1)
+        action = match.group(2)
+        details: Dict[str, str] = {"name": name, "action": action}
+        for kv_match in re.finditer(r"(\w+)=(\S+)", log_line):
+            details[kv_match.group(1)] = kv_match.group(2)
+        return details
+
+    def _emit_hook_event(self, branch: str, hook_info: Dict[str, str]) -> None:
+        """Emit a hook event to the monitoring queue."""
+        action = hook_info.get("action", "unknown")
+        name = hook_info.get("name", "hook")
+        loader = hook_info.get("loader", "")
+        turn = hook_info.get("turn", "")
+        period = hook_info.get("period", "")
+        offset = hook_info.get("offset", "")
+        session = hook_info.get("session", "")
+
+        parts = [f"{name}:{action}"]
+        if loader:
+            parts.append(f"loader={loader}")
+        if turn:
+            parts.append(f"t={turn}")
+        if period:
+            parts.append(f"p={period}")
+        if offset and offset != "0":
+            parts.append(f"off={offset}")
+        if session:
+            parts.append(f"s={session[:8]}")
+        message = " ".join(parts)
+
+        level = "success" if action == "fired" else "info"
+
+        hook_event = MonitoringEvent(
+            priority=2,
+            event_type="hook",
+            branch=branch,
+            action=action,
+            message=message,
+            level=level,
+            timestamp=datetime.now(),
+        )
+        self.event_queue.enqueue(hook_event)
 
     def _should_display_log(self, _log_line: str) -> bool:
         """Check if log line should be displayed. No filtering — show everything."""
@@ -483,7 +544,7 @@ def start_log_watcher(event_queue: MonitoringQueue, use_polling: bool = False) -
 
     # Create observer — polling fallback when inotify unavailable
     if use_polling:
-        from watchdog.observers.polling import PollingObserver
+        from watchdog.observers.polling import PollingObserver  # type: ignore
 
         observer = PollingObserver(timeout=1)
         logger.info("Log watcher using polling observer (1s interval)")

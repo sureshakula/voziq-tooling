@@ -357,7 +357,7 @@ class TestRegistryConsistency:
 class TestFindRegistry:
     def test_finds_registry(self, tmp_path: Path) -> None:
         """Shared find_registry finds *_REGISTRY.json from start_path."""
-        from aipass.common.registry_discovery import find_registry
+        from aipass.aipass.shared.registry_discovery import find_registry
 
         (tmp_path / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
         result = find_registry(start_path=tmp_path)
@@ -366,7 +366,7 @@ class TestFindRegistry:
 
     def test_fallback_when_missing(self, tmp_path: Path) -> None:
         """Shared find_registry returns fallback when no registry in isolated dir."""
-        from aipass.common.registry_discovery import find_registry
+        from aipass.aipass.shared.registry_discovery import find_registry
 
         isolated = tmp_path / "no_registry"
         isolated.mkdir()

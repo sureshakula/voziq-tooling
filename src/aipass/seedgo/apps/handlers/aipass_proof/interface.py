@@ -28,11 +28,12 @@ from pathlib import Path
 
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS
 
 VALID_SCOPES = {"all_files", "entry_point", "branch_level"}
 
 # Directories / files to skip inside the pack
-_SKIP_DIRS = frozenset({".archive", ".sorting_unprocessed"})
+_SKIP_DIRS = SOURCE_SKIP_DIRS
 
 
 # -- AST helpers ---------------------------------------------------------------

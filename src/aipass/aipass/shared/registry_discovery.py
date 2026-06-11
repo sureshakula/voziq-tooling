@@ -3,7 +3,7 @@
 # Description: Shared registry file discovery (walk-up search)
 # Version: 1.0.0
 # Created: 2026-06-06
-# Modified: 2026-06-06
+# Modified: 2026-06-10
 # =============================================
 
 """Registry discovery — find *_REGISTRY.json by walking up the directory tree.

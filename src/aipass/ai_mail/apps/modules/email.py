@@ -277,7 +277,8 @@ def handle_reply(args: List[str]) -> bool:
         if not original:
             error(f"Message not found: {args[0]}")
             return True
-        success, message, reply_id = send_reply(branch_path, original, args[1])
+        reply_message = " ".join(args[1:])
+        success, message, reply_id = send_reply(branch_path, original, reply_message)
         if success:
             console.print(f"[green]{message}[/green]")
         else:

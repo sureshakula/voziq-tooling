@@ -570,13 +570,18 @@ class TestDispatchEnvIsolation:
         )
 
     def test_dispatch_monitor_passes_spawn_env_to_subprocess(self):
-        """dispatch_monitor.py must pass env=spawn_env to subprocess.run.
+        """dispatch_monitor.py must pass spawn_env as the subprocess env.
 
         Without this, all env var isolation is useless — the subprocess
         would inherit os.environ instead of the cleaned spawn_env.
+        Accepts either the direct kwarg form (env=spawn_env) or the
+        popen_kwargs dict form ("env": spawn_env) introduced with the
+        sandbox broker-fd wiring (FPLAN-0250 Phase 6b).
         """
         active_source = self._load_active_source()
-        assert "env=spawn_env" in active_source, "dispatch_monitor.py must pass env=spawn_env to subprocess.run"
+        assert "env=spawn_env" in active_source or '"env": spawn_env' in active_source, (
+            "dispatch_monitor.py must pass spawn_env as the subprocess env"
+        )
 
     def test_detect_resolves_identity_when_cwd_is_wrong(self, clean_env, tmp_path, list_format_registry):
         """When AIPASS_CALLER_BRANCH is set but CWD is outside any branch,

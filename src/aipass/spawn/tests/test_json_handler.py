@@ -186,7 +186,7 @@ def isolate_json_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         monkeypatch.setattr(_mod, _JSON_DIR_ATTR, str(tmp_path))
     else:
         monkeypatch.setattr(_mod, _JSON_DIR_ATTR, tmp_path)
-    # Patch the JsonHandler instance if one exists (aipass.common migration)
+    # Patch the JsonHandler instance if one exists (aipass.aipass.shared migration)
     if hasattr(_mod, "_handler") and hasattr(_mod._handler, "_json_dir"):
         monkeypatch.setattr(_mod._handler, "_json_dir", tmp_path)
     return tmp_path

@@ -72,6 +72,7 @@ def _run_handler(handler_path: str, hook_data: dict) -> dict:
         return {
             "exit_code": result.get("exit_code", 0),
             "stdout": result.get("stdout", ""),
+            "sound": result.get("sound", ""),
             "stderr": "",
             "elapsed_ms": round(elapsed_ms, 1),
         }
@@ -165,6 +166,14 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
                 "cwd": str(Path.cwd()),
             }
         )
+
+        if result.get("sound"):
+            try:
+                from aipass.hooks.apps.sound import speak
+
+                speak(result["sound"])
+            except Exception as exc:
+                logger.info("[HOOKS] sound playback failed for %s.%s: %s", event_type, hook_name, exc)
 
         # Exit code 2: crash vs intentional block
         if result["exit_code"] == 2:

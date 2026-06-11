@@ -29,32 +29,12 @@ from pathlib import Path
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS
 
 AUDIT_SCOPE = "branch_level"
 
 # -- Directories to skip when scanning for module coverage --------------------
-SKIP_DIRS: set[str] = {
-    "__pycache__",
-    ".archive",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".pytest_cache",
-    ".venv",
-    "venv",
-    "node_modules",
-    ".git",
-    "site-packages",
-    "logs",
-    "tools",
-    ".trinity",
-    ".aipass",
-    ".ai_mail.local",
-    ".spawn",
-    "backups",
-    "reports",
-    "docs",
-    ".sorting_unprocessed",
-}
+SKIP_DIRS: set[str] = set(SOURCE_SKIP_DIRS)
 
 # -- Regex patterns for module coverage (from test_coverage_check.py) ---------
 RE_TEST_FUNC = re.compile(r"^\s*(?:async\s+)?def\s+(test_\w+)", re.MULTILINE)

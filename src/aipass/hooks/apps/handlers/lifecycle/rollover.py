@@ -15,7 +15,6 @@ import os
 import subprocess
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -129,10 +128,8 @@ def _run_rollover(repo_root: Path) -> tuple[bool, str]:
         return False, str(exc)
 
 
-def handle(hook_data: dict) -> dict:
+def handle(hook_data: dict) -> dict:  # noqa: ARG001
     """Check memory files for overflow and trigger rollover if needed."""
-    speak("pre compact rollover")
-
     try:
         repo_root = _find_repo_root()
         if not repo_root:
@@ -151,7 +148,7 @@ def handle(hook_data: dict) -> dict:
         else:
             logger.info("[HOOKS] rollover: failed — %s", output[:200])
 
-        return {"stdout": "", "exit_code": 0}
+        return {"stdout": "", "exit_code": 0, "sound": "pre compact rollover"}
 
     except Exception as exc:
         logger.info("[HOOKS] rollover: unexpected error: %s", exc)

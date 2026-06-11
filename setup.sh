@@ -226,6 +226,92 @@ if [ "$IS_WINDOWS" -eq 1 ]; then
     fi
 fi
 
+# --- Sandbox prerequisites (kernel FS boundary) ---
+echo ""
+echo "Checking sandbox prerequisites ..."
+
+if [ "$IS_WINDOWS" -eq 1 ] || [ "$IS_MACOS" -eq 1 ]; then
+    echo "  kernel sandbox: Linux-only for now, skipping"
+else
+    SB_MISSING=()
+
+    # bwrap
+    if command -v bwrap &>/dev/null; then
+        echo "  bwrap     ... $(bwrap --version 2>/dev/null || echo 'found')"
+    else
+        echo "  bwrap     ... MISSING"
+        echo "    sudo apt install bubblewrap"
+        SB_MISSING+=("bwrap")
+    fi
+
+    # node
+    if command -v node &>/dev/null; then
+        echo "  node      ... $(node --version 2>/dev/null)"
+    else
+        echo "  node      ... MISSING"
+        echo "    Install Node.js: https://nodejs.org/"
+        SB_MISSING+=("node")
+    fi
+
+    # npm (needed for srt install)
+    if command -v npm &>/dev/null; then
+        echo "  npm       ... $(npm --version 2>/dev/null)"
+    else
+        echo "  npm       ... MISSING"
+        SB_MISSING+=("npm")
+    fi
+
+    # @anthropic-ai/sandbox-runtime — resolve same way as _srt_resolve.mjs
+    if command -v node &>/dev/null; then
+        SRT_PATH=$(node -e "
+            const p = require('path');
+            const fs = require('fs');
+            const prefix = p.dirname(p.dirname(process.execPath));
+            const entry = p.join(prefix, 'lib/node_modules/@anthropic-ai/sandbox-runtime/dist/index.js');
+            if (fs.existsSync(entry)) process.stdout.write(entry);
+            else process.exit(1);
+        " 2>/dev/null) || SRT_PATH=""
+        if [ -n "$SRT_PATH" ]; then
+            echo "  srt       ... $SRT_PATH"
+        else
+            echo "  srt       ... MISSING"
+            if command -v npm &>/dev/null; then
+                echo "    Attempting: npm install -g @anthropic-ai/sandbox-runtime"
+                if npm install -g @anthropic-ai/sandbox-runtime 2>/dev/null; then
+                    echo "    srt       ... installed"
+                else
+                    echo "    Install failed (may need sudo). Run manually:"
+                    echo "      sudo npm install -g @anthropic-ai/sandbox-runtime"
+                    SB_MISSING+=("srt")
+                fi
+            else
+                echo "    Install node+npm first, then: npm install -g @anthropic-ai/sandbox-runtime"
+                SB_MISSING+=("srt")
+            fi
+        fi
+    else
+        echo "  srt       ... skipped (no node)"
+        SB_MISSING+=("srt")
+    fi
+
+    # rg (ripgrep)
+    if command -v rg &>/dev/null; then
+        echo "  rg        ... $(rg --version 2>/dev/null | head -1)"
+    elif [ -f "$HOME/.local/bin/rg" ]; then
+        echo "  rg        ... $HOME/.local/bin/rg"
+    else
+        echo "  rg        ... MISSING"
+        echo "    sudo apt install ripgrep"
+        SB_MISSING+=("rg")
+    fi
+
+    if [ ${#SB_MISSING[@]} -eq 0 ]; then
+        echo "  sandbox prereqs: READY"
+    else
+        echo "  sandbox prereqs: INCOMPLETE (${SB_MISSING[*]} missing) — aipass doctor for details"
+    fi
+fi
+
 # --- Verify CLI entry points ---
 FAIL=0
 

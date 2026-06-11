@@ -13,8 +13,6 @@
 import os
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
-
 AIPASS_HOME = Path(os.environ.get("AIPASS_HOME", ""))
 SOUNDS_DIR = AIPASS_HOME / ".claude" / "sounds"
 SOUND_FILE = SOUNDS_DIR / "mixkit-achievement-bell-600.wav"
@@ -32,5 +30,4 @@ def handle(hook_data: dict) -> dict:
     if hook_data.get("stop_hook_active", False):
         return {"stdout": "", "exit_code": 0}
 
-    speak("stop sound")
-    return {"stdout": "", "exit_code": 0}
+    return {"stdout": "", "exit_code": 0, "sound": "stop sound"}

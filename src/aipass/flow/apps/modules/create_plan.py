@@ -153,7 +153,7 @@ def print_help():
     console.print("[yellow]TEMPLATE SELECTION:[/yellow]")
     console.print("  The 4th arg selects a non-default template within a type.")
     console.print("  Any .md file stem in the type's templates/ dir works.")
-    console.print('  [dim]drone @flow create . "Subject" sunday_merge pplan[/dim]')
+    console.print('  [dim]drone @flow create . "Subject" merge pplan[/dim]')
     console.print('  [dim]drone @flow create . "Subject" master[/dim]        # FPLAN master')
     console.print()
 

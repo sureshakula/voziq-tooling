@@ -13,14 +13,12 @@
 import os
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
-
 AIPASS_HOME = Path(os.environ.get("AIPASS_HOME", ""))
 SOUNDS_DIR = AIPASS_HOME / ".claude" / "sounds"
 SOUND_FILE = SOUNDS_DIR / "mixkit-clear-announce-tones-2861.wav"
 
 
-def handle(hook_data: dict) -> dict:
+def handle(hook_data: dict) -> dict:  # noqa: ARG001
     """Play notification tone and speak hook name for identification.
 
     Args:
@@ -29,5 +27,4 @@ def handle(hook_data: dict) -> dict:
     Returns:
         Result dict with stdout (empty) and exit_code.
     """
-    speak("notification sound")
-    return {"stdout": "", "exit_code": 0}
+    return {"stdout": "", "exit_code": 0, "sound": "notification sound"}

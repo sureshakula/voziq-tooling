@@ -146,6 +146,11 @@ def safe_delete(paths: list[str]) -> list[tuple[str, bool, str]]:
     Returns a list of ``(original_path, success, message)`` tuples.
     Every path is checked independently; a refused path does not block others.
     """
+    return _safe_delete_direct(paths)
+
+
+def _safe_delete_direct(paths: list[str]) -> list[tuple[str, bool, str]]:
+    """Delete paths directly (unsandboxed mode — current behavior)."""
     roots = get_allowed_roots()
     if not roots:
         return [(p, False, "No allowed roots found (no project registry, no temp dir)") for p in paths]

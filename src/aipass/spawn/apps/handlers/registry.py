@@ -3,7 +3,7 @@
 # Description: *_REGISTRY.json discovery and CRUD operations
 # Version: 1.0.0
 # Created: 2026-03-05
-# Modified: 2026-03-13
+# Modified: 2026-06-10
 # =============================================
 
 """*_REGISTRY.json discovery and CRUD operations."""
@@ -34,7 +34,7 @@ def branches_as_list(branches):
 
 
 def find_registry(start_path=None):
-    """Find *_REGISTRY.json — delegates to aipass.common.registry_discovery.
+    """Find *_REGISTRY.json — delegates to aipass.aipass.shared.registry_discovery.
 
     Passes spawn's package root as the fallback for editable installs.
 
@@ -44,7 +44,7 @@ def find_registry(start_path=None):
     Returns:
         Path to *_REGISTRY.json.
     """
-    from aipass.common.registry_discovery import find_registry as _common_find
+    from aipass.aipass.shared.registry_discovery import find_registry as _common_find
 
     return _common_find(start_path=start_path, package_root=Path(__file__).resolve().parent)
 

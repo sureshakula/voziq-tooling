@@ -6,7 +6,7 @@ Handlers for file watching, log monitoring, branch detection, and filtering.
 """
 
 # Export main handler interfaces
-from .unified_stream import print_event, print_command_separator
+from .unified_stream import print_event, print_command_separator, print_hook_event
 from .branch_detector import detect_branch_from_path
 from .interactive_filter import (
     parse_command,
@@ -34,6 +34,7 @@ from .log_watcher import start_log_watcher, stop_log_watcher, is_log_watcher_act
 __all__ = [
     "print_event",
     "print_command_separator",
+    "print_hook_event",
     "detect_branch_from_path",
     "parse_command",
     "get_help_text",

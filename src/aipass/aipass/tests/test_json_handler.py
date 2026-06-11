@@ -60,7 +60,7 @@ class TestDefaultFactory:
 
     def test_unknown_type_raises(self):
         """Unknown json_type raises ValueError."""
-        from aipass.common.json_handler import JsonHandler
+        from aipass.aipass.shared.json_handler import JsonHandler
 
         with pytest.raises(ValueError):
             JsonHandler._create_default("unknown_type", "test_mod")
@@ -220,7 +220,7 @@ class TestSave:
         ro_dir.mkdir()
         with patch("aipass.aipass.apps.handlers.json.json_handler.AIPASS_JSON_DIR", ro_dir):
             data = {"module_name": "s", "version": "1.0.0", "config": {}, "created": "2026-01-01"}
-            with patch("aipass.common.json_handler.JsonHandler.write_json", return_value=False):
+            with patch("aipass.aipass.shared.json_handler.JsonHandler.write_json", return_value=False):
                 result = save_json("s", "config", data)
                 assert result is False
 

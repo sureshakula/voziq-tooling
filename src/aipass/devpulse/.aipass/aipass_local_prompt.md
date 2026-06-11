@@ -102,7 +102,7 @@ drone, seedgo, prax, cli, ai_mail, api, flow, spawn, trigger, memory, aipass, ho
 - CWD = identity. Visit other branches, don't move in.
 - Git awareness: after completing work, `drone @git status`. Suggest commit if coherent. Don't force, don't let pile up.
 - Git workflow: commit → dev-pr → wait for CI. Every commit must be pushed. Local-only commits are invisible. After fixing CI, push immediately (dev-pr reports "PR already open" = pushed).
-- CHANGELOG: update `CHANGELOG.md` when committing/pushing. Add entries to the current week's `[YYYY.WNN]` section as work lands — don't batch at end of week. Sunday = merge to main + tag.
+- CHANGELOG: update `CHANGELOG.md` when committing/pushing. Add entries under the current dated section (`[YYYY-MM-DD]`, one per merge) as work lands — don't batch. Merge to main + tag on demand (no fixed weekly cadence).
 - Never `docker cp` into containers. Merge PR → git pull → test.
 - Sub-agents build, you PR.
 

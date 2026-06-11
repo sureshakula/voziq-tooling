@@ -2,13 +2,138 @@
 
 All notable changes to AIPass will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project uses [Calendar Versioning](https://calver.org/) in the format
-`YYYY.WNN` (year and ISO week number).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Entries are grouped by merge under a dated section header (`YYYY-MM-DD`). Package
+releases follow [SemVer](https://semver.org/) and are tracked by the git tag and
+PyPI version — not the changelog header.
 
 ---
 
-## [2026.W24] - 2026-06-08
+## [2026-06-11]
+
+### Fixed
+
+- **seedgo audit local↔CI parity (FPLAN-0261).** The local `seedgo` audit could
+  silently diverge from CI, breaking the "pass locally first, then ship" gate.
+  Three independent causes, all closed without coupling any checker to git
+  (`.gitignore` is git's concern, not the audit's): (1) usage-scanning checkers
+  (`unused_function`, `dead_code`, +4) `rglob`'d gitignored *output* dirs
+  (`artifacts/`, `dropbox/`), so a stray local file could mark a function "used"
+  that a clean checkout correctly flags — every per-checker skip list hoisted to
+  one shared `SOURCE_SKIP_DIRS` (output dirs simply aren't source). (2) The
+  `diagnostics` standard shelled out to bare `python3 -m pyright` (system python,
+  no pyright) and, on the resulting JSON-parse failure, returned *0 errors = clean*
+  — a silent false-green; now uses `sys.executable` and **fails loud**. (3) pyright
+  resolved imports against PATH-python, so results flipped with `.venv` activation
+  — pinned via `--pythonpath sys.executable`. The audit is now deterministic
+  local == CI (proven all-13-branches-100% in an unactivated shell). Also: `drone`
+  bypasses the test-only broker `start_background` (intentional API, not dead code).
+- **windows-setup CI: guard Linux-only sandbox tests.** The kernel-sandbox build
+  is Linux-only (bwrap, `AF_UNIX` sockets, `openat2`); the code already guards on
+  `sys.platform`, but four test surfaces ran unconditionally and failed on
+  `windows-latest`. Module-level `pytestmark = pytest.mark.skipif(sys.platform !=
+  "linux", …)` on `drone/tests/test_broker.py` and `hooks/tests/test_sandbox.py`;
+  scoped guards on the remaining `AF_UNIX` broker-socket tests —
+  `ai_mail/.../test_dispatch_monitor.py::TestBrokerRealE2E` (class) and
+  `aipass/.../test_sandbox_check.py::TestCheckBrokerAlive` socket-connect tests
+  (method-level, so the graceful no-broker paths still run on Windows). All skip on
+  Windows and run unchanged on Linux. windows-setup was green pre-sandbox-merge
+  (`00edd8b`) and red since (`0b4ba63`); this closes it.
+- **Broker `start_background` connect-before-bind race.** `drone`'s out-of-sandbox
+  broker daemon started via `start_background()`, which returned *before* the
+  `AF_UNIX` socket was bound — callers then raced the bind, and on a slower machine
+  `create_identified_connection()` hit `FileNotFoundError` (socket not yet present).
+  Deterministic locally (`test_delete_nested_file` 0/5), green in CI only by timing
+  luck — latent flakiness. Fixed with a `threading.Event` set right after `listen()`;
+  `start_background(timeout=5.0)` now blocks on it and **raises** if the socket never
+  binds, so callers never guess a `sleep`. Removed the 4 blind `time.sleep(0.15)`
+  waits from the broker tests. Verified 55/55 broker tests, formerly-failing test 10/10.
+
+### Added
+
+- **`aipass init` detects missing Claude Code.** Stage 6 (CLI choice) now checks
+  `shutil.which("claude")` when the picked CLI is Claude Code. If absent: interactive
+  runs prompt `Install now? [Y/n]` and run the canonical installer on yes (native
+  `claude.ai/install.sh`, PowerShell on Windows, `npm` fallback, 300s timeout, loud on
+  failure); non-interactive runs warn and continue. The whole system routes through
+  Claude Code (hook bridge, dispatch, prompt injection), so init no longer silently
+  assumes the runtime is present. Only fires when the chosen CLI is `claude`.
+- **Kernel filesystem boundary for agent containment (DPLAN-0202 / FPLAN-0250).**
+  Every autonomous agent can now launch inside a kernel-enforced mount namespace
+  (`@anthropic-ai/sandbox-runtime` → bwrap+seccomp) where reads stay fully open
+  (the shared live filesystem is preserved — a bind-mount, *not* isolation: own-tree
+  writes land live on the real FS instantly) but deletes/overwrites of protected
+  paths (`.git`, sibling branch trees) fail at the kernel no matter how the call is
+  phrased — `rm`, `python os.remove`, `find -delete`, Write tool all hit EROFS.
+  `/tmp` and the agent's own tree stay writable; `.git` is RW for devpulse, RO for
+  builders. A per-role policy generator (`@hooks build_policy`) derives each branch's
+  writable/RO map from its passport. Privileged deletes route through an
+  out-of-sandbox **drone-broker** daemon: identity-scoped allowlist, `openat2`
+  RESOLVE_BENEATH path re-resolution (confused-deputy proof), HMAC identity handshake
+  over a pre-connected inherited fd, JSONL audit. `aipass doctor` gained a **Sandbox**
+  check group (bwrap present+functional, node, srt, rg, broker socket) that is LOUD
+  when the flag is on and a prereq is missing — never a silent unsandboxed launch.
+  Proven by a live 16-check red-team suite. **Inert by default** — gated behind
+  `AIPASS_SANDBOX_ENABLED` (off); flag-off is byte-identical to the old dispatch path.
+- **rm_gate demoted to guardrail.** Now framed honestly as early-feedback that
+  catches the accidental `rm -rf` and teaches `drone rm` — belt-and-suspenders, with
+  the kernel sandbox as the actual filesystem boundary.
+
+- **Prompt-injection cadence — fire the big loaders every Nth turn.** The global
+  and branch prompts are large and were re-injected on *every* turn even though a
+  prior copy stays in the conversation. They now fire together every 5th turn
+  (config-tunable via `hooks_json/custom_config/cadence_config.json`), with a
+  per-session turn counter that resets on a new session and after compaction so
+  context is always rebuilt when it's actually needed. Identity and the mail flag
+  stay every-turn (tiny, want freshness). Cuts recurring per-turn context cost.
+- **Hook fire/skip observability.** Cadence emits a structured
+  `[HOOKS] cadence fired|skipped loader= turn= period= offset=` line; the prax
+  monitor renders hook events distinctly so the cadence is visible live.
+- **Slim global prompt — context-on-demand.** The always-injected global prompt
+  was rewritten from a ~13.8KB encyclopedia into a ~7.8KB navigation map
+  (DPLAN-0201): `drone` pinned as the router, the framework tree, all 13 agents
+  as short bios, and one drilled reflex — run `drone @agent --help` before using
+  a branch. Detail now lives in each agent's `--help`, fetched on demand. This
+  also dissolves the harness ~10k-char truncation that was silently dropping the
+  old prompt's tail; the slim prompt injects whole. Backup retained alongside.
+
+### Changed
+
+- **Shared leaf library re-homed: `aipass.common` → `aipass.aipass.shared` (FPLAN-0260).**
+  `src/aipass/common/` was the only non-citizen directory in the agent namespace —
+  a shared lib (json_handler / json_ops / registry_discovery, extracted in
+  TDPLAN-0006 P2) parked as a sibling to the agents with no owner. Per @seedgo
+  design review it now lives inside its steward at `src/aipass/aipass/shared/`,
+  owned by @aipass; @spawn imports across (same blessed shared-infra category as
+  `aipass.prax`/`aipass.cli`). Content byte-identical; ~9 import/doc sites updated
+  across aipass+spawn. A new subprocess guard test pins the bootstrap-safety
+  invariant: importing `shared/` loads zero branch dependencies, so `aipass init`
+  keeps working pre-drone on fresh machines. Note: `aipass.common` shipped in the
+  v2.5.2 wheel; it was internal plumbing — no deprecation shim.
+- **Action-gated hook sound.** Piper now speaks only when a hook actually *does*
+  something — handlers return a `sound` key the engine plays, instead of
+  announcing on every invocation. Skipped loaders are silent. Quieter and honest.
+- **README: hardcoded metrics → live badges + qualitative.** Version is now a
+  live PyPI badge, test/PR counts replaced with a codecov coverage badge (75%
+  minimum) and qualitative wording — no more stale numbers to hand-maintain.
+
+### Fixed
+
+- **Cadence counter separate-process race.** Each `UserPromptSubmit` hook runs as
+  its own OS process, so a module-level turn cache double-incremented and the
+  loaders leapfrogged (firing erratically instead of together). Fixed with an
+  mtime debounce + transcript-size token + `flock` so the counter advances exactly
+  once per real turn, verified against the live execution model.
+- **`auto_fix` ran no diagnostics.** A leftover `speak()` call (its import removed
+  in the sound refactor) raised `NameError` on every edit, swallowed by the
+  handler's broad `except` — so auto-fix silently surfaced nothing on any
+  `.py`/`.json` edit. Removed the dead call; diagnostics run again.
+- **Hook events never colored in the monitor.** The prax log-watcher's
+  `_HOOK_PATTERN` required an `action=` field that cadence never emits (it logs
+  the action as the bare second word, `fired`/`skipped`), so extraction failed
+  and events fell through to plain rendering instead of the styled
+  bold-green ⚡ / dim · treatment. Fixed the regex to capture the bare action
+  word and enriched the event detail (period, offset, short session id).
 
 ### Security
 
@@ -28,7 +153,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W23] - 2026-06-02
+## [2026-06-02]
 
 ### Fixed
 
@@ -369,7 +494,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W22] - 2026-05-30
+## [2026-05-30]
 
 ### Added
 
@@ -431,7 +556,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W21] - 2026-05-25
+## [2026-05-25]
 
 First weekly release. AIPass now follows a Sunday release cadence: changes
 accumulate on `dev` throughout the week and merge to `main` as a single

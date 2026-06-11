@@ -71,6 +71,21 @@ def _prepare_watcher_mocks(monkeypatch):
     monkeypatch.setitem(sys.modules, "watchdog.observers", mock_watchdog_observers)
     monkeypatch.setitem(sys.modules, "watchdog.events", mock_watchdog_events)
 
+    # Mock normalize (lazy import inside on_modified and check_and_rollover)
+    mock_normalize_memory_file = MagicMock(return_value={"success": True, "changes": []})
+    mock_normalize = MagicMock()
+    mock_normalize.normalize_memory_file = mock_normalize_memory_file
+    monkeypatch.setitem(
+        sys.modules,
+        "aipass.memory.apps.handlers.schema",
+        MagicMock(),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "aipass.memory.apps.handlers.schema.normalize",
+        mock_normalize,
+    )
+
     # Mock rollover orchestrator (lazy import inside on_modified)
     mock_execute_rollover = MagicMock(return_value={"success": True})
     mock_orchestrator = MagicMock()
@@ -92,6 +107,7 @@ def _prepare_watcher_mocks(monkeypatch):
         "observer_instance": mock_observer_instance,
         "observer_cls": mock_observer_cls,
         "execute_rollover": mock_execute_rollover,
+        "normalize_memory_file": mock_normalize_memory_file,
     }
 
 
@@ -495,3 +511,61 @@ class TestMemoryFileWatcherOnModified:
         watcher.on_modified(event)
 
         mocks["execute_rollover"].assert_called_once()
+
+    def test_normalize_called_on_modification(self, monkeypatch):
+        """on_modified calls normalize_memory_file before update_line_count."""
+        mod, mocks = _import_watcher(monkeypatch)
+
+        watcher = mod.MemoryFileWatcher()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/some/branch/.trinity/local.json"
+
+        watcher.on_modified(event)
+
+        mocks["normalize_memory_file"].assert_called_once()
+        mocks["update_line_count"].assert_called_once()
+
+    def test_normalize_changes_guard_write_loop(self, monkeypatch):
+        """When normalize makes changes, file_key is added to _recent_modifications to prevent write-loop."""
+        mod, mocks = _import_watcher(monkeypatch)
+
+        mocks["normalize_memory_file"].return_value = {
+            "success": True,
+            "changes": ["Stripped orphan 'stale_key' from root"],
+        }
+
+        watcher = mod.MemoryFileWatcher()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/some/branch/.trinity/local.json"
+
+        watcher.on_modified(event)
+
+        from pathlib import Path as _P
+
+        file_key = str(_P("/some/branch/.trinity/local.json"))
+        assert file_key in watcher._recent_modifications
+
+    def test_normalize_no_changes_no_guard(self, monkeypatch):
+        """When normalize makes no changes, _recent_modifications is not populated by normalize step."""
+        mod, mocks = _import_watcher(monkeypatch)
+
+        mocks["normalize_memory_file"].return_value = {
+            "success": True,
+            "changes": [],
+        }
+
+        watcher = mod.MemoryFileWatcher()
+        event = MagicMock()
+        event.is_directory = False
+        event.src_path = "/some/branch/.trinity/local.json"
+
+        watcher.on_modified(event)
+
+        from pathlib import Path as _P
+
+        file_key = str(_P("/some/branch/.trinity/local.json"))
+        # file_key should NOT be in _recent_modifications from normalize (may be from rollover)
+        mocks["check_single_file"].return_value = {"success": True, "should_rollover": False}
+        assert file_key not in watcher._recent_modifications

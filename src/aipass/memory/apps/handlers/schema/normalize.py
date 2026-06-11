@@ -1,24 +1,17 @@
 # =================== AIPass ====================
 # Name: normalize.py
 # Description: Memory File Schema Normalizer
-# Version: 0.2.0
+# Version: 0.3.0
 # Created: 2026-01-22
-# Modified: 2026-03-06
+# Modified: 2026-06-08
 # =============================================
 
 """
 Memory File Schema Normalizer
 
-Fixes inconsistent schema in memory JSON files:
-1. Moves root-level 'limits' into document_metadata.limits
-2. Removes redundant root-level 'status'
-3. Removes auto_compress_at (redundant with max_lines)
-4. Ensures document_metadata.status has current_lines
-
-Supports two schema versions:
-  v1 (schema_version <2.0.0): { "limits": { "max_lines": N } }
-  v2 (schema_version >=2.0.0): { "limits": { "max_sessions": N, "max_key_learnings": N,
-      "session_summary_max_chars": N, "learning_value_max_chars": N } }
+Reconciles memory files against their canonical template schema.
+Strips any key not present in the template at every level (root,
+document_metadata, limits, status). Template = the whole truth.
 """
 
 import json
@@ -30,6 +23,36 @@ from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
 
 logger = get_system_logger()
+
+_MEMORY_ROOT = Path(__file__).parents[3]  # normalize.py -> schema/ -> handlers/ -> apps/ -> memory/
+
+
+def _load_template(file_path: Path) -> Dict[str, Any] | None:
+    """Load the matching template for a memory file (local or observations)."""
+    templates_dir = _MEMORY_ROOT / "templates"
+    name = file_path.name.lower()
+
+    if "local" in name:
+        tmpl_path = templates_dir / "LOCAL.template.json"
+    elif "observation" in name:
+        tmpl_path = templates_dir / "OBSERVATIONS.template.json"
+    else:
+        return None
+
+    try:
+        with open(tmpl_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"[normalize] Failed to load template {tmpl_path}: {e}")
+        return None
+
+
+def _strip_orphan_keys(data: Dict, allowed: set, level_name: str, changes: list) -> None:
+    """Remove keys from data that aren't in the allowed set."""
+    orphans = set(data.keys()) - allowed
+    for key in orphans:
+        del data[key]
+        changes.append(f"Stripped orphan '{key}' from {level_name}")
 
 
 def _find_repo_root() -> Path:
@@ -43,7 +66,7 @@ def _find_repo_root() -> Path:
 
 def normalize_memory_file(file_path: Path, dry_run: bool = False) -> Dict[str, Any]:
     """
-    Normalize schema for a single memory file.
+    Normalize a memory file against its canonical template.
 
     Args:
         file_path: Path to memory JSON file
@@ -71,58 +94,52 @@ def normalize_memory_file(file_path: Path, dry_run: bool = False) -> Dict[str, A
 
     metadata = data["document_metadata"]
 
-    # 1. Move root 'limits' into document_metadata.limits
+    # Legacy fix: move root 'limits' into document_metadata.limits
     if "limits" in data and "limits" not in metadata:
         metadata["limits"] = data.pop("limits")
         changes.append("Moved root 'limits' into document_metadata")
     elif "limits" in data and "limits" in metadata:
-        # Both exist - merge, preferring document_metadata values
         root_limits = data.pop("limits")
         for key, val in root_limits.items():
             if key not in metadata["limits"]:
                 metadata["limits"][key] = val
         changes.append("Merged root 'limits' into document_metadata.limits")
 
-    # 2. Remove root 'status' (redundant)
+    # Legacy fix: move root 'status' into document_metadata.status
     if "status" in data:
-        root_status = data.pop("status")
-        # If document_metadata.status doesn't have current_lines, copy it
+        data.pop("status")
         if "status" not in metadata:
             metadata["status"] = {}
-        if "current_lines" not in metadata["status"] and "current_lines" in root_status:
-            metadata["status"]["current_lines"] = root_status["current_lines"]
         changes.append("Removed redundant root 'status'")
 
-    # 3. Remove auto_compress_at from document_metadata.status (redundant with max_lines)
-    if "status" in metadata and "auto_compress_at" in metadata["status"]:
-        del metadata["status"]["auto_compress_at"]
-        changes.append("Removed redundant 'auto_compress_at'")
-
-    # 4. Remove unused limits fields (max_word_count, max_token_count - no code uses these)
-    # Preserve v2 fields: max_sessions, max_key_learnings, session_summary_max_chars, learning_value_max_chars,
-    # max_observations, max_lines, note
-    if "limits" in metadata:
-        for unused_field in ["max_word_count", "max_token_count"]:
-            if unused_field in metadata["limits"]:
-                del metadata["limits"][unused_field]
-                changes.append(f"Removed unused '{unused_field}'")
-
-    # 4. Ensure status has required fields
+    # Ensure status has required fields
     if "status" not in metadata:
         metadata["status"] = {}
-
-    if "current_lines" not in metadata["status"]:
-        # Count actual lines
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                metadata["status"]["current_lines"] = len(f.readlines())
-            changes.append("Added current_lines count")
-        except Exception as e:
-            logger.warning(f"[normalize] Failed to count lines in {file_path}: {e}")
 
     if "last_health_check" not in metadata["status"]:
         metadata["status"]["last_health_check"] = datetime.now().strftime("%Y-%m-%d")
         changes.append("Added last_health_check")
+
+    # Template-conformance: strip orphan keys at every level
+    template = _load_template(file_path)
+    if template is not None:
+        tmpl_meta = template.get("document_metadata", {})
+
+        # Root level
+        _strip_orphan_keys(data, set(template.keys()), "root", changes)
+
+        # document_metadata level
+        _strip_orphan_keys(metadata, set(tmpl_meta.keys()), "document_metadata", changes)
+
+        # limits level
+        tmpl_limits = tmpl_meta.get("limits", {})
+        if "limits" in metadata:
+            _strip_orphan_keys(metadata["limits"], set(tmpl_limits.keys()), "limits", changes)
+
+        # status level
+        tmpl_status = tmpl_meta.get("status", {})
+        if "status" in metadata:
+            _strip_orphan_keys(metadata["status"], set(tmpl_status.keys()), "status", changes)
 
     # Write if changes made and not dry run
     if changes and not dry_run:

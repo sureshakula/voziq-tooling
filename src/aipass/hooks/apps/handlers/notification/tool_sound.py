@@ -10,8 +10,6 @@
 
 """Announces hook name via Piper TTS when the AI uses tools (PreToolUse event)."""
 
-from aipass.hooks.apps.sound import speak
-
 
 def handle(hook_data: dict) -> dict:
     """Announce hook name for matching tool use events.
@@ -26,5 +24,4 @@ def handle(hook_data: dict) -> dict:
     if not tool_name:
         return {"stdout": "", "exit_code": 0}
 
-    speak(f"tool sound: {tool_name}")
-    return {"stdout": "", "exit_code": 0}
+    return {"stdout": "", "exit_code": 0, "sound": f"tool sound: {tool_name}"}

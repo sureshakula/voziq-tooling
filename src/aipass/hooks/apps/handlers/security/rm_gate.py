@@ -1,34 +1,38 @@
 # =================== AIPass ====================
 # Name: rm_gate.py
 # Version: 1.0.0
-# Description: Blocks raw recursive rm commands (PreToolUse)
+# Description: Guardrail — catches accidental rm -rf and teaches drone rm (PreToolUse)
 # Branch: hooks
 # Layer: apps/handlers/security
 # Created: 2026-06-02
 # Modified: 2026-06-02
 # =============================================
 
-"""Blocks raw recursive rm and teaches drone rm."""
+"""Early-feedback guardrail — catches accidental recursive rm and teaches drone rm.
+
+Belt-and-suspenders: the actual filesystem boundary is the kernel sandbox
+(srt/bwrap) enforced at agent launch. This hook provides fast, helpful feedback
+before the sandbox would block the operation at the kernel level.
+"""
 
 import json
 import re
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
 RM_REDIRECT = (
-    "Raw recursive rm is blocked. Use the safe contained delete instead:\n"
-    "  drone rm <path>     # safe delete (allows project + /tmp, refuses outside)\n"
+    "Heads up — raw recursive rm is not the right tool here. Use:\n"
+    "  drone rm <path>     # project-aware delete (allows project + /tmp, refuses outside)\n"
     "\n"
-    "This applies to all recursive rm variants (rm -rf, rm -r, rm -R, rm --recursive)."
+    "This guardrail catches rm -rf, rm -r, rm -R, and rm --recursive."
 )
 
 _BLOCK_ALLOW = {"stdout": "", "exit_code": 0}
 
 
 def _block(reason: str) -> dict:
-    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2, "sound": "rm gate"}
 
 
 def _strip_quotes(cmd: str) -> str:
@@ -84,8 +88,6 @@ def handle(hook_data: dict) -> dict:
     Returns:
         Result dict with stdout (block JSON or empty) and exit_code.
     """
-    speak("rm gate")
-
     try:
         tool_name = hook_data.get("tool_name", "")
         if tool_name != "Bash":

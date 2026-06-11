@@ -10,7 +10,7 @@
 ## What Are Playbooks?
 
 Playbooks (PBPLANs) are **throwaway SOP runs** — a checklist stamped from a reusable
-template for a recurring operation (Sunday merge, release cut, branch onboarding,
+template for a recurring operation (merge, release cut, branch onboarding,
 incident response). You tick steps off as you go, log what happened, then close.
 
 - **The template = the SOP.** Stable. Refine it over time as the process improves.

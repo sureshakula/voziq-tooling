@@ -4,209 +4,875 @@
     "created": "2026-05-18",
     "updated": "2026-05-28",
     "description": "Standards bypass configuration for this branch",
-    "audit_context": "DPLAN-0191: Full ownership hardening. All handler wiring verified against .aipass/hooks.json + engine.jsonl firing evidence. Dynamic dispatch via engine._run_handler (importlib.import_module + getattr) means handlers are never statically imported — seedgo's dead_code/unused_function checks are false positives for this architecture."
+    "audit_context": "DPLAN-0191: Full ownership hardening. All handler wiring verified against .aipass/hooks.json + engine.jsonl firing evidence. Dynamic dispatch via engine._run_handler (importlib.import_module + getattr) means handlers are never statically imported \u2014 seedgo's dead_code/unused_function checks are false positives for this architecture."
   },
   "bypass": [
-    {"standard": "dead_code", "reason": "All 15 handler files under apps/handlers/ are invoked dynamically by engine._run_handler (engine.py:60-66) via importlib.import_module + getattr on handler path strings from .aipass/hooks.json. They are never statically imported by design. Each handler verified wired in hooks.json AND fired in engine.jsonl (DPLAN-0191). Follow-up for @seedgo: teach dead_code checker about importlib dynamic dispatch patterns."},
-    {"file": "apps/handlers/bridges/claude.py", "standard": "dead_code", "reason": "Bridge called externally by provider settings subprocess — no internal import. Verified wired in ~/.claude/settings.json hook entries."},
-    {"file": "apps/handlers/bridges/claude.py", "standard": "unused_function", "reason": "main() called as subprocess entry point from provider settings — never statically imported."},
-    {"file": "apps/handlers/bridges/claude.py", "standard": "handlers", "reason": "Bridges import engine module by design — that is their entire purpose."},
-    {"file": "apps/handlers/bridges/claude.py", "standard": "json_structure", "reason": "Thin entry point, no JSON operations to log."},
-    {"file": "apps/handlers/bridges/claude.py", "standard": "architecture", "reason": "Bridge importing engine module is its architectural purpose."},
-    {"file": "apps/handlers/bridges/claude.py", "standard": "imports", "reason": "Bridge imports engine module by design — sole purpose."},
-
-    {"file": "apps/handlers/prompt/identity.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.identity.handle' — not statically imported by design. Verified wired in UserPromptSubmit.identity_injector + fires in engine.jsonl."},
-    {"file": "apps/handlers/prompt/identity.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.identity_injector)."},
-    {"file": "apps/handlers/prompt/identity.py", "standard": "json_structure", "reason": "Uses stdlib json.loads to read passport.json — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/prompt/branch_loader.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.branch_loader.handle' — not statically imported by design. Verified wired in UserPromptSubmit.branch_prompt + fires in engine.jsonl."},
-    {"file": "apps/handlers/prompt/branch_loader.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.branch_prompt)."},
-    {"file": "apps/handlers/prompt/branch_loader.py", "standard": "json_structure", "reason": "No JSON operations — reads markdown files and outputs text."},
-
-    {"file": "apps/handlers/prompt/global_loader.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.global_loader.handle' — not statically imported by design. Verified wired in UserPromptSubmit.global_prompt + fires in engine.jsonl."},
-    {"file": "apps/handlers/prompt/global_loader.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.global_prompt)."},
-    {"file": "apps/handlers/prompt/global_loader.py", "standard": "json_structure", "reason": "No JSON operations — reads markdown file and outputs text."},
-
-    {"file": "apps/handlers/security/edit_gate.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.edit_gate.handle' — not statically imported by design. Verified wired in PreToolUse.pre_edit_gate + fires in engine.jsonl."},
-    {"file": "apps/handlers/security/edit_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.pre_edit_gate)."},
-    {"file": "apps/handlers/security/edit_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/security/git_gate.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.git_gate.handle' — not statically imported by design. Verified wired in PreToolUse.git_gate + fires in engine.jsonl."},
-    {"file": "apps/handlers/security/git_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.git_gate)."},
-    {"file": "apps/handlers/security/git_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/security/rm_gate.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.rm_gate.handle' — not statically imported by design. Wired in PreToolUse.rm_gate."},
-    {"file": "apps/handlers/security/rm_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreToolUse.rm_gate."},
-    {"file": "apps/handlers/security/rm_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/security/subagent_gate.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.subagent_gate.handle' — not statically imported by design. Verified wired in SubagentStop.subagent_stop_gate + fires in engine.jsonl."},
-    {"file": "apps/handlers/security/subagent_gate.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (SubagentStop.subagent_stop_gate)."},
-    {"file": "apps/handlers/security/subagent_gate.py", "standard": "json_structure", "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."},
-    {"file": "apps/handlers/security/subagent_gate.py", "standard": "open_encoding", "reason": "NamedTemporaryFile creates binary wav for Piper TTS — encoding not applicable to binary audio."},
-
-    {"file": "apps/handlers/lifecycle/auto_fix.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_fix.handle' — not statically imported by design. Verified wired in PostToolUse.auto_fix_diagnostics + fires in engine.jsonl."},
-    {"file": "apps/handlers/lifecycle/auto_fix.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PostToolUse.auto_fix_diagnostics)."},
-    {"file": "apps/handlers/lifecycle/auto_fix.py", "standard": "json_structure", "reason": "Diagnostics handler uses stdlib json for hook protocol responses and state file — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/lifecycle/auto_watchdog.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_watchdog.handle' — not statically imported by design. Verified wired in PostToolUse.auto_watchdog + fires in engine.jsonl."},
-    {"file": "apps/handlers/lifecycle/auto_watchdog.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PostToolUse.auto_watchdog)."},
-    {"file": "apps/handlers/lifecycle/auto_watchdog.py", "standard": "json_structure", "reason": "Uses stdlib json.dumps to produce additionalContext output — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/lifecycle/compact.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.compact.handle' — not statically imported by design. Verified wired in PreCompact.pre_compact (PreCompact events are rare — fires only during context compaction)."},
-    {"file": "apps/handlers/lifecycle/compact.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreCompact.pre_compact — fires during compaction events."},
-    {"file": "apps/handlers/lifecycle/compact.py", "standard": "json_structure", "reason": "Uses stdlib json.loads for local.json reading — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/lifecycle/rollover.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.rollover.handle' — not statically imported by design. Verified wired in PreCompact.pre_compact_rollover (PreCompact events are rare — fires only during context compaction)."},
-    {"file": "apps/handlers/lifecycle/rollover.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreCompact.pre_compact_rollover — fires during compaction events."},
-    {"file": "apps/handlers/lifecycle/rollover.py", "standard": "json_structure", "reason": "Uses stdlib json.loads for registry and memory file checks — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_process.handle' — not statically imported by design. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."},
-    {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."},
-    {"file": "apps/handlers/lifecycle/auto_process.py", "standard": "json_structure", "reason": "Delegates to @memory's auto_process() via importlib — no direct JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/notification/announce.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.announce.handle' — not statically imported by design. Verified wired in Notification.notification_sound + fires in engine.jsonl."},
-    {"file": "apps/handlers/notification/announce.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (Notification.notification_sound)."},
-    {"file": "apps/handlers/notification/announce.py", "standard": "json_structure", "reason": "Sound handler — no JSON operations, plays WAV files."},
-
-    {"file": "apps/handlers/notification/email.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.email.handle' — not statically imported by design. Verified wired in UserPromptSubmit.email_notification + fires in engine.jsonl."},
-    {"file": "apps/handlers/notification/email.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.email_notification)."},
-    {"file": "apps/handlers/notification/email.py", "standard": "json_structure", "reason": "Uses stdlib json.loads for inbox parsing — no JSON file ops needing json_handler."},
-
-    {"file": "apps/handlers/notification/stop_sound.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.stop_sound.handle' — not statically imported by design. Verified wired in Stop.stop_sound + fires in engine.jsonl."},
-    {"file": "apps/handlers/notification/stop_sound.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (Stop.stop_sound)."},
-    {"file": "apps/handlers/notification/stop_sound.py", "standard": "json_structure", "reason": "Sound handler — no JSON operations, plays WAV files."},
-
-    {"file": "apps/handlers/notification/tool_sound.py", "standard": "dead_code", "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.tool_sound.handle' — not statically imported by design. Verified wired in PreToolUse.tool_use_sound + fires in engine.jsonl."},
-    {"file": "apps/handlers/notification/tool_sound.py", "standard": "unused_function", "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.tool_use_sound)."},
-    {"file": "apps/handlers/notification/tool_sound.py", "standard": "json_structure", "reason": "Sound handler — no JSON operations, plays WAV files."},
-
-    {"file": "apps/handlers/config/loader.py", "standard": "json_structure", "reason": "Config loader does $AIPASS_HOME variable expansion before JSON parse — json_handler does not support this."},
-    {"file": "apps/handlers/config/diagnostics.py", "standard": "json_structure", "reason": "JSONL append-only diagnostic log — different pattern from branch json_handler storage."},
-
-    {"file": "apps/modules/engine.py", "standard": "json_structure", "reason": "Engine uses JSONL diagnostic logging, not branch json_handler — different purpose."},
-    {"file": "apps/modules/engine.py", "standard": "modules", "reason": "dispatch() is the engine's core purpose — it IS the module's primary function, not a handler that belongs elsewhere. The engine exists to dispatch; moving dispatch to handlers/ would leave an empty module."},
-
-    {"file": "apps/modules/hooksound.py", "standard": "json_structure", "reason": "Sound mute toggle — touches /tmp/aipass-hooks-muted flag file only, no JSON operations or json_handler storage."},
-    {"file": "apps/modules/hooksound.py", "standard": "trigger", "reason": "MUTE_FLAG.unlink() removes a /tmp mute flag file for sound toggle — not a tracked resource or production data deletion. Deliberate user action via 'drone @hooks hooksound on'."},
-
-    {"file": "apps/modules/hookstatus.py", "standard": "json_structure", "reason": "Read-only config viewer — delegates JSON loading to config/loader.py, no direct JSON file ops."},
-
-    {"file": "apps/hooks.py", "standard": "unused_function", "reason": "print_introspection() called by drone's discovery system, not internal code."},
-
-    {"file": "apps/sound.py", "standard": "unused_function", "reason": "play() called by handler files (stop_sound.py, announce.py) that are dynamically dispatched via importlib — static analysis cannot trace the call chain from hooks.json → engine → handler → sound.play()."},
-
-    {"standard": "test_quality", "reason": "Hooks branch does not use json_handler — has its own JSONL diagnostic logging (diagnostics.py) and stdlib json for hook protocol I/O. json_handler coverage, mock_json_handler fixture, and exception_contracts (create_default_raises, save_invalid_raises, invalid_mode_raises) are all N/A for a hook dispatch engine architecture."},
-
-    {"file": "tests/conftest.py", "standard": "architecture", "reason": "Test fixtures live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/conftest.py", "standard": "json_handler", "reason": "Hooks branch does not use json_handler — has its own JSONL logging and stdlib json for hook protocol. mock_json_handler fixture is N/A."},
-    {"file": "tests/conftest.py", "standard": "exception_contracts", "reason": "Hooks has no json_handler create_default/save_invalid/invalid_mode patterns — those contracts are N/A for a hook dispatch engine."},
-
-    {"file": "tests/test_engine.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_engine.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_engine.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_engine.py", "standard": "help_text", "reason": "Test data contains command references as part of test fixtures, not user-facing help."},
-    {"file": "tests/test_engine.py", "standard": "json_handler", "reason": "Hooks branch does not use json_handler — has its own JSONL logging."},
-    {"file": "tests/test_engine.py", "standard": "exception_contracts", "reason": "Hooks has no json_handler create_default/save_invalid/invalid_mode patterns."},
-
-    {"file": "tests/test_tool_sound.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_tool_sound.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_tool_sound.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_tool_sound.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_stop_sound.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_stop_sound.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_stop_sound.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_stop_sound.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_announce.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_announce.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_announce.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_announce.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_email.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_email.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_email.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_email.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_subagent_gate.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_subagent_gate.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_subagent_gate.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_subagent_gate.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_auto_fix.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_auto_fix.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_auto_fix.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_auto_fix.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-    {"file": "tests/test_auto_fix.py", "standard": "commented_logger", "reason": "Test data contains '# logger.debug(msg)' as input to pattern checker under test — not a commented-out call."},
-    {"file": "tests/test_auto_fix.py", "standard": "trigger", "reason": "Test cleanup .unlink() removes temporary state files — not a production file deletion."},
-
-    {"file": "tests/test_identity.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_identity.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_identity.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_identity.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_branch_loader.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_branch_loader.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_branch_loader.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_branch_loader.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_global_loader.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_global_loader.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_global_loader.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_global_loader.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_compact.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_compact.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_compact.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_compact.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_rollover.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_rollover.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_rollover.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_rollover.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_hookstatus.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_hookstatus.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_hookstatus.py", "standard": "encapsulation", "reason": "Tests import modules directly to test implementation details."},
-    {"file": "tests/test_hookstatus.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_hooksound.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_hooksound.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_hooksound.py", "standard": "encapsulation", "reason": "Tests import modules directly to test implementation details."},
-    {"file": "tests/test_hooksound.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_auto_watchdog.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_auto_watchdog.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_auto_watchdog.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_auto_watchdog.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_edit_gate.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_edit_gate.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_edit_gate.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_edit_gate.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_git_gate.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_git_gate.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_git_gate.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_git_gate.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_rm_gate.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_rm_gate.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_rm_gate.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_rm_gate.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_sound.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_sound.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_sound.py", "standard": "encapsulation", "reason": "Tests import sound module directly to test implementation details."},
-    {"file": "tests/test_sound.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."},
-
-    {"file": "tests/test_auto_process.py", "standard": "architecture", "reason": "Test files live in tests/, not in the 3-layer apps structure."},
-    {"file": "tests/test_auto_process.py", "standard": "documentation", "reason": "Test methods use descriptive names as documentation per pytest convention."},
-    {"file": "tests/test_auto_process.py", "standard": "encapsulation", "reason": "Tests import handlers directly to test implementation details."},
-    {"file": "tests/test_auto_process.py", "standard": "meta", "reason": "Test files do not need Version/Modified metadata headers."}
+    {
+      "standard": "dead_code",
+      "reason": "All 15 handler files under apps/handlers/ are invoked dynamically by engine._run_handler (engine.py:60-66) via importlib.import_module + getattr on handler path strings from .aipass/hooks.json. They are never statically imported by design. Each handler verified wired in hooks.json AND fired in engine.jsonl (DPLAN-0191). Follow-up for @seedgo: teach dead_code checker about importlib dynamic dispatch patterns."
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "dead_code",
+      "reason": "Bridge called externally by provider settings subprocess \u2014 no internal import. Verified wired in ~/.claude/settings.json hook entries."
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "unused_function",
+      "reason": "main() called as subprocess entry point from provider settings \u2014 never statically imported."
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "handlers",
+      "reason": "Bridges import engine module by design \u2014 that is their entire purpose."
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "json_structure",
+      "reason": "Thin entry point, no JSON operations to log."
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "architecture",
+      "reason": "Bridge importing engine module is its architectural purpose."
+    },
+    {
+      "file": "apps/handlers/bridges/claude.py",
+      "standard": "imports",
+      "reason": "Bridge imports engine module by design \u2014 sole purpose."
+    },
+    {
+      "file": "apps/handlers/prompt/identity.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.identity.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.identity_injector + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/prompt/identity.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.identity_injector)."
+    },
+    {
+      "file": "apps/handlers/prompt/identity.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads to read passport.json \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/prompt/branch_loader.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.branch_loader.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.branch_prompt + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/prompt/branch_loader.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.branch_prompt)."
+    },
+    {
+      "file": "apps/handlers/prompt/branch_loader.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations \u2014 reads markdown files and outputs text."
+    },
+    {
+      "file": "apps/handlers/prompt/global_loader.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.global_loader.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.global_prompt + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/prompt/global_loader.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.global_prompt)."
+    },
+    {
+      "file": "apps/handlers/prompt/global_loader.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations \u2014 reads markdown file and outputs text."
+    },
+    {
+      "file": "apps/handlers/security/edit_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.edit_gate.handle' \u2014 not statically imported by design. Verified wired in PreToolUse.pre_edit_gate + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/security/edit_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.pre_edit_gate)."
+    },
+    {
+      "file": "apps/handlers/security/edit_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/security/git_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.git_gate.handle' \u2014 not statically imported by design. Verified wired in PreToolUse.git_gate + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/security/git_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.git_gate)."
+    },
+    {
+      "file": "apps/handlers/security/git_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/security/rm_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.rm_gate.handle' \u2014 not statically imported by design. Wired in PreToolUse.rm_gate."
+    },
+    {
+      "file": "apps/handlers/security/rm_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreToolUse.rm_gate."
+    },
+    {
+      "file": "apps/handlers/security/rm_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/security/subagent_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.subagent_gate.handle' \u2014 not statically imported by design. Verified wired in SubagentStop.subagent_stop_gate + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/security/subagent_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (SubagentStop.subagent_stop_gate)."
+    },
+    {
+      "file": "apps/handlers/security/subagent_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/security/subagent_gate.py",
+      "standard": "open_encoding",
+      "reason": "NamedTemporaryFile creates binary wav for Piper TTS \u2014 encoding not applicable to binary audio."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_fix.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_fix.handle' \u2014 not statically imported by design. Verified wired in PostToolUse.auto_fix_diagnostics + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_fix.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PostToolUse.auto_fix_diagnostics)."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_fix.py",
+      "standard": "json_structure",
+      "reason": "Diagnostics handler uses stdlib json for hook protocol responses and state file \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_watchdog.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_watchdog.handle' \u2014 not statically imported by design. Verified wired in PostToolUse.auto_watchdog + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_watchdog.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PostToolUse.auto_watchdog)."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_watchdog.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.dumps to produce additionalContext output \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/lifecycle/compact.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.compact.handle' \u2014 not statically imported by design. Verified wired in PreCompact.pre_compact (PreCompact events are rare \u2014 fires only during context compaction)."
+    },
+    {
+      "file": "apps/handlers/lifecycle/compact.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreCompact.pre_compact \u2014 fires during compaction events."
+    },
+    {
+      "file": "apps/handlers/lifecycle/compact.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads for local.json reading \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/lifecycle/rollover.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.rollover.handle' \u2014 not statically imported by design. Verified wired in PreCompact.pre_compact_rollover (PreCompact events are rare \u2014 fires only during context compaction)."
+    },
+    {
+      "file": "apps/handlers/lifecycle/rollover.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreCompact.pre_compact_rollover \u2014 fires during compaction events."
+    },
+    {
+      "file": "apps/handlers/lifecycle/rollover.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads for registry and memory file checks \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_process.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_process.handle' \u2014 not statically imported by design. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_process.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.auto_process + PreCompact.auto_process."
+    },
+    {
+      "file": "apps/handlers/lifecycle/auto_process.py",
+      "standard": "json_structure",
+      "reason": "Delegates to @memory's auto_process() via importlib \u2014 no direct JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/modules/cadence.py",
+      "standard": "dead_code",
+      "reason": "Cadence module \u2014 should_fire() called from global_loader.py and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."
+    },
+    {
+      "file": "apps/modules/cadence.py",
+      "standard": "unused_function",
+      "reason": "should_fire() called from global_loader.py + branch_loader.py; reset_counter() called from compact.py. All callers are dynamically dispatched handlers."
+    },
+    {
+      "file": "apps/modules/cadence.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json for /tmp state file (turn counter) and hooks_json/custom_config/cadence_config.json config loading \u2014 lightweight ephemeral state, not branch data storage."
+    },
+    {
+      "file": "apps/handlers/notification/announce.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.announce.handle' \u2014 not statically imported by design. Verified wired in Notification.notification_sound + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/notification/announce.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (Notification.notification_sound)."
+    },
+    {
+      "file": "apps/handlers/notification/announce.py",
+      "standard": "json_structure",
+      "reason": "Sound handler \u2014 no JSON operations, plays WAV files."
+    },
+    {
+      "file": "apps/handlers/notification/email.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.email.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.email_notification + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/notification/email.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.email_notification)."
+    },
+    {
+      "file": "apps/handlers/notification/email.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.loads for inbox parsing \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/notification/stop_sound.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.stop_sound.handle' \u2014 not statically imported by design. Verified wired in Stop.stop_sound + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/notification/stop_sound.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (Stop.stop_sound)."
+    },
+    {
+      "file": "apps/handlers/notification/stop_sound.py",
+      "standard": "json_structure",
+      "reason": "Sound handler \u2014 no JSON operations, plays WAV files."
+    },
+    {
+      "file": "apps/handlers/notification/tool_sound.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.notification.tool_sound.handle' \u2014 not statically imported by design. Verified wired in PreToolUse.tool_use_sound + fires in engine.jsonl."
+    },
+    {
+      "file": "apps/handlers/notification/tool_sound.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (PreToolUse.tool_use_sound)."
+    },
+    {
+      "file": "apps/handlers/notification/tool_sound.py",
+      "standard": "json_structure",
+      "reason": "Sound handler \u2014 no JSON operations, plays WAV files."
+    },
+    {
+      "file": "apps/handlers/config/loader.py",
+      "standard": "json_structure",
+      "reason": "Config loader does $AIPASS_HOME variable expansion before JSON parse \u2014 json_handler does not support this."
+    },
+    {
+      "file": "apps/handlers/config/diagnostics.py",
+      "standard": "json_structure",
+      "reason": "JSONL append-only diagnostic log \u2014 different pattern from branch json_handler storage."
+    },
+    {
+      "file": "apps/modules/engine.py",
+      "standard": "json_structure",
+      "reason": "Engine uses JSONL diagnostic logging, not branch json_handler \u2014 different purpose."
+    },
+    {
+      "file": "apps/modules/engine.py",
+      "standard": "modules",
+      "reason": "dispatch() is the engine's core purpose \u2014 it IS the module's primary function, not a handler that belongs elsewhere. The engine exists to dispatch; moving dispatch to handlers/ would leave an empty module."
+    },
+    {
+      "file": "apps/modules/hooksound.py",
+      "standard": "json_structure",
+      "reason": "Sound mute toggle \u2014 touches /tmp/aipass-hooks-muted flag file only, no JSON operations or json_handler storage."
+    },
+    {
+      "file": "apps/modules/hooksound.py",
+      "standard": "trigger",
+      "reason": "MUTE_FLAG.unlink() removes a /tmp mute flag file for sound toggle \u2014 not a tracked resource or production data deletion. Deliberate user action via 'drone @hooks hooksound on'."
+    },
+    {
+      "file": "apps/modules/hookstatus.py",
+      "standard": "json_structure",
+      "reason": "Read-only config viewer \u2014 delegates JSON loading to config/loader.py, no direct JSON file ops."
+    },
+    {
+      "file": "apps/modules/cadence.py",
+      "standard": "modules",
+      "reason": "Cadence module reads /tmp state file and hooks_json/custom_config/cadence_config.json with stdlib json \u2014 lightweight ephemeral state (turn counter) + tunable config. json_handler is for persistent branch data, not /tmp session state or config knobs."
+    },
+    {
+      "file": "apps/hooks.py",
+      "standard": "unused_function",
+      "reason": "print_introspection() called by drone's discovery system, not internal code."
+    },
+    {
+      "file": "apps/sound.py",
+      "standard": "unused_function",
+      "reason": "play() called by handler files (stop_sound.py, announce.py) that are dynamically dispatched via importlib \u2014 static analysis cannot trace the call chain from hooks.json \u2192 engine \u2192 handler \u2192 sound.play()."
+    },
+    {
+      "standard": "test_quality",
+      "reason": "Hooks branch does not use json_handler \u2014 has its own JSONL diagnostic logging (diagnostics.py) and stdlib json for hook protocol I/O. json_handler coverage, mock_json_handler fixture, and exception_contracts (create_default_raises, save_invalid_raises, invalid_mode_raises) are all N/A for a hook dispatch engine architecture."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "architecture",
+      "reason": "Test fixtures live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "json_handler",
+      "reason": "Hooks branch does not use json_handler \u2014 has its own JSONL logging and stdlib json for hook protocol. mock_json_handler fixture is N/A."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "exception_contracts",
+      "reason": "Hooks has no json_handler create_default/save_invalid/invalid_mode patterns \u2014 those contracts are N/A for a hook dispatch engine."
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "help_text",
+      "reason": "Test data contains command references as part of test fixtures, not user-facing help."
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "json_handler",
+      "reason": "Hooks branch does not use json_handler \u2014 has its own JSONL logging."
+    },
+    {
+      "file": "tests/test_engine.py",
+      "standard": "exception_contracts",
+      "reason": "Hooks has no json_handler create_default/save_invalid/invalid_mode patterns."
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_tool_sound.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_stop_sound.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_announce.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_email.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_subagent_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "commented_logger",
+      "reason": "Test data contains '# logger.debug(msg)' as input to pattern checker under test \u2014 not a commented-out call."
+    },
+    {
+      "file": "tests/test_auto_fix.py",
+      "standard": "trigger",
+      "reason": "Test cleanup .unlink() removes temporary state files \u2014 not a production file deletion."
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_identity.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_branch_loader.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_global_loader.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_compact.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_rollover.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_hookstatus.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_hookstatus.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_hookstatus.py",
+      "standard": "encapsulation",
+      "reason": "Tests import modules directly to test implementation details."
+    },
+    {
+      "file": "tests/test_hookstatus.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_hooksound.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_hooksound.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_hooksound.py",
+      "standard": "encapsulation",
+      "reason": "Tests import modules directly to test implementation details."
+    },
+    {
+      "file": "tests/test_hooksound.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_auto_watchdog.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_auto_watchdog.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_auto_watchdog.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_auto_watchdog.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_edit_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_edit_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_edit_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_edit_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_git_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_git_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_git_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_git_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_rm_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_rm_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_rm_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_rm_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_sound.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_sound.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_sound.py",
+      "standard": "encapsulation",
+      "reason": "Tests import sound module directly to test implementation details."
+    },
+    {
+      "file": "tests/test_sound.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_auto_process.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_cadence.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_cadence.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_cadence.py",
+      "standard": "encapsulation",
+      "reason": "Tests import modules and handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_cadence.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "apps/modules/sandbox.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.dump to write ephemeral srt config to a NamedTemporaryFile \u2014 not a tracked JSON resource needing json_handler."
+    },
+    {
+      "file": "apps/modules/sandbox.py",
+      "standard": "trigger",
+      "reason": "Path.unlink() removes an ephemeral NamedTemporaryFile (srt config) created seconds earlier in the same function \u2014 not a tracked resource or production data deletion."
+    },
+    {
+      "file": "artifacts/sandbox_phase1_demo.py",
+      "standard": "architecture",
+      "reason": "Live demo artifact for FPLAN-0250 Phase 1 acceptance \u2014 not production code, lives in artifacts/ per the phase brief."
+    },
+    {
+      "file": "artifacts/sandbox_phase1_demo.py",
+      "standard": "debug_print",
+      "reason": "Demo script uses print() for human-readable acceptance test output \u2014 not a module with CLI service."
+    },
+    {
+      "file": "artifacts/sandbox_phase1_demo.py",
+      "standard": "imports",
+      "reason": "sys.path insert needed to run standalone demo from artifacts/ \u2014 not a pip-installed module entry point."
+    },
+    {
+      "file": "artifacts/sandbox_phase1_demo.py",
+      "standard": "documentation",
+      "reason": "Demo helper function \u2014 docstrings omitted for brevity in a non-production artifact."
+    },
+    {
+      "file": "artifacts/sandbox_phase1_demo.py",
+      "standard": "help_text",
+      "reason": "Demo run instructions reference python3 as the invocation command \u2014 this is a standalone script, not a drone-routed module."
+    },
+    {
+      "file": "tests/test_sandbox.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ per hooks convention \u2014 not a module or handler."
+    },
+    {
+      "file": "tests/test_sandbox.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names \u2014 docstrings redundant per hooks test convention."
+    },
+    {
+      "file": "tests/test_sandbox.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "apps/modules/sandbox.py",
+      "standard": "modules",
+      "reason": "Read-only passport.json check in _is_devpulse() to detect branch role for policy generation \u2014 not a file-write operation, not a handler-level concern. Module reads sibling passports to determine writable/RO map."
+    },
+    {
+      "file": "apps/modules/sandbox.py",
+      "standard": "unused_function",
+      "reason": "sandbox_launch(), build_policy(), build_srt_config(), and resolve_bwrap_command() are consumed CROSS-BRANCH by ai_mail's dispatch_monitor.py (the launch seam at Phase 4). seedgo's intra-branch static analysis cannot see these callers. Verified: dispatch_monitor imports sandbox module to wire build_policy + sandbox_launch at agent launch."
+    }
   ],
   "notes": {
-    "removed_2026-05-19": "Stripped 4 illegitimate bypasses — hooks.py/cli, hooks.py/cli_flags, engine.py/modules, engine.py/introspection. Code fixed to meet standards instead.",
-    "dplan_0191_2026-05-28": "Added dead_code + unused_function bypasses for all 15 dynamically-dispatched handlers after verifying each is wired in .aipass/hooks.json AND fires in engine.jsonl. Root cause: engine._run_handler (engine.py:60-66) uses importlib.import_module + getattr on hooks.json handler strings — handlers are never statically imported. Follow-up for @seedgo: teach dead_code/unused_function about dynamic importlib dispatch patterns."
+    "removed_2026-05-19": "Stripped 4 illegitimate bypasses \u2014 hooks.py/cli, hooks.py/cli_flags, engine.py/modules, engine.py/introspection. Code fixed to meet standards instead.",
+    "dplan_0191_2026-05-28": "Added dead_code + unused_function bypasses for all 15 dynamically-dispatched handlers after verifying each is wired in .aipass/hooks.json AND fires in engine.jsonl. Root cause: engine._run_handler (engine.py:60-66) uses importlib.import_module + getattr on hooks.json handler strings \u2014 handlers are never statically imported. Follow-up for @seedgo: teach dead_code/unused_function about dynamic importlib dispatch patterns."
   }
 }

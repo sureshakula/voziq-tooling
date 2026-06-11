@@ -3,7 +3,7 @@
 # Description: Shared JSON handler with injectable storage directory
 # Version: 1.0.0
 # Created: 2026-06-06
-# Modified: 2026-06-06
+# Modified: 2026-06-10
 # =============================================
 
 """Shared JSON handler — auto-creating, self-healing JSON system.

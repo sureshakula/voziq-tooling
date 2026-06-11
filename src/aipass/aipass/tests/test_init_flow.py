@@ -488,6 +488,66 @@ class TestStages:
                 result = stage_6_tool_choice(non_interactive=True, cli_override="codex")
         assert result["cli"] == "codex"
 
+    def test_stage_6_claude_present_no_prompt(self, tmp_local_json) -> None:
+        """When claude is on PATH, no install prompt is shown."""
+        mock_profile_mod = MagicMock()
+        mock_profile_mod.get_user_profile.return_value = {}
+        with patch(f"{_MOD}.console"):
+            with patch(f"{_MOD}.shutil.which", return_value="/usr/bin/claude"):
+                with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
+                    with patch(f"{_MOD}._handle_missing_claude") as mock_handle:
+                        result = stage_6_tool_choice(non_interactive=True)
+        mock_handle.assert_not_called()
+        assert result["cli"] == "claude"
+
+    @patch(f"{_MOD}._choose", return_value="default")
+    @patch(f"{_MOD}._install_claude_code", return_value=True)
+    @patch(f"{_MOD}._prompt", return_value="Y")
+    @patch(f"{_MOD}.shutil.which", return_value=None)
+    @patch(f"{_MOD}.console")
+    def test_stage_6_claude_missing_interactive_yes(
+        self, _con, _which, _prompt, mock_install, _choose, tmp_local_json
+    ) -> None:
+        """Missing claude + interactive + yes → installer invoked."""
+        mock_profile_mod = MagicMock()
+        mock_profile_mod.get_user_profile.return_value = {}
+        with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
+            result = stage_6_tool_choice(non_interactive=False, cli_override="claude")
+        mock_install.assert_called_once()
+        assert result["cli"] == "claude"
+
+    @patch(f"{_MOD}._choose", return_value="default")
+    @patch(f"{_MOD}._install_claude_code")
+    @patch(f"{_MOD}._prompt", return_value="n")
+    @patch(f"{_MOD}.shutil.which", return_value=None)
+    @patch(f"{_MOD}.console")
+    def test_stage_6_claude_missing_interactive_no(
+        self, _con, _which, _prompt, mock_install, _choose, tmp_local_json
+    ) -> None:
+        """Missing claude + interactive + no → no install, continues."""
+        mock_profile_mod = MagicMock()
+        mock_profile_mod.get_user_profile.return_value = {}
+        with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
+            result = stage_6_tool_choice(non_interactive=False, cli_override="claude")
+        mock_install.assert_not_called()
+        assert result["cli"] == "claude"
+
+    @patch(f"{_MOD}.warning")
+    @patch(f"{_MOD}._install_claude_code")
+    @patch(f"{_MOD}.shutil.which", return_value=None)
+    @patch(f"{_MOD}.console")
+    def test_stage_6_claude_missing_non_interactive_warns(
+        self, _con, _which, mock_install, mock_warn, tmp_local_json
+    ) -> None:
+        """Missing claude + non-interactive → warning, no install."""
+        mock_profile_mod = MagicMock()
+        mock_profile_mod.get_user_profile.return_value = {}
+        with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
+            result = stage_6_tool_choice(non_interactive=True)
+        mock_install.assert_not_called()
+        mock_warn.assert_called_once()
+        assert result["cli"] == "claude"
+
     def test_stage_7_skipped_when_no_docker(self, tmp_local_json) -> None:
         """Docker offer is skipped when has_docker=False."""
         with patch(f"{_MOD}.console"):

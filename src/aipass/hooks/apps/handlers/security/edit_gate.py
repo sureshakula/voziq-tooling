@@ -14,7 +14,6 @@ import json
 import os
 from pathlib import Path
 
-from aipass.hooks.apps.sound import speak
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 
@@ -50,8 +49,6 @@ def handle(hook_data: dict) -> dict:
     Returns:
         Result dict with stdout (block JSON or empty) and exit_code.
     """
-    speak("edit gate")
-
     try:
         tool_name = hook_data.get("tool_name", "")
         tool_input = hook_data.get("tool_input", {})
@@ -66,7 +63,7 @@ def handle(hook_data: dict) -> dict:
         fp = Path(file_path)
         if fp.name == "inbox.json" and ".ai_mail.local" in fp.parts:
             reason = 'Direct writes to inbox.json are blocked.\nUse: drone @ai_mail email @<branch> "Subject" "Body"'
-            return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+            return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2, "sound": "edit gate"}
 
         cwd = hook_data.get("cwd", "") or os.getcwd()
         package = _get_package_from_cwd(cwd)
@@ -80,7 +77,11 @@ def handle(hook_data: dict) -> dict:
                     f"Dispatched agent confined to own branch: '{cwd_branch}' "
                     f"cannot write to '{target_branch}' in daemon mode."
                 )
-                return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+                return {
+                    "stdout": json.dumps({"decision": "block", "reason": reason}),
+                    "exit_code": 2,
+                    "sound": "edit gate",
+                }
             repo_root = None
             for parent in Path(cwd).parents:
                 if (parent / ".git").exists():
@@ -91,7 +92,11 @@ def handle(hook_data: dict) -> dict:
                 resolved = str(fp.resolve()) if not fp.is_absolute() else str(fp)
                 if not resolved.startswith(allowed_prefix):
                     reason = f"Dispatched agent restricted to {allowed_prefix}. Cannot write to: {file_path}"
-                    return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+                    return {
+                        "stdout": json.dumps({"decision": "block", "reason": reason}),
+                        "exit_code": 2,
+                        "sound": "edit gate",
+                    }
 
         target_branch = _get_branch(str(fp.resolve()) if not fp.is_absolute() else str(fp), package)
 
@@ -101,7 +106,11 @@ def handle(hook_data: dict) -> dict:
                     f"Cross-branch write blocked: '{cwd_branch}' cannot write to '{target_branch}'.\n"
                     f"Trusted cross-writers: {', '.join(TRUSTED_CROSS_WRITERS)}"
                 )
-                return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+                return {
+                    "stdout": json.dumps({"decision": "block", "reason": reason}),
+                    "exit_code": 2,
+                    "sound": "edit gate",
+                }
 
         if not file_path.endswith(".py"):
             return {"stdout": "", "exit_code": 0}
@@ -140,7 +149,11 @@ def handle(hook_data: dict) -> dict:
 
         error_summary = "\n".join(f"  L{e['line']}: {e['message']}" for e in errors[:5])
         reason = f"Fix {len(errors)} error(s) in {Path(errored_file).name} before editing other files:\n{error_summary}"
-        return {"stdout": json.dumps({"decision": "block", "reason": reason}), "exit_code": 2}
+        return {
+            "stdout": json.dumps({"decision": "block", "reason": reason}),
+            "exit_code": 2,
+            "sound": "edit gate",
+        }
 
     except Exception as exc:
         logger.info("[HOOKS] edit_gate: unexpected error (allowing): %s", exc)

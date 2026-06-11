@@ -62,24 +62,20 @@ def _count_physical_lines(file_path: Path) -> int:
 
 def update_line_count(file_path: Path) -> Dict[str, Any]:
     """
-    Update current_lines in document_metadata.status
-
-    Reads file, counts lines, updates metadata field using safe json_handler.
+    Update health check metadata after file modification.
 
     Args:
         file_path: Path to memory JSON file
 
     Returns:
-        Dict with success status and updated line count
+        Dict with success status
     """
     if not file_path.exists():
         return {"success": False, "error": f"File not found: {file_path}"}
 
-    # Count lines
     line_count = _count_physical_lines(file_path)
 
-    # Update metadata using safe handler (atomic write)
-    result = update_metadata(file_path, current_lines=line_count, last_health_check=datetime.now().strftime("%Y-%m-%d"))
+    result = update_metadata(file_path, last_health_check=datetime.now().strftime("%Y-%m-%d"))
 
     if not result["success"]:
         return {"success": False, "error": f"Failed to update metadata: {result['error']}"}
