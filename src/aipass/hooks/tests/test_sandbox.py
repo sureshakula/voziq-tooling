@@ -9,10 +9,13 @@
 
 """Tests for apps/modules/sandbox.py."""
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="sandbox is Linux-only: bwrap mount namespaces")
 
 
 class TestBuildSrtConfig:

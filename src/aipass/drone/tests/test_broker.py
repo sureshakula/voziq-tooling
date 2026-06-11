@@ -16,6 +16,7 @@ client broker_delete / create_identified_connection, and rm broker routing.
 
 from __future__ import annotations
 
+import sys
 import hashlib
 import hmac as hmac_mod
 import json
@@ -38,6 +39,10 @@ from aipass.drone.apps.handlers.broker.client import (
 )
 from aipass.drone.apps.handlers.json import json_handler
 
+pytestmark = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="broker is Linux-only: AF_UNIX sockets + openat2 RESOLVE_BENEATH",
+)
 
 json_handler.log_operation("test_broker_load", {})
 

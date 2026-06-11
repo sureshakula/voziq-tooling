@@ -27,6 +27,12 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
   — pinned via `--pythonpath sys.executable`. The audit is now deterministic
   local == CI (proven all-13-branches-100% in an unactivated shell). Also: `drone`
   bypasses the test-only broker `start_background` (intentional API, not dead code).
+- **windows-setup CI: guard Linux-only sandbox tests.** The kernel-sandbox build
+  is Linux-only (bwrap, `AF_UNIX` sockets, `openat2`); the code already guards on
+  `sys.platform`, but `drone/tests/test_broker.py` and `hooks/tests/test_sandbox.py`
+  ran unconditionally and failed on `windows-latest`. Added module-level
+  `pytestmark = pytest.mark.skipif(sys.platform != "linux", …)` so they skip on
+  Windows and run unchanged on Linux.
 
 ### Added
 
