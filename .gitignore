@@ -43,7 +43,7 @@ FPLAN-*.md
 DPLAN-*.md
 RPLAN-*.md
 TDPLAN-*.md
-
+PPLAN-*.md
 # Branch local directories
 logs/
 artifacts/
