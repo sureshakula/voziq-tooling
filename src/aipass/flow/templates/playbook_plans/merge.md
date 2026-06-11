@@ -47,18 +47,22 @@ Run by **devpulse** (only branch with git write). Tick each step as you go; fill
 
 ### Why `dev` shows "behind main" after a merge — and why it's fine
 
-`drone @git merge` does a **squash** merge: GitHub bundles dev's commits into **one brand-new
-commit** on main. Your `dev` branch keeps its **original** commits. Git compares by commit
-*identity*, not content — so it sees "main has 1 commit dev doesn't" → the UI shows
-**"dev is 1 behind main."**
+`drone @git merge` runs `gh pr merge --merge` — a **merge commit**, not a squash. GitHub
+adds a merge commit on main whose parent IS dev's tip. After merging, `dev` is a **clean
+ancestor** of `main` (fast-forwardable), never diverged. The "dev is 1 behind main" is
+just that one merge commit — **cosmetic and trivially resolved**.
 
 - **The files are identical. It is 100% cosmetic. You can always move forward** — the next
   `dev-pr` compares real file changes and works perfectly regardless of this graph quirk.
-- Because it's a squash (not a fast-forward), **`dev` is NOT an ancestor of `main`**, so
-  `git merge --ff-only main` will **fail**. Do not use it after a squash merge.
-- **Optional**, only if you want the graph to show dev even/ahead: back-merge with
-  `git merge origin/main` while on dev (via `drone @git`) — creates a merge commit, dev moves
-  *ahead*, push normally (NO force, NO reset). **Do NOT rebase** (rewrites dev, needs force-push).
+- Because `dev` is a clean ancestor of `main`, **`git merge --ff-only origin/main` on dev
+  WORKS** — a clean fast-forward realign, no merge commit created, no history rewrite.
+- **Realign dev to even** (recommended): `drone @git sync` from dev (clean FF), or
+  manually `git merge --ff-only origin/main` on dev. No force-push, no rebase needed.
+- **Sync local `main` ref WITHOUT checkout**: `git fetch origin main:main` — updates the
+  local main ref to match origin with **zero working-tree touch, no checkout**. This is the
+  answer to the IDE "switch to main → your local changes would be overwritten by checkout"
+  dialog: that dialog is git SAFETY working — **Cancel, never Force Checkout**. You never
+  need to stand on main.
 
 ---
 
@@ -97,15 +101,16 @@ The PR gate (verified against `.github/workflows/`):
 ## 5. Merge to main
 
 - [ ] **User's call to merge** — confirm GO
-- [ ] `drone @git merge <PR#>` (squash-merge)
+- [ ] `drone @git merge <PR#>` (merge commit via `gh pr merge --merge`)
 - [ ] ⚠️ The merge command **echoes the PR's ORIGINAL opening description** — often stale if the PR accumulated more work after it was opened. Don't trust it as the merge summary; the real contents are `git log main..dev` from before the merge.
 - [ ] ⚠️ **Verify `dev` SURVIVES the merge** (the #625 scar — empirical, every time): `drone @git branches` → `dev` still present; `git rev-parse dev` resolves
 
 ## 6. Post-merge realign
 
-- [ ] **Expect `dev` to show "1 behind main" — that's the squash artifact, it's cosmetic, keep going.** See "Why dev shows behind main" up top. Do NOT reach for `--ff-only` (it fails after a squash) or a rebase/reset.
-- [ ] **Stay on `dev`. Do not check out `main`.** Local main being behind is fine and expected — it's a push-target, not a thing to maintain.
-- [ ] (Optional, cosmetic only) If you want the graph to show dev even/ahead: back-merge `git merge origin/main` on dev (via `drone @git`), then normal push. Never rebase, never reset, never checkout main.
+- [ ] **Expect `dev` to show "1 behind main" — that's the merge commit, it's cosmetic + fast-forwardable.** See "Why dev shows behind main" up top.
+- [ ] **Realign dev** (recommended): `drone @git sync` from dev, or `git merge --ff-only origin/main` on dev. Clean FF, no merge commit, no rewrite.
+- [ ] **Stay on `dev`. Do not check out `main`.** Local main being behind is fine — sync it without checkout: `git fetch origin main:main` (zero working-tree touch).
+- [ ] Never rebase, never reset, never checkout main.
 - [ ] Dependabot / other PRs targeting main: they go green once main has the fix + bots rebase — check after the push
 
 ## 7. Release tag (only if cutting a release)

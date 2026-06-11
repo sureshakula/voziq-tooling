@@ -46,7 +46,7 @@ Only branch with git WRITE access. WRITE git (commit, push, checkout, merge, res
 - Chained read+write blocks the whole command (e.g. `git log && git push` → blocked). Keep read and write in separate invocations.
 
 Three rules:
-1. Work on dev, merge to main when satisfied. `drone @git merge dev` squash-merges.
+1. Work on dev, merge to main when satisfied. `drone @git merge <PR#>` makes a MERGE COMMIT (`gh pr merge --merge`) — dev stays a clean FF-able ancestor of main, never diverges. Post-merge "dev 1 behind main" is just the merge commit (cosmetic); realign with `drone @git sync` from dev (no checkout). Sync local main without checkout: `git fetch origin main:main`.
 2. You commit, agents don't. Agents build+test, report results. You review, commit.
 3. Local files = source of truth.
 

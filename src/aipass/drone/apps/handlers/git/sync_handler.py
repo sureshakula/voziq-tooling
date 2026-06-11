@@ -10,7 +10,8 @@
 Branch synchronization — works on both main and dev.
 
 On main: pulls latest from origin/main.
-On dev: pulls origin/main into dev (realigns after PR merge).
+On dev: fast-forwards dev to origin/main (realigns after PR merge).
+         Refuses if dev has diverged — no silent rewrite.
 From other branch: checks out main first, then pulls.
 """
 
@@ -24,10 +25,10 @@ from aipass.drone.apps.handlers.git.lock_handler import find_repo_root
 
 
 def sync_main(autostash: bool = False) -> dict:
-    """Checkout main and pull latest changes.
+    """Sync current branch with origin/main. On dev: fast-forward (no checkout). On main/other: pull.
 
     Args:
-        autostash: If True, stash local changes before pull and restore after.
+        autostash: If True, stash local changes before sync and restore after.
             Use when sync fails with 'unstaged changes' error.
 
     Returns:
@@ -174,7 +175,13 @@ def sync_main(autostash: bool = False) -> dict:
 
 
 def _sync_dev(repo_root, autostash: bool = False) -> dict:
-    """Pull origin/main into dev branch to realign after PR merge."""
+    """Fast-forward dev to origin/main after PR merge.
+
+    Uses ``git merge --ff-only origin/main`` instead of rebase so that
+    existing commits are never silently rewritten.  Since merges to main
+    are always merge-commits (not squash), dev is always fast-forwardable
+    after a merge.  If it is not, the command refuses loudly.
+    """
     stashed = False
 
     if autostash:
@@ -198,7 +205,7 @@ def _sync_dev(repo_root, autostash: bool = False) -> dict:
         return {"success": False, "message": f"Fetch failed: {fetch.stderr.strip()}", "stdout": ""}
 
     result = subprocess.run(
-        ["git", "pull", "origin", "main", "--rebase"],
+        ["git", "merge", "--ff-only", "origin/main"],
         capture_output=True,
         text=True,
         cwd=str(repo_root),
@@ -209,13 +216,45 @@ def _sync_dev(repo_root, autostash: bool = False) -> dict:
 
     if result.returncode != 0:
         raw = result.stderr.strip()
-        msg = f"Failed to sync dev from main: {raw}"
-        if not autostash and ("unstaged changes" in raw or "uncommitted changes" in raw):
-            msg += "\n  Tip: retry with 'drone @git sync --autostash'"
+        if "fast-forward" in raw.lower():
+            msg = "Dev has diverged from main — cannot fast-forward. Use 'drone @git fix' to resolve."
+        else:
+            msg = f"Failed to sync dev from main: {raw}"
+        logger.error(msg)
         return {"success": False, "message": msg, "stdout": result.stdout}
 
     stdout = result.stdout.strip()
-    msg = f"Synced dev from origin/main: {stdout}"
+    msg = f"Synced dev from origin/main (fast-forward): {stdout}"
     json_handler.log_operation("sync_dev", {"result": stdout, "autostash": autostash})
     logger.info(msg)
     return {"success": True, "message": msg, "stdout": stdout}
+
+
+def sync_main_ref() -> dict:
+    """Update local main ref to match origin without checkout.
+
+    Uses git fetch origin main:main — works from any branch.
+    Fails if local main has commits not on origin (non-fast-forward).
+    """
+    repo_root = find_repo_root()
+    try:
+        result = subprocess.run(
+            ["git", "fetch", "origin", "main:main"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo_root),
+        )
+        if result.returncode != 0:
+            msg = f"Cannot update local main ref: {result.stderr.strip()}"
+            logger.error(msg)
+            return {"success": False, "message": msg, "stdout": ""}
+
+        stdout = result.stdout.strip()
+        msg = f"Updated local main ref: {stdout or 'up to date'}"
+        json_handler.log_operation("sync_main_ref", {"result": stdout})
+        logger.info(msg)
+        return {"success": True, "message": msg, "stdout": stdout}
+    except (OSError, subprocess.SubprocessError) as exc:
+        msg = f"sync_main_ref failed: {exc}"
+        logger.error(msg)
+        return {"success": False, "message": msg, "stdout": ""}

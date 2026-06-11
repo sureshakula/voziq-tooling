@@ -365,6 +365,168 @@ class TestSyncHandler:
         assert "failed" in result["message"].lower()
 
 
+class TestSyncDev:
+    """Sync from dev branch — fast-forward, not rebase."""
+
+    def test_sync_dev_ff_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sync on dev fast-forwards cleanly when behind main."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_head = MagicMock(returncode=0, stdout="dev", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_merge = MagicMock(returncode=0, stdout="Updating abc..def\nFast-forward", stderr="")
+
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            side_effect=[mock_head, mock_fetch, mock_merge],
+        ):
+            result = sync_main()
+
+        assert result["success"] is True
+        assert "dev" in result["message"].lower()
+
+    def test_sync_dev_stays_on_dev(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sync on dev does NOT checkout main — no git checkout call."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_head = MagicMock(returncode=0, stdout="dev", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_merge = MagicMock(returncode=0, stdout="Already up to date.", stderr="")
+
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            side_effect=[mock_head, mock_fetch, mock_merge],
+        ) as mock_run:
+            sync_main()
+
+        cmds = [call[0][0] for call in mock_run.call_args_list]
+        assert not any("checkout" in cmd for cmd in cmds), "sync on dev must not checkout"
+
+    def test_sync_dev_uses_ff_only(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sync on dev uses git merge --ff-only, not git pull --rebase."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_head = MagicMock(returncode=0, stdout="dev", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_merge = MagicMock(returncode=0, stdout="Fast-forward", stderr="")
+
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            side_effect=[mock_head, mock_fetch, mock_merge],
+        ) as mock_run:
+            sync_main()
+
+        merge_call = mock_run.call_args_list[2][0][0]
+        assert "merge" in merge_call, "should use git merge"
+        assert "--ff-only" in merge_call, "should use --ff-only"
+        assert "--rebase" not in str(mock_run.call_args_list), "must NOT use rebase"
+
+    def test_sync_dev_refuses_on_diverge(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sync on dev fails loud when dev has diverged (not fast-forwardable)."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_head = MagicMock(returncode=0, stdout="dev", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_merge = MagicMock(returncode=1, stdout="", stderr="fatal: Not possible to fast-forward, aborting.")
+
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            side_effect=[mock_head, mock_fetch, mock_merge],
+        ):
+            result = sync_main()
+
+        assert result["success"] is False
+        assert "fast-forward" in result["message"].lower() or "diverged" in result["message"].lower()
+
+    def test_sync_dev_autostash(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Sync on dev with --autostash stashes and pops."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_head = MagicMock(returncode=0, stdout="dev", stderr="")
+        mock_stash = MagicMock(returncode=0, stdout="Saved working directory", stderr="")
+        mock_fetch = MagicMock(returncode=0, stdout="", stderr="")
+        mock_merge = MagicMock(returncode=0, stdout="Fast-forward", stderr="")
+        mock_pop = MagicMock(returncode=0, stdout="Restored", stderr="")
+
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            side_effect=[mock_head, mock_stash, mock_fetch, mock_merge, mock_pop],
+        ) as mock_run:
+            result = sync_main(autostash=True)
+
+        assert result["success"] is True
+        cmds = [call[0][0] for call in mock_run.call_args_list]
+        assert any(cmd == ["git", "stash"] for cmd in cmds)
+        assert any(cmd == ["git", "stash", "pop"] for cmd in cmds)
+
+    def test_sync_dev_fetch_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Fetch failure in dev sync returns error."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_head = MagicMock(returncode=0, stdout="dev", stderr="")
+        mock_fetch = MagicMock(returncode=1, stdout="", stderr="fatal: unable to access remote")
+
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            side_effect=[mock_head, mock_fetch],
+        ):
+            result = sync_main()
+
+        assert result["success"] is False
+        assert "fetch" in result["message"].lower()
+
+
+class TestSyncMainRef:
+    """Sync local main ref without checkout."""
+
+    def test_sync_main_ref_success(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """sync_main_ref updates local main ref."""
+        from aipass.drone.apps.handlers.git.sync_handler import sync_main_ref
+
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_result = MagicMock(returncode=0, stdout="", stderr="")
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            return_value=mock_result,
+        ):
+            result = sync_main_ref()
+
+        assert result["success"] is True
+
+    def test_sync_main_ref_failure(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """sync_main_ref fails on non-fast-forward."""
+        from aipass.drone.apps.handlers.git.sync_handler import sync_main_ref
+
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_result = MagicMock(returncode=1, stdout="", stderr="! [rejected] main -> main (non-fast-forward)")
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            return_value=mock_result,
+        ):
+            result = sync_main_ref()
+
+        assert result["success"] is False
+        assert "main" in result["message"].lower()
+
+
 # ===========================================================================
 # 4. pr_handler — error paths (no actual git)
 # ===========================================================================
@@ -668,6 +830,22 @@ class TestGitModuleRouting:
             side_effect=[mock_head, mock_fetch, mock_rev_list, mock_pull],
         ):
             result = handle_command("sync")
+
+        assert result["exit_code"] == 0
+
+    @patch("aipass.drone.apps.plugins.devpulse_ops.auth.verify_git_access", return_value="devpulse")
+    def test_sync_main_ref_routes(self, _mock_auth: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """sync --main-ref routes to sync_main_ref."""
+        registry = tmp_path / "AIPASS_REGISTRY.json"
+        registry.write_text("{}", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        mock_result = MagicMock(returncode=0, stdout="", stderr="")
+        with patch(
+            "aipass.drone.apps.handlers.git.sync_handler.subprocess.run",
+            return_value=mock_result,
+        ):
+            result = handle_command("sync", ["--main-ref"])
 
         assert result["exit_code"] == 0
 

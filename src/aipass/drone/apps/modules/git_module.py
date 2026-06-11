@@ -487,6 +487,12 @@ def _handle_checkout(args: list[str]) -> dict:
 
 def _handle_sync(args: list[str]) -> dict:
     """Handle the sync subcommand (owner tier)."""
+    if "--main-ref" in args:
+        result = sync_handler.sync_main_ref()
+        if result["success"]:
+            return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+        return {"stdout": "", "stderr": result["message"], "exit_code": 1}
+
     autostash = "--autostash" in args
     result = sync_handler.sync_main(autostash=autostash)
 
@@ -598,9 +604,13 @@ def get_help(command: str | None = None) -> str:
         return "git checkout <main|dev> — Switch branches (main or dev only) [owner]\n"
     if command == "sync":
         return (
-            "git sync [--autostash] — Checkout main and pull latest changes [owner]\n"
+            "git sync [--autostash] [--main-ref] — Sync with origin/main [owner]\n"
+            "  On dev: fast-forward to origin/main (stays on dev, no checkout).\n"
+            "  On main: pull latest. From other branch: checkout main first.\n"
+            "  Refuses if dev has diverged — no silent rewrite.\n"
             "  Options:\n"
-            "    --autostash   Stash local changes before pull and restore after.\n"
+            "    --autostash   Stash local changes before sync and restore after.\n"
+            "    --main-ref    Update local main ref without checkout (from any branch).\n"
         )
     if command == "unlock":
         return "git unlock --force — Force-release the PR lock [owner]\n"
@@ -645,7 +655,7 @@ def get_help(command: str | None = None) -> str:
         "  delete-branch <name>   Delete a remote branch\n"
         "  close-pr <number>      Close a PR\n"
         "  merge <PR#>            Merge a PR\n"
-        "  sync [--autostash]     Checkout main and pull\n"
+        "  sync [--autostash]     Sync with origin/main (FF on dev)\n"
         "  smart-sync             Fetch + rebase if behind\n"
         "  unlock --force         Force-release the PR lock\n"
         "  fix [--dry-run]        Fix broken git states\n"

@@ -87,7 +87,7 @@ def regenerate_template_registry(template_dir: Path) -> dict:
     try:
         tmp_path = registry_path.with_suffix(".tmp")
         tmp_path.write_text(
-            json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
+            json.dumps(registry, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         tmp_path.replace(registry_path)
@@ -213,27 +213,27 @@ def _scan_template_directory(
             )
 
     # Assign IDs to files with three-pass global matching.
-    # This prevents new files from stealing IDs that existing files should claim.
+    # Path first (stable), then hash (handles renames), then new IDs.
     files: dict[str, dict] = {}
     unmatched_files: list[dict] = []
 
-    # Pass 1: hash matching for all files
+    # Pass 1: path matching (deterministic — same path keeps same ID)
     for entry in raw_files:
-        content_hash = entry.get("content_hash", "")
-        if content_hash and content_hash in hash_to_id:
-            candidate = hash_to_id[content_hash]
+        path = entry.get("path", "")
+        if path and path in path_to_file_id:
+            candidate = path_to_file_id[path]
             if candidate not in claimed_file_ids:
                 claimed_file_ids.add(candidate)
                 files[candidate] = entry
                 continue
         unmatched_files.append(entry)
 
-    # Pass 2: path matching for remaining files
+    # Pass 2: hash matching for remaining files (catches renames)
     still_unmatched: list[dict] = []
     for entry in unmatched_files:
-        path = entry.get("path", "")
-        if path and path in path_to_file_id:
-            candidate = path_to_file_id[path]
+        content_hash = entry.get("content_hash", "")
+        if content_hash and content_hash in hash_to_id:
+            candidate = hash_to_id[content_hash]
             if candidate not in claimed_file_ids:
                 claimed_file_ids.add(candidate)
                 files[candidate] = entry
