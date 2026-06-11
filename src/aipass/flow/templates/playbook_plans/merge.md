@@ -1,17 +1,17 @@
-# {plan_number} - {subject} (SUNDAY MERGE)
+# {plan_number} - {subject} (MERGE)
 
 **Created**: {today}
 **Branch**: {location}
 **Status**: Active
-**Type**: Playbook — Sunday Merge SOP
+**Type**: Playbook — Merge SOP
 
 ---
 
 ## Purpose
 
-The weekly `dev → main` merge + release tag. Run by **devpulse** (only branch with git
-write). Tick each step as you go; fill the **Run Summary** with PR numbers and tags for
-the vectorized trail. Close when done.
+The `dev → main` merge + release tag — run on-demand, not on a fixed weekly cadence.
+Run by **devpulse** (only branch with git write). Tick each step as you go; fill the
+**Run Summary** with PR numbers and tags for the vectorized trail. Close when done.
 
 > All git writes go through `drone @git` — **run drone from a branch dir** (it needs
 > `.trinity/passport.json` in the cwd; running from the repo root fails with "No
@@ -65,21 +65,21 @@ commit** on main. Your `dev` branch keeps its **original** commits. Git compares
 ## 1. Pre-flight
 
 - [ ] On `dev`, working tree understood: `drone @git status --all`
-- [ ] Confirm what's shipping this week — scan uncommitted changes + already-pushed dev commits ahead of main: `git rev-list --count main..dev` (read git, raw ok)
+- [ ] Confirm what's shipping — scan uncommitted changes + already-pushed dev commits ahead of main: `git rev-list --count main..dev` (read git, raw ok)
 - [ ] No surprise files (stray `/tmp` artifacts, test pollution, `.recovery`/`.archive` churn). Clean = archive, never delete.
 - [ ] **Version state check** (informs the bump decision): read the **two** release-tied versions — `grep '^version' pyproject.toml` and `grep __version__ src/aipass/__init__.py` (they should match; if drifted, note it) — and what PyPI already has: `curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`. PyPI rejects a duplicate, so the target must be > published.
-- [ ] Decide: **release tag this week?** (tag = PyPI publish + GitHub Release). If yes, note target version. (Significance call is the user's — the PATCH-default rule below is guidance, and the actual release history is a useful tie-breaker.)
+- [ ] Decide: **release tag this merge?** (tag = PyPI publish + GitHub Release). If yes, note target version. (Significance call is the user's — the PATCH-default rule below is guidance, and the actual release history is a useful tie-breaker.)
 
 ## 2. Verify, commit, CHANGELOG
 
 - [ ] **Run the CI audit gate LOCALLY before pushing** (local == CI, S199 parity — catches red before the PR): `cd <repo-root> && .venv/bin/python .github/scripts/seedgo_audit.py` → expect all 13 branches `>=100%`, exit 0. Uses a relative `src/aipass` path, so run from the repo **root**, not a branch dir.
-- [ ] Update `CHANGELOG.md` — add entries under the current week's `[YYYY.WNN]` section (don't batch; mostly done as work landed). Sort into Added / Changed / Fixed.
+- [ ] Update `CHANGELOG.md` — add entries under a dated section header `## [YYYY-MM-DD]` (the merge date), one section per merge. Sort into Added / Changed / Fixed.
 - [ ] Commit: `drone @git commit "msg" --all` (from a branch dir, e.g. devpulse). New/untracked files (e.g. new templates) — confirm they got staged: `git ls-files <path>` after; `--all` may not pick up untracked.
 - [ ] Every commit pushed — local-only commits are invisible
 
 ## 3. Open / update the PR
 
-- [ ] `drone @git dev-pr "Week summary: what's shipping"`
+- [ ] `drone @git dev-pr "Merge summary: what's shipping"`
 - [ ] "PR already open" in output = push succeeded onto the existing PR (expected on re-runs)
 - [ ] Record the PR number → Run Summary
 
@@ -110,12 +110,12 @@ The PR gate (verified against `.github/workflows/`):
 
 ## 7. Release tag (only if cutting a release)
 
-**Versioning rule — bump by SIGNIFICANCE, not cadence** (keeps the version from inflating weekly):
-- **PATCH** (`x.y.Z+1`) = fix / internal / standards / UX only → the default, most weeks
+**Versioning rule — bump by SIGNIFICANCE, not cadence:**
+- **PATCH** (`x.y.Z+1`) = fix / internal / standards / UX only → the default for most merges
 - **MINOR** (`x.Y+1.0`) = a new backward-compatible user-facing feature shipped
 - **MAJOR** (`X+1.0.0`) = breaking public-API change
 
-(aipass is a 2.x library others pin → keep SemVer; the CHANGELOG keeps its `YYYY.WNN` header as a date index.)
+(aipass is a 2.x library others pin → keep SemVer; the CHANGELOG uses `YYYY-MM-DD` dated section headers.)
 
 How the release fires (verified `publish.yml`): a `v*` **git tag push** runs build → PyPI publish → GitHub Release. Key facts:
 - PyPI version = `pyproject.toml [project] version` at the tagged commit — **NOT** the tag string (the tag only *triggers* the build).
@@ -159,7 +159,7 @@ Steps:
 
 ## Listen (TTS-friendly summary)
 
-Write a plain English summary of this Sunday merge here when done. No markdown, no symbols,
+Write a plain English summary of this merge here when done. No markdown, no symbols,
 no tables, no code blocks, no asterisks, no bullet points. Just natural sentences for text to speech.
 
 ---

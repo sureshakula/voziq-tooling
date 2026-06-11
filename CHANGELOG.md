@@ -2,13 +2,14 @@
 
 All notable changes to AIPass will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project uses [Calendar Versioning](https://calver.org/) in the format
-`YYYY.WNN` (year and ISO week number).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Entries are grouped by merge under a dated section header (`YYYY-MM-DD`). Package
+releases follow [SemVer](https://semver.org/) and are tracked by the git tag and
+PyPI version — not the changelog header.
 
 ---
 
-## [2026.W24] - 2026-06-08
+## [2026-06-11]
 
 ### Fixed
 
@@ -152,7 +153,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W23] - 2026-06-02
+## [2026-06-02]
 
 ### Fixed
 
@@ -493,7 +494,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W22] - 2026-05-30
+## [2026-05-30]
 
 ### Added
 
@@ -555,7 +556,7 @@ and this project uses [Calendar Versioning](https://calver.org/) in the format
 
 ---
 
-## [2026.W21] - 2026-05-25
+## [2026-05-25]
 
 First weekly release. AIPass now follows a Sunday release cadence: changes
 accumulate on `dev` throughout the week and merge to `main` as a single
