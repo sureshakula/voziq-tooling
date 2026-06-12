@@ -32,6 +32,11 @@ def print_introspection():
     console.print("  Not a command module — used by snapshot/versioned/all")
 
 
+def print_help():
+    """Display help for this module."""
+    print_introspection()
+
+
 def show_last_backups() -> None:
     """Stage 1: Show 'Last backups:' panel with dim ages."""
     ts = get_timestamps()
@@ -53,7 +58,7 @@ def show_run_header(result: BackupResult) -> None:
     )
 
 
-def create_progress_bar():
+def build_progress_bar():
     """Stage 5: Create and return a Rich Progress context for the copy loop."""
     return Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -109,6 +114,17 @@ def show_backups_now(mode: str) -> None:
     console.print(f"  [dim]Snapshot:   {format_age(ts.get('snapshot'))}[/dim]")
     console.print(f"  [dim]Versioned:  {format_age(ts.get('versioned'))}[/dim]")
     console.print(f"  [dim]Drive sync: {format_age(ts.get('drive_sync'))}[/dim]")
+
+
+def handle_command(command: str, args: list) -> bool:
+    """Not a command module — always returns False."""
+    if not args:
+        print_introspection()
+        return True
+    if args[0] in ("--help", "-h", "help"):
+        print_introspection()
+        return True
+    return False
 
 
 # =============================================

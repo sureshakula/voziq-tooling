@@ -29,7 +29,7 @@ from aipass.backup.apps.handlers.state.changelog import append_changelog
 from aipass.backup.apps.handlers.state.metadata import build_metadata
 from aipass.backup.apps.handlers.state.timestamps import save_timestamps
 from aipass.backup.apps.modules.display import (
-    create_progress_bar,
+    build_progress_bar,
     show_backups_now,
     show_last_backups,
     show_result_summary,
@@ -46,6 +46,11 @@ def print_introspection():
     console.print(f"  Primary command: [yellow]{PRIMARY_COMMAND}[/yellow]")
     console.print("  Status: Phase 3 — implemented")
     console.print("  Handlers: scan, copy/snapshot, state, ignore, path, report")
+
+
+def print_help():
+    """Display help for this module."""
+    print_introspection()
 
 
 def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
@@ -77,7 +82,7 @@ def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
     if show_panels:
         show_run_header(result)
 
-    progress = create_progress_bar()
+    progress = build_progress_bar()
     with progress:
         task = progress.add_task("Processing files...", total=len(filtered))
         copy_result = copy_snapshot(filtered, dest, project_root, on_progress=lambda: progress.advance(task))
@@ -118,6 +123,10 @@ def handle_command(command: str, args: list) -> bool:
         return False
 
     if not args:
+        print_introspection()
+        return True
+
+    if args[0] in ("--help", "-h", "help"):
         print_introspection()
         return True
 

@@ -1,39 +1,153 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: tests/conftest.py
-# Date: 2025-11-08
+# =================== AIPass ====================
+# Name: conftest.py
+# Description: Backup test configuration -- shared pytest fixtures
 # Version: 1.0.0
-# Category: spawn/tests
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2025-11-08): Initial implementation - Shared pytest fixtures
-#
-# CODE STANDARDS:
-#   - Error handling: Use error handler system (apps/handlers/error/)
+# Created: 2026-06-12
+# Modified: 2026-06-12
 # =============================================
 
-"""Shared pytest fixtures for spawn tests"""
+"""Backup test configuration -- ported from skills conftest pattern."""
 
-import pytest
-import shutil
+import os
 import tempfile
-from pathlib import Path
-from typing import Generator
+
+if "AIPASS_TEST_LOG_DIR" not in os.environ:
+    os.environ["AIPASS_TEST_LOG_DIR"] = tempfile.mkdtemp(prefix="aipass_test_logs_")
+
+import importlib  # noqa: E402
+import logging  # noqa: E402
+import sys  # noqa: E402
+import types  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Generator  # noqa: E402
+from unittest.mock import MagicMock  # noqa: E402
+
+import pytest  # noqa: E402
+
+BRANCH_MODULE = "aipass.backup"
+
+HANDLER_PKG = f"{BRANCH_MODULE}.apps.handlers"
+JSON_MOD_PATH = f"{BRANCH_MODULE}.apps.handlers.json.json_handler"
+
+if HANDLER_PKG not in sys.modules:
+    _stub = types.ModuleType(HANDLER_PKG)
+    _handlers_dir = Path(__file__).resolve().parents[1] / "apps" / "handlers"
+    _stub.__path__ = [str(_handlers_dir)]  # type: ignore[attr-defined]
+    sys.modules[HANDLER_PKG] = _stub
+
+_json_mod = importlib.import_module(JSON_MOD_PATH)
+
+_JSON_DIR_ATTR: str | None = None
+_JSON_DIR_CANDIDATES = [
+    "BACKUP_JSON_DIR",
+    "JSON_DIR",
+    "BRANCH_JSON_DIR",
+    "_JSON_DIR",
+]
+
+for _candidate in _JSON_DIR_CANDIDATES:
+    if hasattr(_json_mod, _candidate):
+        _JSON_DIR_ATTR = _candidate
+        break
 
 
-@pytest.fixture
-def temp_test_dir() -> Generator[Path, None, None]:
-    """Creates temporary directory for testing, cleans up after"""
-    test_dir = Path(tempfile.mkdtemp())
-    yield test_dir
-    if test_dir.exists():
-        shutil.rmtree(test_dir)
+@pytest.fixture()
+def temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
+    """Creates temporary directory for testing, cleans up after.
 
-
-@pytest.fixture
-def sample_test_data() -> dict:
-    """Provides sample test data
-
-    Customize this fixture for your module's needs
+    Uses tmp_path (pytest builtin) and yields a temp_dir subdirectory.
+    Cleanup via rmtree is handled by pytest's tmp_path automatically.
     """
-    return {"test_key": "test_value", "sample_data": "example"}
+    test_dir = tmp_path / "test_workspace"
+    test_dir.mkdir(parents=True, exist_ok=True)
+    yield test_dir
+
+
+@pytest.fixture()
+def sample_data() -> dict:
+    """Sample test data for JSON operations."""
+    return {
+        "config": {
+            "module_name": "test_module",
+            "version": "1.0.0",
+            "config": {"max_log_entries": 50},
+            "timestamp": "2026-03-28",
+        },
+        "data": {
+            "module_name": "test_module",
+            "created": "2026-03-28",
+            "last_updated": "2026-03-28",
+            "operations_total": 0,
+            "operations_successful": 0,
+            "operations_failed": 0,
+        },
+        "log": [{"timestamp": "2026-03-28T10:00:00", "operation": "test"}],
+    }
+
+
+@pytest.fixture(autouse=True)
+def mock_infrastructure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Autouse fixture that isolates JSON operations and silences logging.
+
+    This fixture:
+      1. Redirects the branch's JSON_DIR to tmp_path (test isolation)
+      2. Patches the branch logger to a NullHandler (no console noise)
+    """
+    if _JSON_DIR_ATTR is not None:
+        monkeypatch.setattr(_json_mod, _JSON_DIR_ATTR, tmp_path)
+
+    logger_names = [
+        BRANCH_MODULE,
+        f"{BRANCH_MODULE}.apps.handlers.json.json_handler",
+    ]
+    for logger_name in logger_names:
+        log = logging.getLogger(logger_name)
+        monkeypatch.setattr(log, "handlers", [logging.NullHandler()])
+
+
+@pytest.fixture()
+def mock_logger() -> MagicMock:
+    """Standalone mock logger for tests that need to verify logging calls."""
+    mock = MagicMock(spec=logging.Logger)
+    mock.debug = MagicMock()
+    mock.info = MagicMock()
+    mock.warning = MagicMock()
+    mock.error = MagicMock()
+    mock.critical = MagicMock()
+    return mock
+
+
+@pytest.fixture()
+def mock_json_handler() -> MagicMock:
+    """Standalone mock json_handler for isolating from real file I/O."""
+    handler = MagicMock()
+    handler.load_json = MagicMock(return_value={})
+    handler.save_json = MagicMock(return_value=True)
+    handler.ensure_json_exists = MagicMock(return_value=True)
+    handler.ensure_module_jsons = MagicMock(return_value=True)
+    handler.get_json_path = MagicMock(return_value=Path("/tmp/mock.json"))
+    handler.validate_json_structure = MagicMock(return_value=True)
+    handler.log_operation = MagicMock(return_value=True)
+    return handler
+
+
+@pytest.fixture()
+def reimport_after_mock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Fixture demonstrating reimport_after_mock pattern.
+
+    Patches sys.modules to inject a mock, then reimports the handler module
+    so it picks up the mocked dependency. Useful for testing import-time
+    behavior.  Uses importlib.reload to force re-execution of module-level code.
+    """
+    mock_mod = MagicMock()
+    monkeypatch.setitem(
+        sys.modules,
+        f"{BRANCH_MODULE}.apps.handlers.json.json_handler",
+        mock_mod,
+    )
+    reimported = importlib.import_module(JSON_MOD_PATH)
+    importlib.reload(reimported)
+    return mock_mod

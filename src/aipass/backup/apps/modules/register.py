@@ -56,12 +56,21 @@ def print_introspection():
     console.print("  Handlers: project/setup, project/registry")
 
 
+def print_help():
+    """Display help for this module."""
+    print_introspection()
+
+
 def handle_command(command: str, args: list) -> bool:
     """Handle the register command. Returns True if handled."""
     if command != PRIMARY_COMMAND:
         return False
 
     if not args:
+        print_introspection()
+        return True
+
+    if args[0] in ("--help", "-h", "help"):
         print_introspection()
         return True
 

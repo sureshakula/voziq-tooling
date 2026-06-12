@@ -4,7 +4,60 @@
     "created": "2026-04-16",
     "description": "Standards bypass configuration for this branch"
   },
-  "bypass": [],
+  "bypass": [
+    {
+      "standard": "dead_code",
+      "reason": "Phase-3 stubs: handlers awaiting implementation (DPLAN-003)",
+      "scope": "branch"
+    },
+    {
+      "standard": "unused_function",
+      "reason": "Phase-3 stubs: handlers awaiting implementation (DPLAN-003)",
+      "scope": "branch"
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "architecture",
+      "reason": "Test infrastructure lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_json_handler.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_cli_routing.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_handlers_filesystem.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_handlers_filesystem.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them",
+      "pattern": "Handler imported directly"
+    },
+    {
+      "file": "tests/test_error_resilience.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_drive_mocked.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    }
+  ],
   "notes": {
     "usage": "Add entries to bypass specific seedgo standard violations",
     "example": {

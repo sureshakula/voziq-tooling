@@ -27,18 +27,32 @@
 ## Architecture
 
 ```
-BACKUP/
-├── apps/
-│   ├── backup.py       # Entry point
-│   ├── modules/            # Business logic
-│   ├── handlers/           # Implementation
-│   └── plugins/            # Extensions
-├── docs/
-├── tests/
-├── passport.json           # Identity
-├── local.json              # Session history
-├── observations.json       # Collaboration patterns
-└── README.md
+apps/
+├── backup.py              # Entry point (auto-discovery router)
+├── modules/
+│   ├── all.py             # Snapshot + versioned orchestration
+│   ├── display.py         # Rich CLI rendering (used by snapshot/versioned/all)
+│   ├── drive_clear.py     # Drive clear (stub — DPLAN-003)
+│   ├── drive_stats.py     # Drive stats (stub — DPLAN-003)
+│   ├── drive_sync.py      # Drive sync (stub — DPLAN-003)
+│   ├── drive_test.py      # Drive test (stub — DPLAN-003)
+│   ├── register.py        # Project registration + @name resolution
+│   ├── settings.py        # Settings UI (stub)
+│   ├── snapshot.py        # Full mirror backup
+│   ├── status.py          # Backup status display
+│   └── versioned.py       # Incremental timestamped backup
+└── handlers/
+    ├── copy/              # File copying (snapshot + versioned)
+    ├── diff/              # Diff generation (stub)
+    ├── drive/             # Google Drive handlers (stubs)
+    ├── ignore/            # .backupignore patterns + whitelist
+    ├── json/              # JSON persistence, atomic writes, ops log
+    ├── path/              # Backup path building
+    ├── project/           # Config, registry, setup (.backup_system/)
+    ├── report/            # Result formatting
+    ├── scan/              # Directory walking + filtering
+    ├── state/             # Changelog, metadata, timestamps
+    └── ui/                # Settings window (stub)
 ```
 
 ---
@@ -59,7 +73,8 @@ backup --version                        # Show version
 ## Integration Points
 
 ### Depends On
-
+- @prax — logging
+- @cli — Rich console output
 
 ### Provides To
-
+- Any project on the PC — backups are project-owned (.backup_system/ in target root)

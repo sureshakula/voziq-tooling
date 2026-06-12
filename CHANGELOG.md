@@ -11,6 +11,21 @@ PyPI version — not the changelog header.
 
 ## [2026-06-12]
 
+### Added
+
+- **Backup test suite + seedgo 100% — restoration foundation (FPLAN-0265, Phase 1
+  of FPLAN-0264).** Put a safety net under `backup` before the feature rebuild:
+  new `tests/` suite (94 tests — json_handler, CLI routing, filesystem handlers,
+  error resilience, mocked drive) ported from the canonical citizen conftest
+  pattern (hermetic, `tmp_path`, stdlib-only → 3.10–3.13), driving module coverage
+  to 27%. Standards brought to 100% across all 35: shared `--help/-h/help` guard
+  wired into all 10 modules' `handle_command` (Cli + Introspection), the 6
+  Phase-3 drive/diff/ui stubs wired-or-bypassed (Dead_Code + Unused_Function),
+  `requirements.project.txt` added (Architecture), README module list + the small
+  Modules/Trigger fixes (`display.handle_command`, `create_progress_bar` →
+  `build_progress_bar`). Verified by artifact: re-ran audit (100%) + pytest
+  (94 passed) + ruff (clean).
+
 ### Fixed
 
 - **Backup rich CLI output restored end-to-end (FPLAN-0263 + drone passthrough).**
