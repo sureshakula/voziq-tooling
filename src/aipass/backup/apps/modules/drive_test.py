@@ -15,7 +15,7 @@ import sys
 
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
-from apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.json import json_handler
 
 
 MODULE_NAME = "drive_test"

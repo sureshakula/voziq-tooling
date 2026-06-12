@@ -20,10 +20,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
 os.environ.setdefault("AIPASS_BRANCH_NAME", "backup")
 
 from aipass.prax import logger
@@ -52,7 +48,7 @@ def discover_modules() -> list[Any]:
         if file_path.name.startswith("_"):
             continue
 
-        module_name = f"apps.modules.{file_path.stem}"
+        module_name = f"aipass.backup.apps.modules.{file_path.stem}"
 
         try:
             module = importlib.import_module(module_name)
@@ -100,7 +96,7 @@ def main():
     command = args[0]
 
     if command == "backup" and len(args) > 1:
-        from apps.modules.register import resolve_project
+        from aipass.backup.apps.modules.register import resolve_project
 
         target = args[1]
         project_root = resolve_project(target)
@@ -124,7 +120,7 @@ def main():
     remaining = args[1:] if len(args) > 1 else []
 
     if remaining and remaining[0].startswith("@"):
-        from apps.modules.register import resolve_project
+        from aipass.backup.apps.modules.register import resolve_project
 
         resolved = resolve_project(remaining[0])
         if resolved is None:

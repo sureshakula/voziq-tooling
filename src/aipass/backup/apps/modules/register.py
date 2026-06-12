@@ -14,10 +14,10 @@ from pathlib import Path
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
-from apps.handlers.json import json_handler
-from apps.handlers.project.registry import lookup_project as _lookup_project
-from apps.handlers.project.registry import register_project
-from apps.handlers.project.setup import create_backup_dir
+from aipass.backup.apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.project.registry import lookup_project as _lookup_project
+from aipass.backup.apps.handlers.project.registry import register_project
+from aipass.backup.apps.handlers.project.setup import create_backup_dir
 
 
 def resolve_project(target: str) -> str | None:

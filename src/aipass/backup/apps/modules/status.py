@@ -14,10 +14,10 @@ from pathlib import Path
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
-from apps.handlers.json import json_handler
-from apps.handlers.path.builder import backup_root
-from apps.handlers.project.config import load_project_config
-from apps.handlers.state.changelog import load_changelog
+from aipass.backup.apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.path.builder import backup_root
+from aipass.backup.apps.handlers.project.config import load_project_config
+from aipass.backup.apps.handlers.state.changelog import load_changelog
 
 MODULE_NAME = "status"
 PRIMARY_COMMAND = "status"

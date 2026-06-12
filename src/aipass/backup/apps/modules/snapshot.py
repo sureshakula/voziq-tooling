@@ -15,20 +15,20 @@ import time
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
-from apps.handlers.copy.snapshot import copy_snapshot
-from apps.handlers.ignore.patterns import load_patterns
-from apps.handlers.ignore.whitelist import load_whitelist
-from apps.handlers.json import json_handler
-from apps.handlers.path.builder import build_snapshot_path
-from apps.handlers.project.config import load_project_config
-from apps.handlers.project.setup import create_backup_dir
-from apps.handlers.report.formatter import format_result
-from apps.handlers.report.result import BackupResult
-from apps.handlers.scan.filter import filter_paths
-from apps.handlers.scan.walk import walk_project
-from apps.handlers.state.changelog import append_changelog
-from apps.handlers.state.metadata import build_metadata
-from apps.handlers.state.timestamps import save_timestamps
+from aipass.backup.apps.handlers.copy.snapshot import copy_snapshot
+from aipass.backup.apps.handlers.ignore.patterns import load_patterns
+from aipass.backup.apps.handlers.ignore.whitelist import load_whitelist
+from aipass.backup.apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.path.builder import build_snapshot_path
+from aipass.backup.apps.handlers.project.config import load_project_config
+from aipass.backup.apps.handlers.project.setup import create_backup_dir
+from aipass.backup.apps.handlers.report.formatter import format_result
+from aipass.backup.apps.handlers.report.result import BackupResult
+from aipass.backup.apps.handlers.scan.filter import filter_paths
+from aipass.backup.apps.handlers.scan.walk import walk_project
+from aipass.backup.apps.handlers.state.changelog import append_changelog
+from aipass.backup.apps.handlers.state.metadata import build_metadata
+from aipass.backup.apps.handlers.state.timestamps import save_timestamps
 
 MODULE_NAME = "snapshot"
 PRIMARY_COMMAND = "snapshot"

@@ -13,10 +13,10 @@ import sys
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
-from apps.handlers.json import json_handler
-from apps.handlers.report.formatter import format_result
-from apps.modules.snapshot import run_snapshot
-from apps.modules.versioned import run_versioned
+from aipass.backup.apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.report.formatter import format_result
+from aipass.backup.apps.modules.snapshot import run_snapshot
+from aipass.backup.apps.modules.versioned import run_versioned
 
 MODULE_NAME = "all"
 PRIMARY_COMMAND = "all"
