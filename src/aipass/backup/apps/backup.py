@@ -23,18 +23,58 @@ from typing import Any
 os.environ.setdefault("AIPASS_BRANCH_NAME", "backup")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, header
 
 VERSION = "1.0.0"
 MODULE_NAME = "backup"
 MODULES_DIR = Path(__file__).parent / "modules"
 
 
-def print_introspection():
-    """Display entry point info."""
-    console.print(f"[bold cyan]{MODULE_NAME}[/bold cyan] v{VERSION}")
-    console.print("  Type: entry point (auto-discovery router)")
-    console.print(f"  Modules dir: {MODULES_DIR}")
+def print_introspection(modules: list[Any]) -> None:
+    """Display discovered modules — the bare self-map (run with no args)."""
+    console.print()
+    console.print(f"[bold cyan]BACKUP[/bold cyan] v{VERSION} — project backup & drive sync")
+    console.print()
+    console.print(f"[yellow]Discovered Modules:[/yellow] {len(modules)}")
+    console.print()
+    for module in modules:
+        name = module.__name__.split(".")[-1]
+        doc = (module.__doc__ or "").strip().split("\n")[0]
+        console.print(f"  [cyan]-[/cyan] {name:20} [dim]{doc or 'No description'}[/dim]")
+    console.print()
+    console.print("[dim]Run 'drone @backup --help' for usage and commands[/dim]")
+    console.print()
+
+
+def print_help() -> None:
+    """Display the curated Rich-formatted command reference."""
+    console.print()
+    header("BACKUP — project backup & drive sync")
+    console.print()
+    console.print("[dim]Snapshot, version, and sync project backups to a local store or remote drive.[/dim]")
+    console.print()
+    console.print("-" * 70)
+    console.print()
+    console.print("[bold cyan]USAGE:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @backup <command> <project_path|@name>[/dim]")
+    console.print("  [dim]drone @backup --help[/dim]")
+    console.print()
+    console.print("-" * 70)
+    console.print()
+    console.print("[bold cyan]COMMANDS:[/bold cyan]")
+    console.print()
+    console.print("  [green]snapshot[/green]     Full mirror backup of a project")
+    console.print("  [green]versioned[/green]    Incremental timestamped backup")
+    console.print("  [green]all[/green]          Run snapshot then versioned in sequence")
+    console.print("  [green]register[/green]     Register a project + scaffold its .backup_system/")
+    console.print("  [green]status[/green]       Show backup info and recent history")
+    console.print("  [green]settings[/green]     View/edit backup settings")
+    console.print("  [green]drive_sync[/green]   Sync backups to the remote drive")
+    console.print("  [green]drive_test[/green]   Test the remote drive connection")
+    console.print("  [green]drive_stats[/green]  Drive usage statistics")
+    console.print("  [green]drive_clear[/green]  Clear backups from the remote drive")
+    console.print()
 
 
 def discover_modules() -> list[Any]:
@@ -81,16 +121,12 @@ def main():
 
     modules = discover_modules()
 
-    if len(args) == 0 or args[0] in ["--help", "-h", "help"]:
-        console.print(f"[bold]BACKUP[/bold] v{VERSION} — {len(modules)} modules")
-        console.print("")
-        for module in modules:
-            name = module.__name__.split(".")[-1]
-            doc = (module.__doc__ or "").strip().split("\n")[0]
-            desc = doc if doc else "No description"
-            console.print(f"  [yellow]{name:20}[/yellow] {desc}")
-        console.print("")
-        console.print("[dim]Usage: backup <command> <project_path|@name>[/dim]")
+    if len(args) == 0:
+        print_introspection(modules)
+        return 0
+
+    if args[0] in ["--help", "-h", "help"]:
+        print_help()
         return 0
 
     command = args[0]
