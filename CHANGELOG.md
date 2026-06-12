@@ -13,6 +13,21 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Backup snapshot fidelity + shared core (FPLAN-0266, Phase 2 of FPLAN-0264).**
+  Restored the snapshot-side machinery the 2026-04-23 rewrite degraded, ported
+  from the GOLD archive onto the current per-project handlers. New
+  `handlers/cleanup/mirror.py` `cleanup_deleted_files` — exception-aware
+  mirror-delete: files removed from source are now removed from the snapshot
+  (was a blind `rmtree`+recopy), respecting ignore-exceptions. `copy/snapshot.py`
+  gains mtime-skip (quick-check fast path — unchanged files no longer re-copied),
+  a long-path guard (>260), and read-only handling. `report/result.py`
+  `BackupResult` now tracks critical vs non-critical errors + warnings +
+  `files_deleted`; `ignore/patterns.py` gains `IGNORE_EXCEPTIONS`/`is_exception()`.
+  +16 tests (`test_snapshot_fidelity.py`, 110 total). Verified by artifact +
+  live: audit 100%, 110 passed, and a real throwaway-project test (delete two
+  files → re-snapshot → both mirror-deleted, kept files preserved, 3 skipped/0
+  re-copied).
+
 - **Backup test suite + seedgo 100% — restoration foundation (FPLAN-0265, Phase 1
   of FPLAN-0264).** Put a safety net under `backup` before the feature rebuild:
   new `tests/` suite (94 tests — json_handler, CLI routing, filesystem handlers,

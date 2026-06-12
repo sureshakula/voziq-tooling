@@ -56,6 +56,18 @@
       "standard": "architecture",
       "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
       "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_snapshot_fidelity.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_snapshot_fidelity.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them",
+      "pattern": "Handler imported directly"
     }
   ],
   "notes": {

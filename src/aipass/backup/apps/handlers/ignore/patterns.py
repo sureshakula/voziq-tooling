@@ -3,7 +3,7 @@
 # Description: Ignore pattern loader and path matcher
 # Version: 1.0.0
 # Created: 2026-04-17
-# Modified: 2026-04-23
+# Modified: 2026-06-12
 # =============================================
 
 """Ignore patterns handler.
@@ -41,6 +41,12 @@ BUILTIN_IGNORES = [
     "build/",
     "dist/",
     "*.log",
+]
+
+IGNORE_EXCEPTIONS = [
+    "templates/**",
+    ".github/**",
+    "*.md",
 ]
 
 
@@ -98,6 +104,29 @@ def apply_ignore(rel_path: str, patterns: list[str]) -> bool:
                 if fnmatch.fnmatch(part, pat):
                     return True
 
+    return False
+
+
+def is_exception(rel_path: str, exceptions: list[str] | None = None) -> bool:
+    """Check if a path matches an ignore exception (should be preserved).
+
+    Args:
+        rel_path: Path relative to the project root.
+        exceptions: Exception patterns. Defaults to IGNORE_EXCEPTIONS.
+
+    Returns:
+        True if the path should be preserved even if ignored.
+    """
+    if exceptions is None:
+        exceptions = IGNORE_EXCEPTIONS
+    rel = rel_path.replace("\\", "/")
+    for pattern in exceptions:
+        pat = pattern.rstrip("/")
+        if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(rel, pat + "/*"):
+            return True
+        for part in Path(rel).parts:
+            if fnmatch.fnmatch(part, pat):
+                return True
     return False
 
 

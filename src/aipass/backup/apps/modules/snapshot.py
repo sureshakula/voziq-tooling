@@ -27,7 +27,7 @@ from aipass.backup.apps.handlers.scan.filter import filter_paths
 from aipass.backup.apps.handlers.scan.walk import walk_project
 from aipass.backup.apps.handlers.state.changelog import append_changelog
 from aipass.backup.apps.handlers.state.metadata import build_metadata
-from aipass.backup.apps.handlers.state.timestamps import save_timestamps
+from aipass.backup.apps.handlers.state.timestamps import load_timestamps, save_timestamps
 from aipass.backup.apps.modules.display import (
     build_progress_bar,
     show_backups_now,
@@ -53,6 +53,55 @@ def print_help():
     print_introspection()
 
 
+def _build_current_timestamps(
+    filtered: list[tuple[str, str]],
+) -> dict | None:
+    """Build a {rel_path: mtime} dict from filtered files.
+
+    Returns None if any file's mtime cannot be read (invalidates quick-check).
+    """
+    timestamps: dict[str, float] = {}
+    for abs_p, rel_p in filtered:
+        try:
+            timestamps[rel_p] = os.path.getmtime(abs_p)
+        except OSError as e:
+            logger.info(f"[backup] Quick-check mtime read failed for {rel_p}: {e}")
+            return None
+    return timestamps
+
+
+def _quick_check_early_return(
+    project_root: str,
+    filtered: list[tuple[str, str]],
+    start: float,
+    show_panels: bool,
+) -> BackupResult:
+    """Return an early BackupResult when no files have changed."""
+    duration = time.time() - start
+    result = BackupResult(
+        mode="snapshot",
+        project_root=project_root,
+        files_checked=len(filtered),
+        files_skipped=len(filtered),
+        duration_seconds=duration,
+    )
+    json_handler.log_operation(
+        "snapshot_skipped",
+        {
+            "project_root": project_root,
+            "reason": "no_changes",
+            "files_checked": len(filtered),
+        },
+    )
+    logger.info(f"[backup] Snapshot quick-check: no changes ({len(filtered)} files)")
+    if show_panels:
+        show_run_header(result)
+        console.print()
+        console.print("[green]No changes detected — snapshot is current[/green]")
+        console.print(f"  [dim]Files checked: {len(filtered)} | Duration: {duration:.1f}s[/dim]")
+    return result
+
+
 def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
     """Run a full snapshot backup for a project."""
     start = time.time()
@@ -69,6 +118,18 @@ def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
 
     all_files = list(walk_project(project_root))
     filtered = filter_paths(all_files, patterns, whitelist_entries, max_size)
+
+    # Quick-check: skip if nothing changed since last snapshot
+    prev_timestamps = load_timestamps(project_root)
+    if prev_timestamps:
+        current_timestamps = _build_current_timestamps(filtered)
+        if current_timestamps is not None and current_timestamps == prev_timestamps:
+            return _quick_check_early_return(
+                project_root,
+                filtered,
+                start,
+                show_panels,
+            )
 
     dest = str(build_snapshot_path(project_root))
 
