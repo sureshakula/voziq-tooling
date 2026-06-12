@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: all.py
 # Description: All module — full cycle: snapshot + versioned
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-04-17
-# Modified: 2026-04-23
+# Modified: 2026-06-12
 # =============================================
 
 """All Module — runs snapshot then versioned backup in sequence."""
@@ -14,7 +14,6 @@ from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
 from aipass.backup.apps.handlers.json import json_handler
-from aipass.backup.apps.handlers.report.formatter import format_result
 from aipass.backup.apps.modules.snapshot import run_snapshot
 from aipass.backup.apps.modules.versioned import run_versioned
 
@@ -43,11 +42,9 @@ def handle_command(command: str, args: list) -> bool:
     logger.info(f"[backup] Running full backup cycle for {project_root}")
 
     snap_result = run_snapshot(project_root)
-    console.print(format_result(snap_result))
-    console.print("")
+    console.print()
 
     ver_result = run_versioned(project_root)
-    console.print(format_result(ver_result))
 
     json_handler.log_operation(
         "all_complete",

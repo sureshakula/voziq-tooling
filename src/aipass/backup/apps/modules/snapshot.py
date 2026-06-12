@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: snapshot.py
 # Description: Snapshot module — full-copy backup of a project
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-04-17
-# Modified: 2026-04-23
+# Modified: 2026-06-12
 # =============================================
 
 """Snapshot Module — full mirror backup of a project directory."""
@@ -22,13 +22,19 @@ from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.path.builder import build_snapshot_path
 from aipass.backup.apps.handlers.project.config import load_project_config
 from aipass.backup.apps.handlers.project.setup import create_backup_dir
-from aipass.backup.apps.handlers.report.formatter import format_result
 from aipass.backup.apps.handlers.report.result import BackupResult
 from aipass.backup.apps.handlers.scan.filter import filter_paths
 from aipass.backup.apps.handlers.scan.walk import walk_project
 from aipass.backup.apps.handlers.state.changelog import append_changelog
 from aipass.backup.apps.handlers.state.metadata import build_metadata
 from aipass.backup.apps.handlers.state.timestamps import save_timestamps
+from aipass.backup.apps.modules.display import (
+    create_progress_bar,
+    show_backups_now,
+    show_last_backups,
+    show_result_summary,
+    show_run_header,
+)
 
 MODULE_NAME = "snapshot"
 PRIMARY_COMMAND = "snapshot"
@@ -42,9 +48,12 @@ def print_introspection():
     console.print("  Handlers: scan, copy/snapshot, state, ignore, path, report")
 
 
-def run_snapshot(project_root: str) -> BackupResult:
+def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
     """Run a full snapshot backup for a project."""
     start = time.time()
+
+    if show_panels:
+        show_last_backups()
 
     create_backup_dir(project_root)
     config = load_project_config(project_root)
@@ -57,21 +66,34 @@ def run_snapshot(project_root: str) -> BackupResult:
     filtered = filter_paths(all_files, patterns, whitelist_entries, max_size)
 
     dest = str(build_snapshot_path(project_root))
-    copy_result = copy_snapshot(filtered, dest, project_root)
+
+    result = BackupResult(
+        mode="snapshot",
+        project_root=project_root,
+        files_checked=len(filtered),
+        backup_path=dest,
+    )
+
+    if show_panels:
+        show_run_header(result)
+
+    progress = create_progress_bar()
+    with progress:
+        task = progress.add_task("Processing files...", total=len(filtered))
+        copy_result = copy_snapshot(filtered, dest, project_root, on_progress=lambda: progress.advance(task))
+
+    console.print(f"Processing completed: {len(filtered)}/{len(filtered)} files checked")
 
     duration = time.time() - start
 
     timestamps = {rel: os.path.getmtime(abs_p) for abs_p, rel in filtered}
     save_timestamps(project_root, timestamps)
 
-    result = BackupResult(
-        mode="snapshot",
-        project_root=project_root,
-        files_copied=copy_result.get("files_copied", 0),
-        bytes_copied=copy_result.get("bytes_copied", 0),
-        duration_seconds=duration,
-        errors=copy_result.get("errors", []),
-    )
+    result.files_copied = copy_result.get("files_copied", 0)
+    result.files_skipped = result.files_checked - result.files_copied
+    result.bytes_copied = copy_result.get("bytes_copied", 0)
+    result.duration_seconds = duration
+    result.errors = copy_result.get("errors", [])
 
     metadata = build_metadata(result)
     append_changelog(project_root, metadata)
@@ -81,6 +103,12 @@ def run_snapshot(project_root: str) -> BackupResult:
         {"project_root": project_root, "files": result.files_copied},
     )
     logger.info(f"[backup] Snapshot complete: {result.files_copied} files")
+
+    if show_panels:
+        show_result_summary(result)
+        if not result.errors:
+            show_backups_now("snapshot")
+
     return result
 
 
@@ -94,8 +122,7 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     project_root = args[0]
-    result = run_snapshot(project_root)
-    console.print(format_result(result))
+    run_snapshot(project_root)
     return True
 
 

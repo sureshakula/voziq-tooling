@@ -24,6 +24,7 @@ def copy_snapshot(
     files: list[tuple[str, str]],
     dest: str,
     project_root: str,
+    on_progress=None,
 ) -> dict:
     """Copy files into a snapshot destination.
 
@@ -31,6 +32,7 @@ def copy_snapshot(
         files: List of (absolute_path, relative_path) tuples.
         dest: Absolute destination directory path (.backup_system/snapshots/).
         project_root: Project root for logging context.
+        on_progress: Optional callback called after each file is processed.
 
     Returns:
         Dict with files_copied, bytes_copied, errors.
@@ -54,6 +56,8 @@ def copy_snapshot(
         except OSError as e:
             logger.warning(f"Failed to copy {rel_path}: {e}")
             errors.append(f"{rel_path}: {e}")
+        if on_progress:
+            on_progress()
 
     result = {
         "files_copied": files_copied,

@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: versioned.py
 # Description: Versioned module — timestamped incremental backup with diffs
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-04-17
-# Modified: 2026-04-23
+# Modified: 2026-06-12
 # =============================================
 
 """Versioned Module — incremental timestamped backup of a project directory."""
@@ -24,13 +24,19 @@ from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.path.builder import build_versioned_path
 from aipass.backup.apps.handlers.project.config import load_project_config
 from aipass.backup.apps.handlers.project.setup import create_backup_dir
-from aipass.backup.apps.handlers.report.formatter import format_result
 from aipass.backup.apps.handlers.report.result import BackupResult
 from aipass.backup.apps.handlers.scan.filter import filter_paths
 from aipass.backup.apps.handlers.scan.walk import walk_project
 from aipass.backup.apps.handlers.state.changelog import append_changelog
 from aipass.backup.apps.handlers.state.metadata import build_metadata
 from aipass.backup.apps.handlers.state.timestamps import load_timestamps, save_timestamps
+from aipass.backup.apps.modules.display import (
+    create_progress_bar,
+    show_backups_now,
+    show_last_backups,
+    show_result_summary,
+    show_run_header,
+)
 
 MODULE_NAME = "versioned"
 PRIMARY_COMMAND = "versioned"
@@ -59,9 +65,12 @@ def _prune_old_versions(project_root: str, max_versions: int) -> None:
         logger.info(f"[backup] Pruned old version: {oldest.name}")
 
 
-def run_versioned(project_root: str) -> BackupResult:
+def run_versioned(project_root: str, show_panels: bool = True) -> BackupResult:
     """Run an incremental versioned backup for a project."""
     start = time.time()
+
+    if show_panels:
+        show_last_backups()
 
     create_backup_dir(project_root)
     config = load_project_config(project_root)
@@ -77,7 +86,29 @@ def run_versioned(project_root: str) -> BackupResult:
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     dest = str(build_versioned_path(project_root, ts))
-    copy_result = copy_versioned(filtered, dest, prev_timestamps, project_root)
+
+    result = BackupResult(
+        mode="versioned",
+        project_root=project_root,
+        files_checked=len(filtered),
+        backup_path=dest,
+    )
+
+    if show_panels:
+        show_run_header(result)
+
+    progress = create_progress_bar()
+    with progress:
+        task = progress.add_task("Processing files...", total=len(filtered))
+        copy_result = copy_versioned(
+            filtered,
+            dest,
+            prev_timestamps,
+            project_root,
+            on_progress=lambda: progress.advance(task),
+        )
+
+    console.print(f"Processing completed: {len(filtered)}/{len(filtered)} files checked")
 
     new_timestamps = copy_result.get("new_timestamps", {})
     save_timestamps(project_root, new_timestamps)
@@ -91,14 +122,11 @@ def run_versioned(project_root: str) -> BackupResult:
 
     duration = time.time() - start
 
-    result = BackupResult(
-        mode="versioned",
-        project_root=project_root,
-        files_copied=copy_result.get("files_copied", 0),
-        bytes_copied=copy_result.get("bytes_copied", 0),
-        duration_seconds=duration,
-        errors=copy_result.get("errors", []),
-    )
+    result.files_copied = copy_result.get("files_copied", 0)
+    result.files_skipped = result.files_checked - result.files_copied
+    result.bytes_copied = copy_result.get("bytes_copied", 0)
+    result.duration_seconds = duration
+    result.errors = copy_result.get("errors", [])
 
     metadata = build_metadata(result)
     append_changelog(project_root, metadata)
@@ -114,6 +142,12 @@ def run_versioned(project_root: str) -> BackupResult:
     logger.info(
         f"[backup] Versioned complete: {result.files_copied} changed, {copy_result.get('files_unchanged', 0)} unchanged"
     )
+
+    if show_panels:
+        show_result_summary(result)
+        if not result.errors:
+            show_backups_now("versioned")
+
     return result
 
 
@@ -127,8 +161,7 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     project_root = args[0]
-    result = run_versioned(project_root)
-    console.print(format_result(result))
+    run_versioned(project_root)
     return True
 
 

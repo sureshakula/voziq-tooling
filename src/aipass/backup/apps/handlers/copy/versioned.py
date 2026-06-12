@@ -25,6 +25,7 @@ def copy_versioned(
     dest: str,
     previous_timestamps: dict,
     project_root: str,
+    on_progress=None,
 ) -> dict:
     """Copy changed files into a versioned destination.
 
@@ -33,6 +34,7 @@ def copy_versioned(
         dest: Absolute destination directory for this version.
         previous_timestamps: Mapping of relative_path to last-known mtime.
         project_root: Project root for logging context.
+        on_progress: Optional callback called after each file is processed.
 
     Returns:
         Dict with files_copied, bytes_copied, files_unchanged, errors, new_timestamps.
@@ -51,6 +53,8 @@ def copy_versioned(
         except OSError as e:
             logger.warning(f"Cannot stat {rel_path}: {e}")
             errors.append(f"{rel_path}: {e}")
+            if on_progress:
+                on_progress()
             continue
 
         new_timestamps[rel_path] = current_mtime
@@ -58,6 +62,8 @@ def copy_versioned(
 
         if current_mtime <= prev_mtime:
             files_unchanged += 1
+            if on_progress:
+                on_progress()
             continue
 
         target = os.path.join(dest, rel_path)
@@ -69,6 +75,8 @@ def copy_versioned(
         except OSError as e:
             logger.warning(f"Failed to copy {rel_path}: {e}")
             errors.append(f"{rel_path}: {e}")
+        if on_progress:
+            on_progress()
 
     result = {
         "files_copied": files_copied,

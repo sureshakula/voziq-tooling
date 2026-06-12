@@ -24,8 +24,11 @@ class BackupResult:
     mode: str
     project_root: str = ""
     files_copied: int = 0
+    files_checked: int = 0
+    files_skipped: int = 0
     bytes_copied: int = 0
     duration_seconds: float = 0.0
+    backup_path: str = ""
     errors: list[str] = field(default_factory=list)
 
 
