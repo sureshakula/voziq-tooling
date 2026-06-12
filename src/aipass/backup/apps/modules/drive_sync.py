@@ -1,21 +1,25 @@
 # =================== AIPass ====================
 # Name: drive_sync.py
-# Description: Drive sync module — uploads a project snapshot to Google Drive
-# Version: 0.1.0
+# Description: Drive sync module — uploads versioned store to Google Drive
+# Version: 1.0.0
 # Created: 2026-04-17
-# Modified: 2026-04-17
+# Modified: 2026-06-12
 # =============================================
 
-"""Drive Sync Module — thin CLI wrapper delegating to handlers.
+"""Drive Sync Module — orchestrates file upload to Google Drive.
 
-Stub scaffold awaiting Phase 3 handler implementations.
+Scans the versioned store, checks the tracker for changes, and uploads
+new or modified files via the Drive upload engine.
 """
 
 import sys
+from pathlib import Path
 
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
+
 from aipass.backup.apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.path.builder import build_versioned_store
 
 
 MODULE_NAME = "drive_sync"
@@ -26,13 +30,176 @@ def print_introspection():
     """Display module info and connected handlers."""
     console.print(f"[bold cyan]{MODULE_NAME} Module[/bold cyan]")
     console.print(f"  Primary command: [yellow]{PRIMARY_COMMAND}[/yellow]")
-    console.print("  Status: stub scaffold, awaiting Phase 3 implementation")
-    console.print("  Planned handlers: drive/upload, drive/tracker")
+    console.print("  Status: Phase 4 -- Drive sync via @api gateway")
+    console.print("  Handlers: drive/client, drive/upload, drive/tracker")
 
 
 def print_help():
     """Display help for this module."""
     print_introspection()
+    console.print()
+    console.print("Usage: drive-sync <project_root> [options]")
+    console.print("  --force       Force re-upload of all files")
+    console.print("  --project     Override project name")
+    console.print("  --note        Add a note to uploaded files")
+
+
+def run_drive_sync(
+    project_root: str,
+    project_name: str = "",
+    note: str = "",
+    force: bool = False,
+    show_panels: bool = True,
+) -> dict:
+    """Run Drive sync -- upload versioned store to Google Drive.
+
+    Flow:
+        1. Create DriveClient, authenticate
+        2. Build versioned store path from project_root
+        3. Scan versioned store for all files (skip dotfiles)
+        4. Load tracker, check each file with check_needs_upload()
+        5. Show Rich progress bar if show_panels
+        6. Call upload_batch() with files that need upload
+        7. Save tracker
+        8. Return result dict
+
+    Args:
+        project_root: Absolute path to the project.
+        project_name: Override project name (defaults to dir name).
+        note: Note attached to uploads.
+        force: Force re-upload of all files.
+        show_panels: Show rich CLI output.
+
+    Returns:
+        Dict with success, uploaded, failed, skipped, error keys.
+    """
+    from aipass.backup.apps.handlers.drive.client import DriveClient
+    from aipass.backup.apps.handlers.drive.tracker import (
+        check_needs_upload,
+        load_tracker,
+        save_tracker,
+    )
+    from aipass.backup.apps.handlers.drive.upload import upload_batch
+
+    result: dict = {
+        "success": False,
+        "uploaded": 0,
+        "failed": 0,
+        "skipped": 0,
+        "error": None,
+    }
+
+    # 1. Authenticate
+    client = DriveClient()
+    if not client.authenticate():
+        result["error"] = client.last_error or "Drive authentication failed"
+        logger.warning(f"[backup] Drive sync auth failed: {result['error']}")
+        return result
+
+    # 2. Build versioned store path
+    store_path = build_versioned_store(project_root)
+    if not store_path.exists():
+        result["error"] = f"Versioned store not found: {store_path}"
+        logger.warning(f"[backup] {result['error']}")
+        return result
+
+    # 3. Scan for files (skip dotfiles)
+    all_files = [
+        f
+        for f in store_path.rglob("*")
+        if f.is_file() and not any(part.startswith(".") for part in f.relative_to(store_path).parts)
+    ]
+
+    if not all_files:
+        result["success"] = True
+        result["skipped"] = 0
+        if show_panels:
+            console.print("[dim]No files found in versioned store.[/dim]")
+        return result
+
+    # 4. Load tracker + filter
+    tracker = load_tracker(project_root)
+    if force:
+        files_to_upload = all_files
+    else:
+        files_to_upload = [f for f in all_files if check_needs_upload(tracker, f, store_path)]
+
+    skipped = len(all_files) - len(files_to_upload)
+    result["skipped"] = skipped
+
+    if not files_to_upload:
+        result["success"] = True
+        if show_panels:
+            console.print(f"[green]All {len(all_files)} files up to date.[/green]")
+        return result
+
+    # 5. Resolve project name
+    if not project_name:
+        project_name = Path(project_root).name
+
+    # 6. Upload with progress
+    progress_fn = None
+    progress = None
+    task = None
+
+    if show_panels:
+        try:
+            from rich.progress import Progress
+
+            progress = Progress(console=console)
+            progress.start()
+            task = progress.add_task(
+                "Uploading to Drive...",
+                total=len(files_to_upload),
+            )
+
+            def _advance():
+                if progress is not None and task is not None:
+                    progress.advance(task)
+
+            progress_fn = _advance
+        except ImportError:
+            logger.info("Rich progress not available for Drive upload display")
+
+    try:
+        batch_result = upload_batch(
+            client,
+            files_to_upload,
+            project_name,
+            store_path,
+            tracker,
+            note=note,
+            progress_fn=progress_fn,
+        )
+    finally:
+        if progress is not None:
+            progress.stop()
+
+    result["uploaded"] = batch_result.get("uploaded", 0)
+    result["failed"] = batch_result.get("failed", 0)
+    result["success"] = batch_result.get("success", False)
+
+    # 7. Save tracker
+    save_tracker(project_root, tracker)
+
+    json_handler.log_operation(
+        "drive_sync_complete",
+        {
+            "project_root": project_root,
+            "uploaded": result["uploaded"],
+            "failed": result["failed"],
+            "skipped": skipped,
+        },
+    )
+    logger.info(f"[backup] Drive sync: {result['uploaded']} uploaded, {result['failed']} failed, {skipped} skipped")
+
+    if show_panels:
+        if result["success"]:
+            console.print(f"[green]Drive sync complete: {result['uploaded']} uploaded, {skipped} skipped[/green]")
+        else:
+            console.print(f"Drive sync had failures: {result['uploaded']} ok, {result['failed']} failed")
+
+    return result
 
 
 def handle_command(command: str, args: list) -> bool:
@@ -45,19 +212,33 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     if args[0] in ("--help", "-h", "help"):
-        print_introspection()
+        print_help()
         return True
 
-    logger.info(f"[backup] {MODULE_NAME} stub invoked with args={args} — awaiting Phase 3")
-    json_handler.log_operation(f"{MODULE_NAME}_stub_invoked", {"args": args})
+    project_root = args[0]
+    force = "--force" in args
+    note = ""
+    project_name = ""
+
+    for i, arg in enumerate(args):
+        if arg == "--note" and i + 1 < len(args):
+            note = args[i + 1]
+        if arg == "--project" and i + 1 < len(args):
+            project_name = args[i + 1]
+
+    run_drive_sync(
+        project_root,
+        project_name=project_name,
+        note=note,
+        force=force,
+    )
     return True
 
 
 # =============================================
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
+    if len(sys.argv) < 2:
         print_introspection()
         sys.exit(0)
-    result = handle_command(sys.argv[1], sys.argv[2:])
-    sys.exit(0 if result else 1)
+    handle_command(PRIMARY_COMMAND, sys.argv[1:])

@@ -4,7 +4,6 @@
 # Version: 1.0.0
 # Created: 2026-06-12
 # Modified: 2026-06-12
-# =============================================
 
 """Test versioned engine — baseline, diff, skip, never-delete, restore."""
 
@@ -291,6 +290,65 @@ class TestVersionedFilePath:
             result = Path(build_versioned_file_path("/tmp/project", long_name))
             assert result.name == long_name
             assert len(result.parent.name) < 50
+
+
+class TestRestoreModule:
+    """Restore module — version discovery and file restore via module layer."""
+
+    def test_find_file_folder(self, tmp_path: Path):
+        """_find_file_folder locates a file-folder in the versioned store."""
+        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
+            from aipass.backup.apps.handlers.copy.versioned import copy_versioned
+
+            project = tmp_path / "project"
+            project.mkdir()
+            src = project / "config.py"
+            src.write_text("cfg = True", encoding="utf-8")
+            copy_versioned([(str(src), "config.py")], str(project))
+
+        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
+            from aipass.backup.apps.modules.restore import _find_file_folder
+
+            folder = _find_file_folder(str(project), "config.py")
+            assert folder is not None
+            assert folder.name == "config.py"
+            assert (folder / "config.py").is_file()
+
+    def test_find_file_folder_missing(self, tmp_path: Path):
+        """_find_file_folder returns None for missing file."""
+        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
+            from aipass.backup.apps.modules.restore import _find_file_folder
+
+            result = _find_file_folder(str(tmp_path), "nonexistent.py")
+            assert result is None
+
+    def test_run_restore_file_roundtrip(self, tmp_path: Path):
+        """run_restore_file restores a file to an output path."""
+        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
+            from aipass.backup.apps.handlers.copy.versioned import copy_versioned
+
+            project = tmp_path / "project"
+            project.mkdir()
+            src = project / "data.txt"
+            src.write_text("important data", encoding="utf-8")
+            copy_versioned([(str(src), "data.txt")], str(project))
+
+        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
+            with patch("aipass.backup.apps.modules.restore.console"):
+                from aipass.backup.apps.modules.restore import run_restore_file
+
+                out = str(tmp_path / "restored" / "data.txt")
+                result = run_restore_file(str(project), "data.txt", out)
+                assert result is True
+                assert Path(out).read_text(encoding="utf-8") == "important data"
+
+    def test_handle_command_help(self):
+        """handle_command responds to --help."""
+        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
+            with patch("aipass.backup.apps.modules.restore.console"):
+                from aipass.backup.apps.modules.restore import handle_command
+
+                assert handle_command("restore", ["--help"]) is True
 
 
 # =============================================

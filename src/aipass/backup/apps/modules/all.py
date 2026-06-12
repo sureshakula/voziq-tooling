@@ -1,12 +1,12 @@
 # =================== AIPass ====================
 # Name: all.py
-# Description: All module — full cycle: snapshot + versioned (shared scan)
-# Version: 3.0.0
+# Description: All module — full cycle: snapshot + versioned + drive (shared scan)
+# Version: 4.0.0
 # Created: 2026-04-17
 # Modified: 2026-06-12
 # =============================================
 
-"""All Module — runs snapshot then versioned backup with shared scan."""
+"""All Module — runs snapshot then versioned backup with shared scan, then drive sync."""
 
 import sys
 
@@ -30,8 +30,8 @@ def print_introspection():
     """Display module info and connected handlers."""
     console.print(f"[bold cyan]{MODULE_NAME} Module[/bold cyan]")
     console.print(f"  Primary command: [yellow]{PRIMARY_COMMAND}[/yellow]")
-    console.print("  Status: Phase 3 — shared scan")
-    console.print("  Orchestration: scan -> snapshot -> versioned")
+    console.print("  Status: Phase 4 -- shared scan + drive sync")
+    console.print("  Orchestration: scan -> snapshot -> versioned -> drive")
 
 
 def print_help():
@@ -53,6 +53,7 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     project_root = args[0]
+    show_panels = "--quiet" not in args
     logger.info(f"[backup] Running full backup cycle for {project_root}")
 
     # ONE scan shared between both modes (Patrick's Law #1)
@@ -68,16 +69,38 @@ def handle_command(command: str, args: list) -> bool:
 
     ver_result = run_versioned(project_root, pre_scanned=filtered)
 
+    # Drive step (fail honestly if no creds)
+    drive_result: dict = {}
+    try:
+        from aipass.backup.apps.modules.drive_sync import run_drive_sync
+
+        console.print()
+        drive_result = run_drive_sync(
+            project_root,
+            show_panels=show_panels,
+        )
+        if drive_result.get("error"):
+            console.print(f"[bold]Drive sync: {drive_result['error']}[/bold]")
+    except ImportError:
+        logger.warning("Drive sync unavailable: Google API libraries not installed")
+        console.print("[bold]Drive sync unavailable: Google API libraries not installed[/bold]")
+    except Exception as exc:
+        logger.warning(f"Drive sync failed: {exc}")
+        console.print(f"[bold]Drive sync failed: {exc}[/bold]")
+
     json_handler.log_operation(
         "all_complete",
         {
             "project_root": project_root,
             "snapshot_files": snap_result.files_copied,
             "versioned_files": ver_result.files_copied,
+            "drive_uploaded": drive_result.get("uploaded", 0),
         },
     )
     logger.info(
-        f"[backup] Full backup complete: snapshot={snap_result.files_copied}, versioned={ver_result.files_copied}"
+        f"[backup] Full backup complete: snapshot={snap_result.files_copied}, "
+        f"versioned={ver_result.files_copied}, "
+        f"drive_uploaded={drive_result.get('uploaded', 0)}"
     )
     return True
 

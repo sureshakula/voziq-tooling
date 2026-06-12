@@ -37,6 +37,7 @@ apps/
 │   ├── drive_sync.py      # Drive sync (stub — DPLAN-003)
 │   ├── drive_test.py      # Drive test (stub — DPLAN-003)
 │   ├── register.py        # Project registration + @name resolution
+│   ├── restore.py         # Version discovery + file restoration
 │   ├── settings.py        # Settings UI (stub)
 │   ├── snapshot.py        # Full mirror backup
 │   ├── status.py          # Backup status display

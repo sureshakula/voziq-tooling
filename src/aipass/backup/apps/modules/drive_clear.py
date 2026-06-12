@@ -1,20 +1,18 @@
 # =================== AIPass ====================
 # Name: drive_clear.py
 # Description: Drive clear module — clears Drive file tracker (requires --force)
-# Version: 0.1.0
+# Version: 1.0.0
 # Created: 2026-04-17
-# Modified: 2026-04-17
+# Modified: 2026-06-12
 # =============================================
 
-"""Drive Clear Module — thin CLI wrapper delegating to handlers.
-
-Stub scaffold awaiting Phase 3 handler implementations.
-"""
+"""Drive Clear Module — clears the Drive file tracker for a project."""
 
 import sys
 
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
+
 from aipass.backup.apps.handlers.json import json_handler
 
 
@@ -26,13 +24,46 @@ def print_introspection():
     """Display module info and connected handlers."""
     console.print(f"[bold cyan]{MODULE_NAME} Module[/bold cyan]")
     console.print(f"  Primary command: [yellow]{PRIMARY_COMMAND}[/yellow]")
-    console.print("  Status: stub scaffold, awaiting Phase 3 implementation")
-    console.print("  Planned handlers: drive/tracker (clear, requires --force)")
+    console.print("  Status: Phase 4 -- tracker clear")
+    console.print("  Handlers: drive/tracker (requires --force)")
 
 
 def print_help():
     """Display help for this module."""
     print_introspection()
+    console.print()
+    console.print("Usage: drive-clear-tracker <project_root> --force")
+    console.print("  --force   Required to confirm tracker deletion")
+
+
+def run_drive_clear(project_root: str, force: bool = False) -> bool:
+    """Clear Drive tracker. Requires force=True.
+
+    Args:
+        project_root: Absolute path to the project.
+        force: Must be True to proceed.
+
+    Returns:
+        True if cleared, False otherwise.
+    """
+    from aipass.backup.apps.handlers.drive.tracker import clear_all
+
+    if not force:
+        console.print("[dim]Use --force to confirm tracker deletion.[/dim]")
+        return False
+
+    success = clear_all(project_root)
+    if success:
+        console.print("[green]Drive tracker cleared.[/green]")
+        logger.info(f"[backup] Drive tracker cleared for {project_root}")
+    else:
+        console.print("[red]Failed to clear Drive tracker.[/red]")
+
+    json_handler.log_operation(
+        "drive_clear_complete",
+        {"project_root": project_root, "success": success},
+    )
+    return success
 
 
 def handle_command(command: str, args: list) -> bool:
@@ -45,19 +76,19 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     if args[0] in ("--help", "-h", "help"):
-        print_introspection()
+        print_help()
         return True
 
-    logger.info(f"[backup] {MODULE_NAME} stub invoked with args={args} — awaiting Phase 3")
-    json_handler.log_operation(f"{MODULE_NAME}_stub_invoked", {"args": args})
+    project_root = args[0]
+    force = "--force" in args
+    run_drive_clear(project_root, force=force)
     return True
 
 
 # =============================================
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
+    if len(sys.argv) < 2:
         print_introspection()
         sys.exit(0)
-    result = handle_command(sys.argv[1], sys.argv[2:])
-    sys.exit(0 if result else 1)
+    handle_command(PRIMARY_COMMAND, sys.argv[1:])

@@ -13,6 +13,26 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Backup Google Drive sync pipeline + restore command (FPLAN-0268, Phase 4 of
+  FPLAN-0264 — final).** Faithful port of GOLD's `GoogleDriveSync` against the
+  live `@api` gateway (`get_drive_service` + `api_call_with_retry` — never the
+  console-OAuth path). New `handlers/drive/`: `DriveClient` (folder hierarchy
+  `AIPass Backups/<project>/`, thread-safe cache, retry-with-rebuild),
+  `upload.py` (resumable `MediaFileUpload`, 3 threaded workers), `tracker.py`
+  (mtime+size dedup → no re-upload of unchanged files), `test.py` (connectivity).
+  All four `drive_*` modules un-stubbed; `all` now runs snapshot→versioned→
+  drive-sync and **fails honestly** if Drive creds are absent (never silent-skips,
+  never fakes success, snapshot+versioned still report). New `restore` command
+  (`restore <project> list <file>` / `restore <project> file <file> <out>`)
+  exposing the Phase-3 baseline+diff restore engine. Drive tests fully mocked —
+  zero real Google calls in CI. Verified by artifact + live: audit 100% (all 37
+  files), 187 tests, ruff clean, restore `list`/`file` round-trip confirmed.
+- **Backup uses the repo-root pyright config like every citizen.** Removed
+  backup's standalone `pyrightconfig.json` (a leftover from its pre-namespace
+  standalone days, archived) so it inherits the root config — resolving imports
+  consistently with the rest of AIPass. Dead PyQt5 `ui/settings_window.py`
+  (never wired) archived.
+
 - **Backup versioned baseline + per-file diff engine (FPLAN-0267, Phase 3 of
   FPLAN-0264 — the heart).** Faithful port of the GOLD versioned engine,
   replacing the mtime full-copy-into-timestamped-dirs remnant. One persistent
