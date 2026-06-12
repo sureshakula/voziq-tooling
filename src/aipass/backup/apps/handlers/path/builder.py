@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: builder.py
 # Description: Destination path builders for snapshot, versioned, and drive modes
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-04-16
-# Modified: 2026-04-23
+# Modified: 2026-06-12
 # =============================================
 
 """Path builder handler.
@@ -32,7 +32,10 @@ def build_snapshot_path(project_root: str) -> Path:
 
 def build_versioned_path(project_root: str, timestamp: str) -> Path:
     """Versioned destination: <project>/.backup_system/versions/<timestamp>/"""
-    json_handler.log_operation("build_versioned_path", {"project_root": project_root, "timestamp": timestamp})
+    json_handler.log_operation(
+        "build_versioned_path",
+        {"project_root": project_root, "timestamp": timestamp},
+    )
     return backup_root(project_root) / "versions" / timestamp
 
 
@@ -59,6 +62,41 @@ def build_changelog_path(project_root: str) -> Path:
 def build_log_dir(project_root: str) -> Path:
     """Log directory: <project>/.backup_system/logs/"""
     return backup_root(project_root) / "logs"
+
+
+def build_versioned_store(project_root: str) -> Path:
+    """Persistent versioned store: <project>/.backup_system/versioned/"""
+    json_handler.log_operation("build_versioned_store", {"project_root": project_root})
+    return backup_root(project_root) / "versioned"
+
+
+def build_versioned_file_path(
+    project_root: str,
+    rel_path: str,
+) -> Path:
+    """Build the file-folder target path for a versioned file.
+
+    Layout:
+        root-level file: <store>/root/<name>/<name>
+        nested file: <store>/<parent>/<name>/<name>
+        name >50 chars: <parent>/<name[:30]_md5[:8]>/<name>
+    """
+    import hashlib
+
+    store = build_versioned_store(project_root)
+    p = Path(rel_path)
+    name = p.name
+    parent = str(p.parent)
+
+    if len(name) > 50:
+        name_hash = hashlib.md5(name.encode()).hexdigest()[:8]  # noqa: S324
+        folder_name = name[:30] + f"_{name_hash}"
+    else:
+        folder_name = name
+
+    if parent == ".":
+        return store / "root" / folder_name / name
+    return store / parent / folder_name / name
 
 
 def build_drive_path(project_root: str, file: str) -> Path:

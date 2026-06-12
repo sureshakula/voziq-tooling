@@ -13,6 +13,26 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Backup versioned baseline + per-file diff engine (FPLAN-0267, Phase 3 of
+  FPLAN-0264 — the heart).** Faithful port of the GOLD versioned engine,
+  replacing the mtime full-copy-into-timestamped-dirs remnant. One persistent
+  store (`.backup_system/versioned/`) with GOLD's file-folder packaging: each
+  file gets `<parent>/<name>/` holding the current copy, a
+  `<stem>-baseline-<date>.<ext>` full copy from the first run (never touched
+  again), and `<name>_diffs/<name>_v<old-mtime>.diff` unified-diff patches on
+  every change — append-only, versioned **never deletes** (cleanup stays
+  snapshot-only). Versioned and snapshot back up the identical file set (same
+  scan + ignore patterns; `all` shares one scan). Change detection is
+  ledger-free (source mtime vs store-current mtime, `copy2`-preserved) — kills
+  the regression where running snapshot starved the next versioned via the
+  shared `timestamps.json`. New `diff/restore.py` (`list_versions` +
+  `restore_file`); `diff/generator.py` wired (binary detection + diff
+  include/ignore patterns). +15 tests (125 total). Verified by artifact + live
+  end-to-end: snapshot-first-then-versioned still baselines everything
+  (starvation dead), edit → real diff with old-mtime timestamp, source delete →
+  versioned store untouched while snapshot mirror-deletes, restore round-trip
+  byte-identical.
+
 - **Backup snapshot fidelity + shared core (FPLAN-0266, Phase 2 of FPLAN-0264).**
   Restored the snapshot-side machinery the 2026-04-23 rewrite degraded, ported
   from the GOLD archive onto the current per-project handlers. New

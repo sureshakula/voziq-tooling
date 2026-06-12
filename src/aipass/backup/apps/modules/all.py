@@ -1,19 +1,24 @@
 # =================== AIPass ====================
 # Name: all.py
-# Description: All module — full cycle: snapshot + versioned
-# Version: 2.0.0
+# Description: All module — full cycle: snapshot + versioned (shared scan)
+# Version: 3.0.0
 # Created: 2026-04-17
 # Modified: 2026-06-12
 # =============================================
 
-"""All Module — runs snapshot then versioned backup in sequence."""
+"""All Module — runs snapshot then versioned backup with shared scan."""
 
 import sys
 
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
+from aipass.backup.apps.handlers.ignore.patterns import load_patterns
+from aipass.backup.apps.handlers.ignore.whitelist import load_whitelist
 from aipass.backup.apps.handlers.json import json_handler
+from aipass.backup.apps.handlers.project.config import load_project_config
+from aipass.backup.apps.handlers.scan.filter import filter_paths
+from aipass.backup.apps.handlers.scan.walk import walk_project
 from aipass.backup.apps.modules.snapshot import run_snapshot
 from aipass.backup.apps.modules.versioned import run_versioned
 
@@ -25,8 +30,8 @@ def print_introspection():
     """Display module info and connected handlers."""
     console.print(f"[bold cyan]{MODULE_NAME} Module[/bold cyan]")
     console.print(f"  Primary command: [yellow]{PRIMARY_COMMAND}[/yellow]")
-    console.print("  Status: Phase 3 — implemented")
-    console.print("  Orchestration: snapshot -> versioned")
+    console.print("  Status: Phase 3 — shared scan")
+    console.print("  Orchestration: scan -> snapshot -> versioned")
 
 
 def print_help():
@@ -50,10 +55,18 @@ def handle_command(command: str, args: list) -> bool:
     project_root = args[0]
     logger.info(f"[backup] Running full backup cycle for {project_root}")
 
+    # ONE scan shared between both modes (Patrick's Law #1)
+    config = load_project_config(project_root)
+    patterns = load_patterns(project_root)
+    whitelist_entries = load_whitelist(project_root)
+    max_size = config.get("max_file_size_mb", 100)
+    all_files = list(walk_project(project_root))
+    filtered = filter_paths(all_files, patterns, whitelist_entries, max_size)
+
     snap_result = run_snapshot(project_root)
     console.print()
 
-    ver_result = run_versioned(project_root)
+    ver_result = run_versioned(project_root, pre_scanned=filtered)
 
     json_handler.log_operation(
         "all_complete",
