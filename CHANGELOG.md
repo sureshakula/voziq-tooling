@@ -9,6 +9,24 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-12]
+
+### Fixed
+
+- **Backup rich CLI output restored end-to-end (FPLAN-0263 + drone passthrough).**
+  `drone @backup snapshot|versioned|all` rendered a flat text block instead of the
+  original rich output. Two independent causes, both closed: (1) the rich rendering
+  was never carried forward in backup's revival — rebuilt as a faithful 9-stage port
+  (new `backup_timestamps` state handler + `display.py` pipeline: Last-backups panel →
+  boxed header → live Rich progress bar → result summary → Backups-now panel;
+  `BackupResult` extended with `files_checked`/`files_skipped`/`backup_path`; copy
+  handlers emit `on_progress` callbacks). (2) drone was flattening it at the pipe —
+  `@backup` ran through `capture_output=True` (non-TTY → Rich strips color, the
+  `transient` progress bar renders to nothing) and the 30s capture timeout would kill
+  large backups; added `backup` to drone's `INTERACTIVE_BRANCHES` so all `@backup`
+  commands inherit the terminal (mirrors `cli`). Verified live under a pty: full color
+  + animated progress bar.
+
 ## [2026-06-11]
 
 ### Fixed

@@ -41,7 +41,7 @@ MODULES_DIR = Path(__file__).parent / "modules"
 
 # Interactive mode — commands/branches that bypass capture + timeout for live terminal output.
 INTERACTIVE_COMMANDS = ("monitor", "audit", "watchdog", "status")
-INTERACTIVE_BRANCHES = ("cli",)
+INTERACTIVE_BRANCHES = ("cli", "backup")
 
 
 # =============================================================================
