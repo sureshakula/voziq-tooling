@@ -16,7 +16,7 @@ from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
 from aipass.backup.apps.handlers.copy.snapshot import copy_snapshot
-from aipass.backup.apps.handlers.ignore.patterns import load_patterns
+from aipass.backup.apps.handlers.ignore.patterns import load_spec
 from aipass.backup.apps.handlers.ignore.whitelist import load_whitelist
 from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.path.builder import build_snapshot_path
@@ -112,12 +112,12 @@ def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
     create_backup_dir(project_root)
     config = load_project_config(project_root)
 
-    patterns = load_patterns(project_root)
+    spec = load_spec(project_root)
     whitelist_entries = load_whitelist(project_root)
     max_size = config.get("max_file_size_mb", 100)
 
     all_files = list(walk_project(project_root))
-    filtered = filter_paths(all_files, patterns, whitelist_entries, max_size)
+    filtered = filter_paths(all_files, spec, whitelist_entries, max_size)
 
     # Quick-check: skip if nothing changed since last snapshot
     prev_timestamps = load_timestamps(project_root)
@@ -146,7 +146,7 @@ def run_snapshot(project_root: str, show_panels: bool = True) -> BackupResult:
     progress = build_progress_bar()
     with progress:
         task = progress.add_task("Processing files...", total=len(filtered))
-        copy_result = copy_snapshot(filtered, dest, project_root, on_progress=lambda: progress.advance(task))
+        copy_result = copy_snapshot(filtered, dest, project_root, spec, on_progress=lambda: progress.advance(task))
 
     console.print(f"Processing completed: {len(filtered)}/{len(filtered)} files checked")
 

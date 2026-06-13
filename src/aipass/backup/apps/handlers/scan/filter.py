@@ -1,29 +1,31 @@
 # =================== AIPass ====================
 # Name: filter.py
 # Description: Post-walk path filtering against ignore/whitelist/size rules
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-04-16
-# Modified: 2026-04-23
+# Modified: 2026-06-12
 # =============================================
 
 """Path filter.
 
-Applies ignore patterns, whitelist entries, and an upper size bound to a list
-of candidate paths produced by the walker.
+Applies a pathspec ignore spec, whitelist entries, and an upper size bound
+to a list of candidate paths produced by the walker.
 """
 
 import os
 
+import pathspec
+
 from aipass.prax import logger
 
-from ..ignore.patterns import apply_ignore
+from ..ignore.patterns import is_ignored
 from ..ignore.whitelist import is_whitelisted
 from ..json import json_handler
 
 
 def filter_paths(
     paths: list[tuple[str, str]],
-    ignore_patterns: list[str],
+    spec: pathspec.PathSpec,
     whitelist: list[str],
     max_size_mb: int,
 ) -> list[tuple[str, str]]:
@@ -31,7 +33,7 @@ def filter_paths(
 
     Args:
         paths: List of (absolute_path, relative_path) tuples from the walker.
-        ignore_patterns: Glob-style ignore patterns to reject matches.
+        spec: Compiled PathSpec from load_spec().
         whitelist: Whitelist entries that override ignore matches.
         max_size_mb: Maximum per-file size in megabytes; larger files are skipped.
 
@@ -47,7 +49,7 @@ def filter_paths(
             result.append((abs_path, rel_path))
             continue
 
-        if apply_ignore(rel_path, ignore_patterns):
+        if is_ignored(rel_path, spec):
             skipped += 1
             continue
 

@@ -1,19 +1,18 @@
 # =================== AIPass ====================
 # Name: patterns.py
-# Description: Ignore pattern loader and path matcher
-# Version: 1.0.0
+# Description: Ignore pattern loader — pathspec/gitwildmatch matcher
+# Version: 2.0.0
 # Created: 2026-04-17
 # Modified: 2026-06-12
 # =============================================
 
 """Ignore patterns handler.
 
-Loads .backupignore from the project root and matches paths against
-glob-style patterns (same format as .gitignore).
+Loads .backupignore from the project root and matches paths using
+pathspec (gitwildmatch) — true gitignore semantics.
 """
 
-import fnmatch
-from pathlib import Path
+import pathspec
 
 from ..json import json_handler
 from ..path import builder
@@ -41,93 +40,49 @@ BUILTIN_IGNORES = [
     "build/",
     "dist/",
     "*.log",
-]
-
-IGNORE_EXCEPTIONS = [
-    "templates/**",
-    ".github/**",
-    "*.md",
+    ".ruff_cache/",
+    ".coverage",
 ]
 
 
-def load_patterns(project_root: str) -> list[str]:
-    """Load ignore patterns from .backupignore at the project root.
+def load_spec(project_root: str) -> pathspec.PathSpec:
+    """Load a PathSpec from .backupignore at the project root.
+
+    Reads raw lines — pathspec handles #comments, blanks, !negation,
+    anchoring, dir-only trailing /, and last-match-wins natively.
 
     Args:
         project_root: Absolute path to the project root.
 
     Returns:
-        List of glob-style ignore pattern strings.
+        A compiled PathSpec using gitwildmatch semantics.
     """
-    patterns = list(BUILTIN_IGNORES)
     ignore_path = builder.build_ignore_path(project_root)
+    lines: list[str] = []
 
     if ignore_path.exists():
         with open(ignore_path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    patterns.append(line)
+            lines = f.readlines()
 
-    json_handler.log_operation("load_patterns", {"project_root": project_root, "count": len(patterns)})
-    return patterns
+    spec = pathspec.PathSpec.from_lines("gitignore", lines)
+    json_handler.log_operation(
+        "load_spec",
+        {"project_root": project_root, "pattern_count": len(spec.patterns)},
+    )
+    return spec
 
 
-def apply_ignore(rel_path: str, patterns: list[str]) -> bool:
-    """Check whether a relative path matches any ignore pattern.
+def is_ignored(rel_path: str, spec: pathspec.PathSpec) -> bool:
+    """Check whether a relative path is ignored by the spec.
 
     Args:
-        rel_path: Path relative to the project root.
-        patterns: Glob-style ignore patterns.
+        rel_path: Path relative to the project root (forward slashes).
+        spec: Compiled PathSpec from load_spec().
 
     Returns:
         True when the path should be ignored.
     """
-    rel = rel_path.replace("\\", "/")
-    parts = Path(rel).parts
-
-    for pattern in patterns:
-        pat = pattern.rstrip("/")
-        is_dir_pattern = pattern.endswith("/")
-
-        if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(rel, pat + "/*"):
-            return True
-
-        for part in parts:
-            if is_dir_pattern and fnmatch.fnmatch(part, pat):
-                return True
-            if fnmatch.fnmatch(part, pat):
-                return True
-
-        if is_dir_pattern:
-            for i, part in enumerate(parts):
-                if fnmatch.fnmatch(part, pat):
-                    return True
-
-    return False
-
-
-def is_exception(rel_path: str, exceptions: list[str] | None = None) -> bool:
-    """Check if a path matches an ignore exception (should be preserved).
-
-    Args:
-        rel_path: Path relative to the project root.
-        exceptions: Exception patterns. Defaults to IGNORE_EXCEPTIONS.
-
-    Returns:
-        True if the path should be preserved even if ignored.
-    """
-    if exceptions is None:
-        exceptions = IGNORE_EXCEPTIONS
-    rel = rel_path.replace("\\", "/")
-    for pattern in exceptions:
-        pat = pattern.rstrip("/")
-        if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(rel, pat + "/*"):
-            return True
-        for part in Path(rel).parts:
-            if fnmatch.fnmatch(part, pat):
-                return True
-    return False
+    return spec.match_file(rel_path.replace("\\", "/"))
 
 
 # =============================================

@@ -13,7 +13,7 @@ import sys
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
-from aipass.backup.apps.handlers.ignore.patterns import load_patterns
+from aipass.backup.apps.handlers.ignore.patterns import load_spec
 from aipass.backup.apps.handlers.ignore.whitelist import load_whitelist
 from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.project.config import load_project_config
@@ -58,11 +58,11 @@ def handle_command(command: str, args: list) -> bool:
 
     # ONE scan shared between both modes (Patrick's Law #1)
     config = load_project_config(project_root)
-    patterns = load_patterns(project_root)
+    spec = load_spec(project_root)
     whitelist_entries = load_whitelist(project_root)
     max_size = config.get("max_file_size_mb", 100)
     all_files = list(walk_project(project_root))
-    filtered = filter_paths(all_files, patterns, whitelist_entries, max_size)
+    filtered = filter_paths(all_files, spec, whitelist_entries, max_size)
 
     snap_result = run_snapshot(project_root)
     console.print()

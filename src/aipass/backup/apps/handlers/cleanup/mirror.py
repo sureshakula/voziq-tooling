@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: mirror.py
 # Description: Mirror cleanup handler — removes snapshot files whose source no longer exists
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-06-12
 # Modified: 2026-06-12
 # =============================================
@@ -13,7 +13,6 @@ from pathlib import Path
 
 from aipass.prax import logger
 
-from ..ignore.patterns import is_exception
 from ..json import json_handler
 from ..report.result import BackupResult
 
@@ -34,11 +33,7 @@ def _should_delete(backup_file: Path, backup_path: Path, source_dir: Path) -> st
     if source_file.exists():
         return None
 
-    rel_str = str(rel).replace("\\", "/")
-    if is_exception(rel_str):
-        return None
-
-    return rel_str
+    return str(rel).replace("\\", "/")
 
 
 def _delete_stale_files(
@@ -47,7 +42,7 @@ def _delete_stale_files(
     result: BackupResult,
     dry_run: bool,
 ) -> None:
-    """Pass 1: delete files whose source is gone (not exception-protected)."""
+    """Pass 1: delete files whose source is gone."""
     for backup_file in list(backup_path.rglob("*")):
         if not backup_file.is_file():
             continue
@@ -88,8 +83,7 @@ def _remove_empty_dirs(
                 continue
             rel = d.relative_to(backup_path)
             source_d = source_dir / rel
-            rel_str = str(rel).replace("\\", "/")
-            if not source_d.exists() and not is_exception(rel_str) and not dry_run:
+            if not source_d.exists() and not dry_run:
                 d.rmdir()
         except OSError as e:
             logger.info(f"[cleanup] Could not remove dir {d}: {e}")
@@ -103,9 +97,6 @@ def cleanup_deleted_files(
     dry_run: bool = False,
 ) -> None:
     """Remove snapshot files whose source no longer exists.
-
-    Exception-aware: respects IGNORE_EXCEPTIONS so template dirs etc.
-    are preserved even if they match ignore patterns.
 
     Args:
         backup_path: Snapshot destination directory.

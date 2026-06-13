@@ -90,6 +90,18 @@
       "pattern": "Handler imported directly"
     },
     {
+      "file": "tests/test_ignore_pathspec.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/, not in apps/ 3-layer structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_ignore_pathspec.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import handlers directly to test them",
+      "pattern": "Handler imported directly"
+    },
+    {
       "file": "apps/handlers/drive/client.py",
       "standard": "handlers",
       "reason": "Auth routing requires importing @api gateway module -- per Phase 4 spec",

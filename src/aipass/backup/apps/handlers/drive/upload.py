@@ -159,6 +159,15 @@ def upload_single_file(
     return False
 
 
+def _file_size(path: Path) -> int:
+    """Return file size in bytes, 0 on error."""
+    try:
+        return path.stat().st_size
+    except OSError as exc:
+        logger.info(f"Could not stat {path}: {exc}")
+        return 0
+
+
 def upload_batch(
     client: DriveClient,
     files: list[Path],
@@ -194,6 +203,7 @@ def upload_batch(
     client.file_tracker = tracker
     uploaded = 0
     failed = 0
+    bytes_uploaded = 0
 
     def _upload_one(file_path: Path) -> bool:
         """Upload a single file in a worker thread."""
@@ -232,6 +242,7 @@ def upload_batch(
             completed += 1
             if _process_future(future):
                 uploaded += 1
+                bytes_uploaded += _file_size(futures[future])
             else:
                 failed += 1
 
@@ -249,6 +260,7 @@ def upload_batch(
         "success": failed == 0,
         "uploaded": uploaded,
         "failed": failed,
+        "bytes_uploaded": bytes_uploaded,
     }
 
 

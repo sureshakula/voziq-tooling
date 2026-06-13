@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: drive_sync.py
 # Description: Drive sync module — uploads versioned store to Google Drive
-# Version: 1.1.0
+# Version: 2.0.0
 # Created: 2026-04-17
 # Modified: 2026-06-12
 # =============================================
@@ -16,6 +16,7 @@ No pre-resolve — workers create folders on demand via the client's lock patter
 """
 
 import sys
+import time
 from pathlib import Path
 
 from aipass.prax import logger
@@ -23,6 +24,7 @@ from aipass.cli.apps.modules import console
 
 from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.path.builder import build_versioned_store
+from aipass.backup.apps.modules.display import show_drive_result
 
 
 MODULE_NAME = "drive_sync"
@@ -64,7 +66,8 @@ def run_drive_sync(
         show_panels: Show rich CLI output.
 
     Returns:
-        Dict with success, uploaded, failed, skipped, error keys.
+        Dict with success, uploaded, failed, skipped, bytes_uploaded,
+        duration, location, total keys.
     """
     from aipass.backup.apps.handlers.drive.client import DriveClient
     from aipass.backup.apps.handlers.drive.tracker import (
@@ -74,11 +77,17 @@ def run_drive_sync(
     )
     from aipass.backup.apps.handlers.drive.upload import upload_batch
 
+    start = time.time()
+
     result: dict = {
         "success": False,
         "uploaded": 0,
         "failed": 0,
         "skipped": 0,
+        "total": 0,
+        "bytes_uploaded": 0,
+        "duration": 0.0,
+        "location": "",
         "error": None,
     }
 
@@ -86,26 +95,27 @@ def run_drive_sync(
     client = DriveClient()
     if not client.authenticate():
         result["error"] = client.last_error or "Drive authentication failed"
+        result["duration"] = time.time() - start
         logger.warning(f"[backup] Drive sync auth failed: {result['error']}")
         return result
 
     # 2. Build versioned store path
     store_path = build_versioned_store(project_root)
+    result["location"] = str(store_path)
     if not store_path.exists():
         result["error"] = f"Versioned store not found: {store_path}"
+        result["duration"] = time.time() - start
         logger.warning(f"[backup] {result['error']}")
         return result
 
-    # 3. Scan for files (skip dotfiles)
-    all_files = [
-        f
-        for f in store_path.rglob("*")
-        if f.is_file() and not any(part.startswith(".") for part in f.relative_to(store_path).parts)
-    ]
+    # 3. Scan for ALL files (no dotfile filter — the store is already filtered by .backupignore)
+    all_files = [f for f in store_path.rglob("*") if f.is_file()]
+
+    result["total"] = len(all_files)
 
     if not all_files:
         result["success"] = True
-        result["skipped"] = 0
+        result["duration"] = time.time() - start
         if show_panels:
             console.print("[dim]No files found in versioned store.[/dim]")
         return result
@@ -126,6 +136,7 @@ def run_drive_sync(
 
     if not files_to_upload:
         result["success"] = True
+        result["duration"] = time.time() - start
         if show_panels:
             console.print(f"[green]All {len(all_files)} files up to date.[/green]")
         return result
@@ -170,7 +181,9 @@ def run_drive_sync(
 
     result["uploaded"] = batch_result.get("uploaded", 0)
     result["failed"] = batch_result.get("failed", 0)
+    result["bytes_uploaded"] = batch_result.get("bytes_uploaded", 0)
     result["success"] = batch_result.get("success", False)
+    result["duration"] = time.time() - start
 
     # 7. Save tracker
     save_tracker(project_root, tracker)
@@ -182,15 +195,13 @@ def run_drive_sync(
             "uploaded": result["uploaded"],
             "failed": result["failed"],
             "skipped": skipped,
+            "bytes_uploaded": result["bytes_uploaded"],
         },
     )
     logger.info(f"[backup] Drive sync: {result['uploaded']} uploaded, {result['failed']} failed, {skipped} skipped")
 
     if show_panels:
-        if result["success"]:
-            console.print(f"[green]Drive sync complete: {result['uploaded']} uploaded, {skipped} skipped[/green]")
-        else:
-            console.print(f"Drive sync had failures: {result['uploaded']} ok, {result['failed']} failed")
+        show_drive_result(result)
 
     return result
 

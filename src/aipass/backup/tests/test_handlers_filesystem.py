@@ -58,9 +58,12 @@ class TestScanFilter:
                 return_value={"whitelist": []},
             ),
         ):
+            import pathspec
+
             from aipass.backup.apps.handlers.scan.filter import filter_paths
 
-            result = filter_paths([], [], [], 100)
+            empty_spec = pathspec.PathSpec.from_lines("gitignore", [])
+            result = filter_paths([], empty_spec, [], 100)
             assert result == []
 
     def test_filter_preserves_files(self, tmp_path: Path) -> None:
@@ -77,30 +80,37 @@ class TestScanFilter:
         ):
             from aipass.backup.apps.handlers.scan.filter import filter_paths
 
-            result = filter_paths(files, [], [], 100)
+            from aipass.backup.apps.handlers.ignore.patterns import load_spec
+
+            spec = load_spec(str(tmp_path))
+            result = filter_paths(files, spec, [], 100)
             assert len(result) >= 0
 
 
 class TestIgnorePatterns:
     """Test ignore pattern loading."""
 
-    def test_load_patterns_missing_file(self, tmp_path: Path) -> None:
-        """Load patterns from a directory without .backupignore."""
+    def test_load_spec_missing_file(self, tmp_path: Path) -> None:
+        """Load spec from a directory without .backupignore."""
         with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
-            from aipass.backup.apps.handlers.ignore.patterns import load_patterns
+            from aipass.backup.apps.handlers.ignore.patterns import load_spec
 
-            result = load_patterns(str(tmp_path))
-            assert isinstance(result, list)
+            import pathspec
 
-    def test_load_patterns_with_file(self, tmp_path: Path) -> None:
-        """Load patterns from a directory with .backupignore."""
+            result = load_spec(str(tmp_path))
+            assert isinstance(result, pathspec.PathSpec)
+
+    def test_load_spec_with_file(self, tmp_path: Path) -> None:
+        """Load spec from a directory with .backupignore."""
         ignore = tmp_path / ".backupignore"
         ignore.write_text("*.pyc\n__pycache__/\n", encoding="utf-8")
         with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
-            from aipass.backup.apps.handlers.ignore.patterns import load_patterns
+            from aipass.backup.apps.handlers.ignore.patterns import load_spec
 
-            result = load_patterns(str(tmp_path))
-            assert isinstance(result, list)
+            import pathspec
+
+            result = load_spec(str(tmp_path))
+            assert isinstance(result, pathspec.PathSpec)
 
 
 class TestProjectSetup:

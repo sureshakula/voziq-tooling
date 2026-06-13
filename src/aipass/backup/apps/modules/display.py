@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: display.py
 # Description: Rich CLI rendering for backup results (full 9-stage output)
-# Version: 2.0.0
+# Version: 3.0.0
 # Created: 2026-06-12
 # Modified: 2026-06-12
 # =============================================
@@ -114,6 +114,51 @@ def show_backups_now(mode: str) -> None:
     console.print(f"  [dim]Snapshot:   {format_age(ts.get('snapshot'))}[/dim]")
     console.print(f"  [dim]Versioned:  {format_age(ts.get('versioned'))}[/dim]")
     console.print(f"  [dim]Drive sync: {format_age(ts.get('drive_sync'))}[/dim]")
+
+
+def show_drive_result(result: dict) -> None:
+    """Show Drive sync result panel matching Snapshot/Versioned style."""
+    console.print()
+
+    total = result.get("total", 0)
+    uploaded = result.get("uploaded", 0)
+    failed = result.get("failed", 0)
+    skipped = result.get("skipped", 0)
+    bytes_uploaded = result.get("bytes_uploaded", 0)
+    duration = result.get("duration", 0.0)
+    location = result.get("location", "")
+
+    header(
+        "Backup — Drive sync",
+        {
+            "Location": location,
+            "Mode": "drive_sync",
+        },
+    )
+
+    console.print(f"Processing completed: {total}/{total} files checked")
+
+    if failed:
+        warning(
+            f"Drive sync completed with {failed} failures",
+            details=f"{uploaded} uploaded, {skipped} skipped",
+        )
+    else:
+        success(
+            "Drive sync complete",
+            files_copied=uploaded,
+            files_checked=total,
+            files_skipped=skipped,
+            size=_human_bytes(bytes_uploaded),
+        )
+
+    console.print(f"  [dim]Duration: {duration:.1f}s | Location: {location}[/dim]")
+
+    if not failed:
+        show_backups_now("drive_sync")
+
+    json_handler.log_operation("render_drive_result", {"uploaded": uploaded})
+    logger.info(f"[backup] Rendered drive_sync result: {uploaded} uploaded")
 
 
 def handle_command(command: str, args: list) -> bool:

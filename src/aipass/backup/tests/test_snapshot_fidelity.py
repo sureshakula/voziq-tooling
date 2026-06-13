@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: test_snapshot_fidelity.py
 # Description: Tests for snapshot fidelity -- mirror-delete, quick-check, long paths, error semantics
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-06-12
 # Modified: 2026-06-12
 # =============================================
@@ -11,6 +11,8 @@
 import shutil
 from pathlib import Path
 from unittest.mock import patch
+
+import pathspec
 
 
 class TestBackupResultErrors:
@@ -68,34 +70,6 @@ class TestBackupResultErrors:
             assert len(r.errors) == 2
 
 
-class TestIgnoreExceptions:
-    """Ignore exception patterns -- is_exception()."""
-
-    def test_exception_match(self) -> None:
-        """Templates and markdown files match default exceptions."""
-        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
-            from aipass.backup.apps.handlers.ignore.patterns import is_exception
-
-            assert is_exception("templates/base.html") is True
-            assert is_exception("README.md") is True
-
-    def test_exception_no_match(self) -> None:
-        """Regular source files do not match exceptions."""
-        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
-            from aipass.backup.apps.handlers.ignore.patterns import is_exception
-
-            assert is_exception("src/main.py") is False
-            assert is_exception("data/file.csv") is False
-
-    def test_custom_exceptions(self) -> None:
-        """Custom exception list overrides defaults."""
-        with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
-            from aipass.backup.apps.handlers.ignore.patterns import is_exception
-
-            assert is_exception("docs/api.md", ["docs/**"]) is True
-            assert is_exception("src/app.py", ["docs/**"]) is False
-
-
 class TestCleanupMirror:
     """Mirror-delete -- cleanup removes vanished files from snapshot."""
 
@@ -121,8 +95,8 @@ class TestCleanupMirror:
             assert (snapshot / "keep.txt").exists()
             assert result.files_deleted == 1
 
-    def test_cleanup_preserves_exception(self, tmp_path: Path) -> None:
-        """File matching IGNORE_EXCEPTIONS preserved even if source gone."""
+    def test_cleanup_deletes_all_orphans(self, tmp_path: Path) -> None:
+        """All files whose source is gone are deleted (no exceptions list)."""
         with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
             from aipass.backup.apps.handlers.cleanup.mirror import cleanup_deleted_files
             from aipass.backup.apps.handlers.report.result import BackupResult
@@ -133,11 +107,13 @@ class TestCleanupMirror:
             snapshot = tmp_path / "snapshot"
             snapshot.mkdir()
             (snapshot / "README.md").write_text("readme", encoding="utf-8")
+            (snapshot / "old.txt").write_text("old", encoding="utf-8")
 
             result = BackupResult(mode="snapshot")
             cleanup_deleted_files(snapshot, source, lambda p: False, result)
-            assert (snapshot / "README.md").exists()
-            assert result.files_deleted == 0
+            assert not (snapshot / "README.md").exists()
+            assert not (snapshot / "old.txt").exists()
+            assert result.files_deleted == 2
 
     def test_cleanup_empty_dir_removed(self, tmp_path: Path) -> None:
         """Empty dirs cleaned up after file deletion."""
@@ -190,6 +166,11 @@ class TestCleanupMirror:
             assert result.files_deleted == 1
 
 
+def _empty_spec() -> pathspec.PathSpec:
+    """Build an empty PathSpec for tests."""
+    return pathspec.PathSpec.from_lines("gitignore", [])
+
+
 class TestCopySnapshotUpgrade:
     """Snapshot copy with mirror-delete and mtime skip."""
 
@@ -210,7 +191,7 @@ class TestCopySnapshotUpgrade:
             shutil.copy2(str(f), str(target))
 
             files = [(str(f), "file.txt")]
-            result = copy_snapshot(files, str(dest), str(source))
+            result = copy_snapshot(files, str(dest), str(source), _empty_spec())
             assert result["files_copied"] == 0
 
     def test_copy_handles_new_file(self, tmp_path: Path) -> None:
@@ -225,7 +206,7 @@ class TestCopySnapshotUpgrade:
 
             dest = tmp_path / "snapshot"
             files = [(str(f), "new.txt")]
-            result = copy_snapshot(files, str(dest), str(source))
+            result = copy_snapshot(files, str(dest), str(source), _empty_spec())
             assert result["files_copied"] == 1
             assert (dest / "new.txt").exists()
 
@@ -245,7 +226,7 @@ class TestCopySnapshotUpgrade:
             (dest / "stale.txt").write_text("stale", encoding="utf-8")
 
             files = [(str(f), "keep.txt")]
-            result = copy_snapshot(files, str(dest), str(source))
+            result = copy_snapshot(files, str(dest), str(source), _empty_spec())
             assert not (dest / "stale.txt").exists()
             assert result.get("files_deleted", 0) >= 1
 

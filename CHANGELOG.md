@@ -11,6 +11,33 @@ PyPI version — not the changelog header.
 
 ## [2026-06-12]
 
+### Changed
+
+- **`.backupignore` is now a true `.gitignore` for the backup system — a single
+  source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
+  matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,
+  `!` negation, and last-match-wins) with the `pathspec` gitwildmatch library, so
+  `.backupignore` honors full gitignore semantics: include-by-default, `!`
+  negation, `#` comments, anchoring, dir-only, last-match-wins. `BUILTIN_IGNORES`
+  is demoted to a seed-only default (written when the file is absent, never merged
+  at runtime), and the separate `IGNORE_EXCEPTIONS`/`is_exception` layer is
+  removed (exceptions are native `!` lines). Snapshot, versioned, `all`, and
+  mirror-cleanup now all obey the one file. `.ruff_cache/` + `.coverage` added to
+  the default. `pathspec` (pure-Python, cross-OS) declared. Verified by artifact
+  (seedgo 100%, 220 tests incl. 26 new gitignore-parity tests) + live (a dotfile
+  flows into the store, `!` negation re-includes end-to-end).
+
+### Fixed
+
+- **Backup Drive sync no longer silently drops 41% of files — including the
+  memories (FPLAN-0269).** Removed a foreign dotfile-skip in `drive_sync.py` that
+  excluded every dotted path (`.trinity/` memories, `.chroma/` vectors, `.aipass/`
+  prompts, `.ai_mail.local/` mailboxes — 4558 files) from the offsite Google Drive
+  copy while the local snapshot/versioned kept them. Drive now uploads the full
+  versioned store (already exactly the `.backupignore`-filtered set). Added a
+  Drive-sync output panel matching the Snapshot/Versioned stages (header, progress,
+  stats, Duration | Location).
+
 ### Added
 
 - **Backup Google Drive sync pipeline + restore command (FPLAN-0268, Phase 4 of
