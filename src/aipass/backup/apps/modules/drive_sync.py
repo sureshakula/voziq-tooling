@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: drive_sync.py
 # Description: Drive sync module — uploads versioned store to Google Drive
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-04-17
 # Modified: 2026-06-12
 # =============================================
@@ -10,6 +10,9 @@
 
 Scans the versioned store, checks the tracker for changes, and uploads
 new or modified files via the Drive upload engine.
+
+Flow: auth → store path → scan → tracker filter → upload_batch → save tracker.
+No pre-resolve — workers create folders on demand via the client's lock pattern.
 """
 
 import sys
@@ -23,7 +26,7 @@ from aipass.backup.apps.handlers.path.builder import build_versioned_store
 
 
 MODULE_NAME = "drive_sync"
-PRIMARY_COMMAND = "drive-sync"
+PRIMARY_COMMAND = "drive_sync"
 
 
 def print_introspection():
@@ -38,7 +41,7 @@ def print_help():
     """Display help for this module."""
     print_introspection()
     console.print()
-    console.print("Usage: drive-sync <project_root> [options]")
+    console.print("Usage: drive_sync <project_root> [options]")
     console.print("  --force       Force re-upload of all files")
     console.print("  --project     Override project name")
     console.print("  --note        Add a note to uploaded files")
@@ -52,16 +55,6 @@ def run_drive_sync(
     show_panels: bool = True,
 ) -> dict:
     """Run Drive sync -- upload versioned store to Google Drive.
-
-    Flow:
-        1. Create DriveClient, authenticate
-        2. Build versioned store path from project_root
-        3. Scan versioned store for all files (skip dotfiles)
-        4. Load tracker, check each file with check_needs_upload()
-        5. Show Rich progress bar if show_panels
-        6. Call upload_batch() with files that need upload
-        7. Save tracker
-        8. Return result dict
 
     Args:
         project_root: Absolute path to the project.
@@ -117,7 +110,11 @@ def run_drive_sync(
             console.print("[dim]No files found in versioned store.[/dim]")
         return result
 
-    # 4. Load tracker + filter
+    # 4. Resolve project name
+    if not project_name:
+        project_name = Path(project_root).name
+
+    # 5. Load tracker + filter
     tracker = load_tracker(project_root)
     if force:
         files_to_upload = all_files
@@ -132,10 +129,6 @@ def run_drive_sync(
         if show_panels:
             console.print(f"[green]All {len(all_files)} files up to date.[/green]")
         return result
-
-    # 5. Resolve project name
-    if not project_name:
-        project_name = Path(project_root).name
 
     # 6. Upload with progress
     progress_fn = None
@@ -203,7 +196,7 @@ def run_drive_sync(
 
 
 def handle_command(command: str, args: list) -> bool:
-    """Handle the drive-sync command. Returns True if handled."""
+    """Handle the drive_sync command. Returns True if handled."""
     if command != PRIMARY_COMMAND:
         return False
 

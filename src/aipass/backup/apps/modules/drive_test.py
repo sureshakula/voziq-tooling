@@ -17,7 +17,7 @@ from aipass.backup.apps.handlers.json import json_handler
 
 
 MODULE_NAME = "drive_test"
-PRIMARY_COMMAND = "drive-test"
+PRIMARY_COMMAND = "drive_test"
 
 
 def print_introspection():

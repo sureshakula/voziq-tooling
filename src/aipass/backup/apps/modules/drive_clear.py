@@ -17,7 +17,7 @@ from aipass.backup.apps.handlers.json import json_handler
 
 
 MODULE_NAME = "drive_clear"
-PRIMARY_COMMAND = "drive-clear-tracker"
+PRIMARY_COMMAND = "drive_clear"
 
 
 def print_introspection():
@@ -32,7 +32,7 @@ def print_help():
     """Display help for this module."""
     print_introspection()
     console.print()
-    console.print("Usage: drive-clear-tracker <project_root> --force")
+    console.print("Usage: drive_clear <project_root> --force")
     console.print("  --force   Required to confirm tracker deletion")
 
 

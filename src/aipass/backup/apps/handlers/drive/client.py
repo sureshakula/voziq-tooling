@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: client.py
 # Description: Google Drive client — auth, folders, file lookup via @api gateway
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-04-16
 # Modified: 2026-06-12
 # =============================================
@@ -12,6 +12,14 @@ Core Drive v3 client routed through the @api gateway.  Handles
 authentication, folder creation/lookup, and file discovery.
 Never uses console-OAuth -- all auth flows through
 ``aipass.api.apps.modules.google_client``.
+
+Lock pattern ported from GOLD (drive_sync_client.py):
+- get_or_create_backup_folder has NO lock (always called inside
+  project_folder's lock).
+- get_or_create_project_folder wraps its ENTIRE body in
+  _folder_cache_lock (cache check + backup-folder-ensure + search +
+  create).
+- get_or_create_nested_folder wraps the entire path walk in the lock.
 """
 
 from __future__ import annotations
@@ -63,11 +71,7 @@ class DriveClient:
     # -- auth ----------------------------------------------------------------
 
     def authenticate(self) -> bool:
-        """Authenticate through the @api gateway.
-
-        Returns:
-            True if a Drive service was obtained, False otherwise.
-        """
+        """Authenticate through the @api gateway."""
         if not GOOGLE_API_AVAILABLE:
             self.last_error = "Google API libraries not installed"
             json_handler.log_operation(
@@ -99,14 +103,10 @@ class DriveClient:
     # -- low-level API -------------------------------------------------------
 
     def _api_call(self, request: Any, max_retries: int = 3) -> Any:
-        """Execute a Google API request with retry.
-
-        On failure, rebuilds the thread-local service and retries once.
-        """
+        """Execute a Google API request with retry."""
         try:
             return api_call_with_retry(request, max_retries=max_retries)  # type: ignore[misc]
         except Exception as first_exc:
-            # Rebuild thread service and retry once
             logger.info(f"API call failed, rebuilding thread service: {first_exc}")
             try:
                 self._thread_local.service = self._build_thread_service()
@@ -139,16 +139,26 @@ class DriveClient:
     def get_or_create_backup_folder(self) -> str | None:
         """Get or create the root 'AIPass Backups' folder.
 
-        Returns:
-            Folder ID or None on failure.
+        NO lock — always called inside get_or_create_project_folder's lock
+        (or single-threaded during pre-resolve).  Matches GOLD's pattern.
         """
+        # Short-circuit: verify cached ID
+        if self.backup_folder_id:
+            if self._verify_folder_id(self.backup_folder_id):
+                return self.backup_folder_id
+            self.backup_folder_id = None
+
         if not self.drive_service:
             return None
 
         # Search for existing
         query = f"name='{BACKUP_FOLDER_NAME}' and mimeType='{FOLDER_MIME}' and trashed=false"
         try:
-            request = self.drive_service.files().list(q=query, spaces="drive", fields="files(id,name)")
+            request = self.drive_service.files().list(
+                q=query,
+                spaces="drive",
+                fields="files(id,name)",
+            )
             result = self._api_call(request)
             if result and result.get("files"):
                 self.backup_folder_id = result["files"][0]["id"]
@@ -167,14 +177,38 @@ class DriveClient:
             metadata = {"name": BACKUP_FOLDER_NAME, "mimeType": FOLDER_MIME}
             request = self.drive_service.files().create(body=metadata, fields="id")
             result = self._api_call(request)
-            if result:
-                self.backup_folder_id = result["id"]
-                self.file_tracker = {}
+            if not result:
+                return None
+
+            new_id: str = result["id"]
+            self.backup_folder_id = new_id
+
+            # Conditional tracker reset (GOLD pattern):
+            # old drive_ids point to dead files under the old root folder
+            old_count = len(self.file_tracker)
+            if old_count > 0:
+                self.file_tracker.clear()
+                self.project_folder_cache.clear()
                 json_handler.log_operation(
-                    "get_backup_folder",
-                    {"action": "created_new", "folder_id": self.backup_folder_id},
+                    "tracker_reset",
+                    {
+                        "message": f"New backup folder - reset {old_count} tracker entries",
+                        "old_tracker_count": old_count,
+                        "new_folder_id": new_id,
+                    },
                 )
-                return self.backup_folder_id
+
+            # Verify accessible
+            if not self._verify_folder_id(new_id):
+                self.last_error = f"Backup folder {new_id} created but not accessible"
+                self.backup_folder_id = None
+                return None
+
+            json_handler.log_operation(
+                "get_backup_folder",
+                {"action": "created_new", "folder_id": new_id},
+            )
+            return self.backup_folder_id
         except Exception as exc:
             self.last_error = str(exc)
             logger.warning(f"Failed to create backup folder: {exc}")
@@ -184,58 +218,80 @@ class DriveClient:
     def get_or_create_project_folder(self, project_name: str) -> str | None:
         """Get or create a project subfolder under AIPass Backups.
 
-        Thread-safe via lock.
-
-        Returns:
-            Folder ID or None on failure.
+        Lock covers cache check + backup-folder-ensure + search + create
+        to prevent duplicate folders (GOLD's pattern).
         """
         with self._folder_cache_lock:
+            # Cache check with verify
             if project_name in self.project_folder_cache:
-                return self.project_folder_cache[project_name]
+                folder_id = self.project_folder_cache[project_name]
+                if self._verify_folder_id(folder_id):
+                    return folder_id
+                del self.project_folder_cache[project_name]
 
-        if not self.backup_folder_id:
-            self.backup_folder_id = self.get_or_create_backup_folder()
-            if not self.backup_folder_id:
+            # Ensure backup folder (no deadlock: backup_folder has no lock)
+            backup_folder_id = self.get_or_create_backup_folder()
+            if not backup_folder_id:
                 return None
 
-        query = (
-            f"name='{project_name}' "
-            f"and mimeType='{FOLDER_MIME}' "
-            f"and '{self.backup_folder_id}' in parents "
-            f"and trashed=false"
-        )
-        try:
-            request = self.drive_service.files().list(q=query, spaces="drive", fields="files(id,name)")
-            result = self._api_call(request)
-            if result and result.get("files"):
-                folder_id = result["files"][0]["id"]
-                with self._folder_cache_lock:
+            # Search
+            query = (
+                f"name='{project_name}' "
+                f"and mimeType='{FOLDER_MIME}' "
+                f"and '{backup_folder_id}' in parents "
+                f"and trashed=false"
+            )
+            try:
+                request = self.drive_service.files().list(
+                    q=query,
+                    spaces="drive",
+                    fields="files(id,name)",
+                )
+                result = self._api_call(request)
+                if result and result.get("files"):
+                    folder_id = result["files"][0]["id"]
                     self.project_folder_cache[project_name] = folder_id
-                return folder_id
-        except Exception as exc:
-            self.last_error = str(exc)
-            logger.warning(f"Failed to search for project folder '{project_name}': {exc}")
+                    return folder_id
+            except Exception as exc:
+                self.last_error = str(exc)
+                logger.warning(f"Failed to search for project folder '{project_name}': {exc}")
+                return None
+
+            # Create
+            try:
+                metadata = {
+                    "name": project_name,
+                    "mimeType": FOLDER_MIME,
+                    "parents": [backup_folder_id],
+                }
+                request = self.drive_service.files().create(body=metadata, fields="id")
+                result = self._api_call(request)
+                if result:
+                    folder_id = result["id"]
+                    self.project_folder_cache[project_name] = folder_id
+                    return folder_id
+            except Exception as exc:
+                self.last_error = str(exc)
+                logger.warning(f"Failed to create project folder '{project_name}': {exc}")
+
             return None
 
-        # Create
-        try:
-            metadata = {
-                "name": project_name,
-                "mimeType": FOLDER_MIME,
-                "parents": [self.backup_folder_id],
-            }
-            request = self.drive_service.files().create(body=metadata, fields="id")
-            result = self._api_call(request)
-            if result:
-                folder_id = result["id"]
-                with self._folder_cache_lock:
-                    self.project_folder_cache[project_name] = folder_id
-                return folder_id
-        except Exception as exc:
-            self.last_error = str(exc)
-            logger.warning(f"Failed to create project folder '{project_name}': {exc}")
+    def _find_or_create_segment(self, parent_id: str, name: str) -> str | None:
+        """Search for or create a single folder segment under parent_id."""
+        query = f"name='{name}' and mimeType='{FOLDER_MIME}' and '{parent_id}' in parents and trashed=false"
+        request = self.drive_service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id,name)",
+        )
+        result = self._api_call(request)
+        if result and result.get("files"):
+            return result["files"][0]["id"]
 
-        return None
+        metadata = {"name": name, "mimeType": FOLDER_MIME, "parents": [parent_id]}
+        request = self.drive_service.files().create(body=metadata, fields="id")
+        result = self._api_call(request)
+        return result["id"] if result else None
 
     def get_or_create_nested_folder(
         self,
@@ -244,63 +300,46 @@ class DriveClient:
     ) -> str | None:
         """Create a nested folder hierarchy segment by segment.
 
-        Thread-safe via lock.
-
-        Args:
-            parent_id: ID of the parent folder.
-            folder_path: Slash-separated path of nested folders.
-
-        Returns:
-            ID of the deepest folder, or None on failure.
+        Lock covers entire walk — full-path + per-segment caching with
+        verify (GOLD's pattern).
         """
-        current_parent = parent_id
-        segments = [s for s in folder_path.split("/") if s]
+        if not folder_path or folder_path == ".":
+            return parent_id
 
-        for segment in segments:
-            cache_key = f"{current_parent}/{segment}"
-            with self._folder_cache_lock:
-                if cache_key in self.project_folder_cache:
-                    current_parent = self.project_folder_cache[cache_key]
-                    continue
+        with self._folder_cache_lock:
+            cache_key = f"{parent_id}:{folder_path}"
+            if cache_key in self.project_folder_cache:
+                folder_id = self.project_folder_cache[cache_key]
+                if self._verify_folder_id(folder_id):
+                    return folder_id
+                del self.project_folder_cache[cache_key]
 
-            # Search for existing
-            query = f"name='{segment}' and mimeType='{FOLDER_MIME}' and '{current_parent}' in parents and trashed=false"
-            try:
-                request = self.drive_service.files().list(q=query, spaces="drive", fields="files(id,name)")
-                result = self._api_call(request)
-                if result and result.get("files"):
-                    folder_id = result["files"][0]["id"]
-                    with self._folder_cache_lock:
-                        self.project_folder_cache[cache_key] = folder_id
-                    current_parent = folder_id
-                    continue
-            except Exception as exc:
-                self.last_error = str(exc)
-                logger.info(f"Failed to search for nested folder '{segment}': {exc}")
-                return None
+            current_parent = parent_id
+            segments = [s for s in folder_path.split("/") if s]
 
-            # Create
-            try:
-                metadata = {
-                    "name": segment,
-                    "mimeType": FOLDER_MIME,
-                    "parents": [current_parent],
-                }
-                request = self.drive_service.files().create(body=metadata, fields="id")
-                result = self._api_call(request)
-                if result:
-                    folder_id = result["id"]
-                    with self._folder_cache_lock:
-                        self.project_folder_cache[cache_key] = folder_id
-                    current_parent = folder_id
-                else:
+            for segment in segments:
+                segment_key = f"{current_parent}:{segment}"
+
+                if segment_key in self.project_folder_cache:
+                    cached_id = self.project_folder_cache[segment_key]
+                    if self._verify_folder_id(cached_id):
+                        current_parent = cached_id
+                        continue
+                    del self.project_folder_cache[segment_key]
+
+                try:
+                    folder_id = self._find_or_create_segment(current_parent, segment)
+                except Exception as exc:
+                    self.last_error = str(exc)
+                    logger.info(f"Failed to handle nested folder '{segment}': {exc}")
                     return None
-            except Exception as exc:
-                self.last_error = str(exc)
-                logger.info(f"Failed to create nested folder '{segment}': {exc}")
-                return None
+                if not folder_id:
+                    return None
+                current_parent = folder_id
+                self.project_folder_cache[segment_key] = current_parent
 
-        return current_parent
+            self.project_folder_cache[cache_key] = current_parent
+            return current_parent
 
     # -- file ops ------------------------------------------------------------
 
@@ -309,14 +348,14 @@ class DriveClient:
         filename: str,
         parent_folder_id: str,
     ) -> dict | None:
-        """Find a file by name in a folder (excludes trashed).
-
-        Returns:
-            File metadata dict with id/name, or None if not found.
-        """
+        """Find a file by name in a folder (excludes trashed)."""
         query = f"name='{filename}' and '{parent_folder_id}' in parents and trashed=false"
         try:
-            request = self.drive_service.files().list(q=query, spaces="drive", fields="files(id,name)")
+            request = self.drive_service.files().list(
+                q=query,
+                spaces="drive",
+                fields="files(id,name)",
+            )
             result = self._api_call(request)
             if result and result.get("files"):
                 return result["files"][0]

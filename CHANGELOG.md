@@ -96,6 +96,21 @@ PyPI version — not the changelog header.
   embeds (384-dim) → `drone @memory search` returns it at 91% similarity; audit 100%,
   876 tests (+4).
 
+- **Backup Google Drive folder duplication + dedup-wipe fixed (GOLD-faithful lock
+  restoration).** The Phase-4 port had narrowed `GoogleDriveSync`'s folder lock: a
+  single `drive_sync` run's 3 upload workers raced the folder search+create →
+  multiple "AIPass Backups" root folders, and `get_or_create_backup_folder` reset
+  the dedup tracker on every call (re-uploading everything = the slowness). Restored
+  GOLD's structure exactly: `get_or_create_project_folder` / `get_or_create_nested_folder`
+  hold `_folder_cache_lock` across the **entire** method (cache + root-ensure + search
+  + create); `get_or_create_backup_folder` is lock-free (called inside the project
+  lock — no re-entrant deadlock), short-circuits cached ids via `_verify_folder_id`,
+  and clears the tracker only on a genuine brand-new root folder. Also: all four
+  `drive_*` commands route by their underscore names (were hyphenated → "Unknown
+  command"); `requirements.project.txt` now declares the three google libs. Verified
+  by artifact (seedgo 100%, 197 tests incl. a 5-thread concurrency test → exactly one
+  create) + live (real Drive backup: no duplicate folders).
+
 - **Backup rich CLI output restored end-to-end (FPLAN-0263 + drone passthrough).**
   `drone @backup snapshot|versioned|all` rendered a flat text block instead of the
   original rich output. Two independent causes, both closed: (1) the rich rendering

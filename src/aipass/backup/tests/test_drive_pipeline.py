@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: test_drive_pipeline.py
 # Description: Tests for Drive sync pipeline -- fully mocked, zero real Google calls
-# Version: 1.0.0
+# Version: 2.0.0
 # Created: 2026-06-12
 # Modified: 2026-06-12
 # =============================================
@@ -84,13 +84,14 @@ def _fresh_import(module_path: str, extra_mocks: dict | None = None):
     if extra_mocks:
         mocks.update(extra_mocks)
 
+    # Clear stale drive entries BEFORE patch.dict so they won't be restored
+    for key in list(sys.modules.keys()):
+        if key.startswith("aipass.backup.apps.handlers.drive"):
+            del sys.modules[key]
+    if module_path in sys.modules:
+        del sys.modules[module_path]
+
     with patch.dict(sys.modules, mocks):
-        # Clear cached module if present
-        for key in list(sys.modules.keys()):
-            if key.startswith("aipass.backup.apps.handlers.drive"):
-                del sys.modules[key]
-        if module_path in sys.modules:
-            del sys.modules[module_path]
         mod = importlib.import_module(module_path)
         return mod
 
@@ -172,10 +173,9 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        # files().list().execute() returns folder
-        mock_list = MagicMock()
-        mock_service.files.return_value.list.return_value = mock_list
-        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "folder_123", "name": "AIPass Backups"}]})
+        mod.api_call_with_retry = MagicMock(
+            return_value={"files": [{"id": "folder_123", "name": "AIPass Backups"}]}
+        )
 
         result = client.get_or_create_backup_folder()
         assert result == "folder_123"
@@ -188,22 +188,21 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        # First call (list) returns empty, second call (create) returns new folder
         call_count = {"n": 0}
 
         def _side_effect(request, **kwargs):
             call_count["n"] += 1
             if call_count["n"] == 1:
                 return {"files": []}
-            return {"id": "new_folder_456"}
+            if call_count["n"] == 2:
+                return {"id": "new_folder_456"}
+            return {"id": "new_folder_456", "trashed": False}
 
         mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
 
         result = client.get_or_create_backup_folder()
         assert result == "new_folder_456"
         assert client.backup_folder_id == "new_folder_456"
-        # Tracker should be reset on new folder creation
-        assert client.file_tracker == {}
 
     def test_get_or_create_backup_folder_no_service(self) -> None:
         """No drive service -- returns None."""
@@ -221,7 +220,9 @@ class TestDriveClient:
         client._drive_service = mock_service
         client.backup_folder_id = "root_folder"
 
-        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "proj_folder_789", "name": "myproject"}]})
+        mod.api_call_with_retry = MagicMock(
+            return_value={"files": [{"id": "proj_folder_789", "name": "myproject"}]}
+        )
 
         result = client.get_or_create_project_folder("myproject")
         assert result == "proj_folder_789"
@@ -231,7 +232,10 @@ class TestDriveClient:
         """Cached project folder returned without API call."""
         mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
         client = mod.DriveClient()
+        client._drive_service = MagicMock()
         client.project_folder_cache["cached_proj"] = "cached_id"
+
+        mod.api_call_with_retry = MagicMock(return_value={"id": "cached_id", "trashed": False})
 
         result = client.get_or_create_project_folder("cached_proj")
         assert result == "cached_id"
@@ -505,8 +509,7 @@ class TestDriveUpload:
         client = client_mod.DriveClient()
         mock_service = MagicMock()
         client._drive_service = mock_service
-        client.backup_folder_id = "root_folder"
-        client.project_folder_cache["testproj"] = "proj_folder"
+        client.get_or_create_project_folder = MagicMock(return_value="proj_folder")
 
         # Create test file
         test_file = tmp_path / "hello.py"
@@ -526,8 +529,7 @@ class TestDriveUpload:
         client = client_mod.DriveClient()
         mock_service = MagicMock()
         client._drive_service = mock_service
-        client.backup_folder_id = "root_folder"
-        client.project_folder_cache["testproj"] = "proj_folder"
+        client.get_or_create_project_folder = MagicMock(return_value="proj_folder")
 
         # Pre-populate tracker with existing drive_id
         client.file_tracker = {"existing.py": {"drive_id": "existing_drive_id"}}
@@ -570,8 +572,7 @@ class TestDriveUpload:
         client = client_mod.DriveClient()
         mock_service = MagicMock()
         client._drive_service = mock_service
-        client.backup_folder_id = "root"
-        client.project_folder_cache["proj"] = "proj_folder"
+        client.get_or_create_project_folder = MagicMock(return_value="proj_folder")
 
         # Create test files
         files = []
@@ -580,7 +581,7 @@ class TestDriveUpload:
             f.write_text(f"content {i}", encoding="utf-8")
             files.append(f)
 
-        client_mod.api_call_with_retry = MagicMock(return_value={"id": f"id_{id}"})
+        client_mod.api_call_with_retry = MagicMock(return_value={"id": "file_id"})
         client_mod.get_drive_service = MagicMock(return_value=mock_service)
 
         progress_calls = []
@@ -610,8 +611,7 @@ class TestDriveUpload:
 
         client = client_mod.DriveClient()
         client._drive_service = MagicMock()
-        client.backup_folder_id = "root"
-        client.project_folder_cache["proj"] = "proj_folder"
+        client.get_or_create_project_folder = MagicMock(return_value="proj_folder")
 
         test_file = tmp_path / "test.txt"
         test_file.write_text("data", encoding="utf-8")
@@ -820,12 +820,12 @@ class TestDriveSync:
     def test_handle_command_help(self) -> None:
         """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
-        assert mod.handle_command("drive-sync", ["--help"]) is True
+        assert mod.handle_command("drive_sync", ["--help"]) is True
 
     def test_handle_command_no_args(self) -> None:
         """No args prints introspection."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
-        assert mod.handle_command("drive-sync", []) is True
+        assert mod.handle_command("drive_sync", []) is True
 
     def test_handle_command_wrong_command(self) -> None:
         """Wrong command returns False."""
@@ -842,18 +842,14 @@ class TestDriveTestModule:
     """Tests for drive_test module."""
 
     def test_handle_command_primary(self) -> None:
-        """drive-test returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_test")
-        # No args triggers introspection
-        assert mod.handle_command("drive-test", []) is True
+        assert mod.handle_command("drive_test", []) is True
 
     def test_handle_command_help(self) -> None:
-        """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_test")
-        assert mod.handle_command("drive-test", ["--help"]) is True
+        assert mod.handle_command("drive_test", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
-        """Wrong command returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_test")
         assert mod.handle_command("wrong", []) is False
 
@@ -861,7 +857,6 @@ class TestDriveTestModule:
         """Run drive test with mocked success."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_test")
 
-        # Mock the late-imported modules
         mock_client_module = MagicMock()
         mock_client_instance = MagicMock()
         mock_client_module.DriveClient.return_value = mock_client_instance
@@ -888,17 +883,14 @@ class TestDriveStatsModule:
     """Tests for drive_stats module."""
 
     def test_handle_command_primary(self) -> None:
-        """drive-stats with no args returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
-        assert mod.handle_command("drive-stats", []) is True
+        assert mod.handle_command("drive_stats", []) is True
 
     def test_handle_command_help(self) -> None:
-        """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
-        assert mod.handle_command("drive-stats", ["--help"]) is True
+        assert mod.handle_command("drive_stats", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
-        """Wrong command returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
         assert mod.handle_command("wrong", []) is False
 
@@ -925,24 +917,20 @@ class TestDriveClearModule:
     """Tests for drive_clear module."""
 
     def test_handle_command_primary(self) -> None:
-        """drive-clear-tracker with no args returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
-        assert mod.handle_command("drive-clear-tracker", []) is True
+        assert mod.handle_command("drive_clear", []) is True
 
     def test_handle_command_help(self) -> None:
-        """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
-        assert mod.handle_command("drive-clear-tracker", ["--help"]) is True
+        assert mod.handle_command("drive_clear", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
-        """Wrong command returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
         assert mod.handle_command("wrong", []) is False
 
     def test_run_drive_clear_no_force(self) -> None:
         """Without --force, returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
-        # force=False means early return, no late import needed
         result = mod.run_drive_clear("/tmp/project", force=False)
         assert result is False
 
@@ -959,6 +947,188 @@ class TestDriveClearModule:
         ):
             result = mod.run_drive_clear(str(tmp_path), force=True)
         assert result is True
+
+
+# ---------------------------------------------------------------------------
+# TestThreadSafety — concurrent folder operations
+# ---------------------------------------------------------------------------
+
+
+class TestThreadSafety:
+    """Verify folder get-or-create is thread-safe (GOLD lock pattern)."""
+
+    def test_concurrent_project_folder_single_create(self) -> None:
+        """N threads calling get_or_create_project_folder -> exactly 1 create."""
+        import threading
+
+        mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
+        client = mod.DriveClient()
+        mock_service = MagicMock()
+        client._drive_service = mock_service
+        client.backup_folder_id = "root_folder"
+
+        create_calls = {"n": 0}
+        lock = threading.Lock()
+
+        def _side_effect(request, **kwargs):
+            with lock:
+                create_calls["n"] += 1
+                n = create_calls["n"]
+            if n == 1:
+                return {"id": "root_folder", "trashed": False}
+            if n == 2:
+                return {"files": []}
+            if n == 3:
+                return {"id": "proj_folder_unique"}
+            return {"trashed": False}
+
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+
+        results = []
+
+        def _worker():
+            r = client.get_or_create_project_folder("myproj")
+            results.append(r)
+
+        threads = [threading.Thread(target=_worker) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert all(r == "proj_folder_unique" for r in results), f"Got different IDs: {results}"
+
+    def test_backup_folder_short_circuits(self) -> None:
+        """Once backup_folder_id is set+valid, returns without re-searching."""
+        mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
+        client = mod.DriveClient()
+        client._drive_service = MagicMock()
+        client.backup_folder_id = "already_set"
+
+        mod.api_call_with_retry = MagicMock(return_value={"id": "already_set", "trashed": False})
+
+        result = client.get_or_create_backup_folder()
+        assert result == "already_set"
+        assert mod.api_call_with_retry.call_count == 1
+
+    def test_tracker_preserved_on_existing_folder(self) -> None:
+        """Tracker NOT cleared when backup folder already exists in Drive."""
+        mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
+        client = mod.DriveClient()
+        client._drive_service = MagicMock()
+        client.file_tracker = {"existing.txt": {"drive_id": "abc"}}
+
+        mod.api_call_with_retry = MagicMock(
+            return_value={"files": [{"id": "found_folder", "name": "AIPass Backups"}]}
+        )
+
+        result = client.get_or_create_backup_folder()
+        assert result == "found_folder"
+        assert client.file_tracker == {"existing.txt": {"drive_id": "abc"}}
+
+    def test_tracker_reset_on_new_folder_with_old_entries(self) -> None:
+        """Tracker cleared ONLY when creating a NEW root folder AND old_count>0."""
+        mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
+        client = mod.DriveClient()
+        client._drive_service = MagicMock()
+        client.file_tracker = {"old.txt": {"drive_id": "dead_id"}}
+
+        call_count = {"n": 0}
+
+        def _side_effect(request, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return {"files": []}
+            if call_count["n"] == 2:
+                return {"id": "brand_new_folder"}
+            return {"id": "brand_new_folder", "trashed": False}
+
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+
+        result = client.get_or_create_backup_folder()
+        assert result == "brand_new_folder"
+        assert client.file_tracker == {}
+
+    def test_tracker_not_reset_on_new_folder_empty_tracker(self) -> None:
+        """Tracker NOT cleared when creating new folder with empty tracker."""
+        mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
+        client = mod.DriveClient()
+        client._drive_service = MagicMock()
+        client.file_tracker = {}
+
+        call_count = {"n": 0}
+
+        def _side_effect(request, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return {"files": []}
+            if call_count["n"] == 2:
+                return {"id": "new_folder"}
+            return {"id": "new_folder", "trashed": False}
+
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+
+        result = client.get_or_create_backup_folder()
+        assert result == "new_folder"
+        assert client.file_tracker == {}
+
+
+class TestDedup:
+    """Verify tracker-based dedup skips unchanged files."""
+
+    def test_rerun_unchanged_zero_uploads(self, tmp_path: Path) -> None:
+        """All files tracked with matching mtime+size -> 0 uploads."""
+        mod = _fresh_import("aipass.backup.apps.handlers.drive.tracker")
+
+        files = []
+        tracker = {}
+        for i in range(5):
+            f = tmp_path / f"file_{i}.txt"
+            f.write_text(f"content {i}", encoding="utf-8")
+            files.append(f)
+            stat = f.stat()
+            tracker[f"file_{i}.txt"] = {
+                "local_size": stat.st_size,
+                "local_mtime": stat.st_mtime,
+                "drive_id": f"drive_{i}",
+                "last_sync": "2026-06-12T00:00:00",
+            }
+
+        needs_upload = [f for f in files if mod.check_needs_upload(tracker, f, tmp_path)]
+        assert len(needs_upload) == 0
+
+
+# ---------------------------------------------------------------------------
+# TestCommandRouting — all 4 drive commands route by underscore name
+# ---------------------------------------------------------------------------
+
+
+class TestCommandRouting:
+    """Verify drive commands route by underscore names."""
+
+    def test_drive_sync_routes_underscore(self) -> None:
+        mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
+        assert mod.PRIMARY_COMMAND == "drive_sync"
+        assert mod.handle_command("drive_sync", []) is True
+        assert mod.handle_command("drive-sync", []) is False
+
+    def test_drive_test_routes_underscore(self) -> None:
+        mod = _fresh_import("aipass.backup.apps.modules.drive_test")
+        assert mod.PRIMARY_COMMAND == "drive_test"
+        assert mod.handle_command("drive_test", []) is True
+        assert mod.handle_command("drive-test", []) is False
+
+    def test_drive_stats_routes_underscore(self) -> None:
+        mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
+        assert mod.PRIMARY_COMMAND == "drive_stats"
+        assert mod.handle_command("drive_stats", []) is True
+        assert mod.handle_command("drive-stats", []) is False
+
+    def test_drive_clear_routes_underscore(self) -> None:
+        mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
+        assert mod.PRIMARY_COMMAND == "drive_clear"
+        assert mod.handle_command("drive_clear", []) is True
+        assert mod.handle_command("drive-clear-tracker", []) is False
 
 
 # =============================================

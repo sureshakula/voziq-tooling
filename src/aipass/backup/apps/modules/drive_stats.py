@@ -17,7 +17,7 @@ from aipass.backup.apps.handlers.json import json_handler
 
 
 MODULE_NAME = "drive_stats"
-PRIMARY_COMMAND = "drive-stats"
+PRIMARY_COMMAND = "drive_stats"
 
 
 def print_introspection():
@@ -32,7 +32,7 @@ def print_help():
     """Display help for this module."""
     print_introspection()
     console.print()
-    console.print("Usage: drive-stats <project_root>")
+    console.print("Usage: drive_stats <project_root>")
 
 
 def run_drive_stats(project_root: str) -> bool:
