@@ -660,6 +660,21 @@
       "file": "tests/test_entry_limits.py",
       "standard": "meta",
       "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_changed_entries.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_changed_entries.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_changed_entries.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
     }
   ],
   "notes": {

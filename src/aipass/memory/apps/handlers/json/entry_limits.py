@@ -1,13 +1,13 @@
 # =================== AIPass ====================
 # Name: entry_limits.py
-# Description: Entry limits config reader and validator for memory files
-# Version: 1.1.0
+# Description: Entry limits config reader, validator, and diff helper for memory files
+# Version: 1.2.0
 # Created: 2026-06-13
 # Modified: 2026-06-13
 # =============================================
 
 """
-Entry Limits Config Reader & Validator
+Entry Limits Config Reader, Validator & Diff Helper
 
 Reads the entry_limits section from memory.config.json and returns
 the effective limits for a given branch, with per_branch overrides
@@ -16,12 +16,22 @@ deep-merged over the default entry_types.
 Provides ``check_entry()`` — a pure validator that checks whether a
 single entry text exceeds its character cap.
 
+Provides ``changed_entries()`` — a pure diff helper that compares
+before/after file dicts and returns only NEW or CHANGED entries that
+exceed their character cap.  Unchanged legacy over-limit entries pass
+untouched (rollover-safe).
+
 Usage:
-    from aipass.memory.apps.handlers.json.entry_limits import load_entry_limits, check_entry
+    from aipass.memory.apps.handlers.json.entry_limits import (
+        load_entry_limits, check_entry, changed_entries,
+    )
 
     limits = load_entry_limits("devpulse")
     verdict = check_entry("key_learnings", some_text, limits)
     # => {"ok": True/False, "length": int, "cap": int, "over_by": int, "entry_type": str}
+
+    violations = changed_entries(before_dict, after_dict, limits)
+    # => [{"entry_type", "container", "key", "length", "cap", "over_by"}, ...]
 """
 
 import copy
@@ -243,3 +253,177 @@ def check_entry(entry_type: str, text: str, limits: dict[str, Any]) -> dict[str,
         "over_by": over_by,
         "entry_type": entry_type,
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: changed-entries diff helper (rollover-safe)
+# ---------------------------------------------------------------------------
+
+
+def _extract_text(value: Any, field: str) -> str:
+    """Extract the text payload from a container entry.
+
+    For dict containers the value may be a plain string or a dict
+    with a *field* key (e.g. ``{"value": "some text", ...}``).
+    For list containers the entry is always a dict with a *field* key.
+
+    Args:
+        value: The entry value (string or dict).
+        field: The field name to extract from a dict value.
+
+    Returns:
+        The text string, or ``""`` if extraction fails.
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        text = value.get(field, "")
+        return text if isinstance(text, str) else ""
+    return ""
+
+
+def _check_dict_container(
+    type_name: str,
+    container: str,
+    field: str,
+    before_container: Any,
+    after_container: Any,
+    limits: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Check dict-shaped container for new/changed over-limit entries.
+
+    Args:
+        type_name: Entry type name (e.g. ``"key_learnings"``).
+        container: Container key in the file dict.
+        field: Field to extract text from dict-valued entries.
+        before_container: The container value from the on-disk file.
+        after_container: The container value from the proposed file.
+        limits: The dict returned by :func:`load_entry_limits`.
+
+    Returns:
+        List of violation dicts for new/changed entries that exceed cap.
+    """
+    if not isinstance(after_container, dict):
+        return []
+    before_dict = before_container if isinstance(before_container, dict) else {}
+    hits: list[dict[str, Any]] = []
+
+    for key, after_value in after_container.items():
+        after_text = _extract_text(after_value, field)
+        if key in before_dict and after_text == _extract_text(before_dict[key], field):
+            continue  # Unchanged — skip even if over-limit
+        verdict = check_entry(type_name, after_text, limits)
+        if not verdict["ok"]:
+            hits.append(
+                {
+                    "entry_type": type_name,
+                    "container": container,
+                    "key": key,
+                    "length": verdict["length"],
+                    "cap": verdict["cap"],
+                    "over_by": verdict["over_by"],
+                }
+            )
+    return hits
+
+
+def _check_list_container(
+    type_name: str,
+    container: str,
+    field: str,
+    before_container: Any,
+    after_container: Any,
+    limits: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Check list-shaped container for new/changed over-limit entries.
+
+    Args:
+        type_name: Entry type name (e.g. ``"sessions"``).
+        container: Container key in the file dict.
+        field: Field to extract text from list-item dicts.
+        before_container: The container value from the on-disk file.
+        after_container: The container value from the proposed file.
+        limits: The dict returned by :func:`load_entry_limits`.
+
+    Returns:
+        List of violation dicts for new/changed entries that exceed cap.
+    """
+    if not isinstance(after_container, list):
+        return []
+    before_list = before_container if isinstance(before_container, list) else []
+    hits: list[dict[str, Any]] = []
+
+    for idx, after_item in enumerate(after_container):
+        after_text = _extract_text(after_item, field)
+        if idx < len(before_list) and after_text == _extract_text(before_list[idx], field):
+            continue  # Unchanged — skip even if over-limit
+        verdict = check_entry(type_name, after_text, limits)
+        if not verdict["ok"]:
+            hits.append(
+                {
+                    "entry_type": type_name,
+                    "container": container,
+                    "key": str(idx),
+                    "length": verdict["length"],
+                    "cap": verdict["cap"],
+                    "over_by": verdict["over_by"],
+                }
+            )
+    return hits
+
+
+def changed_entries(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    limits: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return over-limit entries that are NEW or CHANGED between *before* and *after*.
+
+    This is a **pure function** — no I/O, no file reads, no side effects.
+    Unchanged entries (even if over-limit) are intentionally skipped so
+    that rollover and other maintenance writes are never blocked by
+    legacy fat entries.
+
+    Args:
+        before: Parsed .trinity file dict (current on-disk content).
+        after:  Parsed .trinity file dict (proposed new content).
+        limits: The dict returned by :func:`load_entry_limits`.
+
+    Returns:
+        List of violation dicts, each containing::
+
+            {
+                "entry_type": str,   # e.g. "key_learnings"
+                "container": str,    # e.g. "key_learnings"
+                "key": str,          # dict key or list index (as str)
+                "length": int,       # len(text)
+                "cap": int,          # max_chars
+                "over_by": int,      # length - cap
+            }
+
+        Empty list when everything is within limits or unchanged.
+    """
+    entry_types = limits.get("entry_types", {})
+    violations: list[dict[str, Any]] = []
+
+    for type_name, type_def in entry_types.items():
+        container = type_def.get("container", "")
+        kind = type_def.get("kind", "dict")
+        field = type_def.get("field", "value")
+
+        after_container = after.get(container)
+        if after_container is None:
+            continue
+
+        before_container = before.get(container)
+
+        if kind == "dict":
+            violations.extend(
+                _check_dict_container(type_name, container, field, before_container, after_container, limits)
+            )
+        elif kind == "list":
+            violations.extend(
+                _check_list_container(type_name, container, field, before_container, after_container, limits)
+            )
+
+    return violations
