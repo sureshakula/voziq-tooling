@@ -1,6 +1,6 @@
 # =================== AIPass ====================
 # Name: setup.py
-# Description: Project setup handler — scaffold .backup_system/ directory in target
+# Description: Project setup handler — scaffold .backup/ directory in target
 # Version: 1.0.0
 # Created: 2026-04-16
 # Modified: 2026-04-23
@@ -8,7 +8,7 @@
 
 """Project setup handler.
 
-Creates the ``.backup_system/`` scaffold (config, snapshots/, versions/, logs/)
+Creates the ``.backup/`` scaffold (config, snapshots/, logs/)
 inside a target project path, and a ``.backupignore`` at the project root.
 """
 
@@ -45,13 +45,13 @@ DEFAULT_CONFIG = {
 
 
 def create_backup_dir(project_path: str) -> Path | None:
-    """Create the ``.backup_system/`` scaffold inside a project path.
+    """Create the ``.backup/`` scaffold inside a project path.
 
     Args:
         project_path: Absolute filesystem path to the target project.
 
     Returns:
-        Path to the created ``.backup_system/`` directory, or None on failure.
+        Path to the created ``.backup/`` directory, or None on failure.
     """
     root = Path(project_path)
     if not root.is_dir():
@@ -61,7 +61,6 @@ def create_backup_dir(project_path: str) -> Path | None:
     backup_dir = builder.backup_root(project_path)
     subdirs = [
         backup_dir / "snapshots",
-        backup_dir / "versions",
         backup_dir / "logs",
     ]
 

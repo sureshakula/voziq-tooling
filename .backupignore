@@ -3,6 +3,7 @@
 # Edit this file to customize. Source defaults: handlers/ignore/patterns.py
 
 .backup_system/
+.backup/
 .git/
 .svn/
 .hg/
@@ -26,3 +27,4 @@ dist/
 *.log
 .ruff_cache/
 .coverage
+*logs

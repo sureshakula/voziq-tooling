@@ -8,7 +8,7 @@
 
 """Project configuration handler.
 
-Reads and writes the per-project ``.backup_system/config.json`` that stores mode
+Reads and writes the per-project ``.backup/config.json`` that stores mode
 preferences, size limits, and drive-sync settings.
 """
 

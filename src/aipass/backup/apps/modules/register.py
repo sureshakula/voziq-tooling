@@ -1,12 +1,12 @@
 # =================== AIPass ====================
 # Name: register.py
-# Description: Register module — adds a project to backup and creates .backup_system/
+# Description: Register module — adds a project to backup and creates .backup/
 # Version: 1.0.0
 # Created: 2026-04-17
 # Modified: 2026-04-23
 # =============================================
 
-"""Register Module — register a project for backup and scaffold its .backup_system/."""
+"""Register Module — register a project for backup and scaffold its .backup/."""
 
 import sys
 from pathlib import Path
@@ -88,7 +88,7 @@ def handle_command(command: str, args: list) -> bool:
 
     backup_dir = create_backup_dir(project_path)
     if backup_dir is None:
-        console.print(f"[red]Error:[/red] Failed to create .backup_system/ in {project_path}")
+        console.print(f"[red]Error:[/red] Failed to create .backup/ in {project_path}")
         return True
 
     register_project(name, project_path)

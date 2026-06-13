@@ -26,6 +26,14 @@ PyPI version — not the changelog header.
   the default. `pathspec` (pure-Python, cross-OS) declared. Verified by artifact
   (seedgo 100%, 220 tests incl. 26 new gitignore-parity tests) + live (a dotfile
   flows into the store, `!` negation re-includes end-to-end).
+- **Backup store dir renamed `.backup_system/` → `.backup/`, dead `versions/`
+  removed (FPLAN-0269 follow-up).** The backup root is now `.backup/` (shorter,
+  coexists with `@flow`'s `.backup/processed_plans/`); the orphaned per-timestamp
+  `versions/` scaffold and the unused `build_versioned_path()` — both superseded
+  by the Phase-3 `versioned/` baseline+diff store — are gone. Drive sync confirmed
+  reading `.backup/versioned/` + `.backup/drive_tracker.json` via the shared
+  `backup_root()`. Verified by artifact (seedgo 100%, 220 tests) + live (a
+  throwaway project writes to `.backup/`, no `versions/` dir).
 
 ### Fixed
 

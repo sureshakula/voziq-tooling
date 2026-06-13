@@ -173,9 +173,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(
-            return_value={"files": [{"id": "folder_123", "name": "AIPass Backups"}]}
-        )
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "folder_123", "name": "AIPass Backups"}]})
 
         result = client.get_or_create_backup_folder()
         assert result == "folder_123"
@@ -220,9 +218,7 @@ class TestDriveClient:
         client._drive_service = mock_service
         client.backup_folder_id = "root_folder"
 
-        mod.api_call_with_retry = MagicMock(
-            return_value={"files": [{"id": "proj_folder_789", "name": "myproject"}]}
-        )
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "proj_folder_789", "name": "myproject"}]})
 
         result = client.get_or_create_project_folder("myproject")
         assert result == "proj_folder_789"
@@ -472,7 +468,7 @@ class TestDriveTracker:
         mod = _fresh_import("aipass.backup.apps.handlers.drive.tracker")
         project = tmp_path / "project"
         project.mkdir()
-        backup_dir = project / ".backup_system"
+        backup_dir = project / ".backup"
         backup_dir.mkdir()
 
         result = mod.clear_all(str(project))
@@ -694,7 +690,7 @@ class TestDriveSync:
         """Empty versioned store -- skip upload."""
         project = tmp_path / "project"
         project.mkdir()
-        bs = project / ".backup_system" / "versioned"
+        bs = project / ".backup" / "versioned"
         bs.mkdir(parents=True)
 
         mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
@@ -776,7 +772,7 @@ class TestDriveSync:
         """Files present -- upload called."""
         project = tmp_path / "project"
         project.mkdir()
-        bs = project / ".backup_system" / "versioned"
+        bs = project / ".backup" / "versioned"
         bs.mkdir(parents=True)
 
         for i in range(3):
@@ -1018,9 +1014,7 @@ class TestThreadSafety:
         client._drive_service = MagicMock()
         client.file_tracker = {"existing.txt": {"drive_id": "abc"}}
 
-        mod.api_call_with_retry = MagicMock(
-            return_value={"files": [{"id": "found_folder", "name": "AIPass Backups"}]}
-        )
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "found_folder", "name": "AIPass Backups"}]})
 
         result = client.get_or_create_backup_folder()
         assert result == "found_folder"

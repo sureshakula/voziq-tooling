@@ -9,7 +9,7 @@
 """Changelog state handler.
 
 Appends and reads structured changelog entries describing each backup run
-for a project. Stored at .backup_system/changelog.json.
+for a project. Stored at .backup/changelog.json.
 """
 
 from ..json import json_handler

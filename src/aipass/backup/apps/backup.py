@@ -67,7 +67,7 @@ def print_help() -> None:
     console.print("  [green]snapshot[/green]     Full mirror backup of a project")
     console.print("  [green]versioned[/green]    Incremental timestamped backup")
     console.print("  [green]all[/green]          Run snapshot then versioned in sequence")
-    console.print("  [green]register[/green]     Register a project + scaffold its .backup_system/")
+    console.print("  [green]register[/green]     Register a project + scaffold its .backup/")
     console.print("  [green]status[/green]       Show backup info and recent history")
     console.print("  [green]settings[/green]     View/edit backup settings")
     console.print("  [green]drive_sync[/green]   Sync backups to the remote drive")

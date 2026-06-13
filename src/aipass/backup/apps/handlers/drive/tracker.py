@@ -10,7 +10,7 @@
 
 Maintains a persistent mapping of local file paths to Drive metadata
 (file ID, mtime, size) so repeat syncs can skip unchanged files.
-Tracker is stored at ``<project>/.backup_system/drive_tracker.json``.
+Tracker is stored at ``<project>/.backup/drive_tracker.json``.
 """
 
 from __future__ import annotations
@@ -27,11 +27,13 @@ TRACKER_FILENAME = "drive_tracker.json"
 
 def _tracker_path(project_root: str) -> Path:
     """Return the tracker file path for a project."""
-    return Path(project_root) / ".backup_system" / TRACKER_FILENAME
+    from ..path.builder import backup_root
+
+    return backup_root(project_root) / TRACKER_FILENAME
 
 
 def load_tracker(project_root: str) -> dict:
-    """Load tracker from .backup_system/drive_tracker.json.
+    """Load tracker from .backup/drive_tracker.json.
 
     Returns:
         Dict keyed by relative file path with metadata values.
@@ -46,7 +48,7 @@ def load_tracker(project_root: str) -> dict:
 
 
 def save_tracker(project_root: str, tracker: dict) -> None:
-    """Save tracker to .backup_system/drive_tracker.json."""
+    """Save tracker to .backup/drive_tracker.json."""
     path = _tracker_path(project_root)
     json_handler.save_json(str(path), tracker)
     json_handler.log_operation(

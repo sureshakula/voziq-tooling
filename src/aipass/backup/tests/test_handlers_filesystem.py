@@ -117,12 +117,12 @@ class TestProjectSetup:
     """Test project setup -- creates_files, .exists(), mkdir, makedirs tokens."""
 
     def test_create_backup_dir(self, tmp_path: Path) -> None:
-        """create_backup_dir creates .backup_system/ -- mkdir, .exists()."""
+        """create_backup_dir creates .backup/ -- mkdir, .exists()."""
         with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
             from aipass.backup.apps.handlers.project.setup import create_backup_dir
 
             create_backup_dir(str(tmp_path))
-            backup_dir = tmp_path / ".backup_system"
+            backup_dir = tmp_path / ".backup"
             assert backup_dir.exists()
 
     def test_create_backup_dir_idempotent(self, tmp_path: Path) -> None:
@@ -132,7 +132,7 @@ class TestProjectSetup:
 
             create_backup_dir(str(tmp_path))
             create_backup_dir(str(tmp_path))
-            assert (tmp_path / ".backup_system").exists()
+            assert (tmp_path / ".backup").exists()
 
 
 class TestProjectConfig:
@@ -161,16 +161,16 @@ class TestPathBuilder:
     """Test path builder handler -- module coverage for 'path' package."""
 
     def test_backup_root(self, tmp_path: Path) -> None:
-        """backup_root returns .backup_system path."""
+        """backup_root returns .backup path."""
         with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
             from aipass.backup.apps.handlers.path.builder import backup_root
 
             result = backup_root(str(tmp_path))
             assert isinstance(result, Path)
-            assert result.name == ".backup_system"
+            assert result.name == ".backup"
 
     def test_build_snapshot_path(self, tmp_path: Path) -> None:
-        """build_snapshot_path returns snapshots/ under .backup_system."""
+        """build_snapshot_path returns snapshots/ under .backup."""
         with patch("aipass.backup.apps.handlers.json.json_handler.log_operation"):
             from aipass.backup.apps.handlers.path.builder import build_snapshot_path
 

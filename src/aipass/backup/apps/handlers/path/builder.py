@@ -9,38 +9,29 @@
 """Path builder handler.
 
 Computes destination paths for backup modes. All paths are relative to the
-target project's .backup_system/ directory.
+target project's .backup/ directory.
 """
 
 from pathlib import Path
 
 from ..json import json_handler
 
-BACKUP_DIR = ".backup_system"
+BACKUP_DIR = ".backup"
 
 
 def backup_root(project_root: str) -> Path:
-    """Return the .backup_system/ path for a project."""
+    """Return the .backup/ path for a project."""
     return Path(project_root) / BACKUP_DIR
 
 
 def build_snapshot_path(project_root: str) -> Path:
-    """Snapshot destination: <project>/.backup_system/snapshots/"""
+    """Snapshot destination: <project>/.backup/snapshots/"""
     json_handler.log_operation("build_snapshot_path", {"project_root": project_root})
     return backup_root(project_root) / "snapshots"
 
 
-def build_versioned_path(project_root: str, timestamp: str) -> Path:
-    """Versioned destination: <project>/.backup_system/versions/<timestamp>/"""
-    json_handler.log_operation(
-        "build_versioned_path",
-        {"project_root": project_root, "timestamp": timestamp},
-    )
-    return backup_root(project_root) / "versions" / timestamp
-
-
 def build_config_path(project_root: str) -> Path:
-    """Config file: <project>/.backup_system/config.json"""
+    """Config file: <project>/.backup/config.json"""
     return backup_root(project_root) / "config.json"
 
 
@@ -50,22 +41,22 @@ def build_ignore_path(project_root: str) -> Path:
 
 
 def build_timestamps_path(project_root: str) -> Path:
-    """Timestamps file: <project>/.backup_system/timestamps.json"""
+    """Timestamps file: <project>/.backup/timestamps.json"""
     return backup_root(project_root) / "timestamps.json"
 
 
 def build_changelog_path(project_root: str) -> Path:
-    """Changelog file: <project>/.backup_system/changelog.json"""
+    """Changelog file: <project>/.backup/changelog.json"""
     return backup_root(project_root) / "changelog.json"
 
 
 def build_log_dir(project_root: str) -> Path:
-    """Log directory: <project>/.backup_system/logs/"""
+    """Log directory: <project>/.backup/logs/"""
     return backup_root(project_root) / "logs"
 
 
 def build_versioned_store(project_root: str) -> Path:
-    """Persistent versioned store: <project>/.backup_system/versioned/"""
+    """Persistent versioned store: <project>/.backup/versioned/"""
     json_handler.log_operation("build_versioned_store", {"project_root": project_root})
     return backup_root(project_root) / "versioned"
 

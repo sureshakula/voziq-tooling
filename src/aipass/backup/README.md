@@ -13,7 +13,7 @@
 ### What I Do
 
 - Back up any project directory on the system (not just AIPass projects)
-- Each project owns its backup config (`.backup_system/`) and ignore patterns (`.backupignore`)
+- Each project owns its backup config (`.backup/`) and ignore patterns (`.backupignore`)
 - Snapshot mode: full mirror copy
 - Versioned mode: incremental timestamped backups with automatic pruning
 - Project registry for name-based lookups (`backup snapshot @AIPass`)
@@ -49,7 +49,7 @@ apps/
     ├── ignore/            # .backupignore patterns + whitelist
     ├── json/              # JSON persistence, atomic writes, ops log
     ├── path/              # Backup path building
-    ├── project/           # Config, registry, setup (.backup_system/)
+    ├── project/           # Config, registry, setup (.backup/)
     ├── report/            # Result formatting
     ├── scan/              # Directory walking + filtering
     ├── state/             # Changelog, metadata, timestamps
@@ -78,4 +78,4 @@ backup --version                        # Show version
 - @cli — Rich console output
 
 ### Provides To
-- Any project on the PC — backups are project-owned (.backup_system/ in target root)
+- Any project on the PC — backups are project-owned (.backup/ in target root)

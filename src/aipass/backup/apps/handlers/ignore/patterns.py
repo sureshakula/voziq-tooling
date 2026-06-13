@@ -18,7 +18,7 @@ from ..json import json_handler
 from ..path import builder
 
 BUILTIN_IGNORES = [
-    ".backup_system/",
+    ".backup/",
     ".git/",
     ".svn/",
     ".hg/",
