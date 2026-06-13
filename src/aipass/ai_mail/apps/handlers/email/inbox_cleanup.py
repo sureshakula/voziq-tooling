@@ -38,13 +38,6 @@ def _get_inbox_lock():
     return _inbox_lock
 
 
-def _get_push_dashboard_update() -> Any:
-    """Lazy import push_dashboard_update from dashboard_sync."""
-    from aipass.ai_mail.apps.handlers.email.dashboard_sync import push_dashboard_update
-
-    return push_dashboard_update
-
-
 def _get_update_central() -> Any:
     """Lazy import update_central."""
     from aipass.ai_mail.apps.handlers.central_writer import update_central
@@ -191,13 +184,7 @@ def mark_all_read_and_archive(branch_path: Path) -> Tuple[bool, str, int]:
 
 
 def _update_dashboard(branch_path: Path, new: int, opened: int, total: int) -> None:
-    """Update dashboard ai_mail section with enriched data via write-through API."""
-    try:
-        _get_push_dashboard_update()(branch_path)
-    except Exception as e:
-        logger.warning("[cleanup] dashboard update failed for %s: %s", branch_path, e)
-
-    # Update central after any inbox changes
+    """Update central stats after inbox changes."""
     try:
         _get_update_central()()
     except Exception as e:

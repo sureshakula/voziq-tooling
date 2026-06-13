@@ -155,51 +155,34 @@ def test_dispatch_send_error_passes_correct_email_data(monkeypatch):
 # ---- on_email_delivered tests --------------------------------
 
 
-def test_on_email_delivered_with_both_callbacks():
-    """Both callbacks are invoked when provided."""
-    push_fn = MagicMock()
+def test_on_email_delivered_with_central_callback():
+    """Central callback is invoked when provided."""
     update_fn = MagicMock()
     branch_path = "/some/path"
 
-    on_email_delivered(branch_path, 3, 1, 10, push_fn, update_fn)
+    on_email_delivered(branch_path, 3, 1, 10, update_central_fn=update_fn)
 
-    push_fn.assert_called_once_with(branch_path)
     update_fn.assert_called_once_with()
 
 
 def test_on_email_delivered_with_none_callbacks():
-    """No error when both callbacks are None."""
-    on_email_delivered("/some/path", 3, 1, 10, None, None)
-
-
-def test_on_email_delivered_dashboard_failure_does_not_block_central():
-    """Dashboard failure does not prevent central update from running."""
-    push_fn = MagicMock(side_effect=RuntimeError("dashboard broken"))
-    update_fn = MagicMock()
-
-    on_email_delivered("/some/path", 3, 1, 10, push_fn, update_fn)
-
-    push_fn.assert_called_once()
-    update_fn.assert_called_once()
+    """No error when callback is None."""
+    on_email_delivered("/some/path", 3, 1, 10, None)
 
 
 def test_on_email_delivered_central_failure_does_not_raise():
     """Central update failure is caught silently."""
-    push_fn = MagicMock()
     update_fn = MagicMock(side_effect=RuntimeError("central broken"))
 
-    on_email_delivered("/some/path", 3, 1, 10, push_fn, update_fn)
+    on_email_delivered("/some/path", 3, 1, 10, update_central_fn=update_fn)
 
-    push_fn.assert_called_once()
     update_fn.assert_called_once()
 
 
-def test_on_email_delivered_both_fail_no_exception():
-    """Both callbacks failing does not raise any exception."""
-    push_fn = MagicMock(side_effect=RuntimeError("push fail"))
+def test_on_email_delivered_central_fail_no_exception():
+    """Central callback failing does not raise any exception."""
     update_fn = MagicMock(side_effect=RuntimeError("update fail"))
 
-    on_email_delivered("/some/path", 3, 1, 10, push_fn, update_fn)
+    on_email_delivered("/some/path", 3, 1, 10, update_central_fn=update_fn)
 
-    push_fn.assert_called_once()
     update_fn.assert_called_once()

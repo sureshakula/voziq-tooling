@@ -267,7 +267,6 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
     from aipass.ai_mail.apps.handlers.email.delivery import deliver_email_to_branch
     from aipass.ai_mail.apps.handlers.email.header import prepend_dispatch_header
     from aipass.ai_mail.apps.handlers.email.error_dispatch import dispatch_send_error, on_email_delivered
-    from aipass.ai_mail.apps.handlers.email.dashboard_sync import push_dashboard_update
     from aipass.ai_mail.apps.handlers.users.user import get_current_user
     from aipass.ai_mail.apps.handlers.registry.read import get_branch_by_email
 
@@ -286,7 +285,6 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
             new_count,
             opened_count,
             total,
-            push_dashboard_fn=push_dashboard_update,
             update_central_fn=update_central,
         )
 

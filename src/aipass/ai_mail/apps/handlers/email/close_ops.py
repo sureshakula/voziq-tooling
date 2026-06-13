@@ -56,24 +56,17 @@ def batch_close(
 
 def batch_close_post_ops(
     branch_path: Path,
-    push_dashboard_fn: Optional[Callable] = None,
     update_central_fn: Optional[Callable] = None,
     purge_deleted_fn: Optional[Callable] = None,
 ) -> None:
     """
-    Run post-operations after a batch close (dashboard update + purge).
+    Run post-operations after a batch close (central update + purge).
 
     Args:
         branch_path: Path to branch directory
-        push_dashboard_fn: Optional push_dashboard_update callable
         update_central_fn: Optional update_central callable
         purge_deleted_fn: Optional purge_deleted_folder callable
     """
-    if push_dashboard_fn:
-        try:
-            push_dashboard_fn(branch_path)
-        except Exception as e:
-            logger.warning("[close] push_dashboard_fn failed for %s: %s", branch_path, e)
     if update_central_fn:
         try:
             update_central_fn()

@@ -47,6 +47,11 @@ PyPI version — not the changelog header.
   `.ai_mail.local/inbox.json` directly (`_read_mail_counts`) for `new_mail`/
   `opened_mail`, so the `ai_mail` section is no longer a data dependency and can
   be retired. 116 prax tests, seedgo 100%.
+- **Retired `@ai_mail`'s dashboard section writer (completes the dashboard
+  slim).** ai_mail no longer writes to the dashboard — removed
+  `push_dashboard_update` from 5 call sites and archived `dashboard_sync.py`.
+  With prax self-sourcing mail counts, the `ai_mail` section now stays gone (a
+  mail op no longer re-adds it — verified). 737 ai_mail tests.
 - **`.backupignore` is now a true `.gitignore` for the backup system — a single
   source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
   matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,

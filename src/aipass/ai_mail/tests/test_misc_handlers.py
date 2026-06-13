@@ -1,6 +1,6 @@
 """Tests for miscellaneous handlers -- central_writer.update_central, dispatch status.check_pid_status,
 daemon.run_daemon, json_handler.increment_counter/update_data_metrics, delivery.deliver_to_inbox_file,
-dashboard_sync.push_dashboard_update, inbox_resolve.resolve_inbox_target."""
+inbox_resolve.resolve_inbox_target."""
 
 import json
 import os
@@ -14,7 +14,6 @@ import aipass.ai_mail.apps.handlers.central_writer as central_mod
 import aipass.ai_mail.apps.handlers.dispatch.daemon as daemon_mod
 import aipass.ai_mail.apps.handlers.json_utils.json_handler as json_handler_mod
 import aipass.ai_mail.apps.handlers.email.delivery as delivery_mod
-import aipass.ai_mail.apps.handlers.email.dashboard_sync as dashboard_mod
 from aipass.ai_mail.apps.handlers.central_writer import update_central
 from aipass.ai_mail.apps.handlers.dispatch.status import check_pid_status
 from aipass.ai_mail.apps.handlers.json_utils.json_handler import (
@@ -22,7 +21,6 @@ from aipass.ai_mail.apps.handlers.json_utils.json_handler import (
     update_data_metrics,
 )
 from aipass.ai_mail.apps.handlers.email.delivery import deliver_to_inbox_file
-from aipass.ai_mail.apps.handlers.email.dashboard_sync import push_dashboard_update
 from aipass.ai_mail.apps.handlers.email.inbox_resolve import resolve_inbox_target
 
 
@@ -57,14 +55,6 @@ def _silence_json_handler_daemon():
 def _silence_json_handler_delivery():
     """Prevent log_operation in delivery from writing real JSON files."""
     with patch("aipass.ai_mail.apps.handlers.email.delivery.json_handler") as mock_jh:
-        mock_jh.log_operation.return_value = True
-        yield mock_jh
-
-
-@pytest.fixture(autouse=True)
-def _silence_json_handler_dashboard():
-    """Prevent log_operation in dashboard_sync from writing real JSON files."""
-    with patch("aipass.ai_mail.apps.handlers.email.dashboard_sync.json_handler") as mock_jh:
         mock_jh.log_operation.return_value = True
         yield mock_jh
 
@@ -397,64 +387,6 @@ def test_deliver_to_inbox_file_preserves_existing_messages(tmp_path, _noop_inbox
     assert result["total_messages"] == 2
     assert result["messages"][0]["subject"] == "New email"
     assert result["messages"][1]["subject"] == "Old email"
-
-
-# ==============================================================
-# push_dashboard_update tests
-# ==============================================================
-
-
-def test_push_dashboard_update_happy_path(tmp_path):
-    """Successful dashboard push returns True."""
-    branch_path = tmp_path / "trigger"
-    inbox_dir = branch_path / ".ai_mail.local"
-    inbox_dir.mkdir(parents=True)
-    inbox_file = inbox_dir / "inbox.json"
-    inbox_data = {
-        "messages": [
-            {"id": "m1", "status": "new", "timestamp": "2026-04-01 10:00:00"},
-            {"id": "m2", "status": "opened", "timestamp": "2026-04-01 09:00:00"},
-        ]
-    }
-    inbox_file.write_text(json.dumps(inbox_data), encoding="utf-8")
-
-    mock_write = MagicMock(return_value=True)
-
-    with patch.object(dashboard_mod, "_get_write_section", return_value=mock_write):
-        result = push_dashboard_update(branch_path)
-
-    assert result is True
-    mock_write.assert_called_once()
-    section_data = mock_write.call_args[0][1]
-    assert section_data == "ai_mail"
-
-
-def test_push_dashboard_update_no_inbox(tmp_path):
-    """Returns True with zero stats when no inbox exists."""
-    branch_path = tmp_path / "empty_branch"
-    branch_path.mkdir()
-
-    mock_write = MagicMock(return_value=True)
-
-    with patch.object(dashboard_mod, "_get_write_section", return_value=mock_write):
-        result = push_dashboard_update(branch_path)
-
-    assert result is True
-    mock_write.assert_called_once()
-    section_data = mock_write.call_args[0][2]
-    assert section_data["new"] == 0
-    assert section_data["total"] == 0
-
-
-def test_push_dashboard_update_catches_exceptions(tmp_path):
-    """Returns False on any exception (never raises)."""
-    branch_path = tmp_path / "broken"
-    branch_path.mkdir()
-
-    with patch.object(dashboard_mod, "_get_write_section", side_effect=RuntimeError("broken")):
-        result = push_dashboard_update(branch_path)
-
-    assert result is False
 
 
 # ==============================================================

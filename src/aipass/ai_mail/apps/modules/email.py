@@ -23,15 +23,8 @@ import sys
 from pathlib import Path
 from typing import List
 
-# Infrastructure
-_AI_MAIL_DIR = Path(__file__).resolve().parents[2]
-_REPO_ROOT = _AI_MAIL_DIR.parents[2]
-
 from aipass.prax import logger
 from aipass.cli.apps.modules import console, error
-
-# Handlers - business logic providers
-from aipass.ai_mail.apps.handlers.email.dashboard_sync import push_dashboard_update
 from aipass.ai_mail.apps.handlers.email.create import load_email_file
 from aipass.ai_mail.apps.handlers.email.format import format_email_list_item, format_email_header
 from aipass.ai_mail.apps.handlers.email.inbox_ops import load_inbox
@@ -47,6 +40,9 @@ from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.email.close_ops import batch_close, batch_close_post_ops
 from aipass.ai_mail.apps.handlers.email.inbox_resolve import resolve_inbox_target
 from aipass.ai_mail.apps.modules.email_send import handle_send
+
+_AI_MAIL_DIR = Path(__file__).resolve().parents[2]
+_REPO_ROOT = _AI_MAIL_DIR.parents[2]
 
 try:
     from aipass.ai_mail.apps.handlers.central_writer import update_central
@@ -255,7 +251,7 @@ def handle_close(args: List[str]) -> bool:
             except ImportError as e:
                 logger.warning("[email] purge import unavailable: %s", e)
                 run_purge = None
-            batch_close_post_ops(branch_path, push_dashboard_update, update_central, run_purge)
+            batch_close_post_ops(branch_path, update_central, run_purge)
             console.print(f"\nClosed {closed}, failed {failed}")
         return True
     except Exception as e:
@@ -387,7 +383,6 @@ def print_introspection():
     console.print("    - reply.py (get_email_by_id — retrieve email by message ID)")
     console.print("    - reply.py (send_reply — send reply to an email)")
     console.print("    - header.py (prepend_dispatch_header — prepend dispatch header to message)")
-    console.print("    - dashboard_sync.py (push_dashboard_update — push email stats to dashboard)")
     console.print("    - error_dispatch.py (dispatch_send_error — handle and report send errors)")
     console.print("    - error_dispatch.py (on_email_delivered — post-delivery callback handler)")
     console.print("  handlers/users/")

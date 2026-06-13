@@ -120,13 +120,11 @@ def test_batch_close_post_ops_all_fns_called(tmp_path: Path):
     branch_path = tmp_path / "branch"
     branch_path.mkdir()
 
-    push_fn = MagicMock()
     central_fn = MagicMock()
     purge_fn = MagicMock()
 
-    mod.batch_close_post_ops(branch_path, push_fn, central_fn, purge_fn)
+    mod.batch_close_post_ops(branch_path, central_fn, purge_fn)
 
-    push_fn.assert_called_once_with(branch_path)
     central_fn.assert_called_once_with()
     purge_fn.assert_called_once_with(branch_path / ".ai_mail.local")
 
@@ -137,22 +135,7 @@ def test_batch_close_post_ops_none_fns(tmp_path: Path):
     branch_path.mkdir()
 
     # Should not raise
-    mod.batch_close_post_ops(branch_path, None, None, None)
-
-
-def test_batch_close_post_ops_push_exception_suppressed(tmp_path: Path):
-    """Exception in push_dashboard_fn is caught; other fns still called."""
-    branch_path = tmp_path / "branch"
-    branch_path.mkdir()
-
-    push_fn = MagicMock(side_effect=RuntimeError("push failed"))
-    central_fn = MagicMock()
-    purge_fn = MagicMock()
-
-    mod.batch_close_post_ops(branch_path, push_fn, central_fn, purge_fn)
-
-    central_fn.assert_called_once()
-    purge_fn.assert_called_once()
+    mod.batch_close_post_ops(branch_path, None, None)
 
 
 def test_batch_close_post_ops_central_exception_suppressed(tmp_path: Path):
@@ -160,13 +143,11 @@ def test_batch_close_post_ops_central_exception_suppressed(tmp_path: Path):
     branch_path = tmp_path / "branch"
     branch_path.mkdir()
 
-    push_fn = MagicMock()
     central_fn = MagicMock(side_effect=RuntimeError("central failed"))
     purge_fn = MagicMock()
 
-    mod.batch_close_post_ops(branch_path, push_fn, central_fn, purge_fn)
+    mod.batch_close_post_ops(branch_path, central_fn, purge_fn)
 
-    push_fn.assert_called_once()
     purge_fn.assert_called_once()
 
 
@@ -175,13 +156,11 @@ def test_batch_close_post_ops_purge_exception_suppressed(tmp_path: Path):
     branch_path = tmp_path / "branch"
     branch_path.mkdir()
 
-    push_fn = MagicMock()
     central_fn = MagicMock()
     purge_fn = MagicMock(side_effect=RuntimeError("purge failed"))
 
-    mod.batch_close_post_ops(branch_path, push_fn, central_fn, purge_fn)
+    mod.batch_close_post_ops(branch_path, central_fn, purge_fn)
 
-    push_fn.assert_called_once()
     central_fn.assert_called_once()
 
 
@@ -192,6 +171,6 @@ def test_batch_close_post_ops_partial_fns(tmp_path: Path):
 
     central_fn = MagicMock()
 
-    mod.batch_close_post_ops(branch_path, None, central_fn, None)
+    mod.batch_close_post_ops(branch_path, central_fn, None)
 
     central_fn.assert_called_once_with()
