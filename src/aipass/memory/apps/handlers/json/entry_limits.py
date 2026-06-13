@@ -1,26 +1,27 @@
 # =================== AIPass ====================
 # Name: entry_limits.py
-# Description: Entry limits config reader for memory files
-# Version: 1.0.0
+# Description: Entry limits config reader and validator for memory files
+# Version: 1.1.0
 # Created: 2026-06-13
 # Modified: 2026-06-13
 # =============================================
 
 """
-Entry Limits Config Reader
+Entry Limits Config Reader & Validator
 
 Reads the entry_limits section from memory.config.json and returns
 the effective limits for a given branch, with per_branch overrides
 deep-merged over the default entry_types.
 
-Phase 1 only: reader + safe defaults. No enforcement, no validation,
-no write-path integration.
+Provides ``check_entry()`` — a pure validator that checks whether a
+single entry text exceeds its character cap.
 
 Usage:
-    from aipass.memory.apps.handlers.json.entry_limits import load_entry_limits
+    from aipass.memory.apps.handlers.json.entry_limits import load_entry_limits, check_entry
 
     limits = load_entry_limits("devpulse")
-    # => {"enabled": True, "enforce": False, "entry_types": {...}}
+    verdict = check_entry("key_learnings", some_text, limits)
+    # => {"ok": True/False, "length": int, "cap": int, "over_by": int, "entry_type": str}
 """
 
 import copy
@@ -188,3 +189,57 @@ def load_entry_limits(branch: str) -> dict[str, Any]:
     )
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: pure entry validator
+# ---------------------------------------------------------------------------
+
+
+def check_entry(entry_type: str, text: str, limits: dict[str, Any]) -> dict[str, Any]:
+    """Check whether *text* exceeds the character cap for *entry_type*.
+
+    This is a **pure function** — no I/O, no file reads, no side effects
+    (except a debug log when *entry_type* is unknown).
+
+    Args:
+        entry_type: Name of the entry type (e.g. ``"key_learnings"``).
+        text: The entry text to measure.
+        limits: The dict returned by :func:`load_entry_limits`.
+
+    Returns:
+        Verdict dict::
+
+            {
+                "ok": bool,        # True when within cap (length <= cap)
+                "length": int,     # len(text) — characters, not bytes
+                "cap": int,        # max_chars for this type (0 if unknown)
+                "over_by": int,    # max(0, length - cap)
+                "entry_type": str, # echo back the entry_type
+            }
+    """
+    entry_types = limits.get("entry_types", {})
+    type_def = entry_types.get(entry_type)
+
+    length = len(text)
+
+    if type_def is None:
+        logger.info(f"[entry_limits] Unknown entry_type '{entry_type}' — no cap applied")
+        return {
+            "ok": True,
+            "length": length,
+            "cap": 0,
+            "over_by": 0,
+            "entry_type": entry_type,
+        }
+
+    cap = type_def.get("max_chars", 0)
+    over_by = max(0, length - cap)
+
+    return {
+        "ok": length <= cap,
+        "length": length,
+        "cap": cap,
+        "over_by": over_by,
+        "entry_type": entry_type,
+    }

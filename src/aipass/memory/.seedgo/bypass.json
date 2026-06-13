@@ -632,9 +632,19 @@
       "reason": "Test file — test functions don't require docstrings."
     },
     {
-      "file": "apps/handlers/json/entry_limits.py",
-      "standard": "unused_function",
-      "reason": "Phase 1 of FPLAN-0270: load_entry_limits() is deliberately uncalled — Phase 3 wires it into write_memory_file(). Tests cover it."
+      "file": "tests/test_lint.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_lint.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_lint.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
     },
     {
       "file": "tests/test_entry_limits.py",

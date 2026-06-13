@@ -82,7 +82,8 @@ def print_help():
     console.print()
     console.print(
         Panel.fit(
-            "[bold cyan]Memory - Central Memory Archive System[/bold cyan]\n[dim]Vector search, memory rollover, and fragmented memory for AIPass[/dim]",
+            "[bold cyan]Memory - Central Memory Archive System[/bold cyan]\n"
+            "[dim]Vector search, memory rollover, and fragmented memory for AIPass[/dim]",
             border_style="cyan",
             box=box.ROUNDED,
         )
@@ -120,6 +121,7 @@ def print_help():
     table.add_row("pool process", "Process pool files + check/run rollover")
     table.add_row("pool status", "Show pool file count, config, vector stats")
     table.add_row("verify <plan_label>", "Check if a plan is vectorized in ChromaDB")
+    table.add_row("lint [@branch]", "Audit .trinity entries for over-limit violations (read-only)")
     table.add_row("watch", "Start memory watcher (auto-rollover on changes)")
 
     console.print(table)
@@ -166,7 +168,8 @@ def print_help():
     console.print()
 
     console.print(
-        "Commands: search, rollover [run|status|check|sync-lines], pool [process|status], symbolic, templates, verify, watch"
+        "Commands: search, rollover [run|status|check|sync-lines], lint,"
+        " pool [process|status], symbolic, templates, verify, watch"
     )
     console.print()
 
