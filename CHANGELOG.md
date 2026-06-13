@@ -42,6 +42,11 @@ PyPI version — not the changelog header.
   (not deleted). `DASHBOARD.local.json` overall 6.8 KB → 2.4 KB. Verified: seedgo
   100%, 108 prax tests. (Follow-up: `@ai_mail`'s `dashboard_sync.py` section
   writer to retire separately.)
+- **quick_status now self-sources mail counts from `inbox.json`.** Decouples the
+  glance from the `ai_mail` section: prax's three quick_status calculators read
+  `.ai_mail.local/inbox.json` directly (`_read_mail_counts`) for `new_mail`/
+  `opened_mail`, so the `ai_mail` section is no longer a data dependency and can
+  be retired. 116 prax tests, seedgo 100%.
 - **`.backupignore` is now a true `.gitignore` for the backup system — a single
   source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
   matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,

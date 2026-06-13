@@ -166,22 +166,41 @@ def _read_todo_count(branch_path: Path) -> int:
         return 0
 
 
+def _read_mail_counts(branch_path: Path) -> tuple:
+    """Read new/opened mail counts from .ai_mail.local/inbox.json."""
+    inbox_path = branch_path / ".ai_mail.local" / "inbox.json"
+    if not inbox_path.exists():
+        return (0, 0)
+    try:
+        data = json.loads(inbox_path.read_text())
+        new_mail = 0
+        opened_mail = 0
+        for msg in data.get("messages", []):
+            status = msg.get("status", "")
+            if status == "new" or (not status and not msg.get("read", False)):
+                new_mail += 1
+            elif status == "opened":
+                opened_mail += 1
+        return (new_mail, opened_mail)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read inbox from %s: %s", inbox_path, exc)
+        return (0, 0)
+
+
 def _calculate_quick_status(sections: Dict, branch_path: Path) -> Dict:
     """
-    Calculate quick_status from live section data (v3 schema).
+    Calculate quick_status from branch data sources.
 
     Args:
         sections: All dashboard sections dict
-        branch_path: Path to branch root (for sourcing todo_count from local.json)
+        branch_path: Path to branch root (for sourcing counts from local files)
 
     Returns:
         Quick status dict with counts, action flag, and summary
     """
-    ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
 
-    new_mail = ai_mail.get("new", ai_mail.get("unread", 0))
-    opened_mail = ai_mail.get("opened", 0)
+    new_mail, opened_mail = _read_mail_counts(branch_path)
     active_plans = flow.get("active_plans", 0)
     todo_count = _read_todo_count(branch_path)
 
