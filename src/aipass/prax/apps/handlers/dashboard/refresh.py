@@ -23,12 +23,13 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 logger = get_direct_logger()
 
 # Same-package imports allowed
-from .operations import create_fresh_dashboard, save_dashboard
+from .operations import create_fresh_dashboard, save_dashboard  # noqa: E402
 
 # Cross-handler imports for central reader
-from ..central.reader import read_all_centrals
+from ..central.reader import read_all_centrals  # noqa: E402
 
-from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.json import json_handler  # noqa: E402
+from .template_pusher import DEPRECATED_SECTIONS  # noqa: E402
 
 # Sections managed by the refresh path — everything else is write-through only
 REFRESH_MANAGED_SECTIONS = {"ai_mail", "flow", "memory"}
@@ -188,6 +189,13 @@ def _calculate_quick_status(sections: Dict) -> Dict:
     }
 
 
+def _prune_deprecated_sections(dashboard: Dict) -> None:
+    """Remove deprecated sections from dashboard before save."""
+    sections = dashboard.get("sections", {})
+    for key in DEPRECATED_SECTIONS:
+        sections.pop(key, None)
+
+
 def _preserve_write_through_sections(dashboard: Dict, branch_path: Path, branch_name: str) -> None:
     """Preserve write-through sections not managed by refresh."""
     existing_path = branch_path / "DASHBOARD.local.json"
@@ -250,6 +258,7 @@ def refresh_all_dashboards() -> Dict:
             dashboard["sections"]["memory"] = _extract_memory_section(centrals, branch_path)
 
             _preserve_write_through_sections(dashboard, branch_path, branch_name)
+            _prune_deprecated_sections(dashboard)
 
             # Calculate quick status
             dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
@@ -314,6 +323,7 @@ def refresh_single_dashboard(branch_path: Path) -> Dict:
         dashboard["sections"]["memory"] = _extract_memory_section(centrals, branch_path)
 
         _preserve_write_through_sections(dashboard, branch_path, branch_name)
+        _prune_deprecated_sections(dashboard)
 
         dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
 

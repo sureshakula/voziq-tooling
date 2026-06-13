@@ -21,6 +21,15 @@ PyPI version — not the changelog header.
   `devpulse_dashboard` plugin's `todo_section.py` (revivable). Dashboard
   `DASHBOARD.local.json` 6.8 KB → 3.0 KB. Devpulse-only (plugin, not templated).
   Verified: seedgo 100%, 17/17 plugin tests.
+- **Deprecated dashboard sections are now actually pruned on refresh.**
+  `bulletin_board` (and the other entries in prax's `DEPRECATED_SECTIONS`:
+  `devpulse`, `commons_activity`, `agent_status`, `memory_bank`) were listed as
+  deprecated but only excluded from template *pushes* — they lingered in every
+  branch's live `DASHBOARD.local.json`. Added `_prune_deprecated_sections()` to
+  the prax dashboard `refresh` path (reusing the single `DEPRECATED_SECTIONS`
+  constant), so a refresh strips them. Verified: `bulletin_board` removed from
+  the devpulse dashboard; 116/116 prax tests, seedgo 100%. (Follow-up: `@trigger`
+  still has a `bulletin_created` writer to retire separately.)
 - **`.backupignore` is now a true `.gitignore` for the backup system — a single
   source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
   matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,
