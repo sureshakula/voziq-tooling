@@ -303,6 +303,52 @@ class TestCheckSingleFile:
         assert result["success"] is True
         assert result["should_rollover"] is False
 
+    def test_v2_list_key_learnings_triggers_rollover(self, tmp_path: Path):
+        """List-shaped key_learnings at/over max_key_learnings triggers v2 rollover."""
+        mem_file = tmp_path / "DEVPULSE.local.json"
+        data = {
+            "document_metadata": {
+                "schema_version": "3.0.0",
+                "limits": {"max_key_learnings": 3},
+            },
+            "key_learnings": [
+                {"number": 3, "date": "2026-06-13", "key": "c", "value": "vc"},
+                {"number": 2, "date": "2026-06-12", "key": "b", "value": "vb"},
+                {"number": 1, "date": "2026-06-11", "key": "a", "value": "va"},
+            ],
+        }
+        mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        from aipass.memory.apps.handlers.monitor.detector import check_single_file
+
+        result = check_single_file(mem_file)
+
+        assert result["success"] is True
+        assert result["should_rollover"] is True
+        assert "3/3 key_learnings" in result["trigger"].v2_reason
+
+    def test_v2_list_key_learnings_under_limit_no_trigger(self, tmp_path: Path):
+        """List-shaped key_learnings under limit does not trigger."""
+        mem_file = tmp_path / "DRONE.local.json"
+        data = {
+            "document_metadata": {
+                "schema_version": "3.0.0",
+                "limits": {"max_key_learnings": 10},
+            },
+            "key_learnings": [
+                {"number": 2, "date": "2026-06-13", "key": "b", "value": "vb"},
+                {"number": 1, "date": "2026-06-12", "key": "a", "value": "va"},
+            ],
+        }
+        mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        from aipass.memory.apps.handlers.monitor.detector import check_single_file
+
+        result = check_single_file(mem_file)
+
+        assert result["success"] is True
+        assert result["should_rollover"] is False
+
 
 # ===========================================================================
 # _read_registry

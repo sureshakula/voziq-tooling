@@ -10,7 +10,7 @@
 Memory Extraction Handler
 
 Surgically extracts oldest items from memory files during rollover.
-Understands real JSON structure (sessions, observations arrays, key_learnings dict).
+Understands real JSON structure (sessions, observations, key_learnings arrays).
 
 Purpose:
     v1 (schema <2.0.0): When file exceeds max_lines, extract oldest items from
@@ -21,7 +21,7 @@ Purpose:
 Strategy:
     - Detect schema version from document_metadata
     - v1: line-count based extraction (legacy)
-    - v2: entry-count based extraction (sessions array + key_learnings dict)
+    - v2: entry-count based extraction (sessions + key_learnings + observations arrays)
     - Extract oldest items (FIFO)
     - Update document_metadata.status
 """
@@ -261,7 +261,7 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract items from v2 format file (entry-count based).
 
-    Handles sessions (array, oldest at end) and key_learnings (dict, oldest first).
+    Handles sessions, key_learnings, and observations (arrays, newest-first, oldest at end).
     Trims to max_sessions / max_key_learnings limits defined in document_metadata.
 
     Args:

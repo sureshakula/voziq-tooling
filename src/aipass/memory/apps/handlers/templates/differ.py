@@ -266,7 +266,7 @@ def diff_template_vs_branch(branch_path: str | Path) -> dict:
         if "key_learnings" not in current:
             active = current.get("active_tasks", {})
             if not isinstance(active, dict) or "key_learnings" not in active:
-                file_diff["additions"].append("key_learnings: {} (missing)")
+                file_diff["additions"].append("key_learnings: [] (missing)")
 
         if file_diff["additions"] or file_diff["removals"] or file_diff["modifications"]:
             result["local"].append(file_diff)

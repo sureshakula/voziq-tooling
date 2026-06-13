@@ -21,10 +21,14 @@ PyPI version — not the changelog header.
   re-sorting on `number` — so an out-of-order write can never archive a fresh
   entry (the bug surfaced in S229, where rollover ate the *newest* key_learning
   instead of the oldest). Backward-compatible: un-migrated dict-shaped
-  key_learnings skip cleanly, no crash. `@memory` self-migrated to
-  `schema_version` 3.0.0 as the first specimen (955 tests, seedgo 100%).
-  Cross-branch migration of all branches, plus `/memo`+`/prep` and @spawn
-  template updates, follow in later phases.
+  key_learnings skip cleanly, no crash. **All 17 branches migrated** to
+  `schema_version` 3.0.0 (reversible per-file backups, no data loss). A
+  follow-up made the rollover **detector** and the **learnings manager** (used
+  by rollover + symbolic) list-aware — a live `rollover check` caught they still
+  counted key_learnings as a dict, so an at-cap list was invisible to the
+  detector (the 955 unit tests stayed green because none counted a *list*). 960
+  tests; seedgo 99% (1 pre-existing unused-function on an unwired manager API).
+  Remaining: `/memo`+`/prep` and @spawn template updates.
 
 - **Memory config relocated to the json-home and unified behind one
   self-healing loader (FPLAN-0271).** `memory.config.json` moved from the loose

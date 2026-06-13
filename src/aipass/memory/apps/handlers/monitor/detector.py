@@ -286,8 +286,8 @@ def _should_rollover(file_path: Path) -> tuple[bool, int, int, str, str]:
 
         max_key_learnings = limits.get("max_key_learnings")
         if max_key_learnings is not None:
-            key_learnings = data.get("key_learnings", {})
-            if isinstance(key_learnings, dict) and len(key_learnings) >= max_key_learnings:
+            key_learnings = data.get("key_learnings", [])
+            if isinstance(key_learnings, (list, dict)) and len(key_learnings) >= max_key_learnings:
                 reasons.append(f"{len(key_learnings)}/{max_key_learnings} key_learnings")
 
         max_observations = limits.get("max_observations")

@@ -86,7 +86,7 @@ class TestGetSetLearnings:
         mgr, _ = _import_manager(monkeypatch)
         data = {"something_else": True}
         result = mgr._get_learnings(data)
-        assert result == {}
+        assert result == []
 
     def test_set_learnings_existing(self, monkeypatch):
         mgr, _ = _import_manager(monkeypatch)
@@ -101,6 +101,43 @@ class TestGetSetLearnings:
         ok = mgr._set_learnings(data, {"fresh": "entry"})
         assert ok is True
         assert data["key_learnings"] == {"fresh": "entry"}
+
+    def test_get_learnings_list(self, monkeypatch):
+        """_get_learnings returns list when key_learnings is a list (v3)."""
+        mgr, _ = _import_manager(monkeypatch)
+        entries = [
+            {"number": 2, "date": "2026-06-13", "key": "b", "value": "vb"},
+            {"number": 1, "date": "2026-06-12", "key": "a", "value": "va"},
+        ]
+        data = {"key_learnings": entries}
+        result = mgr._get_learnings(data)
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["key"] == "b"
+
+    def test_set_learnings_list(self, monkeypatch):
+        """_set_learnings accepts and stores a list (v3)."""
+        mgr, _ = _import_manager(monkeypatch)
+        entries = [{"number": 1, "date": "2026-06-13", "key": "a", "value": "va"}]
+        data = {"key_learnings": []}
+        ok = mgr._set_learnings(data, entries)
+        assert ok is True
+        assert isinstance(data["key_learnings"], list)
+        assert data["key_learnings"][0]["key"] == "a"
+
+    def test_get_set_list_roundtrip(self, monkeypatch):
+        """Round-trip: get list, modify, set back."""
+        mgr, _ = _import_manager(monkeypatch)
+        entries = [
+            {"number": 2, "date": "2026-06-13", "key": "b", "value": "vb"},
+            {"number": 1, "date": "2026-06-12", "key": "a", "value": "va"},
+        ]
+        data = {"key_learnings": list(entries)}
+        learnings = mgr._get_learnings(data)
+        learnings.append({"number": 3, "date": "2026-06-14", "key": "c", "value": "vc"})
+        mgr._set_learnings(data, learnings)
+        assert len(data["key_learnings"]) == 3
+        assert data["key_learnings"][2]["key"] == "c"
 
 
 # ===========================================================================
