@@ -8,7 +8,7 @@
 
 """Tests for the activity_report CLI module (apps/modules/activity_report.py)."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 MODULE = "aipass.daemon.apps.modules.activity_report"
 
@@ -16,6 +16,7 @@ MODULE = "aipass.daemon.apps.modules.activity_report"
 # =============================================
 # handle_command -- routing basics
 # =============================================
+
 
 @patch(f"{MODULE}.json_handler")
 @patch(f"{MODULE}.console")
@@ -63,6 +64,7 @@ class TestHandleCommandRouting:
 # =============================================
 # handle_command -- activity-report
 # =============================================
+
 
 @patch(f"{MODULE}.json_handler")
 @patch(f"{MODULE}.console")
@@ -114,6 +116,7 @@ class TestActivityReportCommand:
 # handle_command -- activity_report alias
 # =============================================
 
+
 @patch(f"{MODULE}.json_handler")
 @patch(f"{MODULE}.console")
 @patch(f"{MODULE}.error")
@@ -143,6 +146,7 @@ class TestActivityReportAlias:
 # =============================================
 # handle_command -- branch-health
 # =============================================
+
 
 @patch(f"{MODULE}.json_handler")
 @patch(f"{MODULE}.console")
@@ -198,6 +202,7 @@ class TestBranchHealthCommand:
 # _parse_hours_arg
 # =============================================
 
+
 @patch(f"{MODULE}.logger")
 class TestParseHoursArg:
     """Tests for _parse_hours_arg helper."""
@@ -228,6 +233,7 @@ class TestParseHoursArg:
 # =============================================
 # _extract_branch_name
 # =============================================
+
 
 class TestExtractBranchName:
     """Tests for _extract_branch_name helper."""

@@ -42,9 +42,7 @@ _json_mod_path = f"aipass.{BRANCH_MODULE}.apps.handlers.json.json_handler"
 
 if _handler_pkg not in sys.modules:
     _stub = types.ModuleType(_handler_pkg)
-    _handlers_dir = (
-        Path(__file__).resolve().parents[3] / "aipass" / BRANCH_MODULE / "apps" / "handlers"
-    )
+    _handlers_dir = Path(__file__).resolve().parents[3] / "aipass" / BRANCH_MODULE / "apps" / "handlers"
     _stub.__path__ = [str(_handlers_dir)]
     sys.modules[_handler_pkg] = _stub
 
@@ -72,8 +70,7 @@ for _candidate in _JSON_DIR_CANDIDATES:
 
 if _JSON_DIR_ATTR is None:
     pytest.skip(
-        f"Cannot find JSON_DIR attribute on {BRANCH_MODULE}.json_handler -- "
-        f"tried: {_JSON_DIR_CANDIDATES}",
+        f"Cannot find JSON_DIR attribute on {BRANCH_MODULE}.json_handler -- tried: {_JSON_DIR_CANDIDATES}",
         allow_module_level=True,
     )
 
@@ -81,6 +78,7 @@ if _JSON_DIR_ATTR is None:
 # ---------------------------------------------------------------------------
 # Isolation fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def isolate_json_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -97,6 +95,7 @@ def isolate_json_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 # ---------------------------------------------------------------------------
 # Default factory helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_default_for_type(json_type: str, module_name: str = "test_mod") -> Any:
     """Call whichever default factory the branch exposes."""
@@ -145,6 +144,7 @@ def _default_factory_raises_on_unknown() -> bool:
 # Group 1 -- Return type contracts (4 tests)
 # ============================================================================
 
+
 def test_command_returns_bool() -> None:
     """command_returns_bool: route_command returns a bool."""
     from aipass.daemon.apps import daemon as _daemon_mod
@@ -167,39 +167,32 @@ def test_command_returns_bool() -> None:
 def test_paths_return_path() -> None:
     """paths_return_path: get_json_path returns a Path."""
     result = json_handler.get_json_path("contract_mod", "config")
-    assert isinstance(result, Path), (
-        f"get_json_path must return Path, got {type(result)}"
-    )
+    assert isinstance(result, Path), f"get_json_path must return Path, got {type(result)}"
 
 
 def test_paths_return_path_for_data() -> None:
     """paths_return_path: get_json_path returns Path for data type too."""
     result = json_handler.get_json_path("contract_mod", "data")
-    assert isinstance(result, Path), (
-        f"get_json_path('data') must return Path, got {type(result)}"
-    )
+    assert isinstance(result, Path), f"get_json_path('data') must return Path, got {type(result)}"
 
 
 def test_ensure_json_exists_returns_bool(tmp_path: Path) -> None:
     """ensure_json_exists must return a bool."""
     result = json_handler.ensure_json_exists("contract_mod", "data")
-    assert isinstance(result, bool), (
-        f"ensure_json_exists must return bool, got {type(result)}"
-    )
+    assert isinstance(result, bool), f"ensure_json_exists must return bool, got {type(result)}"
     assert result is True
 
 
 def test_load_json_returns_dict_for_config(tmp_path: Path) -> None:
     """load_json for config type must return a dict."""
     result = json_handler.load_json("contract_mod", "config")
-    assert isinstance(result, dict), (
-        f"load_json('...', 'config') must return dict, got {type(result)}"
-    )
+    assert isinstance(result, dict), f"load_json('...', 'config') must return dict, got {type(result)}"
 
 
 # ============================================================================
 # Group 2 -- Data structure contracts (3 tests)
 # ============================================================================
+
 
 def test_config_keys(tmp_path: Path) -> None:
     """config_keys: config data structure contains module_name and version."""
@@ -227,9 +220,7 @@ def test_log_entry_has_operation(tmp_path: Path) -> None:
     val = getattr(_mod, _JSON_DIR_ATTR)
     json_dir = Path(val) if isinstance(val, str) else val
 
-    log = json.loads(
-        (json_dir / "struct_mod_log.json").read_text(encoding="utf-8")
-    )
+    log = json.loads((json_dir / "struct_mod_log.json").read_text(encoding="utf-8"))
     assert len(log) >= 1, "log_operation must append at least one entry"
     assert "operation" in log[-1], "Log entry must have 'operation' key"
     assert log[-1]["operation"] == "contract_test"
@@ -238,6 +229,7 @@ def test_log_entry_has_operation(tmp_path: Path) -> None:
 # ============================================================================
 # Group 3 -- Success/failure paths (4 tests)
 # ============================================================================
+
 
 def test_known_routes_true() -> None:
     """known_routes_true: a module that handles a command causes route_command to return True."""
@@ -287,6 +279,7 @@ def test_no_args_triggers() -> None:
 # Group 4 -- Infrastructure mocking (3 tests)
 # ============================================================================
 
+
 def test_log_operation_mocked(tmp_path: Path) -> None:
     """Infrastructure: log_operation can be mocked without side effects."""
     with patch.object(_mod, "log_operation", return_value=True) as mock_log:
@@ -306,8 +299,6 @@ def test_sys_modules_mock() -> None:
 
 def test_reimport_after_mock(tmp_path: Path) -> None:
     """reimport_after_mock: module can be reloaded cleanly."""
-    handler_module = sys.modules.get(
-        f"aipass.{BRANCH_MODULE}.apps.handlers.json.json_handler"
-    )
+    handler_module = sys.modules.get(f"aipass.{BRANCH_MODULE}.apps.handlers.json.json_handler")
     if handler_module:
         importlib.reload(handler_module)

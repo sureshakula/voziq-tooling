@@ -50,6 +50,7 @@ def clean_registry(tmp_path):
 # CRUD TESTS
 # =============================================
 
+
 class TestCreate:
     def test_create_action_basic(self, clean_registry):
         """Create a simple schedule action and verify fields."""
@@ -128,8 +129,7 @@ class TestList:
 
     def test_list_excludes_completed(self, clean_registry):
         """Completed reminders should be excluded by default."""
-        create_action(name="done", action_type="reminder", schedule_type="once",
-                       due_date="2026-01-01")
+        create_action(name="done", action_type="reminder", schedule_type="once", due_date="2026-01-01")
         mark_reminder_completed("0001")
         assert len(list_actions()) == 0
         assert len(list_actions(include_completed=True)) == 1
@@ -146,8 +146,7 @@ class TestToggle:
 
     def test_toggle_on(self, clean_registry):
         """Toggle an action back on."""
-        create_action(name="toggleme", action_type="schedule", schedule_type="daily",
-                       enabled=False)
+        create_action(name="toggleme", action_type="schedule", schedule_type="daily", enabled=False)
         assert toggle_action("0001", True) is True
         action = get_action("0001")
         assert action is not None
@@ -174,6 +173,7 @@ class TestDelete:
 # DUE CHECKING TESTS
 # =============================================
 
+
 class TestIsDue:
     def test_daily_due_at_correct_time(self, clean_registry):
         """Daily action is due when current time matches."""
@@ -190,6 +190,7 @@ class TestIsDue:
     def test_daily_not_due_wrong_time(self, clean_registry):
         """Daily action is not due at wrong time (12 hours away from now)."""
         from datetime import datetime
+
         now = datetime.now()
         # Pick a time 12 hours away — always outside the 15-min fuzzy window
         far_hour = (now.hour + 12) % 24
@@ -295,6 +296,7 @@ class TestIsDue:
 # NEXT RUN TESTS
 # =============================================
 
+
 class TestCalcNextRun:
     def test_daily_next_run(self, clean_registry):
         """Daily action calculates next run correctly."""
@@ -334,11 +336,11 @@ class TestNextDueStr:
 # UPDATE TESTS
 # =============================================
 
+
 class TestUpdateLastRun:
     def test_update_last_run(self, clean_registry):
         """Update last_run sets timestamp and recalculates next_run."""
-        create_action(name="test", action_type="schedule", schedule_type="interval",
-                       interval_minutes=60)
+        create_action(name="test", action_type="schedule", schedule_type="interval", interval_minutes=60)
         ts = "2026-03-02T12:00:00"
         assert update_last_run("0001", ts) is True
         action = get_action("0001")
@@ -350,8 +352,7 @@ class TestUpdateLastRun:
 class TestMarkCompleted:
     def test_mark_reminder_completed(self, clean_registry):
         """Marking a reminder completed sets completed timestamp and disables it."""
-        create_action(name="reminder", action_type="reminder", schedule_type="once",
-                       due_date="2026-03-01")
+        create_action(name="reminder", action_type="reminder", schedule_type="once", due_date="2026-03-01")
         assert mark_reminder_completed("0001") is True
         action = get_action("0001")
         assert action is not None

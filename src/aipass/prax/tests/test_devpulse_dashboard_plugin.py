@@ -243,8 +243,7 @@ class TestTodoSection:
         todo = dash["sections"]["todo"]
         assert todo["managed_by"] == "devpulse"
         assert todo["todo_count"] == 2
-        assert len(todo["todos"]) == 2
-        assert todo["todos"][0]["id"] == "t1"
+        assert "todos" not in todo
 
     def test_build_todo_section_empty_todos(self, branch_path):
         """Test todo section with empty todos list."""
@@ -260,7 +259,7 @@ class TestTodoSection:
         dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
         todo = dash["sections"]["todo"]
         assert todo["todo_count"] == 0
-        assert todo["todos"] == []
+        assert "todos" not in todo
 
     def test_build_todo_section_no_local_json(self, branch_path):
         """Test todo section when local.json doesn't exist."""
@@ -272,7 +271,7 @@ class TestTodoSection:
         dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
         todo = dash["sections"]["todo"]
         assert todo["todo_count"] == 0
-        assert todo["todos"] == []
+        assert "todos" not in todo
 
     def test_build_todo_section_corrupt_json(self, branch_path):
         """Test todo section handles corrupt local.json."""
@@ -303,7 +302,7 @@ class TestTodoSection:
         dash = json.loads((branch_path / "DASHBOARD.local.json").read_text())
         todo = dash["sections"]["todo"]
         assert todo["todo_count"] == 0
-        assert todo["todos"] == []
+        assert "todos" not in todo
 
 
 class TestRefresh:

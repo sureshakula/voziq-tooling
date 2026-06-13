@@ -33,6 +33,7 @@ get_escalations = _dl_mod.get_escalations
 # FIXTURES
 # =============================================
 
+
 @pytest.fixture(autouse=True)
 def isolate_paths(tmp_path, monkeypatch):
     """Redirect INBOX_PATH and LOCAL_PATH to tmp_path for every test."""
@@ -79,6 +80,7 @@ def _write_json(path: Path, data: object) -> None:
 # LOAD INBOX TESTS
 # =============================================
 
+
 class TestLoadInbox:
     def test_load_valid_inbox(self, isolate_paths, sample_inbox_data, monkeypatch):
         """Loading a well-formed inbox.json returns its full contents."""
@@ -116,6 +118,7 @@ class TestLoadInbox:
 # LOAD LOCAL TESTS
 # =============================================
 
+
 class TestLoadLocal:
     def test_load_valid_local(self, isolate_paths, sample_local_data):
         """Loading a well-formed local.json returns its full contents."""
@@ -148,6 +151,7 @@ class TestLoadLocal:
 # =============================================
 # CATEGORIZE MESSAGES TESTS
 # =============================================
+
 
 class TestCategorizeMessages:
     def test_new_and_opened_split(self):
@@ -218,6 +222,7 @@ class TestCategorizeMessages:
 # GET SESSION SUMMARY TESTS
 # =============================================
 
+
 class TestGetSessionSummary:
     def test_summary_with_sessions(self, sample_local_data):
         """Session summary extracts totals and latest session."""
@@ -259,6 +264,7 @@ class TestGetSessionSummary:
 # =============================================
 # GET ESCALATIONS TESTS
 # =============================================
+
 
 class TestGetEscalations:
     def test_urgent_message_detected(self):

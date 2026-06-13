@@ -25,7 +25,7 @@ Covers 9 tests:
 """
 
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -48,6 +48,7 @@ def _mock_log_operation():
 # ============================================================================
 # CLI Routing Tests
 # ============================================================================
+
 
 def test_help_flag() -> None:
     """--help flag triggers help and returns exit code 0."""

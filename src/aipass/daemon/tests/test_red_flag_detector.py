@@ -15,12 +15,10 @@
 
 """Tests for the red flag detection engine."""
 
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime
+from unittest.mock import patch
 
-import pytest
 
-from aipass.daemon.apps.handlers.monitoring import red_flag_detector
 from aipass.daemon.apps.handlers.monitoring.red_flag_detector import (
     _parse_iso_datetime,
     get_branch_status,
@@ -67,6 +65,7 @@ def _make_activity(
 # =============================================
 # _parse_iso_datetime TESTS
 # =============================================
+
 
 class TestParseIsoDatetime:
     """Tests for ISO datetime string parsing."""
@@ -115,6 +114,7 @@ class TestParseIsoDatetime:
 # =============================================
 # get_branch_status TESTS
 # =============================================
+
 
 class TestGetBranchStatus:
     """Tests for single-branch status detection."""
@@ -239,10 +239,18 @@ class TestGetBranchStatus:
         mock_scan.return_value = _make_activity(code_files=[], memory_files=[])
         result = get_branch_status("TEST", "/fake/path/test")
         required_keys = {
-            "branch_name", "branch_path", "status", "code_changes",
-            "code_change_count", "latest_code_change", "memory_files_modified",
-            "memory_last_update", "hours_since_code", "threshold_hours",
-            "reason", "check_time",
+            "branch_name",
+            "branch_path",
+            "status",
+            "code_changes",
+            "code_change_count",
+            "latest_code_change",
+            "memory_files_modified",
+            "memory_last_update",
+            "hours_since_code",
+            "threshold_hours",
+            "reason",
+            "check_time",
         }
         assert required_keys.issubset(result.keys())
 
@@ -284,6 +292,7 @@ class TestGetBranchStatus:
 # =============================================
 # detect_red_flags (scan all branches) TESTS
 # =============================================
+
 
 class TestScanAllBranches:
     """Tests for multi-branch scanning and sorting via detect_red_flags."""
@@ -383,6 +392,7 @@ class TestScanAllBranches:
 # get_red_flag_summary TESTS
 # =============================================
 
+
 class TestGetRedFlagSummary:
     """Tests for the get_red_flag_summary aggregation function."""
 
@@ -477,9 +487,16 @@ class TestGetRedFlagSummary:
         summary = get_red_flag_summary(since_timestamp=datetime(2026, 3, 1))
 
         expected_keys = {
-            "total_branches", "red_flags", "ok", "no_activity",
-            "violations", "scan_time", "threshold_hours",
-            "time_window_hours", "errors", "all_branches",
+            "total_branches",
+            "red_flags",
+            "ok",
+            "no_activity",
+            "violations",
+            "scan_time",
+            "threshold_hours",
+            "time_window_hours",
+            "errors",
+            "all_branches",
         }
         assert expected_keys.issubset(set(summary.keys()))
 

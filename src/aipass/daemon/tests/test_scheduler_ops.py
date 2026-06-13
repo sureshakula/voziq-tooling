@@ -17,6 +17,7 @@ MODULE = "aipass.daemon.apps.modules.scheduler_ops"
 # handle_command — routing
 # =============================================
 
+
 @patch(f"{MODULE}.json_handler")
 @patch(f"{MODULE}.console")
 @patch(f"{MODULE}.logger")
@@ -84,6 +85,7 @@ class TestHandleCommand:
 # Module-level availability flags
 # =============================================
 
+
 class TestRegistryAvailability:
     """Verify that registry imports succeed in the test environment."""
 
@@ -101,6 +103,7 @@ class TestRegistryAvailability:
 # =============================================
 # print_introspection
 # =============================================
+
 
 @patch(f"{MODULE}.console")
 class TestPrintIntrospection:

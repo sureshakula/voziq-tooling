@@ -48,16 +48,20 @@ class TestUpdateCommand:
 
     def test_update_no_args_runs_digest(self) -> None:
         """update with no args should run the digest, not show introspection."""
-        with patch.object(_update_mod, "load_inbox", return_value={"messages": [], "total_messages": 0}), \
-             patch.object(_update_mod, "load_local", return_value={}):
+        with (
+            patch.object(_update_mod, "load_inbox", return_value={"messages": [], "total_messages": 0}),
+            patch.object(_update_mod, "load_local", return_value={}),
+        ):
             result = _update_mod.handle_command("update", [])
         assert result is True
 
     def test_update_no_args_calls_load_inbox(self) -> None:
         """update with no args should call load_inbox (proving it runs the digest)."""
         mock_inbox = MagicMock(return_value={"messages": [], "total_messages": 0})
-        with patch.object(_update_mod, "load_inbox", mock_inbox), \
-             patch.object(_update_mod, "load_local", return_value={}):
+        with (
+            patch.object(_update_mod, "load_inbox", mock_inbox),
+            patch.object(_update_mod, "load_local", return_value={}),
+        ):
             _update_mod.handle_command("update", [])
         mock_inbox.assert_called_once()
 

@@ -10,11 +10,12 @@
 #
 # CODE STANDARDS:
 #   - Error handling: Use error handler system (apps/handlers/error/)
-# ============================================= 
-#  
-#@Meta header not seedgo standards
+# =============================================
+#
+# @Meta header not seedgo standards
 
 """Shared pytest fixtures for daemon tests"""
+
 import os
 import tempfile
 
@@ -45,10 +46,7 @@ def sample_test_data() -> dict:
 
     Customize this fixture for your module's needs
     """
-    return {
-        "test_key": "test_value",
-        "sample_data": "example"
-    }
+    return {"test_key": "test_value", "sample_data": "example"}
 
 
 @pytest.fixture()

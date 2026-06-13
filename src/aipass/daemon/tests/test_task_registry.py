@@ -52,6 +52,7 @@ def isolate_registry(tmp_path):
 # DATE PARSING TESTS
 # =============================================
 
+
 class TestParseDueDate:
     def test_days_format(self):
         """'7d' should resolve to 7 days from today."""
@@ -126,6 +127,7 @@ class TestParseDueDate:
 # LOAD / SAVE TESTS
 # =============================================
 
+
 class TestLoadSave:
     def test_load_creates_file_if_missing(self, isolate_registry):
         """load_tasks should create schedule.json if it does not exist."""
@@ -166,6 +168,7 @@ class TestLoadSave:
 # =============================================
 # CREATE TASK TESTS
 # =============================================
+
 
 class TestCreateTask:
     @patch.object(_mod.json_handler, "log_operation")
@@ -219,16 +222,21 @@ class TestCreateTask:
 # DUE TASKS TESTS
 # =============================================
 
+
 class TestDueTasks:
     def test_overdue_task_returned(self, isolate_registry):
         """A pending task with a past due_date should be returned."""
         yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
-        save_tasks([{
-            "id": "past01",
-            "due_date": yesterday,
-            "status": "pending",
-            "task": "overdue",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "past01",
+                    "due_date": yesterday,
+                    "status": "pending",
+                    "task": "overdue",
+                }
+            ]
+        )
         due = get_due_tasks()
         assert len(due) == 1
         assert due[0]["id"] == "past01"
@@ -236,12 +244,16 @@ class TestDueTasks:
     def test_today_task_returned(self, isolate_registry):
         """A pending task due today should be returned."""
         today = datetime.now().date().isoformat()
-        save_tasks([{
-            "id": "today01",
-            "due_date": today,
-            "status": "pending",
-            "task": "due today",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "today01",
+                    "due_date": today,
+                    "status": "pending",
+                    "task": "due today",
+                }
+            ]
+        )
         due = get_due_tasks()
         assert len(due) == 1
         assert due[0]["id"] == "today01"
@@ -249,36 +261,48 @@ class TestDueTasks:
     def test_future_task_not_returned(self, isolate_registry):
         """A pending task with a future due_date should not be returned."""
         future = (datetime.now().date() + timedelta(days=30)).isoformat()
-        save_tasks([{
-            "id": "future01",
-            "due_date": future,
-            "status": "pending",
-            "task": "future task",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "future01",
+                    "due_date": future,
+                    "status": "pending",
+                    "task": "future task",
+                }
+            ]
+        )
         due = get_due_tasks()
         assert len(due) == 0
 
     def test_dispatching_task_excluded(self, isolate_registry):
         """Tasks with status 'dispatching' should not be returned."""
         yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
-        save_tasks([{
-            "id": "disp01",
-            "due_date": yesterday,
-            "status": "dispatching",
-            "task": "already dispatching",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "disp01",
+                    "due_date": yesterday,
+                    "status": "dispatching",
+                    "task": "already dispatching",
+                }
+            ]
+        )
         due = get_due_tasks()
         assert len(due) == 0
 
     def test_completed_task_excluded(self, isolate_registry):
         """Tasks with status 'completed' should not be returned."""
         yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
-        save_tasks([{
-            "id": "done01",
-            "due_date": yesterday,
-            "status": "completed",
-            "task": "done",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "done01",
+                    "due_date": yesterday,
+                    "status": "completed",
+                    "task": "done",
+                }
+            ]
+        )
         due = get_due_tasks()
         assert len(due) == 0
 
@@ -292,15 +316,20 @@ class TestDueTasks:
 # STATUS TRANSITION TESTS
 # =============================================
 
+
 class TestStatusTransitions:
     def _seed_task(self, task_id: str = "abc12345abcd1234", status: str = "pending"):
         """Helper to seed a single task."""
-        save_tasks([{
-            "id": task_id,
-            "task": "test",
-            "status": status,
-            "due_date": "2026-01-01",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": task_id,
+                    "task": "test",
+                    "status": status,
+                    "due_date": "2026-01-01",
+                }
+            ]
+        )
         return task_id
 
     def test_mark_dispatching_success(self):
@@ -369,17 +398,22 @@ class TestStatusTransitions:
 # RECOVER STALE DISPATCHES TESTS
 # =============================================
 
+
 class TestRecoverStale:
     def test_recovers_stale_task(self, isolate_registry):
         """Task stuck in dispatching beyond max_age should be reset."""
         stale_time = (datetime.now() - timedelta(minutes=10)).isoformat()
-        save_tasks([{
-            "id": "stale01",
-            "task": "stale dispatch",
-            "status": "dispatching",
-            "dispatch_started": stale_time,
-            "due_date": "2026-01-01",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "stale01",
+                    "task": "stale dispatch",
+                    "status": "dispatching",
+                    "dispatch_started": stale_time,
+                    "due_date": "2026-01-01",
+                }
+            ]
+        )
         recovered = recover_stale_dispatches(max_age_minutes=5)
         assert recovered == 1
         task = get_task_by_id("stale01")
@@ -390,13 +424,17 @@ class TestRecoverStale:
     def test_does_not_recover_recent_dispatch(self, isolate_registry):
         """Task dispatching within max_age should not be recovered."""
         recent_time = (datetime.now() - timedelta(minutes=1)).isoformat()
-        save_tasks([{
-            "id": "recent01",
-            "task": "recent dispatch",
-            "status": "dispatching",
-            "dispatch_started": recent_time,
-            "due_date": "2026-01-01",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "recent01",
+                    "task": "recent dispatch",
+                    "status": "dispatching",
+                    "dispatch_started": recent_time,
+                    "due_date": "2026-01-01",
+                }
+            ]
+        )
         recovered = recover_stale_dispatches(max_age_minutes=5)
         assert recovered == 0
         task = get_task_by_id("recent01")
@@ -405,13 +443,17 @@ class TestRecoverStale:
 
     def test_recovers_invalid_timestamp(self, isolate_registry):
         """Task with unparseable dispatch_started should be recovered."""
-        save_tasks([{
-            "id": "bad_ts01",
-            "task": "bad timestamp",
-            "status": "dispatching",
-            "dispatch_started": "not-a-date",
-            "due_date": "2026-01-01",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "bad_ts01",
+                    "task": "bad timestamp",
+                    "status": "dispatching",
+                    "dispatch_started": "not-a-date",
+                    "due_date": "2026-01-01",
+                }
+            ]
+        )
         recovered = recover_stale_dispatches(max_age_minutes=5)
         assert recovered == 1
         task = get_task_by_id("bad_ts01")
@@ -420,12 +462,16 @@ class TestRecoverStale:
 
     def test_pending_tasks_untouched(self, isolate_registry):
         """Pending tasks should not be affected by recovery."""
-        save_tasks([{
-            "id": "ok01",
-            "task": "normal pending",
-            "status": "pending",
-            "due_date": "2026-01-01",
-        }])
+        save_tasks(
+            [
+                {
+                    "id": "ok01",
+                    "task": "normal pending",
+                    "status": "pending",
+                    "due_date": "2026-01-01",
+                }
+            ]
+        )
         recovered = recover_stale_dispatches(max_age_minutes=5)
         assert recovered == 0
         task = get_task_by_id("ok01")
@@ -441,6 +487,7 @@ class TestRecoverStale:
 # DELETE TASK TESTS
 # =============================================
 
+
 class TestDeleteTask:
     def test_delete_existing(self, isolate_registry):
         """Deleting an existing task returns True and removes it."""
@@ -455,10 +502,12 @@ class TestDeleteTask:
 
     def test_delete_preserves_other_tasks(self, isolate_registry):
         """Deleting one task should leave others intact."""
-        save_tasks([
-            {"id": "keep01", "task": "keep this", "status": "pending"},
-            {"id": "del02", "task": "delete this", "status": "pending"},
-        ])
+        save_tasks(
+            [
+                {"id": "keep01", "task": "keep this", "status": "pending"},
+                {"id": "del02", "task": "delete this", "status": "pending"},
+            ]
+        )
         delete_task("del02")
         remaining = load_tasks()
         assert len(remaining) == 1
@@ -473,27 +522,32 @@ class TestDeleteTask:
 # GET PENDING TASKS TESTS
 # =============================================
 
+
 class TestGetPendingTasks:
     """Tests for get_pending_tasks()."""
 
     def test_returns_only_pending(self, isolate_registry):
         """Only tasks with status 'pending' are returned."""
-        save_tasks([
-            {"id": "pend01", "task": "pending one", "status": "pending"},
-            {"id": "pend02", "task": "pending two", "status": "pending"},
-            {"id": "done01", "task": "done", "status": "completed"},
-        ])
+        save_tasks(
+            [
+                {"id": "pend01", "task": "pending one", "status": "pending"},
+                {"id": "pend02", "task": "pending two", "status": "pending"},
+                {"id": "done01", "task": "done", "status": "completed"},
+            ]
+        )
         result = get_pending_tasks()
         assert len(result) == 2
         assert all(t["status"] == "pending" for t in result)
 
     def test_excludes_dispatching_and_completed(self, isolate_registry):
         """Tasks with dispatching or completed status are excluded."""
-        save_tasks([
-            {"id": "disp01", "task": "dispatching", "status": "dispatching"},
-            {"id": "done01", "task": "completed", "status": "completed"},
-            {"id": "pend01", "task": "pending", "status": "pending"},
-        ])
+        save_tasks(
+            [
+                {"id": "disp01", "task": "dispatching", "status": "dispatching"},
+                {"id": "done01", "task": "completed", "status": "completed"},
+                {"id": "pend01", "task": "pending", "status": "pending"},
+            ]
+        )
         result = get_pending_tasks()
         assert len(result) == 1
         assert result[0]["id"] == "pend01"
@@ -508,6 +562,7 @@ class TestGetPendingTasks:
 # ENSURE LOCK DIR TESTS
 # =============================================
 
+
 class TestEnsureLockDir:
     """Tests for ensure_lock_dir()."""
 
@@ -516,6 +571,7 @@ class TestEnsureLockDir:
         lock_dir = isolate_registry.parent
         if lock_dir.exists():
             import shutil
+
             shutil.rmtree(lock_dir)
         assert not lock_dir.exists()
 

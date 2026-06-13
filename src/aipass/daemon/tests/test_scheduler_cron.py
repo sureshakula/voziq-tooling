@@ -28,6 +28,7 @@ MODULE = "aipass.daemon.apps.scheduler_cron"
 # FIXTURES
 # =============================================
 
+
 def _make_task(
     task_id: str = "abc12345-6789",
     recipient: str = "@devpulse",
@@ -57,6 +58,7 @@ def _silence_logging():
 # =============================================
 # _send_email_via_drone
 # =============================================
+
 
 class TestSendEmailViaDrone:
     """Tests for _send_email_via_drone subprocess wrapper."""
@@ -109,6 +111,7 @@ class TestSendEmailViaDrone:
 # _next_cron_run
 # =============================================
 
+
 class TestNextCronRun:
     """Tests for next cron run time calculation."""
 
@@ -146,6 +149,7 @@ class TestNextCronRun:
 # =============================================
 # _process_single_task
 # =============================================
+
 
 class TestProcessSingleTask:
     """Tests for the single-task dispatch function."""
@@ -241,6 +245,7 @@ class TestProcessSingleTask:
 # =============================================
 # process_due_tasks
 # =============================================
+
 
 class TestProcessDueTasks:
     """Tests for the top-level due-task processor."""
@@ -349,6 +354,7 @@ class TestProcessDueTasks:
 # _run_locked
 # =============================================
 
+
 class TestRunLocked:
     """Tests for the locked orchestration function."""
 
@@ -357,8 +363,13 @@ class TestRunLocked:
 
         task_results = {"due": 0, "success": 0, "failed": 0, "recovered": 0, "errors": []}
         action_results = {
-            "total": 0, "enabled": 0, "executed": 0, "failed": 0,
-            "errors": [], "executed_actions": [], "skipped_actions": [],
+            "total": 0,
+            "enabled": 0,
+            "executed": 0,
+            "failed": 0,
+            "errors": [],
+            "executed_actions": [],
+            "skipped_actions": [],
         }
 
         with (
@@ -375,8 +386,13 @@ class TestRunLocked:
 
         task_results = {"due": 1, "success": 0, "failed": 1, "recovered": 0, "errors": ["fail"]}
         action_results = {
-            "total": 0, "enabled": 0, "executed": 0, "failed": 0,
-            "errors": [], "executed_actions": [], "skipped_actions": [],
+            "total": 0,
+            "enabled": 0,
+            "executed": 0,
+            "failed": 0,
+            "errors": [],
+            "executed_actions": [],
+            "skipped_actions": [],
         }
 
         with (
@@ -415,6 +431,7 @@ class TestRunLocked:
 # =============================================
 # main
 # =============================================
+
 
 class TestMain:
     """Tests for the main entry point."""

@@ -35,7 +35,6 @@ def build_todo_section(branch_path: Path) -> bool:
         section_data: Dict = {
             "managed_by": "devpulse",
             "todo_count": 0,
-            "todos": [],
         }
         return write_section(branch_path, "todo", section_data)
 
@@ -46,7 +45,6 @@ def build_todo_section(branch_path: Path) -> bool:
         section_data = {
             "managed_by": "devpulse",
             "todo_count": 0,
-            "todos": [],
         }
         return write_section(branch_path, "todo", section_data)
 
@@ -55,7 +53,7 @@ def build_todo_section(branch_path: Path) -> bool:
     section_data = {
         "managed_by": "devpulse",
         "todo_count": len(todos),
-        "todos": todos,
+        # "todos": todos,  # bodies live in .trinity/local.json — count-only here
     }
 
     return write_section(branch_path, "todo", section_data)

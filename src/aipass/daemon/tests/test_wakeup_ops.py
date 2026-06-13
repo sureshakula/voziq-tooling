@@ -17,6 +17,7 @@ MODULE = "aipass.daemon.apps.modules.wakeup_ops"
 # handle_command — routing
 # =============================================
 
+
 @patch(f"{MODULE}.json_handler")
 @patch(f"{MODULE}.console")
 @patch(f"{MODULE}.logger")
@@ -81,6 +82,7 @@ class TestHandleCommand:
 # =============================================
 # print_introspection
 # =============================================
+
 
 @patch(f"{MODULE}.console")
 class TestPrintIntrospection:

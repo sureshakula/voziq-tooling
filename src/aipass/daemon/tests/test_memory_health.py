@@ -30,10 +30,11 @@ from aipass.daemon.apps.handlers.monitoring import memory_health as mh
 # HELPERS
 # =============================================
 
+
 def _write_json(path: Path, data: dict) -> None:
     """Write a dict to a JSON file, creating parent dirs."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
 
@@ -66,6 +67,7 @@ def _setup_full_branch(tmp_path: Path) -> Path:
 # =============================================
 # FILE EXISTENCE TESTS
 # =============================================
+
 
 class TestCheckMemoryFilesExist:
     """Tests for check_memory_files_exist()."""
@@ -157,6 +159,7 @@ class TestCheckMemoryFilesExist:
 # STRUCTURE VALIDATION TESTS
 # =============================================
 
+
 class TestValidateMemoryStructure:
     """Tests for validate_memory_structure()."""
 
@@ -177,12 +180,15 @@ class TestValidateMemoryStructure:
     def test_valid_structure_with_metadata_key(self, tmp_path: Path) -> None:
         """File using 'metadata' key (instead of 'document_metadata') is valid."""
         f = tmp_path / "alt_meta.json"
-        _write_json(f, {
-            "metadata": {
-                "version": "1.0.0",
-                "limits": {"max_entries": 100},
+        _write_json(
+            f,
+            {
+                "metadata": {
+                    "version": "1.0.0",
+                    "limits": {"max_entries": 100},
+                },
             },
-        })
+        )
 
         result = mh.validate_memory_structure(str(f))
 
@@ -193,12 +199,15 @@ class TestValidateMemoryStructure:
     def test_missing_limits_field(self, tmp_path: Path) -> None:
         """Metadata present but no limits field should report issue."""
         f = tmp_path / "no_limits.json"
-        _write_json(f, {
-            "document_metadata": {
-                "document_type": "session_history",
-                "version": "1.0.0",
+        _write_json(
+            f,
+            {
+                "document_metadata": {
+                    "document_type": "session_history",
+                    "version": "1.0.0",
+                },
             },
-        })
+        )
 
         result = mh.validate_memory_structure(str(f))
 
@@ -252,6 +261,7 @@ class TestValidateMemoryStructure:
 # =============================================
 # FRESHNESS TESTS
 # =============================================
+
 
 class TestCheckFreshness:
     """Tests for check_freshness()."""
@@ -345,6 +355,7 @@ class TestCheckFreshness:
 # =============================================
 # OVERALL HEALTH STATUS TESTS
 # =============================================
+
 
 class TestGetMemoryHealthStatus:
     """Tests for get_memory_health_status()."""
@@ -468,9 +479,14 @@ class TestGetMemoryHealthStatus:
         result = mh.get_memory_health_status(str(branch), "KEYS")
 
         expected_keys = {
-            "branch_name", "branch_path", "overall_status",
-            "file_check", "structure_checks", "freshness_checks",
-            "issues", "check_time",
+            "branch_name",
+            "branch_path",
+            "overall_status",
+            "file_check",
+            "structure_checks",
+            "freshness_checks",
+            "issues",
+            "check_time",
         }
         assert expected_keys == set(result.keys())
         assert isinstance(result["overall_status"], str)

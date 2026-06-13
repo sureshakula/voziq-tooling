@@ -13,6 +13,14 @@ PyPI version — not the changelog header.
 
 ### Changed
 
+- **Devpulse dashboard slimmed — todos no longer duplicated (startup-context
+  fix).** `DASHBOARD.local.json` was embedding the full `todos[]` bodies that
+  already live in `.trinity/local.json`; since both files are read at every
+  startup, that was pure duplication. The dashboard now emits `todo_count` only
+  (the glance value) — the bodies are commented out in the prax
+  `devpulse_dashboard` plugin's `todo_section.py` (revivable). Dashboard
+  `DASHBOARD.local.json` 6.8 KB → 3.0 KB. Devpulse-only (plugin, not templated).
+  Verified: seedgo 100%, 17/17 plugin tests.
 - **`.backupignore` is now a true `.gitignore` for the backup system — a single
   source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
   matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,
