@@ -40,10 +40,20 @@ def _mock_detector_infrastructure(monkeypatch):
     # -- memory json handler ------------------------------------------------
     mock_json_handler = MagicMock()
     mock_json_handler.log_operation = MagicMock(return_value=True)
+
+    # -- config_loader (must return real dicts, not MagicMocks) -------------
+    mock_config_loader = MagicMock()
+    mock_config_loader.load.return_value = {
+        "rollover": {"defaults": {"max_lines": 500}, "per_branch": {}},
+    }
+    mock_config_loader.section.side_effect = lambda name: mock_config_loader.load.return_value.get(name, {})
+
     json_pkg = MagicMock()
     json_pkg.json_handler = mock_json_handler
+    json_pkg.config_loader = mock_config_loader
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json", json_pkg)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.json_handler", mock_json_handler)
+    monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.config_loader", mock_config_loader)
 
     # Force fresh import every test
     monkeypatch.delitem(sys.modules, "aipass.memory.apps.handlers.monitor.detector", raising=False)

@@ -27,6 +27,7 @@ from dataclasses import dataclass
 
 from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import config_loader
 
 logger = get_system_logger()
 
@@ -170,24 +171,8 @@ def _get_memory_file_path(branch: Dict, memory_type: str) -> Path | None:
 
 
 def _load_config() -> Dict[str, Any]:
-    """
-    Load memory.config.json
-
-    Returns:
-        Config dict, or empty dict on error
-    """
-    # Look for config relative to this handler's location
-    config_path = Path(__file__).resolve().parents[3] / "config" / "memory.config.json"
-
-    if not config_path.exists():
-        return {}
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        logger.warning(f"[detector] Failed to load config: {e}")
-        return {}
+    """Load memory.config.json via config_loader."""
+    return config_loader.load()
 
 
 # =============================================================================

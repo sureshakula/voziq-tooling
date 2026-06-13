@@ -9,6 +9,30 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-13]
+
+### Changed
+
+- **Memory config relocated to the json-home and unified behind one
+  self-healing loader (FPLAN-0271).** `memory.config.json` moved from the loose
+  tracked `config/` dir into the gitignored `memory_json/custom_config/`
+  (operator-tunable, fast-access) and `.plans_processed.json` into
+  `memory_json/` root; the empty `config/` dir was removed. The config was
+  previously read by **9 separate loaders**, each carrying its own *disagreeing*
+  defaults (8 divergence classes — incl. the headline bug where a missing config
+  silently flipped `entry_limits.enforce` off, plus rollover defaulting to 600
+  vs the configured 500). All 9 now read through one
+  `apps/handlers/json/config_loader.py` with a single `DEFAULT_CONFIG` +
+  non-mutating deep-merge + self-heal: a missing file is rewritten from code
+  defaults (warn-first `enforce: false`), while malformed JSON fails loud and is
+  never overwritten. Dead `intake` section deleted; a static `_meta` block in
+  `DEFAULT_CONFIG` documents each section's consumer files. Code-as-Template:
+  the on-disk file is local tuning, code carries the committed defaults — same
+  model as hooks `cadence_config.json`. Verified: 949 memory tests green, seedgo
+  @memory 100%, live self-heal / malformed-no-clobber / edit_gate checks pass.
+  Design: DPLAN-0206. Follow-up parked: issue #643 (codify `custom_config/` as a
+  seedgo standard).
+
 ## [2026-06-12]
 
 ### Changed

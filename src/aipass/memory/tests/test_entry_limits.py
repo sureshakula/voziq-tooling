@@ -2,7 +2,7 @@
 # META DATA HEADER
 # Name: tests/test_entry_limits.py
 # Date: 2026-06-13
-# Version: 1.0.0
+# Version: 1.1.0
 # Category: memory/tests
 # =============================================
 
@@ -14,7 +14,10 @@ Covers:
   - per_branch override changes a cap.
   - per_branch adds a new entry type.
   - Missing config file returns safe defaults (no crash).
-  - Malformed JSON returns safe defaults + warning logged (no crash).
+  - Malformed JSON returns safe defaults + error logged (no crash).
+
+Note: entry_limits delegates config reading to config_loader, so tests
+patch config_loader._CONFIG_PATH rather than a removed entry_limits attr.
 """
 
 import importlib
@@ -38,16 +41,22 @@ def _fresh_entry_limits(monkeypatch):
     sub-module discovery.  We pop the json package and its children so
     importlib can re-import the real modules with the prax mock still in
     place.
+
+    config_loader must also be popped so its _CONFIG_PATH can be
+    re-patched per test.
     """
     sys.modules.pop("aipass.memory.apps.handlers.json", None)
     sys.modules.pop("aipass.memory.apps.handlers.json.json_handler", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.config_loader", None)
     sys.modules.pop("aipass.memory.apps.handlers.json.entry_limits", None)
     yield
 
 
-def _get_module():
-    """Import and return the entry_limits module."""
-    return importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+def _get_modules():
+    """Import and return (entry_limits, config_loader) modules."""
+    config_loader = importlib.import_module("aipass.memory.apps.handlers.json.config_loader")
+    entry_limits = importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+    return entry_limits, config_loader
 
 
 # ---------------------------------------------------------------------------
@@ -118,8 +127,8 @@ class TestNormalConfig:
 
     def test_returns_four_entry_types(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         config_path = _write_config(tmp_path, _full_config())
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("some_branch")
 
@@ -129,8 +138,8 @@ class TestNormalConfig:
 
     def test_enabled_is_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         config_path = _write_config(tmp_path, _full_config())
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("any")
 
@@ -138,8 +147,8 @@ class TestNormalConfig:
 
     def test_enforce_is_false(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         config_path = _write_config(tmp_path, _full_config())
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("any")
 
@@ -147,8 +156,8 @@ class TestNormalConfig:
 
     def test_default_max_chars_values(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         config_path = _write_config(tmp_path, _full_config())
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("any")
         types = result["entry_types"]
@@ -170,8 +179,8 @@ class TestPerBranchOverride:
     def test_override_max_chars(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         cfg = _full_config(per_branch={"devpulse": {"sessions": {"max_chars": 400}}})
         config_path = _write_config(tmp_path, cfg)
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("devpulse")
 
@@ -183,8 +192,8 @@ class TestPerBranchOverride:
     def test_override_does_not_affect_other_branches(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         cfg = _full_config(per_branch={"devpulse": {"sessions": {"max_chars": 400}}})
         config_path = _write_config(tmp_path, cfg)
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("memory")
 
@@ -194,8 +203,8 @@ class TestPerBranchOverride:
     def test_override_does_not_affect_other_types(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         cfg = _full_config(per_branch={"devpulse": {"sessions": {"max_chars": 400}}})
         config_path = _write_config(tmp_path, cfg)
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("devpulse")
 
@@ -222,8 +231,8 @@ class TestPerBranchNewType:
         }
         cfg = _full_config(per_branch={"special": {"custom_notes": new_type}})
         config_path = _write_config(tmp_path, cfg)
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("special")
 
@@ -243,8 +252,8 @@ class TestPerBranchNewType:
         }
         cfg = _full_config(per_branch={"special": {"custom_notes": new_type}})
         config_path = _write_config(tmp_path, cfg)
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("other_branch")
 
@@ -262,8 +271,8 @@ class TestMissingConfig:
 
     def test_missing_config_returns_defaults(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         missing_path = tmp_path / "nonexistent" / "memory.config.json"
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", missing_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", missing_path)
 
         result = mod.load_entry_limits("any_branch")
 
@@ -272,26 +281,27 @@ class TestMissingConfig:
         assert len(result["entry_types"]) == 4
         assert result["entry_types"]["sessions"]["max_chars"] == 300
 
-    def test_missing_config_logs_warning(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_missing_config_logs_info_on_self_heal(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """config_loader self-heals (creates defaults) when file is missing, logging at INFO level."""
         missing_path = tmp_path / "nonexistent" / "memory.config.json"
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", missing_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", missing_path)
 
-        mock_logger = mod.logger
+        mock_logger = loader.logger
         mod.load_entry_limits("any_branch")
 
-        mock_logger.warning.assert_called()
-        warning_msg = mock_logger.warning.call_args[0][0]
-        assert "entry_limits" in warning_msg.lower() or "config" in warning_msg.lower()
+        mock_logger.info.assert_called()
+        info_msg = mock_logger.info.call_args[0][0]
+        assert "config" in info_msg.lower()
 
 
 # ===========================================================================
-# 5. Malformed JSON returns safe defaults + warning logged (no crash)
+# 5. Malformed JSON returns safe defaults + error logged (no crash)
 # ===========================================================================
 
 
 class TestMalformedJson:
-    """Malformed JSON returns safe defaults and logs a warning."""
+    """Malformed JSON returns safe defaults and logs an error."""
 
     def test_malformed_json_returns_defaults(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         config_dir = tmp_path / "config"
@@ -299,8 +309,8 @@ class TestMalformedJson:
         bad_config = config_dir / "memory.config.json"
         bad_config.write_text("{this is not valid json!!!", encoding="utf-8")
 
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", bad_config)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", bad_config)
 
         result = mod.load_entry_limits("any_branch")
 
@@ -308,29 +318,30 @@ class TestMalformedJson:
         assert result["enforce"] is False
         assert len(result["entry_types"]) == 4
 
-    def test_malformed_json_logs_warning(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_malformed_json_logs_error(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """config_loader logs malformed JSON at ERROR level (not warning)."""
         config_dir = tmp_path / "config"
         config_dir.mkdir(parents=True, exist_ok=True)
         bad_config = config_dir / "memory.config.json"
         bad_config.write_text("{broken json", encoding="utf-8")
 
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", bad_config)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", bad_config)
 
-        mock_logger = mod.logger
+        mock_logger = loader.logger
         mod.load_entry_limits("any_branch")
 
-        mock_logger.warning.assert_called()
-        warning_msg = mock_logger.warning.call_args[0][0]
-        assert "malformed" in warning_msg.lower() or "json" in warning_msg.lower()
+        mock_logger.error.assert_called()
+        error_msg = mock_logger.error.call_args[0][0]
+        assert "malformed" in error_msg.lower() or "json" in error_msg.lower()
 
     def test_missing_entry_limits_section_returns_defaults(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Config file exists but has no entry_limits section."""
         config_path = _write_config(tmp_path, {"rollover": {"defaults": {"max_lines": 500}}})
-        mod = _get_module()
-        monkeypatch.setattr(mod, "_CONFIG_PATH", config_path)
+        mod, loader = _get_modules()
+        monkeypatch.setattr(loader, "_CONFIG_PATH", config_path)
 
         result = mod.load_entry_limits("any_branch")
 

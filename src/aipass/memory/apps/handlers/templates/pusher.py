@@ -30,7 +30,7 @@ from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime
 
 from aipass.prax import logger
-from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import json_handler, config_loader
 
 # Handler imports (same-branch allowed per handler boundaries)
 from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
@@ -170,7 +170,8 @@ def _merge_metadata(curr_meta: dict, tmpl_meta: dict) -> List[str]:
     tmpl_limits = tmpl_meta.get("limits", {})
     curr_limits = curr_meta.get("limits", {})
     branch_max_lines = curr_limits.get("max_lines")
-    tmpl_max_lines = tmpl_limits.get("max_lines", 600)
+    _cfg_max = config_loader.section("rollover").get("defaults", {}).get("max_lines", 500)
+    tmpl_max_lines = tmpl_limits.get("max_lines", _cfg_max)
     new_limits = copy.deepcopy(tmpl_limits)
     if branch_max_lines is not None and branch_max_lines != tmpl_max_lines:
         new_limits["max_lines"] = branch_max_lines

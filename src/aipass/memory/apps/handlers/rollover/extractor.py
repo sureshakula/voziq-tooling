@@ -32,7 +32,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 # Handler imports (relative within package)
-from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import json_handler, config_loader
 from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
 from aipass.prax.apps.modules.logger import get_system_logger
 
@@ -385,7 +385,8 @@ def extract_items(file_path: Path, percentage: int | None = None) -> Dict[str, A
         return {"success": False, "error": f"No growing array found in {file_path.name}"}
 
     # Get metadata
-    max_lines = data.get("document_metadata", {}).get("limits", {}).get("max_lines", 600)
+    _cfg_max = config_loader.section("rollover").get("defaults", {}).get("max_lines", 500)
+    max_lines = data.get("document_metadata", {}).get("limits", {}).get("max_lines", _cfg_max)
 
     # Check if under limit
     if current_lines < max_lines:

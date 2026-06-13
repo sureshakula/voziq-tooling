@@ -1,9 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
+# =================== AIPass ====================
 # Name: tests/test_intake.py
-# Date: 2026-04-03
+# Description: Tests for the intake/pool_processor handler
 # Version: 1.0.0
-# Category: memory/tests
+# Created: 2026-04-03
+# Modified: 2026-06-13
 # =============================================
 
 """Tests for the intake/pool_processor handler.
@@ -33,7 +33,15 @@ from unittest.mock import MagicMock
 
 
 def _import_pool_processor(monkeypatch):
-    """Import pool_processor with mocked dependencies."""
+    """Import pool_processor with mocked dependencies.
+
+    Pops the json handler package and its sub-modules from sys.modules so
+    that the real modules (json_handler, config_loader) can be re-imported
+    fresh, bypassing the conftest MagicMock replacement.
+    """
+    sys.modules.pop("aipass.memory.apps.handlers.json", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.json_handler", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.config_loader", None)
     sys.modules.pop("aipass.memory.apps.handlers.intake.pool_processor", None)
     parent = sys.modules.get("aipass.memory.apps.handlers.intake")
     if parent is not None and hasattr(parent, "pool_processor"):
@@ -53,6 +61,7 @@ class TestFindSourceFile:
     """Test find_source_file function."""
 
     def test_found_in_active_pool(self, monkeypatch, tmp_path):
+        """Test finding a file in the active memory pool directory."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -65,6 +74,7 @@ class TestFindSourceFile:
         assert result == target
 
     def test_found_in_archive(self, monkeypatch, tmp_path):
+        """Test finding a file in the archive subdirectory of the pool."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         archive = pool / ".archive"
@@ -78,6 +88,7 @@ class TestFindSourceFile:
         assert result == target
 
     def test_not_found_returns_none(self, monkeypatch, tmp_path):
+        """Test that nonexistent files return None."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -88,6 +99,7 @@ class TestFindSourceFile:
         assert result is None
 
     def test_prefers_active_over_archive(self, monkeypatch, tmp_path):
+        """Test that active pool files are preferred over archive copies."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         archive = pool / ".archive"
@@ -112,13 +124,15 @@ class TestLoadConfig:
     """Test load_config function."""
 
     def test_loads_valid_config(self, monkeypatch, tmp_path):
+        """Test loading and parsing a valid memory.config.json file."""
         mod = _import_pool_processor(monkeypatch)
+        cl = mod.config_loader
         config_file = tmp_path / "memory.config.json"
         config_file.write_text(
             json.dumps({"memory_pool": {"enabled": True, "keep_recent": 5, "collection_name": "test_pool"}}),
             encoding="utf-8",
         )
-        monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
+        monkeypatch.setattr(cl, "_CONFIG_PATH", config_file)
 
         result = mod.load_config()
 
@@ -126,24 +140,29 @@ class TestLoadConfig:
         assert result["keep_recent"] == 5
         assert result["collection_name"] == "test_pool"
 
-    def test_returns_disabled_when_file_missing(self, monkeypatch, tmp_path):
+    def test_returns_defaults_when_file_missing(self, monkeypatch, tmp_path):
+        """Missing config triggers self-heal; returns DEFAULT_CONFIG memory_pool."""
         mod = _import_pool_processor(monkeypatch)
-        monkeypatch.setattr(mod, "CONFIG_PATH", tmp_path / "missing.json")
+        cl = mod.config_loader
+        monkeypatch.setattr(cl, "_CONFIG_PATH", tmp_path / "missing.json")
 
         result = mod.load_config()
 
-        assert result["enabled"] is False
-        assert "error" in result
+        # Self-heal writes DEFAULT_CONFIG which has memory_pool.enabled = True
+        assert result["enabled"] is True
 
-    def test_returns_empty_when_no_memory_pool_key(self, monkeypatch, tmp_path):
+    def test_returns_defaults_when_no_memory_pool_key(self, monkeypatch, tmp_path):
+        """Config without memory_pool key still returns defaults via deep_merge."""
         mod = _import_pool_processor(monkeypatch)
+        cl = mod.config_loader
         config_file = tmp_path / "memory.config.json"
         config_file.write_text(json.dumps({"rollover": {}}), encoding="utf-8")
-        monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
+        monkeypatch.setattr(cl, "_CONFIG_PATH", config_file)
 
         result = mod.load_config()
 
-        assert result == {}
+        # deep_merge fills in memory_pool from DEFAULT_CONFIG
+        assert result["enabled"] is True
 
 
 # ===========================================================================
@@ -155,6 +174,7 @@ class TestGetPoolFiles:
     """Test get_pool_files function."""
 
     def test_returns_empty_when_no_directory(self, monkeypatch, tmp_path):
+        """Test that missing pool directory returns empty list."""
         mod = _import_pool_processor(monkeypatch)
         monkeypatch.setattr(mod, "MEMORY_POOL_PATH", tmp_path / "nonexistent")
 
@@ -163,6 +183,7 @@ class TestGetPoolFiles:
         assert result == []
 
     def test_returns_empty_when_no_matching_files(self, monkeypatch, tmp_path):
+        """Test that directory with no matching extensions returns empty list."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -174,6 +195,7 @@ class TestGetPoolFiles:
         assert result == []
 
     def test_returns_sorted_by_mtime_newest_first(self, monkeypatch, tmp_path):
+        """Test that files are sorted by modification time, newest first."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -197,6 +219,7 @@ class TestGetPoolFiles:
         assert result[1].name == "old.md"
 
     def test_filters_by_custom_extensions(self, monkeypatch, tmp_path):
+        """Test filtering files by custom extension list."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -220,6 +243,7 @@ class TestReadFileContent:
     """Test read_file_content function."""
 
     def test_reads_successfully(self, monkeypatch, tmp_path):
+        """Test successfully reading file content with metadata."""
         mod = _import_pool_processor(monkeypatch)
         test_file = tmp_path / "test.md"
         test_file.write_text("Hello, world!", encoding="utf-8")
@@ -233,6 +257,7 @@ class TestReadFileContent:
         assert result["metadata"]["size"] > 0
 
     def test_returns_failure_for_missing_file(self, monkeypatch, tmp_path):
+        """Test that reading a missing file returns failure status."""
         mod = _import_pool_processor(monkeypatch)
         missing = tmp_path / "nonexistent.md"
 
@@ -251,6 +276,7 @@ class TestChunkContent:
     """Test chunk_content function."""
 
     def test_short_text_single_chunk(self, monkeypatch):
+        """Test that text shorter than chunk_size produces a single chunk."""
         mod = _import_pool_processor(monkeypatch)
 
         result = mod.chunk_content("Short text.", chunk_size=1000)
@@ -260,6 +286,7 @@ class TestChunkContent:
         assert result[0]["chunk_index"] == 0
 
     def test_long_text_multiple_chunks(self, monkeypatch):
+        """Test that long text is split into multiple chunks."""
         mod = _import_pool_processor(monkeypatch)
         # Create text longer than chunk_size
         content = "word " * 300  # ~1500 chars
@@ -272,6 +299,7 @@ class TestChunkContent:
         assert indices == list(range(len(result)))
 
     def test_chunk_indices_are_sequential(self, monkeypatch):
+        """Test that chunk indices are sequential starting from zero."""
         mod = _import_pool_processor(monkeypatch)
         content = "A" * 2500
 
@@ -281,6 +309,7 @@ class TestChunkContent:
             assert chunk["chunk_index"] == i
 
     def test_paragraph_break_splitting(self, monkeypatch):
+        """Test that paragraph breaks (double newlines) trigger chunk splits."""
         mod = _import_pool_processor(monkeypatch)
         # Build content with a paragraph break in the right spot
         # chunk_size=100, so we need content > 100 chars
@@ -295,6 +324,7 @@ class TestChunkContent:
         assert len(result) >= 2
 
     def test_empty_content_returns_single_chunk(self, monkeypatch):
+        """Test that empty content returns a single empty chunk."""
         mod = _import_pool_processor(monkeypatch)
 
         result = mod.chunk_content("", chunk_size=1000)
@@ -304,6 +334,7 @@ class TestChunkContent:
         assert result[0]["text"] == ""
 
     def test_exact_chunk_size_single_chunk(self, monkeypatch):
+        """Test that content exactly matching chunk_size produces one chunk."""
         mod = _import_pool_processor(monkeypatch)
         content = "X" * 100
 
@@ -322,6 +353,7 @@ class TestProcessFileToVectors:
     """Test process_file_to_vectors with mocked chromadb."""
 
     def test_processes_file_with_mocked_chromadb(self, monkeypatch, tmp_path):
+        """Test processing a file into vectors with mocked chromadb."""
         mod = _import_pool_processor(monkeypatch)
         monkeypatch.setattr(mod, "CHROMA_PATH", tmp_path / ".chroma")
 
@@ -353,6 +385,7 @@ class TestProcessFileToVectors:
         mock_collection.upsert.assert_called_once()
 
     def test_returns_failure_when_file_unreadable(self, monkeypatch, tmp_path):
+        """Test that unreadable files return failure status."""
         mod = _import_pool_processor(monkeypatch)
         missing = tmp_path / "nonexistent.md"
 
@@ -361,6 +394,7 @@ class TestProcessFileToVectors:
         assert result["success"] is False
 
     def test_returns_failure_when_chromadb_import_fails(self, monkeypatch, tmp_path):
+        """Test that chromadb import failures return failure status."""
         mod = _import_pool_processor(monkeypatch)
 
         test_file = tmp_path / "test.md"
@@ -373,12 +407,13 @@ class TestProcessFileToVectors:
         # Patch the builtins __import__ to raise for chromadb
         original_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
 
-        def fake_import(name, *args, **kwargs):
+        def _fake_import(name, *args, **kwargs):
+            """Intercept imports to simulate missing chromadb."""
             if name == "chromadb":
                 raise ImportError("chromadb not installed")
             return original_import(name, *args, **kwargs)
 
-        monkeypatch.setattr("builtins.__import__", fake_import)
+        monkeypatch.setattr("builtins.__import__", _fake_import)
 
         result = mod.process_file_to_vectors(test_file, "test_collection")
 
@@ -395,6 +430,7 @@ class TestArchiveOldFiles:
     """Test archive_old_files function."""
 
     def test_no_archiving_when_under_limit(self, monkeypatch, tmp_path):
+        """Test that files under keep_recent limit are not archived."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -413,6 +449,7 @@ class TestArchiveOldFiles:
         assert result["kept_count"] == 2
 
     def test_moves_old_files_to_archive(self, monkeypatch, tmp_path):
+        """Test that old files beyond keep_recent are moved to archive."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -442,6 +479,7 @@ class TestArchiveOldFiles:
         assert len(archived_files) == 2
 
     def test_handles_duplicate_names_in_archive(self, monkeypatch, tmp_path):
+        """Test that duplicate filenames in archive are handled with timestamps."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -482,6 +520,7 @@ class TestProcessMemoryPool:
     """Test process_memory_pool main entry point."""
 
     def test_returns_error_when_disabled(self, monkeypatch, tmp_path):
+        """Test that disabled memory pool returns error."""
         mod = _import_pool_processor(monkeypatch)
         monkeypatch.setattr(mod, "MEMORY_POOL_PATH", tmp_path / "pool")
         monkeypatch.setattr(mod, "load_config", lambda: {"enabled": False})
@@ -492,6 +531,7 @@ class TestProcessMemoryPool:
         assert "disabled" in result["error"]
 
     def test_returns_success_with_no_files(self, monkeypatch, tmp_path):
+        """Test that empty memory pool returns success with zero files processed."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "pool"
         monkeypatch.setattr(mod, "MEMORY_POOL_PATH", pool)
@@ -516,6 +556,7 @@ class TestProcessMemoryPool:
         assert result["files_processed"] == 0
 
     def test_processes_files_and_archives(self, monkeypatch, tmp_path):
+        """Test processing files and archiving with full workflow."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "pool"
         pool.mkdir(parents=True)
@@ -561,6 +602,7 @@ class TestProcessMemoryPool:
         mock_jh.log_operation.assert_called_once()
 
     def test_reports_errors_and_notifies(self, monkeypatch, tmp_path):
+        """Test that errors in processing are reported and notification sent."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "pool"
         pool.mkdir(parents=True)
@@ -615,6 +657,7 @@ class TestGetPoolStatus:
     """Test get_pool_status function."""
 
     def test_returns_status_with_mocked_chromadb(self, monkeypatch, tmp_path):
+        """Test returning pool status with mocked chromadb backend."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -654,6 +697,7 @@ class TestGetPoolStatus:
         assert result["oldest_file"] == "recent.md"
 
     def test_returns_zero_vectors_when_chromadb_fails(self, monkeypatch, tmp_path):
+        """Test that chromadb import failures return zero vectors gracefully."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
@@ -665,12 +709,13 @@ class TestGetPoolStatus:
         # Make chromadb import raise
         original_import = __builtins__.__import__ if hasattr(__builtins__, "__import__") else __import__
 
-        def fake_import(name, *args, **kwargs):
+        def _fake_import(name, *args, **kwargs):
+            """Intercept imports to simulate missing chromadb."""
             if name == "chromadb":
                 raise ImportError("no chromadb")
             return original_import(name, *args, **kwargs)
 
-        monkeypatch.setattr("builtins.__import__", fake_import)
+        monkeypatch.setattr("builtins.__import__", _fake_import)
 
         result = mod.get_pool_status()
 
@@ -680,6 +725,7 @@ class TestGetPoolStatus:
         assert result["oldest_file"] is None
 
     def test_returns_zero_vectors_when_collection_not_found(self, monkeypatch, tmp_path):
+        """Test that missing collection returns zero vectors."""
         mod = _import_pool_processor(monkeypatch)
         pool = tmp_path / "memory_pool"
         pool.mkdir()
