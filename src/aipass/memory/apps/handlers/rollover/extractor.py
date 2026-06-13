@@ -494,6 +494,17 @@ def extract_with_metadata(file_path: Path, percentage: int | None = None) -> Dic
     if not result["success"]:
         return result
 
+    if result.get("skipped"):
+        return {
+            "success": True,
+            "skipped": True,
+            "message": result.get("message", "Extraction skipped"),
+            "entries": [],
+            "count": 0,
+            "branch": result.get("branch"),
+            "type": result.get("type"),
+        }
+
     # Enrich extracted items with metadata
     extracted = result.get("extracted", [])
     branch = result.get("branch")

@@ -83,6 +83,19 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Memory rollover no longer silently loses rolled-off learnings ("No embeddings
+  generated").** A capped `.trinity` file rolls its excess entries out to vectors;
+  two combined bugs dropped them on the floor instead. (1) On the "embedding returned
+  empty but success=True" path the orchestrator logged the error and continued — but
+  the source file was *already* trimmed, so the entry was lost from both the file and
+  ChromaDB; it now restores the pre-trim backup before continuing (fail-honest).
+  (2) A concurrent-rollover race (two runs ~33ms apart) let the second run extract
+  nothing yet still report success → empty embeddings → bug #1; `extract_with_metadata`
+  now honors the `skipped` flag and the orchestrator skips no-op extractions before the
+  embedding stage. Verified by artifact + live: a 25/25-capped test file rolls over →
+  embeds (384-dim) → `drone @memory search` returns it at 91% similarity; audit 100%,
+  876 tests (+4).
+
 - **Backup rich CLI output restored end-to-end (FPLAN-0263 + drone passthrough).**
   `drone @backup snapshot|versioned|all` rendered a flat text block instead of the
   original rich output. Two independent causes, both closed: (1) the rich rendering
