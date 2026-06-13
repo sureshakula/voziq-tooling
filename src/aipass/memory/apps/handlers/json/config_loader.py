@@ -88,7 +88,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "key_learnings": {
                 "file": "local.json",
                 "container": "key_learnings",
-                "kind": "dict",
+                "kind": "list",
                 "field": "value",
                 "max_chars": 200,
             },

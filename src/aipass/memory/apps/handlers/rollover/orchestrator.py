@@ -242,8 +242,8 @@ def extract_text_from_memories(memories: List[Dict]) -> List[str]:
         elif "summary" in memory:
             # Sessions type (v2) - summary field
             text = str(memory["summary"])
-        elif "_type" in memory and memory["_type"] == "key_learning":
-            # Key learnings (v2) - key:value pair
+        elif "key" in memory and "value" in memory:
+            # Key learnings (unified) - key:value pair
             text = f"{memory.get('key', '')}: {memory.get('value', '')}"
         elif "content" in memory:
             text = str(memory["content"])

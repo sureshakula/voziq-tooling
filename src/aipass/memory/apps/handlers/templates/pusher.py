@@ -219,7 +219,7 @@ def _apply_template_to_local(current: dict, template: dict, branch_name: str) ->
     if "key_learnings" not in data:
         active = data.get("active_tasks", {})
         if not isinstance(active, dict) or "key_learnings" not in active:
-            data["key_learnings"] = {}
+            data["key_learnings"] = []
             changes.append("key_learnings: added (empty)")
 
     # Todos: add if missing (operational list, not rolled over)

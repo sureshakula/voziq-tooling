@@ -141,6 +141,17 @@ def normalize_memory_file(file_path: Path, dry_run: bool = False) -> Dict[str, A
         if "status" in metadata:
             _strip_orphan_keys(metadata["status"], set(tmpl_status.keys()), "status", changes)
 
+    # Sort list entries newest-first by number (self-heal guardrail)
+    for container_name in ("sessions", "key_learnings", "todos", "observations"):
+        container = data.get(container_name)
+        if isinstance(container, list) and len(container) > 1:
+            has_numbers = all(isinstance(e, dict) and "number" in e for e in container)
+            if has_numbers:
+                sorted_entries = sorted(container, key=lambda e: e["number"], reverse=True)
+                if sorted_entries != container:
+                    data[container_name] = sorted_entries
+                    changes.append(f"{container_name}: re-sorted by number (newest-first)")
+
     # Write if changes made and not dry run
     if changes and not dry_run:
         try:

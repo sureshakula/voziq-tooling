@@ -13,6 +13,19 @@ PyPI version — not the changelog header.
 
 ### Changed
 
+- **Unified memory entry schema — Phase 1 (DPLAN-0207).** All four `.trinity`
+  entry types (`key_learnings`, `sessions`, `todos`, `observations`) move to one
+  shape: numbered + dated, list-shaped, newest-first. `key_learnings` converts
+  from a dict to a numbered list; the rollover extractor now trims the **oldest
+  by number from the tail**, and the schema normalizer self-heals ordering by
+  re-sorting on `number` — so an out-of-order write can never archive a fresh
+  entry (the bug surfaced in S229, where rollover ate the *newest* key_learning
+  instead of the oldest). Backward-compatible: un-migrated dict-shaped
+  key_learnings skip cleanly, no crash. `@memory` self-migrated to
+  `schema_version` 3.0.0 as the first specimen (955 tests, seedgo 100%).
+  Cross-branch migration of all branches, plus `/memo`+`/prep` and @spawn
+  template updates, follow in later phases.
+
 - **Memory config relocated to the json-home and unified behind one
   self-healing loader (FPLAN-0271).** `memory.config.json` moved from the loose
   tracked `config/` dir into the gitignored `memory_json/custom_config/`

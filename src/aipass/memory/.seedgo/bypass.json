@@ -705,6 +705,56 @@
       "file": "tests/test_config_loader.py",
       "standard": "meta",
       "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "documentation",
+      "reason": "Test file — test helper functions (fake_write, _make_v2_data, etc.) don't require docstrings."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_unified_schema.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_unified_schema.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_unified_schema.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tools/migrate_entries.py",
+      "standard": "architecture",
+      "reason": "Standalone utility script in tools/ — intentionally outside 3-layer apps/ structure."
+    },
+    {
+      "file": "tools/migrate_entries.py",
+      "standard": "silent_catch",
+      "reason": "Standalone script — cannot import prax logger. Errors reported via stderr print + result dict."
+    },
+    {
+      "file": "tools/migrate_entries.py",
+      "standard": "debug_print",
+      "reason": "Standalone script — print(stderr) is the error reporting mechanism. No prax available."
     }
   ],
   "notes": {

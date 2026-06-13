@@ -176,7 +176,10 @@ class TestExtractItemsV2:
             {"session_number": i, "date": f"2026-01-{i:02d}", "summary": f"Session {i}"}
             for i in range(1, num_sessions + 1)
         ]
-        key_learnings = {f"learning_{i}": f"value_{i}" for i in range(1, num_learnings + 1)}
+        key_learnings = [
+            {"number": num_learnings - i + 1, "date": f"2026-01-{i:02d}", "key": f"learning_{i}", "value": f"value_{i}"}
+            for i in range(1, num_learnings + 1)
+        ]
         return {
             "document_metadata": {
                 "schema_version": "2.0.0",
@@ -266,8 +269,8 @@ class TestExtractItemsV2:
         extracted_numbers = [s["session_number"] for s in result["extracted"]]
         assert extracted_numbers == [4, 5]
 
-    def test_extracts_oldest_key_learnings_by_insertion_order(self, monkeypatch, tmp_path):
-        """First-inserted keys are oldest and should be extracted first."""
+    def test_extracts_oldest_key_learnings_from_end(self, monkeypatch, tmp_path):
+        """Lowest-numbered entries (oldest, at end) should be extracted."""
         ext, _ = _import_extractor(monkeypatch)
         data = self._make_v2_data(num_sessions=0, num_learnings=5, max_sessions=100, max_learnings=3)
 
@@ -281,10 +284,12 @@ class TestExtractItemsV2:
         with patch.object(ext, "_write_memory_file", side_effect=fake_write):
             result = ext._extract_items_v2(mem_file, data)
 
-        remaining_keys = list(data["key_learnings"].keys())
-        assert remaining_keys == ["learning_3", "learning_4", "learning_5"]
+        # Kept entries should be the first 3 (newest = highest numbers)
+        kept_keys = [e["key"] for e in data["key_learnings"]]
+        assert kept_keys == ["learning_1", "learning_2", "learning_3"]
+        # Extracted should be the last 2 (oldest = lowest numbers)
         extracted_keys = [e["key"] for e in result["extracted"]]
-        assert extracted_keys == ["learning_1", "learning_2"]
+        assert extracted_keys == ["learning_4", "learning_5"]
 
 
 class TestUpdateMetadata:

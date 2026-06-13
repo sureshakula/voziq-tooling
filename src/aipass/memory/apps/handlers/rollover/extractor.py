@@ -286,17 +286,15 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
             data["sessions"] = sessions[:-excess]  # keep newest
             all_extracted.extend(extracted_sessions)
 
-    # Extract from key_learnings dict (first keys are oldest in insertion order)
+    # Extract from key_learnings list (sorted newest-first; oldest at end)
     max_key_learnings = limits.get("max_key_learnings")
     if max_key_learnings is not None:
-        key_learnings = data.get("key_learnings", {})
-        if isinstance(key_learnings, dict) and len(key_learnings) >= max_key_learnings:
+        key_learnings = data.get("key_learnings", [])
+        if isinstance(key_learnings, list) and len(key_learnings) >= max_key_learnings:
             excess = max(len(key_learnings) - max_key_learnings, 1)
-            keys_list = list(key_learnings.keys())
-            keys_to_extract = keys_list[:excess]  # oldest (first inserted)
-            for k in keys_to_extract:
-                all_extracted.append({"_type": "key_learning", "key": k, "value": key_learnings[k]})
-                del data["key_learnings"][k]
+            extracted_kl = key_learnings[-excess:]  # oldest from end
+            data["key_learnings"] = key_learnings[:-excess]  # keep newest
+            all_extracted.extend(extracted_kl)
 
     # Extract from observations array (if v2 observations file)
     max_observations = limits.get("max_observations")
