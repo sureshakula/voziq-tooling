@@ -89,9 +89,9 @@ drone @flow list open                                      # active plans
 drone systems                                              # all branches
 ```
 
-## 13 Core Branches
+## Core Branches
 
-drone, seedgo, prax, cli, ai_mail, api, flow, spawn, trigger, memory, aipass, hooks, devpulse (you — coordinates via dispatch+agents)
+`drone systems` for the live list. Core today: drone, seedgo, prax, cli, ai_mail, api, flow, spawn, trigger, memory, aipass, hooks, devpulse (you — coordinates via dispatch+agents)
 
 ## Working Habits
 

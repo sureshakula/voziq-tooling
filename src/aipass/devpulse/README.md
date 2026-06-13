@@ -2,7 +2,7 @@
 
 # DevPulse
 
-> Orchestration hub for AIPass. The user's primary AI collaborator — designs, plans, debugs, coordinates all 12 other branches, and builds its own modules.
+> Orchestration hub for AIPass. The user's primary AI collaborator — designs, plans, debugs, coordinates the other branches, and builds its own modules.
 
 DevPulse handles the day-to-day: working with the user to plan, design, troubleshoot, and adjust. It builds its own modules directly (watchdog, feedback, json_handler), manages all git operations for the project, dispatches heavy multi-file builds to sub-agents, and ventures into other branches to investigate, debug, and fix small bugs. The only branch with git write access.
 
