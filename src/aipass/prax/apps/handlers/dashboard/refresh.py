@@ -153,12 +153,26 @@ def _extract_memory_section(centrals: Dict, branch_path: Path) -> Dict:
     return {"managed_by": "memory", "vectors_stored": local_vectors, "notes": {}, "last_updated": mb_last_updated}
 
 
-def _calculate_quick_status(sections: Dict) -> Dict:
+def _read_todo_count(branch_path: Path) -> int:
+    """Read todos[] length from .trinity/local.json."""
+    local_path = branch_path / ".trinity" / "local.json"
+    if not local_path.exists():
+        return 0
+    try:
+        data = json.loads(local_path.read_text())
+        return len(data.get("todos", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read todos from %s: %s", local_path, exc)
+        return 0
+
+
+def _calculate_quick_status(sections: Dict, branch_path: Path) -> Dict:
     """
     Calculate quick_status from live section data (v3 schema).
 
     Args:
         sections: All dashboard sections dict
+        branch_path: Path to branch root (for sourcing todo_count from local.json)
 
     Returns:
         Quick status dict with counts, action flag, and summary
@@ -169,6 +183,7 @@ def _calculate_quick_status(sections: Dict) -> Dict:
     new_mail = ai_mail.get("new", ai_mail.get("unread", 0))
     opened_mail = ai_mail.get("opened", 0)
     active_plans = flow.get("active_plans", 0)
+    todo_count = _read_todo_count(branch_path)
 
     action_required = new_mail > 0 or active_plans > 0
 
@@ -179,11 +194,14 @@ def _calculate_quick_status(sections: Dict) -> Dict:
         parts.append(f"{opened_mail} opened")
     if active_plans > 0:
         parts.append(f"{active_plans} active plans")
+    if todo_count > 0:
+        parts.append(f"{todo_count} todos")
 
     return {
         "new_mail": new_mail,
         "opened_mail": opened_mail,
         "active_plans": active_plans,
+        "todo_count": todo_count,
         "action_required": action_required,
         "summary": ", ".join(parts) if parts else "All clear",
     }
@@ -260,8 +278,9 @@ def refresh_all_dashboards() -> Dict:
             _preserve_write_through_sections(dashboard, branch_path, branch_name)
             _prune_deprecated_sections(dashboard)
 
-            # Calculate quick status
-            dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
+            # Calculate quick status (ai_mail section still present for counts)
+            dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"], branch_path)
+            dashboard["sections"].pop("ai_mail", None)
 
             # Save
             save_dashboard(branch_path, dashboard)
@@ -325,7 +344,8 @@ def refresh_single_dashboard(branch_path: Path) -> Dict:
         _preserve_write_through_sections(dashboard, branch_path, branch_name)
         _prune_deprecated_sections(dashboard)
 
-        dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
+        dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"], branch_path)
+        dashboard["sections"].pop("ai_mail", None)
 
         save_dashboard(branch_path, dashboard)
 

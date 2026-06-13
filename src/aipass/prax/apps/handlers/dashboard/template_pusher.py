@@ -33,7 +33,7 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 
 logger = get_direct_logger()
 
-from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.json import json_handler  # noqa: E402
 
 # =============================================================================
 # PATH RESOLUTION
@@ -61,7 +61,15 @@ VERSION_FILE = TEMPLATE_DIR / ".dashboard_version.json"
 AIPASS_REGISTRY = _find_repo_root() / "AIPASS_REGISTRY.json"
 
 # Deprecated sections to REMOVE during push
-DEPRECATED_SECTIONS = ["bulletin_board", "devpulse", "commons_activity", "agent_status", "memory_bank"]
+DEPRECATED_SECTIONS = [
+    "bulletin_board",
+    "devpulse",
+    "commons_activity",
+    "agent_status",
+    "memory_bank",
+    "session",
+    "todo",
+]
 
 # Deprecated quick_status keys to REMOVE during push
 DEPRECATED_QUICK_STATUS_KEYS = ["pending_bulletins", "commons_mentions"]

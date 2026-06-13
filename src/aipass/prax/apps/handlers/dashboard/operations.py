@@ -22,7 +22,7 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 
 logger = get_direct_logger()
 
-from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.json import json_handler  # noqa: E402
 
 # Resolve prax root from this file's location
 _PRAX_ROOT = Path(__file__).resolve().parents[3]  # .../prax/
@@ -139,7 +139,11 @@ def create_fresh_dashboard(branch_path: Path) -> Dict:
     # Fallback: hardcoded (backward compat)
     now = datetime.now().isoformat()
     return {
-        "_warning": "AUTO-GENERATED FILE - DO NOT MANUALLY EDIT. This file is 100% automated and will be overwritten. Services update their own sections.",
+        "_warning": (
+            "AUTO-GENERATED FILE - DO NOT MANUALLY EDIT."
+            " This file is 100% automated and will be overwritten."
+            " Services update their own sections."
+        ),
         "branch": branch_path.name.upper(),
         "last_updated": now,
         "quick_status": {"action_required": False},
@@ -183,12 +187,25 @@ def update_section(
     dashboard["sections"][section_name] = section_data
 
     # Recalculate quick status
-    dashboard["quick_status"] = calculate_status_func(dashboard["sections"])
+    dashboard["quick_status"] = calculate_status_func(dashboard["sections"], branch_path)
 
     return save_dashboard(branch_path, dashboard)
 
 
-def _calculate_quick_status_standalone(sections: Dict) -> Dict:
+def _read_todo_count(branch_path: Path) -> int:
+    """Read todos[] length from .trinity/local.json."""
+    local_path = branch_path / ".trinity" / "local.json"
+    if not local_path.exists():
+        return 0
+    try:
+        data = json.loads(local_path.read_text())
+        return len(data.get("todos", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read todos from %s: %s", local_path, exc)
+        return 0
+
+
+def _calculate_quick_status_standalone(sections: Dict, branch_path: Path) -> Dict:
     """
     Calculate quick_status from live section data.
 
@@ -197,18 +214,18 @@ def _calculate_quick_status_standalone(sections: Dict) -> Dict:
 
     Args:
         sections: All dashboard sections dict
+        branch_path: Path to branch root (for sourcing todo_count from local.json)
 
     Returns:
         Quick status dict with summary, action flags, and counts
     """
     ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
-    todo = sections.get("todo", {})
 
     new_mail_raw = ai_mail.get("new", ai_mail.get("unread", 0))
     opened_raw = ai_mail.get("opened", 0)
     active_plans_raw = flow.get("active_plans", 0)
-    todo_count = int(todo.get("todo_count", 0) or 0)
+    todo_count = _read_todo_count(branch_path)
 
     new_mail = len(new_mail_raw) if isinstance(new_mail_raw, list) else int(new_mail_raw or 0)
     opened_mail = len(opened_raw) if isinstance(opened_raw, list) else int(opened_raw or 0)
@@ -296,7 +313,7 @@ def write_section(branch_path: Path, section_name: str, section_data: Dict) -> b
         dashboard["sections"][section_name] = section_data
 
         # Recalculate quick_status from live data
-        dashboard["quick_status"] = _calculate_quick_status_standalone(dashboard["sections"])
+        dashboard["quick_status"] = _calculate_quick_status_standalone(dashboard["sections"], branch_path)
 
         # Save
         saved = save_dashboard(branch_path, dashboard)

@@ -17,7 +17,10 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
+from aipass.prax.apps.modules.logger import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = get_direct_logger()
 
 
 def _find_repo_root() -> Path:
@@ -32,7 +35,20 @@ def _find_repo_root() -> Path:
 AIPASS_REGISTRY = _find_repo_root() / "AIPASS_REGISTRY.json"
 
 
-def calculate_quick_status(sections: Dict) -> Dict:
+def _read_todo_count(branch_path: Path) -> int:
+    """Read todos[] length from .trinity/local.json."""
+    local_path = branch_path / ".trinity" / "local.json"
+    if not local_path.exists():
+        return 0
+    try:
+        data = json.loads(local_path.read_text())
+        return len(data.get("todos", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read todos from %s: %s", local_path, exc)
+        return 0
+
+
+def calculate_quick_status(sections: Dict, branch_path: "Path | None" = None) -> Dict:
     """
     Calculate quick status from live section data.
 
@@ -40,18 +56,18 @@ def calculate_quick_status(sections: Dict) -> Dict:
 
     Args:
         sections: All dashboard sections
+        branch_path: Optional path to branch root (for sourcing todo_count)
 
     Returns:
         Quick status dict with summary data
     """
     ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
-    todo = sections.get("todo", {})
 
     new_mail = ai_mail.get("new", ai_mail.get("unread", 0))
     opened_mail = ai_mail.get("opened", 0)
     active_plans = flow.get("active_plans", 0)
-    todo_count = todo.get("todo_count", 0)
+    todo_count = _read_todo_count(branch_path) if branch_path else 0
 
     action_required = new_mail > 0 or active_plans > 0
 

@@ -30,6 +30,18 @@ PyPI version — not the changelog header.
   constant), so a refresh strips them. Verified: `bulletin_board` removed from
   the devpulse dashboard; 116/116 prax tests, seedgo 100%. (Follow-up: `@trigger`
   still has a `bulletin_created` writer to retire separately.)
+- **Dashboard slimmed to a lean glance — removed duplicated/dead sections.**
+  Dropped three sections from the devpulse dashboard: `session` (broken since
+  May — read keys `id`/`d`/`sum` vs the actual `session`/`date`/`summary`, so it
+  always wrote empty strings — and it duplicated `local.json`, which loads at
+  startup), `todo` (carried only `todo_count`, already in `quick_status`; now
+  sourced directly from `local.json`), and `ai_mail` (its counts live in
+  `quick_status`; the section is removed from output *after* quick_status is
+  computed from it). End state: 4 sections (`flow`, `memory`, `git`, `dispatch`)
+  + the `quick_status` glance. `session_section.py`/`todo_section.py` archived
+  (not deleted). `DASHBOARD.local.json` overall 6.8 KB → 2.4 KB. Verified: seedgo
+  100%, 108 prax tests. (Follow-up: `@ai_mail`'s `dashboard_sync.py` section
+  writer to retire separately.)
 - **`.backupignore` is now a true `.gitignore` for the backup system — a single
   source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
   matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,
