@@ -7,7 +7,7 @@
 # Modified: 2026-06-13
 # =============================================
 
-"""Tests for edit_gate .trinity character-limit check (Write tool, Phase 4)."""
+"""Tests for edit_gate .trinity character-limit check (Write/Edit/MultiEdit)."""
 
 import importlib
 import json
@@ -62,11 +62,15 @@ def _make_trinity_path(tmp_path, branch="hooks", filename="local.json"):
     return str(trinity_dir / filename)
 
 
-def _hook_data(file_path, content, tool_name="Write", cwd=None):
+def _hook_data(file_path, content=None, tool_name="Write", cwd=None, **extra_input):
     """Build a hook_data dict for edit_gate.handle()."""
+    tool_input = {"file_path": file_path}
+    if content is not None:
+        tool_input["content"] = content
+    tool_input.update(extra_input)
     data = {
         "tool_name": tool_name,
-        "tool_input": {"file_path": file_path, "content": content},
+        "tool_input": tool_input,
     }
     if cwd:
         data["cwd"] = cwd
@@ -364,46 +368,489 @@ class TestTrinityWriteCharNotByte:
         assert parsed["decision"] == "block"
 
 
-class TestTrinityEditMultiEditPassthrough:
-    """Edit/MultiEdit to .trinity file -> NOT blocked by Phase 4 check."""
+class TestTrinityEditClean:
+    """Edit to .trinity with entries under cap -> allowed."""
 
-    def test_edit_to_trinity_not_blocked(self, tmp_path):
-        """Edit tool to .trinity/local.json -> passes through (Phase 5 scope)."""
+    def test_edit_clean_entry(self, tmp_path):
+        """Edit changes a key_learning to a short value -> allowed."""
         from aipass.hooks.apps.handlers.security.edit_gate import handle
 
         file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
         cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "old value"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
 
-        result = handle(
-            {
-                "tool_name": "Edit",
-                "tool_input": {
-                    "file_path": file_path,
-                    "old_string": "old",
-                    "new_string": "x" * 500,
-                },
-                "cwd": cwd,
-            }
-        )
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"old value"',
+                    new_string='"new short value"',
+                )
+            )
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+
+class TestTrinityEditOverLimit:
+    """Edit producing over-limit entry -> blocked (enforce) or warned."""
+
+    def test_edit_over_limit_enforce_blocks(self, tmp_path):
+        """Edit pushes key_learning over 200 cap, enforce=True -> blocked."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "short"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"short"',
+                    new_string='"' + "x" * 250 + '"',
+                )
+            )
+
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+        assert "key_learnings" in parsed["reason"]
+
+    def test_edit_over_limit_warn_allows(self, tmp_path, caplog):
+        """Edit pushes key_learning over cap, enforce=False -> allowed + warn."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "short"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_WARN)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"short"',
+                    new_string='"' + "x" * 250 + '"',
+                )
+            )
+
+        assert result["exit_code"] == 0
+        assert "warn only" in caplog.text
+
+    def test_edit_modifies_entry_to_exceed_cap(self, tmp_path):
+        """Edit modifies existing entry from under cap to over cap -> blocked."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "a" * 100}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"' + "a" * 100 + '"',
+                    new_string='"' + "b" * 250 + '"',
+                )
+            )
+
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+
+
+class TestTrinityEditFailOpen:
+    """Edit fail-open: old_string not found, invalid JSON result."""
+
+    def test_edit_old_string_not_found_fail_open(self, tmp_path):
+        """old_string absent from file -> _resolve_after_text returns None -> allow."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "hello"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string="NONEXISTENT",
+                    new_string="x" * 500,
+                )
+            )
+
         assert result["exit_code"] == 0
 
-    def test_multiedit_to_trinity_not_blocked(self, tmp_path):
-        """MultiEdit tool to .trinity/local.json -> passes through (Phase 5 scope)."""
+    def test_edit_producing_invalid_json_fail_open(self, tmp_path):
+        """Edit breaks JSON structure -> JSONDecodeError caught -> allow."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "hello"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"hello"',
+                    new_string='"hello',
+                )
+            )
+
+        assert result["exit_code"] == 0
+
+    def test_edit_nonexistent_file_allows(self, tmp_path):
+        """Edit to a .trinity file that doesn't exist yet -> allow."""
         from aipass.hooks.apps.handlers.security.edit_gate import handle
 
         file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
         cwd = str(tmp_path / "src" / "aipass" / "hooks")
 
-        result = handle(
-            {
-                "tool_name": "MultiEdit",
-                "tool_input": {
-                    "file_path": file_path,
-                    "edits": [{"old_string": "a", "new_string": "x" * 500}],
-                },
-                "cwd": cwd,
-            }
-        )
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string="anything",
+                    new_string="x" * 500,
+                )
+            )
+
+        assert result["exit_code"] == 0
+
+
+class TestTrinityEditReplaceAll:
+    """Edit with replace_all=True vs False."""
+
+    def test_replace_all_true(self, tmp_path):
+        """replace_all=True replaces all occurrences -> checks result."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "aaa", "k2": "aaa"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"aaa"',
+                    new_string='"' + "x" * 250 + '"',
+                    replace_all=True,
+                )
+            )
+
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+
+    def test_replace_all_false_single(self, tmp_path):
+        """replace_all=False replaces first occurrence only -> one entry over."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "aaa", "k2": "bbb"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"aaa"',
+                    new_string='"' + "x" * 250 + '"',
+                    replace_all=False,
+                )
+            )
+
+        assert result["exit_code"] == 2
+
+
+class TestTrinityEditCharNotByte:
+    """Character vs byte boundary via Edit tool."""
+
+    def test_em_dash_edit_at_cap_allowed(self, tmp_path):
+        """Edit producing 200 em-dashes (200 chars, 600 bytes) -> at cap -> allowed."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "short"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"short"',
+                    new_string='"' + "—" * 200 + '"',
+                )
+            )
+
+        assert result["exit_code"] == 0
+
+    def test_em_dash_edit_over_cap_blocked(self, tmp_path):
+        """Edit producing 201 em-dashes (201 chars, 603 bytes) -> over cap -> blocked."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "short"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"short"',
+                    new_string='"' + "—" * 201 + '"',
+                )
+            )
+
+        assert result["exit_code"] == 2
+
+
+class TestTrinityMultiEdit:
+    """MultiEdit: sequential edits, ordering, over-limit detection."""
+
+    def test_multiedit_clean(self, tmp_path):
+        """MultiEdit with both edits under cap -> allowed."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "aaa", "k2": "bbb"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        edits = [
+            {"old_string": '"aaa"', "new_string": '"new_a"'},
+            {"old_string": '"bbb"', "new_string": '"new_b"'},
+        ]
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                {
+                    "tool_name": "MultiEdit",
+                    "tool_input": {"file_path": file_path, "edits": edits},
+                    "cwd": cwd,
+                }
+            )
+
+        assert result["exit_code"] == 0
+
+    def test_multiedit_over_limit_blocked(self, tmp_path):
+        """MultiEdit where second edit produces over-limit entry -> blocked."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "aaa", "k2": "bbb"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        edits = [
+            {"old_string": '"aaa"', "new_string": '"short"'},
+            {"old_string": '"bbb"', "new_string": '"' + "x" * 250 + '"'},
+        ]
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                {
+                    "tool_name": "MultiEdit",
+                    "tool_input": {"file_path": file_path, "edits": edits},
+                    "cwd": cwd,
+                }
+            )
+
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+
+    def test_multiedit_ordering_dependent(self, tmp_path):
+        """MultiEdit where edit 2 depends on edit 1's output -> applied sequentially."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "alpha"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        edits = [
+            {"old_string": '"alpha"', "new_string": '"beta"'},
+            {"old_string": '"beta"', "new_string": '"gamma"'},
+        ]
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                {
+                    "tool_name": "MultiEdit",
+                    "tool_input": {"file_path": file_path, "edits": edits},
+                    "cwd": cwd,
+                }
+            )
+
+        assert result["exit_code"] == 0
+
+    def test_multiedit_old_string_not_found_fail_open(self, tmp_path):
+        """MultiEdit where an old_string is missing -> fail-open."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "hello"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        edits = [
+            {"old_string": '"hello"', "new_string": '"world"'},
+            {"old_string": '"NONEXISTENT"', "new_string": '"' + "x" * 500 + '"'},
+        ]
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                {
+                    "tool_name": "MultiEdit",
+                    "tool_input": {"file_path": file_path, "edits": edits},
+                    "cwd": cwd,
+                }
+            )
+
+        assert result["exit_code"] == 0
+
+    def test_multiedit_replace_all_in_edit(self, tmp_path):
+        """MultiEdit with replace_all=True in one edit -> replaces all occurrences."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"key_learnings": {"k1": "zzz", "k2": "zzz"}}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        edits = [
+            {"old_string": '"zzz"', "new_string": '"' + "x" * 250 + '"', "replace_all": True},
+        ]
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                {
+                    "tool_name": "MultiEdit",
+                    "tool_input": {"file_path": file_path, "edits": edits},
+                    "cwd": cwd,
+                }
+            )
+
+        assert result["exit_code"] == 2
+
+
+class TestTrinityEditUnrelatedFieldOnFatFile:
+    """THE critical no-false-reject test: unrelated edit on a file with legacy fat entries."""
+
+    def test_unrelated_edit_on_fat_file_allowed(self, tmp_path):
+        """File has 4000-char sessions + 500-char key_learnings (all legacy).
+        Edit only touches a small todo. enforce=True. MUST be ALLOWED."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+
+        fat_sessions = [{"summary": "x" * 300} for _ in range(13)]
+        fat_learnings = {f"k{i}": "y" * 500 for i in range(10)}
+        existing = {
+            "key_learnings": fat_learnings,
+            "sessions": fat_sessions,
+            "todos": [{"task": "old todo"}],
+        }
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"old todo"',
+                    new_string='"new todo"',
+                )
+            )
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_unrelated_edit_plus_new_over_limit_blocked(self, tmp_path):
+        """Fat file, but Edit ALSO adds a new over-limit entry -> blocked."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+
+        existing = {
+            "key_learnings": {"old_fat": "y" * 500},
+            "todos": [{"task": "old todo"}],
+        }
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"old todo"',
+                    new_string='"' + "z" * 250 + '"',
+                )
+            )
+
+        assert result["exit_code"] == 2
+
+
+class TestTrinityEditUnchangedLegacy:
+    """Edit that doesn't change legacy over-limit entries -> allowed."""
+
+    def test_edit_unchanged_legacy_allowed(self, tmp_path):
+        """Legacy over-limit key_learning unchanged by Edit -> allowed."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {
+            "key_learnings": {"old_fat": "x" * 500, "k2": "short"},
+            "todos": [{"task": "my todo"}],
+        }
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+
+        with patch("importlib.import_module", return_value=_mock_entry_limits(_TEST_LIMITS_ENFORCE)):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string='"short"',
+                    new_string='"still short"',
+                )
+            )
+
         assert result["exit_code"] == 0
 
 
