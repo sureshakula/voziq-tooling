@@ -10,6 +10,7 @@
 
 """Blocks unsafe edits: inbox writes, daemon confinement, cross-branch writes, diagnostics state."""
 
+import importlib
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 STATE_FILE = Path(__file__).parent.parent.parent.parent.parent / ".diagnostics_state.json"
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 TRUSTED_CROSS_WRITERS: tuple[str, ...] = ("devpulse", "seedgo", "spawn")
+_TRINITY_MEMORY_FILES = frozenset({"local.json", "observations.json"})
 
 
 def _get_package_from_cwd(cwd: str) -> str:
@@ -38,6 +40,46 @@ def _get_branch(file_path: str, package: str = "") -> str:
         if part == package and i > 0 and parts[i - 1] == "src" and i + 1 < len(parts):
             return parts[i + 1]
     return ""
+
+
+def _check_trinity_write(fp: Path, tool_input: dict, branch: str) -> dict | None:
+    """Check .trinity Write for over-limit entries. Returns block dict or None (allow)."""
+    try:
+        el = importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+        limits = el.load_entry_limits(branch)
+        if not limits.get("enabled"):
+            return None
+        content = tool_input.get("content", "")
+        after = json.loads(content)
+        resolved_path = str(fp.resolve()) if not fp.is_absolute() else str(fp)
+        before = {}
+        if Path(resolved_path).exists():
+            before = json.loads(Path(resolved_path).read_text(encoding="utf-8"))
+        over = el.changed_entries(before, after, limits)
+        if not over:
+            return None
+        if limits.get("enforce"):
+            lines = ["Over-limit .trinity entries (shorten before saving):"]
+            for v in over:
+                lines.append(f"  {v['entry_type']} [{v['key']}]: {v['length']}/{v['cap']} chars (+{v['over_by']})")
+            return {
+                "stdout": json.dumps({"decision": "block", "reason": "\n".join(lines)}),
+                "exit_code": 2,
+                "sound": "edit gate",
+            }
+        for v in over:
+            logger.warning(
+                "[HOOKS] edit_gate: over-limit .trinity entry %s [%s]: %d/%d (+%d) — warn only",
+                v["entry_type"],
+                v["key"],
+                v["length"],
+                v["cap"],
+                v["over_by"],
+            )
+        return None
+    except Exception as exc:
+        logger.warning("[HOOKS] edit_gate: .trinity size check failed (allowing): %s", exc)
+        return None
 
 
 def handle(hook_data: dict) -> dict:
@@ -111,6 +153,12 @@ def handle(hook_data: dict) -> dict:
                     "exit_code": 2,
                     "sound": "edit gate",
                 }
+
+        if tool_name == "Write" and fp.parent.name == ".trinity" and fp.name in _TRINITY_MEMORY_FILES:
+            if target_branch:
+                block = _check_trinity_write(fp, tool_input, target_branch)
+                if block:
+                    return block
 
         if not file_path.endswith(".py"):
             return {"stdout": "", "exit_code": 0}
