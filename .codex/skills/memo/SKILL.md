@@ -18,8 +18,14 @@ Purpose: Update branch memory files after completing work this session.
 
 ### Always
 
-- **.trinity/local.json** — Add new session entry to `sessions` if significant work was done. Add new `key_learnings` for facts you'd need next time. Trim oldest sessions if over 20.
+- **.trinity/local.json** — Add new session entry to `sessions` if significant work was done. Add new `key_learnings` for facts you'd need next time.
 - **.trinity/observations.json** — Add notable collaboration insights: breakthrough moments, pattern corrections, flow states, friction points, preference discoveries. Skip if nothing notable this session.
+
+### Entry shape — one rule for all four types
+
+`key_learnings`, `sessions`, `todos` (local.json) and `observations` (observations.json) all share ONE shape: a **list of objects, newest at the top (index 0)**. Every entry carries a **`number`** (monotonic int per type — highest = newest, never reused; new = current max + 1) and a **`date`** (ISO), plus its text field + extras: key_learnings `{number, date, key, value}` · sessions `{number, date, summary, status, tags}` · todos `{number, date, task, priority, status}` · observations `{number, date, note, tags}`.
+
+**When adding:** stamp `number` + `date`, then **prepend** (newest on top). **Don't hand-trim** — rollover archives the oldest *by number* to @memory automatically.
 
 ### If Relevant
 

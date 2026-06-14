@@ -35,11 +35,9 @@ from datetime import datetime
 
 from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
 
 logger = get_system_logger()
-
-# Handler imports (relative within package)
-from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
 
 # ChromaDB subprocess for vectorization (resolved relative to handler location)
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]

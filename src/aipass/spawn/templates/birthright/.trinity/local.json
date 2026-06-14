@@ -3,7 +3,7 @@
     "document_type": "session_history",
     "document_name": "{{BRANCHNAME}}.LOCAL",
     "version": "2.0.0",
-    "schema_version": "2.0.0",
+    "schema_version": "3.0.0",
     "created": "{{DATE}}",
     "last_updated": "{{DATE}}",
     "managed_by": "{{BRANCHNAME}}",
@@ -25,13 +25,14 @@
       "current_lines": 0
     }
   },
-  "key_learnings": {},
+  "key_learnings": [],
   "sessions": [
     {
-      "session_number": 1,
+      "number": 1,
       "date": "{{DATE}}",
       "summary": "Branch initialized - {{BRANCHNAME}} created by aipass init.",
-      "status": "completed"
+      "status": "completed",
+      "tags": []
     }
   ]
 }

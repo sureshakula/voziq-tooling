@@ -14,9 +14,11 @@ Purpose: Button up everything at the end of a session — or before a /compact. 
 
 ## 1. Memories
 
-- **.trinity/local.json** — Add/update session entry with summary of work done. Add new key_learnings for anything learned this session. Trim oldest sessions if over 20.
+- **.trinity/local.json** — Add/update session entry with summary of work done. Add new key_learnings for anything learned this session.
 - **.trinity/observations.json** — Add collaboration insights if anything notable happened. Skip if nothing new.
 - **.trinity/passport.json** — Only update if role/purpose/principles genuinely changed this session.
+
+**Entry shape — one rule for all four types:** `key_learnings`, `sessions`, `todos` (local.json) and `observations` (observations.json) are all **lists, newest at top (index 0)**. Every entry carries a **`number`** (monotonic int per type — highest = newest, never reused; new = current max + 1) and a **`date`** (ISO), plus its text field + extras: key_learnings `{number, date, key, value}` · sessions `{number, date, summary, status, tags}` · todos `{number, date, task, priority, status}` · observations `{number, date, note, tags}`. Stamp `number` + `date` and **prepend**; **don't hand-trim** — rollover archives the oldest *by number* automatically.
 
 ## 2. Active Plans
 
