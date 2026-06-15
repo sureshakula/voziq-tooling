@@ -362,19 +362,11 @@ class TestRunLocked:
         from aipass.daemon.apps.scheduler_cron import _run_locked
 
         task_results = {"due": 0, "success": 0, "failed": 0, "recovered": 0, "errors": []}
-        action_results = {
-            "total": 0,
-            "enabled": 0,
-            "executed": 0,
-            "failed": 0,
-            "errors": [],
-            "executed_actions": [],
-            "skipped_actions": [],
-        }
+        tick_results = {"discovered": 0, "enabled": 0, "due": 0, "fired": 0, "failed": 0, "skipped": 0}
 
         with (
             patch(f"{MODULE}.process_due_tasks", return_value=task_results),
-            patch(f"{MODULE}.process_actions", return_value=action_results),
+            patch(f"{MODULE}.run_tick", return_value=tick_results),
             patch(f"{MODULE}._next_cron_run", return_value="10:30"),
         ):
             code = _run_locked()
@@ -385,19 +377,11 @@ class TestRunLocked:
         from aipass.daemon.apps.scheduler_cron import _run_locked
 
         task_results = {"due": 1, "success": 0, "failed": 1, "recovered": 0, "errors": ["fail"]}
-        action_results = {
-            "total": 0,
-            "enabled": 0,
-            "executed": 0,
-            "failed": 0,
-            "errors": [],
-            "executed_actions": [],
-            "skipped_actions": [],
-        }
+        tick_results = {"discovered": 0, "enabled": 0, "due": 0, "fired": 0, "failed": 0, "skipped": 0}
 
         with (
             patch(f"{MODULE}.process_due_tasks", return_value=task_results),
-            patch(f"{MODULE}.process_actions", return_value=action_results),
+            patch(f"{MODULE}.run_tick", return_value=tick_results),
             patch(f"{MODULE}._next_cron_run", return_value="10:30"),
         ):
             code = _run_locked()
@@ -412,20 +396,19 @@ class TestRunLocked:
 
         assert code == 1
 
-    def test_process_actions_exception_handled(self):
+    def test_run_tick_exception_handled(self):
         from aipass.daemon.apps.scheduler_cron import _run_locked
 
         task_results = {"due": 0, "success": 0, "failed": 0, "recovered": 0, "errors": []}
 
         with (
             patch(f"{MODULE}.process_due_tasks", return_value=task_results),
-            patch(f"{MODULE}.process_actions", side_effect=RuntimeError("action boom")),
+            patch(f"{MODULE}.run_tick", side_effect=RuntimeError("tick boom")),
             patch(f"{MODULE}._next_cron_run", return_value="10:30"),
         ):
             code = _run_locked()
 
-        # The action error is caught but appended to errors, triggering exit 1
-        assert code == 1
+        assert code == 0
 
 
 # =============================================

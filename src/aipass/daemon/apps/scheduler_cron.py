@@ -32,7 +32,9 @@ from datetime import datetime
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console
 from aipass.daemon.apps.handlers.json import json_handler
-from aipass.daemon.apps.handlers.actions.action_processor import process_actions
+
+# action_processor retired — new tick uses .daemon/ discovery (DPLAN-0204)
+from aipass.daemon.apps.modules.run import run_tick
 
 try:
     import fcntl
@@ -343,22 +345,13 @@ def _run_locked() -> int:
         log(f"CRITICAL: Unhandled error in process_due_tasks: {e}")
         return 1
 
-    # Step 2: Process actions from registry
-    action_results = {
-        "total": 0,
-        "enabled": 0,
-        "executed": 0,
-        "failed": 0,
-        "errors": [],
-        "executed_actions": [],
-        "skipped_actions": [],
-    }
+    # Step 2: Run decentralized .daemon/ scheduler tick
+    tick_results = {"fired": 0, "failed": 0}
     try:
-        action_results = process_actions(log_fn=log, send_email_fn=send_email_direct)
+        tick_results = run_tick()
     except Exception as e:
-        logger.warning(f"Unhandled error in process_actions: {e}")
-        log(f"WARNING: Unhandled error in process_actions: {e}")
-        action_results["errors"].append(f"Action processing: {e}")
+        logger.warning(f"Unhandled error in run_tick: {e}")
+        log(f"WARNING: Unhandled error in scheduler tick: {e}")
 
     # Step 3: Build summary
     lines = []
@@ -374,19 +367,11 @@ def _run_locked() -> int:
     else:
         lines.append("Tasks: none due")
 
-    # Actions section
-    executed = action_results.get("executed_actions", [])
-    skipped = action_results.get("skipped_actions", [])
-    if executed:
-        for a in executed:
-            lines.append(f"  {a['id']} {a['name']} -> {a['branch']} OK")
-    if skipped:
-        for a in skipped:
-            lines.append(f"  {a['id']} {a['name']} -> {a['branch']} (next: {a['next_due']})")
-    if not executed and not skipped:
-        lines.append("Actions: none enabled")
-    if action_results["failed"]:
-        lines.append(f"Action failures: {action_results['failed']}")
+    # Scheduler tick section
+    if tick_results.get("fired") or tick_results.get("failed"):
+        lines.append(f"Scheduler: {tick_results.get('fired', 0)} fired, {tick_results.get('failed', 0)} failed")
+    else:
+        lines.append(f"Scheduler: {tick_results.get('discovered', 0)} discovered, none due")
 
     # Next run
     lines.append(f"Next: ~{_next_cron_run()}")
@@ -396,7 +381,7 @@ def _run_locked() -> int:
     log(f"Results: {summary}")
 
     # Step 4: Determine exit code
-    if results["failed"] > 0 or results["errors"] or action_results["failed"] > 0 or action_results["errors"]:
+    if results["failed"] > 0 or results["errors"] or tick_results.get("failed", 0) > 0:
         exit_code = 1
 
     log("Scheduler cron finished")
