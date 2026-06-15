@@ -5,8 +5,8 @@
 > Centralized external API gateway — authenticated service clients for all external APIs
 
 **Module:** `aipass.api` | **Role:** `api_gateway`
-**Seedgo:** 99% (35/36 at 100%) | **Tests:** 447 pass | **Functions:** 77 public (77 tested)
-**Last Updated:** 2026-05-16
+**Seedgo:** 99% (36/37 at 100%) | **Tests:** 499 pass | **Functions:** 80 public (80 tested)
+**Last Updated:** 2026-06-15
 
 ---
 
@@ -26,6 +26,7 @@ drone @api <command> [args]
 | `validate [provider]` | Validate API key (default: openrouter) |
 | `validate google` | Validate Google OAuth2 credentials |
 | `reauth google` | Re-authenticate Google OAuth2 |
+| `get-secret <provider/slug> [--json] [--list]` | Read secret from provider store |
 | `list-providers` | List available API providers |
 | `init` | Initialize .env template at ~/.secrets/aipass/ |
 | `test` | Test OpenRouter connection status |
@@ -57,7 +58,7 @@ api/
 │   │   ├── integrations_manager.py    # Contract dispatch — integrations list/call
 │   │   └── registry.py               # Driver auto-discovery (load_drivers)
 │   ├── handlers/                      # Business logic (7 packages, 15 files)
-│   │   ├── auth/env.py, keys.py
+│   │   ├── auth/env.py, keys.py, secrets.py
 │   │   ├── config/provider.py
 │   │   ├── google/auth.py, service_factory.py, retry.py
 │   │   ├── integrations/list.py, call.py
@@ -66,7 +67,7 @@ api/
 │   │   └── usage/aggregation.py, cleanup.py, tracking.py
 │   └── integrations/                  # Private driver space (gitignored)
 │       └── {project}/driver.py
-└── tests/                             # 447 tests across 27 files
+└── tests/                             # 499 tests across 28 files
 ```
 
 Three-tier: entry point routes to modules (orchestration), modules delegate to handlers (business logic). Modules auto-discovered from `apps/modules/*.py` via `handle_command()`.
@@ -85,6 +86,11 @@ service = get_drive_service(thread_safe=True)   # For concurrent workers
 
 from aipass.api.apps.modules.google_client import get_google_service
 service = get_google_service("calendar", "v3")
+
+from aipass.api.apps.handlers.auth.secrets import get_secret, list_secrets
+token = get_secret("telegram", "bot")               # Returns bot_token string
+config = get_secret("telegram", "bot", as_json=True) # Returns full dict
+slugs = list_secrets("telegram")                     # Returns ["bot", "webhook", ...]
 ```
 
 ---

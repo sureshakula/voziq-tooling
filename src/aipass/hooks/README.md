@@ -74,13 +74,14 @@ src/aipass/hooks/
 │   │       ├── announce.py      #   Announcement tone on notification
 │   │       ├── email.py         #   Inbox check on prompt
 │   │       ├── stop_sound.py    #   Bell on session stop
+│   │       ├── telegram_response.py # Telegram reply delivery on Stop
 │   │       └── tool_sound.py    #   Announces tool name via TTS
 │   └── handlers/config/         # Config utilities
 │       ├── loader.py            # hooks.json discovery + validation
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 472 tests across 22 test files
+└── tests/                       # 593 tests across 23 test files
 ```
 
 ## How It Works
@@ -105,7 +106,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 | PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
-| Stop | stop_sound | Achievement bell |
+| Stop | stop_sound, telegram_response | Achievement bell + Telegram reply delivery |
 | Notification | announce | Announcement tone |
 | PreCompact | compact, rollover | Memory archival + rollover |
 

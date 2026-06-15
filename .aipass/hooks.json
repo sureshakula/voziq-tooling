@@ -87,6 +87,12 @@
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.notification.stop_sound.handle",
       "matcher": ""
+    },
+    "telegram_response": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.notification.telegram_response.handle",
+      "matcher": "",
+      "timeout": 30
     }
   },
 

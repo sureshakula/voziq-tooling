@@ -22,7 +22,7 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console, header, success, error
 from aipass.api.apps.handlers.json import json_handler
-from aipass.api.apps.handlers.auth import keys, env
+from aipass.api.apps.handlers.auth import keys, env, secrets
 
 
 def print_introspection():
@@ -61,7 +61,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         True if command was handled, False otherwise
     """
     try:
-        if command not in ["get-key", "validate", "list-providers", "init"]:
+        if command not in ["get-key", "validate", "list-providers", "init", "get-secret"]:
             return False
 
         # Help gate
@@ -81,6 +81,9 @@ def handle_command(command: str, args: List[str]) -> bool:
             return True
         if command == "get-key":
             get_key(args)
+            return True
+        if command == "get-secret":
+            get_secret_cmd(args)
             return True
         if command == "validate":
             validate_key(args)
@@ -168,6 +171,51 @@ def init_env():
         error("Failed to create environment template")
 
 
+def get_secret_cmd(args: List[str]):
+    """Orchestrate secret retrieval workflow (machine-readable output)"""
+    import json
+
+    if not args:
+        error("Usage: drone @api get-secret <provider/slug> [--json] [--list]")
+        return
+
+    has_json = "--json" in args
+    has_list = "--list" in args
+    clean_args = [a for a in args if not a.startswith("--")]
+
+    if not clean_args:
+        error("Usage: drone @api get-secret <provider/slug> [--json] [--list]")
+        return
+
+    parts = clean_args[0].split("/", 1)
+    provider = parts[0]
+
+    if has_list:
+        slugs = secrets.list_secrets(provider)
+        for slug in slugs:
+            print(slug)
+        return
+
+    if len(parts) != 2 or not parts[1]:
+        error("Expected format: <provider>/<slug>  (e.g. telegram/bot)")
+        return
+
+    slug = parts[1]
+
+    if has_json:
+        result = secrets.get_secret(provider, slug, as_json=True)
+        if result is not None:
+            print(json.dumps(result, indent=2))
+        else:
+            error(f"Secret not found: {provider}/{slug}")
+    else:
+        result = secrets.get_secret(provider, slug)
+        if result is not None:
+            print(result)
+        else:
+            error(f"Secret not found: {provider}/{slug}")
+
+
 def fetch_api_key(provider: str = "openrouter"):
     """Retrieve a validated API key for a provider from secrets."""
     return keys.get_api_key(provider)
@@ -194,6 +242,7 @@ def print_help():
         epilog="""
 COMMANDS:
   get-key          - Retrieve API key for a provider
+  get-secret       - Read secret from provider store
   validate         - Validate API key
   list-providers   - List available providers
   init             - Initialize .env template
@@ -205,6 +254,12 @@ USAGE:
 EXAMPLES:
   # Get key for provider
   drone @api get-key openrouter
+
+  # Get secret for provider/slug
+  drone @api get-secret telegram/bot
+
+  # List secrets for a provider
+  drone @api get-secret telegram --list
 
   # Validate key
   drone @api validate openrouter

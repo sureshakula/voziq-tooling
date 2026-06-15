@@ -9,6 +9,26 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-15]
+
+### Added
+
+- **Telegram bridge ported into AIPass as a self-contained skill (FPLAN-0277).**
+  The Dev-Pass Telegram bridge (multi-bot long-poll listener → tmux Claude
+  injection → Stop-hook reply) is ported AS-WAS into a self-contained `telegram`
+  skill that consumes AIPass services instead of bespoke wiring: secrets via the
+  new `@api get-secret`, logging via `@prax`, and the outbound Stop hook
+  registered through the `@hooks` engine. Three phases — **P1 `@api`** adds
+  `get-secret <provider/slug> [--json|--list]` + `auth/secrets.py` (reads
+  `~/.secrets/aipass/`); **P2 `@skills`** ports the 14-file bridge (~5,300 lines)
+  + ~424 tests into `.aipass/skills/telegram/`, rewiring every seam to services;
+  **P3 `@hooks`** ports `telegram_response.py` (the reply path, with the 3-layer
+  SubagentStop/sidechain/transcript-cursor defense intact) and registers it on
+  the Stop event. A 366-tag completeness map (`TELEGRAM_PORT_MAP.md`) audited the
+  port: **288 verified, 23 gaps** (top gap — a missing test log-isolation fixture
+  — now fixed), **55 deferred to a live round-trip**. Live bring-up (real bot
+  creds, systemd install, telethon auth, message round-trip) is still pending.
+
 ## [2026-06-13]
 
 ### Changed

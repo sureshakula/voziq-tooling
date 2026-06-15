@@ -873,6 +873,36 @@
       "file": "apps/modules/sandbox.py",
       "standard": "unused_function",
       "reason": "sandbox_launch(), build_policy(), build_srt_config(), and resolve_bwrap_command() are consumed CROSS-BRANCH by ai_mail's dispatch_monitor.py (the launch seam at Phase 4). seedgo's intra-branch static analysis cannot see these callers. Verified: dispatch_monitor imports sandbox module to wire build_policy + sandbox_launch at agent launch."
+    },
+    {
+      "file": "apps/handlers/notification/telegram_response.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in Stop.telegram_response."
+    },
+    {
+      "file": "apps/handlers/notification/telegram_response.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json for JSONL transcript parsing and Telegram Bot API payloads — no branch data storage needing json_handler."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
     }
   ],
   "notes": {

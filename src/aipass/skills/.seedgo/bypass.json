@@ -6,6 +6,16 @@
   },
   "bypass": [
     {
+      "file": ".aipass/skills/telegram/tests/test_response_router.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": ".aipass/skills/telegram/tests/test_response_router.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler module directly for unit testing. Tests need direct access to monkeypatch module-level attributes and verify handler behavior."
+    },
+    {
       "file": "apps/handlers/loader_handler.py",
       "standard": "handlers",
       "lines": [25],
