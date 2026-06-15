@@ -352,6 +352,10 @@
       "reason": "play() called by handler files (stop_sound.py, announce.py) that are dynamically dispatched via importlib \u2014 static analysis cannot trace the call chain from hooks.json \u2192 engine \u2192 handler \u2192 sound.play()."
     },
     {
+      "standard": "json_handler",
+      "reason": "Hooks branch has no json_handler.py — hook engine uses its own JSONL diagnostic logging and stdlib json for hook protocol I/O. Does not follow the module JSON pattern by design."
+    },
+    {
       "standard": "test_quality",
       "reason": "Hooks branch does not use json_handler \u2014 has its own JSONL diagnostic logging (diagnostics.py) and stdlib json for hook protocol I/O. json_handler coverage, mock_json_handler fixture, and exception_contracts (create_default_raises, save_invalid_raises, invalid_mode_raises) are all N/A for a hook dispatch engine architecture."
     },

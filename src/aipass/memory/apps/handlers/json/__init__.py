@@ -8,8 +8,14 @@ Provides three sub-modules:
 """
 
 from .json_handler import (
+    ensure_json_exists,
+    ensure_module_jsons,
+    get_json_path,
+    load_json,
     log_operation,
     read_json,
+    save_json,
+    validate_json_structure,
     write_json,
 )
 
@@ -26,8 +32,14 @@ from . import config_loader
 
 __all__ = [
     # json_handler (three-JSON standard)
+    "ensure_json_exists",
+    "ensure_module_jsons",
+    "get_json_path",
+    "load_json",
     "log_operation",
     "read_json",
+    "save_json",
+    "validate_json_structure",
     "write_json",
     # memory_files (memory file I/O)
     "read_memory_file",
