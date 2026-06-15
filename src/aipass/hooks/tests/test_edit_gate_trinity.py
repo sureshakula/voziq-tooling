@@ -86,6 +86,41 @@ def _mock_entry_limits(limits):
     return mock_module
 
 
+_ROLLOVER_CONFIG_10 = {
+    "rollover": {
+        "defaults": {
+            "local": {
+                "sessions": {"count": 20},
+                "key_learnings": {"count": 25},
+                "todos": {"count": 10},
+            },
+        },
+        "per_branch": {},
+    },
+}
+
+
+def _mock_importlib_modules(limits, rollover_cfg=None):
+    """Return a side_effect for importlib.import_module supporting both modules."""
+    el_real = importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+
+    entry_limits_mock = MagicMock()
+    entry_limits_mock.load_entry_limits.return_value = limits
+    entry_limits_mock.changed_entries = el_real.changed_entries
+
+    config_loader_mock = MagicMock()
+    config_loader_mock.load.return_value = rollover_cfg if rollover_cfg is not None else _ROLLOVER_CONFIG_10
+
+    def side_effect(name):
+        if "entry_limits" in name:
+            return entry_limits_mock
+        if "config_loader" in name:
+            return config_loader_mock
+        return importlib.import_module(name)
+
+    return side_effect
+
+
 class TestTrinityWriteClean:
     """Write to .trinity with entries under cap -> allowed."""
 
@@ -911,3 +946,227 @@ class TestTrinityWriteUnchangedLegacy:
         assert result["exit_code"] == 2
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "block"
+
+
+class TestTrinityTodosCountAdvisory:
+    """Non-blocking advisory when todos exceed rollover count limit."""
+
+    def test_todos_over_limit_advisory_write(self, tmp_path):
+        """Write with 11 todos (limit 10) -> exit_code 0 + advisory stdout."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(11)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "todos over limit" in result["stdout"]
+        assert "11/10" in result["stdout"]
+
+    def test_todos_under_limit_no_advisory(self, tmp_path):
+        """Write with 5 todos (limit 10) -> exit_code 0, empty stdout."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(5)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_todos_at_limit_no_advisory(self, tmp_path):
+        """Write with exactly 10 todos (limit 10) -> no advisory."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(10)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_todos_advisory_via_edit(self, tmp_path):
+        """Edit that adds a todo pushing count over limit -> advisory."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        existing = {"todos": [{"task": f"todo {i}"} for i in range(10)]}
+        Path(file_path).write_text(json.dumps(existing), encoding="utf-8")
+        new_todos = [{"task": f"todo {i}"} for i in range(11)]
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN),
+        ):
+            result = handle(
+                _hook_data(
+                    file_path,
+                    tool_name="Edit",
+                    cwd=cwd,
+                    old_string=json.dumps(existing["todos"]),
+                    new_string=json.dumps(new_todos),
+                )
+            )
+
+        assert result["exit_code"] == 0
+        assert "todos over limit" in result["stdout"]
+        assert "11/10" in result["stdout"]
+
+    def test_todos_advisory_never_blocks(self, tmp_path):
+        """Even with enforce=True, todos count advisory has exit_code 0."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(15)]})
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_ENFORCE),
+        ):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "todos over limit" in result["stdout"]
+        assert "15/10" in result["stdout"]
+
+    def test_todos_advisory_observations_json_skip(self, tmp_path):
+        """observations.json never triggers todos advisory."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "observations.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps(
+            {
+                "observations": [{"note": "obs"}],
+                "todos": [{"task": f"t{i}"} for i in range(20)],
+            }
+        )
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN),
+        ):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_todos_advisory_config_loader_failure_silent(self, tmp_path):
+        """config_loader import fails -> no advisory, no crash, save allowed."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(15)]})
+
+        el_real = importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+        entry_limits_mock = MagicMock()
+        entry_limits_mock.load_entry_limits.return_value = _TEST_LIMITS_WARN
+        entry_limits_mock.changed_entries = el_real.changed_entries
+
+        def _side_effect(name):
+            """Route importlib calls, failing config_loader."""
+            if "entry_limits" in name:
+                return entry_limits_mock
+            if "config_loader" in name:
+                raise ImportError("no config_loader")
+            return importlib.import_module(name)
+
+        with patch("importlib.import_module", side_effect=_side_effect):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_char_limit_blocks_before_advisory(self, tmp_path):
+        """Char-limit block takes priority over todos advisory."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps(
+            {
+                "key_learnings": {"k1": "x" * 250},
+                "todos": [{"task": f"todo {i}"} for i in range(15)],
+            }
+        )
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_ENFORCE),
+        ):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 2
+        parsed = json.loads(result["stdout"])
+        assert parsed["decision"] == "block"
+
+    def test_todos_advisory_logs_warning(self, tmp_path, caplog):
+        """Advisory emits a logger.warning with the over-limit message."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(12)]})
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN),
+        ):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "todos over limit" in caplog.text
+        assert "12/10" in caplog.text
+
+    def test_todos_advisory_per_branch_override(self, tmp_path):
+        """per_branch override sets limit to 5 for hooks -> 6 todos triggers advisory."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"todos": [{"task": f"todo {i}"} for i in range(6)]})
+
+        rollover_cfg = {
+            "rollover": {
+                "defaults": {"local": {"todos": {"count": 10}}},
+                "per_branch": {"hooks": {"local": {"todos": {"count": 5}}}},
+            },
+        }
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN, rollover_cfg),
+        ):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "6/5" in result["stdout"]
+
+    def test_no_todos_container_no_advisory(self, tmp_path):
+        """local.json with no todos key -> no advisory."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"key_learnings": {"k1": "short"}})
+
+        with patch(
+            "importlib.import_module",
+            side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN),
+        ):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""

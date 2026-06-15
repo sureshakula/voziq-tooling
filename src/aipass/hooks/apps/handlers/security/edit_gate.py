@@ -95,6 +95,28 @@ def _evaluate_limits(before: dict, after: dict, limits: dict, el: Any) -> dict |
     return None
 
 
+def _todos_count_advisory(after: dict, branch: str) -> str:
+    """Return advisory text if todos exceed rollover count limit, else empty string."""
+    try:
+        todos = after.get("todos")
+        if not isinstance(todos, list):
+            return ""
+        cl = importlib.import_module("aipass.memory.apps.handlers.json.config_loader")
+        cfg = cl.load()
+        roll = cfg.get("rollover", {})
+        branch_cfg = roll.get("per_branch", {}).get(branch) or roll.get("defaults", {})
+        limit = branch_cfg.get("local", {}).get("todos", {}).get("count", 10)
+        count = len(todos)
+        if count <= limit:
+            return ""
+        msg = f"todos over limit ({count}/{limit}) — todos do not auto-roll; prune completed ones."
+        logger.warning("[HOOKS] edit_gate: %s", msg)
+        return msg
+    except Exception as exc:
+        logger.warning("[HOOKS] edit_gate: todos count check failed (skipping): %s", exc)
+        return ""
+
+
 def _check_trinity_change(fp: Path, tool_name: str, tool_input: dict, branch: str) -> dict | None:
     """Check .trinity Write/Edit/MultiEdit for over-limit entries. Returns block dict or None."""
     try:
@@ -121,7 +143,16 @@ def _check_trinity_change(fp: Path, tool_name: str, tool_input: dict, branch: st
                 return None
             after = json.loads(after_text)
 
-        return _evaluate_limits(before, after, limits, el)
+        block = _evaluate_limits(before, after, limits, el)
+        if block:
+            return block
+
+        if fp.name == "local.json":
+            advisory = _todos_count_advisory(after, branch)
+            if advisory:
+                return {"stdout": advisory, "exit_code": 0}
+
+        return None
     except Exception as exc:
         logger.warning("[HOOKS] edit_gate: .trinity size check failed (allowing): %s", exc)
         return None
