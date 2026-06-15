@@ -36,12 +36,17 @@ def _import_extractor(monkeypatch):
     mock_memory_files.read_memory_file_data = MagicMock(return_value=None)
     mock_memory_files.write_memory_file_simple = MagicMock()
 
+    mock_config_loader = MagicMock()
+    mock_config_loader.section.return_value = {"defaults": {}, "per_branch": {}}
+
     json_pkg = MagicMock()
     json_pkg.json_handler = mock_json_handler
+    json_pkg.config_loader = mock_config_loader
 
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json", json_pkg)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.json_handler", mock_json_handler)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.memory_files", mock_memory_files)
+    monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.config_loader", mock_config_loader)
 
     sys.modules.pop("aipass.memory.apps.handlers.rollover.extractor", None)
     parent = sys.modules.get("aipass.memory.apps.handlers.rollover")
@@ -53,6 +58,7 @@ def _import_extractor(monkeypatch):
     return extractor, {
         "json_handler": mock_json_handler,
         "memory_files": mock_memory_files,
+        "config_loader": mock_config_loader,
     }
 
 
@@ -194,14 +200,19 @@ class TestExtractItemsV2:
         }
 
     def test_trims_sessions_to_limit(self, monkeypatch, tmp_path):
-        ext = _import_extractor(monkeypatch)[0]
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_v2_data(num_sessions=6, max_sessions=3)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-        # Patch _write_memory_file to write actual JSON so _count_file_lines works
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 3}, "key_learnings": {"count": 3}}}},
+        }
+
         def fake_write(fp, d):
             fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
 
@@ -209,20 +220,23 @@ class TestExtractItemsV2:
             result = ext._extract_items_v2(mem_file, data)
 
         assert result["success"] is True
-        assert result["extracted_count"] == 5  # 3 sessions + 2 learnings trimmed... let me check
-        # 6 sessions - 3 max = 3 excess sessions extracted
-        # 5 learnings - 3 max = 2 excess learnings extracted
-        # total = 5
+        assert result["extracted_count"] == 5
         assert len(data["sessions"]) == 3
 
     def test_trims_key_learnings_to_limit(self, monkeypatch, tmp_path):
-        ext = _import_extractor(monkeypatch)[0]
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_v2_data(num_sessions=2, num_learnings=7, max_sessions=3, max_learnings=4)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 3}, "key_learnings": {"count": 4}}}},
+        }
+
         def fake_write(fp, d):
             fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
 
@@ -230,18 +244,22 @@ class TestExtractItemsV2:
             result = ext._extract_items_v2(mem_file, data)
 
         assert result["success"] is True
-        # sessions: 2 <= 3, no trim
-        # learnings: 7 - 4 = 3 extracted
         assert len(data["key_learnings"]) == 4
         assert result["extracted_count"] == 3
 
     def test_skips_when_under_limits(self, monkeypatch, tmp_path):
-        ext, _ = _import_extractor(monkeypatch)
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_v2_data(num_sessions=2, num_learnings=2, max_sessions=5, max_learnings=5)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 5}, "key_learnings": {"count": 5}}}},
+        }
 
         result = ext._extract_items_v2(mem_file, data)
         assert result["success"] is True
@@ -249,12 +267,18 @@ class TestExtractItemsV2:
 
     def test_extracts_oldest_sessions_from_end(self, monkeypatch, tmp_path):
         """Sessions are stored newest-first, oldest at end. Extraction takes from end."""
-        ext, _ = _import_extractor(monkeypatch)
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_v2_data(num_sessions=5, num_learnings=0, max_sessions=3, max_learnings=100)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 3}, "key_learnings": {"count": 100}}}},
+        }
 
         def fake_write(fp, d):
             fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
@@ -271,12 +295,18 @@ class TestExtractItemsV2:
 
     def test_extracts_oldest_key_learnings_from_end(self, monkeypatch, tmp_path):
         """Lowest-numbered entries (oldest, at end) should be extracted."""
-        ext, _ = _import_extractor(monkeypatch)
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_v2_data(num_sessions=0, num_learnings=5, max_sessions=100, max_learnings=3)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 100}, "key_learnings": {"count": 3}}}},
+        }
 
         def fake_write(fp, d):
             fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
@@ -416,7 +446,8 @@ class TestNormalizeMemoryFile:
         result = norm.normalize_memory_file(tmp_path / "nope.json")
         assert result["success"] is False
 
-    def test_moves_root_limits_into_metadata(self, monkeypatch, tmp_path):
+    def test_moves_root_limits_then_strips(self, monkeypatch, tmp_path):
+        """Root limits merged into metadata, then stripped (limits live in config now)."""
         norm, _ = _import_normalize(monkeypatch)
         f = tmp_path / "test.local.json"
         self._write_json(
@@ -431,10 +462,11 @@ class TestNormalizeMemoryFile:
         assert result["success"] is True
 
         data = json.loads(f.read_text(encoding="utf-8"))
-        assert "limits" not in {k for k in data if k != "document_metadata"}
-        assert data["document_metadata"]["limits"]["max_sessions"] == 20
+        assert "limits" not in data
+        assert "limits" not in data["document_metadata"]
 
-    def test_merges_root_limits_preserving_metadata_values(self, monkeypatch, tmp_path):
+    def test_merges_root_limits_then_strips(self, monkeypatch, tmp_path):
+        """Root + metadata limits both get stripped (limits live in config now)."""
         norm, _ = _import_normalize(monkeypatch)
         f = tmp_path / "test.local.json"
         self._write_json(
@@ -452,10 +484,8 @@ class TestNormalizeMemoryFile:
         assert result["success"] is True
 
         data = json.loads(f.read_text(encoding="utf-8"))
-        # metadata value (20) wins over root value (30)
-        assert data["document_metadata"]["limits"]["max_sessions"] == 20
-        # valid key from root gets merged in
-        assert data["document_metadata"]["limits"]["max_key_learnings"] == 25
+        assert "limits" not in data
+        assert "limits" not in data["document_metadata"]
 
     def test_removes_root_status(self, monkeypatch, tmp_path):
         norm, _ = _import_normalize(monkeypatch)
@@ -518,7 +548,7 @@ class TestNormalizeMemoryFile:
             f,
             {
                 "document_metadata": {
-                    "limits": {"max_sessions": 20},
+                    "_usage": "Automated file.",
                     "status": {"last_health_check": "2026-03-31"},
                 },
                 "sessions": [],
@@ -528,14 +558,15 @@ class TestNormalizeMemoryFile:
         assert result["success"] is True
         assert result["changes"] == []
 
-    def test_removes_unused_limit_fields(self, monkeypatch, tmp_path):
+    def test_strips_entire_limits_block(self, monkeypatch, tmp_path):
+        """Limits block in metadata is fully stripped (lives in config now)."""
         norm, _ = _import_normalize(monkeypatch)
         f = tmp_path / "test.local.json"
         self._write_json(
             f,
             {
                 "document_metadata": {
-                    "limits": {"max_sessions": 20, "max_lines": 600, "max_word_count": 9999, "max_token_count": 5000},
+                    "limits": {"max_sessions": 20, "max_lines": 600, "max_word_count": 9999},
                     "status": {"last_health_check": "2026-03-31"},
                 },
                 "sessions": [],
@@ -545,10 +576,7 @@ class TestNormalizeMemoryFile:
         assert result["success"] is True
 
         data = json.loads(f.read_text(encoding="utf-8"))
-        assert "max_word_count" not in data["document_metadata"]["limits"]
-        assert "max_token_count" not in data["document_metadata"]["limits"]
-        assert "max_lines" not in data["document_metadata"]["limits"]
-        assert data["document_metadata"]["limits"]["max_sessions"] == 20
+        assert "limits" not in data["document_metadata"]
 
 
 class TestTodosOperational:
@@ -579,12 +607,18 @@ class TestTodosOperational:
 
     def test_v2_extraction_leaves_todos_untouched(self, monkeypatch, tmp_path):
         """v2 rollover trims sessions but never touches todos[]."""
-        ext, _ = _import_extractor(monkeypatch)
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_data_with_todos(num_sessions=6, max_sessions=3, num_todos=5)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 3}, "key_learnings": {"count": 25}}}},
+        }
 
         def fake_write(fp, d):
             fp.write_text(json.dumps(d, indent=2), encoding="utf-8")
@@ -643,12 +677,18 @@ class TestTodosOperational:
 
     def test_todos_survives_full_extraction_cycle(self, monkeypatch, tmp_path):
         """End-to-end: extract_items on a file with todos[] preserves them completely."""
-        ext, _ = _import_extractor(monkeypatch)
+        ext, mocks = _import_extractor(monkeypatch)
         data = self._make_data_with_todos(num_sessions=25, max_sessions=20, num_todos=8)
 
         mem_file = tmp_path / ".trinity" / "local.json"
         mem_file.parent.mkdir(parents=True)
         mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 20}, "key_learnings": {"count": 25}}}},
+        }
 
         def fake_write(fp, d):
             fp.write_text(json.dumps(d, indent=2), encoding="utf-8")

@@ -269,7 +269,52 @@ class TestListContainer:
 
 
 # ===========================================================================
-# 7. changed_entries: empty before (new file) — all entries treated as new
+# 7. changed_entries: list prepend identity-match (Fix 1 — FPLAN-0276 cleanup)
+# ===========================================================================
+
+
+class TestListPrependIdentityMatch:
+    """Prepending a new entry must NOT re-flag shifted legacy over-cap entries."""
+
+    def test_prepend_with_legacy_overcap_entries_allowed(self) -> None:
+        """Full container of over-cap legacy entries + one new in-cap prepend → no violations."""
+        mod = _get_entry_limits()
+        legacy = [{"session_number": i, "summary": "s" * 400} for i in range(5, 0, -1)]
+        before = {"sessions": legacy}
+        new_entry = {"session_number": 6, "summary": "short new"}
+        after = {"sessions": [new_entry] + legacy}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert result == []
+
+    def test_edited_existing_entry_text_still_caught(self) -> None:
+        """Changing an existing entry's text to over-cap is still flagged."""
+        mod = _get_entry_limits()
+        before = {"sessions": [{"session_number": 1, "summary": "short"}]}
+        after = {"sessions": [{"session_number": 1, "summary": "s" * 400}]}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["over_by"] == 100
+
+    def test_genuinely_new_overcap_entry_still_caught(self) -> None:
+        """A brand-new over-cap entry is still flagged even alongside legacy."""
+        mod = _get_entry_limits()
+        legacy = [{"session_number": 1, "summary": "ok"}]
+        before = {"sessions": legacy}
+        new_fat = {"session_number": 2, "summary": "s" * 400}
+        after = {"sessions": [new_fat] + legacy}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["over_by"] == 100
+
+
+# ===========================================================================
+# 8. changed_entries: empty before (new file) — all entries treated as new
 # ===========================================================================
 
 

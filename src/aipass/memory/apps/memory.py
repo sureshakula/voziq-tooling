@@ -115,6 +115,7 @@ def print_help():
     table.add_row("rollover status", "Show rollover statistics")
     table.add_row("rollover check", "Dry run — check what needs rollover")
     table.add_row("rollover sync-lines", "Update line count metadata")
+    table.add_row("rollover push", "⚠ Reset ALL per_branch limits to defaults (system-wide)")
     table.add_row("search <query>", "Semantic search across all branch memories")
     table.add_row("symbolic <subcommand>", "Symbolic/fragmented memory extraction and search")
     table.add_row("templates <subcommand>", "Living template push, diff, and status")
@@ -168,7 +169,7 @@ def print_help():
     console.print()
 
     console.print(
-        "Commands: search, rollover [run|status|check|sync-lines], lint,"
+        "Commands: search, rollover [run|status|check|sync-lines|push], lint,"
         " pool [process|status], symbolic, templates, verify, watch"
     )
     console.print()
@@ -233,6 +234,9 @@ def route_command(command: str, args: List[str], modules: List[Any]) -> bool:
     if command == "watch":
         start_watch()
         return True
+
+    if command == "push":
+        return route_command("rollover", ["push"], modules)
 
     for module in modules:
         try:

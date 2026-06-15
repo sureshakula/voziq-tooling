@@ -40,6 +40,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "consumers": ["intake/pool_processor.py", "intake/auto_process.py", "monitor/memory_watcher.py"],
             "purpose": "Vectorize files dropped in memory_pool/, archive beyond keep_recent",
         },
+        "entry_limits": {
+            "consumers": ["json/entry_limits.py", "modules/lint.py"],
+            "purpose": "Per-entry char caps on .trinity writes (warn-first baseline)",
+        },
+        "plans": {
+            "consumers": ["intake/plans_processor.py", "monitor/memory_watcher.py"],
+            "purpose": "Vectorize closed plan .md files into ChromaDB",
+        },
         "rollover": {
             "consumers": [
                 "monitor/detector.py",
@@ -47,15 +55,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
                 "rollover/extractor.py",
                 "templates/pusher.py",
             ],
-            "purpose": "Line/entry thresholds that trigger .trinity rollover",
-        },
-        "plans": {
-            "consumers": ["intake/plans_processor.py", "monitor/memory_watcher.py"],
-            "purpose": "Vectorize closed plan .md files into ChromaDB",
-        },
-        "entry_limits": {
-            "consumers": ["json/entry_limits.py", "modules/lint.py"],
-            "purpose": "Per-entry char caps on .trinity writes (warn-first baseline)",
+            "purpose": "Entry-count thresholds that trigger .trinity rollover",
         },
     },
     "memory_pool": {
@@ -67,19 +67,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "chunk_size": 1000,
         "chunk_overlap": 100,
         "archive_path": "memory_pool_archive",
-    },
-    "rollover": {
-        "defaults": {
-            "max_lines": 500,
-            "archive_oldest": 100,
-        },
-        "per_branch": {},
-    },
-    "plans": {
-        "enabled": True,
-        "path": ".backup/processed_plans",
-        "collection_name": "plans",
-        "supported_extensions": [".md"],
     },
     "entry_limits": {
         "enabled": True,
@@ -113,6 +100,27 @@ DEFAULT_CONFIG: dict[str, Any] = {
                 "field": "note",
                 "max_chars": 600,
             },
+        },
+        "per_branch": {},
+    },
+    "plans": {
+        "enabled": True,
+        "path": ".backup/processed_plans",
+        "collection_name": "plans",
+        "supported_extensions": [".md"],
+    },
+    "rollover": {
+        "defaults": {
+            "local": {
+                "sessions": {"count": 20},
+                "key_learnings": {"count": 25},
+                "todos": {"count": 10},
+            },
+            "observations": {
+                "observations": {"count": 25},
+            },
+            "_note": "DEFAULTS — edit then `drone @memory rollover push` to apply system-wide."
+            " Char caps live in entry_limits.",
         },
         "per_branch": {},
     },
@@ -184,3 +192,69 @@ def load(self_heal: bool = True) -> dict[str, Any]:
 def section(name: str) -> dict[str, Any]:
     """Return a single top-level section from the config, or empty dict."""
     return load().get(name, {})
+
+
+def _find_repo_root() -> Path:
+    """Walk up from this file to find repo root (contains AIPASS_REGISTRY.json)."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        if (parent / "AIPASS_REGISTRY.json").exists():
+            return parent
+    return Path.cwd()
+
+
+def materialize_per_branch() -> dict[str, Any]:
+    """Build per_branch from AIPASS_REGISTRY.json, seeded from rollover.defaults."""
+    repo_root = _find_repo_root()
+    registry_path = repo_root / "AIPASS_REGISTRY.json"
+    if not registry_path.exists():
+        logger.warning("[config_loader] AIPASS_REGISTRY.json not found")
+        return {}
+
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"[config_loader] Failed to load registry: {e}")
+        return {}
+
+    cfg = load()
+    defaults = cfg.get("rollover", {}).get("defaults", {})
+    limits_only = {k: v for k, v in defaults.items() if k != "_note"}
+
+    branches = registry.get("branches", [])
+    active = [b for b in branches if b.get("status") == "active"]
+
+    per_branch: dict[str, Any] = {}
+    for branch in active:
+        name = branch.get("name", "").lower()
+        if not name:
+            continue
+        entry = copy.deepcopy(limits_only)
+        entry["_note"] = f"Limits for @{name}. Manual edits persist until next push."
+        per_branch[name] = entry
+
+    return per_branch
+
+
+def push_defaults_to_per_branch() -> dict[str, Any]:
+    """Overwrite every per_branch entry with defaults (full replacement, not merge).
+
+    Returns:
+        Dict with branch count and the new per_branch data.
+    """
+    per_branch = materialize_per_branch()
+    if not per_branch:
+        return {"success": False, "error": "No branches found in registry"}
+
+    current: dict = {}
+    if _CONFIG_PATH.exists():
+        try:
+            current = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            logger.warning("[config_loader] Malformed config on disk, starting fresh")
+
+    current.setdefault("rollover", {})["per_branch"] = per_branch
+    _CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _CONFIG_PATH.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+
+    return {"success": True, "branches": len(per_branch), "per_branch": per_branch}

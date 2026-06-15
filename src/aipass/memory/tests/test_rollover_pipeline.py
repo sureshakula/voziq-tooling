@@ -82,12 +82,17 @@ def _import_extractor(monkeypatch):
     mock_memory_files.read_memory_file_data = MagicMock(return_value=None)
     mock_memory_files.write_memory_file_simple = MagicMock()
 
+    mock_config_loader = MagicMock()
+    mock_config_loader.section.return_value = {"defaults": {}, "per_branch": {}}
+
     json_pkg = MagicMock()
     json_pkg.json_handler = mock_json_handler
+    json_pkg.config_loader = mock_config_loader
 
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json", json_pkg)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.json_handler", mock_json_handler)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.memory_files", mock_memory_files)
+    monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.config_loader", mock_config_loader)
 
     sys.modules.pop("aipass.memory.apps.handlers.rollover.extractor", None)
     parent = sys.modules.get("aipass.memory.apps.handlers.rollover")
@@ -99,6 +104,7 @@ def _import_extractor(monkeypatch):
     return extractor, {
         "json_handler": mock_json_handler,
         "memory_files": mock_memory_files,
+        "config_loader": mock_config_loader,
     }
 
 
@@ -585,11 +591,22 @@ class TestExtractWithMetadata:
         """v2 schema extraction adds _metadata to each extracted entry."""
         ext, mocks = _import_extractor(monkeypatch)
 
-        # Create a v2 file with sessions exceeding limits
+        # Branch name derived from parent of .trinity: tmp_path name (lowercase)
+        branch_name = tmp_path.name.lower()
+
+        # Provision limits via config per_branch
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {
+                branch_name: {
+                    "local": {"sessions": {"count": 2}},
+                },
+            },
+        }
+
         data = {
             "document_metadata": {
                 "schema_version": "2.0.0",
-                "limits": {"max_sessions": 2},
                 "status": {},
             },
             "sessions": [

@@ -12,20 +12,14 @@
       "work_log",
       "{{BRANCHNAME}}"
     ],
-    "limits": {
-      "max_sessions": 20,
-      "max_key_learnings": 25,
-      "session_summary_max_chars": 150,
-      "learning_value_max_chars": 200,
-      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries."
-    },
+    "_usage": "Automated file — add entries within your sections; rollover trims automatically. Limits live in @memory's memory.config.json.",
     "status": {
       "health": "healthy",
-      "last_health_check": "{{DATE}}",
-      "current_lines": 0
+      "last_health_check": "{{DATE}}"
     }
   },
   "key_learnings": [],
+  "todos": [],
   "sessions": [
     {
       "number": 1,

@@ -12,10 +12,7 @@
       "patterns",
       "{{BRANCHNAME}}"
     ],
-    "limits": {
-      "max_observations": 25,
-      "note": "DO NOT trim, prune, or delete entries. Auto-rollover to @memory when max_observations exceeded."
-    },
+    "_usage": "Automated file — add entries within your sections; rollover trims automatically. Limits live in @memory's memory.config.json.",
     "status": {
       "health": "healthy",
       "last_health_check": "{{DATE}}"

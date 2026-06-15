@@ -271,13 +271,23 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with extracted items and metadata
     """
-    limits = data.get("document_metadata", {}).get("limits", {})
     old_lines = _count_file_lines(file_path)
+
+    # Read limits from config per_branch instead of file metadata
+    if file_path.parent.name == ".trinity":
+        branch_key = file_path.parents[1].name.lower()
+        file_type = file_path.stem  # "local" or "observations"
+    else:
+        branch_key = file_path.parent.name.lower()
+        file_type = file_path.stem.split(".")[-1]
+
+    cfg = config_loader.section("rollover")
+    file_limits = cfg.get("per_branch", {}).get(branch_key, {}).get(file_type, {})
 
     all_extracted = []
 
     # Extract from sessions array (newest first, oldest at end)
-    max_sessions = limits.get("max_sessions")
+    max_sessions = file_limits.get("sessions", {}).get("count")
     if max_sessions is not None:
         sessions = data.get("sessions", [])
         if isinstance(sessions, list) and len(sessions) >= max_sessions:
@@ -287,7 +297,7 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
             all_extracted.extend(extracted_sessions)
 
     # Extract from key_learnings list (sorted newest-first; oldest at end)
-    max_key_learnings = limits.get("max_key_learnings")
+    max_key_learnings = file_limits.get("key_learnings", {}).get("count")
     if max_key_learnings is not None:
         key_learnings = data.get("key_learnings", [])
         if isinstance(key_learnings, list) and len(key_learnings) >= max_key_learnings:
@@ -297,7 +307,7 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
             all_extracted.extend(extracted_kl)
 
     # Extract from observations array (if v2 observations file)
-    max_observations = limits.get("max_observations")
+    max_observations = file_limits.get("observations", {}).get("count")
     if max_observations is not None:
         observations = data.get("observations", [])
         if isinstance(observations, list) and len(observations) >= max_observations:
@@ -370,10 +380,16 @@ def extract_items(file_path: Path, percentage: int | None = None) -> Dict[str, A
         logger.warning(f"[extractor] Failed to read file {file_path}: {e}")
         return {"success": False, "error": f"Failed to read file: {e}"}
 
-    # v2: entry-count based extraction (when v2 limit keys are present, regardless of schema_version)
-    ext_limits = data.get("document_metadata", {}).get("limits", {})
-    v2_limit_keys = {"max_sessions", "max_key_learnings", "max_observations"}
-    if v2_limit_keys & set(ext_limits.keys()):
+    # v2: entry-count based extraction — triggered when config has per_branch counts
+    if file_path.parent.name == ".trinity":
+        _ext_branch = file_path.parents[1].name.lower()
+        _ext_ftype = file_path.stem
+    else:
+        _ext_branch = file_path.parent.name.lower()
+        _ext_ftype = file_path.stem.split(".")[-1]
+    _ext_cfg = config_loader.section("rollover")
+    _ext_file_limits = _ext_cfg.get("per_branch", {}).get(_ext_branch, {}).get(_ext_ftype, {})
+    if _ext_file_limits:
         return _extract_items_v2(file_path, data)
 
     # v1: line-count based extraction
@@ -383,7 +399,7 @@ def extract_items(file_path: Path, percentage: int | None = None) -> Dict[str, A
         return {"success": False, "error": f"No growing array found in {file_path.name}"}
 
     # Get metadata
-    _cfg_max = config_loader.section("rollover").get("defaults", {}).get("max_lines", 500)
+    _cfg_max = config_loader.section("rollover").get("defaults", {}).get("max_lines", 600)
     max_lines = data.get("document_metadata", {}).get("limits", {}).get("max_lines", _cfg_max)
 
     # Check if under limit

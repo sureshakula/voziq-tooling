@@ -52,6 +52,7 @@ _SUBCOMMANDS = {
     "status": "Show rollover statistics for all branches",
     "check": "Check which files need rollover (dry run)",
     "sync-lines": "Update line count metadata for all branches",
+    "push": "Overwrite all per_branch limits to defaults (system-wide reset)",
 }
 
 
@@ -112,6 +113,10 @@ def handle_command(command: str, args: List[str]) -> bool:
             sync_line_counts()
             return True
 
+        if sub == "push":
+            push_defaults()
+            return True
+
         # Unknown subcommand
         error(
             f"Unknown subcommand: '{sub}'",
@@ -158,6 +163,7 @@ def print_help() -> None:
     console.print("  [cyan]status[/cyan]      Show rollover statistics for all branches")
     console.print("  [cyan]check[/cyan]       Check which files need rollover (dry run)")
     console.print("  [cyan]sync-lines[/cyan]  Update line count metadata for all branches")
+    console.print("  [cyan]push[/cyan]        ⚠ Reset ALL per_branch limits to defaults (system-wide)")
     console.print("  [cyan]help[/cyan]        Show this help message")
     console.print()
     console.print("[bold]LIMITS:[/bold]")
@@ -213,7 +219,8 @@ def run_rollover() -> bool:
         local_status = "> local" if item.get("local_stored") else "x local"
         console.print(
             f"  [green]>[/green] Rolled over {item['memories_count']} items -> {item['global_collection']} "
-            f"({item['old_lines']} -> {item['new_lines']} lines, global: {item['global_total']} vectors, {local_status})"
+            f"({item['old_lines']} -> {item['new_lines']} lines, "
+            f"global: {item['global_total']} vectors, {local_status})"
         )
 
     # Report results
@@ -320,6 +327,34 @@ def sync_line_counts() -> None:
         error("Failed to sync line counts")
 
     console.print()
+
+
+# =============================================================================
+# PUSH DEFAULTS
+# =============================================================================
+
+
+def push_defaults() -> None:
+    """Overwrite every per_branch entry in memory.config.json with defaults."""
+    from ..handlers.json import config_loader
+
+    console.print()
+    console.print(Panel.fit("[bold cyan]Memory - Push Defaults[/bold cyan]", border_style="cyan", box=box.ROUNDED))
+    console.print()
+
+    console.print("[cyan]Overwriting all per_branch limits with defaults...[/cyan]")
+    console.print()
+
+    result = config_loader.push_defaults_to_per_branch()
+
+    if not result.get("success"):
+        error(result.get("error", "Unknown error"))
+        return
+
+    count = result.get("branches", 0)
+    console.print(f"[green]>[/green] Pushed defaults to {count} branches")
+    console.print()
+    json_handler.log_operation("push_defaults", {"branches": count})
 
 
 # =============================================================================

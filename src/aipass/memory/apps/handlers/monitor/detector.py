@@ -21,6 +21,7 @@ Independence:
 """
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
 from dataclasses import dataclass
@@ -198,6 +199,60 @@ def _count_file_lines(file_path: Path) -> int:
         return 0
 
 
+_TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates"
+_TEMPLATE_MAP = {
+    "local": _TEMPLATES_DIR / "LOCAL.template.json",
+    "observations": _TEMPLATES_DIR / "OBSERVATIONS.template.json",
+}
+
+
+def _recreate_trinity_file(branch_path: Path, branch_name: str, memory_type: str) -> Path | None:
+    """Recreate a missing .trinity file from canonical template."""
+    template_path = _TEMPLATE_MAP.get(memory_type)
+    if not template_path or not template_path.exists():
+        logger.warning(f"[detector] No template for {memory_type}")
+        return None
+
+    try:
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning(f"[detector] Failed to read template {template_path}: {e}")
+        return None
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    upper_name = branch_name.upper()
+
+    def _walk(val):
+        if isinstance(val, str):
+            return val.replace("{{BRANCHNAME}}", upper_name).replace("{{DATE}}", today)
+        if isinstance(val, list):
+            return [_walk(item) for item in val]
+        if isinstance(val, dict):
+            return {k: _walk(v) for k, v in val.items()}
+        return val
+
+    data = _walk(template)
+
+    trinity_dir = branch_path / ".trinity"
+    trinity_dir.mkdir(parents=True, exist_ok=True)
+    file_path = trinity_dir / f"{memory_type}.json"
+
+    try:
+        file_path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        logger.info(f"[detector] Recreated {file_path}")
+        json_handler.log_operation(
+            "recreate_trinity_file",
+            {"branch": branch_name, "type": memory_type, "path": str(file_path)},
+        )
+        return file_path
+    except OSError as e:
+        logger.warning(f"[detector] Failed to write {file_path}: {e}")
+        return None
+
+
 def _get_max_lines(file_path: Path, branch_name: str | None = None) -> int:
     """
     Get max_lines limit with priority: file metadata > branch config > default
@@ -223,9 +278,13 @@ def _get_max_lines(file_path: Path, branch_name: str | None = None) -> int:
 
     # 2. Try branch-level config (if branch_name provided or can be extracted)
     if branch_name is None:
-        # Extract from filename (e.g., SEEDGO.local.json -> SEEDGO)
-        parts = file_path.stem.split(".")
-        branch_name = parts[0] if parts else None
+        # Derive from directory: .trinity/local.json → parent of .trinity is the branch
+        if file_path.parent.name == ".trinity":
+            branch_name = file_path.parents[1].name.lower()
+        else:
+            # Legacy flat files: SEEDGO.local.json → "SEEDGO"
+            parts = file_path.stem.split(".")
+            branch_name = parts[0].lower() if parts else None
 
     if branch_name:
         config = _load_config()
@@ -273,24 +332,37 @@ def _should_rollover(file_path: Path) -> tuple[bool, int, int, str, str]:
     metadata = data.get("document_metadata", {})
     limits = metadata.get("limits", {})
 
-    # v2: entry-count based limits (checked when v2 limit keys are present, regardless of schema_version)
-    v2_limit_keys = {"max_sessions", "max_key_learnings", "max_observations"}
-    if v2_limit_keys & set(limits.keys()):
+    # v2: entry-count based limits — read from config per_branch, not file metadata
+    # Derive branch name from file path: .trinity/local.json → parent of .trinity
+    if file_path.parent.name == ".trinity":
+        branch_name = file_path.parents[1].name.lower()
+    else:
+        branch_name = file_path.stem.split(".")[0].lower()
+
+    # Determine file type from filename
+    file_type = file_path.stem.split(".")[0] if file_path.parent.name == ".trinity" else file_path.stem.split(".")[-1]
+    # .trinity/local.json → "local"; .trinity/observations.json → "observations"
+
+    cfg = config_loader.section("rollover")
+    branch_limits = cfg.get("per_branch", {}).get(branch_name, {})
+    file_limits = branch_limits.get(file_type, {})
+
+    if file_limits:
         reasons = []
 
-        max_sessions = limits.get("max_sessions")
+        max_sessions = file_limits.get("sessions", {}).get("count")
         if max_sessions is not None:
             sessions = data.get("sessions", [])
             if isinstance(sessions, list) and len(sessions) >= max_sessions:
                 reasons.append(f"{len(sessions)}/{max_sessions} sessions")
 
-        max_key_learnings = limits.get("max_key_learnings")
+        max_key_learnings = file_limits.get("key_learnings", {}).get("count")
         if max_key_learnings is not None:
             key_learnings = data.get("key_learnings", [])
             if isinstance(key_learnings, (list, dict)) and len(key_learnings) >= max_key_learnings:
                 reasons.append(f"{len(key_learnings)}/{max_key_learnings} key_learnings")
 
-        max_observations = limits.get("max_observations")
+        max_observations = file_limits.get("observations", {}).get("count")
         if max_observations is not None:
             observations = data.get("observations", [])
             if isinstance(observations, list) and len(observations) >= max_observations:
@@ -333,7 +405,11 @@ def check_all_branches() -> Dict[str, Any]:
             file_path = _get_memory_file_path(branch, memory_type)
 
             if file_path is None:
-                continue  # File doesn't exist, skip
+                branch_path = Path(branch.get("path", ""))
+                if branch_path.exists():
+                    file_path = _recreate_trinity_file(branch_path, branch_name, memory_type)
+                if file_path is None:
+                    continue
 
             should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
@@ -377,10 +453,15 @@ def check_single_file(file_path: Path) -> Dict[str, Any]:
     should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
     if should_trigger:
-        # Extract branch and type from filename (e.g., SEEDGO.observations.json)
-        parts = file_path.stem.split(".")
-        branch_name = parts[0] if len(parts) > 0 else "UNKNOWN"
-        memory_type = parts[1] if len(parts) > 1 else "unknown"
+        # Extract branch and type from file path
+        if file_path.parent.name == ".trinity":
+            branch_name = file_path.parents[1].name
+            memory_type = file_path.stem  # "local" or "observations"
+        else:
+            # Legacy flat files: SEEDGO.observations.json
+            parts = file_path.stem.split(".")
+            branch_name = parts[0] if len(parts) > 0 else "UNKNOWN"
+            memory_type = parts[1] if len(parts) > 1 else "unknown"
 
         trigger = RolloverTrigger(
             branch=branch_name,

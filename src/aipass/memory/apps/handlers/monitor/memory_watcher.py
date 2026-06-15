@@ -66,54 +66,6 @@ _observer: Any = None
 _startup_check_done = False
 
 
-def _get_rollover_threshold(branch_name: str, file_path: Path | None = None) -> int:
-    """
-    Get rollover threshold for a memory file (line-based, v1 only).
-
-    For v2 files (schema_version >= 2.0.0), returns a very large number so
-    line-based checks never trigger. v2 rollover is handled by the detector
-    using entry-count limits.
-
-    Priority: file metadata > per_branch config > defaults > hardcoded 600
-
-    Args:
-        branch_name: Branch name (uppercase, e.g., 'DEVPULSE')
-        file_path: Optional path to memory file (checks file-level limits first)
-
-    Returns:
-        Max lines threshold for rollover
-    """
-    import json
-
-    # 1. Check file-level metadata first (highest priority)
-    if file_path is not None:
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                metadata = data.get("document_metadata", {})
-
-                # v2 files use entry-count limits — return -1 so caller uses detector
-                schema_version = metadata.get("schema_version", "1.0.0")
-                if schema_version.startswith("2"):
-                    return -1
-
-                file_limit = metadata.get("limits", {}).get("max_lines")
-                if file_limit is not None:
-                    return file_limit
-        except Exception as e:
-            logger.warning(f"[memory_watcher] Failed to read file-level threshold from {file_path}: {e}")
-
-    # 2. Check per-branch config override
-    cfg = config_loader.load()
-    branch_limits = cfg.get("rollover", {}).get("per_branch", {}).get(branch_name, {})
-    if "max_lines" in branch_limits:
-        return branch_limits["max_lines"]
-    default_limit = cfg.get("rollover", {}).get("defaults", {}).get("max_lines")
-    if default_limit is not None:
-        return default_limit
-    return 500
-
-
 def _check_vector_deps() -> bool:
     """
     Check whether the memory venv has chromadb and numpy available.

@@ -87,13 +87,15 @@ def load_entry_limits(branch: str) -> dict[str, Any]:
     Returns:
         Dict with keys: enabled, enforce, entry_types.
     """
+    branch_key = branch.lower()
+
     cfg = config_loader.load()
     section = cfg.get("entry_limits")
     if not isinstance(section, dict):
         logger.warning("[entry_limits] No valid 'entry_limits' section in config, returning safe defaults")
         json_handler.log_operation(
             "load_entry_limits",
-            {"branch": branch, "fallback": "missing_section"},
+            {"branch": branch_key, "fallback": "missing_section"},
             module_name="entry_limits",
         )
         section = config_loader.DEFAULT_CONFIG["entry_limits"]
@@ -103,7 +105,7 @@ def load_entry_limits(branch: str) -> dict[str, Any]:
     base_types = section.get("entry_types", {})
 
     per_branch = section.get("per_branch", {})
-    branch_overrides = per_branch.get(branch, {})
+    branch_overrides = per_branch.get(branch_key, {})
 
     if branch_overrides:
         effective_types = _deep_merge_entry_types(base_types, branch_overrides)
@@ -118,7 +120,7 @@ def load_entry_limits(branch: str) -> dict[str, Any]:
 
     json_handler.log_operation(
         "load_entry_limits",
-        {"branch": branch, "types_count": len(effective_types)},
+        {"branch": branch_key, "types_count": len(effective_types)},
         module_name="entry_limits",
     )
 
@@ -275,12 +277,13 @@ def _check_list_container(
     if not isinstance(after_container, list):
         return []
     before_list = before_container if isinstance(before_container, list) else []
+    before_texts = {_extract_text(item, field) for item in before_list}
     hits: list[dict[str, Any]] = []
 
     for idx, after_item in enumerate(after_container):
         after_text = _extract_text(after_item, field)
-        if idx < len(before_list) and after_text == _extract_text(before_list[idx], field):
-            continue  # Unchanged — skip even if over-limit
+        if after_text in before_texts:
+            continue  # Already on disk — not new/changed; skip even if over cap
         verdict = check_entry(type_name, after_text, limits)
         if not verdict["ok"]:
             hits.append(
