@@ -39,6 +39,28 @@ def _err(msg: str) -> dict:
     return {"success": False, "output": "", "error": msg}
 
 
+def _normalize_args(args) -> list:
+    """Normalize the skill runner's arg contract into a positional list.
+
+    The AIPass skill runner passes action arguments as a DICT
+    (``{"arg0": "base", "--branch": "seed", ...}`` from _parse_extra_args),
+    while the _cmd_* handlers consume a positional LIST. Convert:
+      - positional keys ``arg0..argN`` -> value only (preserves order)
+      - ``key=value`` / flag keys      -> ``key, value`` (rebuilds ``--branch seed``)
+    A list (e.g. from direct/unit-test calls) passes through unchanged.
+    """
+    if not isinstance(args, dict):
+        return list(args or [])
+    out: list = []
+    for key, value in args.items():
+        if key.startswith("arg") and key[3:].isdigit():
+            out.append(value)
+        else:
+            out.append(key)
+            out.append(value)
+    return out
+
+
 def _cmd_start(args: list) -> dict:
     if not args:
         return _err("start requires a bot_id: drone @skills run telegram start <bot_id>")
@@ -150,7 +172,7 @@ def run(action: str, args: list, config: dict) -> dict:
         return _err(f"Unknown action '{action}'. Available: {', '.join(sorted(_ACTIONS))}")
 
     try:
-        return handler(args or [])
+        return handler(_normalize_args(args))
     except Exception as e:
         logger.error("telegram skill action '%s' failed: %s", action, e)
         return _err(f"{action} failed: {e}")

@@ -39,7 +39,7 @@ def _get_secret(key: str) -> dict | None:
 
 
 async def main() -> None:
-    from telethon import TelegramClient
+    from telethon import TelegramClient  # type: ignore[import-not-found]  # optional dep
 
     config = _get_secret("telethon_config")
     if not config or "api_id" not in config or "api_hash" not in config:
