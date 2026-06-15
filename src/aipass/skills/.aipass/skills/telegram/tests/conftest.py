@@ -43,26 +43,16 @@ def _redirect_prax_logs(tmp_path_factory):
 
     Prevents test log output from bleeding into production log files,
     which causes false positives in Trigger's error monitoring.
+    The env var AIPASS_TEST_LOG_DIR (set above at module level) is the
+    primary redirect — get_system_logs_dir() checks it. This fixture
+    also clears cached loggers so they pick up the redirected path.
     """
-    test_log_dir = tmp_path_factory.mktemp("test_logs")
-
     import aipass.prax.apps.handlers.logging.direct as direct_mod
 
-    orig_sys_dir = direct_mod.SYSTEM_LOGS_DIR
-    orig_create = direct_mod._create_direct_logger
-
-    direct_mod.SYSTEM_LOGS_DIR = test_log_dir
-
-    def _patched_create(module_name, branch_name, branch_path):
-        return orig_create(module_name, branch_name, None)
-
-    direct_mod._create_direct_logger = _patched_create
     direct_mod._direct_loggers.clear()
 
     yield
 
-    direct_mod.SYSTEM_LOGS_DIR = orig_sys_dir
-    direct_mod._create_direct_logger = orig_create
     direct_mod._direct_loggers.clear()
 
 

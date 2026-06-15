@@ -168,7 +168,7 @@ def load_bot_config(bot_id: str) -> dict | None:
         "bot_token": "123:ABC...",
         "bot_name": "AIPass Dev Central Bot",
         "branch_name": "dev_central",  // null for base bot
-        "work_dir": "/home/aipass/aipass_os/dev_central",
+        "work_dir": "/path/to/branch/work_dir",
         "allowed_user_ids": [7235222625]
     }
 

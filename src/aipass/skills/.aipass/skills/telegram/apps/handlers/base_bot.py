@@ -32,7 +32,7 @@ Usage:
     bot = BaseBot(
         bot_id="dev_central",
         bot_token="123:ABC",
-        work_dir=Path("/home/aipass/aipass_os/dev_central"),
+        work_dir=Path("/path/to/branch/work_dir"),
         bot_name="AIPass Dev Central Bot",
         allowed_user_ids=[7235222625],
     )
@@ -1284,8 +1284,8 @@ class BaseBot:
             )
             time.sleep(0.3)
 
-            # Launch Claude
-            claude_cmd = f"{CLAUDE_BIN} --permission-mode bypassPermissions"
+            # Launch Claude with session type so drone/hooks can identify this as a telegram session
+            claude_cmd = f"AIPASS_SESSION_TYPE=telegram {CLAUDE_BIN} --permission-mode bypassPermissions"
             subprocess.run(
                 [
                     "tmux",

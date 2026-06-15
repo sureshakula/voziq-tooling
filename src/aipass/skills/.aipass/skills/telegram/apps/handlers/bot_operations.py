@@ -47,7 +47,7 @@ def start_bot(bot_id: str) -> int | None:
     """
     Load config and start a bot's polling loop.
 
-    Loads config from ~/.aipass/telegram_bots/{bot_id}.json.
+    Loads config via drone @api get-secret telegram/{bot_id}.
     If config has "branch_name", creates a BranchPlugin, else a BaseBot.
     Calls bot.run() which blocks until terminated.
 

@@ -1,7 +1,15 @@
+# =================== AIPass ====================
+# Name: handler.py
+# Description: Telegram skill entry point — routes actions to multi-bot framework
+# Version: 1.0.0
+# Created: 2026-06-15
+# Modified: 2026-06-15
+# =============================================
+
 """
 telegram — Full 3-layer skill handler.
 
-Scaffolded by: drone @skills create telegram --full
+Routes drone @skills run telegram <action> to the multi-bot framework.
 """
 
 

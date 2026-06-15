@@ -19,7 +19,7 @@ Bot Creation and Deletion Factory
 
 Manages the full lifecycle of Telegram bots in the multi-bot architecture:
 - Validate bot tokens via Telegram getMe API
-- Validate branch names (placeholder — AIPass registry accessed via drone)
+- Validate branch names against AIPASS_REGISTRY.json
 - Write per-bot config files via config module secret store
 - Register/deregister bots in the central bot registry
 - Set BotFather commands via setMyCommands API
@@ -111,25 +111,54 @@ def validate_token(bot_token: str) -> Optional[dict]:
         return None
 
 
+def _find_registry() -> Optional[Path]:
+    """Walk up from CWD to find AIPASS_REGISTRY.json."""
+    current = Path.cwd().resolve()
+    for parent in [current, *current.parents]:
+        candidate = parent / "AIPASS_REGISTRY.json"
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def validate_branch(branch_name: str) -> Optional[dict]:
     """
-    Check that a branch name is valid.
-
-    Placeholder — the AIPass registry is accessed through drone/config mechanisms
-    elsewhere in the system. Validates that the branch name is non-empty and truthy.
+    Check that a branch exists in AIPASS_REGISTRY.json.
 
     Args:
-        branch_name: Branch name to validate.
+        branch_name: Branch name to validate (case-insensitive, matches name or email).
 
     Returns:
-        Dict with at least {"name": branch_name} if valid, None if invalid.
+        Branch info dict from the registry on success, None if invalid.
     """
     if not branch_name or not branch_name.strip():
         logger.warning("validate_branch: empty or blank branch name")
         return None
 
-    logger.info("Branch name accepted (validation placeholder): %s", branch_name)
-    return {"name": branch_name}
+    registry_path = _find_registry()
+    if not registry_path:
+        logger.warning("Branch registry not found (walked up from CWD)")
+        return None
+
+    try:
+        with open(registry_path, "r", encoding="utf-8") as f:
+            registry = json.load(f)
+
+        branches = registry.get("branches", [])
+        target = branch_name.lower().replace("@", "")
+
+        for branch_entry in branches:
+            clean_email = branch_entry.get("email", "").replace("@", "").lower()
+            if clean_email == target or branch_entry.get("name", "").lower() == target:
+                logger.info("Branch validated: %s -> %s", branch_name, branch_entry.get("path"))
+                return branch_entry
+
+        logger.warning("Branch '%s' not found in registry", branch_name)
+        return None
+
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to read branch registry: %s", e)
+        return None
 
 
 def set_bot_commands(bot_token: str, commands: list[dict]) -> bool:
@@ -387,7 +416,11 @@ def create_bot(
             )
             return None
 
-    # Step 4: Write per-bot config file
+    # Step 4: Write per-bot config to local shadow file.
+    # This is intentional: create_bot writes here first, then the config is
+    # imported into @api (drone @api set-secret) as a separate step. At runtime,
+    # load_bot_config reads exclusively from @api — the local file is the
+    # create-then-import staging artifact, not a runtime config source.
     ensure_registry()
     _BOT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
