@@ -312,7 +312,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     # Directory mode — run checklist on all .py files in directory
     if resolved.is_dir():
         py_files = sorted(resolved.glob("*.py"))
-        py_files = [f for f in py_files if not f.name.startswith("_")]
+        py_files = [f for f in py_files if not f.name.startswith("_") and "(disabled)" not in f.name]
         if not py_files:
             error("No .py files found in directory", suggestion=f"Directory: {resolved}")
             return True
@@ -390,7 +390,8 @@ def print_help() -> None:
     console.print("[yellow]USAGE:[/yellow]")
     console.print("  [green]drone @seedgo checklist <file>[/green]                    [dim]# Check single file[/dim]")
     console.print(
-        "  [green]drone @seedgo checklist <directory>[/green]               [dim]# Check all .py files in directory[/dim]"
+        "  [green]drone @seedgo checklist <directory>[/green]"
+        "               [dim]# Check all .py files in directory[/dim]"
     )
     console.print(
         "  [green]drone @seedgo checklist --pack <pack> <file>[/green]      [dim]# Check with specific pack[/dim]"

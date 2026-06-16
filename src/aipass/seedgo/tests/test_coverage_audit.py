@@ -1103,6 +1103,21 @@ class TestCollectPyFiles:
         assert "module.py" in names
         assert "xskip_bad.py" not in names
 
+    def test_excludes_disabled_files(self, tmp_path):
+        """Files with (disabled) in the name are excluded from collection."""
+        from aipass.seedgo.apps.handlers.audit.branch_audit import (
+            _collect_py_files,
+        )
+
+        apps_dir = tmp_path / "apps"
+        apps_dir.mkdir()
+        (apps_dir / "module.py").write_text("pass", encoding="utf-8")
+        (apps_dir / "dashboard_sync(disabled).py").write_text("pass", encoding="utf-8")
+        result = _collect_py_files(tmp_path)
+        names = [f["name"] for f in result]
+        assert "module.py" in names
+        assert "dashboard_sync(disabled).py" not in names
+
 
 class TestExtractBranchLevelViolations:
     """Tests for _extract_branch_level_violations."""

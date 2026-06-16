@@ -32,7 +32,7 @@ from pathlib import Path
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
-from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS, is_disabled_file
 
 AUDIT_SCOPE = "branch_level"
 
@@ -61,8 +61,8 @@ _MAIN_BLOCK_RE = re.compile(
 
 
 def _should_skip(path: Path) -> bool:
-    """Return True if any path component is in the skip set."""
-    return any(part in SKIP_DIRS for part in path.parts)
+    """Return True if any path component is in the skip set or file is disabled."""
+    return any(part in SKIP_DIRS for part in path.parts) or is_disabled_file(path.name)
 
 
 def _collect_python_files(branch_path: Path) -> list[Path]:

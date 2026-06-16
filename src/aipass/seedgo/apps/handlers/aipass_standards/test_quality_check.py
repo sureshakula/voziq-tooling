@@ -29,7 +29,7 @@ from pathlib import Path
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
-from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import SOURCE_SKIP_DIRS, is_disabled_file
 
 AUDIT_SCOPE = "branch_level"
 
@@ -175,6 +175,11 @@ def _should_skip_dir(name: str) -> bool:
     return name in SKIP_DIRS or name.startswith(".")
 
 
+def _should_skip_file(name: str) -> bool:
+    """Check if a file should be skipped (disabled convention)."""
+    return is_disabled_file(name)
+
+
 def _find_test_files_broad(branch_path: Path) -> list[Path]:
     """Find all test files for module coverage analysis.
 
@@ -201,7 +206,7 @@ def _find_test_files_broad(branch_path: Path) -> list[Path]:
     for py_file in sorted(branch_path.rglob("*.py")):
         if any(_should_skip_dir(part) for part in py_file.relative_to(branch_path).parts):
             continue
-        if py_file.name in ("__init__.py", "conftest.py"):
+        if py_file.name in ("__init__.py", "conftest.py") or _should_skip_file(py_file.name):
             continue
         if py_file.name.startswith("test_") or py_file.name.endswith("_test.py"):
             resolved = py_file.resolve()
@@ -245,7 +250,12 @@ def _collect_testable_modules(branch_path: Path) -> set[str]:
     modules_dir = apps_dir / "modules"
     if modules_dir.is_dir():
         for item in sorted(modules_dir.iterdir()):
-            if item.is_file() and item.suffix == ".py" and item.name != "__init__.py":
+            if (
+                item.is_file()
+                and item.suffix == ".py"
+                and item.name != "__init__.py"
+                and not _should_skip_file(item.name)
+            ):
                 modules.add(item.stem)
 
     handlers_dir = apps_dir / "handlers"
@@ -254,10 +264,19 @@ def _collect_testable_modules(branch_path: Path) -> set[str]:
             if _should_skip_dir(item.name):
                 continue
             if item.is_dir() and item.name != "__pycache__":
-                has_py = any(f.suffix == ".py" and f.name != "__init__.py" for f in item.iterdir() if f.is_file())
+                has_py = any(
+                    f.suffix == ".py" and f.name != "__init__.py" and not _should_skip_file(f.name)
+                    for f in item.iterdir()
+                    if f.is_file()
+                )
                 if has_py:
                     modules.add(item.name)
-            elif item.is_file() and item.suffix == ".py" and item.name != "__init__.py":
+            elif (
+                item.is_file()
+                and item.suffix == ".py"
+                and item.name != "__init__.py"
+                and not _should_skip_file(item.name)
+            ):
                 modules.add(item.stem)
 
     return modules

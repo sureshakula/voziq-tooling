@@ -112,6 +112,8 @@ def _should_skip_file(py_file: Path) -> bool:
     """Check if file should be skipped based on naming/path rules."""
     if py_file.name.startswith("_"):
         return True
+    if "(disabled)" in py_file.name:
+        return True
     return any(part.startswith(".") for part in py_file.parts)
 
 
