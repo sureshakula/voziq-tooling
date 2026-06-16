@@ -33,8 +33,11 @@ Tests — api_key.py (get_secret_cmd):
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
+import pytest
 
 from aipass.api.apps.modules.api_key import handle_command as _hc  # noqa: F401 — seedgo test_coverage detection
 from aipass.api.apps.handlers.auth.secrets import (
@@ -140,6 +143,10 @@ class TestGetSecret:
         assert result is None
         mock_logger.warning.assert_called()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="chmod(0o000) does not make a file unreadable to its owner on Windows",
+    )
     def test_unreadable_file_returns_none(self, tmp_path: Path) -> None:
         """OSError when reading file returns None."""
         provider_dir = tmp_path / "telegram"

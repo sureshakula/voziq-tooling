@@ -8,6 +8,10 @@
 
 """Tests for the skills runner module."""
 
+import sys
+
+import pytest
+
 from aipass.skills.apps.modules.runner import run_skill
 
 
@@ -18,21 +22,37 @@ class TestRunSkillHandler:
         assert "Disk Usage" in result["output"]
         assert result["error"] is None
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="system_status memory reads Linux /proc/meminfo; unavailable on Windows (skill returns graceful error)",
+    )
     def test_run_system_status_memory(self):
         result = run_skill("system_status", action="memory")
         assert result["success"] is True
         assert "Memory" in result["output"]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="system_status uptime reads Linux /proc/uptime; unavailable on Windows (skill returns graceful error)",
+    )
     def test_run_system_status_uptime(self):
         result = run_skill("system_status", action="uptime")
         assert result["success"] is True
         assert "Uptime" in result["output"]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="system_status processes reads Linux /proc; unavailable on Windows (skill returns graceful error)",
+    )
     def test_run_system_status_processes(self):
         result = run_skill("system_status", action="processes")
         assert result["success"] is True
         assert "processes" in result["output"].lower()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="system_status summary needs Linux /proc memory data; unavailable on Windows",
+    )
     def test_run_system_status_summary(self):
         result = run_skill("system_status", action="summary")
         assert result["success"] is True

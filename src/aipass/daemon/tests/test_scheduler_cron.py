@@ -16,6 +16,7 @@
 """Tests for scheduler_cron dispatch paths."""
 
 import subprocess
+import sys
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -443,6 +444,10 @@ class TestMain:
         mock_help.assert_called_once()
         assert exc_info.value.code == 0
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="patches fcntl.flock; fcntl is Unix-only (None on Windows). Scheduler skips locking on non-Unix.",
+    )
     def test_lock_acquisition_failure(self, tmp_path):
         from aipass.daemon.apps.scheduler_cron import main
 
@@ -460,6 +465,10 @@ class TestMain:
         assert code == 0  # graceful skip when another instance is running
         mock_fd.close.assert_called()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="patches fcntl.flock; fcntl is Unix-only (None on Windows). Scheduler skips locking on non-Unix.",
+    )
     def test_lock_acquired_runs_locked(self, tmp_path):
         from aipass.daemon.apps.scheduler_cron import main
 
