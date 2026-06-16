@@ -160,7 +160,7 @@ drone @daemon <command> --help
 
 ## Test Suite
 
-- **387 tests** across 16 test files
+- **448 tests** across 19 test files
 - 8/8 modules covered, 43/51 public functions tested
 - Seedgo audit: **100%** across all standards
 
