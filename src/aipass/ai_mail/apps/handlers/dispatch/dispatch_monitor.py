@@ -134,16 +134,27 @@ def _send_bounce(branch_email: str, reason: str, sender: str, lock_file: str, st
         return False
 
 
-def _check_rate_limited(stderr_log: str) -> bool:
-    """Check if stderr indicates API rate limiting or overload."""
+def _read_agent_stderr(stderr_log: str) -> str:
+    """Read the dispatch stderr log, excluding the monitor's own framing lines.
+
+    The monitor writes header/footer/attempt markers (all prefixed with "--- ")
+    that embed the PID and timestamps. Those numbers must NOT be scanned for API
+    error markers -- e.g. a PID like 14290 contains "429" and would otherwise be
+    misread as an HTTP 429 rate-limit. Returns "" if the log can't be read.
+    """
     try:
         with open(stderr_log, "r", encoding="utf-8") as f:
-            content = f.read()
-        lower = content.lower()
-        return "rate_limit" in lower or "429" in content or "overloaded" in lower or "529" in content
+            return "".join(line for line in f if not line.lstrip().startswith("---"))
     except OSError as e:
-        logger.warning("[monitor] _check_rate_limited failed reading %s: %s", stderr_log, e)
-        return False
+        logger.warning("[monitor] Failed reading stderr log %s: %s", stderr_log, e)
+        return ""
+
+
+def _check_rate_limited(stderr_log: str) -> bool:
+    """Check if stderr indicates API rate limiting or overload."""
+    content = _read_agent_stderr(stderr_log)
+    lower = content.lower()
+    return "rate_limit" in lower or "429" in content or "overloaded" in lower or "529" in content
 
 
 def _make_fresh_cmd(claude_cmd: list) -> list:
@@ -527,16 +538,14 @@ def main():
 
         reason = f"All {len(attempts)} attempts failed after {duration}s.\n" + "\n".join(attempt_details)
 
-        # Check stderr for specific error categories
-        try:
-            with open(stderr_log, "r", encoding="utf-8") as f:
-                content = f.read()
-            if "rate_limit" in content.lower() or "429" in content:
-                reason = f"API rate limit (all {len(attempts)} attempts failed, {duration}s)"
-            elif "overloaded" in content.lower() or "529" in content:
-                reason = f"API overloaded (all {len(attempts)} attempts failed, {duration}s)"
-        except OSError:
-            logger.info("[monitor] Failed to read stderr log for diagnostics")
+        # Check stderr for specific error categories. Exclude the monitor's own
+        # framing lines (PID/timestamp headers) so a number like a PID containing
+        # "429" is not misread as an HTTP 429 rate-limit response.
+        content = _read_agent_stderr(stderr_log)
+        if "rate_limit" in content.lower() or "429" in content:
+            reason = f"API rate limit (all {len(attempts)} attempts failed, {duration}s)"
+        elif "overloaded" in content.lower() or "529" in content:
+            reason = f"API overloaded (all {len(attempts)} attempts failed, {duration}s)"
 
         _send_bounce(branch_email, reason, sender, lock_file, stderr_log)
 
