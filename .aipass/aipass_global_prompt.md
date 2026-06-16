@@ -65,6 +65,10 @@ src/aipass/<name>/
  - @trigger — event handling. Pub/sub event bus, error detection (medic), log watching, error registry. Detects and dispatches — owners fix.
  - @api — external API gateway. Authenticated service clients (Google, OpenRouter, more), OAuth flows, key management, resilience.
  - @cli — display formatting with Rich. Shared rendering for terminal output.
+ - @skills — capability framework. Discoverable, self-contained skill units any agent can run; consume AIPass services as opt-in imports (e.g. the Telegram skill).
+ - @daemon — task scheduler. Cron-triggered firing; each branch owns its `.daemon/schedule.json`, the daemon discovers and fires.
+ - @commons — the social space. Where branches post, comment, vote, and gather as a community.
+ - @backup — local-first backups. Project-owned snapshots and restore for any directory; no external service.
 
 # Daily commands
 
@@ -87,7 +91,6 @@ Plans carry context so you don't have to. Create only via `drone @flow create <p
  - DPLAN — design plan. Thinking, brainstorming, architecture. Before building.
  - FPLAN — flow plan, the default. Building and executing. `master` template = multi-phase, spawns sub-FPLANs.
  - PPLAN — playbook. A throwaway run stamped from a reusable SOP template. Operating the system, not changing it.
- - RPLAN — research plan. Investigation runs — gather findings before deciding.
  - More types exist and new ones register over time. Named a type you don't know? `drone @flow templates` lists them all, live.
 
 # Sub-agent usage
