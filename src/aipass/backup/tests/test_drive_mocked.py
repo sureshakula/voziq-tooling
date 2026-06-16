@@ -67,18 +67,18 @@ class TestDriveSyncModule:
         assert isinstance(result, bool)
 
 
-class TestDriveTestModule:
-    """Drive test stub."""
+class TestDriveCheckModule:
+    """Drive check stub."""
 
-    def test_drive_test_handle_command(self) -> None:
-        """drive_test handle_command returns True for primary."""
-        mod = _get_drive_module("drive_test")
+    def test_drive_check_handle_command(self) -> None:
+        """drive_check handle_command returns True for primary."""
+        mod = _get_drive_module("drive_check")
         result = mod.handle_command(mod.PRIMARY_COMMAND, [])
         assert result is True
 
-    def test_drive_test_invalid_mode_returns_false(self) -> None:
+    def test_drive_check_invalid_mode_returns_false(self) -> None:
         """invalid_mode / invalid_type -- unknown returns False."""
-        mod = _get_drive_module("drive_test")
+        mod = _get_drive_module("drive_check")
         result = mod.handle_command("invalid_type", [])
         assert result is False
 

@@ -1,12 +1,12 @@
 # =================== AIPass ====================
-# Name: drive_test.py
-# Description: Drive test module — verifies Google Drive connectivity via @api
+# Name: drive_check.py
+# Description: Drive check module — verifies Google Drive connectivity via @api
 # Version: 1.0.0
 # Created: 2026-04-17
 # Modified: 2026-06-12
 # =============================================
 
-"""Drive Test Module — tests Drive auth through @api gateway."""
+"""Drive Check Module — tests Drive auth through @api gateway."""
 
 import sys
 
@@ -16,8 +16,8 @@ from aipass.cli.apps.modules import console
 from aipass.backup.apps.handlers.json import json_handler
 
 
-MODULE_NAME = "drive_test"
-PRIMARY_COMMAND = "drive_test"
+MODULE_NAME = "drive_check"
+PRIMARY_COMMAND = "drive_check"
 
 
 def print_introspection():
@@ -33,7 +33,7 @@ def print_help():
     print_introspection()
 
 
-def run_drive_test() -> bool:
+def run_drive_check() -> bool:
     """Test Drive auth through @api gateway.
 
     Creates a DriveClient, authenticates, tests folder access, and
@@ -57,14 +57,14 @@ def run_drive_test() -> bool:
         logger.warning(f"[backup] Drive test failed: {result['error']}")
 
     json_handler.log_operation(
-        "drive_test_complete",
+        "drive_check_complete",
         {"success": result["success"]},
     )
     return result["success"]
 
 
 def handle_command(command: str, args: list) -> bool:
-    """Handle the drive-test command. Returns True if handled."""
+    """Handle the drive-check command. Returns True if handled."""
     if command != PRIMARY_COMMAND:
         return False
 
@@ -77,11 +77,11 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     if args[0] == "run":
-        run_drive_test()
+        run_drive_check()
         return True
 
-    # Default: run the test
-    run_drive_test()
+    # Default: run the check
+    run_drive_check()
     return True
 
 
@@ -91,5 +91,5 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         print_introspection()
         sys.exit(0)
-    result = handle_command(PRIMARY_COMMAND, sys.argv[1:])
-    sys.exit(0 if result else 1)
+    handle_command(PRIMARY_COMMAND, sys.argv[1:])
+    sys.exit(0)

@@ -110,7 +110,7 @@ class TestDriveClient:
         client = mod.DriveClient()
 
         mock_service = MagicMock()
-        mod.get_drive_service = MagicMock(return_value=mock_service)
+        mod.get_drive_service = MagicMock(return_value=mock_service)  # type: ignore[attr-defined]
 
         result = client.authenticate()
         assert result is True
@@ -119,7 +119,7 @@ class TestDriveClient:
     def test_authenticate_no_api(self) -> None:
         """GOOGLE_API_AVAILABLE=False, authenticate() returns False."""
         mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
-        mod.GOOGLE_API_AVAILABLE = False
+        mod.GOOGLE_API_AVAILABLE = False  # type: ignore[attr-defined]
         client = mod.DriveClient()
 
         result = client.authenticate()
@@ -130,7 +130,7 @@ class TestDriveClient:
         """get_drive_service returns None, authenticate() returns False."""
         mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
         client = mod.DriveClient()
-        mod.get_drive_service = MagicMock(return_value=None)
+        mod.get_drive_service = MagicMock(return_value=None)  # type: ignore[attr-defined]
 
         result = client.authenticate()
         assert result is False
@@ -140,7 +140,7 @@ class TestDriveClient:
         """get_drive_service raises, authenticate() returns False."""
         mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
         client = mod.DriveClient()
-        mod.get_drive_service = MagicMock(side_effect=RuntimeError("boom"))
+        mod.get_drive_service = MagicMock(side_effect=RuntimeError("boom"))  # type: ignore[attr-defined]
 
         result = client.authenticate()
         assert result is False
@@ -173,7 +173,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "folder_123", "name": "AIPass Backups"}]})
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "folder_123", "name": "AIPass Backups"}]})  # type: ignore[attr-defined]
 
         result = client.get_or_create_backup_folder()
         assert result == "folder_123"
@@ -196,7 +196,7 @@ class TestDriveClient:
                 return {"id": "new_folder_456"}
             return {"id": "new_folder_456", "trashed": False}
 
-        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)  # type: ignore[attr-defined]
 
         result = client.get_or_create_backup_folder()
         assert result == "new_folder_456"
@@ -218,7 +218,7 @@ class TestDriveClient:
         client._drive_service = mock_service
         client.backup_folder_id = "root_folder"
 
-        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "proj_folder_789", "name": "myproject"}]})
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "proj_folder_789", "name": "myproject"}]})  # type: ignore[attr-defined]
 
         result = client.get_or_create_project_folder("myproject")
         assert result == "proj_folder_789"
@@ -231,7 +231,7 @@ class TestDriveClient:
         client._drive_service = MagicMock()
         client.project_folder_cache["cached_proj"] = "cached_id"
 
-        mod.api_call_with_retry = MagicMock(return_value={"id": "cached_id", "trashed": False})
+        mod.api_call_with_retry = MagicMock(return_value={"id": "cached_id", "trashed": False})  # type: ignore[attr-defined]
 
         result = client.get_or_create_project_folder("cached_proj")
         assert result == "cached_id"
@@ -251,7 +251,7 @@ class TestDriveClient:
                 return {"files": []}  # Not found
             return {"id": f"folder_{call_count['n']}"}  # Created
 
-        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)  # type: ignore[attr-defined]
 
         result = client.get_or_create_nested_folder("parent_id", "a/b")
         assert result is not None
@@ -263,7 +263,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "file_abc", "name": "test.txt"}]})
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "file_abc", "name": "test.txt"}]})  # type: ignore[attr-defined]
 
         result = client._find_existing_file("test.txt", "parent_folder")
         assert result is not None
@@ -276,7 +276,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(return_value={"files": []})
+        mod.api_call_with_retry = MagicMock(return_value={"files": []})  # type: ignore[attr-defined]
 
         result = client._find_existing_file("missing.txt", "parent_folder")
         assert result is None
@@ -288,7 +288,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(return_value={"id": "folder_ok", "trashed": False})
+        mod.api_call_with_retry = MagicMock(return_value={"id": "folder_ok", "trashed": False})  # type: ignore[attr-defined]
 
         result = client._verify_folder_id("folder_ok")
         assert result is True
@@ -300,7 +300,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(return_value={"id": "folder_trash", "trashed": True})
+        mod.api_call_with_retry = MagicMock(return_value={"id": "folder_trash", "trashed": True})  # type: ignore[attr-defined]
 
         result = client._verify_folder_id("folder_trash")
         assert result is False
@@ -312,7 +312,7 @@ class TestDriveClient:
         mock_service = MagicMock()
         client._drive_service = mock_service
 
-        mod.api_call_with_retry = MagicMock(return_value={"ok": True})
+        mod.api_call_with_retry = MagicMock(return_value={"ok": True})  # type: ignore[attr-defined]
         mock_request = MagicMock()
 
         result = client._api_call(mock_request)
@@ -332,8 +332,8 @@ class TestDriveClient:
                 raise RuntimeError("transient error")
             return {"retried": True}
 
-        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
-        mod.get_drive_service = MagicMock(return_value=MagicMock())
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)  # type: ignore[attr-defined]
+        mod.get_drive_service = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
 
         result = client._api_call(MagicMock())
         assert result == {"retried": True}
@@ -512,7 +512,7 @@ class TestDriveUpload:
         test_file.write_text("print('hello')", encoding="utf-8")
 
         # Mock api_call_with_retry to return file id
-        client_mod.api_call_with_retry = MagicMock(return_value={"id": "new_file_id"})
+        client_mod.api_call_with_retry = MagicMock(return_value={"id": "new_file_id"})  # type: ignore[attr-defined]
 
         result = mod.upload_single_file(client, test_file, "testproj", tmp_path)
         assert result is True
@@ -533,7 +533,7 @@ class TestDriveUpload:
         test_file = tmp_path / "existing.py"
         test_file.write_text("updated content", encoding="utf-8")
 
-        client_mod.api_call_with_retry = MagicMock(return_value={"id": "existing_drive_id"})
+        client_mod.api_call_with_retry = MagicMock(return_value={"id": "existing_drive_id"})  # type: ignore[attr-defined]
 
         result = mod.upload_single_file(client, test_file, "testproj", tmp_path)
         assert result is True
@@ -577,8 +577,8 @@ class TestDriveUpload:
             f.write_text(f"content {i}", encoding="utf-8")
             files.append(f)
 
-        client_mod.api_call_with_retry = MagicMock(return_value={"id": "file_id"})
-        client_mod.get_drive_service = MagicMock(return_value=mock_service)
+        client_mod.api_call_with_retry = MagicMock(return_value={"id": "file_id"})  # type: ignore[attr-defined]
+        client_mod.get_drive_service = MagicMock(return_value=mock_service)  # type: ignore[attr-defined]
 
         progress_calls = []
 
@@ -834,24 +834,24 @@ class TestDriveSync:
 # ---------------------------------------------------------------------------
 
 
-class TestDriveTestModule:
-    """Tests for drive_test module."""
+class TestDriveCheckModule:
+    """Tests for drive_check module."""
 
     def test_handle_command_primary(self) -> None:
-        mod = _fresh_import("aipass.backup.apps.modules.drive_test")
-        assert mod.handle_command("drive_test", []) is True
+        mod = _fresh_import("aipass.backup.apps.modules.drive_check")
+        assert mod.handle_command("drive_check", []) is True
 
     def test_handle_command_help(self) -> None:
-        mod = _fresh_import("aipass.backup.apps.modules.drive_test")
-        assert mod.handle_command("drive_test", ["--help"]) is True
+        mod = _fresh_import("aipass.backup.apps.modules.drive_check")
+        assert mod.handle_command("drive_check", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
-        mod = _fresh_import("aipass.backup.apps.modules.drive_test")
+        mod = _fresh_import("aipass.backup.apps.modules.drive_check")
         assert mod.handle_command("wrong", []) is False
 
-    def test_run_drive_test_success(self) -> None:
-        """Run drive test with mocked success."""
-        mod = _fresh_import("aipass.backup.apps.modules.drive_test")
+    def test_run_drive_check_success(self) -> None:
+        """Run drive check with mocked success."""
+        mod = _fresh_import("aipass.backup.apps.modules.drive_check")
 
         mock_client_module = MagicMock()
         mock_client_instance = MagicMock()
@@ -871,7 +871,7 @@ class TestDriveTestModule:
                 "aipass.backup.apps.handlers.drive.test": mock_test_module,
             },
         ):
-            result = mod.run_drive_test()
+            result = mod.run_drive_check()
         assert result is True
 
 
@@ -978,7 +978,7 @@ class TestThreadSafety:
                 return {"id": "proj_folder_unique"}
             return {"trashed": False}
 
-        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)  # type: ignore[attr-defined]
 
         results = []
 
@@ -1001,7 +1001,7 @@ class TestThreadSafety:
         client._drive_service = MagicMock()
         client.backup_folder_id = "already_set"
 
-        mod.api_call_with_retry = MagicMock(return_value={"id": "already_set", "trashed": False})
+        mod.api_call_with_retry = MagicMock(return_value={"id": "already_set", "trashed": False})  # type: ignore[attr-defined]
 
         result = client.get_or_create_backup_folder()
         assert result == "already_set"
@@ -1014,7 +1014,7 @@ class TestThreadSafety:
         client._drive_service = MagicMock()
         client.file_tracker = {"existing.txt": {"drive_id": "abc"}}
 
-        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "found_folder", "name": "AIPass Backups"}]})
+        mod.api_call_with_retry = MagicMock(return_value={"files": [{"id": "found_folder", "name": "AIPass Backups"}]})  # type: ignore[attr-defined]
 
         result = client.get_or_create_backup_folder()
         assert result == "found_folder"
@@ -1037,7 +1037,7 @@ class TestThreadSafety:
                 return {"id": "brand_new_folder"}
             return {"id": "brand_new_folder", "trashed": False}
 
-        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)  # type: ignore[attr-defined]
 
         result = client.get_or_create_backup_folder()
         assert result == "brand_new_folder"
@@ -1060,7 +1060,7 @@ class TestThreadSafety:
                 return {"id": "new_folder"}
             return {"id": "new_folder", "trashed": False}
 
-        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)
+        mod.api_call_with_retry = MagicMock(side_effect=_side_effect)  # type: ignore[attr-defined]
 
         result = client.get_or_create_backup_folder()
         assert result == "new_folder"
@@ -1106,11 +1106,11 @@ class TestCommandRouting:
         assert mod.handle_command("drive_sync", []) is True
         assert mod.handle_command("drive-sync", []) is False
 
-    def test_drive_test_routes_underscore(self) -> None:
-        mod = _fresh_import("aipass.backup.apps.modules.drive_test")
-        assert mod.PRIMARY_COMMAND == "drive_test"
-        assert mod.handle_command("drive_test", []) is True
-        assert mod.handle_command("drive-test", []) is False
+    def test_drive_check_routes_underscore(self) -> None:
+        mod = _fresh_import("aipass.backup.apps.modules.drive_check")
+        assert mod.PRIMARY_COMMAND == "drive_check"
+        assert mod.handle_command("drive_check", []) is True
+        assert mod.handle_command("drive-check", []) is False
 
     def test_drive_stats_routes_underscore(self) -> None:
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")

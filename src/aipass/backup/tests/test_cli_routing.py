@@ -72,7 +72,7 @@ def _load_module_fresh(module_path: str, extra_mocks: dict | None = None):
 
 SIMPLE_MODULES = [
     "aipass.backup.apps.modules.drive_sync",
-    "aipass.backup.apps.modules.drive_test",
+    "aipass.backup.apps.modules.drive_check",
     "aipass.backup.apps.modules.drive_stats",
     "aipass.backup.apps.modules.drive_clear",
     "aipass.backup.apps.modules.settings",

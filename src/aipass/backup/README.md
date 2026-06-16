@@ -35,7 +35,7 @@ apps/
 │   ├── drive_clear.py     # Drive clear (stub — DPLAN-003)
 │   ├── drive_stats.py     # Drive stats (stub — DPLAN-003)
 │   ├── drive_sync.py      # Drive sync (stub — DPLAN-003)
-│   ├── drive_test.py      # Drive test (stub — DPLAN-003)
+│   ├── drive_check.py     # Drive check (stub — DPLAN-003)
 │   ├── register.py        # Project registration + @name resolution
 │   ├── restore.py         # Version discovery + file restoration
 │   ├── settings.py        # Settings UI (stub)
