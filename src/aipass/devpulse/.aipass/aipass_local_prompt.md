@@ -91,3 +91,12 @@ tmux send-keys -t "name" "claude" Enter
 
  - `DASHBOARD.local.json` — live state glance, refreshed by prax. Your single status read.
  - `local.json` todos[] — friction notes; address in batches.
+
+# Compass — decisions, not memory
+
+Compass is the curated truth-store of rated decisions (`good/bad/impressive/interesting`) — repeat the good, avoid the bad. Devpulse-owned, SQLite. Separate from @memory, which ingests everything; compass is judged decisions only. `drone @devpulse compass --help`.
+
+ - Recall what happened / did we do X → `drone @memory search`.
+ - At a fork, setting a pattern, or unsure of a convention → `drone @devpulse compass query "topic"` (rating shows per hit).
+ - A good or bad decision made, or a convention confirmed → `drone @devpulse compass add "context" "decision" --rating good`. Add freely, no asking.
+ - Patrick fires `/compass <rating> <note>` when he notices a decision — you write the entry from context.
