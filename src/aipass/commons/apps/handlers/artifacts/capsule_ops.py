@@ -27,6 +27,7 @@ from aipass.commons.apps.handlers.json import json_handler
 # SEAL A TIME CAPSULE
 # =============================================================================
 
+
 def seal_capsule(args: List[str]) -> dict:
     """
     Seal a time capsule that opens after N days.
@@ -51,6 +52,7 @@ def seal_capsule(args: List[str]) -> dict:
     days = max(1, min(365, days))
 
     from aipass.commons.apps.modules.commons_identity import get_caller_branch
+
     caller = get_caller_branch()
     if not caller:
         return {"success": False, "error": "Could not detect calling branch. Run from a branch directory."}
@@ -64,8 +66,7 @@ def seal_capsule(args: List[str]) -> dict:
         conn = get_db()
 
         cursor = conn.execute(
-            "INSERT INTO time_capsules (creator, title, content, opens_at) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO time_capsules (creator, title, content, opens_at) VALUES (?, ?, ?, ?)",
             (creator, title, content, opens_at),
         )
         capsule_id = cursor.lastrowid
@@ -91,6 +92,7 @@ def seal_capsule(args: List[str]) -> dict:
 # LIST TIME CAPSULES
 # =============================================================================
 
+
 def list_capsules(args: List[str]) -> dict:
     """
     List all time capsules with status info.
@@ -103,9 +105,7 @@ def list_capsules(args: List[str]) -> dict:
     try:
         conn = get_db()
 
-        rows = conn.execute(
-            "SELECT * FROM time_capsules ORDER BY opens_at ASC"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM time_capsules ORDER BY opens_at ASC").fetchall()
 
         close_db(conn)
 
@@ -145,6 +145,7 @@ def list_capsules(args: List[str]) -> dict:
 # OPEN A TIME CAPSULE
 # =============================================================================
 
+
 def open_capsule(args: List[str]) -> dict:
     """
     Open a time capsule if its opens_at date has passed.
@@ -164,6 +165,7 @@ def open_capsule(args: List[str]) -> dict:
         return {"success": False, "error": "Capsule ID must be a number"}
 
     from aipass.commons.apps.modules.commons_identity import get_caller_branch
+
     caller = get_caller_branch()
     if not caller:
         return {"success": False, "error": "Could not detect calling branch. Run from a branch directory."}
@@ -173,9 +175,7 @@ def open_capsule(args: List[str]) -> dict:
     try:
         conn = get_db()
 
-        row = conn.execute(
-            "SELECT * FROM time_capsules WHERE id = ?", (capsule_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM time_capsules WHERE id = ?", (capsule_id,)).fetchone()
 
         if not row:
             close_db(conn)

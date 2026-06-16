@@ -66,8 +66,8 @@ def _guard_branch_access():
     if os.environ.get("AIPASS_DEBUG_GUARD"):
         import sys
 
-        print(f"[GUARD DEBUG] caller_file = {caller_file}", file=sys.stderr)
-        print(f"[GUARD DEBUG] import_line = {import_line}", file=sys.stderr)
+        sys.stderr.write(f"[GUARD DEBUG] caller_file = {caller_file}\n")
+        sys.stderr.write(f"[GUARD DEBUG] import_line = {import_line}\n")
 
     if caller_file is None:
         # Can't determine caller from real files
@@ -82,8 +82,8 @@ def _guard_branch_access():
     # Check if caller is from our branch
     # MY_BRANCH is "aipass.daemon" (dotted), but filesystem uses "/aipass/daemon/"
     branch_path = "/" + MY_BRANCH.replace(".", "/") + "/"
-    if branch_path in caller_file:
-        return  # Same branch, allowed
+    if branch_path in caller_file.replace("\\", "/"):
+        return  # Same branch, allowed (normalize Windows backslash paths)
 
     # External caller - block access
     caller_branch = _extract_branch_name(caller_file)

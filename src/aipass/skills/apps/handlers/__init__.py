@@ -66,8 +66,8 @@ def _guard_branch_access():
     if os.environ.get("AIPASS_DEBUG_GUARD"):
         import sys
 
-        print(f"[GUARD DEBUG] caller_file = {caller_file}", file=sys.stderr)
-        print(f"[GUARD DEBUG] import_line = {import_line}", file=sys.stderr)
+        sys.stderr.write(f"[GUARD DEBUG] caller_file = {caller_file}\n")
+        sys.stderr.write(f"[GUARD DEBUG] import_line = {import_line}\n")
 
     if caller_file is None:
         stack = inspect.stack()
@@ -94,7 +94,7 @@ def _guard_branch_access():
         return
 
     # Check if caller is from our branch
-    if f"/{MY_BRANCH}/" in caller_file:
+    if f"/{MY_BRANCH}/" in caller_file.replace("\\", "/"):
         return
 
     # External caller - block access

@@ -55,8 +55,8 @@ def _guard_branch_access():
     if os.environ.get("AIPASS_DEBUG_GUARD"):
         import sys
 
-        print(f"[GUARD DEBUG] caller_file = {caller_file}", file=sys.stderr)
-        print(f"[GUARD DEBUG] import_line = {import_line}", file=sys.stderr)
+        sys.stderr.write(f"[GUARD DEBUG] caller_file = {caller_file}\n")
+        sys.stderr.write(f"[GUARD DEBUG] import_line = {import_line}\n")
 
     if caller_file is None:
         stack = inspect.stack()
@@ -65,9 +65,10 @@ def _guard_branch_access():
                 return  # Allow command-line Python through
         return
 
-    # IMPORTANT: Commons is at src/commons/, not src/aipass/commons/
-    # Check if caller is from within the commons directory
-    if "/commons/" in caller_file:
+    # Check if caller is from within the commons directory.
+    # Use path PARTS (not a "/commons/" substring) so the same-branch check
+    # works on Windows too, where paths use backslash separators.
+    if "commons" in Path(caller_file).parts:
         return  # Same branch, allowed
 
     caller_branch = _extract_branch_name(caller_file)
