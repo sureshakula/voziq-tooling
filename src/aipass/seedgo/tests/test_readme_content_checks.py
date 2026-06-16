@@ -354,11 +354,11 @@ def test_markdown_links_mixed_valid_and_dead(tmp_path):
 
     (tmp_path / "README.md").write_text("# exists\n", encoding="utf-8")
 
-    lines = _lines("[Readme](README.md)\n[Gone](deleted_file.md)\n[Also Gone](tools/)\n")
+    lines = _lines("[Readme](README.md)\n[Gone](deleted_file.md)\n[Also Gone](utils/)\n")
     result = check_markdown_links(lines, tmp_path, "fake.py")
     assert result["passed"] is False
     assert "deleted_file.md" in result["message"]
-    assert "tools/" in result["message"]
+    assert "utils/" in result["message"]
 
 
 def test_markdown_links_parent_path(tmp_path):
@@ -491,6 +491,8 @@ def test_is_runtime_artifact_known_dirs():
     assert _is_runtime_artifact(Path("/any/path/docs.local")) is True
     assert _is_runtime_artifact(Path("/any/path/dropbox")) is True
     assert _is_runtime_artifact(Path("/any/path/system_logs")) is True
+    assert _is_runtime_artifact(Path("/any/path/tools")) is True
+    assert _is_runtime_artifact(Path("/any/path/backups")) is True
     assert _is_runtime_artifact(Path("/any/path/src")) is False
     assert _is_runtime_artifact(Path("/any/path/apps")) is False
     assert _is_runtime_artifact(Path("/any/path/tests")) is False
