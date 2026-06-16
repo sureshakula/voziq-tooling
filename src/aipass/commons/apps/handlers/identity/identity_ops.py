@@ -190,6 +190,7 @@ def get_caller_branch() -> Optional[Dict[str, Any]]:
         if branch_root:
             branch_info = get_branch_info_from_registry(branch_root)
             if branch_info:
+                _normalize_branch_name(branch_info)
                 _ensure_agent_registered(branch_info)
                 json_handler.log_operation("caller_detected", {"branch": branch_info.get("name", "unknown")})
                 return branch_info
@@ -199,6 +200,7 @@ def get_caller_branch() -> Optional[Dict[str, Any]]:
         if caller_branch_name:
             branch_info = get_branch_info_by_name(caller_branch_name)
             if branch_info:
+                _normalize_branch_name(branch_info)
                 _ensure_agent_registered(branch_info)
                 json_handler.log_operation(
                     "caller_detected", {"branch": branch_info.get("name", "unknown"), "via": "AIPASS_CALLER_BRANCH"}
@@ -213,6 +215,25 @@ def get_caller_branch() -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"[commons.identity] Branch detection failed: {e}")
         return None
+
+
+def _normalize_branch_name(branch_info: Dict[str, Any]) -> None:
+    """
+    Lowercase the branch name so Commons identity is case-canonical.
+
+    The AIPASS registry has historically used mixed casing for branch names
+    (e.g. BACKUP vs devpulse), and both the agents roster and post authorship
+    mirror whatever casing the registry supplies. get_caller_branch() is the
+    single choke point every caller identity flows through (post/comment author
+    writes, agent registration), so normalizing here keeps one branch = one
+    identity regardless of registry casing — no DEVPULSE/devpulse splits.
+
+    Args:
+        branch_info: Branch dict from the registry (mutated in place).
+    """
+    name = branch_info.get("name")
+    if isinstance(name, str) and name:
+        branch_info["name"] = name.lower()
 
 
 def _ensure_agent_registered(branch_info: Dict[str, Any]) -> None:

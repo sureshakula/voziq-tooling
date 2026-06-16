@@ -354,7 +354,10 @@ def _register_branches(conn: sqlite3.Connection) -> None:
 
     branches = registry.get("branches", [])
     for branch in branches:
-        name = branch.get("name", "")
+        # Lowercase to keep one branch = one identity regardless of registry
+        # casing (registry has historically mixed BACKUP vs devpulse). Matches
+        # the normalization in identity_ops.get_caller_branch().
+        name = branch.get("name", "").lower()
         if not name:
             continue
 

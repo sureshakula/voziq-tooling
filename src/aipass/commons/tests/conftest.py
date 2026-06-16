@@ -1,16 +1,9 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: conftest.py - The Commons test configuration
-# Date: 2026-03-07
-# Version: 1.0.0
-# Category: commons/tests
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-03-07): Initial creation (FPLAN-0411)
-#
-# CODE STANDARDS:
-#   - Pytest fixtures for The Commons test suite
-#   - Uses temporary database for test isolation
+# =================== AIPass ====================
+# Name: conftest.py
+# Description: The Commons test configuration
+# Version: 1.1.0
+# Created: 2026-03-07
+# Modified: 2026-06-15
 # =============================================
 
 """
@@ -21,6 +14,8 @@ and test isolation using temporary databases.
 """
 
 import os
+import shutil
+import sqlite3
 import tempfile
 
 # Redirect prax logs to temp directory during tests
@@ -29,14 +24,28 @@ if "AIPASS_TEST_LOG_DIR" not in os.environ:
     os.environ["AIPASS_TEST_LOG_DIR"] = tempfile.mkdtemp(prefix="aipass_test_logs_")
 
 
-import pytest
+import logging  # noqa: E402
+
+import pytest  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 try:
-    from aipass.prax.apps.modules.logger import system_logger as logger
+    from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: E402, F811
 except ImportError:
-    import logging
+    logger.warning("[conftest] prax logger unavailable — using stdlib logging")
 
-    logger = logging.getLogger("commons.tests")
+
+@pytest.fixture(scope="session")
+def _template_db_path(tmp_path_factory):
+    """Build the initialized schema+seed DB once per session."""
+    from aipass.commons.apps.modules.database import close_db, init_db
+
+    template = tmp_path_factory.mktemp("template") / "template_commons.db"
+    conn = init_db(db_path=template)
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    close_db(conn)
+    return template
 
 
 @pytest.fixture
@@ -55,21 +64,26 @@ def tmp_db_path(tmp_path):
 
 
 @pytest.fixture
-def initialized_db(tmp_db_path):
+def initialized_db(_template_db_path, tmp_path):
     """
     Provide an initialized temporary database with schema and seed data.
 
-    Creates a fresh database with all tables, default rooms,
-    and room personalities. Closes the connection after the test.
+    Copies from a session-scoped template instead of re-running init_db,
+    keeping the interface stable (yields sqlite3.Connection).
 
     Yields:
         sqlite3.Connection to the initialized test database.
     """
-    from aipass.commons.apps.handlers.database.db import init_db, close_db
+    db_file = tmp_path / "test_commons.db"
+    shutil.copy2(str(_template_db_path), str(db_file))
 
-    conn = init_db(db_path=tmp_db_path)
+    conn = sqlite3.connect(str(db_file), timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = MEMORY")
+    conn.execute("PRAGMA synchronous = OFF")
     yield conn
-    close_db(conn)
+    conn.close()
 
 
 @pytest.fixture

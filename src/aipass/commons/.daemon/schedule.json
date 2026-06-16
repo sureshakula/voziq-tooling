@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "branch": "@commons",
+  "jobs": [
+    {
+      "id": "wake-test",
+      "enabled": false,
+      "schedule": {
+        "type": "interval",
+        "interval_minutes": 1
+      },
+      "wake": {
+        "fresh": true
+      },
+      "prompt": "AUTOMATED DAEMON TEST. Do ONLY this: run drone @ai_mail email @devpulse \"DAEMON TEST FIRED\" \"Wake received from @daemon scheduler. No memory updated.\" then STOP. Do NOT run startup, do NOT update memory, do NOT do anything else."
+    }
+  ]
+}
