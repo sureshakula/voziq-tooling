@@ -109,6 +109,11 @@
       "standard": "documentation",
       "file": "tools/rm_shim/redteam_suite.py",
       "reason": "Result.ok/bad are 2-line internal report helpers in a diagnostic script — self-evident, docstrings redundant."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "tests/test_compass_store.py",
+      "reason": "Storage-layer unit test imports the compass handler's store submodule directly to exercise the _verify_fts5 FTS5 probe — there is no apps/modules/ command entry point for compass until P2 (DPLAN-0212). Same pattern as test_feedback_storage.py."
     }
   ],
   "notes": {
