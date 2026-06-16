@@ -133,13 +133,7 @@
     {
       "file": "apps/modules/api_key.py",
       "standard": "cli",
-      "reason": "get_secret_cmd() uses bare print() intentionally — output must be machine-readable for agents that parse stdout from 'drone @api get-secret'. Rich formatting would break downstream consumers."
-    },
-    {
-      "file": "apps/modules/api_key.py",
-      "standard": "debug_print",
-      "lines": [196, 208, 214],
-      "reason": "get_secret_cmd() uses bare print() intentionally — output must be machine-readable for agents that parse stdout from 'drone @api get-secret'. Rich formatting would break downstream consumers."
+      "reason": "get_secret_cmd() --list uses console.print() for slug names (identifiers, not secrets). Machine consumers use the in-process module aipass.api.apps.modules.secrets.get_secret; CLI never prints raw values (DPLAN-0211)."
     },
     {
       "file": "tests/test_aggregation.py",

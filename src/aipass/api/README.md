@@ -5,7 +5,7 @@
 > Centralized external API gateway — authenticated service clients for all external APIs
 
 **Module:** `aipass.api` | **Role:** `api_gateway`
-**Seedgo:** 99% (36/37 at 100%) | **Tests:** 499 pass | **Functions:** 80 public (80 tested)
+**Seedgo:** 100% (37/37 at 100%) | **Tests:** 504 pass | **Functions:** 82 public (82 tested)
 **Last Updated:** 2026-06-15
 
 ---
@@ -26,7 +26,7 @@ drone @api <command> [args]
 | `validate [provider]` | Validate API key (default: openrouter) |
 | `validate google` | Validate Google OAuth2 credentials |
 | `reauth google` | Re-authenticate Google OAuth2 |
-| `get-secret <provider/slug> [--json] [--list]` | Read secret from provider store |
+| `get-secret <provider/slug> [--out FILE] [--json] [--list]` | Secret access (masked summary; --out writes to file) |
 | `list-providers` | List available API providers |
 | `init` | Initialize .env template at ~/.secrets/aipass/ |
 | `test` | Test OpenRouter connection status |
@@ -49,8 +49,9 @@ drone @api <command> [args]
 api/
 ├── apps/
 │   ├── api.py                         # Entry point — module discovery, command routing
-│   ├── modules/                       # Orchestration layer (7 modules)
+│   ├── modules/                       # Orchestration layer (8 modules)
 │   │   ├── api_key.py                 # Key retrieval, validation, provider listing
+│   │   ├── secrets.py                 # Cross-branch secrets door (in-process API)
 │   │   ├── openrouter_client.py       # OpenRouter client — calls, models, status
 │   │   ├── google_client.py           # Google API services (Drive, Calendar, etc.)
 │   │   ├── usage_tracker.py           # Usage metrics — track, stats, cleanup
@@ -67,7 +68,7 @@ api/
 │   │   └── usage/aggregation.py, cleanup.py, tracking.py
 │   └── integrations/                  # Private driver space (gitignored)
 │       └── {project}/driver.py
-└── tests/                             # 499 tests across 28 files
+└── tests/                             # 504 tests across 28 files
 ```
 
 Three-tier: entry point routes to modules (orchestration), modules delegate to handlers (business logic). Modules auto-discovered from `apps/modules/*.py` via `handle_command()`.
@@ -87,10 +88,11 @@ service = get_drive_service(thread_safe=True)   # For concurrent workers
 from aipass.api.apps.modules.google_client import get_google_service
 service = get_google_service("calendar", "v3")
 
-from aipass.api.apps.handlers.auth.secrets import get_secret, list_secrets
+from aipass.api.apps.modules.secrets import get_secret, list_secrets
 token = get_secret("telegram", "bot")               # Returns bot_token string
 config = get_secret("telegram", "bot", as_json=True) # Returns full dict
 slugs = list_secrets("telegram")                     # Returns ["bot", "webhook", ...]
+# CLI never prints raw values — use the Python API above for programmatic access
 ```
 
 ---

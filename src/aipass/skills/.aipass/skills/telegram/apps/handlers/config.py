@@ -1,11 +1,13 @@
 # Standard library
-import json
-import subprocess
 from pathlib import Path
 from typing import Optional, List
 
 # Logging
 from aipass.prax import logger
+
+# Cross-branch in-process secrets API
+from aipass.api.apps.modules.secrets import get_secret as _api_get_secret
+from aipass.api.apps.modules.secrets import list_secrets as _api_list_secrets
 
 # =============================================
 # CONSTANTS
@@ -14,7 +16,7 @@ from aipass.prax import logger
 REQUIRED_BOT_FIELDS = ("bot_id", "bot_token")
 
 # =============================================
-# SECRETS ACCESS (via drone @api)
+# SECRETS ACCESS (in-process @api)
 # =============================================
 
 
@@ -22,8 +24,8 @@ def _get_secret(bot_id: str) -> dict | None:
     """
     Retrieve bot config from the API secrets store.
 
-    Calls `drone @api get-secret telegram/<bot_id> --json` via subprocess
-    and returns the parsed JSON config dict.
+    Uses the in-process aipass.api.apps.modules.secrets.get_secret API
+    (no subprocess, no stdout parsing, no token leakage).
 
     Args:
         bot_id: Bot identifier to look up.
@@ -32,34 +34,16 @@ def _get_secret(bot_id: str) -> dict | None:
         Config dict or None if the call fails or returns no data.
     """
     try:
-        result = subprocess.run(
-            ["drone", "@api", "get-secret", f"telegram/{bot_id}", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode != 0:
-            logger.warning(f"drone @api get-secret telegram/{bot_id} failed: {result.stderr.strip()}")
+        result = _api_get_secret("telegram", bot_id, as_json=True)
+        if result is None:
+            logger.warning("Secret not found: telegram/%s", bot_id)
             return None
-
-        raw = result.stdout.strip()
-        if not raw:
+        if not isinstance(result, dict):
+            logger.warning("Secret telegram/%s is not a dict", bot_id)
             return None
-
-        config = json.loads(raw)
-        if not isinstance(config, dict):
-            return None
-
-        return config
-
-    except subprocess.TimeoutExpired:
-        logger.error(f"Timeout fetching secret for bot_id={bot_id}")
-        return None
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON from get-secret telegram/{bot_id}: {e}")
-        return None
+        return result
     except Exception as e:
-        logger.error(f"Unexpected error fetching secret for bot_id={bot_id}: {e}")
+        logger.error("Failed to fetch secret telegram/%s: %s", bot_id, e)
         return None
 
 
@@ -160,7 +144,7 @@ def load_bot_config(bot_id: str) -> dict | None:
     """
     Load per-bot config from the API secrets store.
 
-    Fetches `drone @api get-secret telegram/<bot_id> --json`.
+    Uses the in-process secrets API: get_secret("telegram", bot_id).
 
     Config format:
     {
@@ -185,41 +169,15 @@ def list_bot_configs() -> list[str]:
     """
     List all registered bot IDs via the API secrets store.
 
-    Calls `drone @api get-secret telegram --list` and parses the output
-    as a JSON list of bot_id strings.
+    Uses the in-process aipass.api.apps.modules.secrets.list_secrets API.
 
     Returns:
         List of bot_id strings, or empty list on failure.
     """
     try:
-        result = subprocess.run(
-            ["drone", "@api", "get-secret", "telegram", "--list"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode != 0:
-            logger.warning(f"drone @api get-secret telegram --list failed: {result.stderr.strip()}")
-            return []
-
-        raw = result.stdout.strip()
-        if not raw:
-            return []
-
-        bot_ids = json.loads(raw)
-        if not isinstance(bot_ids, list):
-            return []
-
-        return [str(b) for b in bot_ids]
-
-    except subprocess.TimeoutExpired:
-        logger.error("Timeout listing telegram bot secrets")
-        return []
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON from get-secret telegram --list: {e}")
-        return []
+        return _api_list_secrets("telegram")
     except Exception as e:
-        logger.error(f"Unexpected error listing telegram bot secrets: {e}")
+        logger.error("Failed to list telegram secrets: %s", e)
         return []
 
 

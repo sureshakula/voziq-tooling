@@ -44,5 +44,5 @@ drone @skills run telegram notify "message"
 
 ## Secrets
 
-Bot tokens and config accessed via `drone @api get-secret telegram/<bot_id>`.
+Bot tokens and config accessed via the in-process `aipass.api.apps.modules.secrets.get_secret` API.
 State files (offset, lock, registry) stay with the skill in `.local/`.

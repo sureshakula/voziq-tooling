@@ -172,19 +172,32 @@ def init_env():
 
 
 def get_secret_cmd(args: List[str]):
-    """Orchestrate secret retrieval workflow (machine-readable output)"""
+    """Orchestrate secret retrieval workflow (masked output only — no raw values to stdout)"""
     import json
+    import os
 
     if not args:
-        error("Usage: drone @api get-secret <provider/slug> [--json] [--list]")
+        error("Usage: drone @api get-secret <provider/slug> [--out FILE] [--json] [--list]")
         return
 
     has_json = "--json" in args
     has_list = "--list" in args
+    has_out = "--out" in args
+    out_file = None
+    if has_out:
+        out_idx = args.index("--out")
+        if out_idx + 1 < len(args):
+            out_file = args[out_idx + 1]
+        else:
+            error("--out requires a file path argument")
+            return
+
     clean_args = [a for a in args if not a.startswith("--")]
+    if has_out and out_file in clean_args:
+        clean_args.remove(out_file)
 
     if not clean_args:
-        error("Usage: drone @api get-secret <provider/slug> [--json] [--list]")
+        error("Usage: drone @api get-secret <provider/slug> [--out FILE] [--json] [--list]")
         return
 
     parts = clean_args[0].split("/", 1)
@@ -193,7 +206,8 @@ def get_secret_cmd(args: List[str]):
     if has_list:
         slugs = secrets.list_secrets(provider)
         for slug in slugs:
-            print(slug)
+            # codeql[py/clear-text-logging-sensitive-data]  # slug names are identifiers, not secret values
+            console.print(slug)
         return
 
     if len(parts) != 2 or not parts[1]:
@@ -201,19 +215,23 @@ def get_secret_cmd(args: List[str]):
         return
 
     slug = parts[1]
+    result = secrets.get_secret(provider, slug, as_json=has_json)
 
-    if has_json:
-        result = secrets.get_secret(provider, slug, as_json=True)
-        if result is not None:
-            print(json.dumps(result, indent=2))
-        else:
-            error(f"Secret not found: {provider}/{slug}")
+    if result is None:
+        error(f"Secret not found: {provider}/{slug}")
+        return
+
+    if out_file:
+        content = json.dumps(result, indent=2) if has_json else str(result)
+        fd = os.open(out_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, content.encode("utf-8"))
+        finally:
+            os.close(fd)
+        success(f"Wrote {provider}/{slug} to {out_file}")
     else:
-        result = secrets.get_secret(provider, slug)
-        if result is not None:
-            print(result)
-        else:
-            error(f"Secret not found: {provider}/{slug}")
+        value_len = len(json.dumps(result)) if has_json else len(str(result))
+        success(f"{provider}/{slug}: set ({value_len} chars)")
 
 
 def fetch_api_key(provider: str = "openrouter"):
@@ -255,11 +273,20 @@ EXAMPLES:
   # Get key for provider
   drone @api get-key openrouter
 
-  # Get secret for provider/slug
+  # Check if a secret exists (masked summary, no raw value)
   drone @api get-secret telegram/bot
+
+  # Write secret to a protected file
+  drone @api get-secret telegram/bot --out /tmp/token.txt
+
+  # Write secret as JSON to a protected file
+  drone @api get-secret telegram/bot --out /tmp/bot.json --json
 
   # List secrets for a provider
   drone @api get-secret telegram --list
+
+  # Programmatic access (in-process, no stdout):
+  #   from aipass.api.apps.modules.secrets import get_secret
 
   # Validate key
   drone @api validate openrouter

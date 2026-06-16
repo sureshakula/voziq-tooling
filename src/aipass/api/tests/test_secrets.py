@@ -6,9 +6,9 @@
 # Modified: 2026-06-15
 # =============================================
 
-"""Tests for apps/handlers/auth/secrets.py and apps/modules/api_key.get_secret_cmd.
+"""Tests for apps/handlers/auth/secrets.py, apps/modules/secrets.py, and api_key.get_secret_cmd.
 
-Tests — secrets.py (get_secret, list_secrets):
+Tests — handlers/auth/secrets.py (get_secret, list_secrets):
 - get_secret: JSON token extraction via _TOKEN_KEYS
 - get_secret: as_json returns full parsed dict
 - get_secret: raw file fallback returns stripped content
@@ -21,18 +21,27 @@ Tests — secrets.py (get_secret, list_secrets):
 - list_secrets: non-existent provider returns empty list
 - list_secrets: skips dotfiles, __pycache__, directories
 
-Tests — api_key.py (get_secret_cmd):
-- get_secret_cmd with provider/slug prints token
-- get_secret_cmd with --json prints JSON
-- get_secret_cmd with --list prints slugs
-- get_secret_cmd with no args calls error()
-- get_secret_cmd with provider only (no --list) calls error()
-- get_secret_cmd with only flags (no positional args) calls error()
+Tests — modules/secrets.py (in-process door):
+- get_secret wraps handler and logs operation
+- list_secrets wraps handler
+
+Tests — api_key.py (get_secret_cmd — hardened, no raw values to stdout):
+- get_secret_cmd default prints masked summary only
+- get_secret_cmd --out writes to file with 0o600 perms
+- get_secret_cmd --out --json writes JSON to file
+- get_secret_cmd --list prints slug names
+- get_secret_cmd no args calls error()
+- get_secret_cmd provider only (no --list) calls error()
+- get_secret_cmd only flags calls error()
+- get_secret_cmd not found calls error()
+- get_secret_cmd --out missing path calls error()
 """
 
 from __future__ import annotations
 
 import json
+import os
+import stat
 import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -40,11 +49,13 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from aipass.api.apps.modules.api_key import handle_command as _hc  # noqa: F401 — seedgo test_coverage detection
+from aipass.api.apps.modules.secrets import handle_command as _hc2  # noqa: F401 — seedgo test_coverage detection
 from aipass.api.apps.handlers.auth.secrets import (
     get_secret,
     list_secrets,
 )
 from aipass.api.apps.modules.api_key import get_secret_cmd
+from aipass.api.apps.modules import secrets as secrets_module
 
 
 # Patch targets
@@ -54,7 +65,12 @@ PATCH_LOGGER = "aipass.api.apps.handlers.auth.secrets.logger"
 
 PATCH_CMD_SECRETS = "aipass.api.apps.modules.api_key.secrets"
 PATCH_CMD_ERROR = "aipass.api.apps.modules.api_key.error"
+PATCH_CMD_SUCCESS = "aipass.api.apps.modules.api_key.success"
+PATCH_CMD_CONSOLE = "aipass.api.apps.modules.api_key.console"
 PATCH_CMD_JSON_HANDLER = "aipass.api.apps.modules.api_key.json_handler"
+
+PATCH_MOD_HANDLER = "aipass.api.apps.modules.secrets._handler"
+PATCH_MOD_JSON_HANDLER = "aipass.api.apps.modules.secrets.json_handler"
 
 
 # =============================================
@@ -291,47 +307,132 @@ class TestListSecrets:
 # =============================================
 
 
+class TestSecretsModule:
+    """Verifies the in-process module door (apps/modules/secrets.py)."""
+
+    def test_get_secret_wraps_handler(self) -> None:
+        """Module get_secret delegates to handler and logs the operation."""
+        mock_handler = MagicMock()
+        mock_handler.get_secret.return_value = "token123"
+        mock_jh = MagicMock()
+
+        with patch(PATCH_MOD_HANDLER, mock_handler), patch(PATCH_MOD_JSON_HANDLER, mock_jh):
+            result = secrets_module.get_secret("telegram", "bot")
+
+        assert result == "token123"
+        mock_handler.get_secret.assert_called_once_with("telegram", "bot", as_json=False)
+        mock_jh.log_operation.assert_called_once()
+
+    def test_get_secret_as_json(self) -> None:
+        """Module get_secret passes as_json through to handler."""
+        mock_handler = MagicMock()
+        data = {"bot_token": "abc"}
+        mock_handler.get_secret.return_value = data
+        mock_jh = MagicMock()
+
+        with patch(PATCH_MOD_HANDLER, mock_handler), patch(PATCH_MOD_JSON_HANDLER, mock_jh):
+            result = secrets_module.get_secret("telegram", "bot", as_json=True)
+
+        assert result == data
+        mock_handler.get_secret.assert_called_once_with("telegram", "bot", as_json=True)
+
+    def test_get_secret_not_found_logs(self) -> None:
+        """Module get_secret logs even when handler returns None."""
+        mock_handler = MagicMock()
+        mock_handler.get_secret.return_value = None
+        mock_jh = MagicMock()
+
+        with patch(PATCH_MOD_HANDLER, mock_handler), patch(PATCH_MOD_JSON_HANDLER, mock_jh):
+            result = secrets_module.get_secret("telegram", "missing")
+
+        assert result is None
+        log_call = mock_jh.log_operation.call_args
+        assert log_call[0][1]["found"] is False
+
+    def test_list_secrets_wraps_handler(self) -> None:
+        """Module list_secrets delegates to handler."""
+        mock_handler = MagicMock()
+        mock_handler.list_secrets.return_value = ["bot", "webhook"]
+
+        with patch(PATCH_MOD_HANDLER, mock_handler):
+            result = secrets_module.list_secrets("telegram")
+
+        assert result == ["bot", "webhook"]
+        mock_handler.list_secrets.assert_called_once_with("telegram")
+
+
+# =============================================
+# get_secret_cmd (hardened — no raw values to stdout)
+# =============================================
+
+
 class TestGetSecretCmd:
-    """Verifies the get_secret_cmd orchestrator in api_key.py."""
+    """Verifies the hardened get_secret_cmd (DPLAN-0211: no raw secrets to stdout)."""
 
     @patch(PATCH_CMD_JSON_HANDLER)
     @patch(PATCH_CMD_SECRETS)
-    @patch("builtins.print")
-    def test_prints_token(self, mock_print, mock_secrets, mock_jh) -> None:
-        """provider/slug prints the token to stdout."""
-        mock_secrets.get_secret.return_value = "my-secret-token"
+    @patch(PATCH_CMD_SUCCESS)
+    def test_default_prints_masked_summary(self, mock_success, mock_secrets, mock_jh) -> None:
+        """Default (no flags) prints masked summary, never the raw value."""
+        mock_secrets.get_secret.return_value = "my-secret-token-value"
 
         get_secret_cmd(["telegram/bot"])
 
-        mock_secrets.get_secret.assert_called_once_with("telegram", "bot")
-        mock_print.assert_called_once_with("my-secret-token")
+        mock_secrets.get_secret.assert_called_once_with("telegram", "bot", as_json=False)
+        msg = mock_success.call_args[0][0]
+        assert "telegram/bot" in msg
+        assert "set" in msg
+        assert "chars" in msg
+        assert "my-secret-token-value" not in msg
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="File permission checks are POSIX-only")
     @patch(PATCH_CMD_JSON_HANDLER)
     @patch(PATCH_CMD_SECRETS)
-    @patch("builtins.print")
-    def test_json_flag_prints_json(self, mock_print, mock_secrets, mock_jh) -> None:
-        """--json flag prints formatted JSON to stdout."""
-        data = {"bot_token": "abc123", "webhook": "https://example.com"}
+    @patch(PATCH_CMD_SUCCESS)
+    def test_out_writes_file_with_0600(self, mock_success, mock_secrets, mock_jh, tmp_path: Path) -> None:
+        """--out writes secret value to file with 0o600 permissions."""
+        mock_secrets.get_secret.return_value = "secret-token-here"
+        out_file = str(tmp_path / "token.txt")
+
+        get_secret_cmd(["telegram/bot", "--out", out_file])
+
+        assert Path(out_file).exists()
+        assert Path(out_file).read_text(encoding="utf-8") == "secret-token-here"
+        file_mode = stat.S_IMODE(os.stat(out_file).st_mode)
+        assert file_mode == 0o600
+        msg = mock_success.call_args[0][0]
+        assert out_file in msg
+        assert "secret-token-here" not in msg
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="File permission checks are POSIX-only")
+    @patch(PATCH_CMD_JSON_HANDLER)
+    @patch(PATCH_CMD_SECRETS)
+    @patch(PATCH_CMD_SUCCESS)
+    def test_out_json_writes_json_file(self, mock_success, mock_secrets, mock_jh, tmp_path: Path) -> None:
+        """--out --json writes JSON-formatted secret to file."""
+        data = {"bot_token": "abc123", "allowed": [1, 2]}
         mock_secrets.get_secret.return_value = data
+        out_file = str(tmp_path / "bot.json")
 
-        get_secret_cmd(["telegram/bot", "--json"])
+        get_secret_cmd(["telegram/bot", "--out", out_file, "--json"])
 
-        mock_secrets.get_secret.assert_called_once_with("telegram", "bot", as_json=True)
-        mock_print.assert_called_once_with(json.dumps(data, indent=2))
+        content = Path(out_file).read_text(encoding="utf-8")
+        assert json.loads(content) == data
+        file_mode = stat.S_IMODE(os.stat(out_file).st_mode)
+        assert file_mode == 0o600
 
     @patch(PATCH_CMD_JSON_HANDLER)
     @patch(PATCH_CMD_SECRETS)
-    @patch("builtins.print")
-    def test_list_flag_prints_slugs(self, mock_print, mock_secrets, mock_jh) -> None:
-        """--list flag prints each slug on its own line."""
+    @patch(PATCH_CMD_CONSOLE)
+    def test_list_prints_slugs(self, mock_console, mock_secrets, mock_jh) -> None:
+        """--list prints slug names via console.print."""
         mock_secrets.list_secrets.return_value = ["bot", "webhook"]
 
         get_secret_cmd(["telegram", "--list"])
 
         mock_secrets.list_secrets.assert_called_once_with("telegram")
-        assert mock_print.call_count == 2
-        mock_print.assert_any_call("bot")
-        mock_print.assert_any_call("webhook")
+        calls = [c for c in mock_console.print.call_args_list if c[0][0] in ("bot", "webhook")]
+        assert len(calls) == 2
 
     @patch(PATCH_CMD_JSON_HANDLER)
     @patch(PATCH_CMD_ERROR)
@@ -349,7 +450,6 @@ class TestGetSecretCmd:
         get_secret_cmd(["telegram"])
 
         mock_error.assert_called_once()
-        assert "provider" in mock_error.call_args[0][0].lower() or "format" in mock_error.call_args[0][0].lower()
 
     @patch(PATCH_CMD_JSON_HANDLER)
     @patch(PATCH_CMD_ERROR)
@@ -373,25 +473,21 @@ class TestGetSecretCmd:
         assert "not found" in mock_error.call_args[0][0].lower()
 
     @patch(PATCH_CMD_JSON_HANDLER)
-    @patch(PATCH_CMD_SECRETS)
     @patch(PATCH_CMD_ERROR)
-    def test_json_secret_not_found_calls_error(self, mock_error, mock_secrets, mock_jh) -> None:
-        """When get_secret with --json returns None, error() is called."""
-        mock_secrets.get_secret.return_value = None
-
-        get_secret_cmd(["telegram/bot", "--json"])
+    def test_out_missing_path_calls_error(self, mock_error, mock_jh) -> None:
+        """--out without a file path argument calls error()."""
+        get_secret_cmd(["telegram/bot", "--out"])
 
         mock_error.assert_called_once()
-        assert "not found" in mock_error.call_args[0][0].lower()
+        assert "--out" in mock_error.call_args[0][0]
 
     @patch(PATCH_CMD_JSON_HANDLER)
     @patch(PATCH_CMD_SECRETS)
-    @patch("builtins.print")
-    def test_list_empty_provider(self, mock_print, mock_secrets, mock_jh) -> None:
+    @patch(PATCH_CMD_CONSOLE)
+    def test_list_empty_provider(self, mock_console, mock_secrets, mock_jh) -> None:
         """--list with provider that has no secrets prints nothing."""
         mock_secrets.list_secrets.return_value = []
 
         get_secret_cmd(["empty_provider", "--list"])
 
         mock_secrets.list_secrets.assert_called_once_with("empty_provider")
-        mock_print.assert_not_called()

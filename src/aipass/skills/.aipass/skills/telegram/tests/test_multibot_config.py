@@ -7,7 +7,6 @@ Covers:
 - Bot operations (bot_operations.py): parse_create_args, format_bot_details, format_bot_table
 """
 
-import json
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -122,17 +121,12 @@ class TestLoadBotConfig:
 
 
 class TestListBotConfigs:
-    """Tests for config.list_bot_configs (via subprocess)."""
+    """Tests for config.list_bot_configs (via in-process secrets API)."""
 
-    @patch("apps.handlers.config.subprocess")
-    def test_list_returns_bot_ids(self, mock_subprocess: MagicMock) -> None:
-        """Returns list of bot_ids from subprocess output."""
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = json.dumps(["dev_central", "assistant", "scheduler"])
-        mock_result.stderr = ""
-        mock_subprocess.run.return_value = mock_result
-        mock_subprocess.TimeoutExpired = TimeoutError
+    @patch("apps.handlers.config._api_list_secrets")
+    def test_list_returns_bot_ids(self, mock_list: MagicMock) -> None:
+        """Returns list of bot_ids from the secrets API."""
+        mock_list.return_value = ["dev_central", "assistant", "scheduler"]
 
         result = tg_config.list_bot_configs()
         assert isinstance(result, list)
@@ -140,42 +134,28 @@ class TestListBotConfigs:
         assert "assistant" in result
         assert "scheduler" in result
         assert len(result) == 3
+        mock_list.assert_called_once_with("telegram")
 
-    @patch("apps.handlers.config.subprocess")
-    def test_list_returns_empty_on_failure(self, mock_subprocess: MagicMock) -> None:
-        """Returns empty list when subprocess fails."""
-        mock_result = MagicMock()
-        mock_result.returncode = 1
-        mock_result.stdout = ""
-        mock_result.stderr = "error"
-        mock_subprocess.run.return_value = mock_result
-        mock_subprocess.TimeoutExpired = TimeoutError
+    @patch("apps.handlers.config._api_list_secrets")
+    def test_list_returns_empty_on_failure(self, mock_list: MagicMock) -> None:
+        """Returns empty list when the secrets API raises."""
+        mock_list.side_effect = RuntimeError("connection failed")
 
         result = tg_config.list_bot_configs()
         assert result == []
 
-    @patch("apps.handlers.config.subprocess")
-    def test_list_returns_empty_on_empty_output(self, mock_subprocess: MagicMock) -> None:
-        """Returns empty list when subprocess returns empty output."""
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = ""
-        mock_result.stderr = ""
-        mock_subprocess.run.return_value = mock_result
-        mock_subprocess.TimeoutExpired = TimeoutError
+    @patch("apps.handlers.config._api_list_secrets")
+    def test_list_returns_empty_when_no_secrets(self, mock_list: MagicMock) -> None:
+        """Returns empty list when no secrets exist."""
+        mock_list.return_value = []
 
         result = tg_config.list_bot_configs()
         assert result == []
 
-    @patch("apps.handlers.config.subprocess")
-    def test_list_returns_empty_on_invalid_json(self, mock_subprocess: MagicMock) -> None:
-        """Returns empty list when subprocess returns invalid JSON."""
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = "not valid json"
-        mock_result.stderr = ""
-        mock_subprocess.run.return_value = mock_result
-        mock_subprocess.TimeoutExpired = TimeoutError
+    @patch("apps.handlers.config._api_list_secrets")
+    def test_list_returns_empty_on_unexpected_error(self, mock_list: MagicMock) -> None:
+        """Returns empty list on unexpected exception."""
+        mock_list.side_effect = OSError("disk error")
 
         result = tg_config.list_bot_configs()
         assert result == []
