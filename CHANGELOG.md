@@ -9,6 +9,32 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-16]
+
+### Security
+
+- **Secrets door hardened — no raw secret value ever reaches stdout
+  (DPLAN-0211).** `@api get-secret` previously printed retrieved secret values
+  to stdout — an acute exposure in AIPass because Claude Code captures command
+  stdout into the model context. The command now emits a **masked summary** by
+  default (`provider/slug: set (N chars)`), writes the raw value only to a
+  `0600`-mode file via `--out FILE` (printing just the path), and `--list`
+  prints slug **names** only. The `telegram` skill — the sole consumer — was
+  rewired from subprocess-parsing `get-secret` stdout to the **in-process
+  secrets module API**. Clears CodeQL clear-text-logging alerts #86/#87/#88.
+
+### Fixed
+
+- **`@ai_mail` dispatch monitor mislabeled failures as "API rate limit" on a
+  PID-`429` collision.** The monitor classifies dispatch failures by
+  substring-scanning the stderr log for `"429"`/`"529"`, but that log includes
+  the monitor's own header line `(PID <pid>)`. A monitor PID containing `"429"`
+  (e.g. `14290`) was read as an HTTP 429, overwriting the real bounce reason
+  (e.g. sandbox-abort `-4`) with "API rate limit" — and flaking
+  `test_sandbox_failure_sends_bounce` deterministically-by-PID in CI. The scan
+  now excludes the monitor's own `--- ` framing lines; genuine `429`/`529`
+  markers in agent output are still detected.
+
 ## [2026-06-15]
 
 ### Added
