@@ -74,7 +74,11 @@ packages = ["src/aipass"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "src"]
-norecursedirs = ["templates", "*.egg-info", ".git", ".venv", "__pycache__", ".archive", "my-project"]
+# ".*" restores pytest's default dot-dir exclusion (dropped when this list was
+# customized) so scaffolding dirs (.aipass, .trinity, .seedgo, ...) are never
+# recursed for tests — prevents conftest module-name collisions like a bundled
+# skill's .aipass/.../tests/conftest.py clashing with a branch's tests/conftest.py.
+norecursedirs = ["templates", "*.egg-info", ".*", "__pycache__", "my-project"]
 
 [tool.coverage.run]
 source = ["src/aipass"]
