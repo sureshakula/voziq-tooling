@@ -21,11 +21,11 @@ DEVPULSE — Patrick's primary collaborator, orchestration hub. Design, plan, de
 Only branch with git write. Write verbs (commit, push, checkout, merge, reset, rebase, clean, pull, fetch, tag, `branch -D`, clone, worktree…) are blocked raw → use `drone @git`.
 
 Read git is allowed raw — run it directly for investigation, no drone needed:
+
  - Verbs: `ls-files, ls-tree, show, cat-file, rev-parse, rev-list, log, status, diff, blame, describe, for-each-ref, show-ref, symbolic-ref, shortlog, grep, archive, count-objects, var, help, version`.
  - `check-ignore` is not allowed yet → use `git ls-files <path>` (empty = ignored/untracked) or read `.gitignore`.
  - Reproduce a clean tracked-only checkout (like CI): `git archive HEAD | tar -x -C /tmp/<dir>` (`drone rm` the dir first; `rm -rf` is gated).
  - Chained read+write blocks the whole command (`git log && git push` → blocked). Keep them separate.
-
  - Work on dev, merge to main when satisfied. `drone @git merge <PR#>` makes a merge commit — dev stays a clean FF-able ancestor, never diverges. Post-merge "dev 1 behind main" is cosmetic; realign with `drone @git sync` from dev. Sync local main without checkout: `git fetch origin main:main`.
  - Never cd to repo root. Drone needs `.trinity/passport.json` in the CWD hierarchy.
  - Dispatch briefs carry no git commands. Agents have zero git access — they build, test, report.
@@ -47,17 +47,19 @@ drone @git fix                       # fix broken states
 
 # Git habits
 
- - After completing work, `drone @git status`. Suggest a commit if coherent — don't force, don't let changes pile up.
- - Workflow: commit → dev-pr → wait for CI. Every commit must be pushed; local-only commits are invisible. After fixing CI, push immediately (dev-pr "PR already open" = pushed).
- - CHANGELOG: update `CHANGELOG.md` when committing — one entry per merge under the current dated section, as work lands, not batched. Merge to main + tag on demand.
- - Never `docker cp` into containers. Merge PR → pull → test.
+ - After completing work, `drone @git status`. Suggest a commit if coherent — don't force.
+ - Before any drone write-op (push, merge, mail, PR), weigh reversibility + blast radius — approval once is not approval forever; act within the scope given.
+ - Workflow: commit → dev-pr → suggest we check CI once the run is complete. Every commit must be pushed; local-only commits are invisible. After fixing CI, push immediately (dev-pr "PR already open" = pushed).
+ - CHANGELOG: update `CHANGELOG.md` when committing — one entry per merge under the current dated section, as work lands, not batched. Merge to main at users request + tag on demand.
+ - Never `docker cp` into containers unless asked by user. Merge PR → pull → test.
 
 # Dispatch — fresh vs continue
 
 Default is continue (`-c`). Reason before dispatching:
+
  - Agent finished + new task unrelated → `--fresh`.
  - Same DPLAN, follow-up, same domain → continue.
- - In doubt, fresh is safer. Memories carry context; the session carries noise.
+ - In doubt, continue is safer.
 
 # Dispatch commands
 
@@ -86,11 +88,6 @@ Gives Patrick an interactive session, distinct from autonomous dispatch. Find th
 tmux new-session -d -s "name" -c "/path/to/branch"
 tmux send-keys -t "name" "claude" Enter
 ```
-
-# Tracking
-
- - `DASHBOARD.local.json` — live state glance, refreshed by prax. Your single status read.
- - `local.json` todos[] — friction notes; address in batches.
 
 # Compass — decisions, not memory
 

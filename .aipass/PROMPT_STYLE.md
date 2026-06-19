@@ -15,6 +15,16 @@ Goal: signal density over prose. Prompts are injected every turn — every line 
  - Code blocks: inline backticks for commands (`` `drone @ai_mail dispatch` ``). Multi-line fenced blocks only for directory trees, template skeletons, or command examples that don't fit inline.
  - File length: aim for under 230 lines. Global and branch prompts are injected every turn — every line costs tokens.
 
+# Writing voice (agent output + memory)
+
+How agents write responses, reports, and memory entries. Validated against Claude Code's own prompt (DPLAN-0213).
+
+ - Reference code as `file_path:line_number` — clickable, unambiguous.
+ - No colon before a tool call. "Let me read the file." then call it, not "Let me read the file:".
+ - No emojis in agent output unless the user uses them first.
+ - Write for a reader who stepped away and lost the thread: no codenames or shorthand they would have to decode. Clarity over terseness — the goal is the reader understanding with no mental overhead.
+ - Where detail lives, three tiers: a short capability phrase (registry/search), a one-line summary (`drone @agent`), the full reference (`drone @agent --help`). Keep the injected prompt terse; push depth into --help.
+
 # What NOT to put in a prompt
 
  - Session state, current work, in-flight issues. That goes in `.trinity/local.json` (todos[]) and `DASHBOARD.local.json`.
