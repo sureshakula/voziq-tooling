@@ -90,16 +90,18 @@ def discover_skills_in_path(search_path, source_label):
         if not isinstance(metadata, dict):
             continue
 
-        skills.append(
-            {
-                "name": metadata.get("name", item.name),
-                "description": metadata.get("description", "No description"),
-                "path": item,
-                "has_handler": metadata.get("has_handler", False),
-                "source": source_label,
-                "tags": metadata.get("tags", []),
-            }
-        )
+        skill_entry = {
+            "name": metadata.get("name", item.name),
+            "description": metadata.get("description", "No description"),
+            "path": item,
+            "has_handler": metadata.get("has_handler", False),
+            "source": source_label,
+            "tags": metadata.get("tags", []),
+        }
+        when_to_use = metadata.get("when_to_use")
+        if when_to_use:
+            skill_entry["when_to_use"] = when_to_use
+        skills.append(skill_entry)
 
     json_handler.log_operation(
         "discovery_scan",

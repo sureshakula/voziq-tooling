@@ -3,6 +3,11 @@ name: github
 description: "GitHub operations via gh CLI: issues, PRs, CI runs, code review, API queries."
 version: 1.0.0
 tags: [dev, git, ci, github]
+when_to_use:
+  - Checking PR status, reviews, or merge readiness
+  - Viewing CI/workflow run status and logs
+  - Creating, closing, or commenting on issues or PRs
+  - Querying GitHub API for repository data
 requires:
   bins: [gh]
   pip: []
