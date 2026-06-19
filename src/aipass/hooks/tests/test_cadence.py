@@ -325,6 +325,17 @@ class TestConfig:
         assert config["loaders"]["global"]["offset"] == 0
         assert config["loaders"]["branch"]["offset"] == 0
 
+    def test_defaults_include_tiered_loaders(self, tmp_path):
+        """Fresh clone with no cadence_config.json gets tiered cadence out of the box."""
+        from aipass.hooks.apps.modules.cadence import _load_config
+
+        with patch(f"{MODULE}._CONFIG_PATH", tmp_path / "nonexistent.json"):
+            config = _load_config()
+
+        assert config["loaders"]["tier0"]["period"] == 1
+        assert config["loaders"]["navmap"]["period"] == 5
+        assert config["loaders"]["navmap"]["offset"] == 0
+
     def test_config_deep_merges_over_defaults(self, tmp_path):
         from aipass.hooks.apps.modules.cadence import _load_config
 

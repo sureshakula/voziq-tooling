@@ -4,7 +4,8 @@
   "cli": {
     "claude": {
       "hooks": [
-        {"command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:global_prompt", "event": "UserPromptSubmit"},
+        {"command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:tier0_kernel", "event": "UserPromptSubmit"},
+        {"command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:navmap", "event": "UserPromptSubmit"},
         {"command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:branch_prompt", "event": "UserPromptSubmit"},
         {"command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:identity_injector", "event": "UserPromptSubmit"},
         {"command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:email_notification", "event": "UserPromptSubmit"},
