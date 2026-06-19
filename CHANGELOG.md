@@ -9,6 +9,33 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-18]
+
+### Changed
+
+- **Prompt injection is now tiered by cadence instead of one 8k always-on block
+  (FPLAN-0284 / DPLAN-0214).** The single global prompt is split into two
+  cadence-throttled tiers: **Tier 0** (`.aipass/tier0_kernel.md`, ~2k) injects
+  every turn — identity grounding, the `drone @agent --help` reflex, and the
+  disaster-preventer rules; **Tier 1** (`.aipass/tier1_navmap.md`, ~7.7k)
+  injects every 5th turn plus at session start and right after compaction — the
+  full agent roster, framework, conventions, and a new Terminology section. The
+  hook engine gained per-loader cadence periods; the old `global_prompt` loader
+  is retired (kept as a reference snapshot). Net: more navigation context
+  reaches agents while less is paid per turn. Fresh-clone wiring is seeded from
+  `cadence.py` defaults + `setup.sh` + `provider_manifest.json`.
+
+### Added
+
+- **Prompt-craft conventions harvested from Claude Code's own prompts
+  (DPLAN-0213).** A `Writing voice` section in `.aipass/PROMPT_STYLE.md`
+  (`file_path:line` refs, write-for-a-person, three-tier "where detail lives");
+  a blast-radius habit in the devpulse prompt; faithful-reporting +
+  no-gold-plating folded into the Tier 0 kernel.
+- **Skill frontmatter discipline (@skills).** A `when_to_use` field with trigger
+  phrases (surfaced during discovery scans) and per-step "Done when:" success
+  criteria across the SKILL.md templates.
+
 ## [2026-06-16]
 
 ### Security
