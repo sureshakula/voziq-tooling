@@ -87,6 +87,36 @@
       "reason": "No JSON operations \u2014 reads markdown file and outputs text."
     },
     {
+      "file": "apps/handlers/prompt/tier0_kernel.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.tier0_kernel.handle' - not statically imported by design. Wired in UserPromptSubmit.tier0_kernel (FPLAN-0284). Same pattern as global_loader.py."
+    },
+    {
+      "file": "apps/handlers/prompt/tier0_kernel.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.tier0_kernel (FPLAN-0284)."
+    },
+    {
+      "file": "apps/handlers/prompt/tier0_kernel.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations - reads markdown file (.aipass/tier0_kernel.md) and outputs text."
+    },
+    {
+      "file": "apps/handlers/prompt/navmap.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.navmap.handle' - not statically imported by design. Wired in UserPromptSubmit.navmap (FPLAN-0284). Same pattern as global_loader.py."
+    },
+    {
+      "file": "apps/handlers/prompt/navmap.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.navmap (FPLAN-0284)."
+    },
+    {
+      "file": "apps/handlers/prompt/navmap.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations - reads markdown file (.aipass/tier1_navmap.md) and outputs text."
+    },
+    {
       "file": "apps/handlers/security/edit_gate.py",
       "standard": "dead_code",
       "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.edit_gate.handle' \u2014 not statically imported by design. Verified wired in PreToolUse.pre_edit_gate + fires in engine.jsonl."

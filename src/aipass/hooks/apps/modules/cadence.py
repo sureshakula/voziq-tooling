@@ -196,12 +196,14 @@ def should_fire(loader_name: str, hook_data: dict | None = None) -> bool:
     if not config.get("enabled", True):
         return True
 
-    period = config.get("period", 5)
-    if period <= 0:
-        return True
+    global_period = config.get("period", 5)
 
     loader_config = config.get("loaders", {}).get(loader_name, {})
+    period = loader_config.get("period", global_period)
     offset = loader_config.get("offset", 0)
+
+    if period <= 0:
+        return True
 
     turn = _load_and_increment(hook_data or {})
 
@@ -256,10 +258,12 @@ def print_introspection() -> None:
     config = _load_config()
     CONSOLE.print("[bold cyan]cadence[/bold cyan] Module")
     CONSOLE.print(f"  Enabled: {config.get('enabled', True)}")
-    CONSOLE.print(f"  Period: {config.get('period', 5)} turns")
+    global_period = config.get("period", 5)
+    CONSOLE.print(f"  Period: {global_period} turns (global default)")
     loaders = config.get("loaders", {})
     for name, lcfg in loaders.items():
-        CONSOLE.print(f"  Loader '{name}': offset={lcfg.get('offset', 0)}")
+        lp = lcfg.get("period", global_period)
+        CONSOLE.print(f"  Loader '{name}': period={lp} offset={lcfg.get('offset', 0)}")
     path = _state_path()
     if path and path.exists():
         try:

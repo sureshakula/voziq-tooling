@@ -19,8 +19,19 @@
       "matcher": ""
     },
     "global_prompt": {
-      "enabled": true,
+      "enabled": false,
+      "_retired": "Superseded by tier0_kernel + navmap (FPLAN-0284, 2026-06-18). Re-enable here to roll back to the single 8k global prompt.",
       "handler": "aipass.hooks.apps.handlers.prompt.global_loader.handle",
+      "matcher": ""
+    },
+    "tier0_kernel": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.tier0_kernel.handle",
+      "matcher": ""
+    },
+    "navmap": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.navmap.handle",
       "matcher": ""
     },
     "auto_process": {

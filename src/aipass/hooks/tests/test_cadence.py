@@ -489,3 +489,181 @@ class TestLoaderCadenceGuard:
         assert result["stdout"] == ""
         assert result["exit_code"] == 0
         assert "sound" not in result
+
+
+class TestPerLoaderPeriod:
+    def setup_method(self):
+        _reset_module_globals()
+
+    def test_loader_period_overrides_global(self, tmp_path):
+        """A loader with period:1 fires every turn, even when global period is 5."""
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"tier0": {"period": 1}, "global": {"offset": 0}},
+                }
+            )
+        )
+
+        _write_state(tmp_path, turn=2)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            assert should_fire("tier0") is True
+            _reset_module_globals()
+            assert should_fire("global") is False
+
+    def test_loader_without_period_uses_global(self, tmp_path):
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"global": {"offset": 0}},
+                }
+            )
+        )
+
+        _write_state(tmp_path, turn=2)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            assert should_fire("global") is False
+
+    def test_tier0_period_1_fires_every_turn(self, tmp_path):
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"tier0": {"period": 1}},
+                }
+            )
+        )
+
+        for turn_val in range(1, 8):
+            _reset_module_globals()
+            _write_state(tmp_path, turn=turn_val - 1)
+
+            with (
+                patch(f"{MODULE}._GUARD_DIR", tmp_path),
+                patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+                patch(f"{MODULE}._CONFIG_PATH", config),
+            ):
+                assert should_fire("tier0") is True, f"tier0 should fire on turn {turn_val}"
+
+    def test_navmap_period_5_skips_non_fire_turns(self, tmp_path):
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"navmap": {"period": 5, "offset": 0}},
+                }
+            )
+        )
+
+        _write_state(tmp_path, turn=2)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            assert should_fire("navmap") is False
+
+    def test_navmap_fires_on_turn_0(self, tmp_path):
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"navmap": {"period": 5, "offset": 0}},
+                }
+            )
+        )
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            assert should_fire("navmap") is True
+
+    def test_navmap_fires_after_reset_counter(self, tmp_path):
+        from aipass.hooks.apps.modules.cadence import should_fire, reset_counter
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"navmap": {"period": 5, "offset": 0}},
+                }
+            )
+        )
+
+        _write_state(tmp_path, turn=7)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            reset_counter()
+
+        _reset_module_globals()
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            assert should_fire("navmap") is True
+
+    def test_per_loader_period_zero_always_fires(self, tmp_path):
+        from aipass.hooks.apps.modules.cadence import should_fire
+
+        config = tmp_path / "cadence.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "period": 5,
+                    "loaders": {"always": {"period": 0}},
+                }
+            )
+        )
+
+        _write_state(tmp_path, turn=2)
+
+        with (
+            patch(f"{MODULE}._GUARD_DIR", tmp_path),
+            patch.dict("os.environ", {"CLAUDE_CODE_SESSION_ID": "test-session"}),
+            patch(f"{MODULE}._CONFIG_PATH", config),
+        ):
+            assert should_fire("always") is True
