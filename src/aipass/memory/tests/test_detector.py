@@ -140,81 +140,6 @@ class TestGetMemoryFilePath:
 
 
 # ===========================================================================
-# _load_config
-# ===========================================================================
-
-
-class TestLoadConfig:
-    """Tests for _load_config()."""
-
-    def test_returns_config_dict_when_file_exists(self, tmp_path: Path, monkeypatch):
-        """Valid config file should return parsed dict with rollover settings."""
-        config_dir = tmp_path / "config"
-        config_dir.mkdir()
-        config_file = config_dir / "memory.config.json"
-        config_data = {
-            "rollover": {
-                "defaults": {"max_lines": 500},
-                "per_branch": {"SEEDGO": {"max_lines": 800}},
-            }
-        }
-        config_file.write_text(json.dumps(config_data), encoding="utf-8")
-
-        from aipass.memory.apps.handlers.monitor import detector
-
-        # Patch the config path resolution to point at our tmp_path
-        monkeypatch.setattr(
-            detector,
-            "_load_config",
-            lambda: json.loads(config_file.read_text(encoding="utf-8")),
-        )
-
-        result = detector._load_config()
-
-        assert result == config_data
-        assert result["rollover"]["defaults"]["max_lines"] == 500
-
-    def test_returns_empty_dict_when_file_missing(self, monkeypatch):
-        """Missing config file should return empty dict."""
-        from aipass.memory.apps.handlers.monitor import detector
-
-        # Point config resolution at a path that does not exist
-        monkeypatch.setattr(
-            detector,
-            "_load_config",
-            lambda: {},
-        )
-
-        result = detector._load_config()
-
-        assert result == {}
-
-    def test_returns_empty_dict_on_invalid_json(self, tmp_path: Path, monkeypatch):
-        """Malformed JSON config should return empty dict and log the error."""
-        config_dir = tmp_path / "config"
-        config_dir.mkdir()
-        config_file = config_dir / "memory.config.json"
-        config_file.write_text("NOT VALID JSON {{", encoding="utf-8")
-
-        from aipass.memory.apps.handlers.monitor import detector
-
-        # Simulate the real _load_config behavior on bad JSON
-        def _broken_load() -> dict:
-            try:
-                with open(config_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception as exc:
-                logger.warning("Failed to parse config file %s: %s", config_file, exc)
-                return {}
-
-        monkeypatch.setattr(detector, "_load_config", _broken_load)
-
-        result = detector._load_config()
-
-        assert result == {}
-
-
-# ===========================================================================
 # check_single_file
 # ===========================================================================
 
@@ -222,14 +147,11 @@ class TestLoadConfig:
 class TestCheckSingleFile:
     """Tests for check_single_file(file_path)."""
 
-    def test_file_under_threshold_no_rollover(self, tmp_path: Path):
-        """A small file should not trigger rollover."""
+    def test_file_under_threshold_no_rollover(self, tmp_path: Path, monkeypatch):
+        """A small file with entries under v2 limits should not trigger rollover."""
         mem_file = tmp_path / "SEEDGO.observations.json"
         data = {
-            "document_metadata": {
-                "schema_version": "1.0.0",
-                "limits": {"max_lines": 600},
-            },
+            "document_metadata": {"schema_version": "3.0.0"},
             "observations": [],
         }
         content = json.dumps(data, indent=2)
@@ -237,27 +159,34 @@ class TestCheckSingleFile:
 
         from aipass.memory.apps.handlers.monitor import detector
 
+        monkeypatch.setattr(
+            detector.config_loader,
+            "section",
+            lambda name: {"per_branch": {"seedgo": {"observations": {"observations": {"count": 10}}}}, "defaults": {}},
+        )
+
         result = detector.check_single_file(mem_file)
 
         assert result["success"] is True
         assert result["should_rollover"] is False
-        assert result["current_lines"] < 600
 
-    def test_file_over_threshold_triggers_rollover(self, tmp_path: Path):
-        """A file exceeding max_lines should trigger rollover."""
+    def test_file_over_threshold_triggers_rollover(self, tmp_path: Path, monkeypatch):
+        """A file exceeding v2 entry-count limits should trigger rollover."""
         mem_file = tmp_path / "SEEDGO.local.json"
-        # Build a file with many lines so it exceeds threshold of 10
         data = {
-            "document_metadata": {
-                "schema_version": "1.0.0",
-                "limits": {"max_lines": 10},
-            },
-            "sessions": [{"id": f"s{i}", "notes": "padding " * 20} for i in range(50)],
+            "document_metadata": {"schema_version": "3.0.0"},
+            "sessions": [{"id": f"s{i}", "notes": "padding"} for i in range(50)],
         }
         content = json.dumps(data, indent=2)
         mem_file.write_text(content, encoding="utf-8")
 
         from aipass.memory.apps.handlers.monitor import detector
+
+        monkeypatch.setattr(
+            detector.config_loader,
+            "section",
+            lambda name: {"per_branch": {"seedgo": {"local": {"sessions": {"count": 10}}}}, "defaults": {}},
+        )
 
         result = detector.check_single_file(mem_file)
 
@@ -370,6 +299,76 @@ class TestCheckSingleFile:
 
         assert result["success"] is True
         assert result["should_rollover"] is False
+
+    def test_parse_failure_returns_no_rollover(self, tmp_path: Path, monkeypatch):
+        """JSON parse failure should return should_rollover=False, not 600-line fallback."""
+        mem_file = tmp_path / "BROKEN.local.json"
+        mem_file.write_text("NOT VALID JSON {{{", encoding="utf-8")
+
+        from aipass.memory.apps.handlers.monitor import detector
+
+        monkeypatch.setattr(
+            detector.config_loader,
+            "section",
+            lambda name: {"per_branch": {"broken": {"local": {"sessions": {"count": 5}}}}, "defaults": {}},
+        )
+
+        result = detector.check_single_file(mem_file)
+
+        assert result["success"] is True
+        assert result["should_rollover"] is False
+        assert "parse failure" in result.get("v2_reason", "")
+
+    def test_defaults_fallback_when_branch_missing_from_per_branch(self, tmp_path: Path, monkeypatch):
+        """Branch not in per_branch should fall back to defaults and still trigger on entry count."""
+        mem_file = tmp_path / "NEWBRANCH.local.json"
+        data = {
+            "document_metadata": {"schema_version": "3.0.0"},
+            "sessions": [{"id": f"s{i}"} for i in range(15)],
+        }
+        mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        from aipass.memory.apps.handlers.monitor import detector
+
+        # per_branch has NO entry for "newbranch", but defaults has local limits
+        monkeypatch.setattr(
+            detector.config_loader,
+            "section",
+            lambda name: {
+                "per_branch": {},
+                "defaults": {"local": {"sessions": {"count": 10}}},
+            },
+        )
+
+        result = detector.check_single_file(mem_file)
+
+        assert result["success"] is True
+        assert result["should_rollover"] is True
+        assert "15/10 sessions" in result["trigger"].v2_reason
+
+    def test_no_limits_in_per_branch_or_defaults_skips_rollover(self, tmp_path: Path, monkeypatch):
+        """Branch missing from BOTH per_branch AND defaults should not roll and log config gap."""
+        mem_file = tmp_path / "ORPHAN.local.json"
+        data = {
+            "document_metadata": {"schema_version": "3.0.0"},
+            "sessions": [{"id": f"s{i}"} for i in range(100)],
+        }
+        mem_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        from aipass.memory.apps.handlers.monitor import detector
+
+        # Neither per_branch nor defaults have anything for "orphan"/"local"
+        monkeypatch.setattr(
+            detector.config_loader,
+            "section",
+            lambda name: {"per_branch": {}, "defaults": {}},
+        )
+
+        result = detector.check_single_file(mem_file)
+
+        assert result["success"] is True
+        assert result["should_rollover"] is False
+        assert "config gap" in result.get("v2_reason", "")
 
 
 # ===========================================================================

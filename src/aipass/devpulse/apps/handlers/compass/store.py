@@ -53,7 +53,7 @@ _BRANCH_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DB_PATH = _BRANCH_ROOT / "devpulse_json" / "compass" / "compass.db"
 
 VALID_RATINGS = ("good", "bad", "impressive", "interesting")
-VALID_SOURCES = ("devpulse", "patrick")
+VALID_SOURCES = ("devpulse", "user")
 VALID_STATUSES = ("active", "archived")
 
 # Columns we return / surface from the decisions table (everything useful).
@@ -177,7 +177,7 @@ def add_decision(
         rating: One of ``good | bad | impressive | interesting``.
         note: Optional human observation.
         tags: Optional comma-separated tags.
-        source: ``devpulse`` or ``patrick`` (default ``devpulse``).
+        source: ``devpulse`` or ``user`` (default ``devpulse``).
         db_path: Optional DB path override (tests pass a temp path).
         created: Optional ISO date override; defaults to today. This is the
             ONLY place a "today" date is stamped.

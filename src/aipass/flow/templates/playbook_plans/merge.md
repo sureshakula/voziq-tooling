@@ -17,7 +17,7 @@ Run by **devpulse** (only branch with git write). Tick each step as you go; fill
 > `.trinity/passport.json` in the cwd; running from the repo root fails with "No
 > passport found"). Read git (`status`, `log`, `diff`, `rev-parse`) is allowed raw.
 > ⚠️ `drone @git` has **no `tag` verb** — pushing the release tag is a MANUAL step
-> (Patrick, or raw `git tag`/`push` via `!`). All other writes go through drone.
+> (the user, or raw `git tag`/`push` via `!`). All other writes go through drone.
 
 ---
 

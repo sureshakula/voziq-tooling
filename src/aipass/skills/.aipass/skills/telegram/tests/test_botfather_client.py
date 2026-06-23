@@ -203,7 +203,7 @@ class TestBotFatherClientConnect:
         """connect() returns True when session is authorized."""
         mock_client_instance = AsyncMock()
         mock_client_instance.is_user_authorized.return_value = True
-        mock_client_instance.get_me.return_value = MagicMock(first_name="Patrick", id=123)
+        mock_client_instance.get_me.return_value = MagicMock(first_name="TestUser", id=123)
 
         with patch(
             "apps.handlers.botfather_client._telethon_check",

@@ -10,11 +10,13 @@
 Rollover Trigger Detection Handler
 
 Monitors branch memory files via AIPASS_REGISTRY.json and detects when
-files exceed their max_lines threshold (typically 600 lines).
+entry counts exceed v2 limits (sessions, key_learnings, observations).
 
 Purpose:
     Detect rollover conditions without active monitoring. Called by
     rollover module to check all branches for files needing rollover.
+    All branches use v2 entry-count limits from memory.config.json
+    (per_branch with defaults fallback). No line-count fallbacks.
 
 Independence:
     No module imports - pure handler, transportable
@@ -74,20 +76,17 @@ def _find_caller_registries() -> List[Path]:
 
 @dataclass
 class RolloverTrigger:
-    """Represents a file that needs rollover"""
+    """Represents a file that needs rollover (v2 entry-count based)"""
 
     branch: str
     memory_type: str  # 'observations' or 'local'
     file_path: Path
     current_lines: int
-    max_lines: int
-    schema_version: str = "1.0.0"
+    schema_version: str = "3.0.0"
     v2_reason: str = ""
 
     def __str__(self):
-        if self.schema_version.startswith("2") and self.v2_reason:
-            return f"{self.branch}.{self.memory_type} ({self.v2_reason})"
-        return f"{self.branch}.{self.memory_type} ({self.current_lines}/{self.max_lines} lines)"
+        return f"{self.branch}.{self.memory_type} ({self.v2_reason})"
 
 
 # =============================================================================
@@ -167,16 +166,6 @@ def _get_memory_file_path(branch: Dict, memory_type: str) -> Path | None:
 
 
 # =============================================================================
-# CONFIG LOADING
-# =============================================================================
-
-
-def _load_config() -> Dict[str, Any]:
-    """Load memory.config.json via config_loader."""
-    return config_loader.load()
-
-
-# =============================================================================
 # LINE COUNTING
 # =============================================================================
 
@@ -253,86 +242,35 @@ def _recreate_trinity_file(branch_path: Path, branch_name: str, memory_type: str
         return None
 
 
-def _get_max_lines(file_path: Path, branch_name: str | None = None) -> int:
-    """
-    Get max_lines limit with priority: file metadata > branch config > default
-
-    Args:
-        file_path: Path to JSON file
-        branch_name: Optional branch name for config lookup
-
-    Returns:
-        Max lines limit (default 600)
-    """
-    # 1. Try file-level metadata first (highest priority)
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            metadata = data.get("document_metadata", {})
-            limits = metadata.get("limits", {})
-            file_limit = limits.get("max_lines")
-            if file_limit is not None:
-                return file_limit
-    except Exception as e:
-        logger.warning(f"[detector] Failed to read file-level max_lines from {file_path}: {e}")
-
-    # 2. Try branch-level config (if branch_name provided or can be extracted)
-    if branch_name is None:
-        # Derive from directory: .trinity/local.json → parent of .trinity is the branch
-        if file_path.parent.name == ".trinity":
-            branch_name = file_path.parents[1].name.lower()
-        else:
-            # Legacy flat files: SEEDGO.local.json → "SEEDGO"
-            parts = file_path.stem.split(".")
-            branch_name = parts[0].lower() if parts else None
-
-    if branch_name:
-        config = _load_config()
-        branch_limits = config.get("rollover", {}).get("per_branch", {}).get(branch_name, {})
-        if "max_lines" in branch_limits:
-            return branch_limits["max_lines"]
-
-    # 3. Fall back to global default from config
-    config = _load_config()
-    default_limit = config.get("rollover", {}).get("defaults", {}).get("max_lines")
-    if default_limit is not None:
-        return default_limit
-
-    # 4. Final fallback to hardcoded 600
-    return 600
-
-
 # =============================================================================
 # ROLLOVER DETECTION
 # =============================================================================
 
 
-def _should_rollover(file_path: Path) -> tuple[bool, int, int, str, str]:
+def _should_rollover(file_path: Path) -> tuple[bool, int, str, str]:
     """
-    Check if file should rollover (supports v1 line-based and v2 entry-count based).
+    Check if file should rollover (v2 entry-count based only).
+
+    All branches use v2 entry-count limits from config (per_branch with
+    defaults fallback). No line-count fallbacks — errors over silent fallbacks.
 
     Args:
         file_path: Path to memory JSON file
 
     Returns:
-        Tuple of (should_rollover, current_lines, max_lines, schema_version, v2_reason)
-        For v2 files, max_lines is 0 and v2_reason describes which limits are exceeded.
+        Tuple of (should_rollover, current_lines, schema_version, v2_reason)
     """
     current_lines = _count_file_lines(file_path)
 
-    # Read file data once for schema detection + limit checks
+    # Read file data once for limit checks
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as e:
-        # Can't parse — fall back to line-based with hardcoded default
-        logger.warning(f"[detector] Failed to parse {file_path} for rollover check: {e}")
-        return (current_lines >= 600, current_lines, 600, "1.0.0", "")
+        # Can't parse — do NOT fall back to 600. Fail honestly.
+        logger.warning(f"[detector] PARSE FAILURE for {file_path}: {e} — skipping rollover check")
+        return (False, current_lines, "3.0.0", "parse failure — skipped")
 
-    metadata = data.get("document_metadata", {})
-    limits = metadata.get("limits", {})
-
-    # v2: entry-count based limits — read from config per_branch, not file metadata
     # Derive branch name from file path: .trinity/local.json → parent of .trinity
     if file_path.parent.name == ".trinity":
         branch_name = file_path.parents[1].name.lower()
@@ -344,39 +282,46 @@ def _should_rollover(file_path: Path) -> tuple[bool, int, int, str, str]:
     # .trinity/local.json → "local"; .trinity/observations.json → "observations"
 
     cfg = config_loader.section("rollover")
-    branch_limits = cfg.get("per_branch", {}).get(branch_name, {})
-    file_limits = branch_limits.get(file_type, {})
+    per_branch = cfg.get("per_branch", {})
+    defaults = cfg.get("defaults", {})
 
-    if file_limits:
-        reasons = []
+    # v2 lookup: per_branch[branch][file_type], fallback to defaults[file_type]
+    file_limits = per_branch.get(branch_name, {}).get(file_type, {})
+    if not file_limits:
+        file_limits = defaults.get(file_type, {})
 
-        max_sessions = file_limits.get("sessions", {}).get("count")
-        if max_sessions is not None:
-            sessions = data.get("sessions", [])
-            if isinstance(sessions, list) and len(sessions) >= max_sessions:
-                reasons.append(f"{len(sessions)}/{max_sessions} sessions")
+    if not file_limits:
+        # Neither per_branch NOR defaults have limits for this branch/file_type
+        logger.warning(
+            f"[detector] CONFIG GAP: no v2 limits for branch={branch_name} file_type={file_type} "
+            f"in per_branch or defaults — skipping rollover"
+        )
+        return (False, current_lines, "3.0.0", f"config gap for {branch_name}/{file_type}")
 
-        max_key_learnings = file_limits.get("key_learnings", {}).get("count")
-        if max_key_learnings is not None:
-            key_learnings = data.get("key_learnings", [])
-            if isinstance(key_learnings, (list, dict)) and len(key_learnings) >= max_key_learnings:
-                reasons.append(f"{len(key_learnings)}/{max_key_learnings} key_learnings")
+    reasons = []
 
-        max_observations = file_limits.get("observations", {}).get("count")
-        if max_observations is not None:
-            observations = data.get("observations", [])
-            if isinstance(observations, list) and len(observations) >= max_observations:
-                reasons.append(f"{len(observations)}/{max_observations} observations")
+    max_sessions = file_limits.get("sessions", {}).get("count")
+    if max_sessions is not None:
+        sessions = data.get("sessions", [])
+        if isinstance(sessions, list) and len(sessions) >= max_sessions:
+            reasons.append(f"{len(sessions)}/{max_sessions} sessions")
 
-        if reasons:
-            return (True, current_lines, 0, "2.0.0", ", ".join(reasons))
+    max_key_learnings = file_limits.get("key_learnings", {}).get("count")
+    if max_key_learnings is not None:
+        key_learnings = data.get("key_learnings", [])
+        if isinstance(key_learnings, (list, dict)) and len(key_learnings) >= max_key_learnings:
+            reasons.append(f"{len(key_learnings)}/{max_key_learnings} key_learnings")
 
-    # v1: line-count based (fallback when no v2 limits triggered)
-    max_lines = limits.get("max_lines")
-    if max_lines is None:
-        max_lines = _get_max_lines(file_path)
+    max_observations = file_limits.get("observations", {}).get("count")
+    if max_observations is not None:
+        observations = data.get("observations", [])
+        if isinstance(observations, list) and len(observations) >= max_observations:
+            reasons.append(f"{len(observations)}/{max_observations} observations")
 
-    return (current_lines >= max_lines, current_lines, max_lines, "1.0.0", "")
+    if reasons:
+        return (True, current_lines, "3.0.0", ", ".join(reasons))
+
+    return (False, current_lines, "3.0.0", "")
 
 
 def check_all_branches() -> Dict[str, Any]:
@@ -411,7 +356,7 @@ def check_all_branches() -> Dict[str, Any]:
                 if file_path is None:
                     continue
 
-            should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
+            should_trigger, current_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
             if should_trigger:
                 trigger = RolloverTrigger(
@@ -419,7 +364,6 @@ def check_all_branches() -> Dict[str, Any]:
                     memory_type=memory_type,
                     file_path=file_path,
                     current_lines=current_lines,
-                    max_lines=max_lines,
                     schema_version=schema_ver,
                     v2_reason=v2_reason,
                 )
@@ -450,7 +394,7 @@ def check_single_file(file_path: Path) -> Dict[str, Any]:
     if not file_path.exists():
         return {"success": False, "error": f"File not found: {file_path}"}
 
-    should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
+    should_trigger, current_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
     if should_trigger:
         # Extract branch and type from file path
@@ -468,21 +412,18 @@ def check_single_file(file_path: Path) -> Dict[str, Any]:
             memory_type=memory_type,
             file_path=file_path,
             current_lines=current_lines,
-            max_lines=max_lines,
             schema_version=schema_ver,
             v2_reason=v2_reason,
         )
 
         return {"success": True, "trigger": trigger, "should_rollover": True}
     else:
-        remaining = max_lines - current_lines if max_lines > 0 else 0
         return {
             "success": True,
             "should_rollover": False,
             "current_lines": current_lines,
-            "max_lines": max_lines,
             "schema_version": schema_ver,
-            "remaining": remaining,
+            "v2_reason": v2_reason,
         }
 
 
@@ -514,13 +455,11 @@ def get_rollover_stats() -> Dict[str, Any]:
                 continue
 
             stats["files_checked"] += 1
-            should_trigger, current_lines, max_lines, schema_ver, v2_reason = _should_rollover(file_path)
+            should_trigger, current_lines, schema_ver, v2_reason = _should_rollover(file_path)
 
-            stat_entry = {
+            stat_entry: Dict[str, Any] = {
                 "current": current_lines,
-                "max": max_lines,
                 "ready": should_trigger,
-                "remaining": max_lines - current_lines if max_lines > 0 else 0,
                 "schema_version": schema_ver,
             }
             if v2_reason:

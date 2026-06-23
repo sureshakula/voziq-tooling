@@ -16,7 +16,7 @@ Stdlib-only implementation using urllib for Telegram API. No python-telegram-bot
 dependency. Follows the same polling/tmux injection pattern as direct_chat.py.
 
 Flow:
-  Patrick sends Telegram message
+  User sends Telegram message
   -> BaseBot receives it via getUpdates long-polling
   -> If /command -> handle via telegram_standards, reply, return
   -> If /new -> kill tmux session, reply, return
@@ -169,8 +169,8 @@ class BaseBot:
             custom_commands: Dict of bot-specific commands in telegram_standards format
             branch_name: Branch name for log streaming (None = no streaming, e.g. base bot)
             shared_session: tmux session name to inject into instead of creating own session.
-                            When set, the bot attaches to an existing session (e.g., Patrick's
-                            running Claude Code on PC). Falls back to own session if not found.
+                            When set, the bot attaches to an existing session (e.g., the user's
+                            running Claude Code session). Falls back to own session if not found.
         """
         self.bot_id = bot_id
         self.bot_token = bot_token
@@ -181,6 +181,8 @@ class BaseBot:
         # branch_name may already be set by subclass (e.g. BranchPlugin) before super().__init__
         if not hasattr(self, "branch_name"):
             self.branch_name = branch_name
+
+        self._current_sender_name: str = "User"
 
         self.session_name = f"telegram-{bot_id}"
         self.pending_file = PENDING_DIR / f"bot-{bot_id}.json"
@@ -470,6 +472,7 @@ class BaseBot:
         from_user = message.get("from", {})
         user_id = from_user.get("id", 0)
         username = from_user.get("username", "unknown")
+        self._current_sender_name = from_user.get("first_name", "User")
         _ = message.get("message_id", 0)  # Available for future use
 
         # Start log streamer on first valid message (if branch has a name)
@@ -711,7 +714,7 @@ class BaseBot:
 
         # Detect type and build prompt
         file_type = detect_file_type(file_path)
-        prompt = build_file_prompt(file_path, file_type, caption=caption or None, sender_name="Patrick")
+        prompt = build_file_prompt(file_path, file_type, caption=caption or None, sender_name=self._current_sender_name)
 
         # Hook: pre-process
         prompt = self.on_message(prompt)
@@ -1205,7 +1208,7 @@ class BaseBot:
         Ensure a tmux session is available for message injection.
 
         In shared-session mode: attaches to an existing tmux session (e.g.,
-        Patrick's running Claude Code on PC). Falls back to own session if
+        the user's running Claude Code session). Falls back to own session if
         the shared session is not found.
 
         In normal mode: creates telegram-{bot_id} session with Claude Code.

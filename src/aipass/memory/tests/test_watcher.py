@@ -404,7 +404,7 @@ class TestMemoryFileWatcherOnModified:
         mocks["check_single_file"].return_value = {
             "success": True,
             "should_rollover": True,
-            "trigger": "lines exceeded 600",
+            "trigger": "5/3 sessions",
         }
 
         watcher = mod.MemoryFileWatcher()
@@ -498,7 +498,7 @@ class TestMemoryFileWatcherOnModified:
         mocks["check_single_file"].return_value = {
             "success": True,
             "should_rollover": True,
-            "trigger": "lines exceeded",
+            "trigger": "10/5 sessions",
         }
         mocks["execute_rollover"].side_effect = RuntimeError("Rollover crashed")
 

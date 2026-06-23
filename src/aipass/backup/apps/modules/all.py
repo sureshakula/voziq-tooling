@@ -56,7 +56,7 @@ def handle_command(command: str, args: list) -> bool:
     show_panels = "--quiet" not in args
     logger.info(f"[backup] Running full backup cycle for {project_root}")
 
-    # ONE scan shared between both modes (Patrick's Law #1)
+    # ONE scan shared between both modes (single-scan rule)
     config = load_project_config(project_root)
     spec = load_spec(project_root)
     whitelist_entries = load_whitelist(project_root)

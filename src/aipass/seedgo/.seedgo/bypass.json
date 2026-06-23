@@ -271,6 +271,10 @@
       "file": "apps/handlers/aipass_proof/",
       "standard": "handlers",
       "reason": "Proof handlers import SOURCE_SKIP_DIRS from aipass_standards/skip_dirs.py — shared constant, same-branch cross-handler import, intentional (FPLAN-0261)."
+    },
+    {
+      "file": "tests/test_checkers_batch10.py",
+      "reason": "Test file: outside 3-layer structure by convention, imports handlers directly for unit testing, and contains intentional hardcoded-path strings as test input data."
     }
   ],
   "notes": {

@@ -9,7 +9,7 @@
 """Targeted handler-layer tests for critical untested handlers.
 
 Covers:
-  - rollover/extractor.py  (_extract_items_v2, _detect_growing_array, helpers)
+  - rollover/extractor.py  (_extract_items_v2, helpers)
   - tracking/line_counter.py (_count_physical_lines, update_line_count)
   - schema/normalize.py (normalize_memory_file)
   - todos[] operational schema (rollover ignores, caps enforced)
@@ -117,48 +117,19 @@ def _import_normalize(monkeypatch):
 # ===========================================================================
 
 
-class TestDetectGrowingArray:
-    """Test _detect_growing_array helper."""
-
-    def test_detects_sessions_array(self, monkeypatch):
-        ext, _ = _import_extractor(monkeypatch)
-        data = {"sessions": [{"id": 1}, {"id": 2}], "metadata": {}}
-        assert ext._detect_growing_array(data) == "sessions"
-
-    def test_detects_observations_array(self, monkeypatch):
-        ext, _ = _import_extractor(monkeypatch)
-        data = {"observations": [{"note": "x"}]}
-        assert ext._detect_growing_array(data) == "observations"
-
-    def test_returns_none_for_empty_arrays(self, monkeypatch):
-        ext, _ = _import_extractor(monkeypatch)
-        data = {"sessions": [], "observations": []}
-        assert ext._detect_growing_array(data) is None
-
-    def test_returns_none_when_no_array_fields(self, monkeypatch):
-        ext, _ = _import_extractor(monkeypatch)
-        data = {"document_metadata": {}, "key_learnings": {"a": "b"}}
-        assert ext._detect_growing_array(data) is None
-
-    def test_prefers_sessions_over_later_candidates(self, monkeypatch):
-        ext, _ = _import_extractor(monkeypatch)
-        data = {"sessions": [{"id": 1}], "entries": [{"id": 2}]}
-        assert ext._detect_growing_array(data) == "sessions"
-
-
 class TestDerivebranchAndType:
     """Test _derive_branch_and_type path helper."""
 
-    def test_trinity_path_local(self, monkeypatch):
+    def test_trinity_path_local(self, monkeypatch, tmp_path):
         ext, _ = _import_extractor(monkeypatch)
-        p = Path("/home/user/src/aipass/devpulse/.trinity/local.json")
+        p = tmp_path / "devpulse" / ".trinity" / "local.json"
         branch, mtype = ext._derive_branch_and_type(p)
         assert branch == "DEVPULSE"
         assert mtype == "local"
 
-    def test_trinity_path_observations(self, monkeypatch):
+    def test_trinity_path_observations(self, monkeypatch, tmp_path):
         ext, _ = _import_extractor(monkeypatch)
-        p = Path("/home/user/src/aipass/memory/.trinity/observations.json")
+        p = tmp_path / "memory" / ".trinity" / "observations.json"
         branch, mtype = ext._derive_branch_and_type(p)
         assert branch == "MEMORY"
         assert mtype == "observations"
@@ -631,26 +602,6 @@ class TestTodosOperational:
         assert len(data["todos"]) == 5
         assert data["todos"][0]["id"] == "t1"
         assert data["todos"][4]["id"] == "t5"
-
-    def test_v1_detect_growing_array_ignores_todos(self, monkeypatch):
-        """v1 _detect_growing_array does NOT consider todos as a growing array."""
-        ext, _ = _import_extractor(monkeypatch)
-        data = {
-            "sessions": [{"session_number": 1}],
-            "todos": [{"id": "t1", "text": "Something"}],
-        }
-        result = ext._detect_growing_array(data)
-        assert result == "sessions"
-
-    def test_v1_detect_growing_array_skips_todos_only(self, monkeypatch):
-        """If only todos[] exists (no memory arrays), _detect_growing_array returns None."""
-        ext, _ = _import_extractor(monkeypatch)
-        data = {
-            "todos": [{"id": "t1", "text": "Something"}],
-            "key_learnings": {"k1": "v1"},
-        }
-        result = ext._detect_growing_array(data)
-        assert result is None
 
     def test_todos_schema_shape(self):
         """Validate the expected todos[] item schema: id, text, created, optional priority."""

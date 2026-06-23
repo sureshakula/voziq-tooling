@@ -257,8 +257,8 @@ def start_watch() -> None:
     """
     Start memory watcher - monitors branch memory files for auto-rollover
 
-    Watches all branches from AIPASS_REGISTRY.json. When a memory file
-    exceeds 600 lines, automatically triggers rollover.
+    Watches all branches from AIPASS_REGISTRY.json. When entry counts
+    exceed v2 limits, automatically triggers rollover.
 
     Press Ctrl+C to stop.
     """

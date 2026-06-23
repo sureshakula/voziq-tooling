@@ -13,7 +13,7 @@ has_handler: true
 
 # Telegram Bridge
 
-Multi-bot personal-assistant bridge: long-polling listener routes Patrick's Telegram messages into Claude tmux sessions; Claude's Stop hook writes a pending file and the bot sends the response back to Telegram.
+Multi-bot personal-assistant bridge: long-polling listener routes user Telegram messages into Claude tmux sessions; Claude's Stop hook writes a pending file and the bot sends the response back to Telegram.
 
 ## Architecture
 

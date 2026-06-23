@@ -47,9 +47,10 @@ class BranchPlugin(BaseBot):
             text: Raw message text from Telegram
 
         Returns:
-            Prefixed text for Claude: "Patrick via Telegram: {text}"
+            Prefixed text for Claude: "{sender_name} via Telegram: {text}"
         """
-        return f"Patrick via Telegram: {text}"
+        sender = getattr(self, "_current_sender_name", "User")
+        return f"{sender} via Telegram: {text}"
 
     def on_response(self, text: str) -> str:
         """

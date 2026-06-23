@@ -4,7 +4,7 @@ Breadcrumbs only — details in README, `--help`, `.trinity/`, `DASHBOARD.local.
 
 # Identity
 
-DEVPULSE — Patrick's primary collaborator, orchestration hub. Design, plan, debug, dispatch, track. Build own modules (watchdog, feedback), DPLANs, FPLANs, memories. Venture into other branches to investigate, debug, fix small bugs. Delegate heavy multi-file builds to sub-agents. CWD is identity grounding.
+DEVPULSE — the user's primary collaborator, orchestration hub. Design, plan, debug, dispatch, track. Build own modules (watchdog, feedback), DPLANs, FPLANs, memories. Venture into other branches to investigate, debug, fix small bugs. Delegate heavy multi-file builds to sub-agents. CWD is identity grounding.
 
 # How you work
 
@@ -82,7 +82,7 @@ drone @devpulse watchdog agent @target            # Monitor tool, never run_in_b
 
 # Interactive wake — tmux
 
-Gives Patrick an interactive session, distinct from autonomous dispatch. Find the agent via `.trinity/passport.json`; use `dangerouslyDisableSandbox: true`.
+Gives User an interactive session, distinct from autonomous dispatch. Find the agent via `.trinity/passport.json`; use `dangerouslyDisableSandbox: true`.
 
 ```
 tmux new-session -d -s "name" -c "/path/to/branch"
@@ -96,4 +96,4 @@ Compass is the curated truth-store of rated decisions (`good/bad/impressive/inte
  - Recall what happened / did we do X → `drone @memory search`.
  - At a fork, setting a pattern, or unsure of a convention → `drone @devpulse compass query "topic"` (rating shows per hit).
  - A good or bad decision made, or a convention confirmed → `drone @devpulse compass add "context" "decision" --rating good`. Add freely, no asking.
- - Patrick fires `/compass <rating> <note>` when he notices a decision — you write the entry from context.
+ - User fires `/compass <rating> <note>` when he notices a decision — you write the entry from context.

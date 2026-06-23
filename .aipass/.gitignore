@@ -1,10 +1,10 @@
 *
-!aipass_global_prompt.md
 !tier0_kernel.md
 !tier1_navmap.md
 !hooks.json
 !.gitignore
+!README.md
+!PROMPT_STYLE.md
 !project_CLAUDE.md
-!project_global_prompt.md
 !project_hooks.json
 #Do not add other exceptions here without careful consideration. Developer permissions0ns needed.

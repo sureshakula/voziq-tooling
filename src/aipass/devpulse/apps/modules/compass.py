@@ -63,13 +63,13 @@ HELP_TEXT = """\
   compass --help                                        Show this help
 
 [bold]Ratings:[/bold] good | bad | impressive | interesting
-[bold]Sources:[/bold] devpulse | patrick
+[bold]Sources:[/bold] devpulse | user
 
 [bold]Options (add):[/bold]
   --rating R       Required. One of the ratings above.
   --note "..."     Optional human observation.
   --tags a,b,c     Optional comma-separated tags.
-  --source S       Optional. devpulse (default) or patrick.
+  --source S       Optional. devpulse (default) or user.
 
 [bold]Options (all subcommands):[/bold]
   --db PATH        Use an alternate SQLite store (testing / power use).

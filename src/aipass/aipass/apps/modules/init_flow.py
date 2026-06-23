@@ -16,7 +16,7 @@ Usage:
     aipass init                          # show progress / introspection
     aipass init run                      # interactive
     aipass init run --non-interactive    # CI/headless, all defaults
-    aipass init run --name Patrick --cli claude
+    aipass init run --name YourName --cli claude
     aipass init run --dry-run            # walk all 12 stages, no destructive ops
                                          #   - skips drone @spawn create (stage 8)
                                          #   - skips tmux/wt handoff (stage 11)
@@ -876,7 +876,7 @@ def print_help() -> None:
     console.print("[yellow]USAGE:[/yellow]")
     console.print("  [green]aipass init run[/green]                      [dim]# interactive[/dim]")
     console.print("  [green]aipass init run --non-interactive[/green]    [dim]# CI/headless[/dim]")
-    console.print("  [green]aipass init run --name Patrick[/green]       [dim]# pre-fill name[/dim]")
+    console.print("  [green]aipass init run --name YourName[/green]      [dim]# pre-fill name[/dim]")
     console.print("  [green]aipass init run --cli claude[/green]         [dim]# pre-fill CLI[/dim]")
     console.print("  [green]aipass init run --no-docker[/green]          [dim]# skip docker offer[/dim]")
     console.print("  [green]aipass init run --dry-run[/green]            [dim]# walk all stages, no writes[/dim]")

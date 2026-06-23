@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Codex SessionStart hook: inject AIPass identity context.
 
-Reads .trinity/passport.json and branch prompt, outputs Codex-format JSON
-with additionalContext for identity injection.
+Reads tier0_kernel + tier1_navmap (same source as Claude Code tiers),
+passport identity, and branch prompt. Outputs Codex-format JSON with
+additionalContext. Codex fires once at SessionStart — no per-turn cadence.
 """
+
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -36,9 +37,9 @@ def get_branch_from_cwd(repo_root):
 
 def main():
     try:
-        input_data = json.loads(sys.stdin.read())
+        json.loads(sys.stdin.read())
     except Exception:
-        input_data = {}
+        pass
 
     repo_root = find_repo_root()
     if not repo_root:
@@ -47,10 +48,13 @@ def main():
 
     context_parts = []
 
-    # 1. Global prompt
-    global_prompt = repo_root / ".aipass" / "aipass_global_prompt.md"
-    if global_prompt.exists():
-        context_parts.append(global_prompt.read_text(encoding="utf-8")[:8000])
+    # 1. Tiered prompts (same source as Claude Code tiers)
+    tier0 = repo_root / ".aipass" / "tier0_kernel.md"
+    if tier0.exists():
+        context_parts.append(tier0.read_text(encoding="utf-8")[:2500])
+    tier1 = repo_root / ".aipass" / "tier1_navmap.md"
+    if tier1.exists():
+        context_parts.append(tier1.read_text(encoding="utf-8")[:8000])
 
     # 2. Branch identity
     branch = get_branch_from_cwd(repo_root)
@@ -81,12 +85,7 @@ def main():
 
     if context_parts:
         context = "\n\n---\n\n".join(context_parts)
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "SessionStart",
-                "additionalContext": context
-            }
-        }
+        output = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context}}
     else:
         output = {}
 

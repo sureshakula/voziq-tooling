@@ -72,24 +72,9 @@
       "reason": "No JSON operations \u2014 reads markdown files and outputs text."
     },
     {
-      "file": "apps/handlers/prompt/global_loader.py",
-      "standard": "dead_code",
-      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.global_loader.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.global_prompt + fires in engine.jsonl."
-    },
-    {
-      "file": "apps/handlers/prompt/global_loader.py",
-      "standard": "unused_function",
-      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.global_prompt)."
-    },
-    {
-      "file": "apps/handlers/prompt/global_loader.py",
-      "standard": "json_structure",
-      "reason": "No JSON operations \u2014 reads markdown file and outputs text."
-    },
-    {
       "file": "apps/handlers/prompt/tier0_kernel.py",
       "standard": "dead_code",
-      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.tier0_kernel.handle' - not statically imported by design. Wired in UserPromptSubmit.tier0_kernel (FPLAN-0284). Same pattern as global_loader.py."
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.tier0_kernel.handle' - not statically imported by design. Wired in UserPromptSubmit.tier0_kernel (FPLAN-0284)."
     },
     {
       "file": "apps/handlers/prompt/tier0_kernel.py",
@@ -104,7 +89,7 @@
     {
       "file": "apps/handlers/prompt/navmap.py",
       "standard": "dead_code",
-      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.navmap.handle' - not statically imported by design. Wired in UserPromptSubmit.navmap (FPLAN-0284). Same pattern as global_loader.py."
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.navmap.handle' - not statically imported by design. Wired in UserPromptSubmit.navmap (FPLAN-0284)."
     },
     {
       "file": "apps/handlers/prompt/navmap.py",
@@ -259,12 +244,12 @@
     {
       "file": "apps/modules/cadence.py",
       "standard": "dead_code",
-      "reason": "Cadence module \u2014 should_fire() called from global_loader.py and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."
+      "reason": "Cadence module \u2014 should_fire() called from tier0_kernel.py, navmap.py, and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."
     },
     {
       "file": "apps/modules/cadence.py",
       "standard": "unused_function",
-      "reason": "should_fire() called from global_loader.py + branch_loader.py; reset_counter() called from compact.py. All callers are dynamically dispatched handlers."
+      "reason": "should_fire() called from tier0_kernel.py, navmap.py, branch_loader.py; reset_counter() called from compact.py. All callers are dynamically dispatched handlers."
     },
     {
       "file": "apps/modules/cadence.py",
@@ -601,26 +586,6 @@
     },
     {
       "file": "tests/test_branch_loader.py",
-      "standard": "meta",
-      "reason": "Test files do not need Version/Modified metadata headers."
-    },
-    {
-      "file": "tests/test_global_loader.py",
-      "standard": "architecture",
-      "reason": "Test files live in tests/, not in the 3-layer apps structure."
-    },
-    {
-      "file": "tests/test_global_loader.py",
-      "standard": "documentation",
-      "reason": "Test methods use descriptive names as documentation per pytest convention."
-    },
-    {
-      "file": "tests/test_global_loader.py",
-      "standard": "encapsulation",
-      "reason": "Tests import handlers directly to test implementation details."
-    },
-    {
-      "file": "tests/test_global_loader.py",
       "standard": "meta",
       "reason": "Test files do not need Version/Modified metadata headers."
     },

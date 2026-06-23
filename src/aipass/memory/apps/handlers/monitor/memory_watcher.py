@@ -106,7 +106,7 @@ def check_and_rollover() -> Dict[str, Any]:
     Check all memory files and trigger rollover if any exceed their threshold.
     Also processes any new files in memory_pool.
 
-    Threshold is determined per-branch from config (defaults to 600).
+    Threshold is determined per-branch from v2 entry-count limits in config.
 
     This is a startup check - runs once per command, synchronous.
     No daemon or file watcher needed.
@@ -157,10 +157,10 @@ def check_and_rollover() -> Dict[str, Any]:
 
                     normalize_memory_file(memory_file)
 
-                    # Use detector for trigger decision (handles both v1 line-based and v2 entry-count)
+                    # Use detector for trigger decision (v2 entry-count based)
                     from aipass.memory.apps.handlers.monitor.detector import _should_rollover
 
-                    triggered, current_lines, _, _, _ = _should_rollover(memory_file)
+                    triggered, current_lines, _, _ = _should_rollover(memory_file)
                     if triggered:
                         results["files_over_limit"].append(
                             {"file": str(memory_file), "lines": current_lines, "threshold": 0}

@@ -98,7 +98,6 @@ def test_init_project_creates_all_expected_files(tmp_path):
 
     expected_files = [
         target / "DEMO_REGISTRY.json",
-        target / ".aipass" / "aipass_global_prompt.md",
         target / "CLAUDE.md",
         target / "AGENTS.md",
         target / "README.md",
@@ -107,8 +106,13 @@ def test_init_project_creates_all_expected_files(tmp_path):
         target / ".claude" / "commands" / "prep.md",
         target / "src" / "demo" / "__init__.py",
     ]
+    # Tier files are env-dependent (need AIPASS_HOME)
+    if result["aipass_home"]:
+        expected_files.append(target / ".aipass" / "tier0_kernel.md")
+        expected_files.append(target / ".aipass" / "tier1_navmap.md")
     for f in expected_files:
         assert f.exists(), f"Expected file not created: {f}"
+    assert not (target / ".aipass" / "aipass_global_prompt.md").exists(), "Retired global prompt should NOT be seeded"
 
     # src/<package>/ is a directory with __init__.py
     assert (target / "src" / "demo").is_dir(), "Expected src/demo/ package directory"
@@ -126,7 +130,7 @@ def test_init_project_creates_all_expected_files(tmp_path):
     created_basenames = [Path(f).name for f in result["created_files"]]
     for f in expected_files:
         assert f.name in created_basenames or f.exists(), f"Expected {f.name} in created_files"
-    assert len(result["created_files"]) >= 11
+    assert len(result["created_files"]) >= 10
 
 
 def test_init_project_return_dict_structure(tmp_path):
@@ -288,19 +292,6 @@ def test_init_project_settings_no_hooks(tmp_path):
     assert "permissions" in data
 
 
-def test_init_project_global_prompt_content(tmp_path):
-    """Global prompt contains project name and AIPass terminology."""
-    target = tmp_path / "proj"
-    target.mkdir()
-
-    init_project(target, project_name="alpha")
-
-    content = (target / ".aipass" / "aipass_global_prompt.md").read_text(encoding="utf-8")
-    assert "# ALPHA" in content
-    assert "ALPHA_REGISTRY.json" in content
-    assert "# Commands" in content
-
-
 def test_init_project_readme_md_content(tmp_path):
     """README.md contains getting started guide with project name."""
     target = tmp_path / "proj"
@@ -324,7 +315,7 @@ def test_init_project_auto_creates_target_dir(tmp_path):
 
     assert target.is_dir()
     assert result["project_name"] == "NESTED"
-    assert len(result["created_files"]) >= 11
+    assert len(result["created_files"]) >= 10
 
 
 def test_init_project_defaults_name_from_directory(tmp_path):
@@ -359,7 +350,6 @@ def test_init_project_skips_existing_optional_files(tmp_path):
     # Pre-create optional files
     aipass_dir = target / ".aipass"
     aipass_dir.mkdir()
-    (aipass_dir / "aipass_global_prompt.md").write_text("# Custom global\n", encoding="utf-8")
     (target / "CLAUDE.md").write_text("# Custom CLAUDE\n", encoding="utf-8")
     (target / "AGENTS.md").write_text("# Custom AGENTS\n", encoding="utf-8")
     (target / "README.md").write_text("# Custom README\n", encoding="utf-8")
@@ -542,10 +532,12 @@ def test_update_project_creates_missing_managed_dirs(tmp_path):
 
     result = update_project(target)
 
-    assert (target / ".aipass" / "aipass_global_prompt.md").exists()
     assert (target / ".claude" / "settings.json").exists()
-    # Managed files in deleted dirs re-written (global_prompt, hooks.json, settings, prep)
-    assert len(result["updated_files"]) == 4
+    # Managed files in deleted dirs re-written (tier0_kernel, tier1_navmap, hooks.json, settings, prep)
+    if result["aipass_home"]:
+        assert len(result["updated_files"]) == 5
+    else:
+        assert len(result["updated_files"]) == 2
     assert len(result["already_current"]) >= 2
 
 
@@ -848,6 +840,154 @@ def test_update_project_hooks_json_already_current(tmp_path):
 
     assert not any("hooks.json" in f for f in result["updated_files"])
     assert any("hooks.json" in f for f in result["already_current"])
+
+
+# ---------------------------------------------------------------------------
+# Tiered prompt injection tests (FPLAN-0284)
+# ---------------------------------------------------------------------------
+
+
+def test_init_project_creates_tier_files(tmp_path):
+    """init_project seeds tier0_kernel.md and tier1_navmap.md when AIPASS_HOME available."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="tiers")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    assert (target / ".aipass" / "tier0_kernel.md").exists()
+    assert (target / ".aipass" / "tier1_navmap.md").exists()
+
+
+def test_init_project_tier_files_match_canonical(tmp_path):
+    """Tier files in new project match the canonical source exactly."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="canon")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    for tier_file in ("tier0_kernel.md", "tier1_navmap.md"):
+        canonical = Path(result["aipass_home"]) / ".aipass" / tier_file
+        if not canonical.exists():
+            pytest.skip(f"{tier_file} not found in canonical .aipass/")
+        assert (target / ".aipass" / tier_file).read_bytes() == canonical.read_bytes()
+
+
+def test_init_project_tier_files_in_created_list(tmp_path):
+    """Tier files appear in created_files list."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="listed")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    assert any("tier0_kernel.md" in f for f in result["created_files"])
+    assert any("tier1_navmap.md" in f for f in result["created_files"])
+
+
+def test_init_project_no_tier_files_without_aipass_home(tmp_path, monkeypatch):
+    """Without AIPASS_HOME, tier files are not created."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
+        lambda: None,
+    )
+
+    init_project(target, project_name="notiers")
+
+    assert not (target / ".aipass" / "tier0_kernel.md").exists()
+    assert not (target / ".aipass" / "tier1_navmap.md").exists()
+
+
+def test_init_project_hooks_json_has_tiers_enabled(tmp_path):
+    """hooks.json from template has tier0_kernel and navmap enabled, no global_prompt."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    result = init_project(target, project_name="hookstier")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    hooks_json = target / ".aipass" / "hooks.json"
+    data = json.loads(hooks_json.read_text(encoding="utf-8"))
+    ups = data["UserPromptSubmit"]
+
+    assert ups["tier0_kernel"]["enabled"] is True
+    assert ups["navmap"]["enabled"] is True
+    assert "global_prompt" not in ups
+
+
+def test_update_project_adds_tier_files_to_existing(tmp_path):
+    """update_project adds tier files to a project that lacks them."""
+    target = tmp_path / "proj"
+    target.mkdir()
+
+    registry_data = {
+        "metadata": {
+            "id": "test-id",
+            "name": "OLD",
+            "version": "1.0.0",
+            "created": "2026-01-01",
+            "last_updated": "2026-01-01",
+            "total_branches": 0,
+        },
+        "branches": [],
+    }
+    (target / "OLD_REGISTRY.json").write_text(json.dumps(registry_data), encoding="utf-8")
+    (target / ".aipass").mkdir()
+
+    result = update_project(target)
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    assert (target / ".aipass" / "tier0_kernel.md").exists()
+    assert (target / ".aipass" / "tier1_navmap.md").exists()
+    assert any("tier0_kernel.md" in f for f in result["updated_files"])
+    assert any("tier1_navmap.md" in f for f in result["updated_files"])
+
+
+def test_update_project_tier_files_already_current(tmp_path):
+    """update reports tier files as already_current when unchanged."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    result = init_project(target, project_name="tiercurr")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    result = update_project(target)
+
+    assert any("tier0_kernel.md" in f for f in result["already_current"])
+    assert any("tier1_navmap.md" in f for f in result["already_current"])
+
+
+def test_update_project_refreshes_stale_tier_files(tmp_path):
+    """update overwrites tier files when they differ from canonical source."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    result = init_project(target, project_name="stale")
+
+    if result["aipass_home"] is None:
+        pytest.skip("AIPASS_HOME not detectable in this environment")
+
+    (target / ".aipass" / "tier0_kernel.md").write_text("# stale\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert any("tier0_kernel.md" in f for f in result["updated_files"])
+    content = (target / ".aipass" / "tier0_kernel.md").read_text(encoding="utf-8")
+    assert "AIPass" in content
 
 
 # ---------------------------------------------------------------------------

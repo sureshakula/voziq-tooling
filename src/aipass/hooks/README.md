@@ -58,7 +58,8 @@ src/aipass/hooks/
 │   │   │   └── claude.py        # Claude Code bridge
 │   │   ├── prompt/              # Prompt injection hooks
 │   │   │   ├── branch_loader.py #   Injects aipass_local_prompt.md
-│   │   │   ├── global_loader.py #   Injects global prompt
+│   │   │   ├── tier0_kernel.py  #   Injects tier0 kernel prompt (every turn)
+│   │   │   ├── navmap.py        #   Injects tier1 navmap prompt (periodic)
 │   │   │   └── identity.py      #   Injects passport identity block
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
@@ -102,7 +103,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 | Event | Hooks | Description |
 |---|---|---|
-| UserPromptSubmit | identity, email, branch_loader, global_loader | Prompt injection + inbox check |
+| UserPromptSubmit | identity, email, branch_loader, tier0_kernel, navmap | Prompt injection + inbox check |
 | PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |

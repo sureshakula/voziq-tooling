@@ -165,7 +165,7 @@ def _is_private_branch_email(email: str) -> bool:
     email address is registered to a private (isolated) branch.
 
     Args:
-        email: Email address to check (e.g., "@patrick_private")
+        email: Email address to check (e.g., "@private_branch")
 
     Returns:
         True if email belongs to a private branch, False otherwise

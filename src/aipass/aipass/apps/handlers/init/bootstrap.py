@@ -11,7 +11,8 @@ Init Bootstrap Handler - PRIVATE implementation
 
 Business logic for `aipass init`. Creates the project scaffold:
    1. {NAME}_REGISTRY.json            — project registry with UUID
-   2. .aipass/aipass_global_prompt.md  — global prompt (injected every turn)
+   2. .aipass/tier0_kernel.md         — tier 0 kernel prompt (every turn)
+   2b..aipass/tier1_navmap.md         — tier 1 navigation map (periodic)
    3. CLAUDE.md                       — project prompt (Claude Code reads this)
    4. AGENTS.md                       — Codex equivalent of CLAUDE.md
    5. README.md                       — getting started guide
@@ -67,14 +68,6 @@ def _detect_aipass_home() -> str | None:
     except Exception as exc:
         logger.info("AIPASS_HOME detection skipped: %s", exc)
     return None
-
-
-def _resolve_global_prompt(name: str, aipass_home: str | None, dest: Path) -> str:
-    """Resolve global prompt content from source template or fallback generator."""
-    source = Path(aipass_home) / ".aipass" / "project_global_prompt.md" if aipass_home else None
-    if source and source.is_file():
-        return source.read_text(encoding="utf-8").replace("{name}", name)
-    return sc.with_source(sc.global_prompt_md(name), dest)
 
 
 def _hook_fingerprint(hook_entry: dict) -> str:
@@ -323,10 +316,14 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
     aipass_dir = target / ".aipass"
     aipass_dir.mkdir(exist_ok=True)
 
-    global_prompt_path = aipass_dir / "aipass_global_prompt.md"
-    if not global_prompt_path.exists():
-        global_prompt_path.write_text(_resolve_global_prompt(name, aipass_home, global_prompt_path), encoding="utf-8")
-        created.append(str(global_prompt_path))
+    # 2. .aipass/tier0_kernel.md + tier1_navmap.md — tiered prompt injection
+    for tier_file in ("tier0_kernel.md", "tier1_navmap.md"):
+        tier_dest = aipass_dir / tier_file
+        if not tier_dest.exists() and aipass_home:
+            tier_src = Path(aipass_home) / ".aipass" / tier_file
+            if tier_src.is_file():
+                shutil.copy2(str(tier_src), str(tier_dest))
+                created.append(str(tier_dest))
 
     # 2b. .aipass/hooks.json — project hook config from template
     hooks_json_path = aipass_dir / "hooks.json"
@@ -488,14 +485,21 @@ def update_project(target: Path) -> dict:
 
     # --- Managed files: write only when content has changed ---
 
-    global_prompt_path = aipass_dir / "aipass_global_prompt.md"
     aipass_home = aipass_home or _detect_aipass_home()
-    generated = _resolve_global_prompt(name, aipass_home, global_prompt_path)
-    if not global_prompt_path.exists() or global_prompt_path.read_text(encoding="utf-8") != generated:
-        global_prompt_path.write_text(generated, encoding="utf-8")
-        updated.append(str(global_prompt_path))
-    else:
-        already_current.append(str(global_prompt_path))
+
+    # tier0_kernel.md + tier1_navmap.md — tiered prompt injection
+    for tier_file in ("tier0_kernel.md", "tier1_navmap.md"):
+        tier_dest = aipass_dir / tier_file
+        tier_src = Path(aipass_home) / ".aipass" / tier_file if aipass_home else None
+        if tier_src and tier_src.is_file():
+            canonical = tier_src.read_text(encoding="utf-8")
+            if not tier_dest.exists() or tier_dest.read_text(encoding="utf-8") != canonical:
+                tier_dest.write_text(canonical, encoding="utf-8")
+                updated.append(str(tier_dest))
+            else:
+                already_current.append(str(tier_dest))
+        elif tier_dest.exists():
+            already_current.append(str(tier_dest))
 
     # settings.json — smart merge: preserve user hooks + env, update AIPass hooks
     settings_path = claude_dir / "settings.json"

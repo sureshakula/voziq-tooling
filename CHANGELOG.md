@@ -9,6 +9,63 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-23]
+
+### Fixed
+
+- **Hardcoded home paths removed (seedgo #37 cleanup).** `@memory` `symbolic.py`
+  derived 8 dash-encoded branch-path names from a literal `-home-patrick-` home —
+  now built at runtime from `Path(__file__).resolve().parents[3]`. `@prax`
+  `branch_detector.py` docstring examples genericized to `-home-user-`. Both
+  branches back to 100% `Hardcoded_Path`. (959 / 906 tests green.)
+
+## [2026-06-19]
+
+### Fixed
+
+- **`aipass init` now seeds the tiered prompts to new projects (@aipass).** The
+  init template + bootstrap still handed new projects the retired global prompt
+  with no tiers; now `.aipass/project_hooks.json` mirrors the live wiring
+  (`tier0_kernel` + `navmap` enabled, `global_prompt` disabled) and `bootstrap.py`
+  seeds both tier `.md` files. `init update` backfills existing projects.
+  (77 bootstrap tests, 100% seedgo.)
+- **Cadence reset observability (@hooks).** `reset_counter()` silently no-op'd
+  when the Claude session id was absent; it now fails loud, logs the session id +
+  prior turn on each reset, falls back to hook data for the id, and handles a
+  corrupt state file. (The post-compaction counter reset was already working —
+  this makes it visible so it can't fail invisibly.)
+- **Memory rollover was silently dead — fixed end-to-end (@hooks + @memory).** The
+  PreCompact rollover hook read its limits from `.trinity` file metadata, but
+  DPLAN-0210 had moved limits into @memory's `memory.config.json` — so the hook
+  always fell back to a 600-line check the lean files never reached, and rollover
+  never fired (for weeks). The hook is now a thin trigger delegating to
+  `drone @memory rollover check/run`; `compact.py` reads the current list schema
+  (it was calling `.keys()` on a now-list `key_learnings`). Both fail loud instead
+  of a silent exit-0.
+- **Removed @memory's v1 line-count / 600-line silent fallback entirely.** The
+  detector + extractor are now v2-only (`per_branch` → `defaults` → warn-and-skip);
+  a parse failure logs loud and skips rather than silently falling back. Deleted
+  `_get_max_lines` / `_load_config` / `_detect_growing_array` / the line-count
+  extraction path. (959 tests.)
+
+### Removed
+
+- **Legacy global prompt fully retired across every runtime (DPLAN-0215).** After
+  the tiered cutover the old `global_prompt` is now gone, not just disabled:
+  `global_loader.py` + its tests deleted, the `global_prompt` block stripped from
+  `.aipass/hooks.json` + `project_hooks.json`, `_resolve_global_prompt` + all global
+  seeding removed from `aipass init` bootstrap/update, the cadence default + bypass
+  entries cleaned, and both `aipass_global_prompt.md` / `project_global_prompt.md`
+  archived. Claude (cadence) and Codex (SessionStart) now read the same tier files —
+  one prompt source, every runtime.
+
+### Added
+
+- **seedgo `HARDCODED_PATH` standard (#37).** A new checker (`hardcoded_path_check.py`
+  + `hardcoded_path_content.py`, `test_checkers_batch10.py`) flags hardcoded home
+  paths — `/home/<user>` and dash-encoded `-home-<user>-` — in source and docstrings,
+  keeping the public repo clean.
+
 ## [2026-06-18]
 
 ### Changed
@@ -24,6 +81,15 @@ PyPI version — not the changelog header.
   is retired (kept as a reference snapshot). Net: more navigation context
   reaches agents while less is paid per turn. Fresh-clone wiring is seeded from
   `cadence.py` defaults + `setup.sh` + `provider_manifest.json`.
+- **Public source genericized — `Patrick` → generic `user`.** No personal
+  identifiers in tracked code/docs: the compass decision-source enum
+  (`patrick` → `user`) + the `/compass` command, the devpulse local prompt, the
+  `aipass init` onboarding example (`--name Patrick` → `--name YourName`), and
+  stale refs across @ai_mail / @backup / @flow. Private memories (`.trinity/`,
+  compass DB) keep personal context — they're gitignored.
+- **Telegram skill genericized (@skills).** Retired the inactive `patrick_private`
+  personal bot from the skill's tests; the message sender now defaults to the
+  Telegram user's first name (fallback `User`) instead of a hardcoded `Patrick`.
 
 ### Added
 
@@ -35,6 +101,13 @@ PyPI version — not the changelog header.
 - **Skill frontmatter discipline (@skills).** A `when_to_use` field with trigger
   phrases (surfaced during discovery scans) and per-step "Done when:" success
   criteria across the SKILL.md templates.
+- **`HARDCODED_PATH` standard (@seedgo, 37th checker).** Flags absolute home-dir
+  literals in source — POSIX `/home/<user>/`, macOS `/Users/<user>/`, Windows
+  user-home paths, and Claude Code's dash-encoded `-home-<user>-` form — with a
+  bypass for legitimate test fixtures. Swept the repo for violations.
+- **`prompt_change` flow playbook (PPLAN template).** A reusable SOP for changing
+  any injected prompt — leads with "live ≠ seeded" and walks every wiring layer +
+  fresh-install seed path; born from the `aipass init` seeding gap this surfaced.
 
 ## [2026-06-16]
 

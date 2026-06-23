@@ -1,23 +1,43 @@
 # =================== AIPass ====================
 # Name: test_rollover.py
-# Version: 1.0.0
+# Version: 2.0.0
 # Description: Tests for rollover lifecycle handler
 # Branch: hooks
 # Created: 2026-05-22
-# Modified: 2026-05-22
+# Modified: 2026-06-19
 # =============================================
 
 """Tests for handlers/lifecycle/rollover.py."""
 
-import json
 from unittest.mock import patch, MagicMock
+import subprocess
+
+
+MOD = "aipass.hooks.apps.handlers.lifecycle.rollover"
+
+CHECK_OVERDUE_OUTPUT = (
+    "Found 3 files ready for rollover:\n"
+    "  * HOOKS.local (15/15 sessions)\n"
+    "  * aipass.local (15/15 key_learnings)\n"
+    "  * devpulse.local (15/15 key_learnings)\n"
+)
+
+CHECK_CLEAN_OUTPUT = "No files need rollover.\n"
+
+
+def _mock_run(stdout="", returncode=0):
+    m = MagicMock()
+    m.stdout = stdout
+    m.stderr = ""
+    m.returncode = returncode
+    return m
 
 
 class TestRolloverHandler:
     def test_no_repo_root_returns_empty(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=None):
+        with patch(f"{MOD}._find_repo_root", return_value=None):
             result = handle({})
 
         assert result["exit_code"] == 0
@@ -27,8 +47,8 @@ class TestRolloverHandler:
     def test_no_overdue_returns_empty(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
-            with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue", return_value=[]):
+        with patch(f"{MOD}._find_repo_root", return_value=MagicMock()):
+            with patch(f"{MOD}._run_check", return_value=(False, CHECK_CLEAN_OUTPUT)):
                 result = handle({})
 
         assert result["exit_code"] == 0
@@ -38,68 +58,75 @@ class TestRolloverHandler:
     def test_overdue_triggers_rollover(self):
         from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        with patch("aipass.hooks.apps.handlers.lifecycle.rollover._find_repo_root", return_value=MagicMock()):
-            with patch(
-                "aipass.hooks.apps.handlers.lifecycle.rollover._find_overdue",
-                return_value=[("devpulse", "local", "21/20 sessions")],
-            ):
-                with patch("aipass.hooks.apps.handlers.lifecycle.rollover._run_rollover", return_value=(True, "ok")):
+        with patch(f"{MOD}._find_repo_root", return_value=MagicMock()):
+            with patch(f"{MOD}._run_check", return_value=(True, CHECK_OVERDUE_OUTPUT)):
+                with patch(f"{MOD}._run_rollover", return_value=(True, "ok")):
                     result = handle({})
 
         assert result["exit_code"] == 0
         assert result["sound"] == "pre compact rollover"
 
-    def test_check_file_v2_sessions_overdue(self, tmp_path):
-        from aipass.hooks.apps.handlers.lifecycle.rollover import _check_file
+    def test_overdue_rollover_failure_still_returns_sound(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import handle
 
-        f = tmp_path / "local.json"
-        f.write_text(
-            json.dumps(
-                {
-                    "document_metadata": {"limits": {"max_sessions": 5}},
-                    "sessions": [{"id": i} for i in range(6)],
-                }
-            ),
-            encoding="utf-8",
-        )
+        with patch(f"{MOD}._find_repo_root", return_value=MagicMock()):
+            with patch(f"{MOD}._run_check", return_value=(True, CHECK_OVERDUE_OUTPUT)):
+                with patch(f"{MOD}._run_rollover", return_value=(False, "error")):
+                    result = handle({})
 
-        overdue, reason = _check_file(f)
-        assert overdue
-        assert "6/5" in reason
+        assert result["exit_code"] == 0
+        assert result["sound"] == "pre compact rollover"
 
-    def test_check_file_v2_not_overdue(self, tmp_path):
-        from aipass.hooks.apps.handlers.lifecycle.rollover import _check_file
+    def test_run_check_parses_overdue(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _run_check
 
-        f = tmp_path / "local.json"
-        f.write_text(
-            json.dumps(
-                {
-                    "document_metadata": {"limits": {"max_sessions": 20}},
-                    "sessions": [{"id": i} for i in range(5)],
-                }
-            ),
-            encoding="utf-8",
-        )
+        mock_result = _mock_run(stdout=CHECK_OVERDUE_OUTPUT)
+        with patch("subprocess.run", return_value=mock_result):
+            has_overdue, summary = _run_check(MagicMock())
 
-        overdue, _ = _check_file(f)
-        assert not overdue
+        assert has_overdue
+        assert "ready for rollover" in summary.lower()
 
-    def test_check_file_v1_line_count(self, tmp_path):
-        from aipass.hooks.apps.handlers.lifecycle.rollover import _check_file
+    def test_run_check_parses_clean(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _run_check
 
-        f = tmp_path / "obs.json"
-        content = {"document_metadata": {"limits": {"max_lines": 10}}}
-        text = json.dumps(content, indent=2)
-        lines_needed = 10 - text.count("\n")
-        text += "\n" * lines_needed
-        f.write_text(text, encoding="utf-8")
+        mock_result = _mock_run(stdout=CHECK_CLEAN_OUTPUT)
+        with patch("subprocess.run", return_value=mock_result):
+            has_overdue, _ = _run_check(MagicMock())
 
-        overdue, reason = _check_file(f)
-        assert overdue
-        assert "lines" in reason
+        assert not has_overdue
 
-    def test_check_file_missing(self, tmp_path):
-        from aipass.hooks.apps.handlers.lifecycle.rollover import _check_file
+    def test_run_check_timeout_returns_false(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _run_check
 
-        overdue, _ = _check_file(tmp_path / "nonexistent.json")
-        assert not overdue
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)):
+            has_overdue, _ = _run_check(MagicMock())
+
+        assert not has_overdue
+
+    def test_run_rollover_success(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _run_rollover
+
+        mock_result = _mock_run(stdout="done", returncode=0)
+        with patch("subprocess.run", return_value=mock_result):
+            success, _ = _run_rollover(MagicMock())
+
+        assert success
+
+    def test_run_rollover_failure(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _run_rollover
+
+        mock_result = _mock_run(stdout="error", returncode=1)
+        with patch("subprocess.run", return_value=mock_result):
+            success, _ = _run_rollover(MagicMock())
+
+        assert not success
+
+    def test_run_rollover_timeout(self):
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _run_rollover
+
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 110)):
+            success, msg = _run_rollover(MagicMock())
+
+        assert not success
+        assert "timed out" in msg

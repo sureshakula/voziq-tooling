@@ -869,7 +869,8 @@ def run_demo() -> None:
 
     mock_fragments = [
         {
-            "summary": "User was stuck on a code error for a while, then solved it with assistant's step-by-step debugging guidance",
+            "summary": "User was stuck on a code error for a while, then solved it with "
+            "assistant's step-by-step debugging guidance",
             "insight": "Step-by-step debugging with explanation is more effective than just providing the fix",
             "type": "episodic",
             "triggers": ["error", "debug", "stuck", "breakthrough"],
@@ -877,7 +878,8 @@ def run_demo() -> None:
             "technical_domain": "debugging",
         },
         {
-            "summary": "Collaborative pattern where assistant explains reasoning before giving solutions leads to better understanding",
+            "summary": "Collaborative pattern where assistant explains reasoning before giving "
+            "solutions leads to better understanding",
             "insight": "Teaching approach builds deeper knowledge than direct answers",
             "type": "procedural",
             "triggers": ["explain", "step by step", "understanding"],
@@ -1408,15 +1410,10 @@ def _find_bootstrap_sessions(max_sessions: int = 8) -> List[Path]:
         return []
 
     # Priority branch directories (diverse content sources)
+    aipass_src = Path(__file__).resolve().parents[3]
     priority_dirs = [
-        "-home-patrick-Projects-AIPass-src-aipass-memory",
-        "-home-patrick-Projects-AIPass-src-aipass-devpulse",
-        "-home-patrick-Projects-AIPass-src-aipass-seedgo",
-        "-home-patrick-Projects-AIPass-src-aipass-drone",
-        "-home-patrick-Projects-AIPass-src-aipass-flow",
-        "-home-patrick-Projects-AIPass-src-aipass-prax",
-        "-home-patrick-Projects-AIPass-src-aipass-ai-mail",
-        "-home-patrick-Projects-AIPass-src-aipass-api",
+        str(aipass_src / name).replace("/", "-").replace("_", "-")
+        for name in ["memory", "devpulse", "seedgo", "drone", "flow", "prax", "ai_mail", "api"]
     ]
 
     selected = []

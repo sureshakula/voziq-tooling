@@ -281,11 +281,11 @@ class TestBranchPluginHooks:
 
     def test_on_message_prefixes_text(self, branch_bot):
         result = branch_bot.on_message("deploy the fix")
-        assert result == "Patrick via Telegram: deploy the fix"
+        assert result == "User via Telegram: deploy the fix"
 
     def test_on_message_empty_text(self, branch_bot):
         result = branch_bot.on_message("")
-        assert result == "Patrick via Telegram: "
+        assert result == "User via Telegram: "
 
     def test_on_response_tags_with_branch(self, branch_bot):
         result = branch_bot.on_response("Done. Everything is deployed.")
@@ -850,7 +850,7 @@ class TestProcessUpdate:
             "message": {
                 "text": "do something",
                 "chat": {"id": 1},
-                "from": {"id": 111, "username": "patrick"},
+                "from": {"id": 111, "username": "testuser"},
                 "message_id": 1,
             },
         }
@@ -868,7 +868,7 @@ class TestProcessUpdate:
                     "message": {
                         "text": "hello",
                         "chat": {"id": 1},
-                        "from": {"id": 111, "username": "patrick"},
+                        "from": {"id": 111, "username": "testuser"},
                         "message_id": 1,
                     },
                 }
@@ -1786,7 +1786,7 @@ class TestLockPidReuse:
         )
         # Mock /proc read to return different bot's cmdline
         with patch("pathlib.Path.read_bytes") as mock_read:
-            mock_read.return_value = b"python3\x00base_bot.py\x00--bot-id\x00patrick_private"
+            mock_read.return_value = b"python3\x00base_bot.py\x00--bot-id\x00other_bot"
             assert self.bot._check_lock() is False
         assert not self.bot._lock_file.exists()  # Stale lock cleaned
 

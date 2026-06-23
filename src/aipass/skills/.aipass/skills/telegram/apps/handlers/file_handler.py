@@ -162,7 +162,7 @@ def detect_file_type(file_path: Path) -> str:
         return "binary"
 
 
-def build_file_prompt(file_path: Path, file_type: str, caption: str | None = None, sender_name: str = "Patrick") -> str:
+def build_file_prompt(file_path: Path, file_type: str, caption: str | None = None, sender_name: str = "User") -> str:
     """
     Build a Claude prompt that includes file content.
 
