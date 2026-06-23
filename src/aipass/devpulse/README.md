@@ -34,15 +34,17 @@ src/aipass/devpulse/
 ├── apps/
 │   ├── devpulse.py              # Entry point — auto-discovers modules
 │   ├── modules/
+│   │   ├── compass.py           # Rated decision engine (SQLite/FTS5) command routing
 │   │   ├── feedback.py          # Feedback mailbox command routing
 │   │   └── watchdog.py          # Directed wake system command routing
 │   ├── handlers/
+│   │   ├── compass/             # Decision store (SQLite/FTS5), rating, query, review
 │   │   ├── feedback/            # Inbox, compose, storage
 │   │   ├── json/                # JSON operation logging (json_handler)
 │   │   └── watchdog/            # Agent, timer, schedule, registry
 │   └── plugins/                 # Plugin extension point
 ├── devpulse_json/               # JSON handler storage (config, data, logs per module)
-├── tests/                       # 236 tests
+├── tests/                       # 282 tests
 ├── artifacts/                   # Birth certificate, reports
 ├── dropbox/                     # Received files, archived plans, install audit
 ├── docs/                        # Transition notes
@@ -74,6 +76,19 @@ All commands via `drone @devpulse <command>`:
 | `feedback view <id>` | Read a message |
 | `feedback reply <id> "msg"` | Reply to sender |
 | `feedback send "subject" "body"` | Receive feedback from another agent |
+
+### Compass — rated decision store
+
+Curated truth-store of rated decisions (`good` / `bad` / `impressive` / `interesting`) — repeat the good, avoid the bad. Devpulse-owned SQLite/FTS5, separate from @memory (which ingests everything; compass is judged decisions only). The DB is gitignored.
+
+| Command | What it does |
+|---|---|
+| `compass add "context" "decision" --rating R` | Store a rated decision (`--note`, `--tags`, `--source`) |
+| `compass query "question" [--rating R] [--limit N]` | Search decisions (rating shown per hit) |
+| `compass stats` | Counts by rating / status |
+| `compass rate <id> <rating>` | Re-rate a decision |
+| `compass archive <id>` | Archive a decision |
+| `compass review` | Surface one decision to review |
 
 ## Git Operations
 
@@ -107,7 +122,7 @@ drone @git log                   # Recent commits
 
 All branches via dispatch orchestration. Watchdog monitoring for any dispatched agent. Feedback channel for cross-branch communication. Git operations (commit, PR, merge) for the entire project.
 
-*Last Updated: 2026-06-05*
+*Last Updated: 2026-06-23*
 
 ---
 
