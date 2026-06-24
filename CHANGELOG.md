@@ -24,6 +24,13 @@ PyPI version — not the changelog header.
   (bit us S216/S217). `lines` stays supported for other standards. Migrated the
   10 existing line-scoped entries across drone/memory/skills and dropped 3 dead
   entries already pointing past EOF (td-009).
+- **Dispatch footer no longer tells workers to close the orchestrator's plan** —
+  the standard email footer's checklist item read `CLOSE FPLAN → drone @flow
+  close <plan_id>`, which led dispatched agents to close the master/parent plan
+  referenced in their brief (bit us in FPLAN-0260). Reworded to `CLOSE YOUR PLAN
+  → ... this task's plan only, never the master/parent` — a worker still closes
+  the sub-plan handed to it, but the master stays the orchestrator's to close on
+  completion (td-6).
 
 ### Removed
 

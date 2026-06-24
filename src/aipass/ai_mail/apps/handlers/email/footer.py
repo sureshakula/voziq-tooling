@@ -22,7 +22,7 @@ STANDARD_FOOTER = """
 ⚠️ TASK CHECKLIST (before marking complete):
 □ SEEDGO CHECK → drone @seedgo audit @branch (80%+)
 □ UPDATE MEMORIES → Your .trinity/local.json records this work
-□ CLOSE FPLAN → drone @flow close <plan_id>
+□ CLOSE YOUR PLAN → drone @flow close <your_plan_id> — this task's plan only, never the master/parent
 □ EMAIL SENDER → drone @ai_mail email @<sender> "Subject" "Summary"
 
 Memories = Presence. No update = No learning.
