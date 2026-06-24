@@ -17,7 +17,10 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
+from aipass.prax.apps.modules.logger import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = get_direct_logger()
 
 
 def _find_repo_root() -> Path:
@@ -32,26 +35,61 @@ def _find_repo_root() -> Path:
 AIPASS_REGISTRY = _find_repo_root() / "AIPASS_REGISTRY.json"
 
 
-def calculate_quick_status(sections: Dict) -> Dict:
-    """
-    Calculate quick status from live section data.
+def _read_todo_count(branch_path: Path) -> int:
+    """Read todos[] length from .trinity/local.json."""
+    local_path = branch_path / ".trinity" / "local.json"
+    if not local_path.exists():
+        return 0
+    try:
+        data = json.loads(local_path.read_text())
+        return len(data.get("todos", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read todos from %s: %s", local_path, exc)
+        return 0
 
-    Reads directly from section fields pushed by each service.
+
+def _read_mail_counts(branch_path: Path) -> tuple:
+    """Read new/opened mail counts from .ai_mail.local/inbox.json."""
+    inbox_path = branch_path / ".ai_mail.local" / "inbox.json"
+    if not inbox_path.exists():
+        return (0, 0)
+    try:
+        data = json.loads(inbox_path.read_text())
+        new_mail = 0
+        opened_mail = 0
+        for msg in data.get("messages", []):
+            status = msg.get("status", "")
+            if status == "new" or (not status and not msg.get("read", False)):
+                new_mail += 1
+            elif status == "opened":
+                opened_mail += 1
+        return (new_mail, opened_mail)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read inbox from %s: %s", inbox_path, exc)
+        return (0, 0)
+
+
+def calculate_quick_status(sections: Dict, branch_path: "Path | None" = None) -> Dict:
+    """
+    Calculate quick status from branch data sources.
+
+    Sources counts directly from local files (inbox.json, local.json).
 
     Args:
         sections: All dashboard sections
+        branch_path: Optional path to branch root (for sourcing counts)
 
     Returns:
         Quick status dict with summary data
     """
-    ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
-    todo = sections.get("todo", {})
 
-    new_mail = ai_mail.get("new", ai_mail.get("unread", 0))
-    opened_mail = ai_mail.get("opened", 0)
+    if branch_path:
+        new_mail, opened_mail = _read_mail_counts(branch_path)
+        todo_count = _read_todo_count(branch_path)
+    else:
+        new_mail, opened_mail, todo_count = 0, 0, 0
     active_plans = flow.get("active_plans", 0)
-    todo_count = todo.get("todo_count", 0)
 
     action_required = new_mail > 0 or active_plans > 0
 

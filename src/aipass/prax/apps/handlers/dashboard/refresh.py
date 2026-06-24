@@ -23,12 +23,13 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 logger = get_direct_logger()
 
 # Same-package imports allowed
-from .operations import create_fresh_dashboard, save_dashboard
+from .operations import create_fresh_dashboard, save_dashboard  # noqa: E402
 
 # Cross-handler imports for central reader
-from ..central.reader import read_all_centrals
+from ..central.reader import read_all_centrals  # noqa: E402
 
-from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.json import json_handler  # noqa: E402
+from .template_pusher import DEPRECATED_SECTIONS  # noqa: E402
 
 # Sections managed by the refresh path — everything else is write-through only
 REFRESH_MANAGED_SECTIONS = {"ai_mail", "flow", "memory"}
@@ -152,22 +153,56 @@ def _extract_memory_section(centrals: Dict, branch_path: Path) -> Dict:
     return {"managed_by": "memory", "vectors_stored": local_vectors, "notes": {}, "last_updated": mb_last_updated}
 
 
-def _calculate_quick_status(sections: Dict) -> Dict:
+def _read_todo_count(branch_path: Path) -> int:
+    """Read todos[] length from .trinity/local.json."""
+    local_path = branch_path / ".trinity" / "local.json"
+    if not local_path.exists():
+        return 0
+    try:
+        data = json.loads(local_path.read_text())
+        return len(data.get("todos", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read todos from %s: %s", local_path, exc)
+        return 0
+
+
+def _read_mail_counts(branch_path: Path) -> tuple:
+    """Read new/opened mail counts from .ai_mail.local/inbox.json."""
+    inbox_path = branch_path / ".ai_mail.local" / "inbox.json"
+    if not inbox_path.exists():
+        return (0, 0)
+    try:
+        data = json.loads(inbox_path.read_text())
+        new_mail = 0
+        opened_mail = 0
+        for msg in data.get("messages", []):
+            status = msg.get("status", "")
+            if status == "new" or (not status and not msg.get("read", False)):
+                new_mail += 1
+            elif status == "opened":
+                opened_mail += 1
+        return (new_mail, opened_mail)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read inbox from %s: %s", inbox_path, exc)
+        return (0, 0)
+
+
+def _calculate_quick_status(sections: Dict, branch_path: Path) -> Dict:
     """
-    Calculate quick_status from live section data (v3 schema).
+    Calculate quick_status from branch data sources.
 
     Args:
         sections: All dashboard sections dict
+        branch_path: Path to branch root (for sourcing counts from local files)
 
     Returns:
         Quick status dict with counts, action flag, and summary
     """
-    ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
 
-    new_mail = ai_mail.get("new", ai_mail.get("unread", 0))
-    opened_mail = ai_mail.get("opened", 0)
+    new_mail, opened_mail = _read_mail_counts(branch_path)
     active_plans = flow.get("active_plans", 0)
+    todo_count = _read_todo_count(branch_path)
 
     action_required = new_mail > 0 or active_plans > 0
 
@@ -178,14 +213,24 @@ def _calculate_quick_status(sections: Dict) -> Dict:
         parts.append(f"{opened_mail} opened")
     if active_plans > 0:
         parts.append(f"{active_plans} active plans")
+    if todo_count > 0:
+        parts.append(f"{todo_count} todos")
 
     return {
         "new_mail": new_mail,
         "opened_mail": opened_mail,
         "active_plans": active_plans,
+        "todo_count": todo_count,
         "action_required": action_required,
         "summary": ", ".join(parts) if parts else "All clear",
     }
+
+
+def _prune_deprecated_sections(dashboard: Dict) -> None:
+    """Remove deprecated sections from dashboard before save."""
+    sections = dashboard.get("sections", {})
+    for key in DEPRECATED_SECTIONS:
+        sections.pop(key, None)
 
 
 def _preserve_write_through_sections(dashboard: Dict, branch_path: Path, branch_name: str) -> None:
@@ -250,9 +295,11 @@ def refresh_all_dashboards() -> Dict:
             dashboard["sections"]["memory"] = _extract_memory_section(centrals, branch_path)
 
             _preserve_write_through_sections(dashboard, branch_path, branch_name)
+            _prune_deprecated_sections(dashboard)
 
-            # Calculate quick status
-            dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
+            # Calculate quick status (ai_mail section still present for counts)
+            dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"], branch_path)
+            dashboard["sections"].pop("ai_mail", None)
 
             # Save
             save_dashboard(branch_path, dashboard)
@@ -314,8 +361,10 @@ def refresh_single_dashboard(branch_path: Path) -> Dict:
         dashboard["sections"]["memory"] = _extract_memory_section(centrals, branch_path)
 
         _preserve_write_through_sections(dashboard, branch_path, branch_name)
+        _prune_deprecated_sections(dashboard)
 
-        dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"])
+        dashboard["quick_status"] = _calculate_quick_status(dashboard["sections"], branch_path)
+        dashboard["sections"].pop("ai_mail", None)
 
         save_dashboard(branch_path, dashboard)
 

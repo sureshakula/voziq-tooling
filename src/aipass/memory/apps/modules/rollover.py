@@ -52,6 +52,7 @@ _SUBCOMMANDS = {
     "status": "Show rollover statistics for all branches",
     "check": "Check which files need rollover (dry run)",
     "sync-lines": "Update line count metadata for all branches",
+    "push": "Overwrite all per_branch limits to defaults (system-wide reset)",
 }
 
 
@@ -112,6 +113,10 @@ def handle_command(command: str, args: List[str]) -> bool:
             sync_line_counts()
             return True
 
+        if sub == "push":
+            push_defaults()
+            return True
+
         # Unknown subcommand
         error(
             f"Unknown subcommand: '{sub}'",
@@ -158,14 +163,14 @@ def print_help() -> None:
     console.print("  [cyan]status[/cyan]      Show rollover statistics for all branches")
     console.print("  [cyan]check[/cyan]       Check which files need rollover (dry run)")
     console.print("  [cyan]sync-lines[/cyan]  Update line count metadata for all branches")
+    console.print("  [cyan]push[/cyan]        ⚠ Reset ALL per_branch limits to defaults (system-wide)")
     console.print("  [cyan]help[/cyan]        Show this help message")
     console.print()
     console.print("[bold]LIMITS:[/bold]")
-    console.print("  v1 (schema <2.0): Line-count based (max_lines, default 600)")
-    console.print("  v2 (schema 2.0+): Entry-count based (max_sessions, max_key_learnings)")
+    console.print("  v2 entry-count based (sessions, key_learnings, observations) from config")
     console.print()
     console.print("[bold]WORKFLOW:[/bold]")
-    console.print("  1. Detect files exceeding limits (line count or entry count)")
+    console.print("  1. Detect files exceeding v2 entry-count limits")
     console.print("  2. Extract oldest entries")
     console.print("  3. Generate embeddings via fastembed")
     console.print("  4. Store vectors in local + global ChromaDB")
@@ -213,7 +218,8 @@ def run_rollover() -> bool:
         local_status = "> local" if item.get("local_stored") else "x local"
         console.print(
             f"  [green]>[/green] Rolled over {item['memories_count']} items -> {item['global_collection']} "
-            f"({item['old_lines']} -> {item['new_lines']} lines, global: {item['global_total']} vectors, {local_status})"
+            f"({item['old_lines']} -> {item['new_lines']} lines, "
+            f"global: {item['global_total']} vectors, {local_status})"
         )
 
     # Report results
@@ -323,6 +329,34 @@ def sync_line_counts() -> None:
 
 
 # =============================================================================
+# PUSH DEFAULTS
+# =============================================================================
+
+
+def push_defaults() -> None:
+    """Overwrite every per_branch entry in memory.config.json with defaults."""
+    from ..handlers.json import config_loader
+
+    console.print()
+    console.print(Panel.fit("[bold cyan]Memory - Push Defaults[/bold cyan]", border_style="cyan", box=box.ROUNDED))
+    console.print()
+
+    console.print("[cyan]Overwriting all per_branch limits with defaults...[/cyan]")
+    console.print()
+
+    result = config_loader.push_defaults_to_per_branch()
+
+    if not result.get("success"):
+        error(result.get("error", "Unknown error"))
+        return
+
+    count = result.get("branches", 0)
+    console.print(f"[green]>[/green] Pushed defaults to {count} branches")
+    console.print()
+    json_handler.log_operation("push_defaults", {"branches": count})
+
+
+# =============================================================================
 # STATUS & CHECKING
 # =============================================================================
 
@@ -365,21 +399,12 @@ def show_status() -> None:
             console.print(f"  [bold]{branch_name}[/bold]")
 
             for memory_type, file_stats in branch_stats.items():
-                current = file_stats["current"]
-                max_val = file_stats["max"]
                 ready = file_stats["ready"]
-                remaining = file_stats["remaining"]
-                schema_ver = file_stats.get("schema_version", "1.0.0")
                 v2_reason = file_stats.get("v2_reason", "")
 
                 status_marker = "[red]![/red]" if ready else "[green]OK[/green]"
-
-                if schema_ver.startswith("2"):
-                    status_text = f"READY ({v2_reason})" if ready else "OK (v2)"
-                    console.print(f"    {status_marker} {memory_type}: {status_text}")
-                else:
-                    status_text = "READY" if ready else f"{remaining} remaining"
-                    console.print(f"    {status_marker} {memory_type}: {current}/{max_val} lines ({status_text})")
+                status_text = f"READY ({v2_reason})" if ready else "OK"
+                console.print(f"    {status_marker} {memory_type}: {status_text}")
 
             console.print()
 

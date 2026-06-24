@@ -9,12 +9,12 @@
 
 ## What Are Flow Plans?
 
-Flow Plans (FPLANs) are **building** - autonomous construction: systems, features, modules.
+Default Flow Plans (FPLANs) are **building** - autonomous construction: systems, features, modules.
 
-**FPLANs are disposable.** Exist exactly one task. When task complete, close this plan immediately -- do not leave open. Open FPLANs mean unfinished work. Work done = plan done: `drone @flow close {plan_number}`
+**FPLANs are disposable.** Exist exactly one task. When task complete, close this plan immediately -- do not leave open. Open FPLANs mean unfinished work. Work done = plan done: `drone @flow close {plan_number}` The plan is never lost. It is strored into our locl and global ,chroma vector db.
 
 **This is NOT for:**
-- Research or exploration (use agents directly)
+- Research or exploration (use DPLANs and APLANs directly)
 - Quick fixes (just do it)
 - Discussion or planning (happens before creating FPLAN)
 
@@ -22,6 +22,7 @@ Flow Plans (FPLANs) are **building** - autonomous construction: systems, feature
 - Building features or modules
 - Single focused construction tasks
 - Sub-plans within master plan
+- Mostly use for sub-agents, in some cases may be issued to Agents citizens. Judjmemts calls. 
 
 ---
 
@@ -49,6 +50,7 @@ Use dedicated directories - don't scatter files:
 | `tools/` | Utility scripts |
 | `artifacts/` | Agent outputs |
 | `docs/` | Documentation |
+| `Sub-agents/`|Projects/AIPass/src/aipass/flow/docs.local/sub_agent_drops|
 
 ---
 
@@ -56,7 +58,7 @@ Use dedicated directories - don't scatter files:
 
 **You are orchestrator, not builder.**
 
-Your 200k context is precious. Burning it on file reads + code writing risks compaction during autonomous work. Agents have clean context - use them for * building.
+Your 200k context is precious. Burning it on file reads + code writing risks compaction tool early during autonomous work. Agents have clean context - use them for
 
 | You Do (Orchestrator) | Agents Do (Builders) |
 |-----------------------|----------------------|

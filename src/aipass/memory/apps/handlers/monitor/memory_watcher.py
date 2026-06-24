@@ -48,6 +48,7 @@ from aipass.memory.apps.handlers.tracking.line_counter import update_line_count 
 from aipass.memory.apps.handlers.monitor.detector import check_single_file  # noqa: E402
 from aipass.prax.apps.modules.logger import get_system_logger  # noqa: E402
 from aipass.memory.apps.handlers.json import json_handler  # noqa: E402
+from aipass.memory.apps.handlers.json import config_loader  # noqa: E402
 
 logger = get_system_logger()
 
@@ -63,66 +64,6 @@ _observer: Any = None
 # =============================================================================
 
 _startup_check_done = False
-
-
-def _get_rollover_threshold(branch_name: str, file_path: Path | None = None) -> int:
-    """
-    Get rollover threshold for a memory file (line-based, v1 only).
-
-    For v2 files (schema_version >= 2.0.0), returns a very large number so
-    line-based checks never trigger. v2 rollover is handled by the detector
-    using entry-count limits.
-
-    Priority: file metadata > per_branch config > defaults > hardcoded 600
-
-    Args:
-        branch_name: Branch name (uppercase, e.g., 'DEVPULSE')
-        file_path: Optional path to memory file (checks file-level limits first)
-
-    Returns:
-        Max lines threshold for rollover
-    """
-    import json
-
-    # 1. Check file-level metadata first (highest priority)
-    if file_path is not None:
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                metadata = data.get("document_metadata", {})
-
-                # v2 files use entry-count limits — return -1 so caller uses detector
-                schema_version = metadata.get("schema_version", "1.0.0")
-                if schema_version.startswith("2"):
-                    return -1
-
-                file_limit = metadata.get("limits", {}).get("max_lines")
-                if file_limit is not None:
-                    return file_limit
-        except Exception as e:
-            logger.warning(f"[memory_watcher] Failed to read file-level threshold from {file_path}: {e}")
-
-    # 2. Check per-branch config override
-    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
-
-    try:
-        with open(config_path) as f:
-            config = json.load(f)
-
-        branch_limits = config.get("rollover", {}).get("per_branch", {}).get(branch_name, {})
-        if "max_lines" in branch_limits:
-            return branch_limits["max_lines"]
-
-        # 3. Fall back to defaults
-        default_limit = config.get("rollover", {}).get("defaults", {}).get("max_lines")
-        if default_limit is not None:
-            return default_limit
-
-    except Exception as e:
-        logger.warning(f"[memory_watcher] Failed to read rollover config: {e}")
-
-    # 4. Final fallback
-    return 600
 
 
 def _check_vector_deps() -> bool:
@@ -165,7 +106,7 @@ def check_and_rollover() -> Dict[str, Any]:
     Check all memory files and trigger rollover if any exceed their threshold.
     Also processes any new files in memory_pool.
 
-    Threshold is determined per-branch from config (defaults to 600).
+    Threshold is determined per-branch from v2 entry-count limits in config.
 
     This is a startup check - runs once per command, synchronous.
     No daemon or file watcher needed.
@@ -216,10 +157,10 @@ def check_and_rollover() -> Dict[str, Any]:
 
                     normalize_memory_file(memory_file)
 
-                    # Use detector for trigger decision (handles both v1 line-based and v2 entry-count)
+                    # Use detector for trigger decision (v2 entry-count based)
                     from aipass.memory.apps.handlers.monitor.detector import _should_rollover
 
-                    triggered, current_lines, _, _, _ = _should_rollover(memory_file)
+                    triggered, current_lines, _, _ = _should_rollover(memory_file)
                     if triggered:
                         results["files_over_limit"].append(
                             {"file": str(memory_file), "lines": current_lines, "threshold": 0}
@@ -274,19 +215,8 @@ def _check_memory_pool() -> Dict[str, Any]:
     Returns:
         Dict with processing status
     """
-    import json
-
-    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
+    pool_config = config_loader.section("memory_pool")
     pool_path = _MEMORY_ROOT / "memory_pool"
-
-    # Load config
-    try:
-        with open(config_path) as f:
-            config = json.load(f)
-        pool_config = config.get("memory_pool", {})
-    except Exception as exc:
-        logger.warning(f"[memory_watcher] Could not load memory pool config: {exc}")
-        return {"success": False, "error": "Could not load config"}
 
     # Check if enabled
     if not pool_config.get("enabled", False):
@@ -294,7 +224,7 @@ def _check_memory_pool() -> Dict[str, Any]:
 
     # Count files in pool (excluding .archive)
     extensions = pool_config.get("supported_extensions", [".md", ".txt"])
-    keep_recent = pool_config.get("keep_recent", 10)
+    keep_recent = pool_config.get("keep_recent", 0)
 
     files = []
     for ext in extensions:
@@ -336,23 +266,14 @@ def _check_plans() -> Dict[str, Any]:
     """
     import json
 
-    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
-
-    # Load config
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-        plans_config = config.get("plans", {})
-    except Exception as exc:
-        logger.warning(f"[memory_watcher] Could not load plans config: {exc}")
-        return {"success": False, "error": "Could not load config"}
+    plans_config = config_loader.section("plans")
 
     # Check if enabled
     if not plans_config.get("enabled", False):
         return {"success": True, "skipped": True, "reason": "plans disabled"}
 
     # Get plans path and count files (supports absolute paths)
-    plans_dir = plans_config.get("path", "plans")
+    plans_dir = plans_config.get("path", ".backup/processed_plans")
     repo_root = _find_repo_root()
     plans_path = Path(plans_dir) if Path(plans_dir).is_absolute() else repo_root / plans_dir
     extensions = plans_config.get("supported_extensions", [".md"])
@@ -370,7 +291,7 @@ def _check_plans() -> Dict[str, Any]:
         return {"success": True, "pending_files": 0, "action": "count_only"}
 
     # Load manifest to count unprocessed files
-    manifest_path = _MEMORY_ROOT / "config" / ".plans_processed.json"
+    manifest_path = _MEMORY_ROOT / "memory_json" / ".plans_processed.json"
     manifest: Dict[str, str] = {}
     if manifest_path.exists():
         try:

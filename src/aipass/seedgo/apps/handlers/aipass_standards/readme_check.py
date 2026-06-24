@@ -44,8 +44,10 @@ _RUNTIME_ARTIFACTS = {
     "logs",
     "artifacts",
     "dropbox",
+    "tools",
     "system_logs",
     "docs.local",
+    "backups",
     ".trinity",
     "DASHBOARD.local.json",
 }

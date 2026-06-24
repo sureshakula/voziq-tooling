@@ -46,10 +46,11 @@ Master Plan (roadmap)
 ```
 
 **How to start:**
-1. User provides planning doc or instructions (coordinate @devpulse)
+1. User provides planning doc DPLAN or instructions (coordinate @devpulse)
 2. Branch manager reads + understands scope
-3. Branch manager creates master plan: `drone @flow create . "Build X" master`
+3. Branch manager creates master plan: `drone @flow create "Build X" master`
 4. Branch manager fills phases, then executes autonomously
+5. Devepulse mayprovide a complete plan to you. Always confirm, Alwayd confirm the plan is sound, acucurate
 
 ---
 
@@ -57,7 +58,7 @@ Master Plan (roadmap)
 
 **You are ORCHESTRATOR, not builder.**
 
-Your 200k context is precious. Burning it on file reads + code writing risks compaction during autonomous work. Agents have clean context - use them for ALL building.
+Your 200k context is precious. Burning it on file reads + code writing risks auto compaction during autonomous work. Agents have clean context - use them for ALL building. Only devpulse is this accempion, user decideds when to compact. no auto compct for devpulse. 
 
 | You Do (Orchestrator) | Agents Do (Builders) |
 |-----------------------|----------------------|

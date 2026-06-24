@@ -22,7 +22,7 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import console, header, success, error
 from aipass.api.apps.handlers.json import json_handler
-from aipass.api.apps.handlers.auth import keys, env
+from aipass.api.apps.handlers.auth import keys, env, secrets
 
 
 def print_introspection():
@@ -61,7 +61,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         True if command was handled, False otherwise
     """
     try:
-        if command not in ["get-key", "validate", "list-providers", "init"]:
+        if command not in ["get-key", "validate", "list-providers", "init", "get-secret"]:
             return False
 
         # Help gate
@@ -81,6 +81,9 @@ def handle_command(command: str, args: List[str]) -> bool:
             return True
         if command == "get-key":
             get_key(args)
+            return True
+        if command == "get-secret":
+            get_secret_cmd(args)
             return True
         if command == "validate":
             validate_key(args)
@@ -168,6 +171,69 @@ def init_env():
         error("Failed to create environment template")
 
 
+def get_secret_cmd(args: List[str]):
+    """Orchestrate secret retrieval workflow (masked output only — no raw values to stdout)"""
+    import json
+    import os
+
+    if not args:
+        error("Usage: drone @api get-secret <provider/slug> [--out FILE] [--json] [--list]")
+        return
+
+    has_json = "--json" in args
+    has_list = "--list" in args
+    has_out = "--out" in args
+    out_file = None
+    if has_out:
+        out_idx = args.index("--out")
+        if out_idx + 1 < len(args):
+            out_file = args[out_idx + 1]
+        else:
+            error("--out requires a file path argument")
+            return
+
+    clean_args = [a for a in args if not a.startswith("--")]
+    if has_out and out_file in clean_args:
+        clean_args.remove(out_file)
+
+    if not clean_args:
+        error("Usage: drone @api get-secret <provider/slug> [--out FILE] [--json] [--list]")
+        return
+
+    parts = clean_args[0].split("/", 1)
+    provider = parts[0]
+
+    if has_list:
+        slugs = secrets.list_secrets(provider)
+        for slug in slugs:
+            # codeql[py/clear-text-logging-sensitive-data]  # slug names are identifiers, not secret values
+            console.print(slug)
+        return
+
+    if len(parts) != 2 or not parts[1]:
+        error("Expected format: <provider>/<slug>  (e.g. telegram/bot)")
+        return
+
+    slug = parts[1]
+    result = secrets.get_secret(provider, slug, as_json=has_json)
+
+    if result is None:
+        error(f"Secret not found: {provider}/{slug}")
+        return
+
+    if out_file:
+        content = json.dumps(result, indent=2) if has_json else str(result)
+        fd = os.open(out_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, content.encode("utf-8"))
+        finally:
+            os.close(fd)
+        success(f"Wrote {provider}/{slug} to {out_file}")
+    else:
+        value_len = len(json.dumps(result)) if has_json else len(str(result))
+        success(f"{provider}/{slug}: set ({value_len} chars)")
+
+
 def fetch_api_key(provider: str = "openrouter"):
     """Retrieve a validated API key for a provider from secrets."""
     return keys.get_api_key(provider)
@@ -194,6 +260,7 @@ def print_help():
         epilog="""
 COMMANDS:
   get-key          - Retrieve API key for a provider
+  get-secret       - Read secret from provider store
   validate         - Validate API key
   list-providers   - List available providers
   init             - Initialize .env template
@@ -205,6 +272,21 @@ USAGE:
 EXAMPLES:
   # Get key for provider
   drone @api get-key openrouter
+
+  # Check if a secret exists (masked summary, no raw value)
+  drone @api get-secret telegram/bot
+
+  # Write secret to a protected file
+  drone @api get-secret telegram/bot --out /tmp/token.txt
+
+  # Write secret as JSON to a protected file
+  drone @api get-secret telegram/bot --out /tmp/bot.json --json
+
+  # List secrets for a provider
+  drone @api get-secret telegram --list
+
+  # Programmatic access (in-process, no stdout):
+  #   from aipass.api.apps.modules.secrets import get_secret
 
   # Validate key
   drone @api validate openrouter

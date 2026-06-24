@@ -18,9 +18,14 @@
       "handler": "aipass.hooks.apps.handlers.prompt.branch_loader.handle",
       "matcher": ""
     },
-    "global_prompt": {
+    "tier0_kernel": {
       "enabled": true,
-      "handler": "aipass.hooks.apps.handlers.prompt.global_loader.handle",
+      "handler": "aipass.hooks.apps.handlers.prompt.tier0_kernel.handle",
+      "matcher": ""
+    },
+    "navmap": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.navmap.handle",
       "matcher": ""
     },
     "auto_process": {
@@ -87,6 +92,12 @@
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.notification.stop_sound.handle",
       "matcher": ""
+    },
+    "telegram_response": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.notification.telegram_response.handle",
+      "matcher": "",
+      "timeout": 30
     }
   },
 

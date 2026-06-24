@@ -1,0 +1,489 @@
+# ===================AIPASS====================
+# META DATA HEADER
+# Name: tests/test_changed_entries.py
+# Date: 2026-06-13
+# Version: 1.0.0
+# Category: memory/tests
+# =============================================
+
+"""
+Tests for Phase 3 of FPLAN-0270: changed_entries diff helper and
+write_memory_file entry-limits wiring.
+
+Covers:
+  - changed_entries: new over-limit, changed over-limit, unchanged legacy
+    fat entries (rollover-safe), shrinking, dict/list containers, empty before.
+  - write_memory_file wiring: warn mode writes through + logs, enforce mode
+    rejects new fat entries, enforce mode allows unchanged legacy fat entries,
+    non-trinity files unaffected, passport.json unaffected.
+"""
+
+import importlib
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+
+# ---------------------------------------------------------------------------
+# Per-test fixture: fresh-import modules with mocks in place
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _fresh_modules(monkeypatch):
+    """Drop cached modules so each test gets fresh imports."""
+    sys.modules.pop("aipass.memory.apps.handlers.json", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.json_handler", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.entry_limits", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.memory_files", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json.lint_handler", None)
+    yield
+
+
+def _get_entry_limits():
+    """Import and return the entry_limits module."""
+    return importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+
+
+def _get_memory_files():
+    """Import and return the memory_files module."""
+    return importlib.import_module("aipass.memory.apps.handlers.json.memory_files")
+
+
+# ---------------------------------------------------------------------------
+# Helpers: build limits dicts for testing
+# ---------------------------------------------------------------------------
+
+_KEY_LEARNINGS_ONLY: dict[str, Any] = {
+    "enabled": True,
+    "enforce": False,
+    "entry_types": {
+        "key_learnings": {
+            "file": "local.json",
+            "container": "key_learnings",
+            "kind": "dict",
+            "field": "value",
+            "max_chars": 200,
+        },
+    },
+}
+
+_SESSIONS_ONLY: dict[str, Any] = {
+    "enabled": True,
+    "enforce": False,
+    "entry_types": {
+        "sessions": {
+            "file": "local.json",
+            "container": "sessions",
+            "kind": "list",
+            "field": "summary",
+            "max_chars": 300,
+        },
+    },
+}
+
+
+def _full_limits(**overrides: Any) -> dict[str, Any]:
+    """Return a complete limits dict with all four default entry types."""
+    base: dict[str, Any] = {
+        "enabled": True,
+        "enforce": False,
+        "entry_types": {
+            "key_learnings": {
+                "file": "local.json",
+                "container": "key_learnings",
+                "kind": "dict",
+                "field": "value",
+                "max_chars": 200,
+            },
+            "sessions": {
+                "file": "local.json",
+                "container": "sessions",
+                "kind": "list",
+                "field": "summary",
+                "max_chars": 300,
+            },
+            "todos": {
+                "file": "local.json",
+                "container": "todos",
+                "kind": "list",
+                "field": "task",
+                "max_chars": 200,
+            },
+            "observations": {
+                "file": "observations.json",
+                "container": "observations",
+                "kind": "list",
+                "field": "note",
+                "max_chars": 600,
+            },
+        },
+    }
+    base.update(overrides)
+    return base
+
+
+# ===========================================================================
+# 1. changed_entries: new over-limit entry detected
+# ===========================================================================
+
+
+class TestNewOverLimitEntry:
+    """A new dict entry that exceeds the cap is returned as a violation."""
+
+    def test_new_overlimit_key_learning(self) -> None:
+        mod = _get_entry_limits()
+        before = {"key_learnings": {"a": "short", "b": "also short"}}
+        fat_text = "x" * 250
+        after = {"key_learnings": {"a": "short", "b": "also short", "c": fat_text}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["entry_type"] == "key_learnings"
+        assert result[0]["key"] == "c"
+        assert result[0]["length"] == 250
+        assert result[0]["cap"] == 200
+        assert result[0]["over_by"] == 50
+
+
+# ===========================================================================
+# 2. changed_entries: changed entry exceeds cap
+# ===========================================================================
+
+
+class TestChangedEntryOverCap:
+    """An existing entry whose text grew past the cap is flagged."""
+
+    def test_changed_key_learning_over_cap(self) -> None:
+        mod = _get_entry_limits()
+        before = {"key_learnings": {"a": "short text"}}
+        after = {"key_learnings": {"a": "y" * 300}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["key"] == "a"
+        assert result[0]["over_by"] == 100
+
+
+# ===========================================================================
+# 3. changed_entries: UNCHANGED legacy over-limit entry NOT returned
+# ===========================================================================
+
+
+class TestUnchangedLegacyFatEntry:
+    """THE KEY TEST: unchanged fat entries must NOT be flagged (rollover-safe)."""
+
+    def test_unchanged_500char_key_learning_not_flagged(self) -> None:
+        mod = _get_entry_limits()
+        fat_text = "z" * 500
+        before = {"key_learnings": {"legacy": fat_text}}
+        after = {"key_learnings": {"legacy": fat_text}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert result == []
+
+
+# ===========================================================================
+# 4. changed_entries: shrinking an entry is not flagged
+# ===========================================================================
+
+
+class TestShrinkingEntry:
+    """An entry that went from 500 chars to 100 is not flagged."""
+
+    def test_shrunk_entry_not_flagged(self) -> None:
+        mod = _get_entry_limits()
+        before = {"key_learnings": {"item": "z" * 500}}
+        after = {"key_learnings": {"item": "z" * 100}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert result == []
+
+
+# ===========================================================================
+# 5. changed_entries: dict container — value-as-string and value-as-dict
+# ===========================================================================
+
+
+class TestDictContainerShapes:
+    """Both plain-string and dict-with-field value shapes are handled."""
+
+    def test_value_as_string(self) -> None:
+        mod = _get_entry_limits()
+        before: dict[str, Any] = {"key_learnings": {}}
+        after = {"key_learnings": {"new_key": "x" * 250}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["length"] == 250
+
+    def test_value_as_dict_with_field(self) -> None:
+        mod = _get_entry_limits()
+        before: dict[str, Any] = {"key_learnings": {}}
+        after = {"key_learnings": {"new_key": {"value": "x" * 250, "source": "test"}}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["length"] == 250
+
+
+# ===========================================================================
+# 6. changed_entries: list container — appended and unchanged
+# ===========================================================================
+
+
+class TestListContainer:
+    """List containers detect new appended items and skip unchanged ones."""
+
+    def test_appended_item_over_cap_detected(self) -> None:
+        mod = _get_entry_limits()
+        existing = {"session_number": 1, "summary": "short"}
+        new_fat = {"session_number": 2, "summary": "s" * 400}
+        before = {"sessions": [existing]}
+        after = {"sessions": [existing, new_fat]}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["key"] == "1"
+        assert result[0]["over_by"] == 100
+
+    def test_existing_unchanged_items_not_flagged(self) -> None:
+        mod = _get_entry_limits()
+        fat_item = {"session_number": 1, "summary": "s" * 400}
+        before = {"sessions": [fat_item]}
+        after = {"sessions": [fat_item]}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert result == []
+
+
+# ===========================================================================
+# 7. changed_entries: list prepend identity-match (Fix 1 — FPLAN-0276 cleanup)
+# ===========================================================================
+
+
+class TestListPrependIdentityMatch:
+    """Prepending a new entry must NOT re-flag shifted legacy over-cap entries."""
+
+    def test_prepend_with_legacy_overcap_entries_allowed(self) -> None:
+        """Full container of over-cap legacy entries + one new in-cap prepend → no violations."""
+        mod = _get_entry_limits()
+        legacy = [{"session_number": i, "summary": "s" * 400} for i in range(5, 0, -1)]
+        before = {"sessions": legacy}
+        new_entry = {"session_number": 6, "summary": "short new"}
+        after = {"sessions": [new_entry] + legacy}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert result == []
+
+    def test_edited_existing_entry_text_still_caught(self) -> None:
+        """Changing an existing entry's text to over-cap is still flagged."""
+        mod = _get_entry_limits()
+        before = {"sessions": [{"session_number": 1, "summary": "short"}]}
+        after = {"sessions": [{"session_number": 1, "summary": "s" * 400}]}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["over_by"] == 100
+
+    def test_genuinely_new_overcap_entry_still_caught(self) -> None:
+        """A brand-new over-cap entry is still flagged even alongside legacy."""
+        mod = _get_entry_limits()
+        legacy = [{"session_number": 1, "summary": "ok"}]
+        before = {"sessions": legacy}
+        new_fat = {"session_number": 2, "summary": "s" * 400}
+        after = {"sessions": [new_fat] + legacy}
+
+        result = mod.changed_entries(before, after, _SESSIONS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["over_by"] == 100
+
+
+# ===========================================================================
+# 8. changed_entries: empty before (new file) — all entries treated as new
+# ===========================================================================
+
+
+class TestEmptyBefore:
+    """When before is empty, all after entries are treated as new."""
+
+    def test_all_over_limit_entries_flagged(self) -> None:
+        mod = _get_entry_limits()
+        before: dict[str, Any] = {}
+        after = {"key_learnings": {"a": "x" * 250, "b": "ok"}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert len(result) == 1
+        assert result[0]["key"] == "a"
+
+    def test_within_limit_entries_not_flagged(self) -> None:
+        mod = _get_entry_limits()
+        before: dict[str, Any] = {}
+        after = {"key_learnings": {"a": "short", "b": "also short"}}
+
+        result = mod.changed_entries(before, after, _KEY_LEARNINGS_ONLY)
+
+        assert result == []
+
+
+# ===========================================================================
+# 8. write_memory_file: warn mode writes through + logs warning
+# ===========================================================================
+
+
+class TestWarnModeWritesThrough:
+    """In warn mode (enforce=False), over-limit entries log a warning but file is written."""
+
+    def test_warn_mode_writes_and_logs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mem_mod = _get_memory_files()
+        mock_logger = mem_mod.logger
+
+        # Build .trinity/local.json path
+        trinity = tmp_path / "test_branch" / ".trinity"
+        trinity.mkdir(parents=True)
+        local_path = trinity / "local.json"
+
+        before_data = {"key_learnings": {"existing": "short"}}
+        local_path.write_text(json.dumps(before_data, indent=2), encoding="utf-8")
+
+        fat_text = "x" * 300
+        after_data = {"key_learnings": {"existing": "short", "new_fat": fat_text}}
+
+        warn_limits = _full_limits(enforce=False)
+        monkeypatch.setattr(mem_mod, "load_entry_limits", lambda branch: warn_limits)
+
+        result = mem_mod.write_memory_file(local_path, after_data)
+
+        assert result["success"] is True
+        written = json.loads(local_path.read_text(encoding="utf-8"))
+        assert written["key_learnings"]["new_fat"] == fat_text
+        mock_logger.warning.assert_called()
+        warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+        assert any("entry_limits" in w for w in warning_calls)
+
+
+# ===========================================================================
+# 9. write_memory_file: enforce mode rejects new over-limit entry
+# ===========================================================================
+
+
+class TestEnforceModeRejects:
+    """In enforce mode, a new over-limit entry is rejected and file is unchanged."""
+
+    def test_enforce_rejects_new_fat_entry(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        mem_mod = _get_memory_files()
+
+        trinity = tmp_path / "test_branch" / ".trinity"
+        trinity.mkdir(parents=True)
+        local_path = trinity / "local.json"
+
+        before_data = {"key_learnings": {"existing": "short"}}
+        local_path.write_text(json.dumps(before_data, indent=2), encoding="utf-8")
+
+        fat_text = "x" * 300
+        after_data = {"key_learnings": {"existing": "short", "new_fat": fat_text}}
+
+        enforce_limits = _full_limits(enforce=True)
+        monkeypatch.setattr(mem_mod, "load_entry_limits", lambda branch: enforce_limits)
+
+        result = mem_mod.write_memory_file(local_path, after_data)
+
+        assert result["success"] is False
+        assert "Entry limit exceeded" in result["error"]
+        # File on disk is UNCHANGED
+        on_disk = json.loads(local_path.read_text(encoding="utf-8"))
+        assert "new_fat" not in on_disk["key_learnings"]
+
+
+# ===========================================================================
+# 10. write_memory_file: enforce mode ALLOWS unchanged legacy fat entries
+# ===========================================================================
+
+
+class TestEnforceAllowsUnchangedLegacy:
+    """THE CRITICAL ROLLOVER-SAFE TEST: enforce mode allows writing back same fat data."""
+
+    def test_enforce_allows_same_data_with_fat_entries(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        mem_mod = _get_memory_files()
+
+        trinity = tmp_path / "test_branch" / ".trinity"
+        trinity.mkdir(parents=True)
+        local_path = trinity / "local.json"
+
+        fat_data = {"key_learnings": {"legacy": "z" * 500, "also_fat": "y" * 400}}
+        local_path.write_text(json.dumps(fat_data, indent=2), encoding="utf-8")
+
+        enforce_limits = _full_limits(enforce=True)
+        monkeypatch.setattr(mem_mod, "load_entry_limits", lambda branch: enforce_limits)
+
+        result = mem_mod.write_memory_file(local_path, fat_data)
+
+        assert result["success"] is True
+        on_disk = json.loads(local_path.read_text(encoding="utf-8"))
+        assert on_disk["key_learnings"]["legacy"] == "z" * 500
+
+
+# ===========================================================================
+# 11. write_memory_file: non-trinity file unaffected
+# ===========================================================================
+
+
+class TestNonTrinityFileUnaffected:
+    """Files outside .trinity/ bypass validation entirely."""
+
+    def test_writes_normally_outside_trinity(self, tmp_path: Path) -> None:
+        mem_mod = _get_memory_files()
+
+        output_path = tmp_path / "some_output.json"
+        data = {"key": "value"}
+
+        result = mem_mod.write_memory_file(output_path, data)
+
+        assert result["success"] is True
+        assert output_path.exists()
+        written = json.loads(output_path.read_text(encoding="utf-8"))
+        assert written == data
+
+
+# ===========================================================================
+# 12. write_memory_file: passport.json unaffected
+# ===========================================================================
+
+
+class TestPassportUnaffected:
+    """Writes to .trinity/passport.json bypass validation."""
+
+    def test_passport_writes_normally(self, tmp_path: Path) -> None:
+        mem_mod = _get_memory_files()
+
+        trinity = tmp_path / "test_branch" / ".trinity"
+        trinity.mkdir(parents=True)
+        passport_path = trinity / "passport.json"
+
+        data = {"branch_info": {"branch_name": "test_branch"}, "identity": {"role": "test"}}
+
+        result = mem_mod.write_memory_file(passport_path, data)
+
+        assert result["success"] is True
+        assert passport_path.exists()
+        written = json.loads(passport_path.read_text(encoding="utf-8"))
+        assert written == data

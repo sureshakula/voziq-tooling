@@ -23,25 +23,17 @@ HOOK ENGINE CONTRACT:
   Returns: dict with success, pool, and rollover results
 """
 
-import json
 from pathlib import Path
 from typing import Any, Dict
 
 from aipass.prax import logger
-from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import json_handler, config_loader
 
 _MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-CONFIG_PATH = _MEMORY_ROOT / "config" / "memory.config.json"
 
 
 def _load_pool_enabled() -> bool:
-    try:
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            config = json.load(f)
-        return config.get("memory_pool", {}).get("enabled", False)
-    except Exception as e:
-        logger.warning(f"[auto_process] Failed to load config: {e}")
-        return False
+    return config_loader.section("memory_pool").get("enabled", False)
 
 
 def run_pool_processing() -> Dict[str, Any]:

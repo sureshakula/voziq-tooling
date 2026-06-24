@@ -93,25 +93,18 @@ def on_email_delivered(
     new_count: int,
     opened_count: int,
     total: int,
-    push_dashboard_fn: Optional[Callable] = None,
     update_central_fn: Optional[Callable] = None,
 ) -> None:
     """
-    Post-delivery callback: update dashboard and central.
+    Post-delivery callback: update central.
 
     Args:
         branch_path: Path to the branch that received email
         new_count: Number of new (unread) messages
         opened_count: Number of opened messages
         total: Total message count
-        push_dashboard_fn: Callable for push_dashboard_update
         update_central_fn: Callable for update_central
     """
-    if push_dashboard_fn:
-        try:
-            push_dashboard_fn(branch_path)
-        except Exception as e:
-            logger.warning("[error_dispatch] dashboard update failed for %s: %s", branch_path, e)
     if update_central_fn:
         try:
             update_central_fn()

@@ -14,3 +14,6 @@ build/
 *.swp
 my-project
 
+# Compass decision store — private decision data, never commit (DPLAN-0212)
+devpulse_json/compass/
+

@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: memory_files.py
 # Description: Memory File Safe I/O Handler
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-03-17
-# Modified: 2026-03-17
+# Modified: 2026-06-13
 # =============================================
 
 """
@@ -34,6 +34,7 @@ from typing import Dict, Any, Optional
 
 from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json.entry_limits import load_entry_limits, changed_entries
 
 logger = get_system_logger()
 
@@ -44,6 +45,93 @@ _TEMPLATES_DIR = _MEMORY_ROOT / "apps" / "json_templates"
 
 # No service imports - handlers are pure workers (3-tier architecture)
 # No module imports (handler independence)
+
+# Files tracked by entry-limits validation
+_TRACKED_TRINITY_FILES = {"local.json", "observations.json"}
+
+
+# =============================================================================
+# ENTRY-LIMITS VALIDATION (rollover-safe)
+# =============================================================================
+
+
+def _validate_entry_limits(
+    file_path: Path,
+    data: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Check entry limits for a .trinity/ write and return a rejection or None.
+
+    Only validates files inside a ``.trinity/`` directory whose name is
+    in :data:`_TRACKED_TRINITY_FILES`.  For all other paths this function
+    returns ``None`` immediately (no validation).
+
+    Unchanged entries (same text as on disk) are intentionally skipped so
+    that rollover and other maintenance writes are never blocked by
+    legacy over-limit entries.
+
+    Args:
+        file_path: Target path for the write.
+        data: The dict about to be written.
+
+    Returns:
+        ``None`` when the write should proceed normally.
+        A ``{"success": False, "error": ...}`` dict when enforce mode is
+        on and new/changed entries exceed their caps.
+    """
+    # --- Gate: only tracked .trinity files ------------------------------------
+    if file_path.parent.name != ".trinity":
+        return None
+    if file_path.name not in _TRACKED_TRINITY_FILES:
+        return None
+
+    branch = file_path.parent.parent.name
+    limits = load_entry_limits(branch)
+
+    if not limits.get("enabled", True):
+        return None
+
+    # Filter limits to entry_types that belong to THIS file
+    filtered_types = {
+        name: tdef for name, tdef in limits.get("entry_types", {}).items() if tdef.get("file") == file_path.name
+    }
+    if not filtered_types:
+        return None
+
+    filtered_limits = {
+        "enabled": limits["enabled"],
+        "enforce": limits["enforce"],
+        "entry_types": filtered_types,
+    }
+
+    # Read current on-disk content (before)
+    before: Dict[str, Any] = {}
+    if file_path.exists():
+        try:
+            before = json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning(f"[entry_limits] Could not parse {file_path.name} for diff: {exc}")
+            before = {}  # Unparseable — treat as empty (all entries "new")
+
+    over = changed_entries(before, data, filtered_limits)
+    if not over:
+        return None
+
+    # --- Violations found -----------------------------------------------------
+    enforce = limits.get("enforce", False)
+
+    if not enforce:
+        for violation in over:
+            logger.warning(
+                f"[entry_limits] WARN {branch} {file_path.name} "
+                f"{violation['container']}[{violation['key']}] "
+                f"{violation['length']}/{violation['cap']} "
+                f"(+{violation['over_by']} over)"
+            )
+        return None  # Write through in warn mode
+
+    # Enforce mode — block the write
+    details = "; ".join(f"{v['container']}[{v['key']}] {v['length']}/{v['cap']} (+{v['over_by']} over)" for v in over)
+    return {"success": False, "error": f"Entry limit exceeded: {details}"}
 
 
 # =============================================================================
@@ -119,6 +207,16 @@ def write_memory_file(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     """
     if not isinstance(data, dict):
         return {"success": False, "error": f"Data must be dict, got {type(data).__name__}"}
+
+    # --- Entry-limits validation (rollover-safe) ------------------------------
+    # Only validate .trinity/ files that are tracked (local.json, observations.json).
+    # Unchanged legacy over-limit entries pass untouched so rollover is never blocked.
+    try:
+        rejection = _validate_entry_limits(file_path, data)
+        if rejection is not None:
+            return rejection
+    except Exception as exc:
+        logger.warning(f"[memory_files] Entry-limits validation error (writing anyway): {exc}")
 
     try:
         # Create temp file in same directory (for atomic rename)

@@ -3,7 +3,7 @@
     "document_type": "collaboration_patterns",
     "document_name": "{{BRANCHNAME}}.OBSERVATIONS",
     "version": "1.0.0",
-    "schema_version": "1.0.0",
+    "schema_version": "3.0.0",
     "created": "{{DATE}}",
     "last_updated": "{{DATE}}",
     "managed_by": "{{BRANCHNAME}}",
@@ -12,13 +12,9 @@
       "patterns",
       "{{BRANCHNAME}}"
     ],
-    "limits": {
-      "max_lines": 600,
-      "note": "DO NOT trim, prune, or delete entries. Auto-rollover to @memory when max_lines exceeded."
-    },
+    "_usage": "Automated file — add entries within your sections; rollover trims automatically. Limits live in @memory's memory.config.json.",
     "status": {
       "health": "healthy",
-      "current_lines": 0,
       "last_health_check": "{{DATE}}"
     }
   },
@@ -28,9 +24,10 @@
   },
   "observations": [
     {
+      "number": 1,
       "date": "{{DATE}}",
-      "pattern": "Branch initialized. Ready to begin capturing collaboration patterns.",
-      "source": "initialization"
+      "note": "Branch initialized. Ready to begin capturing collaboration patterns.",
+      "tags": []
     }
   ]
 }

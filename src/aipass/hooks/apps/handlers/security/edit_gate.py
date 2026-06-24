@@ -10,9 +10,11 @@
 
 """Blocks unsafe edits: inbox writes, daemon confinement, cross-branch writes, diagnostics state."""
 
+import importlib
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 
@@ -20,6 +22,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 STATE_FILE = Path(__file__).parent.parent.parent.parent.parent / ".diagnostics_state.json"
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 TRUSTED_CROSS_WRITERS: tuple[str, ...] = ("devpulse", "seedgo", "spawn")
+_TRINITY_MEMORY_FILES = frozenset({"local.json", "observations.json"})
 
 
 def _get_package_from_cwd(cwd: str) -> str:
@@ -38,6 +41,121 @@ def _get_branch(file_path: str, package: str = "") -> str:
         if part == package and i > 0 and parts[i - 1] == "src" and i + 1 < len(parts):
             return parts[i + 1]
     return ""
+
+
+def _resolve_after_text(tool_name: str, tool_input: dict, current_text: str) -> str | None:
+    """Compute post-change file text for Edit/MultiEdit. Returns None on mismatch."""
+    if tool_name == "Edit":
+        old = tool_input.get("old_string", "")
+        new = tool_input.get("new_string", "")
+        if old not in current_text:
+            return None
+        if tool_input.get("replace_all", False):
+            return current_text.replace(old, new)
+        return current_text.replace(old, new, 1)
+    if tool_name == "MultiEdit":
+        edits = tool_input.get("edits", [])
+        text = current_text
+        for edit in edits:
+            old = edit.get("old_string", "")
+            new = edit.get("new_string", "")
+            if old not in text:
+                return None
+            if edit.get("replace_all", False):
+                text = text.replace(old, new)
+            else:
+                text = text.replace(old, new, 1)
+        return text
+    return None
+
+
+def _evaluate_limits(before: dict, after: dict, limits: dict, el: Any) -> dict | None:
+    """Diff changed entries and return block dict or None (allow)."""
+    over = el.changed_entries(before, after, limits)
+    if not over:
+        return None
+    if limits.get("enforce"):
+        lines = ["Over-limit .trinity entries (shorten before saving):"]
+        for v in over:
+            lines.append(f"  {v['entry_type']} [{v['key']}]: {v['length']}/{v['cap']} chars (+{v['over_by']})")
+        return {
+            "stdout": json.dumps({"decision": "block", "reason": "\n".join(lines)}),
+            "exit_code": 2,
+            "sound": "edit gate",
+        }
+    for v in over:
+        logger.warning(
+            "[HOOKS] edit_gate: over-limit .trinity entry %s [%s]: %d/%d (+%d) — warn only",
+            v["entry_type"],
+            v["key"],
+            v["length"],
+            v["cap"],
+            v["over_by"],
+        )
+    return None
+
+
+def _todos_count_advisory(after: dict, branch: str) -> str:
+    """Return advisory text if todos exceed rollover count limit, else empty string."""
+    try:
+        todos = after.get("todos")
+        if not isinstance(todos, list):
+            return ""
+        cl = importlib.import_module("aipass.memory.apps.handlers.json.config_loader")
+        cfg = cl.load()
+        roll = cfg.get("rollover", {})
+        branch_cfg = roll.get("per_branch", {}).get(branch) or roll.get("defaults", {})
+        limit = branch_cfg.get("local", {}).get("todos", {}).get("count", 10)
+        count = len(todos)
+        if count <= limit:
+            return ""
+        msg = f"todos over limit ({count}/{limit}) — todos do not auto-roll; prune completed ones."
+        logger.warning("[HOOKS] edit_gate: %s", msg)
+        return msg
+    except Exception as exc:
+        logger.warning("[HOOKS] edit_gate: todos count check failed (skipping): %s", exc)
+        return ""
+
+
+def _check_trinity_change(fp: Path, tool_name: str, tool_input: dict, branch: str) -> dict | None:
+    """Check .trinity Write/Edit/MultiEdit for over-limit entries. Returns block dict or None."""
+    try:
+        el = importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+        limits = el.load_entry_limits(branch)
+        if not limits.get("enabled"):
+            return None
+
+        resolved_path = str(fp.resolve()) if not fp.is_absolute() else str(fp)
+
+        if tool_name == "Write":
+            content = tool_input.get("content", "")
+            after = json.loads(content)
+            before = {}
+            if Path(resolved_path).exists():
+                before = json.loads(Path(resolved_path).read_text(encoding="utf-8"))
+        else:
+            if not Path(resolved_path).exists():
+                return None
+            current_text = Path(resolved_path).read_text(encoding="utf-8")
+            before = json.loads(current_text)
+            after_text = _resolve_after_text(tool_name, tool_input, current_text)
+            if after_text is None:
+                return None
+            after = json.loads(after_text)
+
+        block = _evaluate_limits(before, after, limits, el)
+        if block:
+            return block
+
+        if fp.name == "local.json":
+            advisory = _todos_count_advisory(after, branch)
+            if advisory:
+                return {"stdout": advisory, "exit_code": 0}
+
+        return None
+    except Exception as exc:
+        logger.warning("[HOOKS] edit_gate: .trinity size check failed (allowing): %s", exc)
+        return None
 
 
 def handle(hook_data: dict) -> dict:
@@ -111,6 +229,13 @@ def handle(hook_data: dict) -> dict:
                     "exit_code": 2,
                     "sound": "edit gate",
                 }
+
+        trinity_tools = ("Write", "Edit", "MultiEdit")
+        if tool_name in trinity_tools and fp.parent.name == ".trinity" and fp.name in _TRINITY_MEMORY_FILES:
+            if target_branch:
+                block = _check_trinity_change(fp, tool_name, tool_input, target_branch)
+                if block:
+                    return block
 
         if not file_path.endswith(".py"):
             return {"stdout": "", "exit_code": 0}

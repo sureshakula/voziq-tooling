@@ -393,28 +393,27 @@ class TestGetMemoryPython:
 class TestProcessPlans:
     """Test process_plans main entry point."""
 
-    def _setup_config(self, tmp_path, config_data):
-        """Write a memory.config.json and return its path."""
-        config_dir = tmp_path / "config"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        config_path = config_dir / "memory.config.json"
-        config_path.write_text(json.dumps(config_data), encoding="utf-8")
-        return config_path
+    def _mock_config(self, monkeypatch, mod, plans_config):
+        """Mock config_loader.section on the plans_processor module."""
+        mock_cl = MagicMock()
+        mock_cl.section.return_value = plans_config
+        monkeypatch.setattr(mod, "config_loader", mock_cl)
 
-    def test_process_plans_config_load_fails(self, monkeypatch, tmp_path):
+    def test_process_plans_defaults_no_plans_dir(self, monkeypatch, tmp_path):
+        """With default config (self-healed), plans dir absent → success + 0 files."""
         mod = _import_plans_processor(monkeypatch)
-        # Point _MEMORY_ROOT to tmp_path -- no config file exists
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
+        self._mock_config(monkeypatch, mod, {"enabled": True, "path": ".backup/processed_plans"})
+        monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
         result = mod.process_plans()
 
-        assert result["success"] is False
-        assert "Config load failed" in result["error"]
+        assert result["success"] is True
+        assert result["files_processed"] == 0
+        assert "not found" in result.get("reason", "")
 
     def test_process_plans_disabled(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
-        self._setup_config(tmp_path, {"plans": {"enabled": False}})
+        self._mock_config(monkeypatch, mod, {"enabled": False})
 
         result = mod.process_plans()
 
@@ -424,12 +423,7 @@ class TestProcessPlans:
 
     def test_process_plans_dir_not_found(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": "nonexistent/plans"}},
-        )
-        # _find_repo_root will return tmp_path
+        self._mock_config(monkeypatch, mod, {"enabled": True, "path": "nonexistent/plans"})
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
         result = mod.process_plans()
@@ -440,12 +434,12 @@ class TestProcessPlans:
 
     def test_process_plans_no_files(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]}},
+        self._mock_config(
+            monkeypatch,
+            mod,
+            {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]},
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
@@ -456,18 +450,17 @@ class TestProcessPlans:
 
     def test_process_plans_all_already_processed(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
         plan_file = plans_dir / "done.md"
         plan_file.write_text("Already processed plan content that is long enough.", encoding="utf-8")
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]}},
+        self._mock_config(
+            monkeypatch,
+            mod,
+            {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]},
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
-        # Pre-populate the manifest
-        manifest_path = tmp_path / "config" / ".plans_processed.json"
+        manifest_path = tmp_path / ".plans_processed.json"
         manifest_path.write_text(json.dumps({"done.md": "2026-01-01T00:00:00"}), encoding="utf-8")
         monkeypatch.setattr(mod, "_PROCESSED_MANIFEST", manifest_path)
 
@@ -479,9 +472,7 @@ class TestProcessPlans:
 
     def test_process_plans_success(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
 
-        # Create plans directory with a file
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
         plan_file = plans_dir / "new_plan.md"
@@ -491,31 +482,27 @@ class TestProcessPlans:
             encoding="utf-8",
         )
 
-        self._setup_config(
-            tmp_path,
+        self._mock_config(
+            monkeypatch,
+            mod,
             {
-                "plans": {
-                    "enabled": True,
-                    "path": str(plans_dir),
-                    "supported_extensions": [".md"],
-                    "collection_name": "test_plans",
-                }
+                "enabled": True,
+                "path": str(plans_dir),
+                "supported_extensions": [".md"],
+                "collection_name": "test_plans",
             },
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        # Empty manifest
-        manifest_path = tmp_path / "config" / ".plans_processed.json"
+        manifest_path = tmp_path / ".plans_processed.json"
         manifest_path.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(mod, "_PROCESSED_MANIFEST", manifest_path)
 
-        # Mock _embed_texts to return success
         monkeypatch.setattr(
             mod,
             "_embed_texts",
             lambda texts: {"success": True, "embeddings": [[0.1, 0.2]] * len(texts)},
         )
-        # Mock _store_vectors to return success
         monkeypatch.setattr(
             mod,
             "_store_vectors",
@@ -532,13 +519,11 @@ class TestProcessPlans:
         assert result["total_chunks"] >= 2
         mock_jh.log_operation.assert_called_once()
 
-        # Manifest should be updated
         updated_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert "new_plan.md" in updated_manifest
 
     def test_process_plans_embed_fails(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
 
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
@@ -548,17 +533,17 @@ class TestProcessPlans:
             encoding="utf-8",
         )
 
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]}},
+        self._mock_config(
+            monkeypatch,
+            mod,
+            {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]},
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        manifest_path = tmp_path / "config" / ".plans_processed.json"
+        manifest_path = tmp_path / ".plans_processed.json"
         manifest_path.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(mod, "_PROCESSED_MANIFEST", manifest_path)
 
-        # Mock _embed_texts to return failure
         monkeypatch.setattr(
             mod,
             "_embed_texts",
@@ -576,7 +561,6 @@ class TestProcessPlans:
 
     def test_process_plans_no_embeddings(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
 
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
@@ -586,17 +570,17 @@ class TestProcessPlans:
             encoding="utf-8",
         )
 
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]}},
+        self._mock_config(
+            monkeypatch,
+            mod,
+            {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]},
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        manifest_path = tmp_path / "config" / ".plans_processed.json"
+        manifest_path = tmp_path / ".plans_processed.json"
         manifest_path.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(mod, "_PROCESSED_MANIFEST", manifest_path)
 
-        # Embed succeeds but returns empty embeddings
         monkeypatch.setattr(
             mod,
             "_embed_texts",
@@ -613,7 +597,6 @@ class TestProcessPlans:
 
     def test_process_plans_store_fails(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
 
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
@@ -623,23 +606,22 @@ class TestProcessPlans:
             encoding="utf-8",
         )
 
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]}},
+        self._mock_config(
+            monkeypatch,
+            mod,
+            {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]},
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        manifest_path = tmp_path / "config" / ".plans_processed.json"
+        manifest_path = tmp_path / ".plans_processed.json"
         manifest_path.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(mod, "_PROCESSED_MANIFEST", manifest_path)
 
-        # Embed succeeds
         monkeypatch.setattr(
             mod,
             "_embed_texts",
             lambda texts: {"success": True, "embeddings": [[0.1, 0.2]] * len(texts)},
         )
-        # Store fails
         monkeypatch.setattr(
             mod,
             "_store_vectors",
@@ -657,21 +639,20 @@ class TestProcessPlans:
 
     def test_process_plans_empty_chunks(self, monkeypatch, tmp_path):
         mod = _import_plans_processor(monkeypatch)
-        monkeypatch.setattr(mod, "_MEMORY_ROOT", tmp_path)
 
         plans_dir = tmp_path / "plans"
         plans_dir.mkdir()
         plan_file = plans_dir / "tiny.md"
-        # Content that will produce zero chunks (under 30 chars, no headers)
         plan_file.write_text("Hi.", encoding="utf-8")
 
-        self._setup_config(
-            tmp_path,
-            {"plans": {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]}},
+        self._mock_config(
+            monkeypatch,
+            mod,
+            {"enabled": True, "path": str(plans_dir), "supported_extensions": [".md"]},
         )
         monkeypatch.setattr(mod, "_find_repo_root", lambda: tmp_path)
 
-        manifest_path = tmp_path / "config" / ".plans_processed.json"
+        manifest_path = tmp_path / ".plans_processed.json"
         manifest_path.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(mod, "_PROCESSED_MANIFEST", manifest_path)
 
@@ -680,10 +661,8 @@ class TestProcessPlans:
 
         result = mod.process_plans()
 
-        # No chunks produced, but no errors either -- files_without_chunks path
         assert result["success"] is True
         assert result["files_processed"] == 0
 
-        # File should still be marked in manifest (files_without_chunks)
         updated_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert "tiny.md" in updated_manifest

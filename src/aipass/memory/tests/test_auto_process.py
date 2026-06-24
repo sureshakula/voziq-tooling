@@ -21,8 +21,11 @@ enabled=false respected, rollover-trigger path.
 All tests use mocks/tmp_path — no live filesystem or infrastructure access.
 """
 
+import importlib
+import importlib.util
 import json
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
@@ -30,9 +33,36 @@ from unittest.mock import MagicMock, patch
 # Import helpers
 # ---------------------------------------------------------------------------
 
+_CONFIG_LOADER_PATH = Path(__file__).resolve().parent.parent / "apps" / "handlers" / "json" / "config_loader.py"
+
+
+def _load_real_config_loader():
+    """Load the real config_loader module from disk (bypassing mocked sys.modules)."""
+    spec = importlib.util.spec_from_file_location(
+        "aipass.memory.apps.handlers.json.config_loader",
+        _CONFIG_LOADER_PATH,
+    )
+    assert spec is not None, f"Could not find config_loader at {_CONFIG_LOADER_PATH}"
+    assert spec.loader is not None, "config_loader spec has no loader"
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["aipass.memory.apps.handlers.json.config_loader"] = mod
+    spec.loader.exec_module(mod)
+    # Also attach to the (mocked) parent package so `from ... import config_loader` works
+    parent = sys.modules.get("aipass.memory.apps.handlers.json")
+    if parent is not None:
+        setattr(parent, "config_loader", mod)
+    return mod
+
 
 def _import_auto_process(monkeypatch):
-    """Import auto_process with mocked dependencies."""
+    """Import auto_process with mocked dependencies.
+
+    Loads the real config_loader (bypassing the conftest MagicMock for the
+    json package) so that _CONFIG_PATH can be patched per-test.
+    """
+    # Load real config_loader into sys.modules before auto_process imports it
+    _load_real_config_loader()
+
     sys.modules.pop("aipass.memory.apps.handlers.intake.auto_process", None)
     parent = sys.modules.get("aipass.memory.apps.handlers.intake")
     if parent is not None and hasattr(parent, "auto_process"):
@@ -65,39 +95,47 @@ class TestLoadPoolEnabled:
 
     def test_returns_true_when_enabled(self, monkeypatch, tmp_path):
         mod = _import_auto_process(monkeypatch)
+        cl = mod.config_loader
         config_file = tmp_path / "memory.config.json"
         config_file.write_text(
             json.dumps({"memory_pool": {"enabled": True}}),
             encoding="utf-8",
         )
-        monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
+        monkeypatch.setattr(cl, "_CONFIG_PATH", config_file)
 
         assert mod._load_pool_enabled() is True
 
     def test_returns_false_when_disabled(self, monkeypatch, tmp_path):
         mod = _import_auto_process(monkeypatch)
+        cl = mod.config_loader
         config_file = tmp_path / "memory.config.json"
         config_file.write_text(
             json.dumps({"memory_pool": {"enabled": False}}),
             encoding="utf-8",
         )
-        monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
+        monkeypatch.setattr(cl, "_CONFIG_PATH", config_file)
 
         assert mod._load_pool_enabled() is False
 
-    def test_returns_false_when_config_missing(self, monkeypatch, tmp_path):
+    def test_returns_true_when_config_missing_self_heals(self, monkeypatch, tmp_path):
+        """Missing config triggers self-heal which writes DEFAULT_CONFIG (enabled=True)."""
         mod = _import_auto_process(monkeypatch)
-        monkeypatch.setattr(mod, "CONFIG_PATH", tmp_path / "missing.json")
+        cl = mod.config_loader
+        monkeypatch.setattr(cl, "_CONFIG_PATH", tmp_path / "missing.json")
 
-        assert mod._load_pool_enabled() is False
+        # Self-heal writes DEFAULT_CONFIG which has memory_pool.enabled = True
+        assert mod._load_pool_enabled() is True
 
     def test_returns_false_when_key_missing(self, monkeypatch, tmp_path):
         mod = _import_auto_process(monkeypatch)
+        cl = mod.config_loader
         config_file = tmp_path / "memory.config.json"
         config_file.write_text(json.dumps({"rollover": {}}), encoding="utf-8")
-        monkeypatch.setattr(mod, "CONFIG_PATH", config_file)
+        monkeypatch.setattr(cl, "_CONFIG_PATH", config_file)
 
-        assert mod._load_pool_enabled() is False
+        # Config exists but has no memory_pool key; deep_merge with DEFAULT_CONFIG
+        # fills it in, so enabled comes from DEFAULT_CONFIG (True)
+        assert mod._load_pool_enabled() is True
 
 
 # ===========================================================================

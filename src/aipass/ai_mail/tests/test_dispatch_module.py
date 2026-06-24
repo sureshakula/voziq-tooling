@@ -47,7 +47,6 @@ _H_CREATE = "aipass.ai_mail.apps.handlers.email.create"
 _H_DELIVERY = "aipass.ai_mail.apps.handlers.email.delivery"
 _H_HEADER = "aipass.ai_mail.apps.handlers.email.header"
 _H_ERR = "aipass.ai_mail.apps.handlers.email.error_dispatch"
-_H_DASH = "aipass.ai_mail.apps.handlers.email.dashboard_sync"
 _H_USERS = "aipass.ai_mail.apps.handlers.users.user"
 _H_REG = "aipass.ai_mail.apps.handlers.registry.read"
 _H_CENTRAL = "aipass.ai_mail.apps.handlers.central_writer"
@@ -658,7 +657,6 @@ def _send_patches(overrides: dict | None = None) -> ExitStack:
         f"{_H_HEADER}.prepend_dispatch_header": MagicMock(return_value="[DISPATCH] Body"),
         f"{_H_SEND}.send_to_single": MagicMock(return_value=(True, None)),
         f"{_H_ERR}.on_email_delivered": MagicMock(),
-        f"{_H_DASH}.push_dashboard_update": MagicMock(),
         f"{_H_USERS}.get_current_user": MagicMock(return_value={"name": "test"}),
         f"{_H_REG}.get_branch_by_email": MagicMock(return_value={"email": "@target"}),
         f"{_H_CENTRAL}.update_central": MagicMock(),

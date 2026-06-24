@@ -20,7 +20,8 @@ Purpose:
     historical data in searchable vector storage.
 
 Format:
-    key_learnings: dict with "name": "value... [2026-02-04]"
+    key_learnings: list of {number, date, key, value} (v3, newest-first)
+                   or dict with "name": "value... [2026-02-04]" (legacy)
     recently_completed: list with "Task description [2026-02-04]"
 """
 
@@ -34,11 +35,9 @@ from datetime import datetime
 
 from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
 
 logger = get_system_logger()
-
-# Handler imports (relative within package)
-from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
 
 # ChromaDB subprocess for vectorization (resolved relative to handler location)
 _MEMORY_ROOT = Path(__file__).resolve().parents[3]
@@ -161,36 +160,27 @@ def _find_learnings_location(data: Dict[str, Any]) -> Tuple[Dict[str, Any] | Non
     return (None, "")
 
 
-def _get_learnings(data: Dict[str, Any]) -> Dict[str, str]:
+def _get_learnings(data: Dict[str, Any]) -> list | Dict[str, str]:
     """
-    Get key_learnings from data regardless of location
+    Get key_learnings from data regardless of location.
 
-    Args:
-        data: Parsed JSON data
-
-    Returns:
-        key_learnings dict, or empty dict if not found
+    Returns list (v3 unified schema) or dict (legacy).
     """
     parent, _ = _find_learnings_location(data)
     if parent is None:
-        return {}
-    return parent.get("key_learnings", {})
+        return []
+    kl = parent.get("key_learnings", [])
+    return kl if isinstance(kl, (list, dict)) else []
 
 
-def _set_learnings(data: Dict[str, Any], learnings: Dict[str, str]) -> bool:
+def _set_learnings(data: Dict[str, Any], learnings: list | Dict[str, str]) -> bool:
     """
-    Set key_learnings in data at correct location
+    Set key_learnings in data at correct location.
 
-    Args:
-        data: Parsed JSON data
-        learnings: New key_learnings dict
-
-    Returns:
-        True if set successfully, False if no location found
+    Accepts list (v3) or dict (legacy).
     """
     parent, _ = _find_learnings_location(data)
     if parent is None:
-        # Create at root level if not exists
         data["key_learnings"] = learnings
         return True
     parent["key_learnings"] = learnings
@@ -516,11 +506,17 @@ def ensure_timestamps(file_path: Path) -> Dict[str, Any]:
     updated_count = 0
     today = datetime.now().strftime("%Y-%m-%d")
 
-    for key, value in learnings.items():
-        _, timestamp = parse_timestamp(value)
-        if timestamp is None:
-            learnings[key] = add_timestamp(value, today)
-            updated_count += 1
+    if isinstance(learnings, list):
+        for entry in learnings:
+            if isinstance(entry, dict) and "date" not in entry:
+                entry["date"] = today
+                updated_count += 1
+    else:
+        for key, value in learnings.items():
+            _, timestamp = parse_timestamp(value)
+            if timestamp is None:
+                learnings[key] = add_timestamp(value, today)
+                updated_count += 1
 
     if updated_count > 0:
         _set_learnings(data, learnings)
@@ -575,30 +571,32 @@ def enforce_limit(file_path: Path) -> Dict[str, Any]:
             "message": "Under limit, no action needed",
         }
 
-    # Sort by age (oldest first)
-    sorted_entries = sorted(
-        learnings.items(),
-        key=lambda x: get_entry_age(x[1]),
-        reverse=True,  # Oldest first
-    )
-
-    # Calculate how many to remove
-    to_remove_count = current_count - max_entries
-    to_remove = sorted_entries[:to_remove_count]
-    to_keep = sorted_entries[to_remove_count:]
-
     # Extract branch name from filename
     parts = file_path.stem.split(".")
     branch_name = parts[0] if parts else "UNKNOWN"
 
-    # Vectorize before removing
-    vectorize_result = _vectorize_learnings(branch_name, to_remove)
+    to_remove_count = current_count - max_entries
 
-    # Continue even if vectorization fails - don't block removal
-    # Caller (module) will log if needed based on vectorize_result['success']
-
-    # Update key_learnings with remaining entries
-    _set_learnings(data, dict(to_keep))
+    if isinstance(learnings, list):
+        # v3 list: oldest entries are at the end (lowest number)
+        to_remove_entries = learnings[-to_remove_count:]
+        to_keep_entries = learnings[:-to_remove_count]
+        to_vectorize = [(e.get("key", ""), e.get("value", "")) for e in to_remove_entries if isinstance(e, dict)]
+        removed_keys = [e.get("key", "") for e in to_remove_entries if isinstance(e, dict)]
+        vectorize_result = _vectorize_learnings(branch_name, to_vectorize)
+        _set_learnings(data, to_keep_entries)
+    else:
+        # Legacy dict: sort by age, oldest first
+        sorted_entries = sorted(
+            learnings.items(),
+            key=lambda x: get_entry_age(x[1]),
+            reverse=True,
+        )
+        to_remove = sorted_entries[:to_remove_count]
+        to_keep = sorted_entries[to_remove_count:]
+        removed_keys = [k for k, _ in to_remove]
+        vectorize_result = _vectorize_learnings(branch_name, to_remove)
+        _set_learnings(data, dict(to_keep))
 
     try:
         write_memory_file_simple(file_path, data)
@@ -606,17 +604,16 @@ def enforce_limit(file_path: Path) -> Dict[str, Any]:
         logger.warning(f"[learnings_manager] Failed to write file: {e}")
         return {"success": False, "error": f"Failed to write file: {e}"}
 
-    json_handler.log_operation(
-        "enforce_limit", {"removed": to_remove_count, "remaining": len(to_keep), "success": True}
-    )
+    remaining = current_count - to_remove_count
+    json_handler.log_operation("enforce_limit", {"removed": to_remove_count, "remaining": remaining, "success": True})
 
     return {
         "success": True,
         "removed": to_remove_count,
         "vectorized": vectorize_result.get("success", False),
-        "remaining": len(to_keep),
+        "remaining": remaining,
         "max": max_entries,
-        "removed_keys": [k for k, _ in to_remove],
+        "removed_keys": removed_keys,
     }
 
 
@@ -753,64 +750,6 @@ def enforce_limit_completed(file_path: Path) -> Dict[str, Any]:
         "remaining": len(to_keep),
         "max": max_entries,
         "removed_tasks": to_remove,
-    }
-
-
-def add_learning(file_path: Path, key: str, value: str) -> Dict[str, Any]:
-    """
-    Add or update a key_learning entry.
-
-    Automatically adds timestamp and enforces limit after adding.
-
-    Args:
-        file_path: Path to .local.json file
-        key: Learning key (snake_case recommended)
-        value: Learning value (without timestamp - will be added)
-
-    Returns:
-        Dict with add status
-    """
-    if not file_path.exists():
-        return {"success": False, "error": f"File not found: {file_path}"}
-
-    try:
-        data = read_memory_file_data(file_path)
-        if data is None:
-            return {"success": False, "error": f"Failed to parse file: {file_path.name}"}
-    except Exception as e:
-        logger.warning(f"[learnings_manager] Failed to read file: {e}")
-        return {"success": False, "error": f"Failed to read file: {e}"}
-
-    # Get existing learnings or create empty dict
-    learnings = _get_learnings(data)
-    if not learnings:
-        learnings = {}
-
-    # Add with timestamp
-    timestamped_value = add_timestamp(value)
-    is_update = key in learnings
-    learnings[key] = timestamped_value
-    _set_learnings(data, learnings)
-
-    try:
-        write_memory_file_simple(file_path, data)
-    except Exception as e:
-        logger.warning(f"[learnings_manager] Failed to write file: {e}")
-        return {"success": False, "error": f"Failed to write file: {e}"}
-
-    # Enforce limit after adding
-    enforce_result = enforce_limit(file_path)
-
-    json_handler.log_operation(
-        "add_learning", {"key": key, "action": "updated" if is_update else "added", "success": True}
-    )
-
-    return {
-        "success": True,
-        "action": "updated" if is_update else "added",
-        "key": key,
-        "value": timestamped_value,
-        "limit_enforced": enforce_result.get("removed", 0) > 0,
     }
 
 

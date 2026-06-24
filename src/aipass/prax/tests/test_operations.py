@@ -310,52 +310,81 @@ class TestWriteSection:
 class TestCalculateQuickStatusStandalone:
     """Tests for _calculate_quick_status_standalone -- pure calculation."""
 
-    def test_empty_sections_returns_defaults(self):
+    def test_empty_sections_returns_defaults(self, tmp_path):
         """Empty sections produce zeroed counters and 'All clear' summary."""
         ops = _load_ops()
-        result = ops._calculate_quick_status_standalone({})
+        result = ops._calculate_quick_status_standalone({}, tmp_path)
         assert result["new_mail"] == 0
         assert result["opened_mail"] == 0
         assert result["active_plans"] == 0
         assert result["action_required"] is False
         assert result["summary"] == "All clear"
 
-    def test_new_mail_triggers_action_required(self):
-        """New mail count > 0 sets action_required to True."""
+    def test_new_mail_triggers_action_required(self, tmp_path):
+        """New mail count > 0 sets action_required to True (sourced from inbox.json)."""
         ops = _load_ops()
-        sections = {"ai_mail": {"new": 3, "opened": 0}}
-        result = ops._calculate_quick_status_standalone(sections)
+        mail_dir = tmp_path / ".ai_mail.local"
+        mail_dir.mkdir()
+        inbox = {
+            "messages": [
+                {"id": "1", "status": "new"},
+                {"id": "2", "status": "new"},
+                {"id": "3", "status": "new"},
+            ]
+        }
+        (mail_dir / "inbox.json").write_text(json.dumps(inbox))
+        result = ops._calculate_quick_status_standalone({}, tmp_path)
         assert result["new_mail"] == 3
         assert result["action_required"] is True
         assert "3 new emails" in result["summary"]
 
-    def test_active_plans_triggers_action_required(self):
+    def test_active_plans_triggers_action_required(self, tmp_path):
         """Active plans > 0 sets action_required to True."""
         ops = _load_ops()
         sections = {"flow": {"active_plans": 2}}
-        result = ops._calculate_quick_status_standalone(sections)
+        result = ops._calculate_quick_status_standalone(sections, tmp_path)
         assert result["active_plans"] == 2
         assert result["action_required"] is True
         assert "2 active plans" in result["summary"]
 
-    def test_combined_summary_includes_all_parts(self):
+    def test_combined_summary_includes_all_parts(self, tmp_path):
         """Summary string includes all active counts."""
         ops = _load_ops()
-        sections = {
-            "ai_mail": {"new": 2, "opened": 1},
-            "flow": {"active_plans": 3},
+        mail_dir = tmp_path / ".ai_mail.local"
+        mail_dir.mkdir()
+        inbox = {
+            "messages": [
+                {"id": "1", "status": "new"},
+                {"id": "2", "status": "new"},
+                {"id": "3", "status": "opened"},
+            ]
         }
-        result = ops._calculate_quick_status_standalone(sections)
+        (mail_dir / "inbox.json").write_text(json.dumps(inbox))
+        sections = {"flow": {"active_plans": 3}}
+        result = ops._calculate_quick_status_standalone(sections, tmp_path)
         assert result["action_required"] is True
         assert "2 new emails" in result["summary"]
         assert "1 opened" in result["summary"]
         assert "3 active plans" in result["summary"]
 
-    def test_unread_field_falls_back_from_new(self):
-        """ai_mail may use 'unread' instead of 'new' -- code checks both."""
+    def test_mail_counts_from_inbox_json(self, tmp_path):
+        """Mail counts sourced from inbox.json status fields."""
         ops = _load_ops()
-        sections = {"ai_mail": {"unread": 7}}
-        result = ops._calculate_quick_status_standalone(sections)
+        mail_dir = tmp_path / ".ai_mail.local"
+        mail_dir.mkdir()
+        inbox = {
+            "messages": [
+                {"id": "1", "status": "new"},
+                {"id": "2", "status": "new"},
+                {"id": "3", "status": "new"},
+                {"id": "4", "status": "new"},
+                {"id": "5", "status": "new"},
+                {"id": "6", "status": "new"},
+                {"id": "7", "status": "new"},
+            ]
+        }
+        (mail_dir / "inbox.json").write_text(json.dumps(inbox))
+        result = ops._calculate_quick_status_standalone({}, tmp_path)
         assert result["new_mail"] == 7
         assert result["action_required"] is True
 
@@ -468,7 +497,7 @@ class TestUpdateSectionLegacy:
         }
         status_called_with: dict[str, object] = {}
 
-        def mock_status(sections):
+        def mock_status(sections, branch_path=None):
             """Capture sections passed to status calculator."""
             status_called_with.update(sections)
             return {"action_required": True, "summary": "test"}
@@ -505,7 +534,7 @@ class TestUpdateSectionLegacy:
             "flow",
             {"active_plans": 2},
             template,
-            lambda s: {"action_required": False},
+            lambda s, bp=None: {"action_required": False},
         )
         assert result is True
         data = json.loads((branch_dir / "DASHBOARD.local.json").read_text(encoding="utf-8"))

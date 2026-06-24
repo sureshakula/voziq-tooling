@@ -58,7 +58,8 @@ src/aipass/hooks/
 │   │   │   └── claude.py        # Claude Code bridge
 │   │   ├── prompt/              # Prompt injection hooks
 │   │   │   ├── branch_loader.py #   Injects aipass_local_prompt.md
-│   │   │   ├── global_loader.py #   Injects global prompt
+│   │   │   ├── tier0_kernel.py  #   Injects tier0 kernel prompt (every turn)
+│   │   │   ├── navmap.py        #   Injects tier1 navmap prompt (periodic)
 │   │   │   └── identity.py      #   Injects passport identity block
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
@@ -74,13 +75,14 @@ src/aipass/hooks/
 │   │       ├── announce.py      #   Announcement tone on notification
 │   │       ├── email.py         #   Inbox check on prompt
 │   │       ├── stop_sound.py    #   Bell on session stop
+│   │       ├── telegram_response.py # Telegram reply delivery on Stop
 │   │       └── tool_sound.py    #   Announces tool name via TTS
 │   └── handlers/config/         # Config utilities
 │       ├── loader.py            # hooks.json discovery + validation
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 472 tests across 22 test files
+└── tests/                       # 593 tests across 23 test files
 ```
 
 ## How It Works
@@ -101,11 +103,11 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 | Event | Hooks | Description |
 |---|---|---|
-| UserPromptSubmit | identity, email, branch_loader, global_loader | Prompt injection + inbox check |
+| UserPromptSubmit | identity, email, branch_loader, tier0_kernel, navmap | Prompt injection + inbox check |
 | PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
-| Stop | stop_sound | Achievement bell |
+| Stop | stop_sound, telegram_response | Achievement bell + Telegram reply delivery |
 | Notification | announce | Announcement tone |
 | PreCompact | compact, rollover | Memory archival + rollover |
 

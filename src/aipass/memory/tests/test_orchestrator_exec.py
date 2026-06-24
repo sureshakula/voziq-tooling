@@ -176,6 +176,67 @@ class TestExecuteRolloverExtraction:
         assert result["failed"][0]["error"] == "No branch in result"
 
 
+class TestExecuteRolloverExtractionSkipped:
+    """Tests for skipped extraction (race condition / no excess entries)."""
+
+    def test_skipped_extraction_skips_trigger(self, monkeypatch, tmp_path):
+        """Extraction returns skipped=True — trigger is skipped, not failed."""
+        orch, mocks = _import_orchestrator(monkeypatch)
+        trigger = _make_trigger(tmp_path)
+        mocks["detector"].check_all_branches.return_value = {
+            "success": True,
+            "triggers": [trigger],
+        }
+        mocks["extractor"].create_rollover_backup.return_value = {
+            "success": True,
+            "message": "ok",
+        }
+        mocks["extractor"].extract_with_metadata.return_value = {
+            "success": True,
+            "skipped": True,
+            "message": "No entries exceed v2 limits",
+            "entries": [],
+            "count": 0,
+        }
+
+        result = orch.execute_rollover()
+        assert result["success_count"] == 0
+        assert len(result["failed"]) == 0
+
+    def test_skipped_extraction_no_embedding_attempted(self, monkeypatch, tmp_path):
+        """Skipped extraction does not call encode_batch_subprocess."""
+        orch, mocks = _import_orchestrator(monkeypatch)
+        trigger = _make_trigger(tmp_path)
+        mocks["detector"].check_all_branches.return_value = {
+            "success": True,
+            "triggers": [trigger],
+        }
+        mocks["extractor"].create_rollover_backup.return_value = {
+            "success": True,
+            "message": "ok",
+        }
+        mocks["extractor"].extract_with_metadata.return_value = {
+            "success": True,
+            "skipped": True,
+            "message": "File under limit",
+            "entries": [],
+            "count": 0,
+        }
+
+        embed_called = {"called": False}
+        original_encode = orch.encode_batch_subprocess
+
+        def tracking_encode(texts):
+            """Wrap encode to track whether it was called."""
+            embed_called["called"] = True
+            return original_encode(texts)
+
+        monkeypatch.setattr(orch, "encode_batch_subprocess", tracking_encode)
+
+        orch.execute_rollover()
+        assert embed_called["called"] is False
+
+
 class TestExecuteRolloverEmbedding:
     """Tests for the embedding phase."""
 
@@ -218,8 +279,8 @@ class TestExecuteRolloverEmbedding:
         assert result["failed"][0]["stage"] == "embedding"
         mocks["extractor"].restore_from_backup.assert_called_once()
 
-    def test_no_embeddings_returned(self, monkeypatch, tmp_path):
-        """Embed succeeds but returns empty embeddings list."""
+    def test_no_embeddings_returned_restores_backup(self, monkeypatch, tmp_path):
+        """Embed succeeds but returns empty embeddings — must restore from backup."""
         orch, mocks = _import_orchestrator(monkeypatch)
         self._setup_to_embedding(monkeypatch, tmp_path, mocks)
 
@@ -233,6 +294,27 @@ class TestExecuteRolloverEmbedding:
         assert len(result["failed"]) == 1
         assert result["failed"][0]["stage"] == "embedding"
         assert "No embeddings" in result["failed"][0]["error"]
+        mocks["extractor"].restore_from_backup.assert_called_once()
+
+    def test_no_embeddings_restore_fails(self, monkeypatch, tmp_path):
+        """Empty embeddings + restore failure — CRITICAL data loss path."""
+        orch, mocks = _import_orchestrator(monkeypatch)
+        self._setup_to_embedding(monkeypatch, tmp_path, mocks)
+        mocks["extractor"].restore_from_backup.return_value = {
+            "success": False,
+            "error": "backup file missing",
+        }
+
+        monkeypatch.setattr(
+            orch,
+            "encode_batch_subprocess",
+            lambda texts: {"success": True, "embeddings": []},
+        )
+
+        result = orch.execute_rollover()
+        assert len(result["failed"]) == 1
+        assert result["failed"][0]["stage"] == "embedding"
+        mocks["extractor"].restore_from_backup.assert_called_once()
 
 
 class TestExecuteRolloverStorage:

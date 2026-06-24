@@ -111,6 +111,13 @@ src/aipass/*/apps/integrations/**
 !src/aipass/spawn/templates/builder/docs.local/**
 !src/aipass/spawn/templates/builder/DASHBOARD.local.json
 
+# Commons artifacts subsystem — real source code (craft/trade/capsule), NOT a
+# runtime dir. Collides with the blanket `artifacts/` ignore (line 49); *.py-only
+# negation keeps the logs/ + __pycache__/ subdirs ignored. Without this the
+# tracked test_artifacts.py imports a module absent from CI -> ImportError.
+!src/aipass/commons/apps/handlers/artifacts/
+!src/aipass/commons/apps/handlers/artifacts/*.py
+
 # CI artifacts
 windows-pytest-results/
 

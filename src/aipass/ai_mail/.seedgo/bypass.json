@@ -61,11 +61,6 @@
       "reason": "2 functions: get_user_by_email() depth 4, get_all_users() depth 4 — registry lookup with path normalization and validation"
     },
     {
-      "file": "apps/handlers/email/dashboard_sync.py",
-      "standard": "handlers",
-      "reason": "Imports prax.apps.modules.dashboard.write_section — cross-branch module import required for dashboard integration. No ai_mail module wraps this."
-    },
-    {
       "file": "apps/handlers/email/delivery.py",
       "standard": "handlers",
       "reason": "Imports json_utils.json_handler (load_json, save_json) — shared handler utility for JSON I/O, same-branch cross-handler import. Also imports registry.read.get_all_branches — consolidated from dual implementation per DPLAN-0036. Also lazy-imports email.contacts.register_contact inside _auto_register_contact() and _auto_register_sender() for post-delivery contact registration (DPLAN-0121 Phase 5). Also lazy-imports registry.read.get_caller_project_branches inside _load_caller_project_branches() to delegate to shared cross-project registry implementation (issue #283)."
@@ -119,11 +114,6 @@
       "file": "apps/handlers/email/create.py",
       "standard": "naming",
       "reason": "False positive — _append_footer is a function reference stored in a local variable, not a module-level constant."
-    },
-    {
-      "file": "apps/handlers/email/dashboard_sync.py",
-      "standard": "naming",
-      "reason": "False positive — _write_section is a lazy-import function reference, not a module-level constant."
     },
     {
       "file": "apps/handlers/email/delivery.py",
@@ -199,11 +189,6 @@
       "file": "apps/modules/email.py",
       "standard": "deep_nesting",
       "reason": "_send_direct() depth 5 (arg parsing with branch resolution, --from flag, --dispatch flag), handle_close() depth 4 (close with archive + dashboard update)"
-    },
-    {
-      "file": "apps/handlers/email/dashboard_sync.py",
-      "standard": "deep_nesting",
-      "reason": "_human_readable_age() depth 5, _calculate_section_data() depth 5 — timestamp parsing with multiple fallback formats"
     },
     {
       "file": "apps/handlers/dispatch/dispatch_monitor.py",

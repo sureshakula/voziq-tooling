@@ -156,6 +156,7 @@ def print_help():
     table.add_column("Description", style="white")
 
     table.add_row("get-key", "Retrieve API key for provider")
+    table.add_row("get-secret", "Read secret from provider store")
     table.add_row("validate", "Validate API credentials and connection")
     table.add_row("validate google", "Validate Google OAuth2 credentials")
     table.add_row("reauth google", "Re-authenticate Google OAuth2")
@@ -205,7 +206,8 @@ def print_help():
     console.print()
 
     console.print(
-        "[dim]Commands: get-key, validate, test, models, status, call, list-providers, init, track, stats, session, caller-usage, cleanup[/dim]"
+        "[dim]Commands: get-key, get-secret, validate, test, models, status, call,"
+        " list-providers, init, track, stats, session, caller-usage, cleanup[/dim]"
     )
     console.print()
 

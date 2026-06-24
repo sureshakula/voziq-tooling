@@ -22,7 +22,7 @@ from aipass.prax.apps.modules.logger import get_direct_logger
 
 logger = get_direct_logger()
 
-from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.json import json_handler  # noqa: E402
 
 # Resolve prax root from this file's location
 _PRAX_ROOT = Path(__file__).resolve().parents[3]  # .../prax/
@@ -139,7 +139,11 @@ def create_fresh_dashboard(branch_path: Path) -> Dict:
     # Fallback: hardcoded (backward compat)
     now = datetime.now().isoformat()
     return {
-        "_warning": "AUTO-GENERATED FILE - DO NOT MANUALLY EDIT. This file is 100% automated and will be overwritten. Services update their own sections.",
+        "_warning": (
+            "AUTO-GENERATED FILE - DO NOT MANUALLY EDIT."
+            " This file is 100% automated and will be overwritten."
+            " Services update their own sections."
+        ),
         "branch": branch_path.name.upper(),
         "last_updated": now,
         "quick_status": {"action_required": False},
@@ -183,35 +187,65 @@ def update_section(
     dashboard["sections"][section_name] = section_data
 
     # Recalculate quick status
-    dashboard["quick_status"] = calculate_status_func(dashboard["sections"])
+    dashboard["quick_status"] = calculate_status_func(dashboard["sections"], branch_path)
 
     return save_dashboard(branch_path, dashboard)
 
 
-def _calculate_quick_status_standalone(sections: Dict) -> Dict:
-    """
-    Calculate quick_status from live section data.
+def _read_todo_count(branch_path: Path) -> int:
+    """Read todos[] length from .trinity/local.json."""
+    local_path = branch_path / ".trinity" / "local.json"
+    if not local_path.exists():
+        return 0
+    try:
+        data = json.loads(local_path.read_text())
+        return len(data.get("todos", []))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read todos from %s: %s", local_path, exc)
+        return 0
 
-    Self-contained version used by write_section() so it has no
-    external dependencies. Reads directly from section fields.
+
+def _read_mail_counts(branch_path: Path) -> tuple:
+    """Read new/opened mail counts from .ai_mail.local/inbox.json."""
+    inbox_path = branch_path / ".ai_mail.local" / "inbox.json"
+    if not inbox_path.exists():
+        return (0, 0)
+    try:
+        data = json.loads(inbox_path.read_text())
+        new_mail = 0
+        opened_mail = 0
+        for msg in data.get("messages", []):
+            status = msg.get("status", "")
+            if status == "new" or (not status and not msg.get("read", False)):
+                new_mail += 1
+            elif status == "opened":
+                opened_mail += 1
+        return (new_mail, opened_mail)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Failed to read inbox from %s: %s", inbox_path, exc)
+        return (0, 0)
+
+
+def _calculate_quick_status_standalone(sections: Dict, branch_path: Path) -> Dict:
+    """
+    Calculate quick_status from branch data sources.
+
+    Self-contained version used by write_section(). Sources counts
+    directly from local files (inbox.json, local.json).
 
     Args:
         sections: All dashboard sections dict
+        branch_path: Path to branch root (for sourcing counts from local files)
 
     Returns:
         Quick status dict with summary, action flags, and counts
     """
-    ai_mail = sections.get("ai_mail", {})
     flow = sections.get("flow", {})
-    todo = sections.get("todo", {})
 
-    new_mail_raw = ai_mail.get("new", ai_mail.get("unread", 0))
-    opened_raw = ai_mail.get("opened", 0)
+    new_mail, opened_mail = _read_mail_counts(branch_path)
     active_plans_raw = flow.get("active_plans", 0)
-    todo_count = int(todo.get("todo_count", 0) or 0)
+    todo_count = _read_todo_count(branch_path)
 
-    new_mail = len(new_mail_raw) if isinstance(new_mail_raw, list) else int(new_mail_raw or 0)
-    opened_mail = len(opened_raw) if isinstance(opened_raw, list) else int(opened_raw or 0)
     active_plans = len(active_plans_raw) if isinstance(active_plans_raw, list) else int(active_plans_raw or 0)
 
     action_required = new_mail > 0 or active_plans > 0
@@ -296,7 +330,7 @@ def write_section(branch_path: Path, section_name: str, section_data: Dict) -> b
         dashboard["sections"][section_name] = section_data
 
         # Recalculate quick_status from live data
-        dashboard["quick_status"] = _calculate_quick_status_standalone(dashboard["sections"])
+        dashboard["quick_status"] = _calculate_quick_status_standalone(dashboard["sections"], branch_path)
 
         # Save
         saved = save_dashboard(branch_path, dashboard)

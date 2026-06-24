@@ -44,7 +44,8 @@ DEFAULTS = {
     "enabled": True,
     "period": 5,
     "loaders": {
-        "global": {"offset": 0},
+        "tier0": {"period": 1},
+        "navmap": {"period": 5, "offset": 0},
         "branch": {"offset": 0},
     },
 }
@@ -196,12 +197,14 @@ def should_fire(loader_name: str, hook_data: dict | None = None) -> bool:
     if not config.get("enabled", True):
         return True
 
-    period = config.get("period", 5)
-    if period <= 0:
-        return True
+    global_period = config.get("period", 5)
 
     loader_config = config.get("loaders", {}).get(loader_name, {})
+    period = loader_config.get("period", global_period)
     offset = loader_config.get("offset", 0)
+
+    if period <= 0:
+        return True
 
     turn = _load_and_increment(hook_data or {})
 
@@ -223,10 +226,21 @@ def should_fire(loader_name: str, hook_data: dict | None = None) -> bool:
     return fired
 
 
-def reset_counter() -> None:
+def reset_counter(hook_data: dict | None = None) -> None:
     """Reset counter to -1 so next turn reads 0 (all loaders fire). Called from PreCompact."""
     path = _state_path()
+    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+
+    if path is None and hook_data:
+        fallback_id = hook_data.get("session_id", "")
+        if fallback_id:
+            path = _GUARD_DIR / f"aipass-cadence-{fallback_id}.json"
+            session_id = fallback_id
+
+    session_short = session_id[:8] if session_id else "none"
+
     if path is None:
+        logger.info("[HOOKS] cadence: reset_counter SKIPPED — no session ID (env CLAUDE_CODE_SESSION_ID not set)")
         return
 
     fd = None
@@ -234,14 +248,26 @@ def reset_counter() -> None:
         fd = open(path, "a+")  # noqa: SIM115
         _lock(fd)
         fd.seek(0)
+        content = fd.read()
+        old_turn = -1
+        if content.strip():
+            try:
+                old_turn = json.loads(content).get("turn", -1)
+            except json.JSONDecodeError as exc:
+                logger.info("[HOOKS] cadence: reset read old state failed: %s", exc)
+        fd.seek(0)
         fd.truncate()
         fd.write(json.dumps({"turn": -1, "token": -1}))
         fd.flush()
         _close_fd(fd)
         fd = None
-        logger.info("[HOOKS] cadence: counter reset for post-compact re-injection")
+        logger.info(
+            "[HOOKS] cadence: counter reset for post-compact re-injection session=%s prev_turn=%d",
+            session_short,
+            old_turn,
+        )
     except OSError as exc:
-        logger.info("[HOOKS] cadence: reset write failed: %s", exc)
+        logger.info("[HOOKS] cadence: reset write FAILED session=%s: %s", session_short, exc)
         if fd is not None:
             _close_fd(fd)
 
@@ -256,10 +282,12 @@ def print_introspection() -> None:
     config = _load_config()
     CONSOLE.print("[bold cyan]cadence[/bold cyan] Module")
     CONSOLE.print(f"  Enabled: {config.get('enabled', True)}")
-    CONSOLE.print(f"  Period: {config.get('period', 5)} turns")
+    global_period = config.get("period", 5)
+    CONSOLE.print(f"  Period: {global_period} turns (global default)")
     loaders = config.get("loaders", {})
     for name, lcfg in loaders.items():
-        CONSOLE.print(f"  Loader '{name}': offset={lcfg.get('offset', 0)}")
+        lp = lcfg.get("period", global_period)
+        CONSOLE.print(f"  Loader '{name}': period={lp} offset={lcfg.get('offset', 0)}")
     path = _state_path()
     if path and path.exists():
         try:

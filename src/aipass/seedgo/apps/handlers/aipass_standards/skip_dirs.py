@@ -14,6 +14,14 @@ products, not committed source — scanning them causes local-vs-CI
 audit divergence (FPLAN-0261).
 """
 
+DISABLED_FILE_MARKER = "(disabled)"
+
+
+def is_disabled_file(name: str) -> bool:
+    """Return True if filename contains the (disabled) convention marker."""
+    return DISABLED_FILE_MARKER in name
+
+
 SOURCE_SKIP_DIRS: frozenset[str] = frozenset(
     {
         # Build / cache

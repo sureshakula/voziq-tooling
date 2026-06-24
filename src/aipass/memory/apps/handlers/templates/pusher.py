@@ -67,7 +67,7 @@ VERSION_FILE_PATH = TEMPLATES_DIR / ".template_version.json"
 
 # Deprecated sections to REMOVE during push
 DEPRECATED_METADATA_KEYS = ["allowed_emojis"]
-DEPRECATED_LIMIT_KEYS = ["max_word_count", "max_token_count"]
+DEPRECATED_LIMIT_KEYS = ["max_word_count", "max_token_count", "max_lines", "archive_oldest"]
 DEPRECATED_STATUS_KEYS = ["auto_compress_at"]
 DEPRECATED_NOTES_KEYS = ["formatting_reference", "slash_command_tracking"]
 DEPRECATED_GUIDELINES_KEYS = ["emoji_usage", "high_value_patterns", "low_value_patterns"]
@@ -166,17 +166,10 @@ def _merge_metadata(curr_meta: dict, tmpl_meta: dict) -> List[str]:
         curr_meta["tags"] = tmpl_tags
         changes.append("document_metadata.tags: updated to template tags")
 
-    # Limits (preserve per-branch max_lines override)
-    tmpl_limits = tmpl_meta.get("limits", {})
-    curr_limits = curr_meta.get("limits", {})
-    branch_max_lines = curr_limits.get("max_lines")
-    tmpl_max_lines = tmpl_limits.get("max_lines", 600)
-    new_limits = copy.deepcopy(tmpl_limits)
-    if branch_max_lines is not None and branch_max_lines != tmpl_max_lines:
-        new_limits["max_lines"] = branch_max_lines
-    if curr_limits != new_limits:
-        curr_meta["limits"] = new_limits
-        changes.append("document_metadata.limits: updated from template")
+    # Limits live in memory.config.json now — strip from files if still present
+    if "limits" in curr_meta:
+        del curr_meta["limits"]
+        changes.append("document_metadata.limits: removed (lives in memory.config.json)")
 
     # Status (add missing fields, preserve current values)
     curr_status = curr_meta.setdefault("status", {})
@@ -218,7 +211,7 @@ def _apply_template_to_local(current: dict, template: dict, branch_name: str) ->
     if "key_learnings" not in data:
         active = data.get("active_tasks", {})
         if not isinstance(active, dict) or "key_learnings" not in active:
-            data["key_learnings"] = {}
+            data["key_learnings"] = []
             changes.append("key_learnings: added (empty)")
 
     # Todos: add if missing (operational list, not rolled over)

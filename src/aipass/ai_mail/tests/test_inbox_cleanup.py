@@ -43,12 +43,6 @@ def _mock_inbox_lock(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _mock_dashboard(monkeypatch):
-    """Replace _get_push_dashboard_update with a no-op."""
-    monkeypatch.setattr(mod, "_get_push_dashboard_update", lambda: lambda _bp: None)
-
-
-@pytest.fixture(autouse=True)
 def _mock_central(monkeypatch):
     """Replace _get_update_central with a no-op."""
     monkeypatch.setattr(mod, "_get_update_central", lambda: lambda: None)

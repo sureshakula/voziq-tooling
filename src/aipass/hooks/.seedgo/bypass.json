@@ -72,19 +72,34 @@
       "reason": "No JSON operations \u2014 reads markdown files and outputs text."
     },
     {
-      "file": "apps/handlers/prompt/global_loader.py",
+      "file": "apps/handlers/prompt/tier0_kernel.py",
       "standard": "dead_code",
-      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.global_loader.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.global_prompt + fires in engine.jsonl."
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.tier0_kernel.handle' - not statically imported by design. Wired in UserPromptSubmit.tier0_kernel (FPLAN-0284)."
     },
     {
-      "file": "apps/handlers/prompt/global_loader.py",
+      "file": "apps/handlers/prompt/tier0_kernel.py",
       "standard": "unused_function",
-      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Verified fires in engine.jsonl (UserPromptSubmit.global_prompt)."
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.tier0_kernel (FPLAN-0284)."
     },
     {
-      "file": "apps/handlers/prompt/global_loader.py",
+      "file": "apps/handlers/prompt/tier0_kernel.py",
       "standard": "json_structure",
-      "reason": "No JSON operations \u2014 reads markdown file and outputs text."
+      "reason": "No JSON operations - reads markdown file (.aipass/tier0_kernel.md) and outputs text."
+    },
+    {
+      "file": "apps/handlers/prompt/navmap.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.navmap.handle' - not statically imported by design. Wired in UserPromptSubmit.navmap (FPLAN-0284)."
+    },
+    {
+      "file": "apps/handlers/prompt/navmap.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.navmap (FPLAN-0284)."
+    },
+    {
+      "file": "apps/handlers/prompt/navmap.py",
+      "standard": "json_structure",
+      "reason": "No JSON operations - reads markdown file (.aipass/tier1_navmap.md) and outputs text."
     },
     {
       "file": "apps/handlers/security/edit_gate.py",
@@ -229,12 +244,12 @@
     {
       "file": "apps/modules/cadence.py",
       "standard": "dead_code",
-      "reason": "Cadence module \u2014 should_fire() called from global_loader.py and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."
+      "reason": "Cadence module \u2014 should_fire() called from tier0_kernel.py, navmap.py, and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."
     },
     {
       "file": "apps/modules/cadence.py",
       "standard": "unused_function",
-      "reason": "should_fire() called from global_loader.py + branch_loader.py; reset_counter() called from compact.py. All callers are dynamically dispatched handlers."
+      "reason": "should_fire() called from tier0_kernel.py, navmap.py, branch_loader.py; reset_counter() called from compact.py. All callers are dynamically dispatched handlers."
     },
     {
       "file": "apps/modules/cadence.py",
@@ -350,6 +365,10 @@
       "file": "apps/sound.py",
       "standard": "unused_function",
       "reason": "play() called by handler files (stop_sound.py, announce.py) that are dynamically dispatched via importlib \u2014 static analysis cannot trace the call chain from hooks.json \u2192 engine \u2192 handler \u2192 sound.play()."
+    },
+    {
+      "standard": "json_handler",
+      "reason": "Hooks branch has no json_handler.py — hook engine uses its own JSONL diagnostic logging and stdlib json for hook protocol I/O. Does not follow the module JSON pattern by design."
     },
     {
       "standard": "test_quality",
@@ -567,26 +586,6 @@
     },
     {
       "file": "tests/test_branch_loader.py",
-      "standard": "meta",
-      "reason": "Test files do not need Version/Modified metadata headers."
-    },
-    {
-      "file": "tests/test_global_loader.py",
-      "standard": "architecture",
-      "reason": "Test files live in tests/, not in the 3-layer apps structure."
-    },
-    {
-      "file": "tests/test_global_loader.py",
-      "standard": "documentation",
-      "reason": "Test methods use descriptive names as documentation per pytest convention."
-    },
-    {
-      "file": "tests/test_global_loader.py",
-      "standard": "encapsulation",
-      "reason": "Tests import handlers directly to test implementation details."
-    },
-    {
-      "file": "tests/test_global_loader.py",
       "standard": "meta",
       "reason": "Test files do not need Version/Modified metadata headers."
     },
@@ -869,6 +868,36 @@
       "file": "apps/modules/sandbox.py",
       "standard": "unused_function",
       "reason": "sandbox_launch(), build_policy(), build_srt_config(), and resolve_bwrap_command() are consumed CROSS-BRANCH by ai_mail's dispatch_monitor.py (the launch seam at Phase 4). seedgo's intra-branch static analysis cannot see these callers. Verified: dispatch_monitor imports sandbox module to wire build_policy + sandbox_launch at agent launch."
+    },
+    {
+      "file": "apps/handlers/notification/telegram_response.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in Stop.telegram_response."
+    },
+    {
+      "file": "apps/handlers/notification/telegram_response.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json for JSONL transcript parsing and Telegram Bot API payloads — no branch data storage needing json_handler."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_telegram_response.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
     }
   ],
   "notes": {

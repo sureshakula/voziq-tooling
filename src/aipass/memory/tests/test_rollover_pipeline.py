@@ -82,12 +82,17 @@ def _import_extractor(monkeypatch):
     mock_memory_files.read_memory_file_data = MagicMock(return_value=None)
     mock_memory_files.write_memory_file_simple = MagicMock()
 
+    mock_config_loader = MagicMock()
+    mock_config_loader.section.return_value = {"defaults": {}, "per_branch": {}}
+
     json_pkg = MagicMock()
     json_pkg.json_handler = mock_json_handler
+    json_pkg.config_loader = mock_config_loader
 
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json", json_pkg)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.json_handler", mock_json_handler)
     monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.memory_files", mock_memory_files)
+    monkeypatch.setitem(sys.modules, "aipass.memory.apps.handlers.json.config_loader", mock_config_loader)
 
     sys.modules.pop("aipass.memory.apps.handlers.rollover.extractor", None)
     parent = sys.modules.get("aipass.memory.apps.handlers.rollover")
@@ -99,6 +104,7 @@ def _import_extractor(monkeypatch):
     return extractor, {
         "json_handler": mock_json_handler,
         "memory_files": mock_memory_files,
+        "config_loader": mock_config_loader,
     }
 
 
@@ -585,11 +591,22 @@ class TestExtractWithMetadata:
         """v2 schema extraction adds _metadata to each extracted entry."""
         ext, mocks = _import_extractor(monkeypatch)
 
-        # Create a v2 file with sessions exceeding limits
+        # Branch name derived from parent of .trinity: tmp_path name (lowercase)
+        branch_name = tmp_path.name.lower()
+
+        # Provision limits via config per_branch
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {
+                branch_name: {
+                    "local": {"sessions": {"count": 2}},
+                },
+            },
+        }
+
         data = {
             "document_metadata": {
                 "schema_version": "2.0.0",
-                "limits": {"max_sessions": 2},
                 "status": {},
             },
             "sessions": [
@@ -617,8 +634,8 @@ class TestExtractWithMetadata:
             assert "branch" in entry["_metadata"]
             assert "extracted_at" in entry["_metadata"]
 
-    def test_v1_extracts_at_exactly_max_lines(self, monkeypatch, tmp_path):
-        """v1 file at exactly max_lines should extract, not skip."""
+    def test_v2_extracts_when_observations_at_limit(self, monkeypatch, tmp_path):
+        """v2 file at entry-count limit should extract, not skip."""
         ext, mocks = _import_extractor(monkeypatch)
 
         observations = [
@@ -626,20 +643,20 @@ class TestExtractWithMetadata:
         ]
         data = {
             "document_metadata": {
-                "schema_version": "1.0.0",
-                "limits": {"max_lines": 50},
+                "schema_version": "3.0.0",
                 "status": {},
             },
             "observations": observations,
         }
-        file_path = tmp_path / "DEVPULSE.observations.json"
-        content = json.dumps(data, indent=2)
-        file_path.write_text(content, encoding="utf-8")
-        actual_lines = len(content.splitlines())
-
-        data["document_metadata"]["limits"]["max_lines"] = actual_lines
-
+        file_path = tmp_path / ".trinity" / "observations.json"
+        file_path.parent.mkdir(parents=True)
         file_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"observations": {"observations": {"count": 5}}}},
+        }
         mocks["memory_files"].read_memory_file_data.return_value = data
 
         def fake_write(fp, d):
@@ -659,8 +676,7 @@ class TestExtractWithMetadata:
         # v2 file under limits (no extraction needed)
         data = {
             "document_metadata": {
-                "schema_version": "2.0.0",
-                "limits": {"max_sessions": 10},
+                "schema_version": "3.0.0",
                 "status": {},
             },
             "sessions": [{"session_number": 1, "summary": "only one"}],
@@ -669,6 +685,11 @@ class TestExtractWithMetadata:
         file_path.parent.mkdir(parents=True)
         file_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
+        branch_key = tmp_path.name.lower()
+        mocks["config_loader"].section.return_value = {
+            "defaults": {},
+            "per_branch": {branch_key: {"local": {"sessions": {"count": 10}}}},
+        }
         mocks["memory_files"].read_memory_file_data.return_value = data
 
         result = ext.extract_with_metadata(file_path)
@@ -770,10 +791,8 @@ class TestShowStatus:
                 "TEST": {
                     "local": {
                         "current": 500,
-                        "max": 600,
                         "ready": False,
-                        "remaining": 100,
-                        "schema_version": "1.0.0",
+                        "schema_version": "3.0.0",
                     }
                 }
             },
@@ -801,10 +820,8 @@ class TestShowStatus:
                 "V2BRANCH": {
                     "local": {
                         "current": 25,
-                        "max": 20,
                         "ready": True,
-                        "remaining": 0,
-                        "schema_version": "2.0.0",
+                        "schema_version": "3.0.0",
                         "v2_reason": "sessions: 25/20",
                     }
                 }

@@ -30,6 +30,9 @@ drone @memory templates push-templates     # Push template updates to all branch
 drone @memory templates diff-templates     # Show template differences per branch
 drone @memory templates template-status    # Show template version and push status
 
+drone @memory lint                         # Audit .trinity entries for over-limit violations (read-only)
+drone @memory lint @devpulse               # Lint a specific branch
+
 drone @memory verify FPLAN-XXXX            # Check if plan is vectorized in ChromaDB
 drone @memory watch                        # Auto-rollover watcher daemon (Ctrl+C to stop)
 ```
@@ -42,7 +45,8 @@ drone @memory watch                        # Auto-rollover watcher daemon (Ctrl+
 memory/
 ├── apps/
 │   ├── memory.py                # Entry point — auto-discovers modules
-│   ├── modules/                 # 5 modules
+│   ├── modules/                 # 6 modules
+│   │   ├── lint.py              # Entry limit violation scanner (read-only)
 │   │   ├── rollover.py          # Rollover orchestration, status, sync-lines
 │   │   ├── search.py            # Semantic query routing
 │   │   ├── symbolic.py          # Fragmented memory extraction and search
@@ -51,7 +55,7 @@ memory/
 │   └── handlers/                # 14 handler groups
 │       ├── archive/             # indexer.py
 │       ├── intake/              # plans_processor.py, pool_processor.py
-│       ├── json/                # json_handler.py, memory_files.py
+│       ├── json/                # json_handler.py, memory_files.py, entry_limits.py, lint_handler.py, config_loader.py
 │       ├── learnings/           # manager.py
 │       ├── monitor/             # detector.py, memory_watcher.py
 │       ├── rollover/            # extractor.py, orchestrator.py
@@ -63,11 +67,10 @@ memory/
 │       ├── tracking/            # line_counter.py
 │       ├── vector/              # embedder.py, embed_subprocess.py
 │       └── central_writer.py
-├── config/                      # memory.config.json — per-branch rollover limits
 ├── templates/                   # LOCAL.template.json, OBSERVATIONS.template.json
-├── tests/                       # 839 tests (28 test files)
+├── tests/                       # 949 tests (31 test files)
 ├── .chroma/                     # ChromaDB vector store
-└── memory_json/                 # Operation log files (auto-created)
+└── memory_json/                 # Operation logs + custom_config/memory.config.json
 ```
 
 ### Rollover Pipeline
@@ -112,8 +115,8 @@ All ML operations (fastembed, chromadb) run via subprocess. The main process nev
 
 ## Quality
 
-- **Tests:** 839 passed, 0 failures, 0 skips
-- **Test files:** 28
+- **Tests:** 949 passed, 0 failures, 0 skips
+- **Test files:** 31
 - **Seedgo:** 100% — maintained since s12
 
 ---

@@ -82,7 +82,8 @@ def print_help():
     console.print()
     console.print(
         Panel.fit(
-            "[bold cyan]Memory - Central Memory Archive System[/bold cyan]\n[dim]Vector search, memory rollover, and fragmented memory for AIPass[/dim]",
+            "[bold cyan]Memory - Central Memory Archive System[/bold cyan]\n"
+            "[dim]Vector search, memory rollover, and fragmented memory for AIPass[/dim]",
             border_style="cyan",
             box=box.ROUNDED,
         )
@@ -114,12 +115,14 @@ def print_help():
     table.add_row("rollover status", "Show rollover statistics")
     table.add_row("rollover check", "Dry run — check what needs rollover")
     table.add_row("rollover sync-lines", "Update line count metadata")
+    table.add_row("rollover push", "⚠ Reset ALL per_branch limits to defaults (system-wide)")
     table.add_row("search <query>", "Semantic search across all branch memories")
     table.add_row("symbolic <subcommand>", "Symbolic/fragmented memory extraction and search")
     table.add_row("templates <subcommand>", "Living template push, diff, and status")
     table.add_row("pool process", "Process pool files + check/run rollover")
     table.add_row("pool status", "Show pool file count, config, vector stats")
     table.add_row("verify <plan_label>", "Check if a plan is vectorized in ChromaDB")
+    table.add_row("lint [@branch]", "Audit .trinity entries for over-limit violations (read-only)")
     table.add_row("watch", "Start memory watcher (auto-rollover on changes)")
 
     console.print(table)
@@ -166,7 +169,8 @@ def print_help():
     console.print()
 
     console.print(
-        "Commands: search, rollover [run|status|check|sync-lines], pool [process|status], symbolic, templates, verify, watch"
+        "Commands: search, rollover [run|status|check|sync-lines|push], lint,"
+        " pool [process|status], symbolic, templates, verify, watch"
     )
     console.print()
 
@@ -231,6 +235,9 @@ def route_command(command: str, args: List[str], modules: List[Any]) -> bool:
         start_watch()
         return True
 
+    if command == "push":
+        return route_command("rollover", ["push"], modules)
+
     for module in modules:
         try:
             if module.handle_command(command, args):
@@ -250,8 +257,8 @@ def start_watch() -> None:
     """
     Start memory watcher - monitors branch memory files for auto-rollover
 
-    Watches all branches from AIPASS_REGISTRY.json. When a memory file
-    exceeds 600 lines, automatically triggers rollover.
+    Watches all branches from AIPASS_REGISTRY.json. When entry counts
+    exceed v2 limits, automatically triggers rollover.
 
     Press Ctrl+C to stop.
     """

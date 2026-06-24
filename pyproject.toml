@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aipass"
-version = "2.5.3"
+version = "2.6.0"
 description = "A local multi-agent framework where your AI agents keep their memory, work together, and never ask you to re-explain context"
 readme = "README.md"
 license = "MIT"
@@ -31,6 +31,7 @@ dependencies = [
     "requests>=2.34.2",
     "psutil>=5.9",
     "questionary>=2.0",
+    "pathspec>=0.12",
 ]
 
 [project.urls]
@@ -73,7 +74,11 @@ packages = ["src/aipass"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "src"]
-norecursedirs = ["templates", "*.egg-info", ".git", ".venv", "__pycache__", ".archive", "my-project"]
+# ".*" restores pytest's default dot-dir exclusion (dropped when this list was
+# customized) so scaffolding dirs (.aipass, .trinity, .seedgo, ...) are never
+# recursed for tests — prevents conftest module-name collisions like a bundled
+# skill's .aipass/.../tests/conftest.py clashing with a branch's tests/conftest.py.
+norecursedirs = ["templates", "*.egg-info", ".*", "__pycache__", "my-project"]
 
 [tool.coverage.run]
 source = ["src/aipass"]

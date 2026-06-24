@@ -1,390 +1,390 @@
 {
-  "metadata": {
-    "version": "1.0.0",
-    "last_updated": "2026-06-10",
-    "description": "Template file tracking registry for ID-based updates"
+  "directories": {
+    "d001": {
+      "has_branch_placeholder": false,
+      "name": ".ai_mail.local",
+      "path": ".ai_mail.local"
+    },
+    "d003": {
+      "has_branch_placeholder": false,
+      "name": ".aipass",
+      "path": ".aipass"
+    },
+    "d004": {
+      "has_branch_placeholder": false,
+      "name": ".archive",
+      "path": ".archive"
+    },
+    "d005": {
+      "has_branch_placeholder": false,
+      "name": ".claude",
+      "path": ".claude"
+    },
+    "d006": {
+      "has_branch_placeholder": false,
+      "name": ".seedgo",
+      "path": ".seedgo"
+    },
+    "d007": {
+      "has_branch_placeholder": false,
+      "name": ".trinity",
+      "path": ".trinity"
+    },
+    "d008": {
+      "has_branch_placeholder": false,
+      "name": "apps",
+      "path": "apps"
+    },
+    "d009": {
+      "has_branch_placeholder": false,
+      "name": "handlers",
+      "path": "apps/handlers"
+    },
+    "d010": {
+      "has_branch_placeholder": false,
+      "name": "modules",
+      "path": "apps/modules"
+    },
+    "d011": {
+      "has_branch_placeholder": false,
+      "name": "plugins",
+      "path": "apps/plugins"
+    },
+    "d012": {
+      "has_branch_placeholder": false,
+      "name": "artifacts",
+      "path": "artifacts"
+    },
+    "d013": {
+      "has_branch_placeholder": false,
+      "name": "docs",
+      "path": "docs"
+    },
+    "d014": {
+      "has_branch_placeholder": false,
+      "name": "docs.local",
+      "path": "docs.local"
+    },
+    "d015": {
+      "has_branch_placeholder": false,
+      "name": "sub_agent_drops",
+      "path": "docs.local/sub_agent_drops"
+    },
+    "d016": {
+      "has_branch_placeholder": false,
+      "name": "dropbox",
+      "path": "dropbox"
+    },
+    "d017": {
+      "has_branch_placeholder": false,
+      "name": "logs",
+      "path": "logs"
+    },
+    "d018": {
+      "has_branch_placeholder": false,
+      "name": "templates",
+      "path": "templates"
+    },
+    "d019": {
+      "has_branch_placeholder": false,
+      "name": "tests",
+      "path": "tests"
+    },
+    "d020": {
+      "has_branch_placeholder": false,
+      "name": "tools",
+      "path": "tools"
+    },
+    "d021": {
+      "has_branch_placeholder": true,
+      "name": "{{BRANCH}}_json",
+      "path": "{{BRANCH}}_json"
+    },
+    "d022": {
+      "has_branch_placeholder": false,
+      "name": "custom_config",
+      "path": "{{BRANCH}}_json/custom_config"
+    },
+    "d023": {
+      "has_branch_placeholder": false,
+      "name": ".spawn",
+      "path": ".spawn"
+    },
+    "d024": {
+      "has_branch_placeholder": false,
+      "name": "integrations",
+      "path": "apps/integrations"
+    }
   },
   "files": {
     "f001": {
-      "path": ".ai_mail.local/README.md",
-      "name": "README.md",
       "content_hash": "49299c242a01",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".ai_mail.local/README.md"
     },
     "f002": {
-      "path": ".ai_mail.local/inbox.json",
-      "name": "inbox.json",
       "content_hash": "c9702fe2cc21",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "inbox.json",
+      "path": ".ai_mail.local/inbox.json"
     },
     "f003": {
-      "path": ".aipass/README.md",
-      "name": "README.md",
       "content_hash": "f42d87684fdf",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".aipass/README.md"
     },
     "f004": {
-      "path": ".aipass/aipass_local_prompt.md",
-      "name": "aipass_local_prompt.md",
       "content_hash": "bf82b35fa7d5",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "aipass_local_prompt.md",
+      "path": ".aipass/aipass_local_prompt.md"
     },
     "f005": {
-      "path": ".archive/README.md",
-      "name": "README.md",
       "content_hash": "93d3fcb74f23",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".archive/README.md"
     },
     "f006": {
-      "path": ".claude/README.md",
-      "name": "README.md",
       "content_hash": "adb0ce8c53c1",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".claude/README.md"
     },
     "f007": {
-      "path": ".claude/settings.local.json",
-      "name": "settings.local.json",
       "content_hash": "eacf065629cd",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "settings.local.json",
+      "path": ".claude/settings.local.json"
     },
     "f008": {
-      "path": ".gitignore",
-      "name": ".gitignore",
       "content_hash": "2dd6758a96d5",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": ".gitignore",
+      "path": ".gitignore"
     },
     "f009": {
-      "path": ".seedgo/README.md",
-      "name": "README.md",
       "content_hash": "ea03468bbf16",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".seedgo/README.md"
     },
     "f010": {
-      "path": ".seedgo/bypass.json",
-      "name": "bypass.json",
       "content_hash": "0ac90a35515b",
-      "has_branch_placeholder": false
-    },
-    "f024": {
-      "path": ".spawn/.registry_ignore.json",
-      "name": ".registry_ignore.json",
-      "content_hash": "34f5e7ff7e01",
-      "has_branch_placeholder": false
-    },
-    "f043": {
-      "path": ".spawn/README.md",
-      "name": "README.md",
-      "content_hash": "e22ad5337efd",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "bypass.json",
+      "path": ".seedgo/bypass.json"
     },
     "f011": {
-      "path": ".trinity/README.md",
-      "name": "README.md",
       "content_hash": "f461c9b16fc5",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".trinity/README.md"
     },
     "f012": {
-      "path": ".trinity/local.json",
-      "name": "local.json",
       "content_hash": "8f8a98e42d92",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "local.json",
+      "path": ".trinity/local.json"
     },
     "f013": {
-      "path": ".trinity/observations.json",
-      "name": "observations.json",
       "content_hash": "62160dfa243c",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "observations.json",
+      "path": ".trinity/observations.json"
     },
     "f014": {
-      "path": ".trinity/passport.json",
-      "name": "passport.json",
       "content_hash": "a05a4352e7a9",
-      "has_branch_placeholder": false
-    },
-    "f016": {
-      "path": "DASHBOARD.local.json",
-      "name": "DASHBOARD.local.json",
-      "content_hash": "f4775daf1f75",
-      "has_branch_placeholder": false
-    },
-    "f017": {
-      "path": "README.md",
-      "name": "README.md",
-      "content_hash": "ad99517a50f9",
-      "has_branch_placeholder": false
-    },
-    "f019": {
-      "path": "apps/README.md",
-      "name": "README.md",
-      "content_hash": "92a956009e0e",
-      "has_branch_placeholder": false
-    },
-    "f020": {
-      "path": "apps/__init__.py",
-      "name": "__init__.py",
-      "content_hash": "0ef6c27137dc",
-      "has_branch_placeholder": false
-    },
-    "f021": {
-      "path": "apps/handlers/README.md",
-      "name": "README.md",
-      "content_hash": "2e4f4a0c1b47",
-      "has_branch_placeholder": false
-    },
-    "f022": {
-      "path": "apps/handlers/__init__.py",
-      "name": "__init__.py",
-      "content_hash": "dbfc0e044461",
-      "has_branch_placeholder": false
-    },
-    "f044": {
-      "path": "apps/integrations/README.md",
-      "name": "README.md",
-      "content_hash": "31c09afe1299",
-      "has_branch_placeholder": false
-    },
-    "f023": {
-      "path": "apps/modules/README.md",
-      "name": "README.md",
-      "content_hash": "a4cf0a8e3b4f",
-      "has_branch_placeholder": false
-    },
-    "f018": {
-      "path": "apps/modules/__init__.py",
-      "name": "__init__.py",
-      "content_hash": "e3b0c44298fc",
-      "has_branch_placeholder": false
-    },
-    "f025": {
-      "path": "apps/plugins/README.md",
-      "name": "README.md",
-      "content_hash": "d1e4e2b98c38",
-      "has_branch_placeholder": false
-    },
-    "f027": {
-      "path": "apps/{{BRANCH}}.py",
-      "name": "{{BRANCH}}.py",
-      "content_hash": "024209a8c889",
-      "has_branch_placeholder": true
-    },
-    "f028": {
-      "path": "artifacts/README.md",
-      "name": "README.md",
-      "content_hash": "de20d11e5cfd",
-      "has_branch_placeholder": false
-    },
-    "f029": {
-      "path": "artifacts/birth_certificate.json",
-      "name": "birth_certificate.json",
-      "content_hash": "0b6e4319781e",
-      "has_branch_placeholder": false
-    },
-    "f030": {
-      "path": "docs/README.md",
-      "name": "README.md",
-      "content_hash": "2434da568727",
-      "has_branch_placeholder": false
-    },
-    "f031": {
-      "path": "docs.local/README.md",
-      "name": "README.md",
-      "content_hash": "c19d8872ea2c",
-      "has_branch_placeholder": false
-    },
-    "f032": {
-      "path": "docs.local/sub_agent_drops/README.md",
-      "name": "README.md",
-      "content_hash": "e3e5a6b9c9c5",
-      "has_branch_placeholder": false
-    },
-    "f033": {
-      "path": "dropbox/README.md",
-      "name": "README.md",
-      "content_hash": "9e1e9b71f93b",
-      "has_branch_placeholder": false
-    },
-    "f034": {
-      "path": "logs/README.md",
-      "name": "README.md",
-      "content_hash": "4ca207af6bd3",
-      "has_branch_placeholder": false
-    },
-    "f035": {
-      "path": "pytest.ini",
-      "name": "pytest.ini",
-      "content_hash": "7b39ba7bca40",
-      "has_branch_placeholder": false
-    },
-    "f045": {
-      "path": "requirements.project.txt",
-      "name": "requirements.project.txt",
-      "content_hash": "1facc521802b",
-      "has_branch_placeholder": false
-    },
-    "f036": {
-      "path": "templates/README.md",
-      "name": "README.md",
-      "content_hash": "73b020b003f9",
-      "has_branch_placeholder": false
-    },
-    "f037": {
-      "path": "tests/README.md",
-      "name": "README.md",
-      "content_hash": "c157895c9b27",
-      "has_branch_placeholder": false
-    },
-    "f038": {
-      "path": "tests/__init__.py",
-      "name": "__init__.py",
-      "content_hash": "881f06bb6574",
-      "has_branch_placeholder": false
-    },
-    "f039": {
-      "path": "tests/conftest.py",
-      "name": "conftest.py",
-      "content_hash": "97f220799d19",
-      "has_branch_placeholder": false
-    },
-    "f040": {
-      "path": "tools/README.md",
-      "name": "README.md",
-      "content_hash": "3c7eaedb16ac",
-      "has_branch_placeholder": false
-    },
-    "f041": {
-      "path": "{{BRANCH}}_json/README.md",
-      "name": "README.md",
-      "content_hash": "e64fa555e7b8",
-      "has_branch_placeholder": false
-    },
-    "f042": {
-      "path": "{{BRANCH}}_json/custom_config/README.md",
-      "name": "README.md",
-      "content_hash": "28e9ae373563",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "passport.json",
+      "path": ".trinity/passport.json"
     },
     "f015": {
-      "path": "apps/plugins/__init__.py",
-      "name": "__init__.py",
       "content_hash": "e3b0c44298fc",
-      "has_branch_placeholder": false
+      "has_branch_placeholder": false,
+      "name": "__init__.py",
+      "path": "apps/plugins/__init__.py"
+    },
+    "f016": {
+      "content_hash": "f4775daf1f75",
+      "has_branch_placeholder": false,
+      "name": "DASHBOARD.local.json",
+      "path": "DASHBOARD.local.json"
+    },
+    "f017": {
+      "content_hash": "ad99517a50f9",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "README.md"
+    },
+    "f018": {
+      "content_hash": "e3b0c44298fc",
+      "has_branch_placeholder": false,
+      "name": "__init__.py",
+      "path": "apps/modules/__init__.py"
+    },
+    "f019": {
+      "content_hash": "92a956009e0e",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "apps/README.md"
+    },
+    "f020": {
+      "content_hash": "0ef6c27137dc",
+      "has_branch_placeholder": false,
+      "name": "__init__.py",
+      "path": "apps/__init__.py"
+    },
+    "f021": {
+      "content_hash": "2e4f4a0c1b47",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "apps/handlers/README.md"
+    },
+    "f022": {
+      "content_hash": "dbfc0e044461",
+      "has_branch_placeholder": false,
+      "name": "__init__.py",
+      "path": "apps/handlers/__init__.py"
+    },
+    "f023": {
+      "content_hash": "a4cf0a8e3b4f",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "apps/modules/README.md"
+    },
+    "f024": {
+      "content_hash": "34f5e7ff7e01",
+      "has_branch_placeholder": false,
+      "name": ".registry_ignore.json",
+      "path": ".spawn/.registry_ignore.json"
+    },
+    "f025": {
+      "content_hash": "d1e4e2b98c38",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "apps/plugins/README.md"
+    },
+    "f027": {
+      "content_hash": "024209a8c889",
+      "has_branch_placeholder": true,
+      "name": "{{BRANCH}}.py",
+      "path": "apps/{{BRANCH}}.py"
+    },
+    "f028": {
+      "content_hash": "de20d11e5cfd",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "artifacts/README.md"
+    },
+    "f029": {
+      "content_hash": "0b6e4319781e",
+      "has_branch_placeholder": false,
+      "name": "birth_certificate.json",
+      "path": "artifacts/birth_certificate.json"
+    },
+    "f030": {
+      "content_hash": "2434da568727",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "docs/README.md"
+    },
+    "f031": {
+      "content_hash": "c19d8872ea2c",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "docs.local/README.md"
+    },
+    "f032": {
+      "content_hash": "e3e5a6b9c9c5",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "docs.local/sub_agent_drops/README.md"
+    },
+    "f033": {
+      "content_hash": "9e1e9b71f93b",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "dropbox/README.md"
+    },
+    "f034": {
+      "content_hash": "4ca207af6bd3",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "logs/README.md"
+    },
+    "f035": {
+      "content_hash": "7b39ba7bca40",
+      "has_branch_placeholder": false,
+      "name": "pytest.ini",
+      "path": "pytest.ini"
+    },
+    "f036": {
+      "content_hash": "73b020b003f9",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "templates/README.md"
+    },
+    "f037": {
+      "content_hash": "c157895c9b27",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "tests/README.md"
+    },
+    "f038": {
+      "content_hash": "881f06bb6574",
+      "has_branch_placeholder": false,
+      "name": "__init__.py",
+      "path": "tests/__init__.py"
+    },
+    "f039": {
+      "content_hash": "97f220799d19",
+      "has_branch_placeholder": false,
+      "name": "conftest.py",
+      "path": "tests/conftest.py"
+    },
+    "f040": {
+      "content_hash": "3c7eaedb16ac",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "tools/README.md"
+    },
+    "f041": {
+      "content_hash": "e64fa555e7b8",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "{{BRANCH}}_json/README.md"
+    },
+    "f042": {
+      "content_hash": "28e9ae373563",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "{{BRANCH}}_json/custom_config/README.md"
+    },
+    "f043": {
+      "content_hash": "e22ad5337efd",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": ".spawn/README.md"
+    },
+    "f044": {
+      "content_hash": "31c09afe1299",
+      "has_branch_placeholder": false,
+      "name": "README.md",
+      "path": "apps/integrations/README.md"
+    },
+    "f045": {
+      "content_hash": "1facc521802b",
+      "has_branch_placeholder": false,
+      "name": "requirements.project.txt",
+      "path": "requirements.project.txt"
     }
   },
-  "directories": {
-    "d001": {
-      "path": ".ai_mail.local",
-      "name": ".ai_mail.local",
-      "has_branch_placeholder": false
-    },
-    "d003": {
-      "path": ".aipass",
-      "name": ".aipass",
-      "has_branch_placeholder": false
-    },
-    "d004": {
-      "path": ".archive",
-      "name": ".archive",
-      "has_branch_placeholder": false
-    },
-    "d005": {
-      "path": ".claude",
-      "name": ".claude",
-      "has_branch_placeholder": false
-    },
-    "d006": {
-      "path": ".seedgo",
-      "name": ".seedgo",
-      "has_branch_placeholder": false
-    },
-    "d023": {
-      "path": ".spawn",
-      "name": ".spawn",
-      "has_branch_placeholder": false
-    },
-    "d007": {
-      "path": ".trinity",
-      "name": ".trinity",
-      "has_branch_placeholder": false
-    },
-    "d008": {
-      "path": "apps",
-      "name": "apps",
-      "has_branch_placeholder": false
-    },
-    "d009": {
-      "path": "apps/handlers",
-      "name": "handlers",
-      "has_branch_placeholder": false
-    },
-    "d024": {
-      "path": "apps/integrations",
-      "name": "integrations",
-      "has_branch_placeholder": false
-    },
-    "d010": {
-      "path": "apps/modules",
-      "name": "modules",
-      "has_branch_placeholder": false
-    },
-    "d011": {
-      "path": "apps/plugins",
-      "name": "plugins",
-      "has_branch_placeholder": false
-    },
-    "d012": {
-      "path": "artifacts",
-      "name": "artifacts",
-      "has_branch_placeholder": false
-    },
-    "d013": {
-      "path": "docs",
-      "name": "docs",
-      "has_branch_placeholder": false
-    },
-    "d014": {
-      "path": "docs.local",
-      "name": "docs.local",
-      "has_branch_placeholder": false
-    },
-    "d015": {
-      "path": "docs.local/sub_agent_drops",
-      "name": "sub_agent_drops",
-      "has_branch_placeholder": false
-    },
-    "d016": {
-      "path": "dropbox",
-      "name": "dropbox",
-      "has_branch_placeholder": false
-    },
-    "d017": {
-      "path": "logs",
-      "name": "logs",
-      "has_branch_placeholder": false
-    },
-    "d018": {
-      "path": "templates",
-      "name": "templates",
-      "has_branch_placeholder": false
-    },
-    "d019": {
-      "path": "tests",
-      "name": "tests",
-      "has_branch_placeholder": false
-    },
-    "d020": {
-      "path": "tools",
-      "name": "tools",
-      "has_branch_placeholder": false
-    },
-    "d021": {
-      "path": "{{BRANCH}}_json",
-      "name": "{{BRANCH}}_json",
-      "has_branch_placeholder": true
-    },
-    "d022": {
-      "path": "{{BRANCH}}_json/custom_config",
-      "name": "custom_config",
-      "has_branch_placeholder": false
-    }
+  "metadata": {
+    "description": "Template file tracking registry for ID-based updates",
+    "last_updated": "2026-06-11",
+    "version": "1.0.0"
   }
 }

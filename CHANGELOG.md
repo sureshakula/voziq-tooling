@@ -9,6 +9,415 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-23]
+
+The **2.6.0** release — a large `dev → main` merge spanning several weeks (68 commits).
+Headline changes below; the granular per-merge history is in the dated sections that follow.
+
+### Added
+
+- **Compass v2** — devpulse-owned SQLite/FTS5 rated-decision engine + `/compass`
+  human-triggered capture (separate from @memory; DB gitignored).
+- **Decentralized daemon scheduler** — each branch owns `.daemon/schedule.json`;
+  the daemon discovers and fires.
+- **Telegram skill** — the Dev-Pass bridge ported to a self-contained AIPass skill
+  that consumes services as opt-in imports.
+- **Tiered prompt injection** — Tier 0 kernel every turn + Tier 1 navmap by cadence,
+  replacing the single always-on global prompt.
+- **seedgo `HARDCODED_PATH` standard (#37)** — flags hardcoded home paths in source
+  and docstrings.
+
+### Changed
+
+- **@backup fully restored** — `aipass.backup.*` namespace, 9-stage Rich CLI,
+  versioned baseline + per-file diff engine, Google Drive sync + `restore`.
+- **Memory subsystem unified** — single-source config limits, char-limit edit-gate,
+  unified entry schema, rollover safety + the silent-rollover repair.
+- **Legacy global prompt retired** across every runtime — Claude (cadence) and Codex
+  (SessionStart) read the same tier files.
+- **@daemon / @commons / @skills** revived to working citizens.
+- Public source genericized — `Patrick` → `user` (private memories stay gitignored).
+
+### Fixed
+
+- **Secrets hardening** — no secret value reaches stdout (cleared CodeQL #86-88,
+  `py/clear-text-logging-sensitive-data`).
+- **Memory rollover was silently dead** — the PreCompact hook now delegates to
+  `drone @memory rollover`; the v1 line-count / 600-line fallback removed entirely.
+- **Hardcoded home paths removed (seedgo #37).** `@memory` `symbolic.py` builds its
+  8 dash-encoded branch-path names at runtime (was a literal `-home-patrick-`);
+  `@prax` `branch_detector.py` docstrings genericized. Both back to 100%
+  `Hardcoded_Path`.
+- Green-CI fixes across Linux / Windows / macOS; `dispatch_monitor` PID-`429`
+  substring bug; git post-merge friction (FF-only realign).
+
+## [2026-06-19]
+
+### Fixed
+
+- **`aipass init` now seeds the tiered prompts to new projects (@aipass).** The
+  init template + bootstrap still handed new projects the retired global prompt
+  with no tiers; now `.aipass/project_hooks.json` mirrors the live wiring
+  (`tier0_kernel` + `navmap` enabled, `global_prompt` disabled) and `bootstrap.py`
+  seeds both tier `.md` files. `init update` backfills existing projects.
+  (77 bootstrap tests, 100% seedgo.)
+- **Cadence reset observability (@hooks).** `reset_counter()` silently no-op'd
+  when the Claude session id was absent; it now fails loud, logs the session id +
+  prior turn on each reset, falls back to hook data for the id, and handles a
+  corrupt state file. (The post-compaction counter reset was already working —
+  this makes it visible so it can't fail invisibly.)
+- **Memory rollover was silently dead — fixed end-to-end (@hooks + @memory).** The
+  PreCompact rollover hook read its limits from `.trinity` file metadata, but
+  DPLAN-0210 had moved limits into @memory's `memory.config.json` — so the hook
+  always fell back to a 600-line check the lean files never reached, and rollover
+  never fired (for weeks). The hook is now a thin trigger delegating to
+  `drone @memory rollover check/run`; `compact.py` reads the current list schema
+  (it was calling `.keys()` on a now-list `key_learnings`). Both fail loud instead
+  of a silent exit-0.
+- **Removed @memory's v1 line-count / 600-line silent fallback entirely.** The
+  detector + extractor are now v2-only (`per_branch` → `defaults` → warn-and-skip);
+  a parse failure logs loud and skips rather than silently falling back. Deleted
+  `_get_max_lines` / `_load_config` / `_detect_growing_array` / the line-count
+  extraction path. (959 tests.)
+
+### Removed
+
+- **Legacy global prompt fully retired across every runtime (DPLAN-0215).** After
+  the tiered cutover the old `global_prompt` is now gone, not just disabled:
+  `global_loader.py` + its tests deleted, the `global_prompt` block stripped from
+  `.aipass/hooks.json` + `project_hooks.json`, `_resolve_global_prompt` + all global
+  seeding removed from `aipass init` bootstrap/update, the cadence default + bypass
+  entries cleaned, and both `aipass_global_prompt.md` / `project_global_prompt.md`
+  archived. Claude (cadence) and Codex (SessionStart) now read the same tier files —
+  one prompt source, every runtime.
+
+### Added
+
+- **seedgo `HARDCODED_PATH` standard (#37).** A new checker (`hardcoded_path_check.py`
+  + `hardcoded_path_content.py`, `test_checkers_batch10.py`) flags hardcoded home
+  paths — `/home/<user>` and dash-encoded `-home-<user>-` — in source and docstrings,
+  keeping the public repo clean.
+
+## [2026-06-18]
+
+### Changed
+
+- **Prompt injection is now tiered by cadence instead of one 8k always-on block
+  (FPLAN-0284 / DPLAN-0214).** The single global prompt is split into two
+  cadence-throttled tiers: **Tier 0** (`.aipass/tier0_kernel.md`, ~2k) injects
+  every turn — identity grounding, the `drone @agent --help` reflex, and the
+  disaster-preventer rules; **Tier 1** (`.aipass/tier1_navmap.md`, ~7.7k)
+  injects every 5th turn plus at session start and right after compaction — the
+  full agent roster, framework, conventions, and a new Terminology section. The
+  hook engine gained per-loader cadence periods; the old `global_prompt` loader
+  is retired (kept as a reference snapshot). Net: more navigation context
+  reaches agents while less is paid per turn. Fresh-clone wiring is seeded from
+  `cadence.py` defaults + `setup.sh` + `provider_manifest.json`.
+- **Public source genericized — `Patrick` → generic `user`.** No personal
+  identifiers in tracked code/docs: the compass decision-source enum
+  (`patrick` → `user`) + the `/compass` command, the devpulse local prompt, the
+  `aipass init` onboarding example (`--name Patrick` → `--name YourName`), and
+  stale refs across @ai_mail / @backup / @flow. Private memories (`.trinity/`,
+  compass DB) keep personal context — they're gitignored.
+- **Telegram skill genericized (@skills).** Retired the inactive `patrick_private`
+  personal bot from the skill's tests; the message sender now defaults to the
+  Telegram user's first name (fallback `User`) instead of a hardcoded `Patrick`.
+
+### Added
+
+- **Prompt-craft conventions harvested from Claude Code's own prompts
+  (DPLAN-0213).** A `Writing voice` section in `.aipass/PROMPT_STYLE.md`
+  (`file_path:line` refs, write-for-a-person, three-tier "where detail lives");
+  a blast-radius habit in the devpulse prompt; faithful-reporting +
+  no-gold-plating folded into the Tier 0 kernel.
+- **Skill frontmatter discipline (@skills).** A `when_to_use` field with trigger
+  phrases (surfaced during discovery scans) and per-step "Done when:" success
+  criteria across the SKILL.md templates.
+- **`HARDCODED_PATH` standard (@seedgo, 37th checker).** Flags absolute home-dir
+  literals in source — POSIX `/home/<user>/`, macOS `/Users/<user>/`, Windows
+  user-home paths, and Claude Code's dash-encoded `-home-<user>-` form — with a
+  bypass for legitimate test fixtures. Swept the repo for violations.
+- **`prompt_change` flow playbook (PPLAN template).** A reusable SOP for changing
+  any injected prompt — leads with "live ≠ seeded" and walks every wiring layer +
+  fresh-install seed path; born from the `aipass init` seeding gap this surfaced.
+
+## [2026-06-16]
+
+### Security
+
+- **Secrets door hardened — no raw secret value ever reaches stdout
+  (DPLAN-0211).** `@api get-secret` previously printed retrieved secret values
+  to stdout — an acute exposure in AIPass because Claude Code captures command
+  stdout into the model context. The command now emits a **masked summary** by
+  default (`provider/slug: set (N chars)`), writes the raw value only to a
+  `0600`-mode file via `--out FILE` (printing just the path), and `--list`
+  prints slug **names** only. The `telegram` skill — the sole consumer — was
+  rewired from subprocess-parsing `get-secret` stdout to the **in-process
+  secrets module API**. Clears CodeQL clear-text-logging alerts #86/#87/#88.
+
+### Fixed
+
+- **`@ai_mail` dispatch monitor mislabeled failures as "API rate limit" on a
+  PID-`429` collision.** The monitor classifies dispatch failures by
+  substring-scanning the stderr log for `"429"`/`"529"`, but that log includes
+  the monitor's own header line `(PID <pid>)`. A monitor PID containing `"429"`
+  (e.g. `14290`) was read as an HTTP 429, overwriting the real bounce reason
+  (e.g. sandbox-abort `-4`) with "API rate limit" — and flaking
+  `test_sandbox_failure_sends_bounce` deterministically-by-PID in CI. The scan
+  now excludes the monitor's own `--- ` framing lines; genuine `429`/`529`
+  markers in agent output are still detected.
+
+## [2026-06-15]
+
+### Added
+
+- **Telegram bridge ported into AIPass as a self-contained skill (FPLAN-0277).**
+  The Dev-Pass Telegram bridge (multi-bot long-poll listener → tmux Claude
+  injection → Stop-hook reply) is ported AS-WAS into a self-contained `telegram`
+  skill that consumes AIPass services instead of bespoke wiring: secrets via the
+  new `@api get-secret`, logging via `@prax`, and the outbound Stop hook
+  registered through the `@hooks` engine. Three phases — **P1 `@api`** adds
+  `get-secret <provider/slug> [--json|--list]` + `auth/secrets.py` (reads
+  `~/.secrets/aipass/`); **P2 `@skills`** ports the 14-file bridge (~5,300 lines)
+  + ~424 tests into `.aipass/skills/telegram/`, rewiring every seam to services;
+  **P3 `@hooks`** ports `telegram_response.py` (the reply path, with the 3-layer
+  SubagentStop/sidechain/transcript-cursor defense intact) and registers it on
+  the Stop event. A 366-tag completeness map (`TELEGRAM_PORT_MAP.md`) audited the
+  port: **288 verified, 23 gaps** (top gap — a missing test log-isolation fixture
+  — now fixed), **55 deferred to a live round-trip**. Live bring-up (real bot
+  creds, systemd install, telethon auth, message round-trip) is still pending.
+
+## [2026-06-13]
+
+### Changed
+
+- **Unified memory entry schema — Phase 1 (DPLAN-0207).** All four `.trinity`
+  entry types (`key_learnings`, `sessions`, `todos`, `observations`) move to one
+  shape: numbered + dated, list-shaped, newest-first. `key_learnings` converts
+  from a dict to a numbered list; the rollover extractor now trims the **oldest
+  by number from the tail**, and the schema normalizer self-heals ordering by
+  re-sorting on `number` — so an out-of-order write can never archive a fresh
+  entry (the bug surfaced in S229, where rollover ate the *newest* key_learning
+  instead of the oldest). Backward-compatible: un-migrated dict-shaped
+  key_learnings skip cleanly, no crash. **All 17 branches migrated** to
+  `schema_version` 3.0.0 (reversible per-file backups, no data loss). A
+  follow-up made the rollover **detector** and the **learnings manager** (used
+  by rollover + symbolic) list-aware — a live `rollover check` caught they still
+  counted key_learnings as a dict, so an at-cap list was invisible to the
+  detector (the 955 unit tests stayed green because none counted a *list*). 960
+  tests; seedgo 99% (1 pre-existing unused-function on an unwired manager API).
+  Remaining: `/memo`+`/prep` and @spawn template updates.
+
+- **Memory config relocated to the json-home and unified behind one
+  self-healing loader (FPLAN-0271).** `memory.config.json` moved from the loose
+  tracked `config/` dir into the gitignored `memory_json/custom_config/`
+  (operator-tunable, fast-access) and `.plans_processed.json` into
+  `memory_json/` root; the empty `config/` dir was removed. The config was
+  previously read by **9 separate loaders**, each carrying its own *disagreeing*
+  defaults (8 divergence classes — incl. the headline bug where a missing config
+  silently flipped `entry_limits.enforce` off, plus rollover defaulting to 600
+  vs the configured 500). All 9 now read through one
+  `apps/handlers/json/config_loader.py` with a single `DEFAULT_CONFIG` +
+  non-mutating deep-merge + self-heal: a missing file is rewritten from code
+  defaults (warn-first `enforce: false`), while malformed JSON fails loud and is
+  never overwritten. Dead `intake` section deleted; a static `_meta` block in
+  `DEFAULT_CONFIG` documents each section's consumer files. Code-as-Template:
+  the on-disk file is local tuning, code carries the committed defaults — same
+  model as hooks `cadence_config.json`. Verified: 949 memory tests green, seedgo
+  @memory 100%, live self-heal / malformed-no-clobber / edit_gate checks pass.
+  Design: DPLAN-0206. Follow-up parked: issue #643 (codify `custom_config/` as a
+  seedgo standard).
+
+## [2026-06-12]
+
+### Changed
+
+- **Devpulse dashboard slimmed — todos no longer duplicated (startup-context
+  fix).** `DASHBOARD.local.json` was embedding the full `todos[]` bodies that
+  already live in `.trinity/local.json`; since both files are read at every
+  startup, that was pure duplication. The dashboard now emits `todo_count` only
+  (the glance value) — the bodies are commented out in the prax
+  `devpulse_dashboard` plugin's `todo_section.py` (revivable). Dashboard
+  `DASHBOARD.local.json` 6.8 KB → 3.0 KB. Devpulse-only (plugin, not templated).
+  Verified: seedgo 100%, 17/17 plugin tests.
+- **Deprecated dashboard sections are now actually pruned on refresh.**
+  `bulletin_board` (and the other entries in prax's `DEPRECATED_SECTIONS`:
+  `devpulse`, `commons_activity`, `agent_status`, `memory_bank`) were listed as
+  deprecated but only excluded from template *pushes* — they lingered in every
+  branch's live `DASHBOARD.local.json`. Added `_prune_deprecated_sections()` to
+  the prax dashboard `refresh` path (reusing the single `DEPRECATED_SECTIONS`
+  constant), so a refresh strips them. Verified: `bulletin_board` removed from
+  the devpulse dashboard; 116/116 prax tests, seedgo 100%. (Follow-up: `@trigger`
+  still has a `bulletin_created` writer to retire separately.)
+- **Dashboard slimmed to a lean glance — removed duplicated/dead sections.**
+  Dropped three sections from the devpulse dashboard: `session` (broken since
+  May — read keys `id`/`d`/`sum` vs the actual `session`/`date`/`summary`, so it
+  always wrote empty strings — and it duplicated `local.json`, which loads at
+  startup), `todo` (carried only `todo_count`, already in `quick_status`; now
+  sourced directly from `local.json`), and `ai_mail` (its counts live in
+  `quick_status`; the section is removed from output *after* quick_status is
+  computed from it). End state: 4 sections (`flow`, `memory`, `git`, `dispatch`)
+  + the `quick_status` glance. `session_section.py`/`todo_section.py` archived
+  (not deleted). `DASHBOARD.local.json` overall 6.8 KB → 2.4 KB. Verified: seedgo
+  100%, 108 prax tests. (Follow-up: `@ai_mail`'s `dashboard_sync.py` section
+  writer to retire separately.)
+- **quick_status now self-sources mail counts from `inbox.json`.** Decouples the
+  glance from the `ai_mail` section: prax's three quick_status calculators read
+  `.ai_mail.local/inbox.json` directly (`_read_mail_counts`) for `new_mail`/
+  `opened_mail`, so the `ai_mail` section is no longer a data dependency and can
+  be retired. 116 prax tests, seedgo 100%.
+- **Retired `@ai_mail`'s dashboard section writer (completes the dashboard
+  slim).** ai_mail no longer writes to the dashboard — removed
+  `push_dashboard_update` from 5 call sites and archived `dashboard_sync.py`.
+  With prax self-sourcing mail counts, the `ai_mail` section now stays gone (a
+  mail op no longer re-adds it — verified). 737 ai_mail tests.
+- **`.backupignore` is now a true `.gitignore` for the backup system — a single
+  source of truth (FPLAN-0269).** Replaced the hand-rolled `fnmatch`+part-loop
+  matcher (which broke leading-slash anchoring, `*`-crossing-`/`, dir-only `foo/`,
+  `!` negation, and last-match-wins) with the `pathspec` gitwildmatch library, so
+  `.backupignore` honors full gitignore semantics: include-by-default, `!`
+  negation, `#` comments, anchoring, dir-only, last-match-wins. `BUILTIN_IGNORES`
+  is demoted to a seed-only default (written when the file is absent, never merged
+  at runtime), and the separate `IGNORE_EXCEPTIONS`/`is_exception` layer is
+  removed (exceptions are native `!` lines). Snapshot, versioned, `all`, and
+  mirror-cleanup now all obey the one file. `.ruff_cache/` + `.coverage` added to
+  the default. `pathspec` (pure-Python, cross-OS) declared. Verified by artifact
+  (seedgo 100%, 220 tests incl. 26 new gitignore-parity tests) + live (a dotfile
+  flows into the store, `!` negation re-includes end-to-end).
+- **Backup store dir renamed `.backup_system/` → `.backup/`, dead `versions/`
+  removed (FPLAN-0269 follow-up).** The backup root is now `.backup/` (shorter,
+  coexists with `@flow`'s `.backup/processed_plans/`); the orphaned per-timestamp
+  `versions/` scaffold and the unused `build_versioned_path()` — both superseded
+  by the Phase-3 `versioned/` baseline+diff store — are gone. Drive sync confirmed
+  reading `.backup/versioned/` + `.backup/drive_tracker.json` via the shared
+  `backup_root()`. Verified by artifact (seedgo 100%, 220 tests) + live (a
+  throwaway project writes to `.backup/`, no `versions/` dir).
+
+### Fixed
+
+- **Backup Drive sync no longer silently drops 41% of files — including the
+  memories (FPLAN-0269).** Removed a foreign dotfile-skip in `drive_sync.py` that
+  excluded every dotted path (`.trinity/` memories, `.chroma/` vectors, `.aipass/`
+  prompts, `.ai_mail.local/` mailboxes — 4558 files) from the offsite Google Drive
+  copy while the local snapshot/versioned kept them. Drive now uploads the full
+  versioned store (already exactly the `.backupignore`-filtered set). Added a
+  Drive-sync output panel matching the Snapshot/Versioned stages (header, progress,
+  stats, Duration | Location).
+
+### Added
+
+- **Backup Google Drive sync pipeline + restore command (FPLAN-0268, Phase 4 of
+  FPLAN-0264 — final).** Faithful port of GOLD's `GoogleDriveSync` against the
+  live `@api` gateway (`get_drive_service` + `api_call_with_retry` — never the
+  console-OAuth path). New `handlers/drive/`: `DriveClient` (folder hierarchy
+  `AIPass Backups/<project>/`, thread-safe cache, retry-with-rebuild),
+  `upload.py` (resumable `MediaFileUpload`, 3 threaded workers), `tracker.py`
+  (mtime+size dedup → no re-upload of unchanged files), `test.py` (connectivity).
+  All four `drive_*` modules un-stubbed; `all` now runs snapshot→versioned→
+  drive-sync and **fails honestly** if Drive creds are absent (never silent-skips,
+  never fakes success, snapshot+versioned still report). New `restore` command
+  (`restore <project> list <file>` / `restore <project> file <file> <out>`)
+  exposing the Phase-3 baseline+diff restore engine. Drive tests fully mocked —
+  zero real Google calls in CI. Verified by artifact + live: audit 100% (all 37
+  files), 187 tests, ruff clean, restore `list`/`file` round-trip confirmed.
+- **Backup uses the repo-root pyright config like every citizen.** Removed
+  backup's standalone `pyrightconfig.json` (a leftover from its pre-namespace
+  standalone days, archived) so it inherits the root config — resolving imports
+  consistently with the rest of AIPass. Dead PyQt5 `ui/settings_window.py`
+  (never wired) archived.
+
+- **Backup versioned baseline + per-file diff engine (FPLAN-0267, Phase 3 of
+  FPLAN-0264 — the heart).** Faithful port of the GOLD versioned engine,
+  replacing the mtime full-copy-into-timestamped-dirs remnant. One persistent
+  store (`.backup_system/versioned/`) with GOLD's file-folder packaging: each
+  file gets `<parent>/<name>/` holding the current copy, a
+  `<stem>-baseline-<date>.<ext>` full copy from the first run (never touched
+  again), and `<name>_diffs/<name>_v<old-mtime>.diff` unified-diff patches on
+  every change — append-only, versioned **never deletes** (cleanup stays
+  snapshot-only). Versioned and snapshot back up the identical file set (same
+  scan + ignore patterns; `all` shares one scan). Change detection is
+  ledger-free (source mtime vs store-current mtime, `copy2`-preserved) — kills
+  the regression where running snapshot starved the next versioned via the
+  shared `timestamps.json`. New `diff/restore.py` (`list_versions` +
+  `restore_file`); `diff/generator.py` wired (binary detection + diff
+  include/ignore patterns). +15 tests (125 total). Verified by artifact + live
+  end-to-end: snapshot-first-then-versioned still baselines everything
+  (starvation dead), edit → real diff with old-mtime timestamp, source delete →
+  versioned store untouched while snapshot mirror-deletes, restore round-trip
+  byte-identical.
+
+- **Backup snapshot fidelity + shared core (FPLAN-0266, Phase 2 of FPLAN-0264).**
+  Restored the snapshot-side machinery the 2026-04-23 rewrite degraded, ported
+  from the GOLD archive onto the current per-project handlers. New
+  `handlers/cleanup/mirror.py` `cleanup_deleted_files` — exception-aware
+  mirror-delete: files removed from source are now removed from the snapshot
+  (was a blind `rmtree`+recopy), respecting ignore-exceptions. `copy/snapshot.py`
+  gains mtime-skip (quick-check fast path — unchanged files no longer re-copied),
+  a long-path guard (>260), and read-only handling. `report/result.py`
+  `BackupResult` now tracks critical vs non-critical errors + warnings +
+  `files_deleted`; `ignore/patterns.py` gains `IGNORE_EXCEPTIONS`/`is_exception()`.
+  +16 tests (`test_snapshot_fidelity.py`, 110 total). Verified by artifact +
+  live: audit 100%, 110 passed, and a real throwaway-project test (delete two
+  files → re-snapshot → both mirror-deleted, kept files preserved, 3 skipped/0
+  re-copied).
+
+- **Backup test suite + seedgo 100% — restoration foundation (FPLAN-0265, Phase 1
+  of FPLAN-0264).** Put a safety net under `backup` before the feature rebuild:
+  new `tests/` suite (94 tests — json_handler, CLI routing, filesystem handlers,
+  error resilience, mocked drive) ported from the canonical citizen conftest
+  pattern (hermetic, `tmp_path`, stdlib-only → 3.10–3.13), driving module coverage
+  to 27%. Standards brought to 100% across all 35: shared `--help/-h/help` guard
+  wired into all 10 modules' `handle_command` (Cli + Introspection), the 6
+  Phase-3 drive/diff/ui stubs wired-or-bypassed (Dead_Code + Unused_Function),
+  `requirements.project.txt` added (Architecture), README module list + the small
+  Modules/Trigger fixes (`display.handle_command`, `create_progress_bar` →
+  `build_progress_bar`). Verified by artifact: re-ran audit (100%) + pytest
+  (94 passed) + ruff (clean).
+
+### Fixed
+
+- **Memory rollover no longer silently loses rolled-off learnings ("No embeddings
+  generated").** A capped `.trinity` file rolls its excess entries out to vectors;
+  two combined bugs dropped them on the floor instead. (1) On the "embedding returned
+  empty but success=True" path the orchestrator logged the error and continued — but
+  the source file was *already* trimmed, so the entry was lost from both the file and
+  ChromaDB; it now restores the pre-trim backup before continuing (fail-honest).
+  (2) A concurrent-rollover race (two runs ~33ms apart) let the second run extract
+  nothing yet still report success → empty embeddings → bug #1; `extract_with_metadata`
+  now honors the `skipped` flag and the orchestrator skips no-op extractions before the
+  embedding stage. Verified by artifact + live: a 25/25-capped test file rolls over →
+  embeds (384-dim) → `drone @memory search` returns it at 91% similarity; audit 100%,
+  876 tests (+4).
+
+- **Backup Google Drive folder duplication + dedup-wipe fixed (GOLD-faithful lock
+  restoration).** The Phase-4 port had narrowed `GoogleDriveSync`'s folder lock: a
+  single `drive_sync` run's 3 upload workers raced the folder search+create →
+  multiple "AIPass Backups" root folders, and `get_or_create_backup_folder` reset
+  the dedup tracker on every call (re-uploading everything = the slowness). Restored
+  GOLD's structure exactly: `get_or_create_project_folder` / `get_or_create_nested_folder`
+  hold `_folder_cache_lock` across the **entire** method (cache + root-ensure + search
+  + create); `get_or_create_backup_folder` is lock-free (called inside the project
+  lock — no re-entrant deadlock), short-circuits cached ids via `_verify_folder_id`,
+  and clears the tracker only on a genuine brand-new root folder. Also: all four
+  `drive_*` commands route by their underscore names (were hyphenated → "Unknown
+  command"); `requirements.project.txt` now declares the three google libs. Verified
+  by artifact (seedgo 100%, 197 tests incl. a 5-thread concurrency test → exactly one
+  create) + live (real Drive backup: no duplicate folders).
+
+- **Backup rich CLI output restored end-to-end (FPLAN-0263 + drone passthrough).**
+  `drone @backup snapshot|versioned|all` rendered a flat text block instead of the
+  original rich output. Two independent causes, both closed: (1) the rich rendering
+  was never carried forward in backup's revival — rebuilt as a faithful 9-stage port
+  (new `backup_timestamps` state handler + `display.py` pipeline: Last-backups panel →
+  boxed header → live Rich progress bar → result summary → Backups-now panel;
+  `BackupResult` extended with `files_checked`/`files_skipped`/`backup_path`; copy
+  handlers emit `on_progress` callbacks). (2) drone was flattening it at the pipe —
+  `@backup` ran through `capture_output=True` (non-TTY → Rich strips color, the
+  `transient` progress bar renders to nothing) and the 30s capture timeout would kill
+  large backups; added `backup` to drone's `INTERACTIVE_BRANCHES` so all `@backup`
+  commands inherit the terminal (mirrors `cli`). Verified live under a pty: full color
+  + animated progress bar.
+
 ## [2026-06-11]
 
 ### Fixed

@@ -137,9 +137,9 @@ class BranchDetector:
         Handles hyphens in project names by splitting on -Projects- and -src-.
 
         Examples:
-            -home-patrick-Projects-Vera-Studio -> ('VERA-STUDIO', None)
-            -home-patrick-Projects-AIPL-src-polyglot -> ('AIPL', 'POLYGLOT')
-            -home-patrick-Projects-Vera-Studio-src-vera -> ('VERA-STUDIO', 'VERA')
+            -home-user-Projects-Vera-Studio -> ('VERA-STUDIO', None)
+            -home-user-Projects-AIPL-src-polyglot -> ('AIPL', 'POLYGLOT')
+            -home-user-Projects-Vera-Studio-src-vera -> ('VERA-STUDIO', 'VERA')
 
         Returns:
             (project_name, agent_name) -- agent_name is None if no src subdir

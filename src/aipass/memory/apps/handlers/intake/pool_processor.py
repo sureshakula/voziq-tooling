@@ -27,10 +27,10 @@ from typing import List, Dict, Any
 
 from aipass.prax import logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import config_loader
 
 # Paths
 _MEMORY_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # handlers/intake/ → handlers/ → apps/ → memory/
-CONFIG_PATH = _MEMORY_ROOT / "config" / "memory.config.json"
 MEMORY_POOL_PATH = _MEMORY_ROOT / "memory_pool"
 CHROMA_PATH = _MEMORY_ROOT / ".chroma"
 
@@ -103,14 +103,8 @@ def find_source_file(filename: str) -> Path | None:
 
 
 def load_config() -> dict:
-    """Load memory_pool config from memory.config.json"""
-    try:
-        with open(CONFIG_PATH) as f:
-            config = json.load(f)
-        return config.get("memory_pool", {})
-    except Exception as e:
-        logger.warning(f"[pool_processor] Failed to load config: {e}")
-        return {"enabled": False, "error": str(e)}
+    """Load memory_pool config from memory.config.json via config_loader."""
+    return config_loader.section("memory_pool")
 
 
 def get_pool_files(extensions: List[str] | None = None) -> List[Path]:

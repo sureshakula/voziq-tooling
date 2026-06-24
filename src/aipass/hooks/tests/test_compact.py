@@ -23,8 +23,8 @@ class TestCompactHandler:
         local.write_text(
             json.dumps(
                 {
-                    "sessions": [{"id": "S10", "d": "2026-05-22", "sum": "did stuff"}],
-                    "key_learnings": {"learn1": "value1"},
+                    "sessions": [{"number": 10, "date": "2026-05-22", "summary": "did stuff", "status": "completed"}],
+                    "key_learnings": [{"number": 1, "date": "2026-05-22", "key": "learn1", "value": "value1"}],
                 }
             ),
             encoding="utf-8",

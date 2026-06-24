@@ -28,6 +28,7 @@ from typing import Dict, Any, List
 
 from aipass.prax import logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import config_loader
 
 # Subprocess scripts
 _HANDLERS_DIR = Path(__file__).resolve().parent.parent
@@ -60,7 +61,7 @@ def _get_memory_python() -> str:
 MEMORY_PYTHON = _get_memory_python()
 
 # Track which files have been processed
-_PROCESSED_MANIFEST = _MEMORY_ROOT / "config" / ".plans_processed.json"
+_PROCESSED_MANIFEST = _MEMORY_ROOT / "memory_json" / ".plans_processed.json"
 
 # Chunk settings
 MAX_CHUNK_CHARS = 1500  # ~375 tokens, fits well with all-MiniLM-L6-v2
@@ -230,13 +231,7 @@ def process_plans() -> Dict[str, Any]:
         Dict with success, files_processed, total_chunks
     """
     # Load config
-    config_path = _MEMORY_ROOT / "config" / "memory.config.json"
-    try:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
-        plans_config = config.get("plans", {})
-    except Exception as e:
-        logger.warning(f"[plans_processor] Config load failed: {e}")
-        return {"success": False, "error": f"Config load failed: {e}"}
+    plans_config = config_loader.section("plans")
 
     if not plans_config.get("enabled", False):
         return {"success": True, "skipped": True, "reason": "plans disabled"}
@@ -246,7 +241,7 @@ def process_plans() -> Dict[str, Any]:
     repo_root = _find_repo_root()
     plans_path = Path(plans_dir) if Path(plans_dir).is_absolute() else repo_root / plans_dir
     extensions = plans_config.get("supported_extensions", [".md"])
-    collection_name = plans_config.get("collection_name", "flow_plans")
+    collection_name = plans_config.get("collection_name", "plans")
 
     if not plans_path.exists():
         return {"success": True, "files_processed": 0, "total_chunks": 0, "reason": "plans dir not found"}

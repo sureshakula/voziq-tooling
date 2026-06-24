@@ -1,0 +1,30 @@
+# Backup System ignore patterns (gitignore-style)
+# Lines starting with # are comments. Blank lines are ignored.
+# Edit this file to customize. Source defaults: handlers/ignore/patterns.py
+
+.backup_system/
+.backup/
+.git/
+.svn/
+.hg/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.tox/
+node_modules/
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+build/
+dist/
+*.log
+.ruff_cache/
+.coverage
+*logs

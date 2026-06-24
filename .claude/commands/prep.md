@@ -14,8 +14,18 @@ Purpose: Button up everything at the end of a session — or before a /compact. 
 Each memory file plays a distinct role. Update based on what actually changed this session.
 
 - **`.trinity/passport.json`** — IDENTITY. Who you are: role, capabilities, principles. Only update if identity genuinely evolved this session.
-- **`.trinity/local.json`** — YOUR MEMORY. Add/update session entry with a summary of work done. Add key_learnings for anything learned. Update todos[] with current in-flight items. Trim oldest sessions if over 20.
+- **`.trinity/local.json`** — YOUR MEMORY. Add/update session entry with a summary of work done. Add key_learnings for anything learned. Update todos[] with current in-flight items.
 - **`.trinity/observations.json`** — YOUR MEMORY OF THE USER. Collaboration insights, preferences, friction points. Skip if nothing new about the user this session.
+
+### Entry shape — one rule for all four types
+
+`key_learnings`, `sessions`, `todos` (local.json) and `observations` (observations.json) all share ONE shape: a **list of objects, newest at the top (index 0)**. Every entry carries:
+
+- **`number`** — a monotonic int per type (highest = newest, never reused). New entry's number = current max for that type **+ 1**.
+- **`date`** — ISO date/datetime.
+- Plus its text field + extras: key_learnings `{number, date, key, value}` · sessions `{number, date, summary, status, tags}` · todos `{number, date, task, priority, status}` · observations `{number, date, note, tags}`.
+
+**When adding:** stamp `number` + `date`, then **prepend** (newest on top). **Don't hand-trim** — rollover archives the oldest *by number* to @memory automatically.
 
 ## 2. Active Plans
 

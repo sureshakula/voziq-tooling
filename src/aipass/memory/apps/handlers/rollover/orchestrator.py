@@ -242,8 +242,8 @@ def extract_text_from_memories(memories: List[Dict]) -> List[str]:
         elif "summary" in memory:
             # Sessions type (v2) - summary field
             text = str(memory["summary"])
-        elif "_type" in memory and memory["_type"] == "key_learning":
-            # Key learnings (v2) - key:value pair
+        elif "key" in memory and "value" in memory:
+            # Key learnings (unified) - key:value pair
             text = f"{memory.get('key', '')}: {memory.get('value', '')}"
         elif "content" in memory:
             text = str(memory["content"])
@@ -341,6 +341,10 @@ def execute_rollover() -> Dict[str, Any]:
             failed.append({"trigger": str(trigger), "stage": "extraction", "error": error_msg})
             continue
 
+        if extract_result.get("skipped"):
+            logger.info(f"[rollover] Extraction skipped for {trigger}: {extract_result.get('message', 'no excess')}")
+            continue
+
         memories = extract_result.get("entries", [])
         branch = extract_result.get("branch", "") or trigger.branch
         memory_type = extract_result.get("type", "unknown") or trigger.memory_type
@@ -375,6 +379,14 @@ def execute_rollover() -> Dict[str, Any]:
         embeddings = embed_result.get("embeddings", [])
         if not embeddings:
             logger.error(f"[rollover] No embeddings generated for {trigger}")
+
+            # RESTORE from backup (file was already trimmed but data not vectorized)
+            restore_result = extractor.restore_from_backup(trigger.file_path)
+            if restore_result["success"]:
+                logger.info("[rollover] Restored from backup after empty embeddings")
+            else:
+                logger.error(f"[rollover] CRITICAL: Failed to restore from backup: {restore_result.get('error')}")
+
             failed.append({"trigger": str(trigger), "stage": "embedding", "error": "No embeddings in result"})
             continue
 

@@ -10,20 +10,18 @@
 Memory Extraction Handler
 
 Surgically extracts oldest items from memory files during rollover.
-Understands real JSON structure (sessions, observations arrays, key_learnings dict).
+Understands real JSON structure (sessions, observations, key_learnings arrays).
 
 Purpose:
-    v1 (schema <2.0.0): When file exceeds max_lines, extract oldest items from
-    growing arrays to get under line limit.
-    v2 (schema >=2.0.0): When entry counts exceed limits (max_sessions,
-    max_key_learnings), extract oldest entries by count.
+    v2 entry-count based extraction: When entry counts exceed limits
+    (sessions, key_learnings, observations), extract oldest entries by count.
+    Limits are read from config per_branch with defaults fallback.
 
 Strategy:
-    - Detect schema version from document_metadata
-    - v1: line-count based extraction (legacy)
-    - v2: entry-count based extraction (sessions array + key_learnings dict)
+    - v2: entry-count based extraction (sessions + key_learnings + observations arrays)
     - Extract oldest items (FIFO)
     - Update document_metadata.status
+    - No line-count fallbacks — errors over silent fallbacks
 """
 
 import shutil
@@ -32,7 +30,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 # Handler imports (relative within package)
-from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import json_handler, config_loader
 from aipass.memory.apps.handlers.json.memory_files import read_memory_file_data, write_memory_file_simple
 from aipass.prax.apps.modules.logger import get_system_logger
 
@@ -164,92 +162,8 @@ def _derive_branch_and_type(file_path: Path) -> tuple[str, str]:
 
 
 # =============================================================================
-# STRUCTURE DETECTION
-# =============================================================================
-
-
-def _detect_growing_array(data: Dict[str, Any]) -> str | None:
-    """
-    Detect which array field is growing in memory file
-
-    Memory files have different structures:
-    - .local.json → 'sessions' array
-    - .observations.json → 'observations' array
-    - Future types → other array fields
-
-    Args:
-        data: Parsed JSON data
-
-    Returns:
-        Array field name (e.g., 'sessions'), or None if not found
-    """
-    # Known array fields that grow over time
-    candidates = ["sessions", "observations", "recent_work", "entries", "items", "records"]
-
-    for field in candidates:
-        if field in data and isinstance(data[field], list) and len(data[field]) > 0:
-            return field
-
-    return None
-
-
-# =============================================================================
 # EXTRACTION CALCULATION
 # =============================================================================
-
-
-def _calculate_items_to_extract_by_lines(
-    data: Dict[str, Any], array_field: str, file_path: Path, max_lines: int, target_buffer: int = 100
-) -> int:
-    """
-    Calculate items to extract by SIMULATING line count (accurate)
-
-    Removes items one by one, counting actual lines after each removal,
-    until we reach target line count (max_lines - buffer).
-
-    Args:
-        data: Full memory file data
-        array_field: Name of array field to extract from
-        file_path: Path (for line counting)
-        max_lines: Maximum allowed lines
-        target_buffer: Lines of buffer to leave (default 100)
-
-    Returns:
-        Number of items to extract
-
-    Example:
-        File is 645 lines, limit is 600, buffer is 100
-        Target: 500 lines (600 - 100)
-        Simulate removing items until file is ~500 lines
-    """
-    import tempfile
-    import json
-
-    target_lines = max_lines - target_buffer
-    total_items = len(data[array_field])
-
-    # Binary search for optimal item count
-    for items_to_remove in range(1, total_items + 1):
-        # Simulate removal (remove from END - oldest items)
-        test_data = data.copy()
-        test_data[array_field] = data[array_field][:-items_to_remove]  # Keep newest
-
-        # Count lines in simulated result
-        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tmp:
-            json.dump(test_data, tmp, indent=2, ensure_ascii=False)
-            tmp_path = Path(tmp.name)
-
-        with open(tmp_path, "r") as f:
-            line_count = len(f.readlines())
-
-        tmp_path.unlink()
-
-        # Check if we've reached target
-        if line_count <= target_lines:
-            return items_to_remove
-
-    # Fallback: remove 50% if simulation fails
-    return max(1, total_items // 2)
 
 
 # =============================================================================
@@ -261,7 +175,7 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract items from v2 format file (entry-count based).
 
-    Handles sessions (array, oldest at end) and key_learnings (dict, oldest first).
+    Handles sessions, key_learnings, and observations (arrays, newest-first, oldest at end).
     Trims to max_sessions / max_key_learnings limits defined in document_metadata.
 
     Args:
@@ -271,13 +185,23 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with extracted items and metadata
     """
-    limits = data.get("document_metadata", {}).get("limits", {})
     old_lines = _count_file_lines(file_path)
+
+    # Read limits from config per_branch instead of file metadata
+    if file_path.parent.name == ".trinity":
+        branch_key = file_path.parents[1].name.lower()
+        file_type = file_path.stem  # "local" or "observations"
+    else:
+        branch_key = file_path.parent.name.lower()
+        file_type = file_path.stem.split(".")[-1]
+
+    cfg = config_loader.section("rollover")
+    file_limits = cfg.get("per_branch", {}).get(branch_key, {}).get(file_type, {})
 
     all_extracted = []
 
     # Extract from sessions array (newest first, oldest at end)
-    max_sessions = limits.get("max_sessions")
+    max_sessions = file_limits.get("sessions", {}).get("count")
     if max_sessions is not None:
         sessions = data.get("sessions", [])
         if isinstance(sessions, list) and len(sessions) >= max_sessions:
@@ -286,20 +210,18 @@ def _extract_items_v2(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
             data["sessions"] = sessions[:-excess]  # keep newest
             all_extracted.extend(extracted_sessions)
 
-    # Extract from key_learnings dict (first keys are oldest in insertion order)
-    max_key_learnings = limits.get("max_key_learnings")
+    # Extract from key_learnings list (sorted newest-first; oldest at end)
+    max_key_learnings = file_limits.get("key_learnings", {}).get("count")
     if max_key_learnings is not None:
-        key_learnings = data.get("key_learnings", {})
-        if isinstance(key_learnings, dict) and len(key_learnings) >= max_key_learnings:
+        key_learnings = data.get("key_learnings", [])
+        if isinstance(key_learnings, list) and len(key_learnings) >= max_key_learnings:
             excess = max(len(key_learnings) - max_key_learnings, 1)
-            keys_list = list(key_learnings.keys())
-            keys_to_extract = keys_list[:excess]  # oldest (first inserted)
-            for k in keys_to_extract:
-                all_extracted.append({"_type": "key_learning", "key": k, "value": key_learnings[k]})
-                del data["key_learnings"][k]
+            extracted_kl = key_learnings[-excess:]  # oldest from end
+            data["key_learnings"] = key_learnings[:-excess]  # keep newest
+            all_extracted.extend(extracted_kl)
 
     # Extract from observations array (if v2 observations file)
-    max_observations = limits.get("max_observations")
+    max_observations = file_limits.get("observations", {}).get("count")
     if max_observations is not None:
         observations = data.get("observations", [])
         if isinstance(observations, list) and len(observations) >= max_observations:
@@ -367,78 +289,38 @@ def extract_items(file_path: Path, percentage: int | None = None) -> Dict[str, A
         data = _read_memory_file(file_path)
         if data is None:
             return {"success": False, "error": f"Failed to parse memory file: {file_path.name}"}
-        current_lines = _count_file_lines(file_path)
     except Exception as e:
         logger.warning(f"[extractor] Failed to read file {file_path}: {e}")
         return {"success": False, "error": f"Failed to read file: {e}"}
 
-    # v2: entry-count based extraction (when v2 limit keys are present, regardless of schema_version)
-    ext_limits = data.get("document_metadata", {}).get("limits", {})
-    v2_limit_keys = {"max_sessions", "max_key_learnings", "max_observations"}
-    if v2_limit_keys & set(ext_limits.keys()):
+    # v2: entry-count based extraction — triggered when config has per_branch counts
+    if file_path.parent.name == ".trinity":
+        _ext_branch = file_path.parents[1].name.lower()
+        _ext_ftype = file_path.stem
+    else:
+        _ext_branch = file_path.parent.name.lower()
+        _ext_ftype = file_path.stem.split(".")[-1]
+    _ext_cfg = config_loader.section("rollover")
+    _ext_file_limits = _ext_cfg.get("per_branch", {}).get(_ext_branch, {}).get(_ext_ftype, {})
+    if not _ext_file_limits:
+        # Also check defaults fallback
+        _ext_file_limits = _ext_cfg.get("defaults", {}).get(_ext_ftype, {})
+
+    if _ext_file_limits:
         return _extract_items_v2(file_path, data)
 
-    # v1: line-count based extraction
-    # Detect structure
-    array_field = _detect_growing_array(data)
-    if not array_field:
-        return {"success": False, "error": f"No growing array found in {file_path.name}"}
-
-    # Get metadata
-    max_lines = data.get("document_metadata", {}).get("limits", {}).get("max_lines", 600)
-
-    # Check if under limit
-    if current_lines < max_lines:
-        return {"success": True, "skipped": True, "message": f"File under limit ({current_lines}/{max_lines} lines)"}
-
-    # Calculate extraction amount (simulate actual line reduction)
-    total_items = len(data[array_field])
-
-    if percentage is None:
-        # Use line-based calculation for accuracy
-        items_to_extract = _calculate_items_to_extract_by_lines(
-            data, array_field, file_path, max_lines, target_buffer=100
-        )
-    else:
-        # Manual percentage override (for testing)
-        items_to_extract = max(1, int(total_items * percentage / 100))
-
-    # Extract oldest items (LAST N in array - newest first, oldest last)
-    extracted = data[array_field][-items_to_extract:]  # Take from end (oldest)
-    remaining = data[array_field][:-items_to_extract]  # Keep from start (newest)
-
-    # Update array
-    data[array_field] = remaining
-
-    # Update metadata
-    _update_metadata_after_extraction(data)
-
-    # Write back
-    try:
-        _write_memory_file(file_path, data)
-        new_line_count = _count_file_lines(file_path)
-    except Exception as e:
-        logger.error(f"[extractor] Failed to write file after v1 extraction: {e}")
-        return {"success": False, "error": f"Failed to write file: {e}"}
-
-    # Derive branch and type from path
-    branch_name, memory_type = _derive_branch_and_type(file_path)
-
-    json_handler.log_operation(
-        "extract_items", {"branch": branch_name, "type": memory_type, "extracted_count": items_to_extract}
+    # No v2 limits found — fail loud, never fall back to v1 line-count
+    logger.warning(
+        f"[extractor] NO V2 LIMITS for branch={_ext_branch} file_type={_ext_ftype} "
+        f"— cannot extract without config. Check per_branch and defaults in memory.config.json"
     )
-
+    json_handler.log_operation(
+        "extract_items_no_limits",
+        {"branch": _ext_branch, "file_type": _ext_ftype, "error": "no v2 limits configured"},
+    )
     return {
-        "success": True,
-        "file": str(file_path),
-        "branch": branch_name,
-        "type": memory_type,
-        "array_field": array_field,
-        "extracted": extracted,
-        "extracted_count": items_to_extract,
-        "remaining_count": len(remaining),
-        "old_lines": current_lines,
-        "new_lines": new_line_count,
+        "success": False,
+        "error": f"No v2 extraction limits configured for {_ext_branch}/{_ext_ftype}",
     }
 
 
@@ -493,6 +375,17 @@ def extract_with_metadata(file_path: Path, percentage: int | None = None) -> Dic
 
     if not result["success"]:
         return result
+
+    if result.get("skipped"):
+        return {
+            "success": True,
+            "skipped": True,
+            "message": result.get("message", "Extraction skipped"),
+            "entries": [],
+            "count": 0,
+            "branch": result.get("branch"),
+            "type": result.get("type"),
+        }
 
     # Enrich extracted items with metadata
     extracted = result.get("extracted", [])

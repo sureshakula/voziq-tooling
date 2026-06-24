@@ -631,7 +631,8 @@ else:
 # PreCompact: 3 hooks x 2 matchers (manual + auto) = 6 entries
 settings["hooks"] = {
     "UserPromptSubmit": [
-        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:global_prompt"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:tier0_kernel"}]},
+        {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:navmap"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:branch_prompt"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:identity_injector"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:email_notification"}]},

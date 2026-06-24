@@ -181,6 +181,8 @@ def call_api():
         assert result["standard"] == "HARDCODED_KEY"
 
     def test_hardcoded_key_violation_caught(self, tmp_path: Path) -> None:
+        # NOTE: the sk-or-v1-... literal below is a FAKE/synthetic key (patterned hex,
+        # not a real credential). It exists only to prove the detector flags hardcoded keys.
         code = """\
 API_KEY = "sk-or-v1-9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e"
 
@@ -195,6 +197,7 @@ def call_api():
         assert "hardcoded" in violations[0]["message"].lower() or "key" in violations[0]["message"].lower()
 
     def test_hardcoded_key_bypass_respected(self, tmp_path: Path) -> None:
+        # NOTE: same FAKE/synthetic sk-or-v1-... fixture key below — not a real credential.
         code = """\
 API_KEY = "sk-or-v1-9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e"
 """

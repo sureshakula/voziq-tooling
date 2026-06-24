@@ -1,0 +1,177 @@
+# =================== AIPass ====================
+# Name: backup.py
+# Description: BACKUP Branch — main orchestrator with auto-discovery
+# Version: 1.0.0
+# Created: 2026-04-16
+# Modified: 2026-04-23
+# =============================================
+
+"""BACKUP Branch - Main Orchestrator
+
+Auto-discovery architecture:
+- Scans modules/ directory for .py files with handle_command()
+- Routes commands to discovered modules automatically
+- Accepts project paths or registered project names
+"""
+
+import importlib
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+os.environ.setdefault("AIPASS_BRANCH_NAME", "backup")
+
+from aipass.prax import logger
+from aipass.cli.apps.modules import console, header
+
+VERSION = "1.0.0"
+MODULE_NAME = "backup"
+MODULES_DIR = Path(__file__).parent / "modules"
+
+
+def print_introspection(modules: list[Any]) -> None:
+    """Display discovered modules — the bare self-map (run with no args)."""
+    console.print()
+    console.print(f"[bold cyan]BACKUP[/bold cyan] v{VERSION} — project backup & drive sync")
+    console.print()
+    console.print(f"[yellow]Discovered Modules:[/yellow] {len(modules)}")
+    console.print()
+    for module in modules:
+        name = module.__name__.split(".")[-1]
+        doc = (module.__doc__ or "").strip().split("\n")[0]
+        console.print(f"  [cyan]-[/cyan] {name:20} [dim]{doc or 'No description'}[/dim]")
+    console.print()
+    console.print("[dim]Run 'drone @backup --help' for usage and commands[/dim]")
+    console.print()
+
+
+def print_help() -> None:
+    """Display the curated Rich-formatted command reference."""
+    console.print()
+    header("BACKUP — project backup & drive sync")
+    console.print()
+    console.print("[dim]Snapshot, version, and sync project backups to a local store or remote drive.[/dim]")
+    console.print()
+    console.print("-" * 70)
+    console.print()
+    console.print("[bold cyan]USAGE:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @backup <command> <project_path|@name>[/dim]")
+    console.print("  [dim]drone @backup --help[/dim]")
+    console.print()
+    console.print("-" * 70)
+    console.print()
+    console.print("[bold cyan]COMMANDS:[/bold cyan]")
+    console.print()
+    console.print("  [green]snapshot[/green]     Full mirror backup of a project")
+    console.print("  [green]versioned[/green]    Incremental timestamped backup")
+    console.print("  [green]all[/green]          Run snapshot then versioned in sequence")
+    console.print("  [green]register[/green]     Register a project + scaffold its .backup/")
+    console.print("  [green]status[/green]       Show backup info and recent history")
+    console.print("  [green]settings[/green]     View/edit backup settings")
+    console.print("  [green]drive_sync[/green]   Sync backups to the remote drive")
+    console.print("  [green]drive_check[/green]  Test the remote drive connection")
+    console.print("  [green]drive_stats[/green]  Drive usage statistics")
+    console.print("  [green]drive_clear[/green]  Clear backups from the remote drive")
+    console.print()
+
+
+def discover_modules() -> list[Any]:
+    """Auto-discover modules in modules/ directory."""
+    modules = []
+
+    if not MODULES_DIR.exists():
+        return modules
+
+    for file_path in MODULES_DIR.glob("*.py"):
+        if file_path.name.startswith("_"):
+            continue
+
+        module_name = f"aipass.backup.apps.modules.{file_path.stem}"
+
+        try:
+            module = importlib.import_module(module_name)
+            if hasattr(module, "handle_command"):
+                modules.append(module)
+        except Exception as e:
+            logger.error(f"[BACKUP] Failed to load module {module_name}: {e}")
+
+    return modules
+
+
+def route_command(command: str, args: list[str], modules: list[Any]) -> bool:
+    """Route command to appropriate module."""
+    for module in modules:
+        try:
+            if module.handle_command(command, args):
+                return True
+        except Exception as e:
+            logger.error(f"[BACKUP] Module {module.__name__} error: {e}")
+    return False
+
+
+def main():
+    """Main entry point - routes commands or shows help."""
+    args = sys.argv[1:]
+
+    if args and args[0] in ("--version", "-V"):
+        console.print(f"backup {VERSION}")
+        return 0
+
+    modules = discover_modules()
+
+    if len(args) == 0:
+        print_introspection(modules)
+        return 0
+
+    if args[0] in ["--help", "-h", "help"]:
+        print_help()
+        return 0
+
+    command = args[0]
+
+    if command == "backup" and len(args) > 1:
+        from aipass.backup.apps.modules.register import resolve_project
+
+        target = args[1]
+        project_root = resolve_project(target)
+        if project_root is None:
+            console.print(f"[red]Error:[/red] Cannot resolve project: {target}")
+            return 1
+        remaining = [project_root] + args[2:]
+        mode = "snapshot"
+        if "--versioned" in args:
+            mode = "versioned"
+            remaining = [r for r in remaining if r != "--versioned"]
+        elif "--all" in args:
+            mode = "all"
+            remaining = [r for r in remaining if r != "--all"]
+
+        if route_command(mode, remaining, modules):
+            return 0
+        console.print(f"[red]Error:[/red] Unknown mode: {mode}")
+        return 1
+
+    remaining = args[1:] if len(args) > 1 else []
+
+    if remaining and remaining[0].startswith("@"):
+        from aipass.backup.apps.modules.register import resolve_project
+
+        resolved = resolve_project(remaining[0])
+        if resolved is None:
+            console.print(f"[red]Error:[/red] Cannot resolve project: {remaining[0]}")
+            return 1
+        remaining = [resolved] + remaining[1:]
+
+    if route_command(command, remaining, modules):
+        return 0
+
+    console.print(f"[red]Unknown command:[/red] {command}")
+    return 1
+
+
+# =============================================
+
+if __name__ == "__main__":
+    sys.exit(main())

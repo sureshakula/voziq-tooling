@@ -7,6 +7,11 @@
   },
   "bypass": [
     {
+      "file": "apps/handlers/json/json_handler.py",
+      "standard": "naming",
+      "reason": "Shared-instance shim pattern — module-level names are function re-exports from JsonHandler, not constants. Matches spawn/apps/handlers/json/json_handler.py."
+    },
+    {
       "file": "apps/handlers/storage/chroma_subprocess.py",
       "standard": "cli",
       "reason": "Subprocess IPC script — print(json.dumps()) outputs JSON to stdout for parent process. Not display output."
@@ -100,6 +105,21 @@
       "file": "apps/handlers/monitor/memory_watcher.py",
       "standard": "handlers",
       "reason": "Architectural: watcher coordinates tracking, rollover, intake, and archive handlers for auto-rollover pipeline."
+    },
+    {
+      "file": "apps/handlers/intake/plans_processor.py",
+      "standard": "handlers",
+      "reason": "Architectural: imports json.config_loader and json_handler for centralized config access and operation logging."
+    },
+    {
+      "file": "apps/handlers/intake/pool_processor.py",
+      "standard": "handlers",
+      "reason": "Architectural: imports json.config_loader and json_handler for centralized config access and operation logging."
+    },
+    {
+      "file": "apps/handlers/monitor/detector.py",
+      "standard": "handlers",
+      "reason": "Architectural: imports json.config_loader and json_handler for centralized config access and operation logging."
     },
     {
       "file": "apps/handlers/symbolic/retriever.py",
@@ -628,6 +648,166 @@
     },
     {
       "file": "tests/test_auto_process.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_lint.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_lint.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_lint.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_entry_limits.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_entry_limits.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_entry_limits.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_changed_entries.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_changed_entries.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_changed_entries.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_config_loader.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_config_loader.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_config_loader.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "documentation",
+      "reason": "Test file — test helper functions (fake_write, _make_v2_data, etc.) don't require docstrings."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_unified_schema.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_unified_schema.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_unified_schema.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tools/migrate_entries.py",
+      "standard": "architecture",
+      "reason": "Standalone utility script in tools/ — intentionally outside 3-layer apps/ structure."
+    },
+    {
+      "file": "tools/strip_trinity_limits.py",
+      "standard": "architecture",
+      "reason": "One-time migration script in tools/ — intentionally outside 3-layer apps/ structure."
+    },
+    {
+      "file": "tools/strip_trinity_limits.py",
+      "standard": "log_visibility",
+      "reason": "Standalone script — cannot import prax logger. Uses stdlib logging."
+    },
+    {
+      "file": "tools/migrate_entries.py",
+      "standard": "silent_catch",
+      "reason": "Standalone script — cannot import prax logger. Errors reported via stderr print + result dict."
+    },
+    {
+      "file": "tools/migrate_entries.py",
+      "standard": "debug_print",
+      "reason": "Standalone script — print(stderr) is the error reporting mechanism. No prax available."
+    },
+    {
+      "file": "tests/test_detector.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_detector.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_detector.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-8; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_detector.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
+    },
+    {
+      "file": "tests/test_rollover_pipeline.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_rollover_pipeline.py",
+      "standard": "encapsulation",
+      "reason": "Test file — direct handler imports are correct for unit testing handler internals."
+    },
+    {
+      "file": "tests/test_rollover_pipeline.py",
+      "standard": "meta",
+      "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_rollover_pipeline.py",
       "standard": "documentation",
       "reason": "Test file — test functions don't require docstrings."
     }

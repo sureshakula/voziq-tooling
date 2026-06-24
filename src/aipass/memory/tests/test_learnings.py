@@ -13,7 +13,7 @@ Covers:
     get_max_learnings, get_max_recently_completed,
     ensure_timestamps, enforce_limit,
     ensure_timestamps_completed, enforce_limit_completed,
-    add_learning, update_status_counts, process_file
+    update_status_counts, process_file
 
 All tests use mocks or tmp_path -- no live filesystem or infrastructure access.
 """
@@ -443,70 +443,6 @@ class TestEnforceLimitCompleted:
         assert result["removed"] == 1
         assert result["remaining"] == 2
         assert result["max"] == 2
-
-
-# ===========================================================================
-# ADD LEARNING
-# ===========================================================================
-
-
-class TestAddLearning:
-    """Tests for add_learning()."""
-
-    def test_file_not_found(self, mgr, tmp_path):
-        manager, _ = mgr
-        missing = tmp_path / "missing.json"
-        result = manager.add_learning(missing, "key", "value")
-        assert result["success"] is False
-
-    def test_adds_new_entry(self, mgr, tmp_path, monkeypatch):
-        manager, mock_mf = mgr
-        fp = tmp_path / "TEST.local.json"
-        fp.write_text("{}", encoding="utf-8")
-
-        data = {
-            "key_learnings": {},
-            "document_metadata": {"limits": {"max_learnings": 100}},
-        }
-        mock_mf.read_memory_file_data.return_value = data
-        mock_mf.write_memory_file_simple.return_value = None
-
-        # Mock enforce_limit inside add_learning
-        monkeypatch.setattr(
-            manager,
-            "enforce_limit",
-            lambda fp: {"success": True, "removed": 0},
-        )
-
-        result = manager.add_learning(fp, "test_key", "test value")
-
-        assert result["success"] is True
-        assert result["action"] == "added"
-        assert result["key"] == "test_key"
-        assert "[" in result["value"]  # has timestamp
-
-    def test_updates_existing_entry(self, mgr, tmp_path, monkeypatch):
-        manager, mock_mf = mgr
-        fp = tmp_path / "TEST.local.json"
-        fp.write_text("{}", encoding="utf-8")
-
-        data = {
-            "key_learnings": {"existing_key": "old value [2025-01-01]"},
-            "document_metadata": {"limits": {"max_learnings": 100}},
-        }
-        mock_mf.read_memory_file_data.return_value = data
-        mock_mf.write_memory_file_simple.return_value = None
-
-        monkeypatch.setattr(
-            manager,
-            "enforce_limit",
-            lambda fp: {"success": True, "removed": 0},
-        )
-
-        result = manager.add_learning(fp, "existing_key", "updated value")
-
-        assert result["success"] is True
-        assert result["action"] == "updated"
 
 
 # ===========================================================================

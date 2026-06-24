@@ -385,7 +385,7 @@ class TestHandleClose:
         post_ops_called = []
         monkeypatch.setattr(
             "aipass.ai_mail.apps.modules.email.batch_close_post_ops",
-            lambda bp, push_fn, central_fn, purge_fn: post_ops_called.append(True),
+            lambda bp, central_fn, purge_fn: post_ops_called.append(True),
         )
         mock_console = MagicMock()
         mock_console.print = lambda msg, **kw: None
@@ -1286,7 +1286,7 @@ class TestHandleCloseExtended:
         )
         monkeypatch.setattr(
             "aipass.ai_mail.apps.modules.email.batch_close_post_ops",
-            lambda bp, push_fn, central_fn, purge_fn: None,
+            lambda bp, central_fn, purge_fn: None,
         )
         printed: list[str] = []
         errors: list[str] = []
@@ -1338,7 +1338,7 @@ class TestHandleCloseExtended:
         post_ops_called: list[bool] = []
         monkeypatch.setattr(
             "aipass.ai_mail.apps.modules.email.batch_close_post_ops",
-            lambda bp, push_fn, central_fn, purge_fn: post_ops_called.append(True),
+            lambda bp, central_fn, purge_fn: post_ops_called.append(True),
         )
         printed: list[str] = []
         mock_console = MagicMock()
@@ -1450,7 +1450,6 @@ class TestDeliveryCallback:
             new_count,
             opened_count,
             total,
-            push_dashboard_fn=None,
             update_central_fn=None,
         ):
             """Capture on_email_delivered arguments."""
@@ -1460,7 +1459,6 @@ class TestDeliveryCallback:
                     "new_count": new_count,
                     "opened_count": opened_count,
                     "total": total,
-                    "push_dashboard_fn": push_dashboard_fn,
                     "update_central_fn": update_central_fn,
                 }
             )
@@ -1478,7 +1476,6 @@ class TestDeliveryCallback:
         assert delivered_args[0]["new_count"] == 3
         assert delivered_args[0]["opened_count"] == 2
         assert delivered_args[0]["total"] == 5
-        assert delivered_args[0]["push_dashboard_fn"] is not None
 
 
 # ===========================================================================

@@ -2,24 +2,17 @@
 # META DATA HEADER
 # Name: tests/test_json_handler.py
 # Date: 2026-03-28
-# Version: 1.0.0
+# Version: 2.0.0
 # Category: memory/tests
 # =============================================
 
 """
 Tests for memory JSON handler layer.
 
-Covers json_handler.py (read_json, write_json, log_operation) and
-memory_files.py validation (validate_memory_file_structure).
-
-Memory's JSON handler is streamlined compared to other branches:
-  - read_json / write_json handle raw JSON I/O
-  - log_operation handles operation logging with rotation
-  - validate_json_structure is provided via validate_memory_file_structure
-  - get_json_path is implicit via JSON_DIR / f"{module}_log.json"
-  - ensure_json_exists is handled by log_operation auto-creating files
-  - load_json is equivalent to read_json with auto-create
-  - ensure_module_jsons is covered by the JSON_DIR auto-creation
+Covers json_handler.py (shared JsonHandler shim — read_json, write_json,
+log_operation, validate_json_structure, get_json_path, ensure_json_exists,
+ensure_module_jsons, load_json, save_json) and memory_files.py validation
+(validate_memory_file_structure).
 
 Pattern coverage for seedgo test_quality:
   json_handler: validate, get_path, ensure_exists, load, ensure_module
@@ -154,7 +147,7 @@ class TestLogOperation:
     def test_log_operation_creates_log_entry(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """log_operation appends a log_entry with operation field."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         result = jh.log_operation("test_op", module_name="testmod")
 
@@ -168,7 +161,7 @@ class TestLogOperation:
     def test_log_operation_entry_has_timestamp(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Each log entry has a timestamp field."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         jh.log_operation("ts_check", module_name="tsmod")
 
@@ -178,7 +171,7 @@ class TestLogOperation:
     def test_log_operation_includes_data(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """log_operation attaches data dict when provided."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         jh.log_operation("with_data", data={"count": 5}, module_name="datamod")
 
@@ -189,7 +182,7 @@ class TestLogOperation:
     def test_log_operation_returns_bool(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """log_operation must return a bool."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         result = jh.log_operation("bool_test", module_name="boolmod")
 
@@ -199,7 +192,7 @@ class TestLogOperation:
     def test_log_operation_accumulates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Multiple calls accumulate entries in the same log file."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         jh.log_operation("first", module_name="accmod")
         jh.log_operation("second", module_name="accmod")
@@ -213,7 +206,7 @@ class TestLogOperation:
     def test_log_operation_rotation_at_100(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Log rotates at 100 entries, keeping the most recent."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         for i in range(105):
             jh.log_operation(f"op_{i}", module_name="rotmod")
@@ -286,35 +279,30 @@ class TestValidateJsonStructure:
 
 
 class TestGetJsonPath:
-    """Tests for get_json_path pattern.
+    """Tests for get_json_path via the shared JsonHandler shim."""
 
-    Memory's json_handler uses JSON_DIR / f"{module}_log.json" for
-    log paths. This tests the path resolution pattern.
-    """
-
-    def test_json_dir_is_path(self) -> None:
-        """JSON_DIR is a pathlib.Path instance."""
+    def test_get_json_path_returns_path(self) -> None:
+        """get_json_path returns a pathlib.Path instance."""
         jh = _get_json_handler()
-        result = jh.JSON_DIR
+        result = jh.get_json_path("mymod", "log")
         assert isinstance(result, Path)
 
     def test_get_json_path_for_module(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """get_json_path pattern: JSON_DIR / f'{module}_log.json' produces correct path."""
+        """get_json_path produces correct filename pattern."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
-        # Memory's path pattern for log files
-        result = jh.JSON_DIR / "mymod_log.json"
+        result = jh.get_json_path("mymod", "log")
         assert isinstance(result, Path)
         assert result.name == "mymod_log.json"
 
     def test_different_modules_produce_different_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Different module names produce different log paths."""
+        """Different module names produce different paths."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
-        path_a = jh.JSON_DIR / "alpha_log.json"
-        path_b = jh.JSON_DIR / "beta_log.json"
+        path_a = jh.get_json_path("alpha", "log")
+        path_b = jh.get_json_path("beta", "log")
         assert path_a != path_b
 
 
@@ -334,7 +322,7 @@ class TestEnsureJsonExists:
     def test_ensure_json_exists_via_log_operation(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """ensure_json_exists: log_operation creates file when it does not exist."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         log_path = tmp_path / "newmod_log.json"
         assert not log_path.exists()
@@ -346,7 +334,7 @@ class TestEnsureJsonExists:
     def test_ensure_preserves_existing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """ensure_json_exists: existing log entries are preserved when adding new ones."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
         # Pre-populate
         log_path = tmp_path / "keepmod_log.json"
@@ -408,35 +396,30 @@ class TestLoadJson:
 
 
 class TestEnsureModuleJsons:
-    """Tests for ensure_module_jsons pattern.
-
-    Memory's json_handler creates the JSON_DIR automatically and
-    populates module log files on first operation. This tests the
-    ensure_module_jsons equivalent behavior.
-    """
+    """Tests for ensure_module_jsons via the shared JsonHandler shim."""
 
     def test_ensure_module_jsons_creates_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """ensure_module_jsons: JSON_DIR is created via mkdir if missing."""
+        """ensure_module_jsons creates the json_dir if missing."""
         jh = _get_json_handler()
         new_dir = tmp_path / "new_json_dir"
-        monkeypatch.setattr(jh, "JSON_DIR", new_dir)
+        monkeypatch.setattr(jh._handler, "_json_dir", new_dir)
 
         assert not new_dir.exists()
-        jh.log_operation("init", module_name="dirmod")
+        jh.ensure_module_jsons("dirmod")
         assert new_dir.exists()
 
-    def test_ensure_module_jsons_log_created(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """ensure_module_jsons: module log file is auto-created."""
+    def test_ensure_module_jsons_creates_triplet(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """ensure_module_jsons creates config, data, and log files."""
         jh = _get_json_handler()
-        monkeypatch.setattr(jh, "JSON_DIR", tmp_path)
+        monkeypatch.setattr(jh._handler, "_json_dir", tmp_path)
 
-        jh.log_operation("provision", module_name="provmod")
+        jh.ensure_module_jsons("provmod")
 
-        log_path = tmp_path / "provmod_log.json"
-        assert log_path.exists()
-        log = json.loads(log_path.read_text(encoding="utf-8"))
-        assert isinstance(log, list)
-        assert len(log) >= 1
+        for suffix in ("config", "data", "log"):
+            path = tmp_path / f"provmod_{suffix}.json"
+            assert path.exists(), f"Missing {path.name}"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            assert jh.validate_json_structure(data, suffix)
 
 
 # ===========================================================================

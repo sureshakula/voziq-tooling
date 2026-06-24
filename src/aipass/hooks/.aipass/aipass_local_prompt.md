@@ -42,7 +42,8 @@ apps/
       claude.py            # Claude Code bridge (provider settings entry point)
     prompt/                # Prompt injection hooks
       branch_loader.py     #   Injects aipass_local_prompt.md
-      global_loader.py     #   Injects global prompt
+      tier0_kernel.py      #   Injects tier0 kernel prompt (every turn)
+      navmap.py            #   Injects tier1 navmap prompt (periodic)
       identity.py          #   Injects passport identity block
     security/              # Enforcement hooks
       edit_gate.py         #   Blocks edits while type errors exist
@@ -70,7 +71,7 @@ tests/                     # 15 test files, 244 tests
 
 | Category | Count | Handlers |
 |----------|-------|----------|
-| prompt | 3 | branch_loader, global_loader, identity |
+| prompt | 4 | branch_loader, tier0_kernel, navmap, identity |
 | security | 3 | edit_gate, git_gate, subagent_gate |
 | lifecycle | 4 | auto_fix, auto_watchdog, compact, rollover |
 | notification | 4 | announce, email, stop_sound, tool_sound |

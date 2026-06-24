@@ -57,7 +57,15 @@ TEMPLATE_FILE = TEMPLATE_DIR / "DASHBOARD.template.json"
 AIPASS_REGISTRY = _find_repo_root() / "AIPASS_REGISTRY.json"
 
 # Deprecated sections that should be flagged for removal
-DEPRECATED_SECTIONS = ["bulletin_board", "devpulse", "commons_activity", "agent_status", "memory_bank"]
+DEPRECATED_SECTIONS = [
+    "bulletin_board",
+    "devpulse",
+    "commons_activity",
+    "agent_status",
+    "memory_bank",
+    "session",
+    "todo",
+]
 
 # Deprecated quick_status keys that should be flagged
 DEPRECATED_QUICK_STATUS_KEYS = ["pending_bulletins", "commons_mentions"]
