@@ -9,17 +9,19 @@
 """
 Secrets Module
 
-Cross-branch in-process API for reading secrets from the provider store.
+Cross-branch in-process API for the secrets provider store.
 Consumers import directly instead of shelling out to the CLI.
 
 Functions:
     get_secret() - Read a secret by provider/slug
+    set_secret() - Write a secret to the provider store
     list_secrets() - List available slugs for a provider
     handle_command() - Route CLI commands (seedgo module discovery)
 """
 
 import sys
-from typing import Any, List, Optional
+from pathlib import Path
+from typing import Any, List, Optional, Union
 
 from aipass.prax import logger  # noqa: F401 — seedgo imports standard
 from aipass.cli.apps.modules import console, header
@@ -42,6 +44,7 @@ def print_introspection():
 
     console.print("[cyan]Available Workflows:[/cyan]")
     console.print("  • get_secret() - Read secret by provider/slug")
+    console.print("  • set_secret() - Write secret to provider store")
     console.print("  • list_secrets() - List slugs for a provider")
     console.print()
 
@@ -93,6 +96,30 @@ def get_secret(provider: str, slug: str, as_json: bool = False) -> Optional[Any]
     """
     result = _handler.get_secret(provider, slug, as_json=as_json)
     json_handler.log_operation("secrets_get", {"provider": provider, "slug": slug, "found": result is not None})
+    return result
+
+
+def set_secret(provider: str, slug: str, value: Union[str, dict], *, as_json: bool = False) -> Path:
+    """
+    Write a secret to the provider store.
+
+    This is the sanctioned cross-branch write path. Consumers call this
+    instead of shelling out to the CLI.
+
+    Args:
+        provider: Provider directory name (e.g., 'telegram')
+        slug: Secret identifier (without .json extension)
+        value: Secret value — string or dict
+        as_json: If True, json.dump the value; else write as plain string
+
+    Returns:
+        Path to the written file
+
+    Raises:
+        OSError: If directory creation or file write fails
+    """
+    result = _handler.set_secret(provider, slug, value, as_json=as_json)
+    json_handler.log_operation("secrets_set", {"provider": provider, "slug": slug, "wrote": str(result)})
     return result
 
 

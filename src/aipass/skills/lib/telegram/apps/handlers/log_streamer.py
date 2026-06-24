@@ -37,9 +37,29 @@ from aipass.skills.apps.handlers.json import json_handler
 # CONSTANTS
 # =============================================
 
-SYSTEM_LOGS_DIR = Path.home() / "system_logs"
 BATCH_INTERVAL = 5.0
 TELEGRAM_MAX_LENGTH = 4000
+
+
+def _get_system_logs_dir():
+    """Resolve system_logs dir, honoring AIPASS_TEST_LOG_DIR."""
+    import os
+
+    test_dir = os.environ.get("AIPASS_TEST_LOG_DIR")
+    if test_dir:
+        p = Path(test_dir) / "system"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "pyproject.toml").exists():
+            d = parent / "system_logs"
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+    return Path.home() / "system_logs"
+
+
+SYSTEM_LOGS_DIR = _get_system_logs_dir()
 
 
 # =============================================

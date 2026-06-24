@@ -19,7 +19,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=%h/.venv/bin/python3 %h/Projects/AIPass/src/aipass/skills/lib/telegram/apps/handlers/base_bot.py --bot-id %i
+ExecStart=%h/Projects/AIPass/.venv/bin/python3 -m aipass.skills.lib.telegram.apps.handlers.base_bot --bot-id %i
 WorkingDirectory=%h/Projects/AIPass
 Environment=AIPASS_BOT_ID=%i
 Environment=AIPASS_SESSION_TYPE=telegram

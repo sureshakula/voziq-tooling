@@ -21,8 +21,19 @@ Tests — handlers/auth/secrets.py (get_secret, list_secrets):
 - list_secrets: non-existent provider returns empty list
 - list_secrets: skips dotfiles, __pycache__, directories
 
+Tests — handlers/auth/secrets.py (set_secret):
+- set_secret: writes string value to provider/slug.json
+- set_secret: as_json writes JSON-serialized dict
+- set_secret: creates provider directory if missing
+- set_secret: file has 0o600 permissions (POSIX)
+- set_secret: provider dir has 0o700 permissions (POSIX)
+- set_secret: overwrites existing secret
+- set_secret: round-trip with get_secret returns same value
+- set_secret: round-trip with get_secret as_json returns same dict
+
 Tests — modules/secrets.py (in-process door):
 - get_secret wraps handler and logs operation
+- set_secret wraps handler and logs operation
 - list_secrets wraps handler
 
 Tests — api_key.py (get_secret_cmd — hardened, no raw values to stdout):
@@ -52,6 +63,7 @@ from aipass.api.apps.modules.api_key import handle_command as _hc  # noqa: F401 
 from aipass.api.apps.modules.secrets import handle_command as _hc2  # noqa: F401 — seedgo test_coverage detection
 from aipass.api.apps.handlers.auth.secrets import (
     get_secret,
+    set_secret,
     list_secrets,
 )
 from aipass.api.apps.modules.api_key import get_secret_cmd
@@ -491,3 +503,131 @@ class TestGetSecretCmd:
         get_secret_cmd(["empty_provider", "--list"])
 
         mock_secrets.list_secrets.assert_called_once_with("empty_provider")
+
+
+# =============================================
+# set_secret (handler)
+# =============================================
+
+
+class TestSetSecret:
+    """Verifies secret writing under various conditions."""
+
+    def test_writes_string_value(self, tmp_path: Path) -> None:
+        """Writes a plain string value to provider/slug.json."""
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            result = set_secret("telegram", "bot", "my-token-value")
+
+        assert result == tmp_path / "telegram" / "bot.json"
+        assert json.loads(result.read_text(encoding="utf-8")) == "my-token-value"
+
+    def test_as_json_writes_dict(self, tmp_path: Path) -> None:
+        """as_json=True writes JSON-serialized dict."""
+        data = {"bot_token": "abc123", "webhook_url": "https://example.com"}
+
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            result = set_secret("telegram", "bot", data, as_json=True)
+
+        written = json.loads(result.read_text(encoding="utf-8"))
+        assert written == data
+
+    def test_creates_provider_directory(self, tmp_path: Path) -> None:
+        """Creates provider directory if it doesn't exist."""
+        assert not (tmp_path / "newprovider").exists()
+
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            set_secret("newprovider", "cred", "value")
+
+        assert (tmp_path / "newprovider").is_dir()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="File permission checks are POSIX-only")
+    def test_file_has_0600_permissions(self, tmp_path: Path) -> None:
+        """Written file has 0o600 permissions."""
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            result = set_secret("telegram", "bot", "token")
+
+        file_mode = stat.S_IMODE(os.stat(result).st_mode)
+        assert file_mode == 0o600
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="File permission checks are POSIX-only")
+    def test_provider_dir_has_0700_permissions(self, tmp_path: Path) -> None:
+        """Provider directory has 0o700 permissions."""
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            set_secret("telegram", "bot", "token")
+
+        dir_mode = stat.S_IMODE(os.stat(tmp_path / "telegram").st_mode)
+        assert dir_mode == 0o700
+
+    def test_overwrites_existing_secret(self, tmp_path: Path) -> None:
+        """Overwrites an existing secret file."""
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            set_secret("telegram", "bot", "old-value")
+            set_secret("telegram", "bot", "new-value")
+
+        content = json.loads((tmp_path / "telegram" / "bot.json").read_text(encoding="utf-8"))
+        assert content == "new-value"
+
+    def test_round_trip_string(self, tmp_path: Path) -> None:
+        """set_secret then get_secret returns the same string value."""
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            set_secret("telegram", "bot", "round-trip-token")
+            result = get_secret("telegram", "bot")
+
+        assert result == "round-trip-token"
+
+    def test_round_trip_json(self, tmp_path: Path) -> None:
+        """set_secret as_json then get_secret as_json returns the same dict."""
+        data = {"bot_token": "abc123", "chat_id": 42}
+
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER), patch(PATCH_LOGGER):
+            set_secret("telegram", "bot", data, as_json=True)
+            result = get_secret("telegram", "bot", as_json=True)
+
+        assert result == data
+
+    def test_logs_operation(self, tmp_path: Path) -> None:
+        """set_secret logs the write operation via json_handler."""
+        mock_jh = MagicMock()
+        with patch(PATCH_SECRETS_BASE, tmp_path), patch(PATCH_JSON_HANDLER, mock_jh), patch(PATCH_LOGGER):
+            set_secret("telegram", "bot", "token")
+
+        mock_jh.log_operation.assert_called_once()
+        call_args = mock_jh.log_operation.call_args[0]
+        assert call_args[0] == "secret_written"
+        assert call_args[1]["provider"] == "telegram"
+        assert call_args[1]["slug"] == "bot"
+
+
+# =============================================
+# set_secret (module door)
+# =============================================
+
+
+class TestSetSecretModule:
+    """Verifies the module-level set_secret wrapper."""
+
+    def test_set_secret_wraps_handler(self, tmp_path: Path) -> None:
+        """Module set_secret delegates to handler and logs the operation."""
+        mock_handler = MagicMock()
+        mock_handler.set_secret.return_value = tmp_path / "telegram" / "bot.json"
+        mock_jh = MagicMock()
+
+        with patch(PATCH_MOD_HANDLER, mock_handler), patch(PATCH_MOD_JSON_HANDLER, mock_jh):
+            result = secrets_module.set_secret("telegram", "bot", "token-val")
+
+        assert result == tmp_path / "telegram" / "bot.json"
+        mock_handler.set_secret.assert_called_once_with("telegram", "bot", "token-val", as_json=False)
+        mock_jh.log_operation.assert_called_once()
+        assert mock_jh.log_operation.call_args[0][0] == "secrets_set"
+
+    def test_set_secret_as_json(self) -> None:
+        """Module set_secret passes as_json through to handler."""
+        mock_handler = MagicMock()
+        mock_handler.set_secret.return_value = Path("/fake/path.json")
+        mock_jh = MagicMock()
+        data = {"bot_token": "abc"}
+
+        with patch(PATCH_MOD_HANDLER, mock_handler), patch(PATCH_MOD_JSON_HANDLER, mock_jh):
+            secrets_module.set_secret("telegram", "bot", data, as_json=True)
+
+        mock_handler.set_secret.assert_called_once_with("telegram", "bot", data, as_json=True)

@@ -9,17 +9,19 @@
 """
 Secrets Store Handler
 
-Reads structured secrets from ~/.secrets/aipass/<provider>/<slug>.
+Reads and writes structured secrets in ~/.secrets/aipass/<provider>/<slug>.
 Supports JSON config files and raw secret files.
 
 Functions:
     get_secret() - Read a secret by provider/slug
+    set_secret() - Write a secret to the provider store
     list_secrets() - List available slugs for a provider
 """
 
 import json
+import os
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from aipass.prax import logger
 from aipass.api.apps.handlers.json import json_handler
@@ -113,6 +115,53 @@ def list_secrets(provider: str) -> List[str]:
         slugs.append(name)
 
     return sorted(slugs)
+
+
+# ==============================================
+# SECRET WRITING
+# ==============================================
+
+
+def set_secret(provider: str, slug: str, value: Union[str, dict], *, as_json: bool = False) -> Path:
+    """
+    Write a secret to the provider store.
+
+    Destination: ~/.secrets/aipass/<provider>/<slug>.json
+
+    Args:
+        provider: Provider directory name (e.g., 'telegram')
+        slug: Secret identifier (without .json extension)
+        value: Secret value — string or dict
+        as_json: If True, json.dump the value; else write as plain string
+
+    Returns:
+        Path to the written file
+
+    Raises:
+        OSError: If directory creation or file write fails
+    """
+    provider_dir = SECRETS_BASE / provider
+    provider_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(provider_dir, 0o700)
+
+    target = provider_dir / f"{slug}.json"
+
+    if as_json:
+        content = json.dumps(value, indent=2).encode("utf-8")
+    else:
+        content = json.dumps(str(value)).encode("utf-8")
+
+    fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(fd, content)
+    finally:
+        os.close(fd)
+
+    json_handler.log_operation(
+        "secret_written",
+        {"provider": provider, "slug": slug, "format": "json" if as_json else "raw"},
+    )
+    return target
 
 
 # ==============================================

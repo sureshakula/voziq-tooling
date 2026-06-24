@@ -31,7 +31,9 @@ All HTTP calls use urllib (stdlib). No external dependencies.
 
 # Standard library
 import json
+import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -200,11 +202,34 @@ def set_bot_commands(bot_token: str, commands: list[dict]) -> bool:
 # =============================================
 
 
+def _install_service_unit() -> bool:
+    """Copy telegram-bot@.service into ~/.config/systemd/user/ and reload."""
+    UNIT_SRC = Path(__file__).resolve().parents[2] / "telegram-bot@.service"
+    UNIT_DST_DIR = Path.home() / ".config" / "systemd" / "user"
+    UNIT_DST = UNIT_DST_DIR / "telegram-bot@.service"
+
+    try:
+        UNIT_DST_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(UNIT_SRC, UNIT_DST)
+        subprocess.run(
+            ["systemctl", "--user", "daemon-reload"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        logger.info("Installed service unit: %s", UNIT_DST)
+        return True
+    except OSError as e:
+        logger.warning("Failed to install service unit: %s", e)
+        return False
+
+
 def enable_service(bot_id: str) -> bool:
     """
     Enable the systemd user service for a bot (does not start it).
 
-    Runs: systemctl --user enable telegram-bot@{bot_id}
+    Installs the unit file if missing, then runs:
+    systemctl --user enable telegram-bot@{bot_id}
 
     Args:
         bot_id: Bot identifier used in the service template.
@@ -212,6 +237,7 @@ def enable_service(bot_id: str) -> bool:
     Returns:
         True if the service was enabled successfully, False otherwise.
     """
+    _install_service_unit()
     SERVICE_NAME = f"telegram-bot@{bot_id}"
     try:
         result = subprocess.run(
@@ -283,12 +309,11 @@ def start_bot_process(bot_id: str) -> bool:
     Returns:
         True if the process was launched successfully, False otherwise.
     """
-    BASE_BOT_PATH = Path(__file__).parent / "base_bot.py"
-    PYTHON = str(Path.home() / ".venv" / "bin" / "python3")
+    MODULE_PATH = "aipass.skills.lib.telegram.apps.handlers.base_bot"
 
     try:
         proc = subprocess.Popen(
-            [PYTHON, str(BASE_BOT_PATH), "--bot-id", bot_id],
+            [sys.executable, "-m", MODULE_PATH, "--bot-id", bot_id],
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

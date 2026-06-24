@@ -29,7 +29,31 @@ PyPI version — not the changelog header.
   gate's scope newly surfaced 9 pre-existing `unused_function` flags in its
   handlers — triage tracked separately. (DPLAN-0218)
 
+### Added
+
+- **`@api` in-process `set_secret` write-door** — `aipass.api.apps.modules.secrets.set_secret(provider, slug, value, *, as_json=False)`
+  mirrors the existing `get_secret`, writing `~/.secrets/aipass/<provider>/<slug>.json`
+  (dirs `0o700`, files `0o600`, value never echoed to stdout or logged). The @api
+  secrets store was previously read-only; this is the writer the telegram
+  mother-bot needs to persist a newly-created bot's config so the child can read
+  its token. 515 @api tests pass (11 new), @api seedgo 100%. (DPLAN-0220)
+
 ### Fixed
+
+- **Telegram port — wave 1 (persistence + monitor + state hygiene)**, surfaced by
+  a full completeness audit against `TELEGRAM_PORT_MAP.md` (366 tags, ~83% ported,
+  452/452 tests green): (1) **bot launch** — `bot_factory.start_bot_process` and
+  `telegram-bot@.service` used a non-existent `~/.venv/bin/python3`; now launch via
+  `sys.executable -m …base_bot` (added `lib/__init__.py` + `lib/telegram/__init__.py`
+  for package resolution, since base_bot uses relative imports). (2) **reboot
+  survival** — `enable_service` now installs the systemd unit to
+  `~/.config/systemd/user/` + `daemon-reload` (previously the unit was never
+  installed, so `enable` silently no-op'd). (3) **state hygiene** — gitignored
+  `skills/.../lib/telegram/.local/` so the runtime registry/offset/lock files stop
+  leaking into the repo. (4) **prax-monitor** — `log_streamer` tailed a hardcoded
+  `~/system_logs` while prax writes to the repo-root `system_logs`; now resolves the
+  repo root (honoring `AIPASS_TEST_LOG_DIR`) so the log stream actually delivers.
+  (DPLAN-0220)
 
 - **seedgo CLI help checkers green-lit non-compliant `--help` output** — the
   `cli`/`help_text`/`introspection` standards are static source scans (they
