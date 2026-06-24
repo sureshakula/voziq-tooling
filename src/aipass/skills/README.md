@@ -104,7 +104,7 @@ Skills are discovered in this order (first match wins for same name):
 
 1. **Project**: `.aipass/skills/` in the current working directory
 2. **Global**: `~/.aipass/skills/` in the user's home directory
-3. **Built-in**: `src/skills/catalog/` in the AIPass codebase
+3. **Built-in**: `src/aipass/skills/lib/` in the AIPass codebase
 
 ## Commands / Usage
 
@@ -124,7 +124,7 @@ drone @skills --help                       # Show help
 ## Directory Structure
 
 ```
-src/skills/
+src/aipass/skills/
   apps/
     skills.py              # Entry point (handle_command)
     modules/
@@ -140,7 +140,7 @@ src/skills/
       validator.py         # Check requirements
       template.py          # Skill templates
     plugins/               # Plugin extensions
-  catalog/                 # Built-in skills (branch_health, drone_commands, github, inbox_check, system_status)
+  lib/                     # Built-in skills (branch_health, drone_commands, github, inbox_check, system_status, telegram)
   templates/               # Skill creation templates
   skills_json/             # JSON tracking directory
   dropbox/                 # External storage sync

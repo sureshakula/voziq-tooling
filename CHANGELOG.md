@@ -11,6 +11,24 @@ PyPI version — not the changelog header.
 
 ## [2026-06-24]
 
+### Changed
+
+- **Skill library relocated to `src/aipass/skills/lib/`** — first-party skills
+  were split across `catalog/` (built-in, cross-branch) and `.aipass/skills/`
+  (the branch-prompt dir, cwd-relative). Renamed `catalog/`→`lib/`, moved the
+  telegram skill in, archived three orphan test-fixture skills, and retired
+  `.aipass/skills/` from the branch. This unifies all 6 first-party skills under
+  one built-in tier and **fixes the telegram skill not being discoverable from
+  other branches** (it sat in a cwd-relative path). The public discovery
+  convention (`.aipass/skills/` + `~/.aipass/skills/`) is unchanged. One
+  functional line changed (`discovery_handler` built-in path); telegram's test
+  `conftest` path-depth, the systemd `.service` ExecStart, and seedgo bypass +
+  test paths were updated to match. Packaging, imports, and gitignore are
+  unaffected (everything stays under `src/aipass/`). 252/252 skills tests green;
+  cross-branch discovery verified from another branch. Moving telegram into the
+  gate's scope newly surfaced 9 pre-existing `unused_function` flags in its
+  handlers — triage tracked separately. (DPLAN-0218)
+
 ### Fixed
 
 - **seedgo CLI help checkers green-lit non-compliant `--help` output** — the

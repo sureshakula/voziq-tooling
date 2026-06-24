@@ -142,7 +142,7 @@ class TestParseSimpleValue:
 
 class TestDiscoverSkillsInPath:
     def test_finds_catalog_skills(self):
-        catalog_path = Path(__file__).resolve().parent.parent / "catalog"
+        catalog_path = Path(__file__).resolve().parent.parent / "lib"
         skills = discover_skills_in_path(catalog_path, "builtin")
         names = {s["name"] for s in skills}
         assert "github" in names
@@ -159,7 +159,7 @@ class TestDiscoverSkillsInPath:
             assert skills == []
 
     def test_skill_dict_structure(self):
-        catalog_path = Path(__file__).resolve().parent.parent / "catalog"
+        catalog_path = Path(__file__).resolve().parent.parent / "lib"
         skills = discover_skills_in_path(catalog_path, "builtin")
         for skill in skills:
             assert "name" in skill
@@ -170,7 +170,7 @@ class TestDiscoverSkillsInPath:
             assert "tags" in skill
 
     def test_has_handler_flag(self):
-        catalog_path = Path(__file__).resolve().parent.parent / "catalog"
+        catalog_path = Path(__file__).resolve().parent.parent / "lib"
         skills = discover_skills_in_path(catalog_path, "builtin")
         skill_map = {s["name"]: s for s in skills}
         assert skill_map["github"]["has_handler"] is False

@@ -13,7 +13,7 @@ from aipass.prax import logger
 from aipass.skills.apps.handlers.json import json_handler
 
 
-# Template directory lives at src/skills/templates/
+# Template directory lives at src/aipass/skills/templates/
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent.parent / "templates"
 
 VALID_TYPES = ("markdown_only", "with_handler", "full")

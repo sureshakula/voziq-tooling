@@ -1,5 +1,5 @@
 # SKILLS — Branch Context
-<!-- File: src/skills/.aipass/aipass_local_prompt.md — Injected on every prompt when in skills directory. -->
+<!-- File: src/aipass/skills/.aipass/aipass_local_prompt.md — Injected on every prompt when in skills directory. -->
 
 Capability framework for AI agents. Discoverable, validatable, executable skill units across three tiers: markdown-only, with handler, full 3-layer.
 
@@ -34,7 +34,7 @@ apps/
 │   ├── validator.py          # Requirement checking (pip, bins, config)
 │   └── template.py           # Template resolution and copying
 ├── plugins/               # Extension point (empty)
-catalog/                   # Built-in skills: drone_commands, github, system_status
+lib/                       # Built-in skills: branch_health, drone_commands, github, inbox_check, system_status, telegram
 templates/                 # Skill creation templates (markdown_only, with_handler, full)
 ```
 
@@ -42,7 +42,7 @@ templates/                 # Skill creation templates (markdown_only, with_handl
 
 1. `.aipass/skills/` — Project-local skills
 2. `~/.aipass/skills/` — Global user skills
-3. `src/skills/catalog/` — Built-in skills
+3. `src/aipass/skills/lib/` — Built-in skills
 
 ## Three Skill Tiers
 

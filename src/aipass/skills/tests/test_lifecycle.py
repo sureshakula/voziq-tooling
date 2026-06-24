@@ -106,7 +106,7 @@ class TestCatalogSkillsLifecycle:
 
     def test_github_skill_full_cycle(self):
         """GitHub (Tier 1): discover -> load -> run returns instructions."""
-        catalog = Path(__file__).resolve().parent.parent / "catalog"
+        catalog = Path(__file__).resolve().parent.parent / "lib"
         skills = discover_skills_in_path(catalog, "builtin")
         github = [s for s in skills if s["name"] == "github"]
         assert len(github) == 1
