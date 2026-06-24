@@ -54,6 +54,16 @@ PyPI version — not the changelog header.
   `BUILTIN_IGNORES` (dropped stale `.backup_system/` + over-broad `*logs`).
   @memory and @flow READMEs now cross-reference their `.backup/` writes, and the
   orphaned `prax/.backupignore` (a stale per-branch config) was removed.
+- **Root README agent roster brought current** — added the three missing agents
+  (`@daemon`, `@skills`, `@commons`) to the tree and tables, and normalized the
+  agent count to **17** everywhere (was an inconsistent mix of "13" and "14").
+  `@daemon` joins Quality & operations; a new "Capabilities and community" group
+  covers `@skills` + `@commons` (td-28).
+- **`/prep` now reconciles todos against reality** — the session-wrap command
+  (both the Claude `.claude/commands/prep.md` and the Codex skill mirror) gained
+  a step to audit every open todo against the actual system (`ls`/`find`/`git
+  ls-files`/`grep`/`audit`) and close what's verifiably done — catching todos
+  finished in a past session but never closed.
 
 ## [2026-06-23]
 

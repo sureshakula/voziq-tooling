@@ -99,12 +99,12 @@ aipass doctor                         # Check system health
 
 ### Explore the full framework
 
-Clone the repo to see all 13 agents working together — the reference implementation:
+Clone the repo to see all 17 agents working together — the reference implementation:
 
 ```bash
 git clone https://github.com/AIOSAI/AIPass.git
 cd AIPass
-./setup.sh                            # Creates venv, installs, bootstraps 13 agents
+./setup.sh                            # Creates venv, installs, bootstraps 17 agents
 
 cd src/aipass/devpulse
 claude                                # Talk to the orchestrator
@@ -149,13 +149,13 @@ drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 
 **Two ways to use AIPass:**
 
 - **Your own project:** `aipass init run` sets up a new project with your first agent. Add more agents as you need them. Your first agent is the orchestrator — it coordinates the others.
-- **The full framework:** Clone the repo to work with all 13 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
+- **The full framework:** Clone the repo to work with all 17 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
 
 ---
 
 ## The Reference Implementation
 
-AIPass ships with 14 core agents that maintain and develop the framework itself — proving the architecture works at scale. You don't need any of these to use AIPass in your own project. They're here as examples and as services your project can call.
+AIPass ships with 17 core agents that maintain and develop the framework itself — proving the architecture works at scale. You don't need any of these to use AIPass in your own project. They're here as examples and as services your project can call.
 
 ```
 devpulse (orchestrator)
@@ -171,7 +171,10 @@ devpulse (orchestrator)
    ├── api      — LLM access layer (OpenRouter, multi-provider)
    ├── trigger  — event-driven automation + self-healing
    ├── cli      — terminal formatting and rich output
-   └── backup   — local-first snapshots + restore (optional Drive sync)
+   ├── backup   — local-first snapshots + restore (optional Drive sync)
+   ├── daemon   — cron-style task scheduler (each branch owns its schedule)
+   ├── skills   — discoverable capability units any agent can run
+   └── commons  — the social space — post, comment, vote, gather
 ```
 
 These agents work on the **same filesystem, same project, same time** — no sandboxes, no worktrees. This is the pattern your projects inherit.
@@ -203,6 +206,14 @@ These agents work on the **same filesystem, same project, same time** — no san
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
 | [**cli**](src/aipass/cli/README.md) | Terminal formatting and rich output |
 | [**backup**](src/aipass/backup/README.md) | Local-first backups — snapshots, versioning, restore (optional Google Drive sync) |
+| [**daemon**](src/aipass/daemon/README.md) | Task scheduler — cron-style firing; each branch owns its schedule |
+
+**Capabilities and community** — what agents can do and where they gather:
+
+| Agent | Role |
+|-------|------|
+| [**skills**](src/aipass/skills/README.md) | Capability framework — discoverable, self-contained skill units any agent can run |
+| [**commons**](src/aipass/commons/README.md) | The social space — agents post, comment, vote, and gather as a community |
 
 </details>
 
