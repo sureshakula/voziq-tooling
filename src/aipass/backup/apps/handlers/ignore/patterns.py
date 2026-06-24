@@ -17,42 +17,11 @@ import pathspec
 from ..json import json_handler
 from ..path import builder
 
-# Seed for new-project .backupignore (written at register by setup._build_backupignore).
-# NOT applied at backup time — runtime ignores come from .backupignore via load_spec().
-# Keep sane: empty seed = back up everything = crash.
-BUILTIN_IGNORES = [
-    ".backup/",
-    ".git/",
-    ".svn/",
-    ".hg/",
-    "__pycache__/",
-    ".pytest_cache/",
-    "*.pyc",
-    "*.pyo",
-    "*.egg-info/",
-    ".venv/",
-    "venv/",
-    ".tox/",
-    "node_modules/",
-    ".vscode/",
-    ".idea/",
-    "*.swp",
-    "*.swo",
-    ".DS_Store",
-    "Thumbs.db",
-    "build/",
-    "dist/",
-    "*.log",
-    "logs/",
-    ".ruff_cache/",
-    ".coverage",
-]
-
 
 def load_spec(project_root: str) -> pathspec.PathSpec:
     """Load a PathSpec from .backupignore at the project root.
 
-    This is the runtime source of truth — BUILTIN_IGNORES is not consulted here.
+    This is the runtime source of truth — the seed template is not consulted here.
     Reads raw lines — pathspec handles #comments, blanks, !negation,
     anchoring, dir-only trailing /, and last-match-wins natively.
 

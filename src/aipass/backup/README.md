@@ -109,12 +109,12 @@ The root `.gitignore` covers all three with a single `.backup/` entry.
 
 Two layers — seed and runtime:
 
-1. **`BUILTIN_IGNORES`** (`handlers/ignore/patterns.py`) — the **seed**. Written into a new project's `.backupignore` at `register` time (`setup._build_backupignore()`). Never consulted at backup time.
-2. **`.backupignore`** — the **runtime source of truth**. `load_spec()` reads it on every backup; `BUILTIN_IGNORES` is not applied. True pathspec/gitwildmatch semantics: `#` comments, `!` negation, trailing `/` for dirs, last-match-wins.
+1. **`templates/backupignore.template`** — the **seed**. Read by `setup._build_backupignore()` and written into a new project's `.backupignore` at `register` time. Never consulted at backup time. If this file is missing, registration raises — an empty seed would back up everything and crash the machine.
+2. **`.backupignore`** — the **runtime source of truth**. `load_spec()` reads it on every backup; the seed template is not applied. True pathspec/gitwildmatch semantics: `#` comments, `!` negation, trailing `/` for dirs, last-match-wins.
 
-There is no static fallback. The seed IS the safety mechanism — an empty or missing `.backupignore` means back up everything (`.venv`, `node_modules`, `.git`), which can crash the machine. Keep `BUILTIN_IGNORES` sane.
+There is no static fallback. The seed IS the safety mechanism — an empty or missing `.backupignore` means back up everything (`.venv`, `node_modules`, `.git`), which can crash the machine. Keep the template sane.
 
-- To change defaults for **new** projects → edit `BUILTIN_IGNORES` in `patterns.py`
+- To change defaults for **new** projects → edit `templates/backupignore.template`
 - To change ignores for an **existing** project → edit its `.backupignore`
 
 The repo-root `/.backupignore` ships intentionally as the curated default so users don't snapshot junk.

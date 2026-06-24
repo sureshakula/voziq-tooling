@@ -11,7 +11,6 @@
 import pathspec
 
 from aipass.backup.apps.handlers.ignore.patterns import (
-    BUILTIN_IGNORES,
     is_ignored,
     load_spec,
 )
@@ -240,28 +239,61 @@ class TestDotfilesIncluded:
 
 
 class TestSeedTemplate:
-    """BUILTIN_IGNORES is used for seeding, not runtime merge."""
+    """Seed template (backupignore.template) provisions new projects."""
 
-    def test_builtin_has_ruff_cache(self):
-        """Seed defaults include .ruff_cache/."""
-        assert ".ruff_cache/" in BUILTIN_IGNORES
+    def test_template_has_ruff_cache(self):
+        """Seed template includes .ruff_cache/."""
+        from aipass.backup.apps.handlers.project.setup import _TEMPLATE_PATH
 
-    def test_builtin_has_coverage(self):
-        """Seed defaults include .coverage."""
-        assert ".coverage" in BUILTIN_IGNORES
+        content = _TEMPLATE_PATH.read_text(encoding="utf-8")
+        assert ".ruff_cache/" in content
 
-    def test_builtin_has_logs_dir(self):
-        """Seed defaults exclude logs/ directories."""
-        assert "logs/" in BUILTIN_IGNORES
+    def test_template_has_coverage(self):
+        """Seed template includes .coverage."""
+        from aipass.backup.apps.handlers.project.setup import _TEMPLATE_PATH
 
-    def test_build_backupignore_content(self):
-        """Seed template includes ruff_cache, coverage, and pycache."""
-        from aipass.backup.apps.handlers.project.setup import _build_backupignore
+        content = _TEMPLATE_PATH.read_text(encoding="utf-8")
+        assert ".coverage" in content
+
+    def test_template_has_logs_dir(self):
+        """Seed template excludes logs/ directories."""
+        from aipass.backup.apps.handlers.project.setup import _TEMPLATE_PATH
+
+        content = _TEMPLATE_PATH.read_text(encoding="utf-8")
+        assert "logs/" in content
+
+    def test_template_has_git(self):
+        """Seed template excludes .git/."""
+        from aipass.backup.apps.handlers.project.setup import _TEMPLATE_PATH
+
+        content = _TEMPLATE_PATH.read_text(encoding="utf-8")
+        assert ".git/" in content
+
+    def test_template_has_venv(self):
+        """Seed template excludes .venv/."""
+        from aipass.backup.apps.handlers.project.setup import _TEMPLATE_PATH
+
+        content = _TEMPLATE_PATH.read_text(encoding="utf-8")
+        assert ".venv/" in content
+
+    def test_build_backupignore_reads_template(self):
+        """_build_backupignore returns the template content."""
+        from aipass.backup.apps.handlers.project.setup import _TEMPLATE_PATH, _build_backupignore
 
         content = _build_backupignore()
-        assert ".ruff_cache/" in content
-        assert ".coverage" in content
-        assert "__pycache__/" in content
+        assert content == _TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    def test_build_backupignore_raises_on_missing_template(self, tmp_path):
+        """Missing template raises FileNotFoundError, not empty content."""
+        from unittest.mock import patch
+
+        import pytest
+
+        from aipass.backup.apps.handlers.project import setup
+
+        fake_path = tmp_path / "nonexistent.template"
+        with patch.object(setup, "_TEMPLATE_PATH", fake_path), pytest.raises(FileNotFoundError):
+            setup._build_backupignore()
 
     def test_seed_writes_only_when_absent(self, tmp_path):
         """Seeding does not overwrite an existing .backupignore."""

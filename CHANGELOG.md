@@ -32,6 +32,17 @@ PyPI version — not the changelog header.
   the sub-plan handed to it, but the master stays the orchestrator's to close on
   completion (td-6).
 
+### Changed
+
+- **Backup `.backupignore` default moved out of code into a template file** — the
+  seed content backup writes into a new project's `.backupignore` now lives in
+  `backup/templates/backupignore.template` (loaded at register), matching the
+  AIPass convention that templates are data files, not hardcoded Python. Retired
+  the `BUILTIN_IGNORES` list; `_build_backupignore()` reads the template and
+  **raises** if it's missing — never silently empty, since an empty
+  `.backupignore` would back up everything and crash. Docs/comments repointed to
+  the template (td-30).
+
 ### Removed
 
 - **Dead `bulletin_created` trigger handler** — the event handler that wrote a
