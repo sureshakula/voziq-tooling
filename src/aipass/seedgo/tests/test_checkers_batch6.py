@@ -50,16 +50,26 @@ def _mock_infrastructure(monkeypatch):
         json_mod,
     )
 
-    # -- bypass handler (used by architecture_check) ------------------------
+    # -- bypass handler (used by architecture_check + cli_check) -------------
     bypass_pkg = MagicMock()
     bypass_ignore = MagicMock()
     bypass_ignore.get_template_ignore_patterns = MagicMock(return_value=[])
     bypass_pkg.ignore_handler = bypass_ignore
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed as _real_is_bypassed
+
+    bypass_utils = MagicMock()
+    bypass_utils.is_bypassed = _real_is_bypassed
+    bypass_pkg.utils = bypass_utils
     monkeypatch.setitem(sys.modules, "aipass.seedgo.apps.handlers.bypass", bypass_pkg)
     monkeypatch.setitem(
         sys.modules,
         "aipass.seedgo.apps.handlers.bypass.ignore_handler",
         bypass_ignore,
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "aipass.seedgo.apps.handlers.bypass.utils",
+        bypass_utils,
     )
 
     # Force re-imports so checkers pick up fresh mocks
@@ -544,6 +554,30 @@ class TestCheckPrintUsage:
         assert result is not None
         assert result["passed"] is False
         assert "parser.print_help()" in result["message"]
+
+    def test_format_help_fails(self):
+        """console.print(parser.format_help()) fails — plain argparse text."""
+        from aipass.seedgo.apps.handlers.aipass_standards.cli_check import (
+            check_print_usage,
+        )
+
+        content = "console.print(parser.format_help())\n"
+        lines = _lines(content)
+        result = check_print_usage(content, lines, "/module.py")
+        assert result is not None
+        assert result["passed"] is False
+        assert ".format_help()" in result["message"]
+
+    def test_format_help_in_comment_ignored(self):
+        """.format_help() inside a comment is not flagged."""
+        from aipass.seedgo.apps.handlers.aipass_standards.cli_check import (
+            check_print_usage,
+        )
+
+        content = "# parser.format_help() should not be used\n"
+        lines = _lines(content)
+        result = check_print_usage(content, lines, "/module.py")
+        assert result is None
 
     def test_sys_stdout_write_fails(self):
         """sys.stdout.write() usage fails."""

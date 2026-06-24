@@ -13,6 +13,18 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **seedgo CLI help checkers green-lit non-compliant `--help` output** — the
+  `cli`/`help_text`/`introspection` standards are static source scans (they
+  confirm a `print_help` function, `console.print`, and `--help` wiring exist)
+  but never execute `--help`, so a module could score 100% while rendering raw
+  argparse. `@ai_mail` did exactly that via `console.print(parser.format_help())`,
+  laundering argparse's plain text through the approved console API and dodging
+  the existing `parser.print_help()` ban. Closed the loophole: `cli_check` now
+  flags `.format_help()`, `cli.md`/`cli_content.py` name it alongside
+  `print_help()`, +2 regression tests. Also rewrote `@ai_mail`'s `print_help()`
+  to render hand-rolled Rich (the `--help` content was complete, just unstyled).
+  A behavioral `--help` check (run it, assert not raw argparse) is noted as a
+  follow-up. (DPLAN-0217)
 - **seedgo `readme_check` ignored the `(disabled)` marker in self-scans** — its
   module-list and test-count scans now skip `foo(disabled).py`, matching the
   central audit collector. An in-place disabled module no longer trips a false
