@@ -32,6 +32,19 @@ PyPI version — not the changelog header.
   the event, its `BULLETINS.central.json` store no longer exists, and prax
   already prunes `bulletin_board` as a deprecated section. Archived + unwired
   from the event registry; prax's pruning stays (td-102).
+- **Dead `backup/run/` test dir** — leftover from an ad-hoc backup test run
+  (only its generated `.backupignore` had been tracked); removed (td-218).
+
+### Documentation
+
+- **Backup docs corrected** — `.backup/` is now documented as a **shared runtime
+  namespace** (@backup stores + @memory rollover safety copies + @flow plan
+  archive), not @backup-exclusive. @backup's README gained full command coverage,
+  the `.backup/` store layout, and a `.backupignore` ("gitignore for backups")
+  section; its branch prompt's stale `.backup_system/` / `drive_test.py` names
+  were fixed. Root README lists @backup and documents `.backupignore`; the navmap
+  was corrected. The shipped root `/.backupignore` was realigned to
+  `BUILTIN_IGNORES` (dropped stale `.backup_system/` + over-broad `*logs`).
 
 ## [2026-06-23]
 

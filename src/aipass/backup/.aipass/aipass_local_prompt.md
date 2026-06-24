@@ -39,7 +39,7 @@ apps/
 │   ├── settings.py        # Settings UI (stub — low priority)
 │   ├── drive_sync.py      # Drive sync (stub — DPLAN-003)
 │   ├── drive_stats.py     # Drive stats (stub)
-│   ├── drive_test.py      # Drive test (stub)
+│   ├── drive_check.py     # Drive check (stub — DPLAN-003)
 │   └── drive_clear.py     # Drive clear (stub)
 └── handlers/
     ├── copy/              # File copying (snapshot + versioned)
@@ -47,7 +47,7 @@ apps/
     ├── ignore/            # .backupignore patterns + whitelist
     ├── json/              # JSON persistence, atomic writes, ops log
     ├── path/              # Backup path building
-    ├── project/           # Config, registry, setup (.backup_system/)
+    ├── project/           # Config, registry, setup (.backup/)
     ├── report/            # Result formatting
     ├── scan/              # Directory walking + filtering
     ├── state/             # Changelog, metadata, timestamps
@@ -58,11 +58,11 @@ apps/
 ## Integration
 
 - **Depends on:** @prax for logging, @cli for Rich console output
-- **Serves:** Any project on the PC — backups are project-owned (.backup_system/ in target root)
+- **Serves:** Any project on the PC — backups are project-owned (.backup/ in target root)
 
 ## Working Habits
 
-- Project-owned design: .backup_system/ and .backupignore live in the TARGET project, not centrally
+- Project-owned design: .backup/ and .backupignore live in the TARGET project, not centrally
 - Normal citizen namespace: uses `from aipass.backup.apps.modules.*` / `from aipass.backup.apps.handlers.*`
 - Entry point sets AIPASS_BRANCH_NAME env var for Prax
 - BUILTIN_IGNORES in patterns.py is the single source for default ignore patterns

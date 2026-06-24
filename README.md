@@ -155,7 +155,7 @@ drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 
 
 ## The Reference Implementation
 
-AIPass ships with 13 core agents that maintain and develop the framework itself — proving the architecture works at scale. You don't need any of these to use AIPass in your own project. They're here as examples and as services your project can call.
+AIPass ships with 14 core agents that maintain and develop the framework itself — proving the architecture works at scale. You don't need any of these to use AIPass in your own project. They're here as examples and as services your project can call.
 
 ```
 devpulse (orchestrator)
@@ -170,7 +170,8 @@ devpulse (orchestrator)
    ├── memory   — automatic archival, ChromaDB, semantic search
    ├── api      — LLM access layer (OpenRouter, multi-provider)
    ├── trigger  — event-driven automation + self-healing
-   └── cli      — terminal formatting and rich output
+   ├── cli      — terminal formatting and rich output
+   └── backup   — local-first snapshots + restore (optional Drive sync)
 ```
 
 These agents work on the **same filesystem, same project, same time** — no sandboxes, no worktrees. This is the pattern your projects inherit.
@@ -201,6 +202,7 @@ These agents work on the **same filesystem, same project, same time** — no san
 | [**hooks**](src/aipass/hooks/README.md) | Hook engine — per-project config, sound control, event dispatch |
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
 | [**cli**](src/aipass/cli/README.md) | Terminal formatting and rich output |
+| [**backup**](src/aipass/backup/README.md) | Local-first backups — snapshots, versioning, restore (optional Google Drive sync) |
 
 </details>
 
@@ -265,6 +267,9 @@ AIPass stores everything locally in your project directory. To remove it:
 # Remove AIPass files from your project
 rm -rf .aipass/ .claude/ .ai_mail.local/ hooks/ src/
 rm -f CLAUDE.md AGENTS.md *_REGISTRY.json .gitignore
+
+# If you ran the backup system, also remove its local state + shipped config
+rm -rf .backup/ && rm -f .backupignore
 
 # If you installed via pip
 pip uninstall aipass
