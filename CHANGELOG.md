@@ -11,13 +11,45 @@ PyPI version — not the changelog header.
 
 ## [2026-06-23]
 
+The **2.6.0** release — a large `dev → main` merge spanning several weeks (68 commits).
+Headline changes below; the granular per-merge history is in the dated sections that follow.
+
+### Added
+
+- **Compass v2** — devpulse-owned SQLite/FTS5 rated-decision engine + `/compass`
+  human-triggered capture (separate from @memory; DB gitignored).
+- **Decentralized daemon scheduler** — each branch owns `.daemon/schedule.json`;
+  the daemon discovers and fires.
+- **Telegram skill** — the Dev-Pass bridge ported to a self-contained AIPass skill
+  that consumes services as opt-in imports.
+- **Tiered prompt injection** — Tier 0 kernel every turn + Tier 1 navmap by cadence,
+  replacing the single always-on global prompt.
+- **seedgo `HARDCODED_PATH` standard (#37)** — flags hardcoded home paths in source
+  and docstrings.
+
+### Changed
+
+- **@backup fully restored** — `aipass.backup.*` namespace, 9-stage Rich CLI,
+  versioned baseline + per-file diff engine, Google Drive sync + `restore`.
+- **Memory subsystem unified** — single-source config limits, char-limit edit-gate,
+  unified entry schema, rollover safety + the silent-rollover repair.
+- **Legacy global prompt retired** across every runtime — Claude (cadence) and Codex
+  (SessionStart) read the same tier files.
+- **@daemon / @commons / @skills** revived to working citizens.
+- Public source genericized — `Patrick` → `user` (private memories stay gitignored).
+
 ### Fixed
 
-- **Hardcoded home paths removed (seedgo #37 cleanup).** `@memory` `symbolic.py`
-  derived 8 dash-encoded branch-path names from a literal `-home-patrick-` home —
-  now built at runtime from `Path(__file__).resolve().parents[3]`. `@prax`
-  `branch_detector.py` docstring examples genericized to `-home-user-`. Both
-  branches back to 100% `Hardcoded_Path`. (959 / 906 tests green.)
+- **Secrets hardening** — no secret value reaches stdout (cleared CodeQL #86-88,
+  `py/clear-text-logging-sensitive-data`).
+- **Memory rollover was silently dead** — the PreCompact hook now delegates to
+  `drone @memory rollover`; the v1 line-count / 600-line fallback removed entirely.
+- **Hardcoded home paths removed (seedgo #37).** `@memory` `symbolic.py` builds its
+  8 dash-encoded branch-path names at runtime (was a literal `-home-patrick-`);
+  `@prax` `branch_detector.py` docstrings genericized. Both back to 100%
+  `Hardcoded_Path`.
+- Green-CI fixes across Linux / Windows / macOS; `dispatch_monitor` PID-`429`
+  substring bug; git post-merge friction (FF-only realign).
 
 ## [2026-06-19]
 
