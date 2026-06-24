@@ -61,7 +61,6 @@ def setup_handlers():
     except ImportError:
         _log_warning("ai_mail not available — error notifications won't send")
     from .warning_logged import handle_warning_logged
-    from .bulletin_created import handle_bulletin_created
     from .memory_template_updated import handle_memory_template_updated
 
     # from .pr_status_sync import handle_pr_created, handle_pr_merged  # TDPLAN-0007: status-sync decommissioned
@@ -74,7 +73,6 @@ def setup_handlers():
     trigger.on("plan_file_moved", handle_plan_file_moved)
     trigger.on("error_detected", handle_error_detected)
     trigger.on("warning_logged", handle_warning_logged)
-    trigger.on("bulletin_created", handle_bulletin_created)
     trigger.on("memory_template_updated", handle_memory_template_updated)
     # trigger.on("pr_created", handle_pr_created)  # TDPLAN-0007: status-sync decommissioned
     # trigger.on("pr_merged", handle_pr_merged)  # TDPLAN-0007: status-sync decommissioned

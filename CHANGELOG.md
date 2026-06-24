@@ -25,6 +25,14 @@ PyPI version — not the changelog header.
   10 existing line-scoped entries across drone/memory/skills and dropped 3 dead
   entries already pointing past EOF (td-009).
 
+### Removed
+
+- **Dead `bulletin_created` trigger handler** — the event handler that wrote a
+  `bulletin_board` section into every branch dashboard is retired: nothing fired
+  the event, its `BULLETINS.central.json` store no longer exists, and prax
+  already prunes `bulletin_board` as a deprecated section. Archived + unwired
+  from the event registry; prax's pruning stays (td-102).
+
 ## [2026-06-23]
 
 The **2.6.0** release — a large `dev → main` merge spanning several weeks (68 commits).
