@@ -24,7 +24,9 @@ PyPI version — not the changelog header.
   `print_help()`, +2 regression tests. Also rewrote `@ai_mail`'s `print_help()`
   to render hand-rolled Rich (the `--help` content was complete, just unstyled).
   A behavioral `--help` check (run it, assert not raw argparse) is noted as a
-  follow-up. (DPLAN-0217)
+  follow-up. (DPLAN-0217) On its first CI run the tightened checker immediately
+  surfaced the same pattern in 4 `@api` modules (`api_key`, `usage_tracker`,
+  `google_client`, `openrouter_client`) — migrated to Rich, `@api` back to 100%.
 - **seedgo `readme_check` ignored the `(disabled)` marker in self-scans** — its
   module-list and test-count scans now skip `foo(disabled).py`, matching the
   central audit collector. An in-place disabled module no longer trips a false

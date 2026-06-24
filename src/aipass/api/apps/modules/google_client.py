@@ -82,31 +82,25 @@ def print_introspection() -> None:
 
 
 def print_help() -> None:
-    """Print module help."""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog="drone @api",
-        description="Google Client - Google API authentication and service access",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-COMMANDS (via drone @api):
-  validate google   - Check Google OAuth2 credentials
-  reauth google     - Re-run OAuth2 flow for Google
-
-CROSS-BRANCH API:
-  from aipass.api.apps.modules.google_client import get_drive_service
-  service = get_drive_service()
-
-CREDENTIAL SETUP:
-  1. Get OAuth client secret from Google Cloud Console
-  2. Save as: ~/.secrets/aipass/google_client_secret.json
-  3. Run: drone @api reauth google
-  4. Complete OAuth consent in browser
-  5. Credentials saved to: ~/.secrets/aipass/google_creds.json
-        """,
-    )
-    console.print(parser.format_help())
+    """Print drone-compliant help output with Rich markup"""
+    console.print()
+    console.print("[bold cyan]GOOGLE_CLIENT — Google API authentication and service access[/bold cyan]")
+    console.print()
+    console.print("[yellow]COMMANDS:[/yellow]  [dim](via drone @api)[/dim]")
+    console.print("  [cyan]validate google[/cyan]  [dim]Check Google OAuth2 credentials[/dim]")
+    console.print("  [cyan]reauth google[/cyan]   [dim]Re-run OAuth2 flow for Google[/dim]")
+    console.print()
+    console.print("[yellow]CROSS-BRANCH API:[/yellow]")
+    console.print("  [dim]from aipass.api.apps.modules.google_client import get_drive_service[/dim]")
+    console.print("  [dim]service = get_drive_service()[/dim]")
+    console.print()
+    console.print("[yellow]CREDENTIAL SETUP:[/yellow]")
+    console.print("  [dim]1.[/dim] Get OAuth client secret from Google Cloud Console")
+    console.print("  [dim]2.[/dim] Save as: [cyan]~/.secrets/aipass/google_client_secret.json[/cyan]")
+    console.print("  [dim]3.[/dim] Run: [cyan]drone @api reauth google[/cyan]")
+    console.print("  [dim]4.[/dim] Complete OAuth consent in browser")
+    console.print("  [dim]5.[/dim] Credentials saved to: [cyan]~/.secrets/aipass/google_creds.json[/cyan]")
+    console.print()
 
 
 # =============================================
