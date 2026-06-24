@@ -792,3 +792,93 @@ class TestGetStatusAndGetAllBots:
         result = bot_operations.get_all_bots()
         assert result == expected
         mock_list_bots.assert_called_once()
+
+
+# =============================================
+# CREATE_BOT -> LOAD_BOT_CONFIG ROUND-TRIP
+# =============================================
+
+
+class TestCreateBotRoundTrip:
+    """Prove GAP1 is closed: create_bot persists config that load_bot_config reads."""
+
+    @patch("apps.handlers.bot_factory.start_bot_process", return_value=True)
+    @patch("apps.handlers.bot_factory.enable_service", return_value=True)
+    @patch("apps.handlers.bot_factory.set_bot_commands", return_value=True)
+    @patch("apps.handlers.bot_factory.validate_token")
+    @patch("apps.handlers.bot_factory.ensure_registry")
+    def test_create_then_load_roundtrip(
+        self,
+        mock_ensure_registry,
+        mock_validate_token,
+        mock_set_commands,
+        mock_enable,
+        mock_start,
+        tmp_path,
+        monkeypatch,
+    ):
+        """After create_bot, load_bot_config returns the persisted config."""
+        from apps.handlers import bot_factory, config as tg_config
+
+        mock_validate_token.return_value = {"username": "test_bot", "id": 123}
+
+        monkeypatch.setattr(bot_factory, "_BOT_CONFIG_DIR", tmp_path)
+
+        secrets_store = {}
+
+        def fake_set_secret(provider, slug, value, *, as_json=False):
+            secrets_store[f"{provider}/{slug}"] = value
+            return tmp_path / f"{slug}.json"
+
+        def fake_get_secret(provider, slug, *, as_json=False):
+            return secrets_store.get(f"{provider}/{slug}")
+
+        monkeypatch.setattr(bot_factory, "_api_set_secret", fake_set_secret)
+        monkeypatch.setattr(tg_config, "_api_get_secret", fake_get_secret)
+
+        monkeypatch.setattr("apps.handlers.bot_registry.REGISTRY_DIR", tmp_path / "state")
+        monkeypatch.setattr(
+            "apps.handlers.bot_registry.REGISTRY_FILE",
+            tmp_path / "state" / "_registry.json",
+        )
+
+        result = bot_factory.create_bot(
+            bot_id="roundtrip_bot",
+            bot_token="111:AAA-test-token",
+            branch_name=None,
+            allowed_user_ids=[42],
+        )
+        assert result is not None
+        assert result["bot_id"] == "roundtrip_bot"
+
+        loaded = tg_config.load_bot_config("roundtrip_bot")
+        assert loaded is not None
+        assert loaded["bot_id"] == "roundtrip_bot"
+        assert loaded["bot_token"] == "111:AAA-test-token"
+        assert loaded["allowed_user_ids"] == [42]
+
+    @patch("apps.handlers.bot_factory.validate_token")
+    @patch("apps.handlers.bot_factory.ensure_registry")
+    def test_create_fails_loud_on_set_secret_error(
+        self,
+        mock_ensure_registry,
+        mock_validate_token,
+        tmp_path,
+        monkeypatch,
+    ):
+        """create_bot returns None and logs error if set_secret raises."""
+        from apps.handlers import bot_factory
+
+        mock_validate_token.return_value = {"username": "test_bot", "id": 123}
+        monkeypatch.setattr(bot_factory, "_BOT_CONFIG_DIR", tmp_path)
+
+        def failing_set_secret(*args, **kwargs):
+            raise OSError("permission denied")
+
+        monkeypatch.setattr(bot_factory, "_api_set_secret", failing_set_secret)
+
+        result = bot_factory.create_bot(
+            bot_id="fail_bot",
+            bot_token="222:BBB-test-token",
+        )
+        assert result is None

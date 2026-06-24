@@ -53,6 +53,12 @@ PyPI version — not the changelog header.
   leaking into the repo. (4) **prax-monitor** — `log_streamer` tailed a hardcoded
   `~/system_logs` while prax writes to the repo-root `system_logs`; now resolves the
   repo root (honoring `AIPASS_TEST_LOG_DIR`) so the log stream actually delivers.
+  (5) **auto-create (GAP1)** — `create_bot` wrote a new bot's config only to a disk
+  shadow file while the runtime loads its token exclusively from the @api store, so
+  a minted bot started then exited with no config; `create_bot` now calls
+  `set_secret('telegram', bot_id, config, as_json=True)` (fail-loud) so the
+  create→@api→load round-trip works and the mother-bot can mint startable bots. New
+  round-trip + fail-loud tests; telegram suite 454/454.
   (DPLAN-0220)
 
 - **seedgo CLI help checkers green-lit non-compliant `--help` output** — the

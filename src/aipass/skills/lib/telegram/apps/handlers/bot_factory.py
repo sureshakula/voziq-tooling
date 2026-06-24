@@ -47,6 +47,8 @@ from aipass.prax import logger
 from aipass.skills.apps.handlers.json import json_handler  # noqa: F401
 
 # Internal imports
+from aipass.api.apps.modules.secrets import set_secret as _api_set_secret
+
 from .bot_registry import (
     deregister_bot,
     ensure_registry,
@@ -441,11 +443,7 @@ def create_bot(
             )
             return None
 
-    # Step 4: Write per-bot config to local shadow file.
-    # This is intentional: create_bot writes here first, then the config is
-    # imported into @api (drone @api set-secret) as a separate step. At runtime,
-    # load_bot_config reads exclusively from @api — the local file is the
-    # create-then-import staging artifact, not a runtime config source.
+    # Step 4: Build config and persist to @api secrets store + local shadow.
     ensure_registry()
     _BOT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -462,15 +460,23 @@ def create_bot(
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
+    # Step 4a: Write to @api secrets store (load_bot_config reads from here)
+    try:
+        _api_set_secret("telegram", bot_id, config_data, as_json=True)
+        logger.info("Persisted bot config to @api secrets: telegram/%s", bot_id)
+    except OSError as e:
+        logger.error("create_bot failed: could not persist config to @api for '%s': %s", bot_id, e)
+        return None
+
+    # Step 4b: Write local shadow file (staging artifact, not runtime source)
     try:
         CONFIG_PATH.write_text(
             json.dumps(config_data, indent=2),
             encoding="utf-8",
         )
-        logger.info("Wrote bot config: %s", CONFIG_PATH)
+        logger.info("Wrote bot config shadow: %s", CONFIG_PATH)
     except OSError as e:
-        logger.warning("Failed to write bot config: %s", e)
-        return None
+        logger.warning("Failed to write shadow config (non-fatal): %s", e)
 
     # Step 5: Register in bot registry
     registered = register_bot(
@@ -479,6 +485,7 @@ def create_bot(
         branch_name=branch_name,
         work_dir=RESOLVED_WORK_DIR,
         config_path=str(CONFIG_PATH),
+        bot_token_ref=f"@api:telegram/{bot_id}",
     )
     if not registered:
         CONFIG_PATH.unlink(missing_ok=True)
