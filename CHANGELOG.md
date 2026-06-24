@@ -45,6 +45,8 @@ PyPI version — not the changelog header.
   were fixed. Root README lists @backup and documents `.backupignore`; the navmap
   was corrected. The shipped root `/.backupignore` was realigned to
   `BUILTIN_IGNORES` (dropped stale `.backup_system/` + over-broad `*logs`).
+  @memory and @flow READMEs now cross-reference their `.backup/` writes, and the
+  orphaned `prax/.backupignore` (a stale per-branch config) was removed.
 
 ## [2026-06-23]
 

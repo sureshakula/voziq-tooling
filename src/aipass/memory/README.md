@@ -87,6 +87,8 @@ detector.check_all_branches()        # scan AIPASS_REGISTRY.json + external regi
   → trim source file                 # write back with oldest removed
 ```
 
+Rollover writes safety copies (`rollover_backup_*.json`) into `<branch>/.backup/` — a shared runtime namespace (see `@backup`'s README for all writers).
+
 ### Subprocess Isolation
 
 All ML operations (fastembed, chromadb) run via subprocess. The main process never imports these libraries. Python interpreter resolved via `_get_memory_python()` (env var `AIPASS_MEMORY_PYTHON` → `memory/.venv/bin/python` → `sys.executable`).
