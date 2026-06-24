@@ -559,31 +559,13 @@
     {
       "file": "apps/handlers/learnings/manager.py",
       "standard": "unused_function",
-      "lines": [759],
+      "functions": ["update_status_counts"],
       "reason": "Public API for learning extraction pipeline — called dynamically by symbolic extraction."
-    },
-    {
-      "file": "apps/handlers/search/vector_search.py",
-      "standard": "unused_function",
-      "lines": [247],
-      "reason": "Public API surface for vector search — legacy handler retained for direct-import consumers."
-    },
-    {
-      "file": "apps/handlers/search/vector_search.py",
-      "standard": "unused_function",
-      "lines": [316],
-      "reason": "Public API surface for vector search — legacy handler retained for direct-import consumers."
-    },
-    {
-      "file": "apps/handlers/search/vector_search.py",
-      "standard": "unused_function",
-      "lines": [380],
-      "reason": "Public API surface for vector search — legacy handler retained for direct-import consumers."
     },
     {
       "file": "apps/handlers/symbolic/extractor.py",
       "standard": "unused_function",
-      "lines": [455],
+      "functions": ["analyze_conversation_llm"],
       "reason": "LLM-based extraction function — called conditionally when API key is available."
     },
     {

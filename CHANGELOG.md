@@ -18,6 +18,12 @@ PyPI version — not the changelog header.
   central audit collector. An in-place disabled module no longer trips a false
   "missing module" violation; disabled test files no longer inflate README test
   counts (td-103).
+- **seedgo `unused_function` bypasses are now name-scoped** — bypasses match by
+  function name (`functions: [...]`) instead of line number (`lines: [...]`),
+  which drifted silently when code shifted and re-flagged exempted functions
+  (bit us S216/S217). `lines` stays supported for other standards. Migrated the
+  10 existing line-scoped entries across drone/memory/skills and dropped 3 dead
+  entries already pointing past EOF (td-009).
 
 ## [2026-06-23]
 

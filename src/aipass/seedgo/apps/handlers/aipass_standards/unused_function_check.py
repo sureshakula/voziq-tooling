@@ -277,8 +277,7 @@ def check_branch(branch_path: str, bypass_rules: list | None = None) -> dict:
     unused_functions: list[dict] = []
 
     for func_name, lineno, py_file in all_functions:
-        # Check bypass at file+line level
-        if is_bypassed(str(py_file), "unused_function", lineno, bypass_rules):
+        if is_bypassed(str(py_file), "unused_function", lineno, bypass_rules, name=func_name):
             continue
 
         total_refs = _count_references_in_corpus(func_name, corpus)
