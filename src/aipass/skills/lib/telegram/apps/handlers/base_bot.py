@@ -84,9 +84,11 @@ from .file_handler import (
 )
 from .bot_factory import (
     create_bot,
+    set_bot_commands,
     validate_branch,
     validate_token,
 )
+from .telegram_standards import build_botfather_commands
 from .bot_registry import (
     list_bots as registry_list_bots,
     get_bot_by_branch,
@@ -246,6 +248,9 @@ class BaseBot:
         logger.info("Connected to Telegram API")
         self._health["started_at"] = datetime.now().isoformat()
         json_handler.log_operation("bot_started", {"bot_id": self.bot_id})
+
+        # Set Telegram command menu (idempotent, runs once per startup)
+        self._set_command_menu()
 
         # Check for existing lock
         if self._check_lock():
@@ -1582,6 +1587,17 @@ class BaseBot:
         """
         return
 
+    def _set_command_menu(self) -> None:
+        """Set the Telegram command menu via setMyCommands on startup."""
+        merged_commands = {**self.custom_commands, **self.get_custom_commands()}
+        commands = build_botfather_commands(custom_commands=merged_commands or None)
+        if self.bot_token:
+            ok = set_bot_commands(self.bot_token, commands)
+            if ok:
+                logger.info("Command menu set (%d commands)", len(commands))
+            else:
+                logger.warning("Failed to set command menu")
+
     def get_custom_commands(self) -> dict:
         """
         Hook: return additional bot-specific commands.
@@ -1594,12 +1610,12 @@ class BaseBot:
         """
         return {
             "create": {
-                "description": "Create a new branch bot: /create chat <branch>",
-                "menu_text": "Create branch bot",
+                "description": "Create a Telegram bot for a branch — e.g. /create chat devpulse",
+                "menu_text": "New branch bot",
             },
             "cancel": {
-                "description": "Cancel active /create flow",
-                "menu_text": "Cancel",
+                "description": "Cancel an in-progress /create",
+                "menu_text": "Cancel create",
             },
         }
 

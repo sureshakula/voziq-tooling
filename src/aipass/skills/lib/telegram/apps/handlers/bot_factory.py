@@ -49,6 +49,8 @@ from aipass.skills.apps.handlers.json import json_handler  # noqa: F401
 # Internal imports
 from aipass.api.apps.modules.secrets import set_secret as _api_set_secret
 
+from .telegram_standards import build_botfather_commands
+
 from .bot_registry import (
     deregister_bot,
     ensure_registry,
@@ -65,13 +67,7 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}"
 SYSTEMD_DIR = Path.home() / ".config" / "systemd" / "user"
 _BOT_CONFIG_DIR = Path.home() / ".aipass" / "telegram_bots"
 
-# Default commands set on every new bot via BotFather
-DEFAULT_BOT_COMMANDS = [
-    {"command": "start", "description": "Start the bot"},
-    {"command": "help", "description": "Show available commands"},
-    {"command": "status", "description": "Show session status"},
-    {"command": "new", "description": "Start a fresh session"},
-]
+# Command menu built from telegram_standards (single source of truth)
 
 # =============================================
 # TELEGRAM API HELPERS
@@ -493,7 +489,7 @@ def create_bot(
         return None
 
     # Step 6: Set BotFather commands
-    set_bot_commands(bot_token, DEFAULT_BOT_COMMANDS)
+    set_bot_commands(bot_token, build_botfather_commands())
 
     # Step 7: Enable systemd service
     enable_service(bot_id)

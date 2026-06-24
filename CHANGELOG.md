@@ -59,6 +59,15 @@ PyPI version — not the changelog header.
   `set_secret('telegram', bot_id, config, as_json=True)` (fail-loud) so the
   create→@api→load round-trip works and the mother-bot can mint startable bots. New
   round-trip + fail-loud tests; telegram suite 454/454.
+  (6) **/help + Telegram command menu** — `setMyCommands` only ran inside
+  `create_bot`, so hand-launched bots (like the live `@aipass`) had no slash-menu,
+  and the menu list had drifted from `/help`; `base_bot` now sets its menu on
+  startup from a single source (`build_botfather_commands`, also used by
+  `create_bot` — `DEFAULT_BOT_COMMANDS` retired), so the Telegram menu and `/help`
+  list the same enriched commands incl. `/create`/`/cancel`. Wiring the builder
+  (rather than deleting it as "dead") also lifted Unused_Function 92→93%. 6 new
+  tests, telegram suite 460/460. (A running bot needs a restart to pick up the
+  startup menu.)
   (DPLAN-0220)
 
 - **seedgo CLI help checkers green-lit non-compliant `--help` output** — the

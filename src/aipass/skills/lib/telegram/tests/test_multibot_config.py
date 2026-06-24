@@ -336,7 +336,7 @@ class TestHandleStandardCommand:
             bot_name="AIPass Assistant Bot",
         )
         assert isinstance(result, str)
-        assert "Commands:" in result
+        assert "Available commands:" in result
 
     def test_new_returns_tuple(self) -> None:
         """The 'new' command returns tuple of ('new', response_text)."""
@@ -411,7 +411,7 @@ class TestBuildHelpText:
     def test_includes_all_standard_commands(self) -> None:
         """Help text includes all standard commands."""
         result = build_help_text()
-        assert "Commands:" in result
+        assert "Available commands:" in result
         for cmd in STANDARD_COMMANDS:
             assert f"/{cmd}" in result
 
@@ -430,7 +430,7 @@ class TestBuildHelpText:
     def test_includes_footer(self) -> None:
         """Help text includes the help footer."""
         result = build_help_text()
-        assert "Send any message to chat with Claude" in result
+        assert "Just send any message to talk to me" in result
 
 
 # =============================================
@@ -463,7 +463,7 @@ class TestBuildWelcomeText:
             bot_name="TestBot",
             branch_name="test",
         )
-        assert "Commands:" in result
+        assert "Available commands:" in result
         for cmd in STANDARD_COMMANDS:
             assert f"/{cmd}" in result
 
@@ -882,3 +882,112 @@ class TestCreateBotRoundTrip:
             bot_token="222:BBB-test-token",
         )
         assert result is None
+
+
+# =============================================
+# COMMAND MENU SYNC + POPULATE TESTS
+# =============================================
+
+
+class TestCommandMenuSync:
+    """Verify /help text and Telegram menu use the same single-source command list."""
+
+    def test_menu_and_help_have_same_commands(self):
+        """The command names in build_botfather_commands match those in build_help_text."""
+        from apps.handlers.telegram_standards import (
+            build_botfather_commands,
+            build_help_text,
+        )
+        from apps.handlers.base_bot import BaseBot
+
+        custom = BaseBot.get_custom_commands(None)
+        menu_commands = build_botfather_commands(custom_commands=custom)
+        menu_names = {c["command"] for c in menu_commands}
+
+        help_text = build_help_text(custom_commands=custom)
+        help_names = set()
+        for line in help_text.split("\n"):
+            if line.startswith("/"):
+                cmd = line.split(" ")[0].lstrip("/").split("-")[0].strip()
+                help_names.add(cmd)
+
+        assert menu_names == help_names
+
+    def test_help_contains_enriched_descriptions(self):
+        """The /help text includes the enriched descriptions."""
+        from apps.handlers.telegram_standards import build_help_text
+        from apps.handlers.base_bot import BaseBot
+
+        custom = BaseBot.get_custom_commands(None)
+        help_text = build_help_text(custom_commands=custom)
+
+        assert "what this bot is and how to use it" in help_text.lower()
+        assert "show every command" in help_text.lower()
+        assert "fresh conversation" in help_text.lower()
+        assert "branch, uptime" in help_text.lower()
+        assert "create a telegram bot" in help_text.lower()
+        assert "cancel an in-progress" in help_text.lower()
+
+    def test_help_footer_updated(self):
+        """The /help footer uses the enriched text."""
+        from apps.handlers.telegram_standards import build_help_text
+
+        help_text = build_help_text()
+        assert "Just send any message to talk to me" in help_text
+
+    def test_create_bot_uses_single_source(self):
+        """create_bot calls set_bot_commands with build_botfather_commands output."""
+        from apps.handlers import bot_factory
+        from apps.handlers.telegram_standards import build_botfather_commands
+
+        expected = build_botfather_commands()
+        with patch.object(bot_factory, "set_bot_commands") as mock_set:
+            with patch.object(bot_factory, "validate_token", return_value={"username": "t", "id": 1}):
+                with patch.object(bot_factory, "ensure_registry"):
+                    with patch.object(bot_factory, "register_bot", return_value=True):
+                        with patch.object(bot_factory, "_api_set_secret", return_value=None):
+                            with patch.object(bot_factory, "enable_service"):
+                                with patch.object(bot_factory, "start_bot_process", return_value=True):
+                                    bot_factory._BOT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+                                    bot_factory.create_bot("sync_test", "999:ZZZ-token")
+
+            mock_set.assert_called_once_with("999:ZZZ-token", expected)
+
+
+class TestBaseBotStartupMenu:
+    """Verify base_bot sets command menu on startup."""
+
+    @patch("apps.handlers.base_bot.set_bot_commands", return_value=True)
+    def test_set_command_menu_called_on_startup(self, mock_set_commands):
+        """_set_command_menu calls set_bot_commands with merged commands."""
+        from apps.handlers.base_bot import BaseBot
+        from apps.handlers.telegram_standards import build_botfather_commands
+
+        bot = BaseBot.__new__(BaseBot)
+        bot.bot_token = "123:ABC"
+        bot.custom_commands = {}
+
+        bot._set_command_menu()
+
+        mock_set_commands.assert_called_once()
+        actual_commands = mock_set_commands.call_args[0][1]
+        expected = build_botfather_commands(custom_commands=bot.get_custom_commands())
+        assert actual_commands == expected
+
+    @patch("apps.handlers.base_bot.set_bot_commands", return_value=True)
+    def test_menu_includes_custom_commands(self, mock_set_commands):
+        """Menu includes /create and /cancel from get_custom_commands."""
+        from apps.handlers.base_bot import BaseBot
+
+        bot = BaseBot.__new__(BaseBot)
+        bot.bot_token = "123:ABC"
+        bot.custom_commands = {}
+
+        bot._set_command_menu()
+
+        actual_commands = mock_set_commands.call_args[0][1]
+        cmd_names = {c["command"] for c in actual_commands}
+        assert "create" in cmd_names
+        assert "cancel" in cmd_names
+        assert "start" in cmd_names
+        assert "help" in cmd_names

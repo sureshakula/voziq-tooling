@@ -8,19 +8,19 @@ from typing import Optional
 
 STANDARD_COMMANDS: dict[str, dict[str, str]] = {
     "start": {
-        "description": "Welcome message and command list",
-        "menu_text": "Start / welcome message",
+        "description": "Welcome — what this bot is and how to use it",
+        "menu_text": "What this bot does",
     },
     "help": {
-        "description": "Show available commands",
-        "menu_text": "Show help",
+        "description": "Show every command and what it does",
+        "menu_text": "List commands",
     },
     "new": {
-        "description": "Kill current session and start fresh (clean Claude context)",
+        "description": "Start a fresh conversation (clears Claude's current context)",
         "menu_text": "Fresh session",
     },
     "status": {
-        "description": "Show session info (branch, uptime, session state)",
+        "description": "Show the branch, uptime, and whether a session is active",
         "menu_text": "Session status",
     },
 }
@@ -34,7 +34,7 @@ PROCESSING_MSG = "Processing..."
 
 ERROR_TEMPLATE = "Something went wrong: {error}"
 
-HELP_FOOTER = "\nSend any message to chat with Claude."
+HELP_FOOTER = "\nJust send any message to talk to me — or use a command above."
 
 # Internal templates (used by builder functions)
 _WELCOME_HEADER = "Hello! I'm {bot_name}."
@@ -91,7 +91,7 @@ def build_help_text(
         standard_commands = STANDARD_COMMANDS
 
     parts: list[str] = [
-        "Commands:",
+        "Available commands:",
         _format_command_list(standard_commands, custom_commands),
         HELP_FOOTER,
     ]
@@ -123,7 +123,7 @@ def build_welcome_text(
         _WELCOME_HEADER.format(bot_name=bot_name),
         _WELCOME_BRANCH.format(branch_name=branch_name),
         "",
-        "Commands:",
+        "Available commands:",
         _format_command_list(standard_commands, custom_commands),
         HELP_FOOTER,
     ]
