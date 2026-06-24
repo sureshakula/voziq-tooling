@@ -64,6 +64,16 @@ PyPI version — not the changelog header.
   a step to audit every open todo against the actual system (`ls`/`find`/`git
   ls-files`/`grep`/`audit`) and close what's verifiably done — catching todos
   finished in a past session but never closed.
+- **Backup ignore architecture documented** — confirmed and written down the
+  two-layer model so it stops getting re-discovered: `BUILTIN_IGNORES` is the
+  **seed** that generates a new project's `.backupignore` at register and is
+  never consulted at backup time; `.backupignore` (via `load_spec`) is the
+  **runtime source of truth**. There's no static fallback, so the seed is
+  safety-critical — an empty `.backupignore` backs up everything and can crash
+  the machine. Added a "How Ignores Work" README section + code comments on
+  `BUILTIN_IGNORES` and `load_spec`. Also added `logs/` to the seed so new
+  projects exclude log directories (e.g. prax `.jsonl` output) by default, not
+  just `*.log` files (td-27).
 
 ## [2026-06-23]
 

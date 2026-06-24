@@ -105,15 +105,17 @@ The root `.gitignore` covers all three with a single `.backup/` entry.
 
 ---
 
-## `.backupignore`
+## How Ignores Work
 
-A true `.gitignore` for backups, using real pathspec/gitwildmatch semantics:
-- `#` comments, blank lines ignored
-- `!` negation (un-ignore a path)
-- Trailing `/` for directory-only matching
-- Last-match-wins ordering
+Two layers — seed and runtime:
 
-Lives at the **project root** and is the single source of truth governing snapshot, versioned, Drive sync, and mirror-cleanup operations. Generated from `BUILTIN_IGNORES` in `handlers/ignore/patterns.py` during `register`. The `.backup/` directory is included in `BUILTIN_IGNORES`, so the store self-excludes from its own backups.
+1. **`BUILTIN_IGNORES`** (`handlers/ignore/patterns.py`) — the **seed**. Written into a new project's `.backupignore` at `register` time (`setup._build_backupignore()`). Never consulted at backup time.
+2. **`.backupignore`** — the **runtime source of truth**. `load_spec()` reads it on every backup; `BUILTIN_IGNORES` is not applied. True pathspec/gitwildmatch semantics: `#` comments, `!` negation, trailing `/` for dirs, last-match-wins.
+
+There is no static fallback. The seed IS the safety mechanism — an empty or missing `.backupignore` means back up everything (`.venv`, `node_modules`, `.git`), which can crash the machine. Keep `BUILTIN_IGNORES` sane.
+
+- To change defaults for **new** projects → edit `BUILTIN_IGNORES` in `patterns.py`
+- To change ignores for an **existing** project → edit its `.backupignore`
 
 The repo-root `/.backupignore` ships intentionally as the curated default so users don't snapshot junk.
 

@@ -250,6 +250,10 @@ class TestSeedTemplate:
         """Seed defaults include .coverage."""
         assert ".coverage" in BUILTIN_IGNORES
 
+    def test_builtin_has_logs_dir(self):
+        """Seed defaults exclude logs/ directories."""
+        assert "logs/" in BUILTIN_IGNORES
+
     def test_build_backupignore_content(self):
         """Seed template includes ruff_cache, coverage, and pycache."""
         from aipass.backup.apps.handlers.project.setup import _build_backupignore
