@@ -9,6 +9,16 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-24]
+
+### Fixed
+
+- **seedgo `readme_check` ignored the `(disabled)` marker in self-scans** — its
+  module-list and test-count scans now skip `foo(disabled).py`, matching the
+  central audit collector. An in-place disabled module no longer trips a false
+  "missing module" violation; disabled test files no longer inflate README test
+  counts (td-103).
+
 ## [2026-06-23]
 
 The **2.6.0** release — a large `dev → main` merge spanning several weeks (68 commits).

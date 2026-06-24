@@ -30,6 +30,7 @@ from typing import Dict, List, Optional
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import is_disabled_file
 
 # Audit scope: entry points only (apps/{name}.py)
 AUDIT_SCOPE = "entry_point"
@@ -395,6 +396,8 @@ def check_module_list(lines: List[str], branch_root: Path, file_path: str, bypas
     for py_file in sorted(modules_dir.glob("*.py")):
         if py_file.name == "__init__.py":
             continue
+        if is_disabled_file(py_file.name):
+            continue
         module_files.append(py_file.stem)
 
     if not module_files:
@@ -502,6 +505,8 @@ def _count_test_functions(tests_dir: Path) -> int:
     count = 0
     test_func_pattern = re.compile(r"^\s*def\s+test_", re.MULTILINE)
     for test_file in tests_dir.rglob("test_*.py"):
+        if is_disabled_file(test_file.name):
+            continue
         try:
             source = test_file.read_text(encoding="utf-8")
             count += len(test_func_pattern.findall(source))
