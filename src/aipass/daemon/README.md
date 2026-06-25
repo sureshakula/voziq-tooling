@@ -94,6 +94,8 @@ drone @daemon actions list          # Action registry
 drone @daemon actions <id> on/off   # Toggle action
 drone @daemon actions set reminder 7d "msg" --to @branch
 drone @daemon actions set schedule @branch "prompt" daily 04:00
+drone @daemon install-timer           # Install + enable systemd user timer
+drone @daemon uninstall-timer         # Stop + remove systemd user timer
 ```
 
 Each module accepts `--help` for module-specific usage:
@@ -113,6 +115,8 @@ drone @daemon <command> --help
 | `actions` | Action registry CLI — list, toggle, info, set reminder, set schedule, migrate | Operational |
 | `scheduler_ops` | Scheduler cron operations facade for scheduler_cron.py | Operational |
 | `wakeup_ops` | Wake-up cron operations facade for daemon_wakeup.py | Operational |
+| `timer_install` | Idempotent systemd user timer installer for daemon scheduler | Operational |
+| `run` | Decentralized scheduler tick: discover .daemon/ jobs, fire due ones | Operational |
 
 ---
 

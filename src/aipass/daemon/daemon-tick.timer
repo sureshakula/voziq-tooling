@@ -1,0 +1,20 @@
+# Systemd user timer for the daemon scheduler tick (~2 min cadence).
+#
+# Install:
+#   cp daemon-tick.service daemon-tick.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now daemon-tick.timer
+#
+# Disable:
+#   systemctl --user disable --now daemon-tick.timer
+
+[Unit]
+Description=AIPass Daemon Scheduler Timer — fires daemon-tick.service every ~2 min
+
+[Timer]
+OnActiveSec=30s
+OnUnitActiveSec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -142,6 +142,24 @@
       "standard": "architecture",
       "reason": "Scheduler plugin — autodiscovered by plugins/__init__.py discover_plugins(). Lives in apps/plugins/ by design, not a module or handler.",
       "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_timer_install.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in 3-layer apps/ structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "apps/modules/timer_install.py",
+      "standard": "introspection",
+      "reason": "install-timer/uninstall-timer are action commands — no-args IS the action (install). Introspection gate would break primary use case (same pattern as run.py).",
+      "pattern": "no-args gate"
+    },
+    {
+      "file": "apps/modules/timer_install.py",
+      "standard": "modules",
+      "reason": "Installer module — mkdir for ~/.config/systemd/user/ is the core purpose. Direct file ops are inherent to the install function.",
+      "pattern": "direct file operations"
     }
   ],
   "notes": {

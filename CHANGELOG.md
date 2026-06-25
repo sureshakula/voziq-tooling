@@ -13,6 +13,20 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Daemon auto-runner — systemd user timer (the deferred last mile of the
+  decentralized scheduler)** — `.daemon/schedule.json` jobs now fire **hands-off**.
+  A oneshot `daemon-tick.service` + `daemon-tick.timer` (every ~2 min, mirroring
+  the `prax-monitor.service` pattern: user-scope `~/.config/systemd/user/`, `%h`
+  not hardcoded paths, venv-python ExecStart `-m aipass.daemon.apps.daemon run`,
+  logs to `~/.aipass/daemon-tick.log` outside any tailed dir) reuses the existing
+  fcntl-locked `run.py` tick unchanged — the timer is the ticker. New
+  `apps/modules/timer_install.py` installs/enables it idempotently. Live-proven:
+  @devpulse received a `DAEMON TEST` ping from a branch woken purely by the timer,
+  no human tick. Tick profile: ~1.7s (import overhead only); the earlier CPU spike
+  was `wake_branch` spawning opus agents concurrently, **not** the tick — so
+  scheduled wakes want light models + staggering. Closes the piece DPLAN-0204 /
+  FPLAN-0282 deferred. 461 daemon tests green, seedgo 100%. (FPLAN-0287)
+
 - **Prax monitor → Telegram relay (`prax_monitor` bot)** — the live
   `drone @prax monitor run` Mission-Control feed now mirrors to a dedicated
   Telegram bot, so the whole-system monitor is watchable from a phone ("same
