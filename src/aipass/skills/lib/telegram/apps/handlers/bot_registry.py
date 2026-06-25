@@ -1,5 +1,19 @@
+# =================== AIPass ====================
+# Name: bot_registry.py
+# Description: Telegram bot registry — JSON store with advisory file locking
+# Version: 1.0.0
+# Created: 2026-06-24
+# Modified: 2026-06-25
+# =============================================
+
+"""Telegram bot registry.
+
+Persists registered bots to a JSON file with advisory file locking so concurrent
+read-modify-write operations don't corrupt the store. Provides CRUD plus lookup
+helpers (by id, branch, work_dir).
+"""
+
 # Standard library
-import fcntl
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,6 +21,30 @@ from typing import Optional
 
 # Logging
 from aipass.prax import logger
+
+# fcntl is POSIX-only (Linux/macOS); unavailable on Windows. Guard the import and
+# skip advisory locking when absent. Matches the codebase convention (hooks/cadence,
+# daemon) — see seedgo windows_compat standard.
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
+    logger.info("[TELEGRAM] bot_registry: fcntl unavailable (Windows) — skipping advisory locks")
+
+
+def _lock(f, *, exclusive: bool) -> None:
+    """Acquire an advisory lock on an open file; no-op without fcntl (Windows)."""
+    if fcntl is None:
+        return
+    fcntl.flock(f.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+
+
+def _unlock(f) -> None:
+    """Release an advisory lock; no-op when fcntl is unavailable (Windows)."""
+    if fcntl is None:
+        return
+    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
 
 # =============================================
 # CONSTANTS
@@ -53,11 +91,11 @@ def ensure_registry() -> None:
         if not REGISTRY_FILE.exists():
             data = _empty_registry()
             with open(REGISTRY_FILE, "w", encoding="utf-8") as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                _lock(f, exclusive=True)
                 try:
                     json.dump(data, f, indent=2)
                 finally:
-                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                    _unlock(f)
             logger.info("Created new bot registry at %s", REGISTRY_FILE)
     except OSError as e:
         logger.warning("Failed to ensure registry: %s", e)
@@ -80,11 +118,11 @@ def load_registry() -> dict:
 
     try:
         with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+            _lock(f, exclusive=False)
             try:
                 data = json.load(f)
             finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                _unlock(f)
 
         if not isinstance(data, dict) or "bots" not in data:
             logger.warning("Registry file has unexpected structure, returning empty")
@@ -116,11 +154,11 @@ def save_registry(data: dict) -> bool:
         data["metadata"]["last_updated"] = _now_iso()
 
         with open(REGISTRY_FILE, "w", encoding="utf-8") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            _lock(f, exclusive=True)
             try:
                 json.dump(data, f, indent=2)
             finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                _unlock(f)
 
         return True
 
@@ -325,7 +363,8 @@ def get_bot_by_work_dir(work_dir) -> Optional[dict]:
             try:
                 if str(Path(bot_dir).resolve()) == target:
                     return bot
-            except (ValueError, OSError):
+            except (ValueError, OSError) as e:
+                logger.warning("Skipping unresolvable bot work_dir %r: %s", bot_dir, e)
                 continue
 
     return None

@@ -48,6 +48,15 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Windows CI — telegram `bot_registry` crashed test collection** — the module
+  did a bare `import fcntl` (POSIX-only), so on Windows all 8 telegram test
+  modules that transitively import it failed at *collection* with
+  `ModuleNotFoundError: No module named 'fcntl'`, reddening Windows Test on the
+  last several PRs. Guarded the import (`try/except ImportError → fcntl = None`,
+  the established hooks/daemon convention) and routed the three flock call-sites
+  through no-op-on-Windows `_lock`/`_unlock` helpers — advisory locking still
+  applies on POSIX, is skipped where unavailable. 246 telegram tests green.
+
 - **prax-monitor service feedback loop** — the unit wrote its own stdout into
   `system_logs/`, the very directory the monitor tails *and* @trigger watches,
   creating a self-reinforcing loop (monitor output → re-tailed and recorded by
