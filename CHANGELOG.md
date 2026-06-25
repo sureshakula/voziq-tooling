@@ -62,6 +62,21 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Daemonized wakes killed by systemd cgroup teardown (td-48)** — timer-fired
+  `wake_branch()` calls spawned the dispatch monitor + claude child, then died
+  within seconds with no email and a stale lock, while the *same* wake from an
+  interactive terminal worked. Root cause: a systemd oneshot service defaults to
+  `KillMode=control-group`, so when the ~1.7s tick process exits, systemd SIGTERMs
+  **every member of its cgroup** — `start_new_session=True` is irrelevant because
+  systemd tracks by cgroup, not process group. Fix in `ai_mail` dispatch: detect
+  the systemd context (`INVOCATION_ID`) and re-spawn the monitor via
+  `systemd-run --user` in its **own transient unit**, escaping the parent cgroup
+  (falls back to direct `Popen` when not under systemd); plus `stdin=DEVNULL` on
+  both the monitor and claude `Popen` calls and monitor PID self-registration in
+  the lock. Now genuinely live-proven through the timer: 3 branches
+  (commons/cli/backup) woken purely by `daemon-tick.timer` each emailed @devpulse
+  and exited clean (~20s, code=0). 737 ai_mail tests green, seedgo 100%.
+
 - **seedgo-audit — telegram ported-but-unwired functions** — the DPLAN-0218
   relocation pulled the telegram lib into the seedgo gate's scope, surfacing 16
   `unused_function` flags across 8 handler files. These are *not* dead code —

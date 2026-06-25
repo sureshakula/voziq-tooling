@@ -290,6 +290,78 @@ def _check_pid_alive(pid: int) -> bool:
         return True  # Exists but can't check — assume alive
 
 
+def _spawn_in_systemd_scope(monitor_cmd, branch_path, spawn_env, branch_email, lock_file_path, custom_message, status):
+    """Spawn monitor in its own systemd unit to survive cgroup cleanup (td-48).
+
+    When wake_branch() runs inside a systemd oneshot service (e.g.
+    daemon-tick.timer), the default KillMode=control-group sends SIGTERM to
+    every process in the cgroup once the main process exits — killing the
+    detached monitor and its claude child.  systemd-run --user creates a
+    transient service unit with its own cgroup so the monitor survives.
+
+    Returns True on success, False to fall back to direct Popen.
+    """
+    unit_name = f"dispatch-{branch_email.lstrip('@')}"
+    env_file = branch_path / "logs" / ".dispatch_env"
+
+    try:
+        with open(env_file, "w", encoding="utf-8") as ef:
+            for key, val in spawn_env.items():
+                if "\n" not in str(val):
+                    ef.write(f"{key}={val}\n")
+        env_file.chmod(0o600)
+    except OSError as e:
+        logger.warning("[wake] Failed to write env file for systemd-run: %s", e)
+        return False
+
+    systemd_cmd = [
+        "systemd-run",
+        "--user",
+        "--unit",
+        unit_name,
+        "--collect",
+        "--property",
+        f"WorkingDirectory={branch_path}",
+        "--property",
+        f"EnvironmentFile={env_file}",
+        "--property",
+        "StandardInput=null",
+        "--",
+    ] + monitor_cmd
+
+    try:
+        result = subprocess.run(systemd_cmd, capture_output=True, text=True, timeout=15)
+        if result.returncode != 0:
+            logger.warning("[wake] systemd-run failed (rc=%d): %s", result.returncode, result.stderr.strip())
+            return False
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning("[wake] systemd-run failed: %s", e)
+        return False
+
+    try:
+        pid_result = subprocess.run(
+            ["systemctl", "--user", "show", f"{unit_name}.service", "-p", "MainPID", "--value"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        monitor_pid = int(pid_result.stdout.strip())
+        if monitor_pid > 0:
+            lock_data = {
+                "pid": monitor_pid,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "branch": str(branch_path),
+                "subject": custom_message or "daemon wake",
+            }
+            with open(lock_file_path, "w", encoding="utf-8") as f:
+                json.dump(lock_data, f, indent=2)
+    except (subprocess.SubprocessError, ValueError, OSError) as e:
+        logger.info("[wake] Could not query systemd unit PID: %s", e)
+
+    status.ok("spawn", f"Monitor started via systemd scope ({unit_name})")
+    return True
+
+
 # ─── Branch Resolution ──────────────────────────────────
 
 
@@ -487,54 +559,92 @@ def wake_branch(
         return status, False
     status.ok("lock-acquire", "Dispatch lock acquired")
 
-    try:
-        process = subprocess.Popen(
+    # When inside a systemd oneshot service (e.g. daemon-tick.timer), the
+    # default KillMode=control-group sends SIGTERM to all cgroup members
+    # when the service exits — killing the detached monitor.  Escape by
+    # launching the monitor in its own transient systemd unit (td-48).
+    spawned_via_scope = False
+    monitor_pid = 0
+    if os.environ.get("INVOCATION_ID") and shutil.which("systemd-run"):
+        spawned_via_scope = _spawn_in_systemd_scope(
             monitor_cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-            cwd=str(branch_path),
-            env=spawn_env,
+            branch_path,
+            spawn_env,
+            email,
+            lock_file_path,
+            custom_message,
+            status,
         )
 
-        monitor_pid = process.pid
+    if not spawned_via_scope:
+        try:
+            process = subprocess.Popen(
+                monitor_cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                cwd=str(branch_path),
+                env=spawn_env,
+            )
 
-        # Update lock with real monitor PID
-        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
-        lock_data = {
-            "pid": monitor_pid,
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "branch": str(branch_path),
-            "subject": custom_message or "manual wake",
-        }
-        with open(lock_file, "w", encoding="utf-8") as f:
-            json.dump(lock_data, f, indent=2)
+            monitor_pid = process.pid
 
-        status.ok("spawn", f"Monitor started (PID {monitor_pid})")
+            # Update lock with real monitor PID
+            lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+            lock_data = {
+                "pid": monitor_pid,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "branch": str(branch_path),
+                "subject": custom_message or "manual wake",
+            }
+            with open(lock_file, "w", encoding="utf-8") as f:
+                json.dump(lock_data, f, indent=2)
 
-    except FileNotFoundError as e:
-        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
-        lock_file.unlink(missing_ok=True)
-        logger.warning("[wake] Spawn failed — script not found: %s", e)
-        status.fail("spawn", "Python or monitor script not found")
-        return status, False
-    except Exception as e:
-        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
-        lock_file.unlink(missing_ok=True)
-        logger.warning("[wake] Spawn failed for %s: %s", branch_email, e)
-        status.fail("spawn", f"{type(e).__name__}: {e}")
-        return status, False
+            status.ok("spawn", f"Monitor started (PID {monitor_pid})")
+
+        except FileNotFoundError as e:
+            lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+            lock_file.unlink(missing_ok=True)
+            logger.warning("[wake] Spawn failed — script not found: %s", e)
+            status.fail("spawn", "Python or monitor script not found")
+            return status, False
+        except Exception as e:
+            lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+            lock_file.unlink(missing_ok=True)
+            logger.warning("[wake] Spawn failed for %s: %s", branch_email, e)
+            status.fail("spawn", f"{type(e).__name__}: {e}")
+            return status, False
 
     # Step 9: Liveness check (brief wait then verify)
     time.sleep(2)
-    if _check_pid_alive(monitor_pid):
-        status.ok("alive", f"Agent responding (PID {monitor_pid} alive)")
+    if spawned_via_scope:
+        _unit = f"dispatch-{email.lstrip('@')}"
+        try:
+            check = subprocess.run(
+                ["systemctl", "--user", "is-active", f"{_unit}.service"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if check.stdout.strip() == "active":
+                status.ok("alive", f"Agent responding (unit {_unit} active)")
+            else:
+                status.fail("alive", f"Agent died immediately ({check.stdout.strip()})")
+                lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+                lock_file.unlink(missing_ok=True)
+                return status, False
+        except Exception as e:
+            logger.info("[wake] Cannot verify systemd unit %s: %s", _unit, e)
+            status.warn("alive", "Cannot verify systemd unit status — assuming running")
     else:
-        status.fail("alive", f"Agent died immediately (PID {monitor_pid})")
-        # Clean up lock
-        lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
-        lock_file.unlink(missing_ok=True)
-        return status, False
+        if _check_pid_alive(monitor_pid):
+            status.ok("alive", f"Agent responding (PID {monitor_pid} alive)")
+        else:
+            status.fail("alive", f"Agent died immediately (PID {monitor_pid})")
+            lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
+            lock_file.unlink(missing_ok=True)
+            return status, False
 
     # Desktop notification
     notif_body = custom_message[:80] if custom_message else "Manual wake: check inbox"

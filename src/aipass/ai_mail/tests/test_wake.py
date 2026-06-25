@@ -601,6 +601,7 @@ class TestWakeBranchSpawnEnv:
 
         local_bin = str(_Path.home() / ".local" / "bin")
         monkeypatch.setenv("PATH", "/usr/bin:/bin")
+        monkeypatch.delenv("INVOCATION_ID", raising=False)
 
         captured_envs: list = []
 
@@ -831,6 +832,7 @@ def _patch_wake_deps(monkeypatch, **overrides):
         monkeypatch.setattr(wake_mod, attr, val)
 
     monkeypatch.setattr("aipass.ai_mail.apps.handlers.dispatch.wake.time.sleep", lambda _: None)
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
 
 
 class _FakeProc:
