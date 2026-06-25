@@ -1902,6 +1902,11 @@ class BaseBot:
 # CLI ENTRY POINT
 # =============================================
 
+_BOT_CLASSES = {
+    "scheduler": ".scheduler_bot:SchedulerBot",
+}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AIPass Telegram Bot")
     parser.add_argument("--bot-id", required=True, help="Bot identifier")
@@ -1914,7 +1919,15 @@ if __name__ == "__main__":
         print(f"No config found for bot_id={args.bot_id}")
         sys.exit(1)
 
-    bot = BaseBot(
+    bot_cls = BaseBot
+    if args.bot_id in _BOT_CLASSES:
+        mod_name, cls_name = _BOT_CLASSES[args.bot_id].rsplit(":", 1)
+        import importlib
+
+        mod = importlib.import_module(mod_name, package=__package__)
+        bot_cls = getattr(mod, cls_name)
+
+    bot = bot_cls(
         bot_id=args.bot_id,
         bot_token=config["bot_token"],
         work_dir=Path(config.get("work_dir", str(Path.home()))),
@@ -1923,4 +1936,8 @@ if __name__ == "__main__":
         branch_name=config.get("branch_name"),
         shared_session=config.get("shared_session"),
     )
+
+    if hasattr(bot, "_config_chat_id") and config.get("chat_id"):
+        bot._config_chat_id = config["chat_id"]
+
     sys.exit(bot.run())

@@ -102,7 +102,8 @@ def _build_queue(jobs: list, runstate: dict) -> list:
             owner = f"@{owner.split('@')[0]}"
 
         prompt = job.get("prompt", "")
-        preview = prompt[:80] + "..." if len(prompt) > 80 else prompt
+        flat = " ".join(prompt.split())  # collapse newlines/whitespace → single-line preview
+        preview = flat[:80] + "..." if len(flat) > 80 else flat
 
         entries.append(
             {
@@ -183,7 +184,10 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     if "--json" in args:
         output = _build_json_output(entries)
-        console.print(json.dumps(output, indent=2))
+        # soft_wrap=True + markup=False — default console.print forces width-80
+        # wrapping on non-TTY and parses [] markup, injecting newlines mid-string
+        # that corrupt machine output. These flags emit clean, parseable JSON.
+        console.print(json.dumps(output, indent=2), soft_wrap=True, markup=False)
     else:
         _print_rich_table(entries)
 
