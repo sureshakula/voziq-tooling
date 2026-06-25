@@ -24,7 +24,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 # Console
 from aipass.cli.apps.modules import console, error
 from aipass.daemon.apps.handlers.json import json_handler
-from aipass.daemon.apps.modules import update, schedule, activity_report, actions, run, timer_install
+from aipass.daemon.apps.modules import update, schedule, activity_report, actions, run, timer_install, queue
 
 
 def _header(text):
@@ -46,7 +46,7 @@ def get_modules() -> List[Any]:
         List of module objects with handle_command function
     """
     modules = []
-    for mod in [update, schedule, activity_report, actions, run, timer_install]:
+    for mod in [update, schedule, activity_report, actions, run, timer_install, queue]:
         if hasattr(mod, "handle_command"):
             modules.append(mod)
     return modules
@@ -136,14 +136,15 @@ def print_help(modules: List[Any]):
     # Show actual routable commands, not module names
     _COMMAND_HELP = [
         ("update", "Returns digest of DAEMON activity for check-ins."),
-        ("schedule", "CLI interface for fire-and-forget scheduled follow-ups."),
+        ("queue", "Unified job queue view (--json for frozen schema)."),
         ("activity", "Quick 24-hour activity summary."),
         ("activity-report", "Full detailed activity report (--json for raw)."),
         ("branch-health", "Single branch deep dive (e.g., branch-health DAEMON)."),
-        ("actions", "CLI interface for the numbered action registry."),
         ("run", "One scheduler tick: discover .daemon/ jobs, fire due ones."),
         ("install-timer", "Install + enable daemon-tick systemd user timer (~2 min)."),
         ("uninstall-timer", "Stop + remove daemon-tick systemd user timer."),
+        ("schedule", "(retired) Use .daemon/schedule.json — see run --help."),
+        ("actions", "(retired) Use .daemon/schedule.json — see run --help."),
     ]
 
     for cmd_name, desc in _COMMAND_HELP:

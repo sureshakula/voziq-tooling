@@ -2,10 +2,12 @@
 # META DATA HEADER
 # Name: __init__.py - Schedule Handlers Package
 # Date: 2026-02-04
-# Version: 1.0.0
+# Version: 2.0.0
 # Category: daemon/handlers/schedule
 #
 # CHANGELOG (Max 5 entries):
+#   - v2.0.0 (2026-06-25): task_registry archived (TDPLAN-0008); package
+#     now exposes runstate + discovery for the live .daemon/ scheduler.
 #   - v1.0.0 (2026-02-04): Initial package setup
 #
 # CODE STANDARDS:
@@ -14,25 +16,26 @@
 # =============================================
 
 """
-Schedule handlers for daemon's scheduled follow-ups system.
+Schedule handlers for daemon's decentralized .daemon/ scheduler.
+
+task_registry (fire-and-forget follow-ups) has been archived — superseded
+by the per-branch .daemon/schedule.json model (DPLAN-0204).
 """
 
-from aipass.daemon.apps.handlers.schedule.task_registry import (
-    load_tasks,
-    save_tasks,
-    create_task,
-    delete_task,
-    get_due_tasks,
-    mark_completed,
-    parse_due_date,
+from aipass.daemon.apps.handlers.schedule.runstate import (
+    load_runstate,
+    save_runstate,
+    update_job_runstate,
+    is_job_due,
+    job_key,
 )
+from aipass.daemon.apps.handlers.schedule.discovery import discover_jobs
 
 __all__ = [
-    "load_tasks",
-    "save_tasks",
-    "create_task",
-    "delete_task",
-    "get_due_tasks",
-    "mark_completed",
-    "parse_due_date",
+    "load_runstate",
+    "save_runstate",
+    "update_job_runstate",
+    "is_job_due",
+    "job_key",
+    "discover_jobs",
 ]

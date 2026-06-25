@@ -110,9 +110,10 @@ drone @daemon <command> --help
 | Module | Description | Status |
 |--------|-------------|--------|
 | `update` | Status digest of DAEMON activity | *(partial)* — reads inbox/sessions but data_loader paths return empty |
-| `schedule` | Fire-and-forget scheduled follow-ups and task management | Operational |
+| `queue` | Unified job queue view — Rich table or `--json` (frozen schema for @skills bot) | Operational |
+| `schedule` | *(retired)* Fire-and-forget follow-ups — superseded by `.daemon/schedule.json` | Retired |
 | `activity_report` | Branch activity reports: `activity`, `activity-report`, `branch-health` | Operational |
-| `actions` | Action registry CLI — list, toggle, info, set reminder, set schedule, migrate | Operational |
+| `actions` | *(retired)* Action registry — superseded by `.daemon/schedule.json` | Retired |
 | `scheduler_ops` | Scheduler cron operations facade for scheduler_cron.py | Operational |
 | `wakeup_ops` | Wake-up cron operations facade for daemon_wakeup.py | Operational |
 | `timer_install` | Idempotent systemd user timer installer for daemon scheduler | Operational |
