@@ -89,6 +89,10 @@ from .bot_factory import (
     validate_token,
 )
 from .telegram_standards import build_botfather_commands
+
+# Secrets API for monitor subscription persistence
+from aipass.api.apps.modules.secrets import get_secret as _api_get_secret
+from aipass.api.apps.modules.secrets import set_secret as _api_set_secret
 from .bot_registry import (
     list_bots as registry_list_bots,
     get_bot_by_branch,
@@ -220,6 +224,9 @@ class BaseBot:
         self._log_streamer: Optional[LogStreamer] = None
         self._active_chat_id: Optional[int] = None
 
+        # Monitor streamer (system-wide, persisted across restarts)
+        self._monitor_streamer: Optional[LogStreamer] = None
+
         # Lock file
         self._lock_file = Path.home() / ".aipass" / "telegram_bots" / f".{bot_id}.lock"
 
@@ -251,6 +258,9 @@ class BaseBot:
 
         # Set Telegram command menu (idempotent, runs once per startup)
         self._set_command_menu()
+
+        # Boot-start monitor if a subscription was persisted
+        self._boot_monitor()
 
         # Check for existing lock
         if self._check_lock():
@@ -545,6 +555,11 @@ class BaseBot:
             True if command was handled (caller should return), False to fall through.
         """
         cmd_name, cmd_args = parsed
+
+        # /monitor command — system-wide log subscription
+        if cmd_name == "monitor":
+            self._handle_monitor_command(chat_id, cmd_args)
+            return True
 
         # /create command — multi-step bot creation
         if cmd_name == "create":
@@ -1598,6 +1613,137 @@ class BaseBot:
             else:
                 logger.warning("Failed to set command menu")
 
+    # =============================================
+    # /MONITOR — SYSTEM-WIDE LOG SUBSCRIPTION
+    # =============================================
+
+    def _handle_monitor_command(self, chat_id: int, args: str) -> None:
+        """Route /monitor subcommands: on, all, off, status."""
+        subcmd = args.strip().lower().split()[0] if args.strip() else ""
+
+        if subcmd == "on":
+            self._monitor_subscribe(chat_id, mode="default")
+        elif subcmd == "all":
+            self._monitor_subscribe(chat_id, mode="all")
+        elif subcmd == "off":
+            self._monitor_unsubscribe(chat_id)
+        elif subcmd == "status":
+            self._monitor_status(chat_id)
+        else:
+            self.send_message(
+                chat_id,
+                "/monitor on \u2014 errors & warnings\n"
+                "/monitor all \u2014 everything (firehose)\n"
+                "/monitor off \u2014 unsubscribe\n"
+                "/monitor status \u2014 current state",
+            )
+
+    def _monitor_subscribe(self, chat_id: int, mode: str) -> None:
+        """Subscribe this chat to the system-wide log monitor."""
+        # Stop any existing monitor streamer
+        if self._monitor_streamer is not None:
+            self._monitor_streamer.stop()
+            self._monitor_streamer = None
+
+        # Persist subscription
+        if not self._save_monitor_subscription(chat_id, mode):
+            self.send_message(chat_id, "Failed to save monitor subscription.")
+            return
+
+        # Start streamer
+        self._monitor_streamer = LogStreamer(
+            self.bot_token,
+            chat_id,
+            branch_name="monitor",
+            system_wide=True,
+            level_filter=mode,
+        )
+        self._monitor_streamer.start()
+
+        mode_label = "errors & warnings" if mode == "default" else "all levels (firehose)"
+        self.send_message(
+            chat_id,
+            f"Monitor subscribed: {mode_label}\n\n/monitor off to unsubscribe\n/monitor all for firehose mode",
+        )
+        logger.info("Monitor subscribed: chat_id=%s, mode=%s", chat_id, mode)
+
+    def _monitor_unsubscribe(self, chat_id: int) -> None:
+        """Unsubscribe from the system-wide log monitor."""
+        if self._monitor_streamer is not None:
+            self._monitor_streamer.stop()
+            self._monitor_streamer = None
+
+        self._clear_monitor_subscription()
+        self.send_message(chat_id, "Monitor unsubscribed. No more log alerts.")
+        logger.info("Monitor unsubscribed: chat_id=%s", chat_id)
+
+    def _monitor_status(self, chat_id: int) -> None:
+        """Show current monitor subscription status."""
+        sub = self._load_monitor_subscription()
+        if not sub or not sub.get("chat_id"):
+            self.send_message(chat_id, "Monitor: not subscribed.\n\n/monitor on to start.")
+            return
+
+        sub_chat = sub["chat_id"]
+        mode = sub.get("mode", "default")
+        mode_label = "errors & warnings" if mode == "default" else "all levels (firehose)"
+        is_this_chat = "(this chat)" if sub_chat == chat_id else f"(chat {sub_chat})"
+        running = self._monitor_streamer is not None and self._monitor_streamer._running
+        state = "streaming" if running else "paused"
+
+        self.send_message(
+            chat_id,
+            f"Monitor: {state}\nMode: {mode_label}\nTarget: {is_this_chat}",
+        )
+
+    def _boot_monitor(self) -> None:
+        """Start the monitor streamer from persisted subscription on boot."""
+        sub = self._load_monitor_subscription()
+        if not sub or not sub.get("chat_id"):
+            return
+
+        chat_id = sub["chat_id"]
+        mode = sub.get("mode", "default")
+
+        self._monitor_streamer = LogStreamer(
+            self.bot_token,
+            chat_id,
+            branch_name="monitor",
+            system_wide=True,
+            level_filter=mode,
+        )
+        self._monitor_streamer.start()
+        logger.info("Boot-started monitor streamer (chat_id=%s, mode=%s)", chat_id, mode)
+
+    def _load_monitor_subscription(self) -> dict | None:
+        """Load monitor subscription from the @api secrets store."""
+        try:
+            result = _api_get_secret("telegram", "monitor", as_json=True)
+            if isinstance(result, dict) and result.get("chat_id"):
+                return result
+            return None
+        except Exception as e:
+            logger.warning("Failed to load monitor subscription: %s", e)
+            return None
+
+    def _save_monitor_subscription(self, chat_id: int, mode: str) -> bool:
+        """Persist monitor subscription to the @api secrets store."""
+        try:
+            _api_set_secret("telegram", "monitor", {"chat_id": chat_id, "mode": mode}, as_json=True)
+            return True
+        except Exception as e:
+            logger.error("Failed to save monitor subscription: %s", e)
+            return False
+
+    def _clear_monitor_subscription(self) -> bool:
+        """Clear persisted monitor subscription."""
+        try:
+            _api_set_secret("telegram", "monitor", {}, as_json=True)
+            return True
+        except Exception as e:
+            logger.error("Failed to clear monitor subscription: %s", e)
+            return False
+
     def get_custom_commands(self) -> dict:
         """
         Hook: return additional bot-specific commands.
@@ -1609,6 +1755,10 @@ class BaseBot:
             Dict of commands in telegram_standards format
         """
         return {
+            "monitor": {
+                "description": "Subscribe to system-wide log alerts — /monitor on, off, all, status",
+                "menu_text": "Log monitor",
+            },
             "create": {
                 "description": "Create a Telegram bot for a branch — e.g. /create chat devpulse",
                 "menu_text": "New branch bot",
@@ -1712,6 +1862,9 @@ class BaseBot:
 
     def _cleanup(self) -> None:
         """Clean up resources on exit."""
+        if self._monitor_streamer is not None:
+            self._monitor_streamer.stop()
+            self._monitor_streamer = None
         if self._log_streamer is not None:
             self._log_streamer.stop()
             self._log_streamer = None

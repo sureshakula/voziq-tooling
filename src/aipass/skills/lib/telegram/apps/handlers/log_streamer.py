@@ -67,13 +67,25 @@ SYSTEM_LOGS_DIR = _get_system_logs_dir()
 # =============================================
 
 
+_LEVEL_MARKERS = ("| WARNING |", "| ERROR |", "| CRITICAL |")
+
+
 class LogStreamer:
     """Stream system log lines for a branch to Telegram via batched sends."""
 
-    def __init__(self, bot_token: str, chat_id: int, branch_name: str) -> None:
+    def __init__(
+        self,
+        bot_token: str,
+        chat_id: int,
+        branch_name: str,
+        system_wide: bool = False,
+        level_filter: str = "all",
+    ) -> None:
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.branch_name = branch_name
+        self._system_wide = system_wide
+        self._level_filter = level_filter
 
         self._running = False
         self._stop_event = threading.Event()
@@ -88,10 +100,18 @@ class LogStreamer:
     # -----------------------------------------
 
     def _get_log_files(self) -> List[Path]:
-        """Find all log files matching this branch's pattern."""
+        """Find log files: all *.log when system_wide, else branch-specific."""
         if not SYSTEM_LOGS_DIR.exists():
             return []
+        if self._system_wide:
+            return sorted(SYSTEM_LOGS_DIR.glob("*.log"))
         return sorted(SYSTEM_LOGS_DIR.glob(f"{self.branch_name}_*.log"))
+
+    def _filter_lines(self, lines: List[str]) -> List[str]:
+        """Apply level filter: default keeps WARNING/ERROR/CRITICAL, all passes everything."""
+        if self._level_filter == "all":
+            return lines
+        return [ln for ln in lines if any(m in ln for m in _LEVEL_MARKERS)]
 
     def _init_positions(self) -> None:
         """Set initial positions to end of file so we only tail new lines."""
@@ -221,6 +241,7 @@ class LogStreamer:
         while self._running:
             try:
                 new_lines = self._read_new_lines()
+                new_lines = self._filter_lines(new_lines)
                 if new_lines:
                     logger.info("Found %d new log lines, sending to Telegram", len(new_lines))
                     self._send_batched(new_lines)

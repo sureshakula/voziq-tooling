@@ -38,6 +38,23 @@ PyPI version — not the changelog header.
   mother-bot needs to persist a newly-created bot's config so the child can read
   its token. 515 @api tests pass (11 new), @api seedgo 100%. (DPLAN-0220)
 
+- **Prax-monitor v1 on Telegram — `/monitor` system-wide log subscription** —
+  the old Dev-Pass "prax monitor bot" (a `@prax` push relay on a dedicated token)
+  was stripped during the port; this revives the capability as a feature of the
+  existing `@aipass` bot (no second bot, no new credential). New `/monitor on`
+  (errors+warnings) / `all` (firehose) / `off` / `status` command on `base_bot`,
+  shown in the slash menu + `/help`. The subscribed chat is persisted to the `@api`
+  store (`set_secret('telegram','monitor',{chat_id,mode})`) so it survives restart,
+  and `base_bot` boot-starts the stream from it on startup — set-and-forget under
+  systemd. `LogStreamer` gained `system_wide` (glob all `system_logs/*.log`, not one
+  branch) + `level_filter` (default keeps `WARNING`/`ERROR`/`CRITICAL`, `all` =
+  passthrough); `_init_positions` still seeks EOF so subscribing never floods
+  history. 33 new tests (`test_monitor.py`), telegram suite 493/493, skills 252/252,
+  @skills seedgo 98%. (First @skills run crashed mid-edit on 3 string-handling
+  syntax errors; continued + fixed.) The richer AS-WAS `@prax` event-feed relay
+  (rendered Mission-Control stream, needs a dedicated-bot-token decision) is tracked
+  as Route B. (DPLAN-0221)
+
 ### Fixed
 
 - **Telegram port — wave 1 (persistence + monitor + state hygiene)**, surfaced by
