@@ -62,11 +62,13 @@ def streamer(logs_dir, tmp_path):
 @pytest.fixture
 def streamer_with_files(logs_dir, tmp_path):
     """Create a LogStreamer after pre-populating matching and non-matching log files."""
-    # Create matching log files with content
-    (logs_dir / "api_main.log").write_text("line1\nline2\n", encoding="utf-8")
-    (logs_dir / "api_error.log").write_text("err1\n", encoding="utf-8")
+    # Create matching log files with content. newline="" disables newline
+    # translation so byte counts match len() on Windows too (\n stays 1 byte,
+    # not \r\n) — real log files are LF-terminated.
+    (logs_dir / "api_main.log").write_text("line1\nline2\n", encoding="utf-8", newline="")
+    (logs_dir / "api_error.log").write_text("err1\n", encoding="utf-8", newline="")
     # Create a non-matching file (should be ignored)
-    (logs_dir / "trigger_main.log").write_text("other\n", encoding="utf-8")
+    (logs_dir / "trigger_main.log").write_text("other\n", encoding="utf-8", newline="")
 
     return _make_streamer(logs_dir, tmp_path)
 

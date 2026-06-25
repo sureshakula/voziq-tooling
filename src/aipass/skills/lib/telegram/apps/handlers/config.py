@@ -1,5 +1,5 @@
 # Standard library
-from pathlib import Path
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Optional, List
 
 # Logging
@@ -208,8 +208,11 @@ def validate_bot_config(config: object) -> tuple[bool, str]:
         return False, "bot_token must be a string in format 'id:hash'"
 
     if "work_dir" in config and config["work_dir"] is not None:
-        work_dir = Path(config["work_dir"])
-        if not work_dir.is_absolute():
+        # work_dir is a deployment-target (Linux) path. Test absoluteness under
+        # POSIX *and* Windows semantics so validation is platform-independent —
+        # a bare host Path().is_absolute() would reject "/home/..." on Windows.
+        work_dir = str(config["work_dir"])
+        if not (PurePosixPath(work_dir).is_absolute() or PureWindowsPath(work_dir).is_absolute()):
             return False, "work_dir must be an absolute path"
 
     if "allowed_user_ids" in config:

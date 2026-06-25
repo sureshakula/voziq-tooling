@@ -6,7 +6,6 @@ No external dependencies beyond pytest.
 """
 
 import json
-from pathlib import Path
 
 import pytest
 from apps.handlers import bot_registry  # type: ignore[import-not-found]
@@ -191,11 +190,15 @@ class TestSaveRegistry:
         assert result is True
         assert bot_registry.REGISTRY_DIR.is_dir()
 
-    def test_returns_false_on_write_failure(self, monkeypatch):
+    def test_returns_false_on_write_failure(self, monkeypatch, tmp_path):
         """Should return False when writing fails (e.g. permission error)."""
-        # Point to an impossible path
-        monkeypatch.setattr(bot_registry, "REGISTRY_DIR", Path("/proc/nonexistent/impossible"))
-        monkeypatch.setattr(bot_registry, "REGISTRY_FILE", Path("/proc/nonexistent/impossible/_registry.json"))
+        # Put a regular file where a directory is expected. mkdir(parents=True)
+        # then fails on every OS (NotADirectoryError/FileExistsError), so this is
+        # cross-platform — unlike a hardcoded Unix-only path such as /proc/...
+        blocker = tmp_path / "blocker"
+        blocker.write_text("x", encoding="utf-8")
+        monkeypatch.setattr(bot_registry, "REGISTRY_DIR", blocker / "sub")
+        monkeypatch.setattr(bot_registry, "REGISTRY_FILE", blocker / "sub" / "_registry.json")
 
         result = bot_registry.save_registry({"bots": {}, "metadata": {}})
 

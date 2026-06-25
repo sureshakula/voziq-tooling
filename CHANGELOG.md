@@ -55,7 +55,14 @@ PyPI version — not the changelog header.
   last several PRs. Guarded the import (`try/except ImportError → fcntl = None`,
   the established hooks/daemon convention) and routed the three flock call-sites
   through no-op-on-Windows `_lock`/`_unlock` helpers — advisory locking still
-  applies on POSIX, is skipped where unavailable. 246 telegram tests green.
+  applies on POSIX, is skipped where unavailable. Fixing collection then
+  *unmasked* three telegram tests that had never actually run on Windows, all
+  test-portability bugs (not product bugs): a log-streamer byte-count broke on
+  CRLF translation (fixture now writes `newline=""`); a registry write-failure
+  test used the Unix-only `/proc` path (now a cross-platform file-as-directory
+  parent); and `validate_bot_config` rejected valid POSIX `work_dir`s on Windows
+  because `Path.is_absolute()` is host-dependent (now tests POSIX *and* Windows
+  absoluteness). 493 telegram tests green.
 
 - **prax-monitor service feedback loop** — the unit wrote its own stdout into
   `system_logs/`, the very directory the monitor tails *and* @trigger watches,
