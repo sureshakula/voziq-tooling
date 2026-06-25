@@ -59,6 +59,19 @@ from aipass.spawn.apps.handlers.json import json_handler
 # Default template location (relative to spawn package root)
 DEFAULT_TEMPLATE = Path(__file__).parents[2] / "templates" / "builder"
 
+_META_TAB_KEYS = {"TODOS_META", "KEY_LEARNINGS_META", "SESSIONS_META", "OBSERVATIONS_META"}
+
+
+def _load_meta_tabs():
+    """Load memory meta-tab values from @memory's renderer. Raises on failure."""
+    from aipass.memory.apps.handlers.tracking.tab_renderer import render_all_meta_tabs
+
+    tabs = render_all_meta_tabs()
+    missing = _META_TAB_KEYS - set(tabs or {})
+    if missing:
+        raise RuntimeError(f"render_all_meta_tabs() missing keys: {sorted(missing)}")
+    return tabs
+
 
 def print_introspection():
     """Display module introspection info."""
@@ -219,6 +232,7 @@ def _spawn_agent(
     citizen_number = get_next_citizen_number(reg_path)
 
     # Build placeholder replacements
+    meta_tabs = _load_meta_tabs()
     replacements = build_replacements_dict(
         target,
         folder_name,
@@ -227,6 +241,7 @@ def _spawn_agent(
         purpose=purpose or "New agent - purpose TBD",
         profile=detected_profile,
         citizen_number=citizen_number,
+        meta_tabs=meta_tabs,
     )
 
     # Step 1: Copy template with placeholder replacement in content

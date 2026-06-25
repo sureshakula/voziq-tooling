@@ -24,6 +24,28 @@ PyPI version — not the changelog header.
   loads from the @api secret `telegram/prax_monitor`. Ships a reboot-survivable
   `prax-monitor.service` user unit. 937 prax tests green (31 new). (DPLAN-0221)
 
+- **Self-documenting `.trinity` state-tabs** — each memory-file section
+  (`todos` / `key_learnings` / `sessions` / `observations`) now carries a
+  config-sourced `⟦ rollover ON/OFF · keep N · ≤chars ⟧` tab rendered directly
+  above it, so an agent editing a section sees its rollover state and character
+  cap at the edit point (stops over-limit writes). Values are generated from
+  `memory.config.json` (single source of truth) via @memory's new
+  `render_all_meta_tabs()` / `tab_renderer.py`; @memory's `spawn_pusher` carries
+  the `{{*_META}}` placeholders into @spawn's branch templates, and @spawn
+  resolves them at create (`build_replacements_dict`, fail-loud on missing keys)
+  so new branches auto-populate. `refresh_all_tabs` keeps live branches synced;
+  @memory README documents the system. (FPLAN-0285, FPLAN-0286)
+
+### Changed
+
+- **Todo management — delete-on-done discipline** — `todos[]` are operational
+  and exempt from rollover (confirmed; the vestigial `todos` entry was removed
+  from `memory.config.json` rollover defaults). Because rollover never trims
+  them, finished todos must be **deleted**, not left as `status: done` (which
+  pile up and resurface as "open" across sessions). `/prep` and `/memo` (Claude
+  + Codex) and the `CLAUDE.md` startup protocol now codify: delete each todo when
+  done (proof → session entry), reconcile on load. (FPLAN-0285)
+
 ### Fixed
 
 - **prax-monitor service feedback loop** — the unit wrote its own stdout into

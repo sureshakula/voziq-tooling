@@ -64,11 +64,11 @@ memory/
 │       ├── storage/             # chroma.py, chroma_subprocess.py
 │       ├── symbolic/            # chroma_client, deduplicator, extractor, hook, retriever, storage
 │       ├── templates/           # pusher.py, differ.py, spawn_pusher.py
-│       ├── tracking/            # line_counter.py
+│       ├── tracking/            # line_counter.py, tab_renderer.py
 │       ├── vector/              # embedder.py, embed_subprocess.py
 │       └── central_writer.py
 ├── templates/                   # LOCAL.template.json, OBSERVATIONS.template.json
-├── tests/                       # 949 tests (31 test files)
+├── tests/                       # 978 tests
 ├── .chroma/                     # ChromaDB vector store
 └── memory_json/                 # Operation logs + custom_config/memory.config.json
 ```
@@ -95,6 +95,38 @@ All ML operations (fastembed, chromadb) run via subprocess. The main process nev
 
 ---
 
+## State-Tabs (`*_meta` keys)
+
+Every `.trinity/local.json` and `.trinity/observations.json` carries inline `*_meta` banner strings that tell the editing agent what rollover rules apply to each section. Example:
+
+```
+"sessions_meta": "⟦ rollover ON → oldest archived to @memory · keep 15 · summary ≤300 chars ⟧"
+```
+
+**Source of truth:** `memory.config.json` — rollover counts (defaults + per-branch overrides) and entry char limits. Tab strings are *generated*, never hand-written.
+
+**Sections:** `todos_meta` (rollover OFF — operational, never trimmed), `key_learnings_meta`, `sessions_meta`, `observations_meta` (all rollover ON).
+
+### Two value flows
+
+| Scenario | How tabs arrive |
+|---|---|
+| **Live branches** | `refresh_all_tabs()` walks the registry, renders tabs from config with per-branch overrides, writes them into `.trinity/` files. Wired after rollover, sync-lines, and push-templates. |
+| **New branches** | Templates carry `{{TODOS_META}}`, `{{KEY_LEARNINGS_META}}`, `{{SESSIONS_META}}`, `{{OBSERVATIONS_META}}` placeholders. `spawn_pusher` propagates these (unresolved) from memory templates → spawn template sets. At branch creation, @spawn calls `render_all_meta_tabs()` to get rendered defaults and resolves the placeholders. |
+
+### Public API
+
+```python
+from aipass.memory.apps.handlers.tracking.tab_renderer import render_all_meta_tabs
+
+tabs = render_all_meta_tabs()
+# → {"TODOS_META": "⟦ rollover OFF ...", "KEY_LEARNINGS_META": "⟦ rollover ON ...", ...}
+```
+
+Returns defaults (not per-branch overrides) — appropriate for template resolution at branch creation.
+
+---
+
 ## Integration Points
 
 **Depends on:**
@@ -117,9 +149,8 @@ All ML operations (fastembed, chromadb) run via subprocess. The main process nev
 
 ## Quality
 
-- **Tests:** 949 passed, 0 failures, 0 skips
-- **Test files:** 31
-- **Seedgo:** 100% — maintained since s12
+- **Tests:** 978 passed, 0 failures, 0 skips
+- **Seedgo:** 100%
 
 ---
 
@@ -131,7 +162,7 @@ All ML operations (fastembed, chromadb) run via subprocess. The main process nev
 
 ---
 
-*Last Updated: 2026-05-16*
+*Last Updated: 2026-06-25*
 
 ---
 [← Back to AIPass](../../../README.md)

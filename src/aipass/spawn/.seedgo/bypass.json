@@ -231,6 +231,11 @@
       "file": "apps/handlers/meta_ops.py",
       "standard": "unused_function",
       "reason": "load_branch_meta() no longer called by P1 engine but has tests and may be reused by sync-registry or P2 shared library."
+    },
+    {
+      "file": "apps/modules/core.py",
+      "standard": "encapsulation",
+      "reason": "Local import of render_all_meta_tabs from memory.apps.handlers.tracking.tab_renderer — @memory has no module entry point for this API. Cross-branch contract per FPLAN-0286."
     }
   ],
   "notes": {

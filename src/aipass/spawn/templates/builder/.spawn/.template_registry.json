@@ -184,13 +184,13 @@
       "path": ".trinity/README.md"
     },
     "f012": {
-      "content_hash": "8f8a98e42d92",
+      "content_hash": "a68a905541ee",
       "has_branch_placeholder": false,
       "name": "local.json",
       "path": ".trinity/local.json"
     },
     "f013": {
-      "content_hash": "62160dfa243c",
+      "content_hash": "e51a865855a6",
       "has_branch_placeholder": false,
       "name": "observations.json",
       "path": ".trinity/observations.json"
@@ -384,7 +384,7 @@
   },
   "metadata": {
     "description": "Template file tracking registry for ID-based updates",
-    "last_updated": "2026-06-11",
+    "last_updated": "2026-06-25",
     "version": "1.0.0"
   }
 }

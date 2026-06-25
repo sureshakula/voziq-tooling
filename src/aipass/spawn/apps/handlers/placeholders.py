@@ -71,6 +71,10 @@ def build_replacements_dict(target_dir, branch_name, **overrides):
         "PROVIDES_TO": "",
     }
 
+    meta_tabs = overrides.get("meta_tabs")
+    if meta_tabs:
+        replacements.update(meta_tabs)
+
     return replacements
 
 

@@ -142,6 +142,11 @@
       "reason": "Architectural: imports json.memory_files for metadata updates and monitor.detector for registry reading."
     },
     {
+      "file": "apps/handlers/tracking/tab_renderer.py",
+      "standard": "handlers",
+      "reason": "Architectural: imports json.memory_files, json.config_loader, and monitor.detector for config-driven tab rendering across all branches."
+    },
+    {
       "file": "apps/handlers/search/vector_search.py",
       "standard": "handlers",
       "reason": "Architectural: imports storage.chroma for ChromaDB client access during vector search."
@@ -452,6 +457,12 @@
       "reason": "is_plan_vectorized is a public API function for external callers."
     },
     {
+      "file": "apps/handlers/tracking/tab_renderer.py",
+      "standard": "unused_function",
+      "functions": ["render_all_meta_tabs"],
+      "reason": "Cross-branch public API — called by @spawn's build_replacements_dict to resolve {{*_META}} placeholders at branch creation."
+    },
+    {
       "file": "apps/modules/templates.py",
       "standard": "deep_nesting",
       "reason": "handle_command() routes 6 subcommands with validation — nesting is inherent to command dispatch."
@@ -692,6 +703,16 @@
       "file": "tests/test_config_loader.py",
       "standard": "meta",
       "reason": "Test file — META block present at lines 1-7; hook false-positive on test file format."
+    },
+    {
+      "file": "tests/test_tab_renderer.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by design, not in 3-layer apps/ structure."
+    },
+    {
+      "file": "tests/test_tab_renderer.py",
+      "standard": "documentation",
+      "reason": "Test file — test functions don't require docstrings."
     },
     {
       "file": "tests/test_handlers.py",

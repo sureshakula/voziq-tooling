@@ -19,3 +19,5 @@ Use drone commands for all operations. Never raw git, gh, file access, or python
 # Memories
 
 Update `.trinity/` at natural breakpoints, after milestones, and on `/memo`.
+
+Todos[] don't auto-roll — rollover never trims them. So **delete each todo the moment it's done** (never leave it as `status: done`), and **reconcile on load**: close/remove anything already finished so completed work never resurfaces as "open" and wastes a re-confirm.

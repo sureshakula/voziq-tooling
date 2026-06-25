@@ -73,25 +73,19 @@
   ],
   "document_metadata": {
     "version": "2.0.0",
-    "schema_version": "2.0.0",
+    "schema_version": "3.0.0",
     "document_type": "session_history",
     "tags": [
       "session_tracking",
       "work_log",
       "prax"
     ],
-    "limits": {
-      "max_sessions": 20,
-      "max_key_learnings": 25,
-      "session_summary_max_chars": 150,
-      "learning_value_max_chars": 200,
-      "note": "DO NOT trim, prune, or delete entries. Rollover to @memory handles overflow automatically. Just add new entries."
-    },
     "status": {
       "health": "healthy",
       "last_health_check": "2026-04-22",
       "current_lines": 0
     }
   },
-  "key_learnings": {}
+  "key_learnings": {},
+  "todos": []
 }

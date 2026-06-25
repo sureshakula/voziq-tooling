@@ -114,7 +114,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "local": {
                 "sessions": {"count": 20},
                 "key_learnings": {"count": 25},
-                "todos": {"count": 10},
             },
             "observations": {
                 "observations": {"count": 25},
