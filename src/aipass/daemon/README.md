@@ -120,6 +120,48 @@ drone @daemon <command> --help
 
 ---
 
+## Scheduling Jobs
+
+Each branch owns its schedule at `src/aipass/<branch>/.daemon/schedule.json`. The daemon discovers and fires — branches define their own jobs.
+
+### Job file schema
+
+```json
+{
+  "version": 1,
+  "branch": "@<branch>",
+  "jobs": [
+    {
+      "id": "my-job",
+      "enabled": true,
+      "schedule": { "type": "interval", "interval_minutes": 30 },
+      "wake": { "fresh": true, "model": "haiku" },
+      "prompt": "Do something, then STOP."
+    }
+  ]
+}
+```
+
+### Schedule types
+
+| Type | Fields | Due when |
+|------|--------|----------|
+| `interval` | `interval_minutes: N` | Elapsed >= N since last_run. Fires immediately if never run. |
+| `daily` | `time: "HH:MM"` | Within +/-15 min of target time, once per day. |
+| `hourly` | `time: "M"` (minute) | Within +/-15 min of target minute, once per hour. |
+| `once` | `due_date: "YYYY-MM-DD"` | Date <= today, then marks completed. |
+
+### Wake options
+
+- `fresh` (bool) — start a fresh Claude session (true) or resume (false)
+- `model` (string, optional) — `"haiku"` or `"sonnet"` recommended for light wakes
+
+### Staggering
+
+No native offset field. To stagger jobs, seed different `last_run` values in `daemon_json/daemon_runstate.json`.
+
+---
+
 ## Integration Points
 
 ### Depends On

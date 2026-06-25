@@ -55,7 +55,7 @@ def print_help():
     console.print("  drone @daemon install-timer --help")
     console.print("\n[yellow]DESCRIPTION:[/yellow]")
     console.print("  Copies daemon-tick.service and daemon-tick.timer to")
-    console.print(f"  {_UNIT_DIR}/")
+    console.print("  ~/.config/systemd/user/")
     console.print("  Then reloads systemd and enables+starts the timer.")
     console.print("  Idempotent — safe to run multiple times.")
     console.print()
