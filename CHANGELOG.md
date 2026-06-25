@@ -48,6 +48,16 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **seedgo-audit — telegram ported-but-unwired functions** — the DPLAN-0218
+  relocation pulled the telegram lib into the seedgo gate's scope, surfacing 16
+  `unused_function` flags across 8 handler files. These are *not* dead code —
+  they're ported-but-unwired from the ~9k-line Dev-Pass port (S249), awaiting
+  DPLAN-0220 wiring (on_response hooks, response_router, tmux session mgmt, file
+  up/download, multi-bot, config helpers). Added name-scoped `unused_function`
+  bypasses in `skills/.seedgo/bypass.json` (the existing mechanism), each citing
+  DPLAN-0220, and documented every one in `SKILL.md` → *Ported-but-unwired* with
+  a "remove the bypass as you wire each fn" note. @skills back to 100%.
+
 - **seedgo-audit — @spawn direct JSON read** — `core.py` adopt-path read a
   passport via `json.loads(path.read_text())` (direct file op), failing the
   `json_handler` standard and the CI seedgo-audit gate. Switched to

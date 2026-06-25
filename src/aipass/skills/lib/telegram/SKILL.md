@@ -46,3 +46,22 @@ drone @skills run telegram notify "message"
 
 Bot tokens and config accessed via the in-process `aipass.api.apps.modules.secrets.get_secret` API.
 State files (offset, lock, registry) stay with the skill in `.local/`.
+
+## Ported-but-unwired (DPLAN-0220)
+
+This bridge is a partial port of the ~9k-line "Dev-Pass" telegram system. Several
+functions are **ported but not yet wired** — they have no caller today and will be
+connected as DPLAN-0220 completes. They are *not* dead code (do not delete them; see
+S249), so seedgo's `unused_function` check is bypassed for them in
+`.seedgo/bypass.json`. As each one is wired up, remove its bypass entry.
+
+| File | Function(s) | Awaiting |
+|---|---|---|
+| `base_bot.py` | `chunk_text`, `on_response` | long-message split + response hook (on_response = Wave-2 design call) |
+| `branch_plugin.py` | `on_response` | per-branch response hook (Wave-2 design call) |
+| `response_router.py` | `find_pending_bot`, `clean_expired_pending` | response_router import-vs-delete decision |
+| `bot_registry.py` | `get_bot_by_work_dir` | CWD→bot match for the response router |
+| `bot_operations.py` | `get_all_bots` | multi-bot listing |
+| `config.py` | `get_allowed_user_ids`, `validate_config` | config accessor/validator wiring |
+| `file_handler.py` | `download_telegram_file`, `cleanup_file` | file up/download feature |
+| `tmux_manager.py` | `_send_rename`, `has_tmux`, `kill_session`, `list_sessions`, `get_session_pane` | interactive tmux session management |
