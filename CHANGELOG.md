@@ -9,6 +9,31 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-06-25]
+
+### Added
+
+- **Prax monitor → Telegram relay (`prax_monitor` bot)** — the live
+  `drone @prax monitor run` Mission-Control feed now mirrors to a dedicated
+  Telegram bot, so the whole-system monitor is watchable from a phone ("same
+  monitor, different window"). New `monitoring/telegram_relay.py` taps the single
+  render seam (`_render_event`), buffers events, and flushes every 5s (4000-char
+  split, 150-line flood cap, `disable_notification`); fail-silent-once when
+  unconfigured. Gated behind `--relay` / `AIPASS_PRAX_MONITOR_RELAY=1` so a local
+  `monitor run` stays console-only (no double-send). Bot config (token + chat_id)
+  loads from the @api secret `telegram/prax_monitor`. Ships a reboot-survivable
+  `prax-monitor.service` user unit. 937 prax tests green (31 new). (DPLAN-0221)
+
+### Fixed
+
+- **prax-monitor service feedback loop** — the unit wrote its own stdout into
+  `system_logs/`, the very directory the monitor tails *and* @trigger watches,
+  creating a self-reinforcing loop (monitor output → re-tailed and recorded by
+  @trigger into `trigger_data.json` → reported as a file change → more output).
+  Moved the service log to `~/.aipass/` to break the cycle. Also corrected the
+  ExecStart to `monitor run` (relay enabled via env) — the module `__main__`
+  rejects the drone-style `run all --relay` argument form. (DPLAN-0221)
+
 ## [2026-06-24]
 
 ### Changed

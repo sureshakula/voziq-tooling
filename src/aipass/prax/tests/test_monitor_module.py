@@ -40,6 +40,7 @@ _MONITORING_MOCKS = {
     "aipass.prax.apps.handlers.monitoring.interactive_filter": MagicMock(),
     "aipass.prax.apps.handlers.monitoring.monitoring_filters": MagicMock(),
     "aipass.prax.apps.handlers.monitoring.file_watcher_integration": MagicMock(),
+    "aipass.prax.apps.handlers.monitoring.telegram_relay": MagicMock(),
 }
 
 
