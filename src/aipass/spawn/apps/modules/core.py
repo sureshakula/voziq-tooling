@@ -327,8 +327,6 @@ def _adopt_existing(target, purpose, profile, registry_path):
     Returns:
         Result dict matching _spawn_agent return format.
     """
-    import json as _json
-
     folder_name = get_branch_name(target)
     branch_upper = normalize_branch_name(folder_name, "upper")
     branch_lower = normalize_branch_name(folder_name, "lower")
@@ -339,12 +337,9 @@ def _adopt_existing(target, purpose, profile, registry_path):
     # Read purpose from passport if not provided
     if not purpose:
         passport_path = target / ".trinity" / "passport.json"
-        try:
-            passport = _json.loads(passport_path.read_text(encoding="utf-8"))
-            purpose = passport.get("identity", {}).get("purpose", "Adopted agent")
-        except (ValueError, OSError) as e:
-            logger.warning("Failed to read passport for purpose: %s", e)
-            purpose = "Adopted agent"
+        # read_json returns None on failure (and logs) — same pattern as line ~250.
+        passport = json_handler.read_json(passport_path)
+        purpose = (passport or {}).get("identity", {}).get("purpose", "Adopted agent")
 
     # Fix registry_id in passport if it doesn't match the current registry
     fix_passport_registry_id(target, reg_path)

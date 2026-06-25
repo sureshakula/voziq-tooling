@@ -48,6 +48,13 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **seedgo-audit — @spawn direct JSON read** — `core.py` adopt-path read a
+  passport via `json.loads(path.read_text())` (direct file op), failing the
+  `json_handler` standard and the CI seedgo-audit gate. Switched to
+  `json_handler.read_json()` (the same pattern used a few lines above), dropping
+  the now-unused `import json as _json`. @spawn back to 100%; 315 spawn tests
+  green.
+
 - **Windows CI — telegram `bot_registry` crashed test collection** — the module
   did a bare `import fcntl` (POSIX-only), so on Windows all 8 telegram test
   modules that transitively import it failed at *collection* with
