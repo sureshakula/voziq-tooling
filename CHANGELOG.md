@@ -70,6 +70,18 @@ PyPI version — not the changelog header.
   startup menu.)
   (DPLAN-0220)
 
+- **Telegram `@aipass` deployed under systemd (reboot survival + clean lifecycle)** —
+  the live mother-bot was a hand-launched foreground process: no reboot survival, and
+  `stop_bot`/restart targeted an uninstalled `telegram-bot@base` unit, so there was no
+  working lifecycle command. Installed the user service + `enable --now` +
+  `loginctl enable-linger` (`Linger=yes`); the 17:26 startup log confirms the full
+  chain live — `Telegram API OK`, **`Command menu set (6 commands)`** (the new `/help`
+  menu), stale-lock cleanup, poll loop, tmux Claude session preserved, `NRestarts=0`.
+  Also corrected the ported unit's `StandardOutput`/`StandardError`, which pointed at a
+  non-existent `~/system_logs` (would have crash-looped the service) — now
+  `<repo>/system_logs`, matching where the app already logs. Restart is now
+  `systemctl --user restart telegram-bot@base`. (DPLAN-0220)
+
 - **seedgo CLI help checkers green-lit non-compliant `--help` output** — the
   `cli`/`help_text`/`introspection` standards are static source scans (they
   confirm a `print_help` function, `console.print`, and `--help` wiring exist)

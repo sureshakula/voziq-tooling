@@ -25,8 +25,8 @@ Environment=AIPASS_BOT_ID=%i
 Environment=AIPASS_SESSION_TYPE=telegram
 Restart=on-failure
 RestartSec=10
-StandardOutput=append:%h/system_logs/telegram-bot-%i.log
-StandardError=append:%h/system_logs/telegram-bot-%i.log
+StandardOutput=append:%h/Projects/AIPass/system_logs/telegram-bot-%i.log
+StandardError=append:%h/Projects/AIPass/system_logs/telegram-bot-%i.log
 
 [Install]
 WantedBy=default.target
