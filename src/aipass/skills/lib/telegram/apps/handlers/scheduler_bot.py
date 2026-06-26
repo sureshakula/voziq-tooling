@@ -19,6 +19,7 @@ import threading
 from typing import Optional
 
 from aipass.prax import logger
+from aipass.skills.apps.handlers.json import json_handler
 
 from .base_bot import BaseBot
 
@@ -37,12 +38,14 @@ class SchedulerBot(BaseBot):
         self._scheduler_chat_id: Optional[int] = None
 
     def handle_message(self, chat_id: int, text: str, message: dict) -> None:
+        """Reject free-text — this bot only serves commands (no tmux/Claude spawn)."""
         self.send_message(
             chat_id,
             "I'm the scheduler bot — I only handle commands.\nTry /queue or /help",
         )
 
     def handle_file(self, chat_id: int, message: dict) -> None:
+        """Reject files — this bot only serves commands."""
         self.send_message(chat_id, "I don't process files. Try /queue or /help")
 
     def _dispatch_command(self, chat_id: int, parsed: tuple) -> bool:
@@ -53,6 +56,7 @@ class SchedulerBot(BaseBot):
         return super()._dispatch_command(chat_id, parsed)
 
     def get_custom_commands(self) -> dict:
+        """Add /queue to the slash-menu alongside the inherited commands."""
         cmds = super().get_custom_commands()
         cmds["queue"] = {
             "description": "Show all scheduled daemon jobs — next fire, status, type",
@@ -62,6 +66,7 @@ class SchedulerBot(BaseBot):
 
     def _handle_queue_command(self, chat_id: int) -> None:
         """Fetch queue from daemon and send formatted message."""
+        json_handler.log_operation("queue_requested", {"chat_id": chat_id})
         queue_data = self._fetch_queue()
         if queue_data is None:
             self.send_message(chat_id, "Failed to fetch queue from daemon.")
@@ -184,44 +189,16 @@ class SchedulerBot(BaseBot):
     # =============================================
 
     def run(self) -> int:
-        """Start the bot with digest thread."""
-        logger.info("=" * 60)
-        logger.info("%s starting (bot_id=%s)", self.bot_name, self.bot_id)
+        """Run the bot: start the hourly digest, then delegate to the parent poll loop.
 
-        if not self.verify_connection():
-            logger.error("Startup health check FAILED — cannot reach Telegram API")
-            return 1
-
-        logger.info("Connected to Telegram API")
-
-        from datetime import datetime
-
-        self._health["started_at"] = datetime.now().isoformat()
-
-        from .json import json_handler
-
-        json_handler.log_operation("bot_started", {"bot_id": self.bot_id})
-
-        self._set_command_menu()
-
-        self._boot_monitor()
-
-        if self._check_lock():
-            logger.error("Another instance of bot-%s is already running", self.bot_id)
-            return 1
-
+        BaseBot.run() owns the full lifecycle (verify, command menu, lock, signal
+        handlers, offset tracking, poll loop, cleanup). We only wrap it to start the
+        digest thread before the blocking loop and stop it on exit.
+        """
         chat_id = getattr(self, "_config_chat_id", None)
         if chat_id:
             self.start_digest(int(chat_id))
-
-        self._create_lock()
-
         try:
-            self._poll_loop()
-        except KeyboardInterrupt:
-            logger.info("Interrupted")
+            return super().run()
         finally:
             self.stop_digest()
-            self._cleanup()
-
-        return 0
