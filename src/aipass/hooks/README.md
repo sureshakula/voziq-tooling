@@ -52,6 +52,7 @@ src/aipass/hooks/
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   ├── hookstatus.py        # Config viewer (drone @hooks status)
+│   │   ├── presence.py          # Branch presence — claim/release/refresh for .ai_central/PRESENCE.central.json
 │   │   └── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
 │   ├── handlers/
 │   │   ├── bridges/             # One per provider (thin normalization)
@@ -64,6 +65,7 @@ src/aipass/hooks/
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
 │   │   │   ├── git_gate.py      #   Enforces git access tiers
+│   │   │   ├── presence_gate.py  #   Single-session gate — blocks duplicate runtimes per branch
 │   │   │   ├── rm_gate.py       #   Guardrail — catches accidental rm -rf, teaches drone rm
 │   │   │   └── subagent_gate.py #   Blocks sub-agent stop until clean
 │   │   ├── lifecycle/           # Session management hooks
@@ -82,7 +84,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 666 tests across 23 test files
+└── tests/                       # 705 tests across 25 test files
 ```
 
 ## How It Works
@@ -103,11 +105,11 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 | Event | Hooks | Description |
 |---|---|---|
-| UserPromptSubmit | identity, email, branch_loader, tier0_kernel, navmap | Prompt injection + inbox check |
+| UserPromptSubmit | presence_gate, identity, email, branch_loader, tier0_kernel, navmap | Presence gate + prompt injection + inbox check |
 | PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
-| Stop | stop_sound, telegram_response | Achievement bell + Telegram reply delivery |
+| Stop | stop_sound, telegram_response, presence_release | Bell + Telegram delivery + presence release |
 | Notification | announce | Announcement tone |
 | PreCompact | compact, rollover | Memory archival + rollover |
 
@@ -151,7 +153,7 @@ The @drone broker validates sandbox policy before agent launch. @ai_mail's dispa
 - All branches via hook dispatch — every Claude Code session routes through the engine
 - @ai_mail dispatch_monitor — sandbox_launch + build_policy for agent launch boundary
 
-*Last Updated: 2026-06-10*
+*Last Updated: 2026-06-29*
 
 ---
 
