@@ -169,7 +169,12 @@ def handle_command(command: str, args: List[str]) -> bool:
         return False
 
     if not args:
-        print_introspection()
+        json_handler.log_operation("queue_command", {"json": False})
+        jobs = discover_jobs()
+        runstate = load_runstate()
+        entries = _build_queue(jobs, runstate)
+        _print_rich_table(entries)
+        logger.info("[queue] Queue displayed (%d jobs)", len(entries))
         return True
 
     if args[0] in ("--help", "-h"):

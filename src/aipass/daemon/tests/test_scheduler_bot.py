@@ -315,26 +315,21 @@ class TestFailSoft:
 class TestDormantArchived:
     """Verify dormant registries are archived and no live code references them."""
 
-    def test_data_files_archived(self):
-        """schedule.json and actions_registry.json moved to .archive."""
-        daemon_root = Path(__file__).resolve().parents[1]
-        archive_dir = daemon_root / "daemon_json" / ".archive"
-        assert (archive_dir / "schedule.json").exists()
-        assert (archive_dir / "actions_registry.json").exists()
-
     def test_original_data_files_gone(self):
         """Original data files no longer at daemon_json/ root."""
         daemon_root = Path(__file__).resolve().parents[1]
         assert not (daemon_root / "daemon_json" / "schedule.json").exists()
         assert not (daemon_root / "daemon_json" / "actions_registry.json").exists()
 
-    def test_handler_files_archived(self):
-        """task_registry.py and actions_registry.py moved to .archive."""
-        daemon_root = Path(__file__).resolve().parents[1]
-        sched_archive = daemon_root / "apps" / "handlers" / "schedule" / ".archive"
-        actions_archive = daemon_root / "apps" / "handlers" / "actions" / ".archive"
-        assert (sched_archive / "task_registry.py").exists()
-        assert (actions_archive / "actions_registry.py").exists()
+    def test_task_registry_not_importable(self):
+        """task_registry handler is gone from the live import path."""
+        with pytest.raises(ImportError):
+            from aipass.daemon.apps.handlers.schedule.task_registry import load_tasks  # type: ignore[import-not-found] # noqa: F401
+
+    def test_actions_registry_not_importable(self):
+        """actions_registry handler is gone from the live import path."""
+        with pytest.raises(ImportError):
+            from aipass.daemon.apps.handlers.actions.actions_registry import load_registry  # type: ignore[import-not-found] # noqa: F401
 
     def test_schedule_module_retired(self):
         """Schedule module handle_command shows retirement notice, not old CRUD."""
