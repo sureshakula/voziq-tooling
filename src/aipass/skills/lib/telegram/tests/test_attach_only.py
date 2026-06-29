@@ -117,7 +117,7 @@ class TestAttachOnly:
         assert bot.session_name == "telegram-mirror_test"
 
     def test_handle_message_shows_error_on_attach_fail(self, tmp_path, _patch_base_bot_deps):
-        """handle_message shows specific error when attach-only fails."""
+        """handle_message shows specific error when no live session found."""
         bot = _make_bot(tmp_path, _patch_base_bot_deps, attach_only=True, shared_session="devpulse")
 
         result_obj = MagicMock()
@@ -126,7 +126,7 @@ class TestAttachOnly:
             bot.handle_message(42, "hello", {"message_id": 1})
 
         msg = bot.send_message.call_args[0][1]
-        assert "No canonical session" in msg
+        assert "No live Claude session" in msg
         assert "devpulse" in msg
 
 

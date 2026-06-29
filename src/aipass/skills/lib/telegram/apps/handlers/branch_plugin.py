@@ -1,14 +1,20 @@
+# =================== AIPass ====================
+# Name: branch_plugin.py
+# Description: Per-branch Telegram bot — hook overrides for message prefixing and response tagging
+# Version: 2.0.0
+# Created: 2026-02-24
+# Modified: 2026-06-29
+# =============================================
+
 # Standard library
 import argparse
 import sys
-import time
 from pathlib import Path
 
 # Sibling import
 from .base_bot import BaseBot
 
-# Logging
-from aipass.prax import logger
+from aipass.skills.apps.handlers.json import json_handler  # noqa: F401
 
 
 # =============================================
@@ -20,8 +26,8 @@ class BranchPlugin(BaseBot):
     """
     Per-branch Telegram bot that extends BaseBot with branch-specific behavior.
 
-    Overrides BaseBot hooks to prefix messages, tag responses, and trigger
-    the AIPass startup protocol when a new tmux session is created.
+    Overrides BaseBot hooks to prefix messages with sender attribution
+    and tag responses with the branch name.
     """
 
     def __init__(self, branch_name: str, **kwargs) -> None:
@@ -34,6 +40,7 @@ class BranchPlugin(BaseBot):
         """
         self.branch_name = branch_name
         super().__init__(**kwargs)
+        json_handler.log_operation("branch_plugin_init", {"branch_name": branch_name})
 
     # =============================================
     # HOOK OVERRIDES
@@ -63,24 +70,6 @@ class BranchPlugin(BaseBot):
             Tagged text: "@{branch_name}\n{text}"
         """
         return f"@{self.branch_name}\n{text}"
-
-    def on_session_create(self, session_name: str, work_dir: Path) -> None:
-        """
-        Inject "hi" after tmux session creation to trigger startup protocol.
-
-        Waits 2 seconds for Claude to fully initialize, then injects "hi"
-        which triggers the AIPass startup sequence (reading memories, etc.).
-
-        Args:
-            session_name: The tmux session name that was created
-            work_dir: The working directory of the session
-        """
-        logger.info(
-            "Branch session created for @%s, injecting startup greeting",
-            self.branch_name,
-        )
-        time.sleep(2)
-        self.inject_message("hi")
 
 
 # =============================================

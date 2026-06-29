@@ -668,15 +668,13 @@ class BaseBot:
 
         # Ensure tmux session
         if not self.ensure_tmux_session():
-            logger.error("Cannot process message - tmux session unavailable")
-            if self._attach_only:
-                self.send_message(
-                    chat_id,
-                    f"⚠️ No canonical session '{self._shared_session_name}' found.\n"
-                    "Start it with the launch wrapper first.",
-                )
-            else:
-                self.send_message(chat_id, "Failed to start Claude session. Check logs.")
+            logger.error("Cannot process message - no live session to mirror")
+            branch = self.branch_name or self.work_dir.name
+            self.send_message(
+                chat_id,
+                f"⚠️ No live Claude session found for branch '{branch}'.\n"
+                "Start a Claude session in the branch directory first.",
+            )
             return
 
         # Send processing indicator
@@ -766,15 +764,13 @@ class BaseBot:
 
         # Ensure tmux session
         if not self.ensure_tmux_session():
-            logger.error("Cannot process file - tmux session unavailable")
-            if self._attach_only:
-                self.send_message(
-                    chat_id,
-                    f"⚠️ No canonical session '{self._shared_session_name}' found.\n"
-                    "Start it with the launch wrapper first.",
-                )
-            else:
-                self.send_message(chat_id, "Failed to start Claude session. Check logs.")
+            logger.error("Cannot process file - no live session to mirror")
+            branch = self.branch_name or self.work_dir.name
+            self.send_message(
+                chat_id,
+                f"⚠️ No live Claude session found for branch '{branch}'.\n"
+                "Start a Claude session in the branch directory first.",
+            )
             if file_type == "text":
                 file_path.unlink(missing_ok=True)
             return
@@ -1257,16 +1253,38 @@ class BaseBot:
         """
         Ensure a tmux session is available for message injection.
 
-        In shared-session mode: attaches to an existing tmux session (e.g.,
-        the user's running Claude Code session). Falls back to own session if
-        the shared session is not found.
+        Resolution order:
+        1. Central presence pointer (.ai_central/PRESENCE.central.json)
+        2. Explicit shared_session from config
+        3. Already-running own tmux session (transitional)
 
-        In normal mode: creates telegram-{bot_id} session with Claude Code.
+        The bot NEVER spawns its own Claude brain — it is a thin relay that
+        follows the live session via the presence pointer (FPLAN-0289 P2).
 
         Returns:
             True if session is ready
         """
-        # Shared-session mode: attach to existing session if available
+        # Strategy 1: follow the central presence pointer
+        presence = self._read_presence_pointer()
+        if presence:
+            tmux_target = self._find_tmux_for_presence(presence)
+            if tmux_target:
+                self.session_name = tmux_target
+                self._using_shared_session = True
+                logger.info(
+                    "Presence pointer: attaching to '%s' (PID %d, type=%s)",
+                    tmux_target,
+                    presence.get("pid", 0),
+                    presence.get("session_type", "unknown"),
+                )
+                self._write_mirror_mapping()
+                return True
+            logger.warning(
+                "Presence pointer found (PID %d) but no matching tmux session",
+                presence.get("pid", 0),
+            )
+
+        # Strategy 2: explicit shared-session from config
         if self._shared_session_name:
             try:
                 result = subprocess.run(
@@ -1283,105 +1301,26 @@ class BaseBot:
                     self._write_mirror_mapping()
                     return True
                 else:
-                    if self._attach_only:
-                        logger.error(
-                            "Attach-only: session '%s' not found — refusing to spawn",
-                            self._shared_session_name,
-                        )
-                        return False
-                    self._using_shared_session = False
-                    self.session_name = f"telegram-{self.bot_id}"
                     logger.warning(
-                        "Shared session '%s' not found — falling back to own session",
+                        "Shared session '%s' not found",
                         self._shared_session_name,
                     )
             except FileNotFoundError:
                 logger.warning("tmux not found while checking shared session '%s'", self._shared_session_name)
-                if self._attach_only:
-                    return False
-                self._using_shared_session = False
-                self.session_name = f"telegram-{self.bot_id}"
 
-        # attach-only mode: never spawn a new session
-        if self._attach_only:
-            logger.error("Attach-only: no shared session to attach to")
-            return False
-
+        # Strategy 3: already-running own tmux session (transitional — pre-existing sessions only)
         if self._tmux_session_exists():
             return True
 
-        # Validate work_dir exists — tmux silently falls back to HOME on bad paths
-        if not self.work_dir.is_dir():
-            logger.error("work_dir does not exist: %s — refusing to create tmux session", self.work_dir)
-            return False
-
-        logger.info("Creating tmux session '%s' at %s", self.session_name, self.work_dir)
-
-        try:
-            # env -u CLAUDECODE prevents "cannot run inside another Claude" error
-            env = os.environ.copy()
-            env.pop("CLAUDECODE", None)
-
-            subprocess.run(
-                [
-                    "tmux",
-                    "new-session",
-                    "-d",
-                    "-s",
-                    self.session_name,
-                    "-c",
-                    str(self.work_dir),
-                ],
-                check=True,
-                capture_output=True,
-                env=env,
-            )
-
-            # Set AIPASS_BOT_ID environment variable in the tmux session
-            subprocess.run(
-                [
-                    "tmux",
-                    "send-keys",
-                    "-t",
-                    self.session_name,
-                    f"export AIPASS_BOT_ID={self.bot_id}",
-                    "Enter",
-                ],
-                capture_output=True,
-            )
-            time.sleep(0.3)
-
-            # Launch Claude with session type so drone/hooks can identify this as a telegram session
-            claude_cmd = f"AIPASS_SESSION_TYPE=telegram {CLAUDE_BIN} --permission-mode bypassPermissions"
-            subprocess.run(
-                [
-                    "tmux",
-                    "send-keys",
-                    "-t",
-                    self.session_name,
-                    claude_cmd,
-                    "Enter",
-                ],
-                capture_output=True,
-            )
-
-            logger.info("tmux session created, waiting 5s for Claude to initialize...")
-            time.sleep(5)
-
-            # Hook: post-creation
-            self.on_session_create(self.session_name, self.work_dir)
-
-            return True
-
-        except subprocess.CalledProcessError as e:
-            logger.error(
-                "Failed to create tmux session: %s",
-                e.stderr.decode() if e.stderr else str(e),
-            )
-            return False
-        except FileNotFoundError:
-            logger.error("tmux not found - is it installed?")
-            return False
+        # PRESENCE GUARD: bot never spawns its own Claude brain (FPLAN-0289 P2).
+        # Legacy AIPASS_SESSION_TYPE=telegram own-session spawn RETIRED.
+        # The bot is a thin relay — it follows the presence pointer or an
+        # explicit shared_session. Start a Claude session in the branch first.
+        logger.error(
+            "No live session to mirror — presence pointer empty, no shared session. "
+            "Start a Claude session in the branch directory first."
+        )
+        return False
 
     def inject_message(self, text: str) -> bool:
         """
@@ -1637,6 +1576,97 @@ class BaseBot:
         _, count = self._resolve_active_transcript()
         return count
 
+    # =============================================
+    # PRESENCE POINTER
+    # =============================================
+
+    def _find_presence_file(self) -> Path | None:
+        """Locate .ai_central/PRESENCE.central.json by walking up from work_dir."""
+        current = self.work_dir.resolve()
+        for _ in range(20):
+            candidate = current / ".ai_central" / "PRESENCE.central.json"
+            if candidate.exists():
+                return candidate
+            if current.parent == current:
+                break
+            current = current.parent
+        return None
+
+    def _read_presence_pointer(self) -> dict | None:
+        """Read the central presence pointer for this bot's branch.
+
+        Returns the presence entry dict if a live session is registered,
+        None if absent/empty/stale/dead.
+        """
+        presence_file = self._find_presence_file()
+        if presence_file is None:
+            return None
+        try:
+            data = json.loads(presence_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.info("Failed to read presence file %s: %s", presence_file, exc)
+            return None
+        branch = self.branch_name or self.work_dir.name
+        entry = data.get(branch)
+        if not entry:
+            return None
+        pid = entry.get("pid")
+        if pid is None:
+            return None
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            logger.info("Presence holder PID %d is dead — stale pointer", pid)
+            return None
+        except PermissionError:
+            logger.info("PID %d exists but permission denied — treating as alive", pid)
+        except OSError as exc:
+            logger.info("PID %d liveness check failed: %s — treating as dead", pid, exc)
+            return None
+        return entry
+
+    def _find_tmux_for_presence(self, entry: dict) -> str | None:
+        """Find the tmux session for a presence entry.
+
+        Prefers attach_handle when populated; falls back to scanning tmux
+        sessions for a pane whose CWD matches the entry's work_dir.
+        """
+        handle = entry.get("attach_handle", "")
+        if handle:
+            try:
+                result = subprocess.run(
+                    ["tmux", "has-session", "-t", handle],
+                    capture_output=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    return handle
+            except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+                logger.info("attach_handle '%s' tmux check failed: %s", handle, exc)
+
+        work_dir = entry.get("work_dir", "")
+        if not work_dir:
+            return None
+        try:
+            result = subprocess.run(
+                ["tmux", "list-panes", "-a", "-F", "#{session_name}:#{pane_current_path}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                return None
+            target = str(Path(work_dir).resolve())
+            for line in result.stdout.strip().split("\n"):
+                if ":" not in line:
+                    continue
+                session_name, pane_path = line.split(":", 1)
+                if str(Path(pane_path).resolve()) == target:
+                    return session_name
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+            logger.info("tmux pane scan failed: %s", exc)
+        return None
+
     def _write_mirror_mapping(self) -> None:
         """Write persistent mirror mapping file per THE CONTRACT (TDPLAN-0009).
 
@@ -1785,19 +1815,6 @@ class BaseBot:
             Processed text to send to Telegram
         """
         return text
-
-    def on_session_create(self, session_name: str, work_dir: Path) -> None:
-        """
-        Hook: called after a new tmux session is created.
-
-        Override in subclasses to perform post-creation setup
-        (e.g., injecting "hi" to trigger startup protocol).
-
-        Args:
-            session_name: The tmux session name that was created
-            work_dir: The working directory of the session
-        """
-        return
 
     def _set_command_menu(self) -> None:
         """Set the Telegram command menu via setMyCommands on startup."""

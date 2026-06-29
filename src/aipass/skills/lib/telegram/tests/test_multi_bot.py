@@ -11,7 +11,7 @@ Comprehensive pytest tests for BaseBot and BranchPlugin.
 
 Tests cover:
   - BaseBot initialization and attribute assignment
-  - Default hook methods (on_message, on_response, on_session_create)
+  - Default hook methods (on_message, on_response)
   - Security: is_user_allowed (allowlist), check_rate_limit (sliding window)
   - BranchPlugin hook overrides (message prefixing, response tagging)
   - Pending file creation and JSON content
@@ -181,11 +181,6 @@ class TestBaseBotHooks:
     def test_on_response_empty_string(self, base_bot):
         assert base_bot.on_response("") == ""
 
-    def test_on_session_create_does_nothing(self, base_bot, tmp_path):
-        # Should return None and not raise
-        result = base_bot.on_session_create("test-session", tmp_path)
-        assert result is None
-
     def test_get_custom_commands_returns_create_and_cancel(self, base_bot):
         commands = base_bot.get_custom_commands()
         assert "create" in commands
@@ -307,13 +302,6 @@ class TestBranchPluginHooks:
         response = "Line 1\nLine 2\nLine 3"
         result = branch_bot.on_response(response)
         assert result == f"@dev_central\n{response}"
-
-    @patch.object(BranchPlugin, "inject_message")
-    @patch("apps.handlers.branch_plugin.time.sleep")
-    def test_on_session_create_injects_hi(self, mock_sleep, mock_inject, branch_bot):
-        branch_bot.on_session_create("telegram-dev_central", Path("/tmp/test"))
-        mock_sleep.assert_called_once_with(2)
-        mock_inject.assert_called_once_with("hi")
 
     def test_branch_plugin_inherits_base_bot(self, branch_bot):
         assert isinstance(branch_bot, BaseBot)
@@ -595,25 +583,15 @@ class TestEnsureTmuxSession:
 
     @patch("apps.handlers.base_bot.time.sleep")
     @patch("apps.handlers.base_bot.subprocess.run")
-    def test_session_created_when_not_exists(self, mock_run, mock_sleep, base_bot):
-        """When session does not exist, create it, set env, launch Claude."""
-        call_count = [0]
-
-        def side_effect(cmd, **kwargs):
-            call_count[0] += 1
-            mock_result = MagicMock()
-            if "has-session" in cmd:
-                mock_result.returncode = 1  # Session does not exist
-                return mock_result
-            mock_result.returncode = 0
-            return mock_result
-
-        mock_run.side_effect = side_effect
+    def test_no_session_returns_false(self, mock_run, mock_sleep, base_bot):
+        """When no session exists, bot returns False (never spawns own brain)."""
+        mock_run.return_value = MagicMock(returncode=1)
 
         result = base_bot.ensure_tmux_session()
-        assert result is True
-        # Should have: has-session, new-session, send-keys (env), send-keys (claude)
-        assert mock_run.call_count >= 4
+        assert result is False
+        calls = [str(c) for c in mock_run.call_args_list]
+        for call in calls:
+            assert "new-session" not in call
 
     def test_session_refuses_nonexistent_work_dir(self, tmp_path):
         """When work_dir doesn't exist, ensure_tmux_session returns False."""
@@ -627,60 +605,10 @@ class TestEnsureTmuxSession:
         result = bot.ensure_tmux_session()
         assert result is False
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
-    def test_session_creation_calls_on_session_create(self, mock_run, mock_sleep, base_bot):
-        """After creating a session, on_session_create hook should be called."""
-
-        def side_effect(cmd, **kwargs):
-            mock_result = MagicMock()
-            if "has-session" in cmd:
-                mock_result.returncode = 1
-                return mock_result
-            mock_result.returncode = 0
-            return mock_result
-
-        mock_run.side_effect = side_effect
-
-        with patch.object(base_bot, "on_session_create") as mock_hook:
-            base_bot.ensure_tmux_session()
-            mock_hook.assert_called_once_with(base_bot.session_name, base_bot.work_dir)
-
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
-    def test_session_creation_failure(self, mock_run, mock_sleep, base_bot):
-        """CalledProcessError during new-session returns False."""
-        import subprocess as sp
-
-        def side_effect(cmd, **kwargs):
-            if "has-session" in cmd:
-                mock_result = MagicMock()
-                mock_result.returncode = 1
-                return mock_result
-            if "new-session" in cmd:
-                raise sp.CalledProcessError(1, cmd, stderr=b"error")
-            return MagicMock(returncode=0)
-
-        mock_run.side_effect = side_effect
-        result = base_bot.ensure_tmux_session()
-        assert result is False
-
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
-    def test_tmux_not_found(self, mock_run, mock_sleep, base_bot):
+    def test_tmux_not_found_returns_false(self, base_bot):
         """FileNotFoundError (tmux not installed) returns False."""
-
-        def side_effect(cmd, **kwargs):
-            if "has-session" in cmd:
-                mock_result = MagicMock()
-                mock_result.returncode = 1
-                return mock_result
-            if "new-session" in cmd:
-                raise FileNotFoundError("tmux not found")
-            return MagicMock(returncode=0)
-
-        mock_run.side_effect = side_effect
-        result = base_bot.ensure_tmux_session()
+        with patch("apps.handlers.base_bot.subprocess.run", side_effect=FileNotFoundError("tmux")):
+            result = base_bot.ensure_tmux_session()
         assert result is False
 
 
@@ -1658,24 +1586,15 @@ class TestSharedSession:
 
     @patch("apps.handlers.base_bot.time.sleep")
     @patch("apps.handlers.base_bot.subprocess.run")
-    def test_ensure_falls_back_when_shared_missing(self, mock_run, mock_sleep):
-        """When shared session doesn't exist, falls back to own session."""
-
-        def side_effect(cmd, **kwargs):
-            mock = MagicMock()
-            if "has-session" in cmd and cmd[-1] == "pc":
-                mock.returncode = 1  # shared session not found
-            elif "has-session" in cmd:
-                mock.returncode = 1  # own session not found either
-            else:
-                mock.returncode = 0  # creation succeeds
-            return mock
-
-        mock_run.side_effect = side_effect
+    def test_ensure_returns_false_when_shared_missing(self, mock_run, mock_sleep):
+        """When shared session doesn't exist and no presence, returns False (no spawn)."""
+        mock_run.return_value = MagicMock(returncode=1)
         result = self.bot.ensure_tmux_session()
-        assert result is True
-        assert self.bot.session_name == "telegram-dev_central"
+        assert result is False
         assert self.bot._using_shared_session is False
+        calls = [str(c) for c in mock_run.call_args_list]
+        for call in calls:
+            assert "new-session" not in call
 
     @patch("apps.handlers.base_bot.subprocess.run")
     def test_inject_uses_shared_session_name(self, mock_run):
