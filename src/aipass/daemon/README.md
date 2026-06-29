@@ -207,7 +207,7 @@ No native offset field. To stagger jobs, seed different `last_run` values in `da
 
 ## Test Suite
 
-- **486 tests** across 15 test files
+- **300 tests** across 15 test files
 - 8/8 modules covered, 30/36 public functions tested
 - Seedgo audit: **100%** across all standards
 
