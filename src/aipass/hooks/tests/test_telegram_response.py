@@ -1,11 +1,11 @@
 # =================== AIPass ====================
 # Name: test_telegram_response.py
-# Version: 1.0.0
+# Version: 2.0.0
 # Description: Tests for telegram_response notification handler
 # Branch: hooks
 # Layer: tests
 # Created: 2026-06-15
-# Modified: 2026-06-15
+# Modified: 2026-06-29
 # =============================================
 
 """Tests for handlers/notification/telegram_response.py."""
@@ -56,10 +56,10 @@ def _make_pending(tmp_path: Path, name: str = "bot-123.json", **overrides) -> Pa
     return path
 
 
-def _mock_urlopen_ok():
+def _mock_urlopen_ok(message_id=100, text="mocked"):
     """Return a context-manager mock whose read() returns Telegram ok response."""
     resp = MagicMock()
-    resp.read.return_value = json.dumps({"ok": True}).encode()
+    resp.read.return_value = json.dumps({"ok": True, "result": {"message_id": message_id, "text": text}}).encode()
     resp.__enter__ = MagicMock(return_value=resp)
     resp.__exit__ = MagicMock(return_value=False)
     return resp
@@ -72,6 +72,16 @@ def _mock_urlopen_fail():
     resp.__enter__ = MagicMock(return_value=resp)
     resp.__exit__ = MagicMock(return_value=False)
     return resp
+
+
+def _ok_result(message_id=100, text="mocked"):
+    """Build a successful send/edit result dict."""
+    return {"ok": True, "message_id": message_id, "text": text}
+
+
+def _fail_result():
+    """Build a failed send/edit result dict."""
+    return {"ok": False}
 
 
 # ===========================================================================
@@ -98,7 +108,7 @@ class TestHandleLayer1Defense:
                 {
                     "hook_event_name": "Stop",
                     "session_id": "abc",
-                    "transcript_path": "/home/user/.claude/sessions/subagents/12345.jsonl",
+                    "transcript_path": str(Path.home() / ".claude/sessions/subagents/12345.jsonl"),
                 }
             )
 
@@ -163,7 +173,6 @@ class TestFindPendingFile:
             patch.dict("os.environ", {}, clear=True),
             patch(f"{MOD}.Path.cwd", return_value=work / "subdir"),
         ):
-            # subdir is relative to work_dir, so it should match
             result = find_pending_file("session-abc")
 
         assert result is not None
@@ -650,7 +659,8 @@ class TestSendToTelegram:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", return_value=_mock_urlopen_ok()):
             result = send_to_telegram("tok:ABC", 123, "Hello")
 
-        assert result is True
+        assert result["ok"] is True
+        assert result["message_id"] == 100
 
     def test_html_fails_plain_text_fallback_succeeds(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import send_to_telegram
@@ -667,7 +677,7 @@ class TestSendToTelegram:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", side_effect=urlopen_side_effect):
             result = send_to_telegram("tok:ABC", 123, "Hello **bold**")
 
-        assert result is True
+        assert result["ok"] is True
         assert call_count == 2
 
     def test_html_fails_plain_text_also_fails(self):
@@ -676,7 +686,7 @@ class TestSendToTelegram:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", side_effect=Exception("network error")):
             result = send_to_telegram("tok:ABC", 123, "Hello")
 
-        assert result is False
+        assert result["ok"] is False
 
     def test_http_error_handling(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import send_to_telegram
@@ -701,7 +711,7 @@ class TestSendToTelegram:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", side_effect=urlopen_side_effect):
             result = send_to_telegram("tok:ABC", 123, "Hello")
 
-        assert result is False
+        assert result["ok"] is False
 
     def test_url_error_handling(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import send_to_telegram
@@ -719,7 +729,7 @@ class TestSendToTelegram:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", side_effect=urlopen_side_effect):
             result = send_to_telegram("tok:ABC", 123, "Hello")
 
-        assert result is False
+        assert result["ok"] is False
 
     def test_reply_to_message_id_included(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import send_to_telegram
@@ -734,6 +744,14 @@ class TestSendToTelegram:
             send_to_telegram("tok:ABC", 123, "Hello", message_id=456)
 
         assert captured_requests[0]["reply_to_message_id"] == 456
+
+    def test_returns_message_text_from_api(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import send_to_telegram
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", return_value=_mock_urlopen_ok(text="returned")):
+            result = send_to_telegram("tok:ABC", 123, "Hello")
+
+        assert result["text"] == "returned"
 
 
 # ===========================================================================
@@ -750,7 +768,8 @@ class TestEditTelegramMessage:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", return_value=_mock_urlopen_ok()):
             result = edit_telegram_message("tok:ABC", 123, 789, "Updated text")
 
-        assert result is True
+        assert result["ok"] is True
+        assert result["message_id"] == 100
 
     def test_html_edit_fails_plain_text_fallback(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import edit_telegram_message
@@ -767,7 +786,7 @@ class TestEditTelegramMessage:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", side_effect=urlopen_side_effect):
             result = edit_telegram_message("tok:ABC", 123, 789, "Updated")
 
-        assert result is True
+        assert result["ok"] is True
 
     def test_both_fail_returns_false(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import edit_telegram_message
@@ -775,7 +794,7 @@ class TestEditTelegramMessage:
         with patch(LOGGER_PATCH), patch(f"{MOD}.urlopen", side_effect=Exception("total failure")):
             result = edit_telegram_message("tok:ABC", 123, 789, "Text")
 
-        assert result is False
+        assert result["ok"] is False
 
     def test_edit_url_uses_editMessageText(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import edit_telegram_message
@@ -800,11 +819,10 @@ class TestEditTelegramMessage:
 class TestHandleIntegration:
     """Full handle() flow integration tests."""
 
-    def test_happy_path_send_and_cleanup(self, tmp_path):
-        """Full flow: pending exists -> extract -> send -> cleanup."""
+    def test_happy_path_send_and_advance(self, tmp_path):
+        """Full flow: pending exists -> extract -> send -> advance cursor."""
         from aipass.hooks.apps.handlers.notification.telegram_response import handle
 
-        # Set up transcript
         transcript = tmp_path / "transcript.jsonl"
         lines = [
             _jsonl_line("user", "Hello"),
@@ -812,7 +830,6 @@ class TestHandleIntegration:
         ]
         transcript.write_text("\n".join(lines), encoding="utf-8")
 
-        # Set up pending file
         pending_dir = tmp_path / "telegram_pending"
         pending_dir.mkdir()
         pending_data = {
@@ -830,6 +847,7 @@ class TestHandleIntegration:
             patch(f"{MOD}.urlopen", return_value=_mock_urlopen_ok()),
             patch(f"{MOD}._check_log_streamer_active", return_value=False),
             patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
         ):
             result = handle(
                 {
@@ -840,8 +858,10 @@ class TestHandleIntegration:
             )
 
         assert result == {"stdout": "", "exit_code": 0}
-        # Pending should be cleaned up on success
-        assert not pending_file.exists()
+        assert pending_file.exists()
+        updated = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert updated["delivered"] is True
+        assert updated["transcript_line_after"] == 2
 
     def test_send_fails_pending_kept(self, tmp_path):
         """When delivery fails, pending file is kept for retry."""
@@ -872,6 +892,7 @@ class TestHandleIntegration:
             patch(f"{MOD}._check_log_streamer_active", return_value=False),
             patch(f"{MOD}.time.sleep"),
             patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
         ):
             result = handle(
                 {
@@ -882,8 +903,9 @@ class TestHandleIntegration:
             )
 
         assert result == {"stdout": "", "exit_code": 0}
-        # Pending should still exist
         assert pending_file.exists()
+        updated = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert "delivered" not in updated
 
     def test_no_response_text_pending_kept(self, tmp_path):
         """When no response text is extracted, pending is kept."""
@@ -944,7 +966,6 @@ class TestHandleIntegration:
         pending_file = pending_dir / "bot-1.json"
         pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
 
-        # Import to get the original function reference
         from aipass.hooks.apps.handlers.notification.telegram_response import extract_assistant_response
 
         extract_call_count = 0
@@ -965,6 +986,7 @@ class TestHandleIntegration:
             patch(f"{MOD}._check_log_streamer_active", return_value=False),
             patch(f"{MOD}.time.sleep"),
             patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
         ):
             result = handle(
                 {
@@ -976,7 +998,9 @@ class TestHandleIntegration:
 
         assert result == {"stdout": "", "exit_code": 0}
         assert extract_call_count >= 2
-        assert not pending_file.exists()
+        assert pending_file.exists()
+        updated = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert updated["delivered"] is True
 
     def test_fallback_to_last_assistant_message(self, tmp_path):
         """When JSONL extraction fails, falls back to last_assistant_message from hook_data."""
@@ -1000,6 +1024,7 @@ class TestHandleIntegration:
             patch(f"{MOD}._check_log_streamer_active", return_value=False),
             patch(f"{MOD}.time.sleep"),
             patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
         ):
             result = handle(
                 {
@@ -1012,6 +1037,45 @@ class TestHandleIntegration:
 
         assert result == {"stdout": "", "exit_code": 0}
         assert not pending_file.exists()
+
+    def test_already_delivered_skips_fallback(self, tmp_path):
+        """After first delivery, last_assistant_message fallback is skipped."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import handle
+
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text("", encoding="utf-8")
+
+        pending_dir = tmp_path / "telegram_pending"
+        pending_dir.mkdir()
+        pending_data = {
+            "chat_id": 999,
+            "bot_token": "tok:ABC",
+            "timestamp": time.time(),
+            "work_dir": str(tmp_path),
+            "delivered": True,
+            "transcript_line_after": 5,
+        }
+        pending_file = pending_dir / "bot-1.json"
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.find_pending_file", return_value=pending_file),
+            patch(f"{MOD}._check_log_streamer_active", return_value=False),
+            patch(f"{MOD}.time.sleep"),
+            patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+        ):
+            result = handle(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-abc",
+                    "transcript_path": str(transcript),
+                    "last_assistant_message": "Would be a duplicate",
+                }
+            )
+
+        assert result == {"stdout": "", "exit_code": 0}
+        assert pending_file.exists()
 
     def test_missing_chat_id_cleans_pending(self, tmp_path):
         """Pending with missing chat_id is cleaned up."""
@@ -1070,10 +1134,10 @@ class TestSendWithRetry:
     def test_success_on_first_try(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import _send_with_retry
 
-        with patch(LOGGER_PATCH), patch(f"{MOD}.send_to_telegram", return_value=True) as mock_send:
+        with patch(LOGGER_PATCH), patch(f"{MOD}.send_to_telegram", return_value=_ok_result()) as mock_send:
             result = _send_with_retry("tok:ABC", 123, "Hello")
 
-        assert result is True
+        assert result["ok"] is True
         assert mock_send.call_count == 1
 
     def test_success_on_retry(self):
@@ -1081,12 +1145,12 @@ class TestSendWithRetry:
 
         with (
             patch(LOGGER_PATCH),
-            patch(f"{MOD}.send_to_telegram", side_effect=[False, True]) as mock_send,
+            patch(f"{MOD}.send_to_telegram", side_effect=[_fail_result(), _ok_result()]) as mock_send,
             patch(f"{MOD}.time.sleep"),
         ):
             result = _send_with_retry("tok:ABC", 123, "Hello")
 
-        assert result is True
+        assert result["ok"] is True
         assert mock_send.call_count == 2
 
     def test_all_retries_fail(self):
@@ -1094,12 +1158,12 @@ class TestSendWithRetry:
 
         with (
             patch(LOGGER_PATCH),
-            patch(f"{MOD}.send_to_telegram", return_value=False) as mock_send,
+            patch(f"{MOD}.send_to_telegram", return_value=_fail_result()) as mock_send,
             patch(f"{MOD}.time.sleep"),
         ):
             result = _send_with_retry("tok:ABC", 123, "Hello", retries=3)
 
-        assert result is False
+        assert result["ok"] is False
         assert mock_send.call_count == 3
 
 
@@ -1139,19 +1203,22 @@ class TestDeliverChunks:
     def test_single_chunk_no_processing_msg(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
 
-        with patch(LOGGER_PATCH), patch(f"{MOD}._send_with_retry", return_value=True) as mock_send:
-            result = _deliver_chunks(["Hello"], "tok", 123, None, False)
+        with patch(LOGGER_PATCH), patch(f"{MOD}._send_with_retry", return_value=_ok_result()) as mock_send:
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, None, False)
 
-        assert result is True
+        assert all_sent is True
+        assert len(chunk_results) == 1
+        assert chunk_results[0]["method"] == "send"
         mock_send.assert_called_once_with("tok", 123, "Hello")
 
     def test_single_chunk_with_processing_msg_edits(self):
         from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
 
-        with patch(LOGGER_PATCH), patch(f"{MOD}.edit_telegram_message", return_value=True) as mock_edit:
-            result = _deliver_chunks(["Hello"], "tok", 123, 789, False)
+        with patch(LOGGER_PATCH), patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit:
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, 789, False)
 
-        assert result is True
+        assert all_sent is True
+        assert chunk_results[0]["method"] == "edit"
         mock_edit.assert_called_once_with("tok", 123, 789, "Hello")
 
     def test_single_chunk_edit_fails_falls_back_to_send(self):
@@ -1159,12 +1226,13 @@ class TestDeliverChunks:
 
         with (
             patch(LOGGER_PATCH),
-            patch(f"{MOD}.edit_telegram_message", return_value=False),
-            patch(f"{MOD}._send_with_retry", return_value=True) as mock_send,
+            patch(f"{MOD}.edit_telegram_message", return_value=_fail_result()),
+            patch(f"{MOD}._send_with_retry", return_value=_ok_result()) as mock_send,
         ):
-            result = _deliver_chunks(["Hello"], "tok", 123, 789, False)
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, 789, False)
 
-        assert result is True
+        assert all_sent is True
+        assert chunk_results[0]["method"] == "send"
         mock_send.assert_called_once()
 
     def test_logs_active_sends_done_then_sends_new(self):
@@ -1173,28 +1241,784 @@ class TestDeliverChunks:
 
         with (
             patch(LOGGER_PATCH),
-            patch(f"{MOD}.edit_telegram_message", return_value=True) as mock_edit,
-            patch(f"{MOD}._send_with_retry", return_value=True) as mock_send,
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+            patch(f"{MOD}._send_with_retry", return_value=_ok_result()) as mock_send,
         ):
-            result = _deliver_chunks(["Hello"], "tok", 123, 789, True)
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, 789, True)
 
-        assert result is True
+        assert all_sent is True
         mock_edit.assert_called_once_with("tok", 123, 789, "Done.")
         mock_send.assert_called_once()
 
-    def test_multiple_chunks_numbering(self):
+    def test_multiple_chunks_clears_placeholder_sends_all_fresh(self):
+        """Multi-chunk: clears placeholder and sends ALL chunks as fresh messages."""
         from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
 
         sent_texts = []
 
         def capture_send(bot_token, chat_id, text):
             sent_texts.append(text)
-            return True
+            return _ok_result()
 
-        with patch(LOGGER_PATCH), patch(f"{MOD}._send_with_retry", side_effect=capture_send):
-            result = _deliver_chunks(["Part A", "Part B", "Part C"], "tok", 123, None, False)
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+            patch(f"{MOD}._send_with_retry", side_effect=capture_send),
+        ):
+            all_sent, chunk_results = _deliver_chunks(["Part A", "Part B", "Part C"], "tok", 123, 789, False)
 
-        assert result is True
+        assert all_sent is True
+        mock_edit.assert_called_once_with("tok", 123, 789, "Done.")
+        assert len(sent_texts) == 3
         assert "[1/3]" in sent_texts[0]
         assert "[2/3]" in sent_texts[1]
         assert "[3/3]" in sent_texts[2]
+
+    def test_multiple_chunks_no_processing_msg(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        sent_texts = []
+
+        def capture_send(bot_token, chat_id, text):
+            sent_texts.append(text)
+            return _ok_result()
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}._send_with_retry", side_effect=capture_send):
+            all_sent, chunk_results = _deliver_chunks(["Part A", "Part B", "Part C"], "tok", 123, None, False)
+
+        assert all_sent is True
+        assert "[1/3]" in sent_texts[0]
+        assert "[2/3]" in sent_texts[1]
+        assert "[3/3]" in sent_texts[2]
+
+    def test_chunk_results_contain_message_ids(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        call_idx = 0
+
+        def mock_send_with_ids(bot_token, chat_id, text):
+            nonlocal call_idx
+            call_idx += 1
+            return _ok_result(message_id=200 + call_idx)
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}._send_with_retry", side_effect=mock_send_with_ids):
+            _, chunk_results = _deliver_chunks(["A", "B"], "tok", 123, None, False)
+
+        assert chunk_results[0]["message_id"] == 201
+        assert chunk_results[1]["message_id"] == 202
+
+
+# ===========================================================================
+# _advance_pending
+# ===========================================================================
+
+
+class TestAdvancePending:
+    """Pending file cursor advancement."""
+
+    def test_advances_cursor(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text("line1\nline2\nline3\n", encoding="utf-8")
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {"chat_id": 1, "bot_token": "tok"}
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, str(transcript))
+
+        assert pending_file.exists()
+        updated = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert updated["transcript_line_after"] == 3
+        assert updated["delivered"] is True
+
+    def test_no_transcript_removes_pending(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {"chat_id": 1}
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, "")
+
+        assert not pending_file.exists()
+
+    def test_transcript_read_failure_removes_pending(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {"chat_id": 1}
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, "/nonexistent/transcript.jsonl")
+
+        assert not pending_file.exists()
+
+
+# ===========================================================================
+# _write_delivery_log
+# ===========================================================================
+
+
+class TestWriteDeliveryLog:
+    """Delivery match log JSONL output."""
+
+    def test_writes_jsonl_record(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _write_delivery_log
+
+        log_path = tmp_path / "delivery.jsonl"
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}._DELIVERY_LOG", log_path):
+            _write_delivery_log(
+                "hello",
+                ["hello"],
+                [{"idx": 0, "method": "send", "ok": True, "message_id": 1, "text": "hello"}],
+                "session123",
+            )
+
+        assert log_path.exists()
+        record = json.loads(log_path.read_text(encoding="utf-8").strip())
+        assert record["intended_len"] == 5
+        assert record["match"] is True
+        assert record["session"] == "session1"
+        assert len(record["chunks"]) == 1
+
+    def test_mismatch_reports_culprit(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _write_delivery_log
+
+        log_path = tmp_path / "delivery.jsonl"
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}._DELIVERY_LOG", log_path):
+            _write_delivery_log(
+                "**bold text**",
+                ["**bold text**"],
+                [{"idx": 0, "method": "send", "ok": True, "message_id": 1, "text": "bold text"}],
+                "session123",
+            )
+
+        record = json.loads(log_path.read_text(encoding="utf-8").strip())
+        assert record["match"] is False
+        assert "culprit" in record
+
+    def test_failed_chunk_culprit(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _write_delivery_log
+
+        log_path = tmp_path / "delivery.jsonl"
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}._DELIVERY_LOG", log_path):
+            _write_delivery_log(
+                "hello",
+                ["hello"],
+                [{"idx": 0, "method": "send", "ok": False, "text": ""}],
+                "sess",
+            )
+
+        record = json.loads(log_path.read_text(encoding="utf-8").strip())
+        assert record["match"] is False
+        assert "delivery_failed" in record["culprit"]
+
+    def test_log_write_failure_does_not_raise(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _write_delivery_log
+
+        impossible = Path("/dev/null/impossible/log.jsonl")
+        with patch(LOGGER_PATCH), patch(f"{MOD}._DELIVERY_LOG", impossible):
+            _write_delivery_log("hi", ["hi"], [{"idx": 0, "ok": True, "text": "hi"}], "s")
+
+
+# ===========================================================================
+# _is_expired — mirror files
+# ===========================================================================
+
+
+class TestIsExpiredMirror:
+    """Mirror files are never expired."""
+
+    def test_mirror_file_never_expired(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _is_expired
+
+        with patch(LOGGER_PATCH):
+            assert _is_expired({"timestamp": 0, "mirror": True}) is False
+
+    def test_mirror_file_old_timestamp_not_expired(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _is_expired
+
+        with patch(LOGGER_PATCH):
+            assert _is_expired({"timestamp": 1000, "mirror": True}) is False
+
+
+# ===========================================================================
+# _extract_user_text
+# ===========================================================================
+
+
+class TestExtractUserText:
+    """User message text extraction."""
+
+    def test_text_block(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        content = [{"type": "text", "text": "Hello world"}]
+        assert _extract_user_text(content) == "Hello world"
+
+    def test_tool_result_only_returns_none(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        content = [{"type": "tool_result", "content": "ok"}]
+        assert _extract_user_text(content) is None
+
+    def test_string_content(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        assert _extract_user_text("Hello") == "Hello"
+
+    def test_empty_string_returns_none(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        assert _extract_user_text("") is None
+
+    def test_empty_list_returns_none(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        assert _extract_user_text([]) is None
+
+    def test_non_list_non_string_returns_none(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        assert _extract_user_text(42) is None  # type: ignore[arg-type]
+
+    def test_mixed_text_and_tool_result(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _extract_user_text
+
+        content = [{"type": "text", "text": "Question"}, {"type": "tool_result", "content": "ok"}]
+        assert _extract_user_text(content) == "Question"
+
+
+# ===========================================================================
+# extract_mirror_turn
+# ===========================================================================
+
+
+class TestExtractMirrorTurn:
+    """Mirror transcript extraction — user input + assistant response."""
+
+    def test_single_turn_user_and_assistant(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "What is AIPass?"),
+            _jsonl_line("assistant", "AIPass is a multi-agent framework."),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript))
+
+        assert result is not None
+        assert "You: What is AIPass?" in result
+        assert "AIPass is a multi-agent framework." in result
+
+    def test_multiple_turns_separated_by_divider(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "First question"),
+            _jsonl_line("assistant", "First answer"),
+            _jsonl_line("user", "Second question"),
+            _jsonl_line("assistant", "Second answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript))
+
+        assert result is not None
+        assert "You: First question" in result
+        assert "First answer" in result
+        assert "---" in result
+        assert "You: Second question" in result
+        assert "Second answer" in result
+
+    def test_sidechain_entries_skipped(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Real question"),
+            _jsonl_line("assistant", "Sidechain noise", sidechain=True),
+            _jsonl_line("assistant", "Real answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript))
+
+        assert result is not None
+        assert "Sidechain noise" not in result
+        assert "Real answer" in result
+
+    def test_tool_result_user_messages_skipped(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Real question"),
+            _jsonl_line("assistant", "Working on it..."),
+            _jsonl_line("user", tool_result=True),
+            _jsonl_line("assistant", "Done with the work"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript))
+
+        assert result is not None
+        assert "You: Real question" in result
+        assert "Working on it..." in result
+        assert "Done with the work" in result
+        # tool_result should not create a second turn
+        assert "---" not in result
+
+    def test_start_line_skips_old_entries(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Old question"),
+            _jsonl_line("assistant", "Old answer"),
+            _jsonl_line("user", "New question"),
+            _jsonl_line("assistant", "New answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript), start_line=2)
+
+        assert result is not None
+        assert "Old question" not in result
+        assert "New question" in result
+        assert "New answer" in result
+
+    def test_no_new_entries_returns_none(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Question"),
+            _jsonl_line("assistant", "Answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript), start_line=2)
+
+        assert result is None
+
+    def test_missing_transcript_returns_none(self):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn("/nonexistent/path.jsonl")
+
+        assert result is None
+
+    def test_corrupt_lines_skipped(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Question"),
+            "this is {{{ not json",
+            _jsonl_line("assistant", "Answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript))
+
+        assert result is not None
+        assert "You: Question" in result
+        assert "Answer" in result
+
+    def test_assistant_only_no_user_text(self, tmp_path):
+        """Assistant text after cursor with no user message — still delivered."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("assistant", "Continuation text"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript))
+
+        assert result is not None
+        assert "Continuation text" in result
+        assert "You:" not in result
+
+    def test_stale_cursor_clamps_to_latest_turn(self, tmp_path):
+        """Cursor ahead of transcript self-heals by clamping to latest turn."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Old question"),
+            _jsonl_line("assistant", "Old answer"),
+            _jsonl_line("user", "Latest question"),
+            _jsonl_line("assistant", "Latest answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript), start_line=50)
+
+        assert result is not None
+        assert "You: Latest question" in result
+        assert "Latest answer" in result
+
+    def test_stale_cursor_no_user_msg_delivers_all(self, tmp_path):
+        """Stale cursor with no user messages — delivers all assistant text."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import extract_mirror_turn
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("assistant", "Some output"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            result = extract_mirror_turn(str(transcript), start_line=99)
+
+        assert result is not None
+        assert "Some output" in result
+
+
+# ===========================================================================
+# find_pending_file — mirror directory
+# ===========================================================================
+
+
+class TestFindPendingFileMirror:
+    """Mirror directory search for persistent mapping files."""
+
+    def test_mirror_dir_env_bot_id_match(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import find_pending_file
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        data = {"timestamp": time.time(), "work_dir": str(tmp_path), "mirror": True}
+        (mirror_dir / "bot-42.json").write_text(json.dumps(data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.MIRROR_DIR", mirror_dir),
+            patch(f"{MOD}.PENDING_DIR", tmp_path / "nonexistent"),
+            patch.dict("os.environ", {"AIPASS_BOT_ID": "42"}),
+        ):
+            result = find_pending_file("session-xyz")
+
+        assert result is not None
+        assert result.name == "bot-42.json"
+
+    def test_mirror_dir_preferred_over_pending_for_env(self, tmp_path):
+        """Mirror dir is checked before pending dir for AIPASS_BOT_ID match."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import find_pending_file
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        pending_dir = tmp_path / "telegram_pending"
+        pending_dir.mkdir()
+        mirror_data = {"timestamp": time.time(), "work_dir": str(tmp_path), "mirror": True}
+        pending_data = {"timestamp": time.time(), "work_dir": str(tmp_path)}
+        (mirror_dir / "bot-42.json").write_text(json.dumps(mirror_data), encoding="utf-8")
+        (pending_dir / "bot-42.json").write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.MIRROR_DIR", mirror_dir),
+            patch(f"{MOD}.PENDING_DIR", pending_dir),
+            patch.dict("os.environ", {"AIPASS_BOT_ID": "42"}),
+        ):
+            result = find_pending_file("session-xyz")
+
+        assert result is not None
+        assert str(mirror_dir) in str(result)
+
+    def test_mirror_dir_cwd_match(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import find_pending_file
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        work = tmp_path / "project"
+        work.mkdir()
+        data = {"timestamp": time.time(), "work_dir": str(work), "mirror": True}
+        (mirror_dir / "bot-7.json").write_text(json.dumps(data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.MIRROR_DIR", mirror_dir),
+            patch(f"{MOD}.PENDING_DIR", tmp_path / "nonexistent"),
+            patch.dict("os.environ", {}, clear=True),
+            patch(f"{MOD}.Path.cwd", return_value=work / "subdir"),
+        ):
+            result = find_pending_file("session-abc")
+
+        assert result is not None
+        assert result.name == "bot-7.json"
+
+
+# ===========================================================================
+# handle — mirror integration tests
+# ===========================================================================
+
+
+class TestHandleMirrorIntegration:
+    """Full handle() flow for mirror sessions."""
+
+    def test_mirror_user_typed_directly_delivered(self, tmp_path):
+        """User types directly in terminal — mirror delivers to TG."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import handle
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Old question"),
+            _jsonl_line("assistant", "Old answer"),
+            _jsonl_line("user", "What is this?"),
+            _jsonl_line("assistant", "This is the answer."),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        mirror_data = {
+            "chat_id": 999,
+            "bot_token": "tok:ABC",
+            "session_name": "devpulse",
+            "work_dir": str(tmp_path),
+            "mirror": True,
+            "transcript_line_after": 2,
+        }
+        mirror_file = mirror_dir / "bot-1.json"
+        mirror_file.write_text(json.dumps(mirror_data), encoding="utf-8")
+
+        sent_texts = []
+
+        def capture_send(bot_token, chat_id, text):
+            sent_texts.append(text)
+            return _ok_result()
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.find_pending_file", return_value=mirror_file),
+            patch(f"{MOD}._send_with_retry", side_effect=capture_send),
+            patch(f"{MOD}._check_log_streamer_active", return_value=False),
+            patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
+        ):
+            result = handle(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-abc",
+                    "transcript_path": str(transcript),
+                }
+            )
+
+        assert result == {"stdout": "", "exit_code": 0}
+        assert len(sent_texts) == 1
+        assert "You: What is this?" in sent_texts[0]
+        assert "This is the answer." in sent_texts[0]
+
+    def test_mirror_tg_injected_no_double_send(self, tmp_path):
+        """TG-injected turn — cursor advancement prevents re-delivery."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import handle
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Injected from TG"),
+            _jsonl_line("assistant", "Response to TG"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        mirror_data = {
+            "chat_id": 999,
+            "bot_token": "tok:ABC",
+            "session_name": "devpulse",
+            "work_dir": str(tmp_path),
+            "mirror": True,
+            "transcript_line_after": 2,
+            "delivered": True,
+        }
+        mirror_file = mirror_dir / "bot-1.json"
+        mirror_file.write_text(json.dumps(mirror_data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.find_pending_file", return_value=mirror_file),
+            patch(f"{MOD}._check_log_streamer_active", return_value=False),
+            patch(f"{MOD}.time.sleep"),
+            patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+        ):
+            result = handle(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-abc",
+                    "transcript_path": str(transcript),
+                }
+            )
+
+        assert result == {"stdout": "", "exit_code": 0}
+        assert mirror_file.exists()
+
+    def test_mirror_cursor_advances_no_redelivery(self, tmp_path):
+        """Cursor advances after mirror delivery — old turns not re-sent."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import handle
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Question"),
+            _jsonl_line("assistant", "Answer"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        mirror_data = {
+            "chat_id": 999,
+            "bot_token": "tok:ABC",
+            "session_name": "devpulse",
+            "work_dir": str(tmp_path),
+            "mirror": True,
+            "transcript_line_after": 0,
+        }
+        mirror_file = mirror_dir / "bot-1.json"
+        mirror_file.write_text(json.dumps(mirror_data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.find_pending_file", return_value=mirror_file),
+            patch(f"{MOD}._send_with_retry", return_value=_ok_result()),
+            patch(f"{MOD}._check_log_streamer_active", return_value=False),
+            patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
+        ):
+            handle(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-abc",
+                    "transcript_path": str(transcript),
+                }
+            )
+
+        updated = json.loads(mirror_file.read_text(encoding="utf-8"))
+        assert updated["transcript_line_after"] == 2
+        assert updated["delivered"] is True
+        assert mirror_file.exists()
+
+    def test_mirror_file_never_deleted_on_error(self, tmp_path):
+        """Mirror mapping files are never deleted, even on validation errors."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import handle
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        mirror_data = {
+            "mirror": True,
+            "session_name": "devpulse",
+            "work_dir": str(tmp_path),
+        }
+        mirror_file = mirror_dir / "bot-1.json"
+        mirror_file.write_text(json.dumps(mirror_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH), patch(f"{MOD}.find_pending_file", return_value=mirror_file):
+            handle(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-abc",
+                }
+            )
+
+        assert mirror_file.exists()
+
+    def test_mirror_no_processing_message_sends_fresh(self, tmp_path):
+        """Mirror sessions have no processing_message_id — always send fresh."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import handle
+
+        transcript = tmp_path / "transcript.jsonl"
+        lines = [
+            _jsonl_line("user", "Hello"),
+            _jsonl_line("assistant", "Hi there"),
+        ]
+        transcript.write_text("\n".join(lines), encoding="utf-8")
+
+        mirror_dir = tmp_path / "telegram_bots"
+        mirror_dir.mkdir()
+        mirror_data = {
+            "chat_id": 999,
+            "bot_token": "tok:ABC",
+            "session_name": "devpulse",
+            "work_dir": str(tmp_path),
+            "mirror": True,
+            "transcript_line_after": 0,
+        }
+        mirror_file = mirror_dir / "bot-1.json"
+        mirror_file.write_text(json.dumps(mirror_data), encoding="utf-8")
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.find_pending_file", return_value=mirror_file),
+            patch(f"{MOD}._send_with_retry", return_value=_ok_result()) as mock_send,
+            patch(f"{MOD}.edit_telegram_message") as mock_edit,
+            patch(f"{MOD}._check_log_streamer_active", return_value=False),
+            patch(f"{MOD}.Path.cwd", return_value=tmp_path),
+            patch(f"{MOD}._write_delivery_log"),
+        ):
+            handle(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "session-abc",
+                    "transcript_path": str(transcript),
+                }
+            )
+
+        mock_send.assert_called_once()
+        mock_edit.assert_not_called()
+
+
+# ===========================================================================
+# _advance_pending — mirror protection
+# ===========================================================================
+
+
+class TestAdvancePendingMirror:
+    """Mirror files are never deleted by _advance_pending."""
+
+    def test_mirror_no_transcript_kept(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {"chat_id": 1, "mirror": True}
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, "")
+
+        assert pending_file.exists()
+
+    def test_mirror_transcript_failure_kept(self, tmp_path):
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {"chat_id": 1, "mirror": True}
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, "/nonexistent/transcript.jsonl")
+
+        assert pending_file.exists()

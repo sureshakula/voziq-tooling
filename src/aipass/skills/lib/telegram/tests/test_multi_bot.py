@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: test_multi_bot.py
+# Description: Comprehensive tests for BaseBot and BranchPlugin
+# Version: 1.0.0
+# Created: 2026-06-15
+# Modified: 2026-06-29
+# =============================================
+
 """
 Comprehensive pytest tests for BaseBot and BranchPlugin.
 
@@ -25,8 +33,8 @@ import time
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers.base_bot import BaseBot
-from apps.handlers.branch_plugin import BranchPlugin
+from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+from apps.handlers.branch_plugin import BranchPlugin  # type: ignore[import-not-found]
 
 
 # =============================================
@@ -1552,6 +1560,20 @@ class TestCreateAutomated:
         assert self.chat_id in self.bot._create_state
         state = self.bot._create_state[self.chat_id]
         assert state["branch_name"] == "flow"
+
+    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("apps.handlers.base_bot.validate_branch")
+    @patch("apps.handlers.base_bot.check_telethon_setup")
+    def test_manual_fallback_message_shows_reason(self, mock_check, mock_validate, mock_get_bot):
+        """Manual fallback message includes the reason automation is unavailable."""
+        mock_check.return_value = (False, "Telethon library not installed. Run: pip install telethon")
+        mock_validate.return_value = {"name": "flow", "path": "/home/aipass/flow"}
+
+        self.bot._handle_create_command(self.chat_id, "chat flow")
+
+        msg = self.bot.send_message.call_args[0][1]
+        assert "Telethon library not installed" in msg
+        assert "Falling back to manual token flow" in msg
 
     @patch("apps.handlers.base_bot.create_bot")
     @patch("apps.handlers.base_bot.create_bot_via_botfather")

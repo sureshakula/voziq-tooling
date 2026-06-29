@@ -82,7 +82,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 593 tests across 23 test files
+└── tests/                       # 666 tests across 23 test files
 ```
 
 ## How It Works

@@ -12,9 +12,9 @@ Not suggestions. Violating = bug.
 
 - **No writes outside own `.trinity/`.** Never create, edit, delete files anywhere else. Not code, not docs, not configs, not other branches' memories.
 - **No git. Ever.** Not `git status`, not `drone @git anything`. Git is drone's world.
-- **No `drone @ai_mail dispatch`.** Email only test-convention body (below). Never wake agent real work.
+- **Dispatch focused work via `drone @ai_mail dispatch`** — to ONE owning branch, as the user's voice with detailed feedback. Reply routes to @aipass; I track the loop and report back. Not an orchestrator (no fleets, no running the floor — that's devpulse). Test-convention pings (below) still fine.
 - **No registry / hooks / bypass.json / config edits.** Spot bug → report. Never patch.
-- User asks build/fix/change something: tell them who. Offer dispatch through devpulse/drone — don't do it.
+- User asks build/fix/change in another branch: name the owner, then dispatch focused work to them as the user's voice. Heavy orchestration, git, and fleets stay with devpulse.
 
 ## What I Do
 

@@ -6,6 +6,21 @@
   },
   "bypass": [
     {
+      "file": "lib/telegram/tests/conftest.py",
+      "standard": "architecture",
+      "reason": "Test infrastructure — conftest.py lives in tests/ by pytest convention, not the 3-layer app structure. Test support files are exempt."
+    },
+    {
+      "file": "lib/telegram/tests/conftest.py",
+      "standard": "encapsulation",
+      "reason": "Test infrastructure — imports aipass.prax.apps.handlers.logging.direct to redirect log output during tests. Necessary to clear cached logger state; no module entry point exists for this internal reset."
+    },
+    {
+      "file": "lib/telegram/tests/conftest.py",
+      "standard": "imports",
+      "reason": "Test infrastructure — sys.path manipulation is intentional: adds src/ root for aipass.* imports and skill root for local apps.handlers.* imports. Required because tests run without a full pip install of the skill."
+    },
+    {
       "file": "lib/telegram/tests/test_response_router.py",
       "standard": "architecture",
       "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
@@ -14,6 +29,132 @@
       "file": "lib/telegram/tests/test_response_router.py",
       "standard": "encapsulation",
       "reason": "Test file — imports handler module directly for unit testing. Tests need direct access to monkeypatch module-level attributes and verify handler behavior."
+    },
+    {
+      "file": "lib/telegram/tests/test_monitor.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_monitor.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing. Tests need direct access to patch module-level state and verify handler internals."
+    },
+    {
+      "file": "lib/telegram/tests/test_monitor.py",
+      "standard": "documentation",
+      "reason": "Test file — public functions are pytest test methods; docstrings on individual test methods are optional when class docstring and test name are self-documenting."
+    },
+    {
+      "file": "lib/telegram/tests/test_multi_bot.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_multi_bot.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing. Tests need direct access to patch module-level state."
+    },
+    {
+      "file": "lib/telegram/tests/test_multi_bot.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test methods are self-documenting via class/method names; docstrings on individual test cases are optional."
+    },
+    {
+      "file": "lib/telegram/tests/test_multi_bot.py",
+      "standard": "hardcoded_path",
+      "reason": "Test data — /home/aipass/* paths are mock return values passed to validate_branch() and create_bot() mocks, not real filesystem paths. They represent synthetic registry entries in test fixtures."
+    },
+    {
+      "file": "lib/telegram/tests/test_multi_bot.py",
+      "standard": "trigger",
+      "lines": [409],
+      "reason": "Test-only teardown — base_bot.pending_file.unlink() simulates file absence to verify heartbeat backward-compat behavior. No trigger event is appropriate for test fixture manipulation."
+    },
+    {
+      "file": "lib/telegram/tests/test_attach_only.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_attach_only.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing."
+    },
+    {
+      "file": "lib/telegram/tests/test_attach_only.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test methods are self-documenting via class/method names."
+    },
+    {
+      "file": "lib/telegram/tests/test_heartbeat_delivered.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_heartbeat_delivered.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing."
+    },
+    {
+      "file": "lib/telegram/tests/test_heartbeat_delivered.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test methods are self-documenting via class/method names."
+    },
+    {
+      "file": "lib/telegram/tests/test_status_reset.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_status_reset.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing."
+    },
+    {
+      "file": "lib/telegram/tests/test_status_reset.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test methods are self-documenting via class/method names."
+    },
+    {
+      "file": "lib/telegram/tests/test_mirror_session.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_mirror_session.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing."
+    },
+    {
+      "file": "lib/telegram/tests/test_mirror_session.py",
+      "standard": "hardcoded_path",
+      "reason": "Test data — /home/test/api is a mock return value for validate_branch(), not a real filesystem path."
+    },
+    {
+      "file": "lib/telegram/tests/test_mirror_session.py",
+      "standard": "permission_flags",
+      "reason": "Test file — asserts that launch_mirror_session() correctly passes --dangerously-skip-permissions. Testing the TDPLAN-0009 feature, not bypassing permissions."
+    },
+    {
+      "file": "lib/telegram/apps/handlers/bot_factory.py",
+      "standard": "handlers",
+      "reason": "DPLAN-0220 incomplete port — bot_factory imports _api_set_secret from aipass.api.apps.modules.secrets for config persistence. Same pattern as config.py."
+    },
+    {
+      "file": "lib/telegram/apps/handlers/bot_factory.py",
+      "standard": "json_structure",
+      "reason": "DPLAN-0220 incomplete port — factory functions predate json_handler.log_operation convention. Adding log_operation to every function is a separate cleanup task."
+    },
+    {
+      "file": "lib/telegram/apps/handlers/bot_factory.py",
+      "standard": "meta",
+      "reason": "DPLAN-0220 incomplete port — file uses legacy header format from Dev-Pass port, not the META block format."
+    },
+    {
+      "file": "lib/telegram/apps/handlers/bot_factory.py",
+      "standard": "permission_flags",
+      "reason": "TDPLAN-0009 — launch_mirror_session() intentionally uses --dangerously-skip-permissions. Detached tmux mirror sessions have no operator to approve prompts; without it the session hangs forever. Patrick's explicit ask."
     },
     {
       "file": "apps/handlers/loader_handler.py",

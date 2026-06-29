@@ -66,6 +66,7 @@ from .bot_registry import (
 TELEGRAM_API = "https://api.telegram.org/bot{token}"
 SYSTEMD_DIR = Path.home() / ".config" / "systemd" / "user"
 _BOT_CONFIG_DIR = Path.home() / ".aipass" / "telegram_bots"
+CLAUDE_BIN = str(Path.home() / ".local" / "bin" / "claude")
 
 # Command menu built from telegram_standards (single source of truth)
 
@@ -324,6 +325,84 @@ def start_bot_process(bot_id: str) -> bool:
         return False
 
 
+def launch_mirror_session(
+    bot_id: str,
+    work_dir: str,
+    session_name: str,
+) -> bool:
+    """Launch the canonical tmux mirror session with --dangerously-skip-permissions.
+
+    Creates a detached tmux session running Claude Code in autonomous mirror mode.
+    The session uses --dangerously-skip-permissions because a detached tmux session
+    has no operator to approve permission prompts — without it, the session hangs.
+
+    Args:
+        bot_id: Bot identifier (set as AIPASS_BOT_ID env var in the session).
+        work_dir: Working directory for the Claude session.
+        session_name: tmux session name (e.g. "telegram-api").
+
+    Returns:
+        True if the session was launched successfully.
+    """
+    import os
+
+    try:
+        result = subprocess.run(
+            ["tmux", "has-session", "-t", session_name],
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            logger.info("Mirror session '%s' already running — skipping launch", session_name)
+            return True
+    except FileNotFoundError:
+        logger.error("tmux not found — cannot launch mirror session")
+        return False
+
+    env = os.environ.copy()
+    env.pop("CLAUDECODE", None)
+
+    try:
+        subprocess.run(
+            ["tmux", "new-session", "-d", "-s", session_name, "-c", work_dir],
+            check=True,
+            capture_output=True,
+            env=env,
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error("Failed to create tmux session '%s': %s", session_name, e)
+        return False
+
+    subprocess.run(
+        [
+            "tmux",
+            "send-keys",
+            "-t",
+            session_name,
+            f"export AIPASS_BOT_ID={bot_id}",
+            "Enter",
+        ],
+        capture_output=True,
+    )
+
+    import time
+
+    time.sleep(0.3)
+
+    claude_cmd = f"AIPASS_SESSION_TYPE=interactive-mirror {CLAUDE_BIN} --dangerously-skip-permissions"
+    subprocess.run(
+        ["tmux", "send-keys", "-t", session_name, claude_cmd, "Enter"],
+        capture_output=True,
+    )
+
+    logger.info(
+        "Mirror session '%s' launched (bot_id=%s, work_dir=%s, skip-perms=true)",
+        session_name,
+        bot_id,
+        work_dir,
+    )
+    return True
+
+
 def stop_service(bot_id: str) -> bool:
     """
     Stop the systemd user service for a bot.
@@ -359,6 +438,41 @@ def stop_service(bot_id: str) -> bool:
         return False
 
 
+def start_service(bot_id: str) -> bool:
+    """
+    Start the systemd user service for a bot.
+
+    Runs: systemctl --user start telegram-bot@{bot_id}
+
+    Args:
+        bot_id: Bot identifier used in the service template.
+
+    Returns:
+        True if the service was started successfully, False otherwise.
+    """
+    SERVICE_NAME = f"telegram-bot@{bot_id}"
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "start", SERVICE_NAME],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            logger.info("Started systemd service: %s", SERVICE_NAME)
+            return True
+
+        logger.warning("Failed to start service %s: %s", SERVICE_NAME, result.stderr.strip())
+        return False
+
+    except subprocess.TimeoutExpired:
+        logger.warning("Timeout starting service: %s", SERVICE_NAME)
+        return False
+    except OSError as e:
+        logger.warning("Error starting service %s: %s", SERVICE_NAME, e)
+        return False
+
+
 # =============================================
 # BOT LIFECYCLE
 # =============================================
@@ -371,6 +485,9 @@ def create_bot(
     work_dir: Optional[str] = None,
     bot_name: Optional[str] = None,
     allowed_user_ids: Optional[list[int]] = None,
+    shared_session: Optional[str] = None,
+    attach_only: bool = False,
+    chat_id: Optional[int] = None,
 ) -> Optional[dict]:
     """
     Create a new bot: validate, write config, register, setup systemd.
@@ -383,7 +500,8 @@ def create_bot(
     5. Register in bot registry
     6. Set BotFather commands via setMyCommands API
     7. Enable systemd service
-    8. Auto-start the bot process
+    7.5. Mirror mode: launch canonical tmux session with skip-perms
+    8. Auto-start the bot (systemd for mirror, Popen for standard)
 
     Args:
         bot_id: Unique identifier for this bot (e.g., "dev_central", "base").
@@ -392,6 +510,9 @@ def create_bot(
         work_dir: Working directory for Claude sessions. Defaults to home dir if None.
         bot_name: Human-readable bot name. Auto-generated if None.
         allowed_user_ids: List of Telegram user IDs allowed to use this bot.
+        shared_session: tmux session name for mirror mode (attach to existing session).
+        attach_only: When True, bot only attaches — never spawns its own session.
+        chat_id: Pre-configured Telegram chat ID for mirror mapping.
 
     Returns:
         Bot info dict on success, None on any failure.
@@ -454,6 +575,9 @@ def create_bot(
         "work_dir": RESOLVED_WORK_DIR,
         "allowed_user_ids": allowed_user_ids or [],
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "shared_session": shared_session,
+        "attach_only": attach_only,
+        "chat_id": chat_id,
     }
 
     # Step 4a: Write to @api secrets store (load_bot_config reads from here)
@@ -494,16 +618,30 @@ def create_bot(
     # Step 7: Enable systemd service
     enable_service(bot_id)
 
-    # Step 8: Auto-start the bot process
-    started = start_bot_process(bot_id)
+    # Step 7.5: Mirror mode — launch canonical tmux session
+    mirror_launched = False
+    if shared_session and attach_only:
+        mirror_launched = launch_mirror_session(session_name=shared_session, bot_id=bot_id, work_dir=RESOLVED_WORK_DIR)
+        if not mirror_launched:
+            logger.warning(
+                "Mirror session launch failed for '%s' — bot may need manual session start",
+                bot_id,
+            )
+
+    # Step 8: Auto-start the bot poller
+    if shared_session and attach_only:
+        started = start_service(bot_id)
+    else:
+        started = start_bot_process(bot_id)
 
     logger.info(
-        "Bot created: %s (@%s, branch=%s, work_dir=%s, started=%s)",
+        "Bot created: %s (@%s, branch=%s, work_dir=%s, started=%s, mirror=%s)",
         bot_id,
         BOT_USERNAME,
         branch_name,
         RESOLVED_WORK_DIR,
         started,
+        mirror_launched,
     )
 
     return {
@@ -515,6 +653,9 @@ def create_bot(
         "config_path": str(CONFIG_PATH),
         "service_name": f"telegram-bot@{bot_id}",
         "auto_started": started,
+        "shared_session": shared_session,
+        "attach_only": attach_only,
+        "mirror_launched": mirror_launched,
     }
 
 

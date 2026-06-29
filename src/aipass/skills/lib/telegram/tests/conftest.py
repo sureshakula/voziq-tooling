@@ -1,18 +1,19 @@
-# ===================AIPASS====================
-# META DATA HEADER
-# Name: conftest.py - Telegram skill test configuration
-# Date: 2026-06-15
+# =================== AIPass ====================
+# Name: conftest.py
+# Description: Telegram skill test configuration — path setup and shared fixtures
 # Version: 1.0.0
-# Category: skills/telegram/tests
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-06-15): Initial implementation — prax log redirect + path setup
-#
-# CODE STANDARDS:
-#   - Adds src/ and skill root to sys.path for test imports
+# Created: 2026-06-15
+# Modified: 2026-06-29
 # =============================================
 
-"""Telegram skill test configuration."""
+"""
+Telegram skill test configuration.
+
+Sets up sys.path so that both aipass.* (installed package) and the local
+apps.handlers.* namespace are importable from tests without a full pip install.
+Also stubs the optional telethon dependency and redirects Prax logger output
+to a temp dir so test runs don't pollute production log files.
+"""
 
 import os
 import shutil
@@ -27,26 +28,24 @@ if "AIPASS_TEST_LOG_DIR" not in os.environ:
 
 import pytest
 
-# Add src/ to path so aipass.* is importable
-_src_root = Path(__file__).resolve().parents[5]  # noqa: E402
+# sys.path setup is intentional test infrastructure — both entries are needed:
+#   _src_root  → resolves aipass.* installed-package imports
+#   _skill_root → resolves the local apps.handlers.* namespace used by all tests
+_src_root = Path(__file__).resolve().parents[5]
 if str(_src_root) not in sys.path:
     sys.path.insert(0, str(_src_root))
 
-# Add telegram skill root so apps.handlers.* is importable
-_skill_root = Path(__file__).resolve().parents[1]  # noqa: E402
+_skill_root = Path(__file__).resolve().parents[1]
 if str(_skill_root) not in sys.path:
     sys.path.insert(0, str(_skill_root))
 
 
-# Telethon stub — telethon is an OPTIONAL runtime dependency (MTProto client),
-# deliberately NOT in pyproject so the core stays lightweight (botfather_client.py
-# guards it with TELETHON_AVAILABLE). The botfather_client tests mock all Telethon
-# classes (patch("telethon.TelegramClient"), etc.), but unittest.mock.patch must
-# IMPORT the target's parent module to set the attribute — which raises
-# ModuleNotFoundError when telethon isn't installed (e.g. in CI). Register a minimal
-# stub so those patch targets resolve. The guard never clobbers a real telethon if
-# one is installed. Real FloodWaitError/RPCError classes are required for the
-# success/timeout tests, where _send_and_wait imports them but does not patch them.
+# Telethon stub — telethon is an optional dependency (pyproject [telegram] extra).
+# In CI or minimal installs it may not be present. botfather_client.py guards with
+# TELETHON_AVAILABLE. The tests mock Telethon classes (patch("telethon.TelegramClient")),
+# but unittest.mock.patch must IMPORT the parent module — which raises
+# ModuleNotFoundError when telethon isn't installed. Register a minimal stub so those
+# patch targets resolve. Never clobbers a real telethon if one is installed.
 if "telethon" not in sys.modules:
     _telethon_stub = types.ModuleType("telethon")
     _telethon_errors = types.ModuleType("telethon.errors")

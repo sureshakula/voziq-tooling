@@ -1,17 +1,9 @@
 # =================== AIPass ====================
-# Name: bot_operations.py - Bot operation handlers for multi-bot module
-# Date: 2026-02-24
-# Version: 1.0.0
-# Category: api/handlers/telegram
-#
-# CHANGELOG (Max 5 entries):
-#   - v1.0.0 (2026-02-24): Initial - start, stop, status, list operations for multi-bot system
-#
-# CODE STANDARDS:
-#   - Pure functions with proper error handling (graceful - never raise)
-#   - No Prax imports (handler tier 3)
-#   - Stdlib only (subprocess for systemd)
-#   - Returns values for caller to log/display - no handler-level logging
+# Name: bot_operations.py
+# Description: Bot lifecycle operation handlers — start, stop, status, list
+# Version: 1.0.1
+# Created: 2026-02-24
+# Modified: 2026-06-29
 # =============================================
 
 """
@@ -31,6 +23,12 @@ All functions return values - the module layer handles logging and display.
 # Standard library
 import subprocess
 from pathlib import Path
+
+# Logging
+from aipass.prax import logger
+
+# JSON handler (seedgo standard)
+from aipass.skills.apps.handlers.json import json_handler  # noqa: F401
 
 # Internal handler imports
 from .base_bot import BaseBot
@@ -57,6 +55,7 @@ def start_bot(bot_id: str) -> int | None:
     Returns:
         Bot exit code, or None if config loading failed.
     """
+    json_handler.log_operation("start_bot", {"bot_id": bot_id})
     config = load_bot_config(bot_id)
     if not config:
         return None
@@ -69,6 +68,9 @@ def start_bot(bot_id: str) -> int | None:
     bot_name = config.get("bot_name", f"AIPass {bot_id} Bot")
     allowed_user_ids = config.get("allowed_user_ids", [])
     branch_name = config.get("branch_name")
+    shared_session = config.get("shared_session")
+    attach_only = config.get("attach_only", False)
+    chat_id = config.get("chat_id")
 
     if branch_name:
         bot = BranchPlugin(
@@ -78,6 +80,8 @@ def start_bot(bot_id: str) -> int | None:
             work_dir=work_dir,
             bot_name=bot_name,
             allowed_user_ids=allowed_user_ids,
+            shared_session=shared_session,
+            attach_only=attach_only,
         )
     else:
         bot = BaseBot(
@@ -86,7 +90,12 @@ def start_bot(bot_id: str) -> int | None:
             work_dir=work_dir,
             bot_name=bot_name,
             allowed_user_ids=allowed_user_ids,
+            shared_session=shared_session,
+            attach_only=attach_only,
         )
+
+    if chat_id is not None:
+        bot._config_chat_id = chat_id
 
     return bot.run()
 
@@ -117,8 +126,10 @@ def stop_bot(bot_id: str) -> tuple[bool, str]:
         return False, f"Failed to stop {service_name}: {result.stderr.strip()}"
 
     except subprocess.TimeoutExpired:
+        logger.warning("Timeout stopping %s", service_name)
         return False, f"Timeout stopping {service_name}"
     except OSError as e:
+        logger.warning("Error stopping %s: %s", service_name, e)
         return False, f"Error stopping {service_name}: {e}"
 
 

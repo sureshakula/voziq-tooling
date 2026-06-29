@@ -51,6 +51,9 @@ memory = [
     "chromadb>=1.0",
     "fastembed>=0.4",
 ]
+telegram = [
+    "telethon>=1.36",
+]
 seedgo = []
 dev = [
     "pytest>=9.0.3",

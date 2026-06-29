@@ -4,7 +4,7 @@ description: Multi-bot Telegram bridge — routes messages between Telegram and 
 version: 1.0.0
 tags: [communication, bridge, telegram, bot]
 requires:
-  pip: []
+  pip: [telethon]
   bins: [tmux, claude]
   config: []
   aipass: [api, prax, hooks, cli]

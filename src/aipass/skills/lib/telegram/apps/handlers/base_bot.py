@@ -84,15 +84,14 @@ from .file_handler import (
 )
 from .bot_factory import (
     create_bot,
+    launch_mirror_session,  # noqa: F401
     set_bot_commands,
+    start_service,  # noqa: F401
     validate_branch,
     validate_token,
 )
 from .telegram_standards import build_botfather_commands
 
-# Secrets API for monitor subscription persistence
-from aipass.api.apps.modules.secrets import get_secret as _api_get_secret
-from aipass.api.apps.modules.secrets import set_secret as _api_set_secret
 from .bot_registry import (
     list_bots as registry_list_bots,
     get_bot_by_branch,
@@ -133,6 +132,7 @@ POLL_TIMEOUT = 30
 SEND_KEYS_DELAY = 0.5
 HEARTBEAT_INTERVAL = 30  # seconds
 CLAUDE_BIN = str(Path.home() / ".local" / "bin" / "claude")
+MIRROR_SESSION_TYPE = "interactive-mirror"
 TEMP_DIR = Path("/tmp/telegram_uploads")
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
@@ -161,6 +161,7 @@ class BaseBot:
         custom_commands: Optional[dict] = None,
         branch_name: Optional[str] = None,
         shared_session: Optional[str] = None,
+        attach_only: bool = False,
     ) -> None:
         """
         Initialize BaseBot.
@@ -196,11 +197,16 @@ class BaseBot:
         # Shared-session mode: inject into an existing tmux session instead of creating own
         self._shared_session_name = shared_session
         self._using_shared_session = False
+        self._attach_only = attach_only
+        self._mirror_mapping_written = False
+        self._last_transcript_path: str | None = None
+        self._config_chat_id: int | None = None
 
         self.state = {
             "running": True,
             "message_count": 0,
             "start_time": time.time(),
+            "conversation_start": time.time(),
             "last_message_time": 0.0,
         }
 
@@ -262,12 +268,11 @@ class BaseBot:
         # Boot-start monitor if a subscription was persisted
         self._boot_monitor()
 
-        # Check for existing lock
+        # Check for existing lock (prevents duplicate pollers for the same bot_id).
+        # Return 0 (not 1) so systemd Restart=on-failure does not restart-loop.
         if self._check_lock():
-            logger.error("Another instance of bot-%s is already running", self.bot_id)
-            return 1
-
-        # Create lock file
+            logger.error("Another instance of bot-%s is already running — exiting cleanly", self.bot_id)
+            return 0
         self._create_lock()
 
         # Signal handlers
@@ -493,6 +498,7 @@ class BaseBot:
         # Start log streamer on first valid message (if branch has a name)
         if self._active_chat_id is None and chat_id:
             self._active_chat_id = chat_id
+            self._write_mirror_mapping()
             if self.branch_name is not None and self._log_streamer is None:
                 self._log_streamer = LogStreamer(self.bot_token, chat_id, self.branch_name)
                 self._log_streamer.start()
@@ -575,11 +581,16 @@ class BaseBot:
                 self.send_message(chat_id, "Nothing to cancel.")
             return True
 
-        # Compute uptime for /status
-        elapsed = time.time() - self.state["start_time"]
-        hours, remainder = divmod(int(elapsed), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        uptime_str = f"{hours}h {minutes}m {seconds}s"
+        # Compute conversation uptime (resets on /new) and daemon uptime (since boot)
+        conv_elapsed = time.time() - self.state.get("conversation_start", self.state["start_time"])
+        conv_h, conv_rem = divmod(int(conv_elapsed), 3600)
+        conv_m, conv_s = divmod(conv_rem, 60)
+        uptime_str = f"{conv_h}h {conv_m}m {conv_s}s"
+
+        daemon_elapsed = time.time() - self.state["start_time"]
+        d_h, d_rem = divmod(int(daemon_elapsed), 3600)
+        d_m, d_s = divmod(d_rem, 60)
+        daemon_uptime_str = f"{d_h}h {d_m}m {d_s}s"
 
         # Merge custom commands from constructor and hook
         merged_commands = {**self.custom_commands, **self.get_custom_commands()}
@@ -592,6 +603,7 @@ class BaseBot:
                 uptime=uptime_str,
                 message_count=self.state.get("message_count"),
                 chat_id=chat_id,
+                daemon_uptime=daemon_uptime_str,
             )
             registry_text = self._build_registry_status()
             if registry_text:
@@ -616,8 +628,10 @@ class BaseBot:
                 action, response_text = result
                 if action == "new":
                     self._kill_tmux_session()
+                    self.state["message_count"] = 0
+                    self.state["conversation_start"] = time.time()
                     self.send_message(chat_id, response_text)
-                    logger.info("Handled /new command - session killed")
+                    logger.info("Handled /new command - session killed, counters reset")
             else:
                 self.send_message(chat_id, result)
                 logger.info("Handled /%s command", cmd_name)
@@ -655,7 +669,14 @@ class BaseBot:
         # Ensure tmux session
         if not self.ensure_tmux_session():
             logger.error("Cannot process message - tmux session unavailable")
-            self.send_message(chat_id, "Failed to start Claude session. Check logs.")
+            if self._attach_only:
+                self.send_message(
+                    chat_id,
+                    f"⚠️ No canonical session '{self._shared_session_name}' found.\n"
+                    "Start it with the launch wrapper first.",
+                )
+            else:
+                self.send_message(chat_id, "Failed to start Claude session. Check logs.")
             return
 
         # Send processing indicator
@@ -746,7 +767,14 @@ class BaseBot:
         # Ensure tmux session
         if not self.ensure_tmux_session():
             logger.error("Cannot process file - tmux session unavailable")
-            self.send_message(chat_id, "Failed to start Claude session. Check logs.")
+            if self._attach_only:
+                self.send_message(
+                    chat_id,
+                    f"⚠️ No canonical session '{self._shared_session_name}' found.\n"
+                    "Start it with the launch wrapper first.",
+                )
+            else:
+                self.send_message(chat_id, "Failed to start Claude session. Check logs.")
             if file_type == "text":
                 file_path.unlink(missing_ok=True)
             return
@@ -905,8 +933,10 @@ class BaseBot:
             self.send_message(
                 chat_id,
                 f"Branch @{branch_name} found at {branch_path}.\n\n"
-                "Now paste the BotFather token for the new bot.\n"
-                "(Get one from @BotFather -> /newbot)\n\n"
+                f"⚠️ BotFather automation unavailable: {telethon_reason}\n"
+                "Falling back to manual token flow.\n\n"
+                "Paste the BotFather token for the new bot.\n"
+                "(Get one from @BotFather → /newbot)\n\n"
                 "/cancel to abort.",
             )
             logger.info(
@@ -1250,8 +1280,15 @@ class BaseBot:
                         "Shared session '%s' found — injecting into existing session",
                         self._shared_session_name,
                     )
+                    self._write_mirror_mapping()
                     return True
                 else:
+                    if self._attach_only:
+                        logger.error(
+                            "Attach-only: session '%s' not found — refusing to spawn",
+                            self._shared_session_name,
+                        )
+                        return False
                     self._using_shared_session = False
                     self.session_name = f"telegram-{self.bot_id}"
                     logger.warning(
@@ -1260,8 +1297,15 @@ class BaseBot:
                     )
             except FileNotFoundError:
                 logger.warning("tmux not found while checking shared session '%s'", self._shared_session_name)
+                if self._attach_only:
+                    return False
                 self._using_shared_session = False
                 self.session_name = f"telegram-{self.bot_id}"
+
+        # attach-only mode: never spawn a new session
+        if self._attach_only:
+            logger.error("Attach-only: no shared session to attach to")
+            return False
 
         if self._tmux_session_exists():
             return True
@@ -1472,30 +1516,172 @@ class BaseBot:
         except OSError as e:
             logger.warning("Failed to clean stale pending file: %s", e)
 
-    def _get_transcript_line_count(self) -> int:
-        """
-        Count lines in the Claude JSONL transcript for Layer 3 position tracking.
+    def _resolve_active_transcript(self) -> tuple[str | None, int]:
+        """Identify the ACTIVE Claude JSONL transcript and return its path and line count.
 
-        Returns:
-            Line count of the JSONL transcript, or 0 if unavailable
+        Uses the tmux session's pane PID to walk the process tree and find which
+        JSONL file the Claude process has open.  Falls back to most-recently-modified
+        JSONL that was touched in the last 5 minutes.  Returns (None, 0) when no
+        active transcript can be identified — safe default that resets the cursor.
         """
         slug = str(self.work_dir).replace("/", "-")
-        # Look for transcript files matching the session pattern
         projects_dir = Path.home() / ".claude" / "projects" / slug
         if not projects_dir.exists():
-            return 0
+            return None, 0
 
-        # Find the most recent JSONL transcript
-        jsonl_files = sorted(projects_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+        jsonl_files = list(projects_dir.glob("*.jsonl"))
         if not jsonl_files:
-            return 0
+            return None, 0
 
+        # Strategy 1: find the JSONL open by a child of the tmux pane
+        pane_pid = self._get_tmux_pane_pid()
+        if pane_pid:
+            target_names = {f.name for f in jsonl_files}
+            found = self._find_open_jsonl(pane_pid, projects_dir, target_names)
+            if found:
+                return str(found), self._count_file_lines(found)
+
+        # Strategy 2: most recently modified JSONL, but only if touched < 5 min ago
+        now = time.time()
+        recent = sorted(
+            ((f, f.stat().st_mtime) for f in jsonl_files),
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        if recent and (now - recent[0][1]) < 300:
+            return str(recent[0][0]), self._count_file_lines(recent[0][0])
+
+        return None, 0
+
+    def _find_open_jsonl(self, pane_pid: int, projects_dir: Path, target_names: set[str]) -> Path | None:
+        """Scan /proc fd links for descendant PIDs to find an open JSONL in *projects_dir*."""
+        child_pids = self._get_descendant_pids(pane_pid)
+        for pid in child_pids:
+            match = self._scan_pid_fds(pid, projects_dir, target_names)
+            if match:
+                return match
+        return None
+
+    @staticmethod
+    def _scan_pid_fds(pid: int, projects_dir: Path, target_names: set[str]) -> Path | None:
+        """Check /proc/<pid>/fd/ for an open JSONL matching *target_names*."""
+        fd_dir = Path(f"/proc/{pid}/fd")
         try:
-            text = jsonl_files[0].read_text(encoding="utf-8").strip()
+            entries = list(fd_dir.iterdir())
+        except OSError as e:
+            logger.info("Cannot list fds for pid %d: %s", pid, e)
+            return None
+        for fd in entries:
+            try:
+                target = fd.resolve()
+            except OSError as e:
+                logger.info("Cannot resolve fd %s: %s", fd.name, e)
+                continue
+            if target.parent == projects_dir and target.name in target_names:
+                return target
+        return None
+
+    def _get_tmux_pane_pid(self) -> int | None:
+        """Get the shell PID of the first pane in the current tmux session."""
+        try:
+            result = subprocess.run(
+                ["tmux", "list-panes", "-t", self.session_name, "-F", "#{pane_pid}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return int(result.stdout.strip().split("\n")[0])
+        except (subprocess.TimeoutExpired, OSError, ValueError) as e:
+            logger.info("Could not get tmux pane PID: %s", e)
+        return None
+
+    @staticmethod
+    def _get_descendant_pids(parent_pid: int) -> list[int]:
+        """Walk /proc to collect all descendant PIDs of *parent_pid*."""
+        children: dict[int, list[int]] = {}
+        try:
+            for entry in Path("/proc").iterdir():
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    stat_text = (entry / "stat").read_text(encoding="utf-8")
+                    ppid = int(stat_text.split(") ")[1].split()[1])
+                    children.setdefault(ppid, []).append(int(entry.name))
+                except (OSError, IndexError, ValueError) as e:
+                    logger.info("Skipping /proc/%s/stat: %s", entry.name, e)
+                    continue
+        except OSError as e:
+            logger.info("Cannot scan /proc for descendant PIDs: %s", e)
+            return []
+        result: list[int] = []
+        queue = children.get(parent_pid, [])[:]
+        while queue:
+            pid = queue.pop()
+            result.append(pid)
+            queue.extend(children.get(pid, []))
+        return result
+
+    @staticmethod
+    def _count_file_lines(path: Path) -> int:
+        """Count newline-delimited lines in *path*."""
+        try:
+            text = path.read_text(encoding="utf-8").strip()
             return len(text.split("\n")) if text else 0
         except OSError as e:
             logger.warning("Could not read transcript for line count: %s", e)
             return 0
+
+    def _get_transcript_line_count(self) -> int:
+        """Count lines in the active JSONL transcript (compat shim)."""
+        _, count = self._resolve_active_transcript()
+        return count
+
+    def _write_mirror_mapping(self) -> None:
+        """Write persistent mirror mapping file per THE CONTRACT (TDPLAN-0009).
+
+        Written at first successful attach AND rewritten whenever the active
+        transcript changes (session restart).  @hooks reads this every turn
+        to find the chat_id and cursor for mirror delivery.
+        """
+        if not self._attach_only:
+            return
+
+        chat_id = self._active_chat_id or getattr(self, "_config_chat_id", None)
+        if chat_id is None:
+            return
+
+        transcript_path, line_count = self._resolve_active_transcript()
+
+        if self._mirror_mapping_written:
+            if transcript_path == self._last_transcript_path:
+                return
+            logger.info(
+                "Transcript changed (%s → %s) — rewriting mirror mapping",
+                self._last_transcript_path,
+                transcript_path,
+            )
+
+        mapping_dir = Path.home() / ".aipass" / "telegram_bots"
+        mapping_dir.mkdir(parents=True, exist_ok=True)
+        mapping_file = mapping_dir / f"bot-{self.bot_id}.json"
+
+        mapping = {
+            "chat_id": chat_id,
+            "bot_token": self.bot_token,
+            "session_name": self.session_name,
+            "work_dir": str(self.work_dir),
+            "mirror": True,
+            "transcript_line_after": line_count,
+        }
+
+        try:
+            mapping_file.write_text(json.dumps(mapping, indent=2), encoding="utf-8")
+            self._mirror_mapping_written = True
+            self._last_transcript_path = transcript_path
+            logger.info("Mirror mapping written: %s (cursor=%d)", mapping_file, line_count)
+        except OSError as e:
+            logger.error("Failed to write mirror mapping: %s", e)
 
     # =============================================
     # HEARTBEAT THREAD
@@ -1520,8 +1706,8 @@ class BaseBot:
                 if self._heartbeat_stop.is_set():
                     break
 
-                # Only update if pending file still exists and tmux alive
-                if not self.pending_file.exists():
+                # Stop if response has been delivered or tmux died
+                if self._is_pending_delivered():
                     break
                 if not self._tmux_session_exists():
                     break
@@ -1539,6 +1725,17 @@ class BaseBot:
         if self._heartbeat_thread is not None and self._heartbeat_thread.is_alive():
             self._heartbeat_thread.join(timeout=5)
         self._heartbeat_thread = None
+
+    def _is_pending_delivered(self) -> bool:
+        """Check if the pending file has been marked as delivered by @hooks."""
+        if not self.pending_file.exists():
+            return True
+        try:
+            data = json.loads(self.pending_file.read_text(encoding="utf-8"))
+            return bool(data.get("delivered"))
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to read pending file %s: %s", self.pending_file, e)
+            return False
 
     @staticmethod
     def _format_elapsed(seconds: float) -> str:
@@ -1715,32 +1912,45 @@ class BaseBot:
         self._monitor_streamer.start()
         logger.info("Boot-started monitor streamer (chat_id=%s, mode=%s)", chat_id, mode)
 
+    def _monitor_subscription_file(self) -> Path:
+        """Return path to the local monitor subscription file."""
+        return Path.home() / ".aipass" / "telegram_bots" / f".{self.bot_id}_monitor.json"
+
     def _load_monitor_subscription(self) -> dict | None:
-        """Load monitor subscription from the @api secrets store."""
-        try:
-            result = _api_get_secret("telegram", "monitor", as_json=True)
-            if isinstance(result, dict) and result.get("chat_id"):
-                return result
+        """Load monitor subscription from local state file."""
+        sub_file = self._monitor_subscription_file()
+        if not sub_file.exists():
             return None
-        except Exception as e:
+        try:
+            data = json.loads(sub_file.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("chat_id"):
+                return data
+            return None
+        except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to load monitor subscription: %s", e)
             return None
 
     def _save_monitor_subscription(self, chat_id: int, mode: str) -> bool:
-        """Persist monitor subscription to the @api secrets store."""
+        """Persist monitor subscription to local state file."""
+        sub_file = self._monitor_subscription_file()
         try:
-            _api_set_secret("telegram", "monitor", {"chat_id": chat_id, "mode": mode}, as_json=True)
+            sub_file.parent.mkdir(parents=True, exist_ok=True)
+            sub_file.write_text(
+                json.dumps({"chat_id": chat_id, "mode": mode}, indent=2),
+                encoding="utf-8",
+            )
             return True
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to save monitor subscription: %s", e)
             return False
 
     def _clear_monitor_subscription(self) -> bool:
         """Clear persisted monitor subscription."""
+        sub_file = self._monitor_subscription_file()
         try:
-            _api_set_secret("telegram", "monitor", {}, as_json=True)
+            sub_file.unlink(missing_ok=True)
             return True
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to clear monitor subscription: %s", e)
             return False
 
@@ -1935,9 +2145,10 @@ if __name__ == "__main__":
         allowed_user_ids=config.get("allowed_user_ids", []),
         branch_name=config.get("branch_name"),
         shared_session=config.get("shared_session"),
+        attach_only=config.get("attach_only", False),
     )
 
-    if hasattr(bot, "_config_chat_id") and config.get("chat_id"):
+    if config.get("chat_id"):
         bot._config_chat_id = config["chat_id"]
 
     sys.exit(bot.run())

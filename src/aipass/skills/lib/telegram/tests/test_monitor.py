@@ -1,8 +1,16 @@
+# =================== AIPass ====================
+# Name: test_monitor.py
+# Description: Tests for /monitor command — system-wide log subscription (DPLAN-0221)
+# Version: 1.0.0
+# Created: 2026-06-29
+# Modified: 2026-06-29
+# =============================================
+
 """
 Tests for /monitor command — system-wide log subscription feature (DPLAN-0221).
 
 Tests cover:
-  - Subscribe persists {chat_id, mode} via @api set_secret
+  - Subscribe persists {chat_id, mode} to local file
   - _boot_monitor reads persisted subscription and starts the streamer
   - LogStreamer level_filter: default keeps WARNING/ERROR/CRITICAL, drops INFO
   - LogStreamer level_filter: 'all' keeps everything
@@ -10,6 +18,8 @@ Tests cover:
   - /monitor off clears the subscription
   - /monitor command routing (on, all, off, status, bare)
 """
+
+from pathlib import Path
 
 import pytest
 from unittest.mock import patch, MagicMock
@@ -25,6 +35,7 @@ from apps.handlers.log_streamer import LogStreamer  # type: ignore[import-not-fo
 @pytest.fixture
 def _patch_base_bot_deps(tmp_path):
     """Patch heavy BaseBot dependencies to allow lightweight instantiation."""
+    sub_file = tmp_path / "monitor_sub.json"
     patches = [
         patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
         patch("apps.handlers.base_bot.signal.signal"),
@@ -32,13 +43,13 @@ def _patch_base_bot_deps(tmp_path):
     ]
     for p in patches:
         p.start()
-    yield
+    yield sub_file
     for p in patches:
         p.stop()
 
 
 def _make_bot(tmp_path, _patch_base_bot_deps):
-    """Create a BaseBot with monitor subscription mocked."""
+    """Create a BaseBot with monitor subscription redirected to tmp_path."""
     from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
 
     workdir = tmp_path / "workdir"
@@ -51,6 +62,9 @@ def _make_bot(tmp_path, _patch_base_bot_deps):
         allowed_user_ids=[111],
         branch_name=None,
     )
+    # Redirect subscription file to tmp_path so tests don't touch real HOME
+    sub_file: Path = _patch_base_bot_deps
+    bot._monitor_subscription_file = lambda: sub_file  # type: ignore[assignment]
     return bot
 
 
@@ -62,35 +76,38 @@ def _make_bot(tmp_path, _patch_base_bot_deps):
 class TestSubscribePersists:
     """Verify _monitor_subscribe persists {chat_id, mode} and can be reloaded."""
 
-    def test_subscribe_calls_set_secret(self, tmp_path, _patch_base_bot_deps):
+    def test_subscribe_writes_file(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        sub_file: Path = _patch_base_bot_deps
         with (
-            patch("apps.handlers.base_bot._api_set_secret") as mock_set,
-            patch("apps.handlers.base_bot._api_get_secret", return_value=None),
             patch.object(bot, "send_message"),
             patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
         ):
             MockStreamer.return_value = MagicMock()
             bot._monitor_subscribe(42, "default")
 
-            mock_set.assert_called_once_with("telegram", "monitor", {"chat_id": 42, "mode": "default"}, as_json=True)
+            import json
+
+            data = json.loads(sub_file.read_text())
+            assert data == {"chat_id": 42, "mode": "default"}
 
     def test_subscribe_roundtrip_reload(self, tmp_path, _patch_base_bot_deps):
-        """set_secret data can be read back by _load_monitor_subscription."""
+        """Written file can be read back by _load_monitor_subscription."""
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        stored = {"chat_id": 42, "mode": "all"}
+        sub_file: Path = _patch_base_bot_deps
+        import json
 
-        with patch("apps.handlers.base_bot._api_get_secret", return_value=stored):
-            result = bot._load_monitor_subscription()
+        sub_file.write_text(json.dumps({"chat_id": 42, "mode": "all"}))
 
-        assert result == stored
+        result = bot._load_monitor_subscription()
+
+        assert result == {"chat_id": 42, "mode": "all"}
         assert result["chat_id"] == 42
         assert result["mode"] == "all"
 
     def test_subscribe_starts_streamer(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         with (
-            patch("apps.handlers.base_bot._api_set_secret"),
             patch.object(bot, "send_message"),
             patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
         ):
@@ -112,7 +129,6 @@ class TestSubscribePersists:
     def test_subscribe_sends_confirmation(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         with (
-            patch("apps.handlers.base_bot._api_set_secret"),
             patch.object(bot, "send_message") as mock_send,
             patch("apps.handlers.base_bot.LogStreamer", return_value=MagicMock()),
         ):
@@ -127,7 +143,6 @@ class TestSubscribePersists:
         bot._monitor_streamer = old_streamer
 
         with (
-            patch("apps.handlers.base_bot._api_set_secret"),
             patch.object(bot, "send_message"),
             patch("apps.handlers.base_bot.LogStreamer", return_value=MagicMock()),
         ):
@@ -136,10 +151,9 @@ class TestSubscribePersists:
 
     def test_subscribe_aborts_on_save_failure(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        with (
-            patch("apps.handlers.base_bot._api_set_secret", side_effect=RuntimeError("boom")),
-            patch.object(bot, "send_message") as mock_send,
-        ):
+        # Point subscription file at an unwritable path to trigger OSError
+        bot._monitor_subscription_file = lambda: Path("/dev/null/impossible/sub.json")  # type: ignore[assignment]
+        with patch.object(bot, "send_message") as mock_send:
             bot._monitor_subscribe(42, "default")
             msg = mock_send.call_args[0][1]
             assert "Failed" in msg
@@ -156,12 +170,12 @@ class TestBootMonitor:
 
     def test_boot_starts_streamer_from_persisted(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        stored = {"chat_id": 42, "mode": "default"}
+        sub_file: Path = _patch_base_bot_deps
+        import json
 
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value=stored),
-            patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
-        ):
+        sub_file.write_text(json.dumps({"chat_id": 42, "mode": "default"}))
+
+        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
             mock_instance = MagicMock()
             MockStreamer.return_value = mock_instance
 
@@ -179,31 +193,29 @@ class TestBootMonitor:
 
     def test_boot_noop_when_no_subscription(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value=None),
-            patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
-        ):
+        # No file written — subscription absent
+        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
             bot._boot_monitor()
             MockStreamer.assert_not_called()
             assert bot._monitor_streamer is None
 
     def test_boot_noop_when_empty_subscription(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value={}),
-            patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
-        ):
+        sub_file: Path = _patch_base_bot_deps
+        sub_file.write_text("{}")
+
+        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
             bot._boot_monitor()
             MockStreamer.assert_not_called()
 
     def test_boot_respects_mode_all(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        stored = {"chat_id": 99, "mode": "all"}
+        sub_file: Path = _patch_base_bot_deps
+        import json
 
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value=stored),
-            patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
-        ):
+        sub_file.write_text(json.dumps({"chat_id": 99, "mode": "all"}))
+
+        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
             MockStreamer.return_value = MagicMock()
             bot._boot_monitor()
             MockStreamer.assert_called_once_with(
@@ -344,10 +356,7 @@ class TestMonitorOff:
         mock_streamer = MagicMock()
         bot._monitor_streamer = mock_streamer
 
-        with (
-            patch("apps.handlers.base_bot._api_set_secret"),
-            patch.object(bot, "send_message"),
-        ):
+        with patch.object(bot, "send_message"):
             bot._monitor_unsubscribe(42)
 
         mock_streamer.stop.assert_called_once()
@@ -355,20 +364,19 @@ class TestMonitorOff:
 
     def test_off_clears_subscription(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        with (
-            patch("apps.handlers.base_bot._api_set_secret") as mock_set,
-            patch.object(bot, "send_message"),
-        ):
+        sub_file: Path = _patch_base_bot_deps
+        import json
+
+        sub_file.write_text(json.dumps({"chat_id": 42, "mode": "default"}))
+
+        with patch.object(bot, "send_message"):
             bot._monitor_unsubscribe(42)
 
-        mock_set.assert_called_once_with("telegram", "monitor", {}, as_json=True)
+        assert not sub_file.exists()
 
     def test_off_sends_confirmation(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        with (
-            patch("apps.handlers.base_bot._api_set_secret"),
-            patch.object(bot, "send_message") as mock_send,
-        ):
+        with patch.object(bot, "send_message") as mock_send:
             bot._monitor_unsubscribe(42)
 
         mock_send.assert_called_once()
@@ -378,10 +386,7 @@ class TestMonitorOff:
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         assert bot._monitor_streamer is None
 
-        with (
-            patch("apps.handlers.base_bot._api_set_secret"),
-            patch.object(bot, "send_message"),
-        ):
+        with patch.object(bot, "send_message"):
             bot._monitor_unsubscribe(42)
 
         assert bot._monitor_streamer is None
@@ -445,24 +450,23 @@ class TestMonitorStatus:
 
     def test_status_when_not_subscribed(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value=None),
-            patch.object(bot, "send_message") as mock_send,
-        ):
+        # No file written — no subscription
+        with patch.object(bot, "send_message") as mock_send:
             bot._monitor_status(42)
             msg = mock_send.call_args[0][1]
             assert "not subscribed" in msg
 
     def test_status_when_subscribed_and_running(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        sub_file: Path = _patch_base_bot_deps
+        import json
+
+        sub_file.write_text(json.dumps({"chat_id": 42, "mode": "default"}))
         mock_streamer = MagicMock()
         mock_streamer._running = True
         bot._monitor_streamer = mock_streamer
 
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value={"chat_id": 42, "mode": "default"}),
-            patch.object(bot, "send_message") as mock_send,
-        ):
+        with patch.object(bot, "send_message") as mock_send:
             bot._monitor_status(42)
             msg = mock_send.call_args[0][1]
             assert "streaming" in msg
@@ -470,12 +474,13 @@ class TestMonitorStatus:
 
     def test_status_shows_mode_label(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        sub_file: Path = _patch_base_bot_deps
+        import json
+
+        sub_file.write_text(json.dumps({"chat_id": 42, "mode": "all"}))
         bot._monitor_streamer = MagicMock(_running=True)
 
-        with (
-            patch("apps.handlers.base_bot._api_get_secret", return_value={"chat_id": 42, "mode": "all"}),
-            patch.object(bot, "send_message") as mock_send,
-        ):
+        with patch.object(bot, "send_message") as mock_send:
             bot._monitor_status(42)
             msg = mock_send.call_args[0][1]
             assert "firehose" in msg

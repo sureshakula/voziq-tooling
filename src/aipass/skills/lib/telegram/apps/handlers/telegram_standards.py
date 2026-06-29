@@ -1,5 +1,28 @@
+# =================== AIPass ====================
+# Name: telegram_standards.py
+# Description: Standard command registry, response builders, and helpers for Telegram bots
+# Version: 1.0.0
+# Created: 2026-02-24
+# Modified: 2026-06-29
+# =============================================
+
+"""
+Telegram Standards — shared command registry and response builders.
+
+Provides the canonical STANDARD_COMMANDS dict, text builder functions for
+/start, /help, /status, and /new responses, the BotFather setMyCommands
+payload builder, and the parse_command / handle_standard_command dispatcher
+used by BaseBot and all subclasses.
+
+All functions are pure (no side effects) except _tmux_session_exists which
+calls subprocess to check tmux state.
+"""
+
 import subprocess
 from typing import Optional
+
+from aipass.skills.apps.handlers.json import json_handler  # noqa: F401
+from aipass.prax import logger
 
 
 # =============================================
@@ -136,6 +159,7 @@ def build_status_text(
     uptime: Optional[str] = None,
     message_count: Optional[int] = None,
     chat_id: Optional[str | int] = None,
+    daemon_uptime: Optional[str] = None,
 ) -> str:
     """
     Build the /status response.
@@ -146,9 +170,10 @@ def build_status_text(
     Args:
         session_name: tmux session name (e.g., "telegram-assistant").
         branch_name: Branch name (e.g., "assistant").
-        uptime: Optional human-readable uptime string.
-        message_count: Optional count of messages processed.
+        uptime: Optional conversation uptime (resets on /new).
+        message_count: Optional count of messages in current conversation.
         chat_id: Optional Telegram chat ID to display.
+        daemon_uptime: Optional daemon process uptime (since boot).
 
     Returns:
         Formatted status text string.
@@ -165,6 +190,8 @@ def build_status_text(
         lines.append(f"Uptime: {uptime}")
     if message_count is not None:
         lines.append(f"Messages: {message_count}")
+    if daemon_uptime:
+        lines.append(f"Daemon up: {daemon_uptime}")
 
     return "\n".join(lines)
 
@@ -279,6 +306,8 @@ def handle_standard_command(
         - tuple[str, str]: ("new", response_text) for /new command
         - None: Command is not a standard command
     """
+    json_handler.log_operation("standard_command", {"command": command, "branch": branch_name})
+
     if command == "start":
         return build_welcome_text(
             bot_name=bot_name,
@@ -327,5 +356,5 @@ def _tmux_session_exists(session_name: str) -> bool:
         )
         return result.returncode == 0
     except FileNotFoundError:
-        # tmux not installed
+        logger.warning("tmux not found while checking session '%s'", session_name)
         return False
