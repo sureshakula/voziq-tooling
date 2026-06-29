@@ -384,9 +384,9 @@ class TestResolveActiveTranscript:
     def test_returns_none_when_no_jsonl_files(self, tmp_path, _patch_base_bot_deps):
         """Returns (None, 0) when projects dir exists but no JSONL files."""
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        slug = str(bot.work_dir).replace("/", "-")
+        slug = str(bot.work_dir).replace("\\", "-").replace("/", "-")
         projects_dir = tmp_path / ".claude" / "projects" / slug
-        projects_dir.mkdir(parents=True)
+        projects_dir.mkdir(parents=True, exist_ok=True)
 
         with patch("pathlib.Path.home", return_value=tmp_path):
             path, count = bot._resolve_active_transcript()
@@ -396,9 +396,9 @@ class TestResolveActiveTranscript:
     def test_falls_back_to_recent_mtime(self, tmp_path, _patch_base_bot_deps):
         """Uses most recent JSONL when PID check fails and file is < 5min old."""
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        slug = str(bot.work_dir).replace("/", "-")
+        slug = str(bot.work_dir).replace("\\", "-").replace("/", "-")
         projects_dir = tmp_path / ".claude" / "projects" / slug
-        projects_dir.mkdir(parents=True)
+        projects_dir.mkdir(parents=True, exist_ok=True)
 
         transcript = projects_dir / "abc123.jsonl"
         transcript.write_text('{"type":"message"}\n{"type":"response"}\n')
@@ -417,9 +417,9 @@ class TestResolveActiveTranscript:
         import os
 
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        slug = str(bot.work_dir).replace("/", "-")
+        slug = str(bot.work_dir).replace("\\", "-").replace("/", "-")
         projects_dir = tmp_path / ".claude" / "projects" / slug
-        projects_dir.mkdir(parents=True)
+        projects_dir.mkdir(parents=True, exist_ok=True)
 
         transcript = projects_dir / "old.jsonl"
         transcript.write_text('{"type":"message"}\n')

@@ -1524,7 +1524,7 @@ class BaseBot:
         JSONL that was touched in the last 5 minutes.  Returns (None, 0) when no
         active transcript can be identified — safe default that resets the cursor.
         """
-        slug = str(self.work_dir).replace("/", "-")
+        slug = str(self.work_dir).replace("\\", "-").replace("/", "-")
         projects_dir = Path.home() / ".claude" / "projects" / slug
         if not projects_dir.exists():
             return None, 0

@@ -151,9 +151,10 @@ class TestSubscribePersists:
 
     def test_subscribe_aborts_on_save_failure(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
-        # Point subscription file at an unwritable path to trigger OSError
-        bot._monitor_subscription_file = lambda: Path("/dev/null/impossible/sub.json")  # type: ignore[assignment]
-        with patch.object(bot, "send_message") as mock_send:
+        with (
+            patch.object(bot, "_save_monitor_subscription", return_value=False),
+            patch.object(bot, "send_message") as mock_send,
+        ):
             bot._monitor_subscribe(42, "default")
             msg = mock_send.call_args[0][1]
             assert "Failed" in msg
