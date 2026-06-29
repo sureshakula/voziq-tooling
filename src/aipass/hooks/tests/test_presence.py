@@ -1,6 +1,8 @@
 """Tests for the presence service module."""
 
 import json
+import sys
+from contextlib import nullcontext
 from unittest.mock import patch
 
 import pytest
@@ -31,11 +33,9 @@ def patch_paths(presence_dir):
 
 @pytest.fixture
 def patch_flock():
-    """Patch flock to be a no-op (avoid real file locking in tests)."""
-    with patch("aipass.hooks.apps.modules.presence.fcntl") as mock_fcntl:
-        mock_fcntl.LOCK_EX = 2
-        mock_fcntl.LOCK_UN = 8
-        yield mock_fcntl
+    """Make the presence lock a no-op (avoid real file locking in tests)."""
+    with patch.object(presence, "_presence_lock", side_effect=lambda: nullcontext()):
+        yield
 
 
 # ── claim tests ──────────────────────────────────────────────────────────
@@ -390,6 +390,7 @@ class TestLiveness:
 
 
 class TestFileLocking:
+    @pytest.mark.skipif(sys.platform == "win32", reason="fcntl is POSIX-only")
     def test_presence_lock_acquires_flock(self, patch_paths):
         with patch("aipass.hooks.apps.modules.presence.fcntl") as mock_fcntl:
             mock_fcntl.LOCK_EX = 2
