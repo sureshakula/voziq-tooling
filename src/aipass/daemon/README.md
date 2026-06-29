@@ -207,11 +207,11 @@ No native offset field. To stagger jobs, seed different `last_run` values in `da
 
 ## Test Suite
 
-- **448 tests** across 19 test files
-- 8/8 modules covered, 43/51 public functions tested
+- **486 tests** across 15 test files
+- 8/8 modules covered, 30/36 public functions tested
 - Seedgo audit: **100%** across all standards
 
-*Last Updated: 2026-04-07*
+*Last Updated: 2026-06-29*
 
 ---
 [← Back to AIPass](../../../README.md)
