@@ -241,15 +241,20 @@ def hook_workspace(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def test_t2a_rm_gate_blocks(clean_venv: CleanVenv, hook_workspace: Path) -> None:
-    """rm -rf is blocked via {"decision":"block"} on STDOUT with exit code 0.
+    """rm -rf is blocked via {"decision":"block"} on STDOUT with exit code 2.
 
-    Corrected contract (NOT exit 2): the bridge writes the engine's block JSON
-    to stdout and exits 0.
+    Block contract: every security gate (rm/git/edit/subagent/presence) returns
+    exit_code 2 plus a block-JSON decision on stdout, and the bridge propagates
+    that exit code. The non-zero exit is the cross-event block signal — it is
+    what lets a UserPromptSubmit gate (presence_gate) actually cancel a prompt,
+    not just PreToolUse. Claude Code surfaces the stdout decision reason either
+    way. (Pre-FPLAN-0289 the bridge swallowed the exit code, so this test once
+    pinned exit 0; beb048d corrected the bridge to propagate it.)
     """
     sentinel = f"e2e-block-{uuid.uuid4()}"
     proc = _fire_hook(clean_venv, hook_workspace, "rm -rf /tmp/x", sentinel)
 
-    assert proc.returncode == 0, f"expected exit 0, got {proc.returncode}. stderr:\n{proc.stderr}"
+    assert proc.returncode == 2, f"expected exit 2 (block), got {proc.returncode}. stderr:\n{proc.stderr}"
     decision = json.loads(proc.stdout)
     assert decision.get("decision") == "block", f"stdout was: {proc.stdout!r}"
 
