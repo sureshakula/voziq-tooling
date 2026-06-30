@@ -27,6 +27,29 @@ _OCCUPIED_MOCK = _make_presence_mock(
 )
 
 
+class TestResolveBranch:
+    def test_uses_hook_data_cwd(self, tmp_path):
+        branch_dir = tmp_path / "devpulse"
+        branch_dir.mkdir()
+        (branch_dir / ".trinity").mkdir()
+        assert presence_gate._resolve_branch({"cwd": str(branch_dir)}) == "devpulse"
+
+    def test_walks_up_to_branch_root(self, tmp_path):
+        branch_dir = tmp_path / "hooks"
+        (branch_dir / "apps" / "modules").mkdir(parents=True)
+        sub = branch_dir / "apps" / "modules"
+        assert presence_gate._resolve_branch({"cwd": str(sub)}) == "hooks"
+
+    def test_stops_at_repo_root(self, tmp_path):
+        (tmp_path / ".git").mkdir()
+        assert presence_gate._resolve_branch({"cwd": str(tmp_path)}) == tmp_path.name
+
+    def test_fallback_to_path_cwd_when_no_cwd_in_hook_data(self):
+        result = presence_gate._resolve_branch({})
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+
 class TestHandle:
     def test_first_prompt_acquired(self):
         with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
@@ -72,16 +95,27 @@ class TestHandle:
                 result = presence_gate.handle({})
         assert result["exit_code"] == 0
 
-    def test_block_message_includes_branch(self):
-        mock_cwd = MagicMock()
-        mock_cwd.name = "devpulse"
+    def test_block_message_includes_branch(self, tmp_path):
+        branch_dir = tmp_path / "devpulse"
+        branch_dir.mkdir()
+        (branch_dir / ".trinity").mkdir()
         with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
             with patch("importlib.import_module", return_value=_OCCUPIED_MOCK):
-                with patch.object(presence_gate.Path, "cwd", return_value=mock_cwd):
-                    result = presence_gate.handle({})
+                result = presence_gate.handle({"cwd": str(branch_dir)})
         parsed = json.loads(result["stdout"])
         assert "devpulse" in parsed["reason"]
         assert "attach" in parsed["reason"].lower()
+
+    def test_branch_resolved_from_hook_data_cwd(self, tmp_path):
+        branch_dir = tmp_path / "api"
+        branch_dir.mkdir()
+        (branch_dir / ".trinity").mkdir()
+        mock = _make_presence_mock({"status": "ACQUIRED"})
+        with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
+            with patch("importlib.import_module", return_value=mock):
+                presence_gate.handle({"cwd": str(branch_dir)})
+        mock.claim.assert_called_once()
+        assert mock.claim.call_args[1]["branch"] == "api"
 
 
 class TestHandleStop:
@@ -102,3 +136,12 @@ class TestHandleStop:
         with patch("importlib.import_module", side_effect=ImportError("no module")):
             result = presence_gate.handle_stop({})
         assert result["exit_code"] == 0
+
+    def test_stop_uses_hook_data_cwd(self, tmp_path):
+        branch_dir = tmp_path / "skills"
+        branch_dir.mkdir()
+        (branch_dir / ".trinity").mkdir()
+        mock = _make_presence_mock({"status": "ACQUIRED"})
+        with patch("importlib.import_module", return_value=mock):
+            presence_gate.handle_stop({"cwd": str(branch_dir)})
+        mock.release.assert_called_once_with("skills")

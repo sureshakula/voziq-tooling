@@ -29,6 +29,19 @@ _ALLOW = {"exit_code": 0, "stdout": ""}
 _NON_BLOCKING_SESSION_TYPES = frozenset({"dispatched", "daemon"})
 
 
+def _resolve_branch(hook_data: dict) -> str:
+    """Resolve the branch name from hook_data's cwd (session dir, not process cwd)."""
+    cwd = hook_data.get("cwd", "") or str(Path.cwd())
+    search = Path(cwd).resolve()
+    while search.parent != search:
+        if (search / ".trinity").is_dir() or (search / "apps").is_dir():
+            return search.name
+        if (search / "pyproject.toml").exists() or (search / ".git").is_dir():
+            break
+        search = search.parent
+    return Path(cwd).name
+
+
 def handle(hook_data: dict) -> dict:
     """UserPromptSubmit gate — enforce one live session per branch.
 
@@ -47,7 +60,7 @@ def handle(hook_data: dict) -> dict:
         if session_type in _NON_BLOCKING_SESSION_TYPES:
             return _ALLOW
 
-        branch = Path.cwd().name
+        branch = _resolve_branch(hook_data)
         session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
 
         presence = importlib.import_module("aipass.hooks.apps.modules.presence")
@@ -83,7 +96,7 @@ def handle_stop(hook_data: dict) -> dict:
     Returns:
         Result dict (always allows — Stop is informational).
     """
-    branch = Path.cwd().name
+    branch = _resolve_branch(hook_data)
     try:
         presence = importlib.import_module("aipass.hooks.apps.modules.presence")
         released = presence.release(branch)

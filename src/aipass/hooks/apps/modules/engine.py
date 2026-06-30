@@ -89,17 +89,17 @@ def _matches(matcher: str, value: str) -> bool:
     return value in matcher.split("|")
 
 
-def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
-    """Core dispatch — run hooks for event, return merged stdout."""
+def dispatch(event_type: str, stdin_data: str, config: dict) -> tuple[str, int]:
+    """Core dispatch — run hooks for event, return (merged_stdout, exit_code)."""
     if not config.get("hooks_enabled", True):
         logger.info("[HOOKS] all hooks disabled")
         _log({"ts": time.time(), "event": event_type, "action": "all_hooks_disabled"})
-        return ""
+        return "", 0
 
     event_hooks = config.get(event_type, {})
     if not event_hooks:
         _log({"ts": time.time(), "event": event_type, "action": "no_hooks_configured"})
-        return ""
+        return "", 0
 
     match_value = ""
     parsed = {}
@@ -196,7 +196,7 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
                         "total_ms": round(total_ms, 1),
                     }
                 )
-                return result["stdout"]
+                return result["stdout"], 2
 
             logger.error(
                 "[HOOKS] %s.%s CRASHED exit=2: %s",
@@ -229,7 +229,7 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> str:
         }
     )
 
-    return "\n".join(outputs)
+    return "\n".join(outputs), 0
 
 
 # =============================================================================

@@ -53,9 +53,11 @@ def main() -> None:
         hook_def = full_config.get(event_type, {}).get(hook_filter, {})
         config = {"hooks_enabled": True, event_type: {hook_filter: hook_def}}
 
-    output = dispatch(event_type, stdin_data, config)
+    output, exit_code = dispatch(event_type, stdin_data, config)
     if output:
         sys.stdout.write(output)
+    if exit_code:
+        sys.exit(exit_code)
 
 
 if __name__ == "__main__":

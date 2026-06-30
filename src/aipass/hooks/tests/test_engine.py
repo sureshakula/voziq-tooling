@@ -107,13 +107,15 @@ class TestDispatch:
         config = {"hooks_enabled": False}
         with patch("aipass.hooks.apps.modules.engine._log"):
             result = dispatch("UserPromptSubmit", "{}", config)
-        assert result == ""
+        assert result[0] == ""
+        assert result[1] == 0
 
     def test_no_hooks_for_event_returns_empty(self, mock_logger):
         config = {"hooks_enabled": True}
         with patch("aipass.hooks.apps.modules.engine._log"):
             result = dispatch("UnknownEvent", "{}", config)
-        assert result == ""
+        assert result[0] == ""
+        assert result[1] == 0
 
     def test_disabled_hook_skipped(self, mock_logger):
         config = {
@@ -130,7 +132,8 @@ class TestDispatch:
             with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
                 result = dispatch("PreToolUse", '{"tool_name":"Edit"}', config)
         mock_run.assert_not_called()
-        assert result == ""
+        assert result[0] == ""
+        assert result[1] == 0
 
     def test_matcher_filters_hooks(self, mock_logger):
         config = {
@@ -165,7 +168,8 @@ class TestDispatch:
                 mock_run.return_value = {"exit_code": 0, "stdout": "edit_output", "stderr": "", "elapsed_ms": 10}
                 result = dispatch("PreToolUse", '{"tool_name":"Edit"}', config)
         mock_run.assert_called_once()
-        assert "edit_output" in result
+        assert "edit_output" in result[0]
+        assert result[1] == 0
 
     def test_multiple_hooks_concatenate_output(self, mock_logger):
         config = {
@@ -182,8 +186,9 @@ class TestDispatch:
                     {"exit_code": 0, "stdout": "output_B", "stderr": "", "elapsed_ms": 10},
                 ]
                 result = dispatch("UserPromptSubmit", '{"user_prompt":"test"}', config)
-        assert "output_A" in result
-        assert "output_B" in result
+        assert "output_A" in result[0]
+        assert "output_B" in result[0]
+        assert result[1] == 0
 
     def test_exit2_with_block_json_bails(self, mock_logger):
         config = {
@@ -199,8 +204,9 @@ class TestDispatch:
                 mock_run.return_value = {"exit_code": 2, "stdout": block_json, "stderr": "", "elapsed_ms": 10}
                 result = dispatch("PreToolUse", '{"tool_name":"Edit"}', config)
         assert mock_run.call_count == 1
-        parsed = json.loads(result)
+        parsed = json.loads(result[0])
         assert parsed["decision"] == "block"
+        assert result[1] == 2
 
     def test_exit2_without_json_is_crash_not_block(self, mock_logger):
         config = {
@@ -218,7 +224,8 @@ class TestDispatch:
                 ]
                 result = dispatch("PreToolUse", '{"tool_name":"Edit"}', config)
         assert mock_run.call_count == 2
-        assert "survived" in result
+        assert "survived" in result[0]
+        assert result[1] == 0
 
     def test_hook_with_custom_timeout(self, mock_logger):
         config = {
@@ -261,7 +268,8 @@ class TestDispatch:
             with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
                 mock_run.return_value = {"exit_code": 0, "stdout": "ok", "stderr": "", "elapsed_ms": 5}
                 result = dispatch("UserPromptSubmit", "not json at all{{{", config)
-        assert "ok" in result
+        assert "ok" in result[0]
+        assert result[1] == 0
 
 
 class TestFindProjectConfig:
@@ -448,7 +456,7 @@ class TestExceptionContracts:
     def test_dispatch_with_none_config_event_returns_empty(self, mock_logger):
         with patch("aipass.hooks.apps.modules.engine._log"):
             result = dispatch("Stop", "{}", {"hooks_enabled": True})
-        assert result == ""
+        assert result == ("", 0)
 
     def test_run_hook_timeout_returns_negative_exit(self, mock_subprocess, mock_logger):
         mock_subprocess.side_effect = subprocess.TimeoutExpired("cmd", 30)
@@ -508,10 +516,13 @@ class TestInitProvisioning:
         assert len(lines) == 2
         assert json.loads(lines[0])["existing"] is True
 
-    def test_dispatch_returns_string(self, mock_logger):
+    def test_dispatch_returns_tuple(self, mock_logger):
         with patch("aipass.hooks.apps.modules.engine._log"):
             result = dispatch("Stop", "{}", {"hooks_enabled": True})
-        assert isinstance(result, str)
+        assert isinstance(result, tuple)
+        assert isinstance(result[0], str)
+        assert isinstance(result[1], int)
+        assert result == ("", 0)
 
 
 class TestConftest:
@@ -666,7 +677,8 @@ class TestErrorResilienceExtended:
             with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
                 mock_run.return_value = {"exit_code": 0, "stdout": "ok", "stderr": "", "elapsed_ms": 5}
                 result = dispatch("Stop", "", config)
-        assert "ok" in result
+        assert "ok" in result[0]
+        assert result[1] == 0
 
     def test_config_with_nonexistent_dir(self, temp_test_dir, mock_logger):
         nonexistent = temp_test_dir / "does_not_exist"
