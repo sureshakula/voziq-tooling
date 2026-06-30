@@ -131,6 +131,58 @@ def _write_presence(data: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Session PID resolution
+# ---------------------------------------------------------------------------
+
+
+def _read_proc_comm(pid: int) -> str:
+    """Read /proc/<pid>/comm. Returns empty string on failure."""
+    try:
+        return Path(f"/proc/{pid}/comm").read_text().strip()
+    except OSError as exc:
+        logger.info("[PRESENCE] Cannot read /proc/%d/comm: %s", pid, exc)
+        return ""
+
+
+def _read_proc_ppid(pid: int) -> int | None:
+    """Read PPid from /proc/<pid>/status. Returns None on failure."""
+    try:
+        for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+            if line.startswith("PPid:"):
+                return int(line.split()[1])
+    except OSError as exc:
+        logger.info("[PRESENCE] Cannot read /proc/%d/status: %s", pid, exc)
+    return None
+
+
+def _resolve_session_pid() -> int | None:
+    """Walk the parent process chain to find the persistent claude session PID.
+
+    The hook runs as an ephemeral subprocess — os.getpid() gives a PID that dies
+    in milliseconds. The owning claude session is a parent process with comm=claude.
+    Linux only (/proc). Returns None on non-Linux or if no claude ancestor found.
+    """
+    if sys.platform != "linux":
+        return None
+    pid = os.getpid()
+    ancestors = []
+    for _ in range(12):
+        comm = _read_proc_comm(pid)
+        if not comm:
+            break
+        ancestors.append(f"{pid}:{comm}")
+        if comm == "claude":
+            logger.info("[PRESENCE] Resolved session PID: %d (chain: %s)", pid, " -> ".join(ancestors))
+            return pid
+        ppid = _read_proc_ppid(pid)
+        if not ppid or ppid == pid:
+            break
+        pid = ppid
+    logger.info("[PRESENCE] No claude ancestor found (chain: %s)", " -> ".join(ancestors))
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Liveness detection
 # ---------------------------------------------------------------------------
 
@@ -144,7 +196,6 @@ def _is_pid_alive(pid: int) -> bool:
         logger.info("[PRESENCE] PID %d not found (dead)", pid)
         return False
     except PermissionError:
-        # Process exists but we can't signal it — treat as alive
         logger.info("[PRESENCE] PID %d exists but permission denied — treating as alive", pid)
         return True
     except OSError as exc:
@@ -164,7 +215,6 @@ def _cwd_matches(pid: int, expected_dir: str) -> bool:
         actual_cwd = os.readlink(f"/proc/{pid}/cwd")
         return str(Path(actual_cwd).resolve()) == str(Path(expected_dir).resolve())
     except (OSError, PermissionError):
-        # Cannot read /proc — be conservative, treat as NOT matching (stale)
         logger.info("[PRESENCE] Cannot read /proc/%d/cwd — treating as stale", pid)
         return False
 
@@ -202,13 +252,20 @@ def claim(
 ) -> dict:
     """Claim presence for a branch.
 
+    Records the persistent claude session PID (resolved via parent chain),
+    not the ephemeral hook subprocess PID. Fails OPEN if no claude ancestor found.
+
     Returns:
         {"status": "ACQUIRED"} on success, or
         {"status": "OCCUPIED", "pid": N, "session_id": "...",
          "work_dir": "...", "session_type": "..."}
         when a live session already owns the branch.
     """
-    my_pid = os.getpid()
+    session_pid = _resolve_session_pid()
+    if session_pid is None:
+        logger.info("[PRESENCE] No claude session PID resolved — allowing (fail-open)")
+        return {"status": "ACQUIRED"}
+
     now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     cwd = os.getcwd()
 
@@ -217,13 +274,12 @@ def claim(
         existing = data.get(branch)
 
         if existing:
-            result = _handle_existing(data, existing, branch, my_pid, now, session_id)
+            result = _handle_existing(data, existing, branch, session_pid, now, session_id)
             if result is not None:
                 return result
 
-        # No existing entry or stale holder — write the new entry
         data[branch] = {
-            "pid": my_pid,
+            "pid": session_pid,
             "session_id": session_id,
             "work_dir": cwd,
             "session_type": session_type,
@@ -232,7 +288,7 @@ def claim(
             "last_seen": now,
         }
         _write_presence(data)
-        logger.info("[PRESENCE] Acquired %s (PID %d)", branch, my_pid)
+        logger.info("[PRESENCE] Acquired %s (session PID %d)", branch, session_pid)
         return {"status": "ACQUIRED"}
 
 
@@ -281,23 +337,26 @@ def _handle_existing(
 
 
 def release(branch: str) -> bool:
-    """Release presence for a branch. Only the holder PID can release its own entry."""
-    my_pid = os.getpid()
+    """Release presence for a branch. Only the holder session can release its own entry."""
+    session_pid = _resolve_session_pid()
+    if session_pid is None:
+        logger.info("[PRESENCE] Release skipped for %s — no claude session PID resolved", branch)
+        return False
     with _presence_lock():
         data = _read_presence()
         if branch not in data:
             return False
-        if data[branch].get("pid") != my_pid:
+        if data[branch].get("pid") != session_pid:
             logger.info(
-                "[PRESENCE] Release skipped for %s — not our PID (ours=%d, holder=%d)",
+                "[PRESENCE] Release skipped for %s — not our session (ours=%d, holder=%d)",
                 branch,
-                my_pid,
+                session_pid,
                 data[branch].get("pid", 0),
             )
             return False
         del data[branch]
         _write_presence(data)
-        logger.info("[PRESENCE] Released %s (PID %d)", branch, my_pid)
+        logger.info("[PRESENCE] Released %s (session PID %d)", branch, session_pid)
         return True
 
 

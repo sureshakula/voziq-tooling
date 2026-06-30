@@ -119,29 +119,14 @@ class TestHandle:
 
 
 class TestHandleStop:
-    def test_stop_releases(self):
+    def test_stop_is_noop(self):
+        result = presence_gate.handle_stop({})
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_stop_does_not_call_presence(self):
         mock = _make_presence_mock({"status": "ACQUIRED"})
         with patch("importlib.import_module", return_value=mock):
-            result = presence_gate.handle_stop({})
-        assert result["exit_code"] == 0
-        mock.release.assert_called_once()
-
-    def test_stop_nothing_to_release(self):
-        mock = _make_presence_mock({"status": "ACQUIRED"}, release_result=False)
-        with patch("importlib.import_module", return_value=mock):
-            result = presence_gate.handle_stop({})
-        assert result["exit_code"] == 0
-
-    def test_stop_exception_handled(self):
-        with patch("importlib.import_module", side_effect=ImportError("no module")):
-            result = presence_gate.handle_stop({})
-        assert result["exit_code"] == 0
-
-    def test_stop_uses_hook_data_cwd(self, tmp_path):
-        branch_dir = tmp_path / "skills"
-        branch_dir.mkdir()
-        (branch_dir / ".trinity").mkdir()
-        mock = _make_presence_mock({"status": "ACQUIRED"})
-        with patch("importlib.import_module", return_value=mock):
-            presence_gate.handle_stop({"cwd": str(branch_dir)})
-        mock.release.assert_called_once_with("skills")
+            presence_gate.handle_stop({})
+        mock.release.assert_not_called()
+        mock.claim.assert_not_called()

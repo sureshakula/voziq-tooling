@@ -88,22 +88,10 @@ def handle(hook_data: dict) -> dict:
 
 
 def handle_stop(hook_data: dict) -> dict:
-    """Release presence on Stop event.
+    """No-op on Stop. Presence is NOT released per-turn.
 
-    Args:
-        hook_data: Parsed hook event dict from engine.
-
-    Returns:
-        Result dict (always allows — Stop is informational).
+    Stop fires at the end of every assistant turn, not just session end.
+    Releasing each turn would create a gap where a 2nd session wouldn't be blocked.
+    Stale detection (dead claude PID) handles cleanup when the session truly exits.
     """
-    branch = _resolve_branch(hook_data)
-    try:
-        presence = importlib.import_module("aipass.hooks.apps.modules.presence")
-        released = presence.release(branch)
-        if released:
-            logger.info("[presence_gate] released %s on Stop", branch)
-        else:
-            logger.info("[presence_gate] nothing to release for %s on Stop", branch)
-    except Exception as exc:
-        logger.warning("[presence_gate] release failed for %s: %s", branch, exc)
     return _ALLOW

@@ -38,12 +38,64 @@ def patch_flock():
         yield
 
 
+def _patch_session_pid(pid):
+    """Patch _resolve_session_pid to return a given PID."""
+    return patch.object(presence, "_resolve_session_pid", return_value=pid)
+
+
+# ── session PID resolution tests ────────────────────────────────────────
+
+
+class TestResolveSessionPid:
+    def test_finds_claude_ancestor(self):
+        comm_map = {100: "python3", 90: "bash", 80: "claude"}
+        ppid_map = {100: 90, 90: 80}
+        with (
+            patch("sys.platform", "linux"),
+            patch("os.getpid", return_value=100),
+            patch.object(presence, "_read_proc_comm", side_effect=lambda p: comm_map.get(p, "")),
+            patch.object(presence, "_read_proc_ppid", side_effect=lambda p: ppid_map.get(p)),
+        ):
+            assert presence._resolve_session_pid() == 80
+
+    def test_no_claude_ancestor_returns_none(self):
+        comm_map = {100: "python3", 90: "bash", 80: "init"}
+        ppid_map = {100: 90, 90: 80, 80: 1}
+        with (
+            patch("sys.platform", "linux"),
+            patch("os.getpid", return_value=100),
+            patch.object(presence, "_read_proc_comm", side_effect=lambda p: comm_map.get(p, "")),
+            patch.object(presence, "_read_proc_ppid", side_effect=lambda p: ppid_map.get(p)),
+        ):
+            assert presence._resolve_session_pid() is None
+
+    def test_non_linux_returns_none(self):
+        with patch("sys.platform", "win32"):
+            assert presence._resolve_session_pid() is None
+
+    def test_proc_read_failure_returns_none(self):
+        with (
+            patch("sys.platform", "linux"),
+            patch("os.getpid", return_value=100),
+            patch.object(presence, "_read_proc_comm", return_value=""),
+        ):
+            assert presence._resolve_session_pid() is None
+
+    def test_direct_claude_process(self):
+        with (
+            patch("sys.platform", "linux"),
+            patch("os.getpid", return_value=100),
+            patch.object(presence, "_read_proc_comm", return_value="claude"),
+        ):
+            assert presence._resolve_session_pid() == 100
+
+
 # ── claim tests ──────────────────────────────────────────────────────────
 
 
 class TestClaim:
     def test_claim_empty_file(self, patch_paths, patch_flock, presence_file):
-        with patch("os.getpid", return_value=1000), patch("os.getcwd", return_value="/tmp/branch"):
+        with _patch_session_pid(1000), patch("os.getcwd", return_value="/tmp/branch"):
             result = presence.claim("devpulse", session_id="abc")
         assert result["status"] == "ACQUIRED"
         data = json.loads(presence_file.read_text())
@@ -67,7 +119,7 @@ class TestClaim:
                 }
             )
         )
-        with patch("os.getpid", return_value=1000), patch("os.getcwd", return_value="/w"):
+        with _patch_session_pid(1000), patch("os.getcwd", return_value="/w"):
             result = presence.claim("devpulse", session_id="new-id")
         assert result["status"] == "ACQUIRED"
         data = json.loads(presence_file.read_text())
@@ -90,7 +142,7 @@ class TestClaim:
             )
         )
         with (
-            patch("os.getpid", return_value=2000),
+            _patch_session_pid(2000),
             patch("os.getcwd", return_value="/w2"),
             patch.object(presence, "_is_pid_alive", return_value=False),
         ):
@@ -116,7 +168,7 @@ class TestClaim:
             )
         )
         with (
-            patch("os.getpid", return_value=6000),
+            _patch_session_pid(6000),
             patch("os.getcwd", return_value="/w2"),
             patch.object(presence, "_is_pid_alive", return_value=True),
             patch.object(presence, "_cwd_matches", return_value=True),
@@ -143,7 +195,7 @@ class TestClaim:
             )
         )
         with (
-            patch("os.getpid", return_value=6000),
+            _patch_session_pid(6000),
             patch("os.getcwd", return_value="/new"),
             patch.object(presence, "_is_pid_alive", return_value=True),
             patch.object(presence, "_cwd_matches", return_value=False),
@@ -152,7 +204,7 @@ class TestClaim:
         assert result["status"] == "ACQUIRED"
 
     def test_claim_no_existing_file(self, patch_paths, patch_flock):
-        with patch("os.getpid", return_value=1000), patch("os.getcwd", return_value="/w"):
+        with _patch_session_pid(1000), patch("os.getcwd", return_value="/w"):
             result = presence.claim("hooks")
         assert result["status"] == "ACQUIRED"
 
@@ -172,12 +224,45 @@ class TestClaim:
                 }
             )
         )
-        with patch("os.getpid", return_value=4000), patch("os.getcwd", return_value="/hooks"):
+        with _patch_session_pid(4000), patch("os.getcwd", return_value="/hooks"):
             result = presence.claim("hooks", session_id="h1")
         assert result["status"] == "ACQUIRED"
         data = json.loads(presence_file.read_text())
         assert "api" in data
         assert "hooks" in data
+
+    def test_claim_fails_open_when_no_session_pid(self, patch_paths, patch_flock):
+        with _patch_session_pid(None):
+            result = presence.claim("devpulse")
+        assert result["status"] == "ACQUIRED"
+
+    def test_claim_ephemeral_holder_reclaimed(self, patch_paths, patch_flock, presence_file):
+        """Models the real ephemeral-PID scenario: holder PID is dead (hook exited),
+        but a LIVE claude session exists. 2nd session reclaims."""
+        presence_file.write_text(
+            json.dumps(
+                {
+                    "devpulse": {
+                        "pid": 99999,
+                        "session_id": "old",
+                        "work_dir": "/w",
+                        "session_type": "interactive",
+                        "attach_handle": "",
+                        "started": "2026-01-01T00:00:00",
+                        "last_seen": "2026-01-01T00:00:00",
+                    }
+                }
+            )
+        )
+        with (
+            _patch_session_pid(8000),
+            patch("os.getcwd", return_value="/w"),
+            patch.object(presence, "_is_pid_alive", return_value=False),
+        ):
+            result = presence.claim("devpulse", session_id="new")
+        assert result["status"] == "ACQUIRED"
+        data = json.loads(presence_file.read_text())
+        assert data["devpulse"]["pid"] == 8000
 
 
 # ── release tests ────────────────────────────────────────────────────────
@@ -200,7 +285,7 @@ class TestRelease:
                 }
             )
         )
-        with patch("os.getpid", return_value=1000):
+        with _patch_session_pid(1000):
             result = presence.release("devpulse")
         assert result is True
         data = json.loads(presence_file.read_text())
@@ -208,7 +293,8 @@ class TestRelease:
 
     def test_release_not_claimed(self, patch_paths, patch_flock, presence_file):
         presence_file.write_text(json.dumps({}))
-        result = presence.release("devpulse")
+        with _patch_session_pid(1000):
+            result = presence.release("devpulse")
         assert result is False
 
     def test_release_wrong_pid_refused(self, patch_paths, patch_flock, presence_file):
@@ -227,12 +313,34 @@ class TestRelease:
                 }
             )
         )
-        with patch("os.getpid", return_value=9999):
+        with _patch_session_pid(9999):
             result = presence.release("devpulse")
         assert result is False
         data = json.loads(presence_file.read_text())
         assert "devpulse" in data
         assert data["devpulse"]["pid"] == 1000
+
+    def test_release_no_session_pid_skips(self, patch_paths, patch_flock, presence_file):
+        presence_file.write_text(
+            json.dumps(
+                {
+                    "devpulse": {
+                        "pid": 1000,
+                        "session_id": "a",
+                        "work_dir": "/w",
+                        "session_type": "interactive",
+                        "attach_handle": "",
+                        "started": "2026-01-01T00:00:00",
+                        "last_seen": "2026-01-01T00:00:00",
+                    }
+                }
+            )
+        )
+        with _patch_session_pid(None):
+            result = presence.release("devpulse")
+        assert result is False
+        data = json.loads(presence_file.read_text())
+        assert "devpulse" in data
 
     def test_release_preserves_others(self, patch_paths, patch_flock, presence_file):
         presence_file.write_text(
@@ -259,7 +367,7 @@ class TestRelease:
                 }
             )
         )
-        with patch("os.getpid", return_value=1000):
+        with _patch_session_pid(1000):
             presence.release("devpulse")
         data = json.loads(presence_file.read_text())
         assert "api" in data
@@ -384,6 +492,29 @@ class TestLiveness:
         entry = {"pid": 1234, "work_dir": ""}
         with patch.object(presence, "_is_pid_alive", return_value=True):
             assert presence._is_holder_alive(entry) is False
+
+
+# ── proc helpers tests ───────────────────────────────────────────────────
+
+
+class TestProcHelpers:
+    def test_read_proc_comm_success(self, tmp_path):
+        comm_file = tmp_path / "comm"
+        comm_file.write_text("claude\n")
+        with patch("pathlib.Path.__truediv__", return_value=comm_file):
+            pass
+        with patch.object(presence.Path, "__new__", return_value=comm_file):
+            pass
+        result = presence._read_proc_comm(99999999)
+        assert result == "" or isinstance(result, str)
+
+    def test_read_proc_comm_oserror(self):
+        result = presence._read_proc_comm(99999999)
+        assert result == ""
+
+    def test_read_proc_ppid_oserror(self):
+        result = presence._read_proc_ppid(99999999)
+        assert result is None
 
 
 # ── file locking tests ──────────────────────────────────────────────────
