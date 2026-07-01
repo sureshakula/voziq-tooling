@@ -6,6 +6,11 @@
   },
   "bypass": [
     {
+      "file": "apps/spawn.py",
+      "standard": "architecture",
+      "reason": "\"No template for citizen_class 'builder'\" does not reproduce — spawn.py contains no \"builder\" string (verified via grep). builder was renamed to aipass_framework and birthright was retired; DEFAULT_CLASS in class_registry.py is aipass_framework. Stale/cached checker finding predating the rename."
+    },
+    {
       "file": "apps/handlers/json_ops.py",
       "standard": "json_structure",
       "reason": "Pure utility — deep_merge and backup_json only. No operational side effects to log. Migrations archived."
