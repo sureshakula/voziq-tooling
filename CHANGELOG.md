@@ -60,6 +60,15 @@ PyPI version — not the changelog header.
 
 ### Changed
 
+- **README: pip removed, clone-only install (TDPLAN-0010)** — the top-level
+  README no longer documents `pip install aipass` anywhere: the PyPI badge, the
+  install steps (hero + Quick Start), the Project Status version badge, and the
+  uninstall `pip uninstall` line are all removed. Install is now a single path —
+  `git clone … && ./setup.sh` (puts `aipass` + `drone` on PATH), then
+  `aipass init` scaffolds agents into your own project on top. Quick Start
+  reorganized into Install → Your own project → Explore the full framework.
+  (packaging code untouched; docs are clone-first.) (DPLAN-0228, devpulse)
+
 - **Spawn: `builder` template → `aipass_framework`, birthright retired,
   per-project registry targeting (TDPLAN-0010)** — the citizen_class/template
   `builder` is renamed to **`aipass_framework`** across `class_registry.py`,
