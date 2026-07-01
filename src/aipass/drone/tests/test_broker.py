@@ -90,11 +90,12 @@ def _send_identified(broker: BrokerDaemon, branch: str, req: BrokerRequest) -> B
 
 @pytest.fixture()
 def repo_root(tmp_path: Path) -> Path:
-    """Set up a mock repo root with branch directories."""
+    """Set up a mock repo root with branch directories marked by .trinity/."""
     root = tmp_path / "repo"
     root.mkdir()
     branch = root / "src" / "aipass" / "testbranch"
     branch.mkdir(parents=True)
+    (branch / ".trinity").mkdir()
     (branch / "deleteme.txt").write_text("delete me", encoding="utf-8")
     (branch / "subdir").mkdir()
     (branch / "subdir" / "nested.txt").write_text("nested", encoding="utf-8")
@@ -102,6 +103,7 @@ def repo_root(tmp_path: Path) -> Path:
     (branch / ".git" / "HEAD").write_text("ref: refs/heads/main", encoding="utf-8")
     sibling = root / "src" / "aipass" / "sibling"
     sibling.mkdir(parents=True)
+    (sibling / ".trinity").mkdir()
     (sibling / "important.txt").write_text("don't delete", encoding="utf-8")
     return root
 

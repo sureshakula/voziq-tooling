@@ -67,16 +67,23 @@ def get_allowed_roots() -> list[Path]:
     return roots
 
 
+def _find_branch_root(path: Path, project_root: Path) -> Path | None:
+    """Walk up from *path* looking for .trinity/; return branch dir or None."""
+    root = project_root.resolve()
+    for parent in [path, *path.parents]:
+        if not parent.is_relative_to(root):
+            break
+        if (parent / ".trinity").is_dir():
+            return parent
+    return None
+
+
 def _detect_current_branch(project_root: Path | None) -> str | None:
     """Return the branch name the CWD lives in, or None."""
     if project_root is None:
         return None
-    cwd = Path.cwd().resolve()
-    aipass_src = project_root / "src" / "aipass"
-    if not cwd.is_relative_to(aipass_src):
-        return None
-    rel = cwd.relative_to(aipass_src)
-    return rel.parts[0] if rel.parts else None
+    branch_root = _find_branch_root(Path.cwd().resolve(), project_root)
+    return branch_root.name if branch_root else None
 
 
 def _resolve_git_dir(path: Path) -> Path | None:
@@ -109,14 +116,11 @@ def check_carveouts(resolved: Path, project_root: Path | None) -> tuple[bool, st
                 return True, "Protected: path resolves inside .git worktree gitdir"
 
     if project_root is not None:
-        aipass_src = project_root / "src" / "aipass"
-        if resolved.is_relative_to(aipass_src):
-            rel = resolved.relative_to(aipass_src)
-            if rel.parts:
-                target_branch = rel.parts[0]
-                current_branch = _detect_current_branch(project_root)
-                if current_branch is None or target_branch != current_branch:
-                    return True, (f"Protected: path is inside sibling branch src/aipass/{target_branch}/")
+        target_branch_root = _find_branch_root(resolved, project_root)
+        if target_branch_root is not None:
+            current_branch = _detect_current_branch(project_root)
+            if current_branch is None or target_branch_root.name != current_branch:
+                return True, f"Protected: path is inside sibling branch {target_branch_root.name}/"
 
     return False, ""
 

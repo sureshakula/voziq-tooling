@@ -81,6 +81,21 @@ PyPI version — not the changelog header.
   degrades gracefully when `@memory` is unavailable (empty meta-tabs, no crash).
   297 tests pass. (built by @spawn, FPLAN-0294, TDPLAN-0010)
 
+- **Drone resolution + access checks made project-portable (TDPLAN-0010
+  foundation)** — five `src/aipass`/fixed-depth self-location hardcodes are
+  replaced with `.trinity/`-marker walk-ups: `rm_handler` sibling protection,
+  `commit_handler` test-gate branch detection, `broker/daemon` allowed-bases,
+  the `handlers/__init__` import-guard access check (now `is_relative_to()`
+  instead of scanning path parts for the literal `aipass`), and
+  `registry_handler`'s `parents[4]` last-resort (now a
+  `.git`/`pyproject.toml`/`setup.py`/`setup.cfg` marker walk). `@name`→path
+  resolution now works for an agent in any project layout via a CWD-first
+  registry walk (AIPASS_HOME only as a last resort when the CWD ancestry has no
+  registry at all). The `_validate_branch_path` containment invariant is
+  untouched — per-project isolation preserved. (Drone uses its own resolver, not
+  the shared `registry_discovery.py`.) 838 tests pass. (built by @drone,
+  FPLAN-0296, TDPLAN-0010)
+
 - **ai_mail routing made project-portable (TDPLAN-0010 foundation)** — the
   fixed-depth `_REPO_ROOT = parents[2].parents[2]` self-location in
   `email.py` / `email_send.py` / `dispatch.py` (4 sites) is replaced with the
