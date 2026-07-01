@@ -13,6 +13,18 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **`aipass init` is now a template selector (TDPLAN-0010)** — `init` presents a
+  chooser with **`empty project`** at the top, pre-selected as the default
+  (creates just the project folder, no scaffold), and **`aipass_framework`**
+  below it (the full AIPass agent framework — the old always-on behavior, now
+  opt-in). Flag and positional forms both work: `aipass init --list` (branches
+  before the `--` catch-all) and `aipass init <template>`. The AIPass-specific
+  stages (8 spawn-first-agent / 9 ping-registry / 11 handoff / 12 init_report,
+  `AIPASS_SPECIFIC_STAGES`) and the `bootstrap.init_project()` scaffold are now
+  gated on the chosen template, so an empty project stays empty. In-product pip
+  hints in `init_flow.py` + `doctor.py` retuned to clone/`setup.sh`. 8 new
+  selector tests; 499 tests pass. (built by @aipass, FPLAN-0295, TDPLAN-0010)
+
 - **Unified Telegram ↔ Claude Code bridge — CC-native session discovery
   (DPLAN-0226)** — a Telegram message to a branch's bot now lands directly in
   that branch's live Claude Code session, and the reply tails back out to
