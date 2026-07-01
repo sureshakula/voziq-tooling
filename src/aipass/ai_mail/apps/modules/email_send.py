@@ -35,9 +35,10 @@ from aipass.ai_mail.apps.handlers.email.send import (
 )
 from aipass.ai_mail.apps.handlers.email.error_dispatch import dispatch_send_error, on_email_delivered
 from aipass.ai_mail.apps.handlers.email.send_args import parse_send_args, resolve_dispatch_target
+from aipass.ai_mail.apps.handlers.paths import find_repo_root
 
 _AI_MAIL_DIR = Path(__file__).resolve().parents[2]
-_REPO_ROOT = _AI_MAIL_DIR.parents[2]
+_REPO_ROOT = find_repo_root()
 
 try:
     from aipass.ai_mail.apps.handlers.central_writer import update_central

@@ -48,6 +48,16 @@ PyPI version — not the changelog header.
 
 ### Changed
 
+- **ai_mail routing made project-portable (TDPLAN-0010 foundation)** — the
+  fixed-depth `_REPO_ROOT = parents[2].parents[2]` self-location in
+  `email.py` / `email_send.py` / `dispatch.py` (4 sites) is replaced with the
+  portable `find_repo_root()` marker-walk already used in
+  `delivery.py` / `wake.py` / `paths.py`, so mail resolves via the project
+  marker instead of a hardcoded tree depth — a prerequisite for agents that
+  live outside `src/aipass/`. Per-project isolation preserved (no cross-project
+  mailbox routing). 737 tests + seedgo 100%. (built by @ai_mail, FPLAN-0293,
+  TDPLAN-0010)
+
 - **Presence gate re-sourced to CC-native session files (presence_gate v2)** —
   the single-session guard now sources truth from `~/.claude/sessions/<pid>.json`
   via a new `cc_sessions` module (`find_occupant`/`find_live_for_cwd`) instead of
