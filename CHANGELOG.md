@@ -9,6 +9,38 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-01]
+
+### Added
+
+- **Unified Telegram ↔ Claude Code bridge — CC-native session discovery
+  (DPLAN-0226)** — a Telegram message to a branch's bot now lands directly in
+  that branch's live Claude Code session, and the reply tails back out to
+  Telegram — a full round trip, **live-proven end-to-end from Patrick's own
+  Telegram client** (not just a self-test). The bot's inbound path
+  (`base_bot.ensure_tmux_session`) discovers the active session by enumerating
+  CC-native `~/.claude/sessions/<pid>.json` files (match `cwd`, confirm PID
+  alive, newest by `startedAt`), maps it to a tmux pane by cwd, and injects the
+  message — replacing the old `PRESENCE.central.json` pointer, which is kept but
+  commented out. The outbound path gains a CC-native "Strategy 0" in
+  `_resolve_active_transcript` that prefers the discovered transcript, so
+  assistant replies relay back reliably. Anthropic ToS rules out a cloud peer,
+  so all delivery is local (tmux/PTY). New `session_boot.py` boot wrapper
+  (attach-if-live-else-start-in-tmux; a thin `~/.bashrc claude()` shim delegates
+  to it). Hooks tests 66 green (presence_gate / cc_sessions / session_boot),
+  telegram presence_pointer 42 green. (DPLAN-0226 P1/P2, FPLAN-0290/0291/0292)
+
+### Changed
+
+- **Presence gate re-sourced to CC-native session files (presence_gate v2)** —
+  the single-session guard now sources truth from `~/.claude/sessions/<pid>.json`
+  via a new `cc_sessions` module (`find_occupant`/`find_live_for_cwd`) instead of
+  `PRESENCE.central.json`. Resume-aware (a `/resume` keeps the same PID, so the
+  session is correctly recognized as re-entry, not a duplicate) and exit-aware
+  (CC deletes the file on clean exit). `handle_stop` is now a plain no-op —
+  cleanup is CC's job. The old `presence.py` / `PRESENCE.central.json` are
+  preserved, just no longer sourced. (DPLAN-0226 P1)
+
 ## [2026-06-25]
 
 ### Added

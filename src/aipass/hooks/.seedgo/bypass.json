@@ -998,6 +998,61 @@
       "file": "tests/test_presence_gate.py",
       "standard": "meta",
       "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "apps/modules/cc_sessions.py",
+      "standard": "json_structure",
+      "reason": "Reads CC-native ~/.claude/sessions/*.json (external files, not branch data) with stdlib json — no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_boot.py",
+      "standard": "json_structure",
+      "reason": "Boot wrapper has no JSON file ops — delegates to cc_sessions module for session reads. No json_handler needed."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_boot.py",
+      "standard": "dead_code",
+      "reason": "Boot wrapper invoked via __main__ entry point from shell shim (tools/install_boot_shim.sh) — not engine-dispatched. boot() and main() called at process entry, not statically imported."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_boot.py",
+      "standard": "unused_function",
+      "reason": "boot() and main() invoked via __main__ entry point from shell shim — not statically imported. _resolve_claude_binary(), _find_live_sessions(), _find_tmux(), etc. are internal helpers called by boot()."
+    },
+    {
+      "file": "tests/test_cc_sessions.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_cc_sessions.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_cc_sessions.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
     }
   ],
   "notes": {

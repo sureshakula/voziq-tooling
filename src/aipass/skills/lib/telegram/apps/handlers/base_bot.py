@@ -47,6 +47,7 @@ import argparse
 import atexit
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -123,6 +124,7 @@ except ImportError:
 # MODULE-LEVEL CONSTANTS
 # =============================================
 
+CC_SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 PENDING_DIR = Path.home() / ".aipass" / "telegram_pending"
 PENDING_TTL = 3600  # 1 hour
 TELEGRAM_CHAR_LIMIT = 4096
@@ -201,6 +203,8 @@ class BaseBot:
         self._mirror_mapping_written = False
         self._last_transcript_path: str | None = None
         self._config_chat_id: int | None = None
+        self._active_session_id: str | None = None
+        self._active_transcript_path: Path | None = None
 
         self.state = {
             "running": True,
@@ -1264,24 +1268,26 @@ class BaseBot:
         Returns:
             True if session is ready
         """
-        # Strategy 1: follow the central presence pointer
-        presence = self._read_presence_pointer()
-        if presence:
-            tmux_target = self._find_tmux_for_presence(presence)
+        # Strategy 1: CC-native session discovery (DPLAN-0226)
+        cc_session = self._discover_cc_session()
+        if cc_session:
+            tmux_target = self._find_tmux_pane_by_cwd()
             if tmux_target:
                 self.session_name = tmux_target
                 self._using_shared_session = True
+                self._active_session_id = cc_session.get("sessionId")
+                self._active_transcript_path = self._resolve_cc_transcript_path(cc_session)
                 logger.info(
-                    "Presence pointer: attaching to '%s' (PID %d, type=%s)",
+                    "CC-native discovery: session '%s' (PID %d) → tmux '%s'",
+                    cc_session.get("name", "?"),
+                    cc_session.get("pid", 0),
                     tmux_target,
-                    presence.get("pid", 0),
-                    presence.get("session_type", "unknown"),
                 )
                 self._write_mirror_mapping()
                 return True
             logger.warning(
-                "Presence pointer found (PID %d) but no matching tmux session",
-                presence.get("pid", 0),
+                "CC session found (PID %d) but no matching tmux pane",
+                cc_session.get("pid", 0),
             )
 
         # Strategy 2: explicit shared-session from config
@@ -1430,6 +1436,8 @@ class BaseBot:
             "processing_message_id": processing_message_id,
             "timestamp": time.time(),
             "transcript_line_after": transcript_line_after,
+            "transcript_path": str(self._active_transcript_path) if self._active_transcript_path else None,
+            "session_id": self._active_session_id,
         }
 
         try:
@@ -1458,11 +1466,14 @@ class BaseBot:
     def _resolve_active_transcript(self) -> tuple[str | None, int]:
         """Identify the ACTIVE Claude JSONL transcript and return its path and line count.
 
-        Uses the tmux session's pane PID to walk the process tree and find which
-        JSONL file the Claude process has open.  Falls back to most-recently-modified
-        JSONL that was touched in the last 5 minutes.  Returns (None, 0) when no
-        active transcript can be identified — safe default that resets the cursor.
+        Prefers the CC-native transcript path when available (set by CC session
+        discovery in ensure_tmux_session). Falls back to PID-based fd scanning
+        and mtime heuristic.
         """
+        # Strategy 0: CC-native transcript path (set by _discover_cc_session)
+        if self._active_transcript_path and self._active_transcript_path.exists():
+            return str(self._active_transcript_path), self._count_file_lines(self._active_transcript_path)
+
         slug = str(self.work_dir).replace("\\", "-").replace("/", "-")
         projects_dir = Path.home() / ".claude" / "projects" / slug
         if not projects_dir.exists():
@@ -1577,76 +1588,61 @@ class BaseBot:
         return count
 
     # =============================================
-    # PRESENCE POINTER
+    # CC-NATIVE SESSION DISCOVERY (DPLAN-0226)
     # =============================================
 
-    def _find_presence_file(self) -> Path | None:
-        """Locate .ai_central/PRESENCE.central.json by walking up from work_dir."""
-        current = self.work_dir.resolve()
-        for _ in range(20):
-            candidate = current / ".ai_central" / "PRESENCE.central.json"
-            if candidate.exists():
-                return candidate
-            if current.parent == current:
-                break
-            current = current.parent
-        return None
+    def _discover_cc_session(self) -> dict | None:
+        """Discover the active CC session for this bot's branch.
 
-    def _read_presence_pointer(self) -> dict | None:
-        """Read the central presence pointer for this bot's branch.
-
-        Returns the presence entry dict if a live session is registered,
-        None if absent/empty/stale/dead.
+        Enumerates ~/.claude/sessions/<pid>.json, filters by cwd matching
+        this bot's work_dir, confirms PID alive. Returns the latest session
+        (by startedAt) or None. CC keeps these current across /resume and
+        deletes on exit, so re-binding is automatic.
         """
-        presence_file = self._find_presence_file()
-        if presence_file is None:
+        if not CC_SESSIONS_DIR.is_dir():
             return None
-        try:
-            data = json.loads(presence_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.info("Failed to read presence file %s: %s", presence_file, exc)
-            return None
-        branch = self.branch_name or self.work_dir.name
-        entry = data.get(branch)
-        if not entry:
-            return None
-        pid = entry.get("pid")
-        if pid is None:
-            return None
+        target_cwd = str(self.work_dir.resolve())
+        best = None
+        for f in CC_SESSIONS_DIR.iterdir():
+            if not f.name.endswith(".json") or not f.stem.isdigit():
+                continue
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.info("Failed to read CC session file %s: %s", f, exc)
+                continue
+            session_cwd = data.get("cwd", "")
+            if not session_cwd:
+                continue
+            if str(Path(session_cwd).resolve()) != target_cwd:
+                continue
+            pid = data.get("pid")
+            if not pid or not self._is_pid_alive(pid):
+                continue
+            if best is None or data.get("startedAt", 0) > best.get("startedAt", 0):
+                best = data
+        return best
+
+    @staticmethod
+    def _is_pid_alive(pid: int) -> bool:
+        """Check if a process with the given PID exists."""
+        if pid <= 1:
+            return False
         try:
             os.kill(pid, 0)
+            return True
         except ProcessLookupError:
-            logger.info("Presence holder PID %d is dead — stale pointer", pid)
-            return None
+            logger.info("PID %d not found (dead)", pid)
+            return False
         except PermissionError:
             logger.info("PID %d exists but permission denied — treating as alive", pid)
+            return True
         except OSError as exc:
             logger.info("PID %d liveness check failed: %s — treating as dead", pid, exc)
-            return None
-        return entry
+            return False
 
-    def _find_tmux_for_presence(self, entry: dict) -> str | None:
-        """Find the tmux session for a presence entry.
-
-        Prefers attach_handle when populated; falls back to scanning tmux
-        sessions for a pane whose CWD matches the entry's work_dir.
-        """
-        handle = entry.get("attach_handle", "")
-        if handle:
-            try:
-                result = subprocess.run(
-                    ["tmux", "has-session", "-t", handle],
-                    capture_output=True,
-                    timeout=5,
-                )
-                if result.returncode == 0:
-                    return handle
-            except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
-                logger.info("attach_handle '%s' tmux check failed: %s", handle, exc)
-
-        work_dir = entry.get("work_dir", "")
-        if not work_dir:
-            return None
+    def _find_tmux_pane_by_cwd(self) -> str | None:
+        """Find a tmux session with a pane whose CWD matches this bot's work_dir."""
         try:
             result = subprocess.run(
                 ["tmux", "list-panes", "-a", "-F", "#{session_name}:#{pane_current_path}"],
@@ -1656,7 +1652,7 @@ class BaseBot:
             )
             if result.returncode != 0:
                 return None
-            target = str(Path(work_dir).resolve())
+            target = str(self.work_dir.resolve())
             for line in result.stdout.strip().split("\n"):
                 if ":" not in line:
                     continue
@@ -1666,6 +1662,147 @@ class BaseBot:
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
             logger.info("tmux pane scan failed: %s", exc)
         return None
+
+    @staticmethod
+    def _sanitize_path_for_cc(path_str: str) -> str:
+        """Sanitize a path for CC projects dir (every non-alphanumeric char becomes '-')."""
+        return re.sub(r"[^a-zA-Z0-9]", "-", path_str)
+
+    def _resolve_cc_transcript_path(self, session: dict) -> Path | None:
+        """Resolve the transcript JSONL path from a CC session entry."""
+        session_id = session.get("sessionId")
+        cwd = session.get("cwd", "")
+        if not session_id or not cwd:
+            return None
+        slug = self._sanitize_path_for_cc(cwd)
+        transcript = Path.home() / ".claude" / "projects" / slug / f"{session_id}.jsonl"
+        if transcript.exists():
+            return transcript
+        return None
+
+    @staticmethod
+    def _extract_assistant_text(entry: dict) -> str | None:
+        """Extract text content from a transcript entry if it's an assistant message."""
+        msg = entry.get("message", {})
+        if msg.get("role") != "assistant":
+            return None
+        content = msg.get("content", [])
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    return block.get("text", "")
+        return None
+
+    def _read_transcript_tail(self, n_lines: int = 50) -> str | None:
+        """Read the latest assistant text response from the active transcript.
+
+        Scans the last n_lines of the transcript JSONL for the most recent
+        assistant message with text content.
+        """
+        path = self._active_transcript_path
+        if not path or not path.exists():
+            return None
+        try:
+            text = path.read_text(encoding="utf-8").strip()
+            if not text:
+                return None
+            lines = text.split("\n")
+            tail = lines[-n_lines:] if len(lines) > n_lines else lines
+            for line in reversed(tail):
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.info("Malformed JSONL line in transcript tail")
+                    continue
+                result = self._extract_assistant_text(entry)
+                if result is not None:
+                    return result
+        except OSError as exc:
+            logger.info("Failed to read transcript tail: %s", exc)
+        return None
+
+    # =============================================
+    # DORMANT: PRESENCE POINTER (DPLAN-0226)
+    # Discovery replaced by CC-native ~/.claude/sessions.
+    # Guard half (presence_gate) stays LIVE in @hooks.
+    # Kept per Patrick's directive — do not delete.
+    # =============================================
+
+    # def _find_presence_file(self) -> Path | None:
+    #     """Locate .ai_central/PRESENCE.central.json by walking up from work_dir."""
+    #     current = self.work_dir.resolve()
+    #     for _ in range(20):
+    #         candidate = current / ".ai_central" / "PRESENCE.central.json"
+    #         if candidate.exists():
+    #             return candidate
+    #         if current.parent == current:
+    #             break
+    #         current = current.parent
+    #     return None
+    #
+    # def _read_presence_pointer(self) -> dict | None:
+    #     """Read the central presence pointer for this bot's branch."""
+    #     presence_file = self._find_presence_file()
+    #     if presence_file is None:
+    #         return None
+    #     try:
+    #         data = json.loads(presence_file.read_text(encoding="utf-8"))
+    #     except (json.JSONDecodeError, OSError):
+    #         return None
+    #     branch = self.branch_name or self.work_dir.name
+    #     entry = data.get(branch)
+    #     if not entry:
+    #         return None
+    #     pid = entry.get("pid")
+    #     if pid is None:
+    #         return None
+    #     try:
+    #         os.kill(pid, 0)
+    #     except ProcessLookupError:
+    #         return None
+    #     except PermissionError:
+    #         pass
+    #     except OSError:
+    #         return None
+    #     return entry
+    #
+    # def _find_tmux_for_presence(self, entry: dict) -> str | None:
+    #     """Find the tmux session for a presence entry."""
+    #     handle = entry.get("attach_handle", "")
+    #     if handle:
+    #         try:
+    #             result = subprocess.run(
+    #                 ["tmux", "has-session", "-t", handle],
+    #                 capture_output=True,
+    #                 timeout=5,
+    #             )
+    #             if result.returncode == 0:
+    #                 return handle
+    #         except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+    #             pass
+    #     work_dir = entry.get("work_dir", "")
+    #     if not work_dir:
+    #         return None
+    #     try:
+    #         result = subprocess.run(
+    #             ["tmux", "list-panes", "-a", "-F",
+    #              "#{session_name}:#{pane_current_path}"],
+    #             capture_output=True, text=True, timeout=5,
+    #         )
+    #         if result.returncode != 0:
+    #             return None
+    #         target = str(Path(work_dir).resolve())
+    #         for line in result.stdout.strip().split("\n"):
+    #             if ":" not in line:
+    #                 continue
+    #             session_name, pane_path = line.split(":", 1)
+    #             if str(Path(pane_path).resolve()) == target:
+    #                 return session_name
+    #     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+    #         pass
+    #     return None
 
     def _write_mirror_mapping(self) -> None:
         """Write persistent mirror mapping file per THE CONTRACT (TDPLAN-0009).

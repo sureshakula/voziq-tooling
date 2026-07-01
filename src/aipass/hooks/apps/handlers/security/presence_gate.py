@@ -1,21 +1,29 @@
 # =================== AIPass ====================
 # Name: presence_gate.py
-# Version: 1.0.0
+# Version: 2.0.0
 # Description: Single-session gate — blocks duplicate Claude runtimes per branch
 # Branch: hooks
 # Layer: apps/handlers/security
 # Created: 2026-06-29
-# Modified: 2026-06-29
+# Modified: 2026-06-30
 # =============================================
 
 """Single-session gate — blocks duplicate Claude runtimes per branch.
 
-Fires on UserPromptSubmit: calls presence.claim(). If OCCUPIED by a live PID,
-blocks the prompt. If free or stale, acquires and proceeds.
+Sources truth from CC-native ~/.claude/sessions/<pid>.json (resume-aware,
+exit-aware) instead of PRESENCE.central.json. Resume-aware because /resume
+keeps the same PID; exit-aware because CC deletes the file on clean exit.
 
-Fires on Stop: calls presence.release() to clean up.
+Fires on UserPromptSubmit: checks CC sessions for another live brain in the
+same branch. If occupied by a different PID, blocks. If free, allows.
+
+handle_stop is a no-op (Stop fires every turn, not just session end; CC-native
+session files handle cleanup on exit).
 
 Skips sub-agents and dispatched/daemon session types.
+
+PRESENCE.central.json + presence.py are preserved (not deleted) but the guard
+no longer sources truth from them.
 """
 
 import importlib
@@ -45,11 +53,9 @@ def _resolve_branch(hook_data: dict) -> str:
 def handle(hook_data: dict) -> dict:
     """UserPromptSubmit gate — enforce one live session per branch.
 
-    Args:
-        hook_data: Parsed hook event dict from engine.
-
-    Returns:
-        Result dict with stdout (block JSON or empty) and exit_code.
+    Sources truth from CC-native ~/.claude/sessions/<pid>.json.
+    Resume-aware: /resume keeps the same PID, so exclude_pid correctly
+    identifies re-entry. Exit-aware: CC deletes the file on clean exit.
     """
     try:
         agent_type = hook_data.get("agent_type", "")
@@ -61,21 +67,20 @@ def handle(hook_data: dict) -> dict:
             return _ALLOW
 
         branch = _resolve_branch(hook_data)
-        session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+        branch_cwd = hook_data.get("cwd", "") or str(Path.cwd())
 
         presence = importlib.import_module("aipass.hooks.apps.modules.presence")
-        result = presence.claim(
-            branch=branch,
-            session_id=session_id,
-            session_type=session_type,
-        )
+        our_pid = presence._resolve_session_pid()
 
-        if result["status"] == "ACQUIRED":
+        cc_sessions = importlib.import_module("aipass.hooks.apps.modules.cc_sessions")
+        occupant = cc_sessions.find_occupant(branch_cwd, exclude_pid=our_pid)
+
+        if occupant is None:
             return _ALLOW
 
-        pid = result.get("pid", "?")
-        holder_type = result.get("session_type", "unknown")
-        reason = f"{branch} already live at PID {pid} (session_type: {holder_type}) — attach, do not spawn."
+        occ_pid = occupant.get("pid", "?")
+        occ_name = occupant.get("name", "")
+        reason = f"{branch} already live at PID {occ_pid}{f' ({occ_name})' if occ_name else ''} — attach, do not spawn."
         logger.warning("[presence_gate] BLOCKED: %s", reason)
         return {
             "exit_code": 2,
@@ -88,10 +93,5 @@ def handle(hook_data: dict) -> dict:
 
 
 def handle_stop(hook_data: dict) -> dict:
-    """No-op on Stop. Presence is NOT released per-turn.
-
-    Stop fires at the end of every assistant turn, not just session end.
-    Releasing each turn would create a gap where a 2nd session wouldn't be blocked.
-    Stale detection (dead claude PID) handles cleanup when the session truly exits.
-    """
+    """No-op on Stop. CC-native session files handle cleanup on exit."""
     return _ALLOW
