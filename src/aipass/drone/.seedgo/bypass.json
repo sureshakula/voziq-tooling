@@ -8,11 +8,14 @@
     {
       "file": "apps/drone.py",
       "standard": "cli",
-      "lines": [
-        166,
-        168
-      ],
-      "reason": "Raw passthrough of module subprocess stdout/stderr — console.print() breaks routed output"
+      "lines": [244, 246, 360, 362, 479, 481, 585, 587],
+      "reason": "Raw passthrough of routed command stdout/stderr — console.print() wraps at 80 cols when piped, corrupting JSON and machine output"
+    },
+    {
+      "file": "apps/modules/router.py",
+      "standard": "cli",
+      "lines": [62],
+      "reason": "Raw passthrough of routed command stdout — console.print() wraps at 80 cols when piped, corrupting JSON and machine output"
     },
     {
       "file": "apps/handlers/scanning/formatters.py",

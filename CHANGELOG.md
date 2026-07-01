@@ -30,6 +30,22 @@ PyPI version — not the changelog header.
   to it). Hooks tests 66 green (presence_gate / cc_sessions / session_boot),
   telegram presence_pointer 42 green. (DPLAN-0226 P1/P2, FPLAN-0290/0291/0292)
 
+- **Seedgo stale-template audit checker (`template_check`)** — a new advisory
+  standard that flags branches still carrying unrendered template markers in
+  their local prompts / config, so a citizen that never customized its scaffold
+  no longer fails silently. Auto-discovered like every other checker; advisory
+  (warns, never blocks). Ships with `template_content.py` and a `template.md`
+  standard doc, covered by `test_template_check.py`. (built by @seedgo, DPLAN-0228)
+
+### Fixed
+
+- **Drone `--json` output no longer corrupts machine JSON** — `--json`
+  pass-through was routed through Rich's `console.print()`, which defaults to
+  width 80 on a non-TTY and hard-wraps mid-string, producing invalid JSON
+  (e.g. `"Security \nScan"`). Fixed by writing raw JSON with `sys.stdout.write()`
+  in the pass-through paths (`drone.py` + `router.py`) while keeping Rich for
+  drone's own human UI. Verified live end-to-end. (fixed by @drone, td-49)
+
 ### Changed
 
 - **Presence gate re-sourced to CC-native session files (presence_gate v2)** —
