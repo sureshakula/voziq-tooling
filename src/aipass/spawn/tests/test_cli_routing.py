@@ -102,11 +102,11 @@ class TestCreateHelp:
         mock_help.assert_called_once()
 
     def test_create_help_with_class(self):
-        """create builder --help shows help."""
+        """create aipass_framework --help shows help."""
         from aipass.spawn.apps.spawn import handle_create
 
         with patch("aipass.spawn.apps.spawn.print_help") as mock_help:
-            result = handle_create(["builder", "--help"])
+            result = handle_create(["aipass_framework", "--help"])
         assert result == 0
         mock_help.assert_called_once()
 
@@ -150,30 +150,6 @@ class TestCreateDryRun:
 class TestTemplateFlag:
     """Tests for --template flag as class selector."""
 
-    def test_template_flag_selects_class(self, tmp_path):
-        """--template birthright creates birthright-class agent."""
-        from aipass.spawn.apps.spawn import handle_create
-
-        target = str(tmp_path / "tmpl_test")
-        with patch("aipass.spawn.apps.spawn.console"), patch("aipass.spawn.apps.spawn.header"):
-            result = handle_create([target, "--template", "birthright"])
-        assert result == 0
-        # Birthright class: has .trinity but no apps/
-        assert (tmp_path / "tmpl_test" / ".trinity").exists()
-        assert not (tmp_path / "tmpl_test" / "apps").exists()
-
-    def test_template_flag_overrides_positional_class(self, tmp_path):
-        """--template overrides positional class arg."""
-        from aipass.spawn.apps.spawn import handle_create
-
-        target = str(tmp_path / "override_test")
-        # Positional says builder, flag says birthright
-        with patch("aipass.spawn.apps.spawn.console"), patch("aipass.spawn.apps.spawn.header"):
-            result = handle_create(["builder", target, "--template", "birthright"])
-        assert result == 0
-        # --template wins: birthright has no apps/
-        assert not (tmp_path / "override_test" / "apps").exists()
-
     def test_template_flag_unknown_treated_as_path(self, tmp_path):
         """--template with unknown value is treated as path (backward compat)."""
         from aipass.spawn.apps.spawn import handle_create
@@ -183,38 +159,6 @@ class TestTemplateFlag:
             result = handle_create([target, "--template", "/nonexistent/path"])
         assert result == 1
         mock_error.assert_called_once()
-
-    def test_template_flag_dry_run(self, tmp_path):
-        """--template works with --dry-run."""
-        from aipass.spawn.apps.spawn import handle_create
-
-        target = str(tmp_path / "drytest")
-        with patch("aipass.spawn.apps.spawn.console"), patch("aipass.spawn.apps.spawn.header"):
-            result = handle_create([target, "--template", "birthright", "--dry-run"])
-        assert result == 0
-        assert not (tmp_path / "drytest").exists()
-
-
-class TestPassportHelp:
-    """Tests for passport --help interception."""
-
-    def test_passport_help_flag(self):
-        """passport --help shows introspection."""
-        from aipass.spawn.apps.modules.passport import handle_passport
-
-        with patch("aipass.spawn.apps.modules.passport.print_introspection") as mock:
-            result = handle_passport(["--help"])
-        assert result == 0
-        mock.assert_called_once()
-
-    def test_passport_short_help(self):
-        """passport -h shows introspection."""
-        from aipass.spawn.apps.modules.passport import handle_passport
-
-        with patch("aipass.spawn.apps.modules.passport.print_introspection") as mock:
-            result = handle_passport(["-h"])
-        assert result == 0
-        mock.assert_called_once()
 
 
 class TestPrintHelp:

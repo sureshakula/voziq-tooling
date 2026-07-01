@@ -74,9 +74,8 @@ def handle_regenerate_registry(args: list[str]) -> int:
     """Parse args and execute template registry regeneration.
 
     Args patterns:
-        []              -> regenerate builder (default)
-        ["builder"]     -> regenerate builder template
-        ["birthright"]  -> regenerate birthright template
+        []                        -> regenerate aipass_framework (default)
+        ["aipass_framework"]      -> regenerate aipass_framework template
         ["--all"]       -> regenerate all template registries
         ["--help"]      -> show help
 
@@ -115,9 +114,9 @@ def handle_regenerate_registry(args: list[str]) -> int:
             json_handler.log_operation("regenerate_registry_all", data={"classes": list(classes)})
         return 1 if had_error else 0
 
-    # Single class — default to builder
+    # Single class — default to aipass_framework
     clean_args = [a for a in args if not a.startswith("--")]
-    class_name = clean_args[0] if clean_args else "builder"
+    class_name = clean_args[0] if clean_args else "aipass_framework"
 
     available = get_available_classes()
     if class_name not in available:
@@ -153,7 +152,7 @@ def _print_help() -> None:
     """Print usage help for regenerate-registry command."""
     warning("Usage: drone @spawn regenerate-registry [class_name | --all]")
     console.print()
-    console.print("  [green](no args)[/green]       Regenerate builder template registry (default)")
+    console.print("  [green](no args)[/green]       Regenerate aipass_framework template registry (default)")
     console.print("  [green]<class>[/green]          Regenerate registry for a specific template class")
     console.print("  [green]--all[/green]            Regenerate registries for all template classes")
     console.print()

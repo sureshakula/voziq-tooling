@@ -10,8 +10,7 @@
 
 ## What I Do
 
-- Create new branches from class-scoped templates (builder, birthright)
-- Grant birthright citizenship via the `passport` command
+- Create new branches from class-scoped templates (aipass_framework)
 - Update branches from templates (single or batch by class, with --dry-run)
 - Delete branches (archive + deregister)
 - Sync registry and templates against filesystem
@@ -27,8 +26,7 @@ Every branch belongs to a **citizen class**, which determines its template:
 
 | Class | Template | What It Creates |
 |-------|----------|-----------------|
-| `builder` (default) | `templates/builder/` | Full 3-layer scaffold: .trinity/, .aipass/, apps/ (modules/ + handlers/), tests/, docs/, logs/ |
-| `birthright` | `templates/birthright/` | Minimal citizenship: .trinity/, .aipass/, README.md |
+| `aipass_framework` (default) | `templates/aipass_framework/` | Full 3-layer scaffold: .trinity/, .aipass/, apps/ (modules/ + handlers/), tests/, docs/, logs/ |
 
 ---
 
@@ -39,19 +37,11 @@ All commands run through `drone @spawn <command>`.
 ### Create
 
 ```bash
-drone @spawn create <path>                                    # Create builder branch
+drone @spawn create <path>                                    # Create aipass_framework branch
 drone @spawn create <path> --role "Analyst" --purpose "Reports"  # With identity
-drone @spawn create --template birthright <path>               # Specific class
 drone @spawn create <path> --dry-run                           # Preview without touching disk
 drone @spawn create @existing                                  # Adopt pre-existing agent
-drone @spawn create ~/Projects/MyProject/agent_name            # External project (auto-detects registry)
-```
-
-### Passport
-
-```bash
-drone @spawn passport @dirname                                 # Grant birthright citizenship
-drone @spawn passport @dirname --role "Observer" --purpose "Monitoring"
+drone @spawn create ~/Projects/MyProject/agent_name            # External project (targets that project's own registry)
 ```
 
 ### Update
@@ -61,7 +51,7 @@ Update is **preview-only by default** — `--apply` required to execute changes.
 ```bash
 drone @spawn update @branch_name                               # Preview changes (dry-run default)
 drone @spawn update @branch_name --apply                       # Execute changes
-drone @spawn update builder --all --apply                      # All builder-class branches
+drone @spawn update aipass_framework --all --apply              # All aipass_framework-class branches
 drone @spawn update @branch_name --dry-run                     # Explicit preview (same as default)
 ```
 
@@ -77,7 +67,7 @@ drone @spawn delete @branch_name                               # Archive + dereg
 drone @spawn sync-registry                                     # Report healthy/stale/unregistered
 drone @spawn sync-registry --fix                               # Rebuild .spawn/ tracking + fix passport registry_ids
 drone @spawn sync-templates                                    # Pull managed files from sources (partial — see Known Issues)
-drone @spawn regenerate-registry                               # Regenerate builder template hashes
+drone @spawn regenerate-registry                               # Regenerate aipass_framework template hashes
 drone @spawn regenerate-registry --all                         # All template classes
 
 # Repair (preview-only by default — --apply required to execute)
@@ -121,7 +111,6 @@ spawn/
 │   ├── spawn.py                         # Entry point — CLI routing, version, help
 │   ├── modules/
 │   │   ├── core.py                      # Create orchestrator (_spawn_agent, handle_command)
-│   │   ├── passport.py                  # Passport CLI — birthright citizenship
 │   │   ├── update.py                    # Update CLI — single/batch by class
 │   │   ├── delete.py                    # Delete CLI — archive + deregister
 │   │   ├── sync_registry.py             # Registry repair CLI
@@ -134,9 +123,6 @@ spawn/
 │       ├── placeholders.py              # {{PLACEHOLDER}} replacement engine
 │       ├── registry.py                  # AIPASS_REGISTRY.json CRUD, find_registry()
 │       ├── meta_ops.py                  # Branch metadata generation, hash computation
-│       ├── change_detection.py          # ID-based file diff between template and branch
-│       ├── reconcile.py                 # Registry/filesystem reconciliation
-│       ├── passport_ops.py             # Passport grant implementation
 │       ├── update_ops.py                # Update workflow (Phase 0 snapshot → detect → execute)
 │       ├── delete_ops.py                # Delete workflow (resolve → archive → cleanup → deregister)
 │       ├── sync_registry_ops.py         # Registry sync (CWD-aware, external project support)
@@ -146,9 +132,8 @@ spawn/
 │       └── json/
 │           └── json_handler.py          # Standard JSON I/O, operation logging, 7 API functions
 ├── templates/
-│   ├── builder/                         # Full scaffold template (45 files, 24 dirs)
-│   └── birthright/                      # Minimal template
-├── tests/                               # 14 test files, 316 tests
+│   └── aipass_framework/                # Full scaffold template (44 files, 23 dirs)
+├── tests/                               # 14 test files, 297 tests
 ├── spawn_json/                          # JSON tracking directory
 ├── tools/                               # Branch verification utilities
 ├── docs/                                # Documentation
@@ -165,22 +150,15 @@ spawn/
 
 ## Workflows
 
-### Create (builder class)
+### Create (aipass_framework class)
 
 1. **Resolve** — Extract branch name from target path, validate path doesn't exist
 2. **Lookup** — Resolve citizen class to template directory via class_registry
 3. **Copy** — Recursive copy of class template to target (skips `__pycache__`)
 4. **Rename** — Replace `{{BRANCH}}` in directory and file names
-5. **Replace** — Substitute all `{{PLACEHOLDER}}` patterns in file contents
-6. **Registry** — Generate `.branch_meta.json`, register in `AIPASS_REGISTRY.json`
+5. **Replace** — Substitute all `{{PLACEHOLDER}}` patterns in file contents, including `{{CITIZEN_CLASS}}` (sourced from the create call, not a baked literal)
+6. **Registry** — Generate `.branch_meta.json` (meta tabs load from `@memory` when available, degrading gracefully to empty when it's not), register in the target project's own `AIPASS_REGISTRY.json`
 7. **Validate** — Scan for any remaining `{{...}}` patterns
-
-### Passport (birthright class)
-
-1. **Check** — Verify .trinity/ doesn't already exist
-2. **Copy** — Copy birthright template (.trinity/, .aipass/, README.md)
-3. **Replace** — Substitute placeholders in copied files
-4. **Register** — Add to AIPASS_REGISTRY.json
 
 ### Update (class-aware, Phase 0)
 
@@ -199,7 +177,7 @@ spawn/
 
 ## Tests
 
-**316 tests | 0 skipped | 0 failed** across 14 test files:
+**297 tests | 0 skipped | 0 failed** across 14 test files:
 
 | File | Focus |
 |------|-------|
@@ -248,11 +226,11 @@ spawn/
 - **Seedgo:** 100% (34/34)
 - **Tests:** 253 passed, 0 skipped, 0 failed
 - **Module coverage:** 23/23 (100%)
-- **Template registry:** 45 files, 24 dirs (builder)
+- **Template registry:** 44 files, 23 dirs (aipass_framework)
 - **Battle test:** 17/17 commands pass (2026-04-22)
 
 ---
 
-*Last Updated: 2026-05-15*
+*Last Updated: 2026-07-01*
 
 [← Back to AIPass](../../../README.md)

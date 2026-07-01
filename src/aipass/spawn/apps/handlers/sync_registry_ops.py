@@ -233,22 +233,22 @@ def sync_registry(fix: bool = False) -> dict:
             if not branch_meta_path.exists():
                 # Determine citizen class from passport
                 passport_path = branch_path / ".trinity" / "passport.json"
-                citizen_class = "builder"  # default
+                citizen_class = "aipass_framework"  # default
                 if passport_path.exists():
                     try:
                         passport = json.loads(passport_path.read_text(encoding="utf-8"))
-                        citizen_class = passport.get("identity", {}).get("citizen_class", "builder")
+                        citizen_class = passport.get("identity", {}).get("citizen_class", "aipass_framework")
                     except (json.JSONDecodeError, IOError) as e:
                         logger.warning(f"Failed to read passport for citizen class detection ({name}): {e}")
 
-                # Load template registry for that class (fall back to builder if unknown)
+                # Load template registry for that class (fall back to aipass_framework if unknown)
                 try:
                     template_dir = get_template_dir(citizen_class)
                 except ValueError:
                     logger.warning(
-                        f"[sync-registry] Unknown class '{citizen_class}' for {name}, falling back to builder"
+                        f"[sync-registry] Unknown class '{citizen_class}' for {name}, falling back to aipass_framework"
                     )
-                    template_dir = get_template_dir("builder")
+                    template_dir = get_template_dir("aipass_framework")
                 template_registry = load_template_registry(template_dir)
                 if template_registry:
                     branch_meta = generate_branch_meta(branch_path, template_registry)

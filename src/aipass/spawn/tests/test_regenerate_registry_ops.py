@@ -561,16 +561,12 @@ class TestScanTemplateDirectoryOrdering:
 class TestHandleRegenerateRegistry:
     """Tests for handle_regenerate_registry() CLI handler."""
 
-    def test_default_regenerates_builder(self):
+    def test_default_regenerates_aipass_framework(self):
         result = handle_regenerate_registry([])
         assert result == 0
 
-    def test_explicit_builder(self):
-        result = handle_regenerate_registry(["builder"])
-        assert result == 0
-
-    def test_explicit_birthright(self):
-        result = handle_regenerate_registry(["birthright"])
+    def test_explicit_aipass_framework(self):
+        result = handle_regenerate_registry(["aipass_framework"])
         assert result == 0
 
     def test_all_flag(self):

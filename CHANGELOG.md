@@ -60,6 +60,27 @@ PyPI version — not the changelog header.
 
 ### Changed
 
+- **Spawn: `builder` template → `aipass_framework`, birthright retired,
+  per-project registry targeting (TDPLAN-0010)** — the citizen_class/template
+  `builder` is renamed to **`aipass_framework`** across `class_registry.py`,
+  `core.py`, `meta_ops.py`, `update_ops.py`, `sync_registry_ops.py`, help text,
+  and the template dir itself (`templates/builder/` → `templates/aipass_framework/`).
+  The class is no longer baked as a literal in the template passport — a new
+  **`{{CITIZEN_CLASS}}` placeholder** (passport line 21, `placeholders.py`) now
+  takes it from the create call. **`birthright`** (0 live users) is retired to
+  `templates/.archive/birthright/` and its `passport` command disabled
+  (`passport.py` / `passport_ops.py` → `(disabled).py`, routing removed).
+  **Per-project registry targeting:** `spawn`'s `find_registry()` no longer
+  passes `package_root` to the shared discovery (killing the silent fallback to
+  AIPass's own registry for external targets), and `_spawn_agent` now validates
+  containment and, if the found registry is outside the target's project, walks
+  up from the target for `.git`/`pyproject.toml`/`setup.py`/`setup.cfg` to use
+  **that project's own registry** — so an agent created into any project is
+  tracked by that project's registry, never AIPass's. The
+  `_validate_path_containment` isolation invariant is untouched. `create` also
+  degrades gracefully when `@memory` is unavailable (empty meta-tabs, no crash).
+  297 tests pass. (built by @spawn, FPLAN-0294, TDPLAN-0010)
+
 - **ai_mail routing made project-portable (TDPLAN-0010 foundation)** — the
   fixed-depth `_REPO_ROOT = parents[2].parents[2]` self-location in
   `email.py` / `email_send.py` / `dispatch.py` (4 sites) is replaced with the

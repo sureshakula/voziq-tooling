@@ -398,7 +398,7 @@ class TestSyncRegistryCwdAware:
         agent.mkdir(parents=True)
         (agent / ".trinity").mkdir()
         (agent / ".trinity" / "passport.json").write_text(
-            json.dumps({"name": "NAVIGATOR", "identity": {"citizen_class": "builder"}})
+            json.dumps({"name": "NAVIGATOR", "identity": {"citizen_class": "aipass_framework"}})
         )
 
         with patch("aipass.spawn.apps.handlers.sync_registry_ops.find_registry", return_value=reg_path):
@@ -422,7 +422,7 @@ class TestSyncRegistryCwdAware:
         agent.mkdir(parents=True)
         (agent / ".trinity").mkdir()
         (agent / ".trinity" / "passport.json").write_text(
-            json.dumps({"name": "DAEMON", "identity": {"citizen_class": "builder"}})
+            json.dumps({"name": "DAEMON", "identity": {"citizen_class": "aipass_framework"}})
         )
 
         with patch("aipass.spawn.apps.handlers.sync_registry_ops.find_registry", return_value=reg_path):
@@ -456,7 +456,7 @@ class TestSyncRegistryCwdAware:
         local_agent.mkdir(parents=True)
         (local_agent / ".trinity").mkdir()
         (local_agent / ".trinity" / "passport.json").write_text(
-            json.dumps({"name": "POLYGLOT", "identity": {"citizen_class": "builder"}})
+            json.dumps({"name": "POLYGLOT", "identity": {"citizen_class": "aipass_framework"}})
         )
 
         reg_path = project / "MYPROJECT_REGISTRY.json"
@@ -514,7 +514,7 @@ class TestSyncRegistryCwdAware:
         local.mkdir(parents=True)
         (local / ".trinity").mkdir()
         (local / ".trinity" / "passport.json").write_text(
-            json.dumps({"name": "MYAGENT", "identity": {"citizen_class": "builder"}})
+            json.dumps({"name": "MYAGENT", "identity": {"citizen_class": "aipass_framework"}})
         )
 
         reg_path = project / "TEST_REGISTRY.json"
@@ -579,7 +579,7 @@ class TestAdoptExisting:
             json.dumps(
                 {
                     "branch_info": {"branch_name": "my_agent"},
-                    "identity": {"citizen_class": "builder", "purpose": "Test agent"},
+                    "identity": {"citizen_class": "aipass_framework", "purpose": "Test agent"},
                 }
             )
         )
@@ -630,7 +630,7 @@ class TestAdoptExisting:
             json.dumps(
                 {
                     "branch_info": {"branch_name": "smart_agent"},
-                    "identity": {"citizen_class": "builder", "purpose": "Process reports daily"},
+                    "identity": {"citizen_class": "aipass_framework", "purpose": "Process reports daily"},
                 }
             )
         )
@@ -663,7 +663,7 @@ class TestAdoptExisting:
             json.dumps(
                 {
                     "branch_info": {"branch_name": "id_agent"},
-                    "identity": {"citizen_class": "builder", "purpose": "Test"},
+                    "identity": {"citizen_class": "aipass_framework", "purpose": "Test"},
                     "citizenship": {"registry_id": "old-uuid-1234"},
                 }
             )
@@ -701,7 +701,7 @@ class TestAdoptExisting:
             json.dumps(
                 {
                     "branch_info": {"branch_name": "matched_agent"},
-                    "identity": {"citizen_class": "builder", "purpose": "Test"},
+                    "identity": {"citizen_class": "aipass_framework", "purpose": "Test"},
                     "citizenship": {"registry_id": "correct-uuid-9999"},
                 }
             )

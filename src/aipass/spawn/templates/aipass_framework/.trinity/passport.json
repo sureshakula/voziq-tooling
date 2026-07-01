@@ -18,7 +18,7 @@
     "git_branch": "work/{{branchname}}"
   },
   "identity": {
-    "citizen_class": "birthright",
+    "citizen_class": "{{CITIZEN_CLASS}}",
     "role": "{{ROLE}}",
     "purpose": "{{PURPOSE_BRIEF}}",
     "what_i_do": [],

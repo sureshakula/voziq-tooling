@@ -79,8 +79,7 @@ def handle_update(args: list[str]) -> int:
 
     Args patterns:
         ["@branch"]                -> update single branch (uses passport's class)
-        ["builder", "--all"]       -> update all builder-class branches
-        ["birthright", "--all"]    -> update all birthright-class branches
+        ["aipass_framework", "--all"] -> update all aipass_framework-class branches
         ["--all"]                  -> BLOCKED (must specify class)
         ["--dry-run", "@branch"]   -> preview mode
         ["--dry-run", "--all"]     -> BLOCKED
@@ -93,8 +92,7 @@ def handle_update(args: list[str]) -> int:
         warning("Usage: drone @spawn update <@branch|class --all> [--apply] [--dry-run] [--trace]")
         console.print()
         console.print("  [green]@branch[/green]           Update a single branch (uses its own class)")
-        console.print("  [green]builder --all[/green]     Update all builder-class branches")
-        console.print("  [green]birthright --all[/green]  Update all birthright-class branches")
+        console.print("  [green]aipass_framework --all[/green]  Update all aipass_framework-class branches")
         console.print("  [green]--apply[/green]           Execute changes (default is preview-only)")
         console.print("  [green]--dry-run[/green]         Preview changes without modifying files [dim](default)[/dim]")
         console.print("  [green]--trace[/green]           Enable verbose logging")
@@ -104,8 +102,7 @@ def handle_update(args: list[str]) -> int:
         warning("Usage: drone @spawn update <@branch|class --all> [--apply] [--dry-run] [--trace]")
         console.print()
         console.print("  [green]@branch[/green]           Update a single branch (uses its own class)")
-        console.print("  [green]builder --all[/green]     Update all builder-class branches")
-        console.print("  [green]birthright --all[/green]  Update all birthright-class branches")
+        console.print("  [green]aipass_framework --all[/green]  Update all aipass_framework-class branches")
         console.print("  [green]--apply[/green]           Execute changes (default is preview-only)")
         console.print("  [green]--dry-run[/green]         Preview changes without modifying files [dim](default)[/dim]")
         console.print("  [green]--trace[/green]           Enable verbose logging")
