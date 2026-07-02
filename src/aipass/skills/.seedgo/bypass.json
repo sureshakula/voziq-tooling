@@ -97,6 +97,21 @@
       "reason": "Test file — imports handler directly for unit testing. Same pattern as test_multi_bot.py and test_attach_only.py."
     },
     {
+      "file": "lib/telegram/tests/test_streaming.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "lib/telegram/tests/test_streaming.py",
+      "standard": "encapsulation",
+      "reason": "Test file — imports handler directly for unit testing. Same pattern as all other TG test files."
+    },
+    {
+      "file": "lib/telegram/tests/test_streaming.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test methods are self-documenting via class/method names."
+    },
+    {
       "file": "lib/telegram/tests/test_heartbeat_delivered.py",
       "standard": "architecture",
       "reason": "Test file — lives in tests/ by convention. Test files are exempt from layer architecture standard."

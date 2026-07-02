@@ -57,7 +57,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 # Logging
@@ -133,6 +133,7 @@ RATE_LIMIT_WINDOW = 60
 POLL_TIMEOUT = 30
 SEND_KEYS_DELAY = 0.5
 HEARTBEAT_INTERVAL = 30  # seconds
+STREAM_INTERVAL = 2  # seconds between streaming edits
 CLAUDE_BIN = str(Path.home() / ".local" / "bin" / "claude")
 MIRROR_SESSION_TYPE = "interactive-mirror"
 TEMP_DIR = Path("/tmp/telegram_uploads")
@@ -164,6 +165,7 @@ class BaseBot:
         branch_name: Optional[str] = None,
         shared_session: Optional[str] = None,
         attach_only: bool = False,
+        stream: bool = False,
     ) -> None:
         """
         Initialize BaseBot.
@@ -200,6 +202,7 @@ class BaseBot:
         self._shared_session_name = shared_session
         self._using_shared_session = False
         self._attach_only = attach_only
+        self._stream = stream
         self._mirror_mapping_written = False
         self._last_transcript_path: str | None = None
         self._config_chat_id: int | None = None
@@ -1439,6 +1442,8 @@ class BaseBot:
             "transcript_path": str(self._active_transcript_path) if self._active_transcript_path else None,
             "session_id": self._active_session_id,
         }
+        if self._stream:
+            pending_data["streaming"] = True
 
         try:
             self.pending_file.write_text(
@@ -1856,8 +1861,10 @@ class BaseBot:
 
     def _start_heartbeat(self, chat_id: int, processing_msg_id: int) -> None:
         """
-        Start a background thread that updates the "Processing..." message
-        with elapsed time.
+        Start a background thread that updates the "Processing..." message.
+
+        In batch mode (default): edits with elapsed time every 30s.
+        In stream mode: tails transcript and edits with live content every 2s.
 
         Args:
             chat_id: Chat ID where the processing message was sent
@@ -1868,6 +1875,13 @@ class BaseBot:
 
         def _heartbeat_loop():
             start = time.time()
+
+            # Streaming mode (FPLAN-0297): live transcript tail
+            if self._stream and self._active_transcript_path:
+                self._streaming_loop(chat_id, processing_msg_id, start)
+                return
+
+            # Batch mode (default): elapsed-time updates
             while not self._heartbeat_stop.is_set():
                 self._heartbeat_stop.wait(HEARTBEAT_INTERVAL)
                 if self._heartbeat_stop.is_set():
@@ -1920,6 +1934,183 @@ class BaseBot:
             return f"{total}s"
         minutes, secs = divmod(total, 60)
         return f"{minutes}m {secs}s"
+
+    # =============================================
+    # STREAMING EDIT-IN-PLACE (FPLAN-0297)
+    # =============================================
+
+    def _streaming_loop(self, chat_id: int, msg_id: int, start_time: float) -> None:
+        """Stream transcript content into the processing message via edit-in-place."""
+        path = self._active_transcript_path
+        try:
+            byte_offset = path.stat().st_size if path else 0
+        except OSError as exc:
+            logger.info("Cannot stat transcript for streaming: %s", exc)
+            byte_offset = 0
+
+        buffer = ""
+        last_sent = ""
+        current_msg_id = msg_id
+        retry_after_until = 0.0
+
+        while not self._heartbeat_stop.is_set():
+            self._heartbeat_stop.wait(STREAM_INTERVAL)
+            if self._heartbeat_stop.is_set():
+                break
+            if self._is_pending_delivered():
+                break
+            if not self._tmux_session_exists():
+                break
+
+            new_entries, byte_offset = self._tail_transcript_bytes(path, byte_offset)
+            new_text = self._format_stream_entries(new_entries)
+            if new_text:
+                buffer += new_text
+
+            if self._is_pending_delivered():
+                break
+
+            if not buffer:
+                elapsed = time.time() - start_time
+                placeholder = f"Processing... ({self._format_elapsed(elapsed)})"
+                now = time.time()
+                if placeholder != last_sent and now >= retry_after_until:
+                    ok, retry = self._stream_edit(chat_id, current_msg_id, placeholder)
+                    retry_after_until = now + retry if retry > 0 else retry_after_until
+                    last_sent = placeholder if ok else last_sent
+                continue
+
+            if buffer == last_sent:
+                continue
+
+            now = time.time()
+            if now < retry_after_until:
+                continue
+
+            if len(buffer) > TELEGRAM_CHAR_LIMIT:
+                break_at = buffer.rfind("\n", 0, TELEGRAM_CHAR_LIMIT)
+                if break_at < TELEGRAM_CHAR_LIMIT // 2:
+                    break_at = TELEGRAM_CHAR_LIMIT
+                final_chunk = buffer[:break_at].rstrip()
+                self._stream_edit(chat_id, current_msg_id, final_chunk)
+                buffer = buffer[break_at:].lstrip()
+                initial = buffer[:TELEGRAM_CHAR_LIMIT] or "..."
+                result = self.send_message(chat_id, initial)
+                if result:
+                    current_msg_id = result.get("message_id", current_msg_id)
+                last_sent = initial
+                continue
+
+            ok, retry = self._stream_edit(chat_id, current_msg_id, buffer)
+            if retry > 0:
+                retry_after_until = now + retry
+            if ok:
+                last_sent = buffer
+
+    def _tail_transcript_bytes(self, path: Path | None, byte_offset: int) -> tuple[list[dict], int]:
+        """Incrementally tail a JSONL transcript from byte_offset."""
+        if not path:
+            return [], byte_offset
+        try:
+            with open(path, "rb") as f:
+                f.seek(0, 2)
+                file_size = f.tell()
+                if file_size <= byte_offset:
+                    return [], byte_offset
+                f.seek(byte_offset)
+                new_bytes = f.read()
+        except OSError as exc:
+            logger.info("Cannot read transcript for streaming tail: %s", exc)
+            return [], byte_offset
+
+        last_newline = new_bytes.rfind(b"\n")
+        if last_newline == -1:
+            return [], byte_offset
+
+        complete = new_bytes[: last_newline + 1]
+        entries = []
+        for line_bytes in complete.split(b"\n"):
+            line_str = line_bytes.decode("utf-8", errors="replace").strip()
+            if not line_str:
+                continue
+            try:
+                entries.append(json.loads(line_str))
+            except json.JSONDecodeError:
+                logger.info("Malformed JSONL line in streaming tail")
+
+        return entries, byte_offset + len(complete)
+
+    @staticmethod
+    def _format_content_block(block: dict) -> str | None:
+        """Map a single transcript content block to plain-text display."""
+        if not isinstance(block, dict):
+            return None
+        btype = block.get("type", "")
+        if btype == "text":
+            text = block.get("text", "")
+            return text if text.strip() else None
+        if btype == "thinking":
+            return "Thinking..."
+        if btype == "tool_use":
+            return f"Running {block.get('name', 'tool')}..."
+        return None
+
+    @staticmethod
+    def _format_stream_entries(entries: list[dict]) -> str:
+        """Block-map transcript entries to plain-text streaming content."""
+        parts: list[str] = []
+        for entry in entries:
+            if entry.get("isSidechain"):
+                continue
+            msg = entry.get("message", {})
+            if msg.get("role") != "assistant":
+                continue
+            content = msg.get("content", [])
+            if isinstance(content, str):
+                if content.strip():
+                    parts.append(content)
+                continue
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                mapped = BaseBot._format_content_block(block)
+                if mapped is not None:
+                    parts.append(mapped)
+        if not parts:
+            return ""
+        return "\n".join(parts) + "\n"
+
+    def _stream_edit(self, chat_id: int, message_id: int, text: str) -> tuple[bool, float]:
+        """Edit a message with 429/not-modified handling for streaming.
+
+        Returns (success, retry_after_seconds). retry_after > 0 means rate-limited.
+        """
+        url = f"https://api.telegram.org/bot{self.bot_token}/editMessageText"
+        payload = {"chat_id": chat_id, "message_id": message_id, "text": text}
+
+        try:
+            data = json.dumps(payload).encode("utf-8")
+            req = Request(url, data=data, headers={"Content-Type": "application/json"})
+            with urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            return result.get("ok", False), 0.0
+        except HTTPError as e:
+            try:
+                body = json.loads(e.read().decode("utf-8"))
+            except Exception as parse_err:
+                logger.info("Cannot parse stream edit error body: %s", parse_err)
+                body = {}
+            if e.code == 429:
+                retry = body.get("parameters", {}).get("retry_after", 30)
+                logger.info("Stream edit 429 — backing off %ds", retry)
+                return False, float(retry)
+            if e.code == 400 and "not modified" in body.get("description", ""):
+                return True, 0.0
+            logger.warning("Stream edit HTTP %d: %s", e.code, body.get("description", ""))
+            return False, 0.0
+        except Exception as e:
+            logger.warning("Stream edit error: %s", e)
+            return False, 0.0
 
     # =============================================
     # OVERRIDABLE HOOKS
@@ -2300,6 +2491,7 @@ if __name__ == "__main__":
         branch_name=config.get("branch_name"),
         shared_session=config.get("shared_session"),
         attach_only=config.get("attach_only", False),
+        stream=config.get("stream", False),
     )
 
     if config.get("chat_id"):
