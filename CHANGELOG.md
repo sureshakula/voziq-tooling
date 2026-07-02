@@ -9,6 +9,33 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-02]
+
+### Fixed
+
+- **CI green — four regressions from the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010
+  batch (PR #646).** The dev branch had gone red across `seedgo-audit` and the
+  `test` matrix; root-caused and fixed at source:
+  - **seedgo** — the new `template_check` advisory checker was gating CI.
+    `branch_audit.py` averaged *all* checker scores into the branch total, so
+    `template_check`'s `ADVISORY=True` was never honored and it dragged 7
+    branches below the 100% floor on legitimate README brace-examples. Added a
+    `gating_scores` filter that excludes `ADVISORY is True` checkers before
+    computing the average (strict `is True` to avoid MagicMock false-positives)
+    and exposed `advisory_standards` in the audit output. Also refreshed the
+    provider hooks snapshot fixture to include the `presence_gate`
+    `UserPromptSubmit` hook (FPLAN-0289), fixing 4 `test_hooks_snapshot` tests.
+  - **hooks** — `cc_sessions.py` (added by the bridge, `f6cbe34`) was missing
+    its README entry and a seedgo `modules` bypass (it reads external
+    `~/.claude/sessions/*.json`, not branch data, so `json_handler` is the wrong
+    tool — same precedent as `presence.py`). Added both.
+  - **spawn** — retired the `passport(disabled).py` / `passport_ops(disabled).py`
+    pair to `.archive/`; the `(disabled)` suffix kept them visible to the type
+    checker, which flagged a broken cross-import between them.
+  - **ai_mail** — `test_child_inherits_broker_fd` gave its throwaway test branch
+    a real `.trinity/passport.json` so the broker's new `.trinity`-marker
+    resolution (`f914ab6`) can resolve it and permit the delete.
+
 ## [2026-07-01]
 
 ### Added

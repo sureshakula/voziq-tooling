@@ -1005,6 +1005,11 @@
       "reason": "Reads CC-native ~/.claude/sessions/*.json (external files, not branch data) with stdlib json — no JSON file ops needing json_handler."
     },
     {
+      "file": "apps/modules/cc_sessions.py",
+      "standard": "modules",
+      "reason": "Direct file ops on ~/.claude/sessions/*.json — external CC-native session files, not branch data. The module IS the CC session reader service; json_handler is for branch-managed JSON, not external platform files."
+    },
+    {
       "file": "apps/handlers/lifecycle/session_boot.py",
       "standard": "json_structure",
       "reason": "Boot wrapper has no JSON file ops — delegates to cc_sessions module for session reads. No json_handler needed."

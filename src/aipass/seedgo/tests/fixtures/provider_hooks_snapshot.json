@@ -4,6 +4,14 @@
       "hooks": [
         {
           "type": "command",
+          "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:presence_gate"
+        }
+      ]
+    },
+    {
+      "hooks": [
+        {
+          "type": "command",
           "command": "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py UserPromptSubmit:tier0_kernel"
         }
       ]

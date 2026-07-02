@@ -49,6 +49,7 @@ src/aipass/hooks/
 │   ├── sound.py                 # Shared sound utilities (speak, play, mute)
 │   ├── modules/
 │   │   ├── cadence.py           # Prompt injection cadence (every-Nth-turn gating)
+│   │   ├── cc_sessions.py       # CC-native session file reader (~/.claude/sessions/<pid>.json)
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   ├── hookstatus.py        # Config viewer (drone @hooks status)

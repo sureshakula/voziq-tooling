@@ -1731,10 +1731,13 @@ class TestBrokerRealE2E:
         from aipass.drone.apps.handlers.broker.daemon import BrokerDaemon
         from aipass.drone.apps.handlers.broker.client import create_identified_connection
 
-        # Set up repo root with branch dir
+        # Set up repo root with branch dir + .trinity marker (broker marker-walk requires it)
         repo_root = tmp_path / "repo"
         branch_dir = repo_root / "src" / "aipass" / "testbranch"
         branch_dir.mkdir(parents=True)
+        trinity_dir = branch_dir / ".trinity"
+        trinity_dir.mkdir()
+        (trinity_dir / "passport.json").write_text('{"branch_info": {"branch_name": "testbranch"}}', encoding="utf-8")
         target_file = branch_dir / "deleteme.txt"
         target_file.write_text("delete me", encoding="utf-8")
 
