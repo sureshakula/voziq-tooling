@@ -73,7 +73,7 @@ def _write_transcript(path, entries):
     """Write JSONL entries to a file. Returns the file path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     content = "\n".join(json.dumps(e) for e in entries) + "\n"
-    path.write_text(content, encoding="utf-8")
+    path.write_bytes(content.encode("utf-8"))
     return path
 
 
@@ -219,7 +219,7 @@ class TestTailTranscriptBytes:
         transcript = tmp_path / "test.jsonl"
         complete = json.dumps(_assistant_entry([{"type": "text", "text": "A"}]))
         partial = '{"incomplete": true'
-        transcript.write_text(complete + "\n" + partial, encoding="utf-8")
+        transcript.write_bytes((complete + "\n" + partial).encode("utf-8"))
 
         result_entries, new_offset = bot._tail_transcript_bytes(transcript, 0)
         assert len(result_entries) == 1
