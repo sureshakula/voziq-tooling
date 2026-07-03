@@ -146,6 +146,8 @@ On `drone @flow close`:
 
 Vector verification displays in console: "Vectorized: N chunks in chroma" or "NOT vectorized".
 
+Closed plans are archived to `<repo-root>/.backup/processed_plans/`, a shared runtime namespace managed by `@backup` (see `src/aipass/backup/README.md`) and consumed by `@memory` for vectorization.
+
 ---
 
 ## Integration Points

@@ -6,18 +6,6 @@
   },
   "bypass": [
     {
-      "file": "apps/scheduler_cron.py",
-      "standard": "naming",
-      "reason": "False positive: get_due_tasks, mark_dispatching, mark_completed are function references assigned at module level from task_registry imports, not constants",
-      "pattern": "get_due_tasks|mark_dispatching|mark_completed"
-    },
-    {
-      "file": "apps/modules/scheduler_ops.py",
-      "standard": "naming",
-      "reason": "False positive: get_due_tasks, mark_dispatching, mark_completed are function re-exports from task_registry, not constants",
-      "pattern": "get_due_tasks|mark_dispatching|mark_completed"
-    },
-    {
       "file": "apps/modules/schedule.py",
       "standard": "naming",
       "reason": "False positive: send_email_direct is a function alias assigned at module level, not a constant",
@@ -48,28 +36,10 @@
       "pattern": "red_flags|activity|health_data"
     },
     {
-      "file": "apps/handlers/schedule/task_registry.py",
-      "standard": "naming",
-      "reason": "False positive: task_result, email_body, to_branch are local variables inside functions, not module-level constants",
-      "pattern": "task_result|email_body|to_branch"
-    },
-    {
-      "file": "apps/handlers/actions/actions_registry.py",
-      "standard": "naming",
-      "reason": "False positive: action is a local variable inside functions, not a module-level constant. File name matches its domain (actions/actions_registry.py) — renaming would lose specificity",
-      "pattern": "action|actions_registry"
-    },
-    {
       "file": "apps/handlers/actions/action_processor.py",
       "standard": "naming",
       "reason": "False positive: load_registry, is_action_due, update_last_run are function references from try/except import fallback, not constants",
       "pattern": "load_registry|is_action_due|update_last_run"
-    },
-    {
-      "file": "apps/scheduler_cron.py",
-      "standard": "architecture",
-      "reason": "Entry point script — lives in apps/ root by design, not a module or handler",
-      "pattern": "File not in standard 3-layer structure"
     },
     {
       "file": "apps/daemon_wakeup.py",
@@ -84,18 +54,6 @@
       "pattern": "File not in standard 3-layer structure"
     },
     {
-      "file": "apps/scheduler_cron.py",
-      "standard": "encapsulation",
-      "reason": "scheduler_cron.py is itself an entry point script that directly uses handler functions — not a module violating encapsulation",
-      "pattern": "Handler imported directly"
-    },
-    {
-      "file": "apps/handlers/schedule/task_registry.py",
-      "standard": "unused_function",
-      "reason": "Public API functions used by tests (test_task_registry.py) and available for external callers",
-      "pattern": "get_task_by_id|get_pending_tasks"
-    },
-    {
       "file": "apps/plugins/__init__.py",
       "standard": "unused_function",
       "reason": "Public API for plugin discovery — used by scheduler_cron and available for external callers. Referenced in help text.",
@@ -106,6 +64,18 @@
       "standard": "encapsulation",
       "reason": "Authorized cross-branch wake_branch import (DPLAN-0204 §2.8 path A). ai_mail exposes wake_branch only via its handler — ai_mail's own modules and @trigger import it identically; no module entry point exists to use. Root fix (an ai_mail module wrapper) is tracked separately.",
       "pattern": "Handler imported directly"
+    },
+    {
+      "file": "apps/handlers/schedule/telegram_notifier.py",
+      "standard": "encapsulation",
+      "reason": "Authorized cross-branch import (TDPLAN-0008 contract). daemon emits lifecycle pings via skills telegram notifier — the only send path; no module wrapper exists.",
+      "pattern": "Handler imported directly"
+    },
+    {
+      "file": "apps/handlers/schedule/telegram_notifier.py",
+      "standard": "handlers",
+      "reason": "Authorized cross-branch import (TDPLAN-0008 contract). send_telegram_notification lives in @skills handler — daemon's notifier wraps it fail-soft.",
+      "pattern": "Cross-handler imports"
     },
     {
       "file": "apps/modules/run.py",
@@ -142,6 +112,54 @@
       "standard": "architecture",
       "reason": "Scheduler plugin — autodiscovered by plugins/__init__.py discover_plugins(). Lives in apps/plugins/ by design, not a module or handler.",
       "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_timer_install.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in 3-layer apps/ structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_run_module.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in 3-layer apps/ structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_run_module.py",
+      "standard": "documentation",
+      "reason": "Test methods are self-documenting via descriptive names — pytest convention",
+      "pattern": "missing docstrings"
+    },
+    {
+      "file": "tests/test_scheduler_bot.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in 3-layer apps/ structure",
+      "pattern": "File not in standard 3-layer structure"
+    },
+    {
+      "file": "tests/test_scheduler_bot.py",
+      "standard": "encapsulation",
+      "reason": "Test file imports handlers directly to unit-test them — standard pytest pattern",
+      "pattern": "Handler imported directly"
+    },
+    {
+      "file": "apps/modules/queue.py",
+      "standard": "introspection",
+      "reason": "Bare 'queue' renders the operational Rich table (td-47). Introspection gate would break the primary use case — users expect the job table, not module metadata.",
+      "pattern": "no-args gate"
+    },
+    {
+      "file": "apps/modules/timer_install.py",
+      "standard": "introspection",
+      "reason": "install-timer/uninstall-timer are action commands — no-args IS the action (install). Introspection gate would break primary use case (same pattern as run.py).",
+      "pattern": "no-args gate"
+    },
+    {
+      "file": "apps/modules/timer_install.py",
+      "standard": "modules",
+      "reason": "Installer module — mkdir for ~/.config/systemd/user/ is the core purpose. Direct file ops are inherent to the install function.",
+      "pattern": "direct file operations"
     }
   ],
   "notes": {

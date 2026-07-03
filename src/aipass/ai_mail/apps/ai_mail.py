@@ -16,7 +16,6 @@ Main handles routing, modules implement functionality.
 # Standard library imports
 import sys
 import importlib
-import argparse
 import signal
 from pathlib import Path
 from typing import Any, List
@@ -51,52 +50,47 @@ MODULES_DIR = MODULE_ROOT / "modules"
 
 
 def print_help():
-    """Print drone-compliant help output"""
-    parser = argparse.ArgumentParser(
-        description="AI_MAIL Branch Operations - Email system for branch communication",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-COMMANDS:
-  dispatch  - Send dispatch email + wake target (one step)
-  email     - Send email to a branch
-  send      - Send email (alias for email)
-  inbox     - List emails (new + opened)
-  view      - View email content (marks as opened)
-  reply     - Reply to email (closes + archives)
-  close     - Close email(s) without reply (archives)
-  sent      - View sent messages
-  contacts  - Manage contacts
-EMAIL LIFECYCLE (v2):
-  new → opened → closed
-  - new: Just arrived, never viewed
-  - opened: You've viewed it, not yet resolved
-  - closed: Resolved (replied or dismissed), auto-archived
+    """Print drone-compliant help output with Rich markup"""
+    console.print()
+    console.print("[bold cyan]AI_MAIL — Email system for branch communication[/bold cyan]")
+    console.print()
 
-USAGE:
-  drone @ai_mail <command> [args]
-  drone @ai_mail --help
+    console.print("[yellow]COMMANDS:[/yellow]")
+    console.print("  [cyan]dispatch[/cyan]  [dim]Send dispatch email + wake target (one step)[/dim]")
+    console.print("  [cyan]email[/cyan]     [dim]Send email to a branch[/dim]")
+    console.print("  [cyan]send[/cyan]      [dim]Send email (alias for email)[/dim]")
+    console.print("  [cyan]inbox[/cyan]     [dim]List emails (new + opened)[/dim]")
+    console.print("  [cyan]view[/cyan]      [dim]View email content (marks as opened)[/dim]")
+    console.print("  [cyan]reply[/cyan]     [dim]Reply to email (closes + archives)[/dim]")
+    console.print("  [cyan]close[/cyan]     [dim]Close email(s) without reply (archives)[/dim]")
+    console.print("  [cyan]sent[/cyan]      [dim]View sent messages[/dim]")
+    console.print("  [cyan]contacts[/cyan]  [dim]Manage contacts[/dim]")
+    console.print()
 
-EXAMPLES:
-  # Dispatch (send + wake in one command)
-  drone @ai_mail dispatch @branch "Subject" "Body"
-  drone @ai_mail dispatch @branch "Subject" "Body" --fresh
+    console.print("[yellow]EMAIL LIFECYCLE (v2):[/yellow]")
+    console.print("  new → opened → closed")
+    console.print("  [dim]new: Just arrived, never viewed[/dim]")
+    console.print("  [dim]opened: You've viewed it, not yet resolved[/dim]")
+    console.print("  [dim]closed: Resolved (replied or dismissed), auto-archived[/dim]")
+    console.print()
 
-  # Send mail (no wake)
-  drone @ai_mail email @seedgo "Subject" "Msg"  # Send to branch
-  drone @ai_mail email @all "Subject" "Msg"   # Broadcast to all
+    console.print("[yellow]USAGE:[/yellow]")
+    console.print("  [cyan]drone @ai_mail[/cyan] <command> [args]")
+    console.print("  [cyan]drone @ai_mail --help[/cyan]")
+    console.print()
 
-  # Check mail
-  drone @ai_mail inbox                        # List all emails
-  drone @ai_mail view abc123                  # View email (marks as opened)
-
-  # Resolve emails
-  drone @ai_mail reply abc123 "Thanks!"       # Reply + close + archive
-  drone @ai_mail close abc123                 # Close single email
-  drone @ai_mail close abc123 def456 ghi789   # Close multiple emails
-  drone @ai_mail close all                    # Close ALL emails
-        """,
-    )
-    console.print(parser.format_help())
+    console.print("[yellow]EXAMPLES:[/yellow]")
+    console.print('  [cyan]drone @ai_mail dispatch @branch "Subject" "Body"[/cyan]')
+    console.print('  [cyan]drone @ai_mail dispatch @branch "Subject" "Body" --fresh[/cyan]')
+    console.print('  [cyan]drone @ai_mail email @seedgo "Subject" "Msg"[/cyan]  [dim]Send to branch[/dim]')
+    console.print('  [cyan]drone @ai_mail email @all "Subject" "Msg"[/cyan]     [dim]Broadcast to all[/dim]')
+    console.print("  [cyan]drone @ai_mail inbox[/cyan]                          [dim]List all emails[/dim]")
+    console.print("  [cyan]drone @ai_mail view abc123[/cyan]                    [dim]View email[/dim]")
+    console.print('  [cyan]drone @ai_mail reply abc123 "Thanks!"[/cyan]         [dim]Reply + close + archive[/dim]')
+    console.print("  [cyan]drone @ai_mail close abc123[/cyan]                   [dim]Close single email[/dim]")
+    console.print("  [cyan]drone @ai_mail close abc123 def456 ghi789[/cyan]     [dim]Close multiple[/dim]")
+    console.print("  [cyan]drone @ai_mail close all[/cyan]                      [dim]Close ALL emails[/dim]")
+    console.print()
 
 
 # =============================================================================

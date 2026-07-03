@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import hmac as hmac_mod
 import json
+import os
 import secrets
 import socket
 import threading
@@ -50,8 +51,6 @@ _TMP_BASES = (Path("/tmp"), Path("/var/tmp"))
 
 def _find_project_root() -> Path | None:
     """Walk up from CWD to find *_REGISTRY.json; return its parent as project root."""
-    import os
-
     cwd = Path.cwd()
     for parent in [cwd, *cwd.parents]:
         if list(parent.glob("*_REGISTRY.json")):
@@ -166,10 +165,23 @@ class BrokerDaemon:
         if identity == "devpulse":
             bases.append(self._repo_root)
             return bases
-        branch_dir = self._repo_root / "src" / "aipass" / identity
-        if branch_dir.is_dir():
+        branch_dir = self._resolve_branch_dir(identity)
+        if branch_dir and branch_dir.is_dir():
             bases.append(branch_dir)
         return bases
+
+    def _resolve_branch_dir(self, identity: str) -> Path | None:
+        """Find a branch directory by name via .trinity/ marker walk."""
+        if self._repo_root is None:
+            return None
+        for root, dirs, _files in os.walk(self._repo_root):
+            depth = len(Path(root).relative_to(self._repo_root).parts)
+            if depth > 3:
+                dirs.clear()
+                continue
+            if Path(root).name == identity and (Path(root) / ".trinity").is_dir():
+                return Path(root).resolve()
+        return None
 
     def _handle_identify(self, req: BrokerRequest) -> tuple[BrokerResponse, str | None]:
         """Verify HMAC and bind identity to the connection."""

@@ -52,62 +52,39 @@ def print_introspection():
 
 
 def print_help():
-    """Print module help with argparse"""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog="drone @api",
-        description="OpenRouter Client - Manage LLM API connections",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-COMMANDS:
-  test             - Test OpenRouter connection
-  call             - Make API call to model
-  models           - List available models
-  status           - Check connection status
-
-USAGE:
-  drone @api test
-  drone @api call <prompt> [--model MODEL]
-  drone @api models
-  drone @api status
-
-ARGUMENTS:
-  prompt - Prompt to send to the model
-  --model - Model to use (optional)
-
-EXAMPLES:
-  # Test OpenRouter connection
-  drone @api test
-
-  # Make an API call
-  drone @api call "What is AI?" --model gpt-4
-
-  # List available models
-  drone @api models
-
-  # Check connection status
-  drone @api status
-        """,
-    )
-
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # test command
-    subparsers.add_parser("test", help="Test OpenRouter connection")
-
-    # call command
-    call_parser = subparsers.add_parser("call", help="Make API call to model")
-    call_parser.add_argument("prompt", help="Prompt to send")
-    call_parser.add_argument("--model", help="Model to use")
-
-    # models command
-    subparsers.add_parser("models", help="List available models")
-
-    # status command
-    subparsers.add_parser("status", help="Check connection status")
-
-    console.print(parser.format_help())
+    """Print drone-compliant help output with Rich markup"""
+    console.print()
+    console.print("[bold cyan]OPENROUTER_CLIENT — Manage LLM API connections[/bold cyan]")
+    console.print()
+    console.print("[yellow]COMMANDS:[/yellow]")
+    console.print("  [cyan]test[/cyan]     [dim]Test OpenRouter connection[/dim]")
+    console.print("  [cyan]call[/cyan]     [dim]Make API call to model[/dim]")
+    console.print("  [cyan]models[/cyan]   [dim]List available models[/dim]")
+    console.print("  [cyan]status[/cyan]   [dim]Check connection status[/dim]")
+    console.print()
+    console.print("[yellow]USAGE:[/yellow]")
+    console.print("  [cyan]drone @api test[/cyan]")
+    console.print("  [cyan]drone @api call[/cyan] <prompt> [--model MODEL]")
+    console.print("  [cyan]drone @api models[/cyan]")
+    console.print("  [cyan]drone @api status[/cyan]")
+    console.print()
+    console.print("[yellow]ARGUMENTS:[/yellow]")
+    console.print("  [cyan]prompt[/cyan]   [dim]Prompt to send to the model[/dim]")
+    console.print("  [cyan]--model[/cyan]  [dim]Model to use (optional)[/dim]")
+    console.print()
+    console.print("[yellow]EXAMPLES:[/yellow]")
+    console.print("  [dim]# Test OpenRouter connection[/dim]")
+    console.print("  [cyan]drone @api test[/cyan]")
+    console.print()
+    console.print("  [dim]# Make an API call[/dim]")
+    console.print('  [cyan]drone @api call "What is AI?" --model gpt-4[/cyan]')
+    console.print()
+    console.print("  [dim]# List available models[/dim]")
+    console.print("  [cyan]drone @api models[/cyan]")
+    console.print()
+    console.print("  [dim]# Check connection status[/dim]")
+    console.print("  [cyan]drone @api status[/cyan]")
+    console.print()
 
 
 def handle_command(command: str, args: List[str]) -> bool:

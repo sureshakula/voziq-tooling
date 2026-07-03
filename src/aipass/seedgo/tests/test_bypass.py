@@ -44,6 +44,7 @@ def _mock_infrastructure(monkeypatch):
     for mod_name in [
         "aipass.seedgo.apps.handlers.bypass.bypass_handler",
         "aipass.seedgo.apps.handlers.bypass.ignore_handler",
+        "aipass.seedgo.apps.handlers.bypass.utils",
     ]:
         monkeypatch.delitem(sys.modules, mod_name, raising=False)
 
@@ -210,3 +211,214 @@ def test_get_deprecated_patterns_returns_dict():
     for key, value in patterns.items():
         assert isinstance(key, str)
         assert isinstance(value, str)
+
+
+# ---------------------------------------------------------------------------
+# Tests -- utils.is_bypassed name-scoped bypass
+# ---------------------------------------------------------------------------
+
+
+def test_utils_name_match_suppresses_regardless_of_line():
+    """Name-scoped bypass matches by function name, ignoring line number."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/ops.py",
+            "standard": "unused_function",
+            "functions": ["update_command"],
+            "reason": "public API",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/ops.py",
+            "unused_function",
+            line=999,
+            bypass_rules=rules,
+            name="update_command",
+        )
+        is True
+    )
+
+
+def test_utils_name_not_in_functions_list():
+    """Name-scoped bypass rejects function not in the functions list."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/ops.py",
+            "standard": "unused_function",
+            "functions": ["update_command"],
+            "reason": "public API",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/ops.py",
+            "unused_function",
+            line=232,
+            bypass_rules=rules,
+            name="delete_command",
+        )
+        is False
+    )
+
+
+def test_utils_line_drift_no_longer_breaks_name_scoped():
+    """Line drift doesn't affect name-scoped bypass — name is stable."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/ops.py",
+            "standard": "unused_function",
+            "functions": ["get_skill", "get_skill_names"],
+            "reason": "public API",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/ops.py",
+            "unused_function",
+            line=52,
+            bypass_rules=rules,
+            name="get_skill",
+        )
+        is True
+    )
+    assert (
+        is_bypassed(
+            "/branch/apps/ops.py",
+            "unused_function",
+            line=9999,
+            bypass_rules=rules,
+            name="get_skill",
+        )
+        is True
+    )
+
+
+def test_utils_functions_present_name_none_falls_back_to_lines():
+    """When functions is set but name=None (other checker), fall back to line matching."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/ops.py",
+            "standard": "unused_function",
+            "functions": ["update_command"],
+            "lines": [10],
+            "reason": "test",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/ops.py",
+            "unused_function",
+            line=10,
+            bypass_rules=rules,
+            name=None,
+        )
+        is True
+    )
+
+
+def test_utils_existing_lines_only_rules_still_work():
+    """Existing line-only rules (no functions field) still match by line."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/foo.py",
+            "standard": "cli",
+            "lines": [10, 20],
+            "reason": "circular",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/foo.py",
+            "cli",
+            line=10,
+            bypass_rules=rules,
+        )
+        is True
+    )
+    assert (
+        is_bypassed(
+            "/branch/apps/foo.py",
+            "cli",
+            line=99,
+            bypass_rules=rules,
+        )
+        is False
+    )
+
+
+def test_utils_file_only_bypass_still_matches():
+    """File-level bypass (no lines, no functions) still works."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/foo.py",
+            "standard": "unused_function",
+            "reason": "whole file bypassed",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/foo.py",
+            "unused_function",
+            line=50,
+            bypass_rules=rules,
+            name="anything",
+        )
+        is True
+    )
+
+
+def test_utils_multiple_functions_in_one_rule():
+    """A single rule can list multiple function names."""
+    from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
+
+    rules = [
+        {
+            "file": "apps/registry.py",
+            "standard": "unused_function",
+            "functions": ["get_skill", "get_skill_names"],
+            "reason": "public API",
+        }
+    ]
+    assert (
+        is_bypassed(
+            "/branch/apps/registry.py",
+            "unused_function",
+            line=1,
+            bypass_rules=rules,
+            name="get_skill",
+        )
+        is True
+    )
+    assert (
+        is_bypassed(
+            "/branch/apps/registry.py",
+            "unused_function",
+            line=1,
+            bypass_rules=rules,
+            name="get_skill_names",
+        )
+        is True
+    )
+    assert (
+        is_bypassed(
+            "/branch/apps/registry.py",
+            "unused_function",
+            line=1,
+            bypass_rules=rules,
+            name="other_func",
+        )
+        is False
+    )

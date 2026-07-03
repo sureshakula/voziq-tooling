@@ -236,6 +236,15 @@ def run_rollover() -> bool:
             error(f"{fail['trigger']} - {fail['stage']}: {fail['error']}")
 
     json_handler.log_operation("rollover_execute", {"triggers": triggers_count, "success_count": success_count})
+
+    # Refresh state-tabs after rollover (counts may have changed)
+    try:
+        from aipass.memory.apps.handlers.tracking.tab_renderer import refresh_all_tabs
+
+        refresh_all_tabs()
+    except Exception as e:
+        logger.warning(f"[rollover] Tab refresh failed: {e}")
+
     return success_count > 0
 
 
@@ -324,6 +333,14 @@ def sync_line_counts() -> None:
         json_handler.log_operation("rollover_sync_lines", {"updated": result["updated"], "failed": result["failed"]})
     else:
         error("Failed to sync line counts")
+
+    # Refresh state-tabs after line count sync
+    try:
+        from aipass.memory.apps.handlers.tracking.tab_renderer import refresh_all_tabs
+
+        refresh_all_tabs()
+    except Exception as e:
+        logger.warning(f"[rollover] Tab refresh failed: {e}")
 
     console.print()
 

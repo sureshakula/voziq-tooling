@@ -14,12 +14,12 @@ Used by logger_setup.py to route logs to correct files.
 """
 
 import logging
-
-logger = logging.getLogger(__name__)
 from pathlib import Path
 from typing import Optional
 
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 _PRAX_INTERNAL_MARKERS = (
     "/prax/apps/modules/logger.py",
@@ -85,14 +85,29 @@ def get_caller_info() -> tuple:
     get_calling_module_path() are called separately from different
     stack depths, potentially finding different external callers.
 
+    Env var overrides (checked in order):
+        AIPASS_LOG_NAME  — explicit module name override for any process
+        AIPASS_BOT_ID    — set by telegram-bot@.service, mapped to bot_{id}
+
     Returns:
         (module_name, module_path, branch_name) — branch_name may be None
     """
+    import os
+
     caller_path = _find_external_caller_path()
+    branch = detect_branch_from_path(caller_path) if caller_path else None
+
+    log_name = os.environ.get("AIPASS_LOG_NAME")
+    if log_name:
+        return (log_name, caller_path, branch)
+
+    bot_id = os.environ.get("AIPASS_BOT_ID")
+    if bot_id:
+        return (f"bot_{bot_id}", caller_path, branch)
+
     if not caller_path:
         return ("unknown_module", None, None)
     module_name = Path(caller_path).stem
-    branch = detect_branch_from_path(caller_path)
     return (module_name, caller_path, branch)
 
 

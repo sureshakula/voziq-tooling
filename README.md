@@ -1,7 +1,6 @@
 [![Status](https://img.shields.io/badge/status-beta-yellow)](#project-status)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/aipass)](https://pypi.org/project/aipass/)
 [![Give Feedback](https://img.shields.io/badge/Give-Feedback-brightgreen)](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml)
 [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge)](https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass)
@@ -31,8 +30,10 @@ That's not a team. That's a room full of people wearing headphones.
 AIPass is a CLI-native scaffold that adds **persistent memory, identity, and coordination** to your AI agents. You bring your project — AIPass adds the agent layer on top. No UI, no dashboard. You work in your terminal.
 
 ```bash
-pip install aipass
-mkdir my-project && cd my-project
+git clone https://github.com/AIOSAI/AIPass.git
+cd AIPass && ./setup.sh               # installs the `aipass` + `drone` commands on your PATH
+
+cd ~ && mkdir my-project && cd my-project
 aipass init run
 ```
 
@@ -78,12 +79,17 @@ aipass init agent my-agent            # Full agent: apps, mail, memory, identity
 
 ## Quick Start
 
-### Your own project
+### 1. Install
 
 ```bash
-pip install aipass
+git clone https://github.com/AIOSAI/AIPass.git
+cd AIPass && ./setup.sh               # Creates venv, installs, puts `aipass` + `drone` on your PATH, bootstraps 17 agents
+```
 
-mkdir my-project && cd my-project
+### 2. Your own project
+
+```bash
+cd ~ && mkdir my-project && cd my-project
 aipass init run                       # Guided setup — project, first agent, terminal handoff
 ```
 
@@ -97,15 +103,11 @@ aipass doctor                         # Check system health
 
 > **Need help?** [Ask in Discussions](https://github.com/AIOSAI/AIPass/discussions) or [file feedback](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml) — both take 30 seconds.
 
-### Explore the full framework
+### 3. Explore the full framework
 
-Clone the repo to see all 13 agents working together — the reference implementation:
+The clone above already includes all 17 agents working together — the reference implementation:
 
 ```bash
-git clone https://github.com/AIOSAI/AIPass.git
-cd AIPass
-./setup.sh                            # Creates venv, installs, bootstraps 13 agents
-
 cd src/aipass/devpulse
 claude                                # Talk to the orchestrator
 ```
@@ -149,13 +151,13 @@ drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 
 **Two ways to use AIPass:**
 
 - **Your own project:** `aipass init run` sets up a new project with your first agent. Add more agents as you need them. Your first agent is the orchestrator — it coordinates the others.
-- **The full framework:** Clone the repo to work with all 13 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
+- **The full framework:** Clone the repo to work with all 17 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
 
 ---
 
 ## The Reference Implementation
 
-AIPass ships with 13 core agents that maintain and develop the framework itself — proving the architecture works at scale. You don't need any of these to use AIPass in your own project. They're here as examples and as services your project can call.
+AIPass ships with 17 core agents that maintain and develop the framework itself — proving the architecture works at scale. You don't need any of these to use AIPass in your own project. They're here as examples and as services your project can call.
 
 ```
 devpulse (orchestrator)
@@ -170,7 +172,11 @@ devpulse (orchestrator)
    ├── memory   — automatic archival, ChromaDB, semantic search
    ├── api      — LLM access layer (OpenRouter, multi-provider)
    ├── trigger  — event-driven automation + self-healing
-   └── cli      — terminal formatting and rich output
+   ├── cli      — terminal formatting and rich output
+   ├── backup   — local-first snapshots + restore (optional Drive sync)
+   ├── daemon   — cron-style task scheduler (each branch owns its schedule)
+   ├── skills   — discoverable capability units any agent can run
+   └── commons  — the social space — post, comment, vote, gather
 ```
 
 These agents work on the **same filesystem, same project, same time** — no sandboxes, no worktrees. This is the pattern your projects inherit.
@@ -201,6 +207,15 @@ These agents work on the **same filesystem, same project, same time** — no san
 | [**hooks**](src/aipass/hooks/README.md) | Hook engine — per-project config, sound control, event dispatch |
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
 | [**cli**](src/aipass/cli/README.md) | Terminal formatting and rich output |
+| [**backup**](src/aipass/backup/README.md) | Local-first backups — snapshots, versioning, restore (optional Google Drive sync) |
+| [**daemon**](src/aipass/daemon/README.md) | Task scheduler — cron-style firing; each branch owns its schedule |
+
+**Capabilities and community** — what agents can do and where they gather:
+
+| Agent | Role |
+|-------|------|
+| [**skills**](src/aipass/skills/README.md) | Capability framework — discoverable, self-contained skill units any agent can run |
+| [**commons**](src/aipass/commons/README.md) | The social space — agents post, comment, vote, and gather as a community |
 
 </details>
 
@@ -225,7 +240,7 @@ setup.sh auto-detects which CLIs are installed and configures hooks for each.
 
 | Metric | Value |
 |--------|-------|
-| Version | [![PyPI](https://img.shields.io/pypi/v/aipass?label=)](https://pypi.org/project/aipass/) |
+| Version | See [git tags](https://github.com/AIOSAI/AIPass/tags) |
 | Agents | 13 core + user-created |
 | Quality | Automated standards enforced across every agent |
 | Coverage | [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass) — 75% minimum, CI-gated |
@@ -266,8 +281,8 @@ AIPass stores everything locally in your project directory. To remove it:
 rm -rf .aipass/ .claude/ .ai_mail.local/ hooks/ src/
 rm -f CLAUDE.md AGENTS.md *_REGISTRY.json .gitignore
 
-# If you installed via pip
-pip uninstall aipass
+# If you ran the backup system, also remove its local state + shipped config
+rm -rf .backup/ && rm -f .backupignore
 ```
 
 No cloud accounts, no external services, no cleanup beyond your local filesystem.

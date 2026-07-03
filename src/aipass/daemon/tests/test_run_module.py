@@ -1,3 +1,11 @@
+# =================== AIPass ====================
+# Name: test_run_module.py
+# Description: Tests for the drone @daemon run module
+# Version: 1.1.0
+# Created: 2026-06-15
+# Modified: 2026-06-25
+# =============================================
+
 """Tests for the drone @daemon run module (decentralized scheduler tick)."""
 
 from unittest.mock import patch
@@ -63,7 +71,7 @@ class TestRunTick:
         assert results["due"] == 0
 
     @patch("aipass.daemon.apps.modules.run.save_runstate")
-    @patch("aipass.daemon.apps.modules.run._fire_job", return_value=True)
+    @patch("aipass.daemon.apps.modules.run._fire_job", return_value=(True, ""))
     @patch("aipass.daemon.apps.modules.run.discover_jobs")
     @patch("aipass.daemon.apps.modules.run.load_runstate", return_value={"jobs": {}})
     def test_fires_due_job(self, mock_rs, mock_discover, mock_fire, mock_save):
@@ -84,7 +92,7 @@ class TestRunTick:
         mock_save.assert_called()
 
     @patch("aipass.daemon.apps.modules.run.save_runstate")
-    @patch("aipass.daemon.apps.modules.run._fire_job", return_value=False)
+    @patch("aipass.daemon.apps.modules.run._fire_job", return_value=(False, "wake failed"))
     @patch("aipass.daemon.apps.modules.run.discover_jobs")
     @patch("aipass.daemon.apps.modules.run.load_runstate", return_value={"jobs": {}})
     def test_failed_fire_counted(self, mock_rs, mock_discover, mock_fire, mock_save):

@@ -187,7 +187,9 @@ def audit_branch(branch: Dict[str, str], bypass_rules: list, pack_path: Path | N
                 logger.info("Post-check %s failed for branch %s", name, branch["name"])
 
     json_handler.log_operation("branch_audit_completed", {"branch": branch["name"], "checkers": len(checkers)})
-    avg = int(sum(scores.values()) / len(scores)) if scores else 0
+    advisory_standards = [name for name, mod in checkers.items() if getattr(mod, "ADVISORY", False) is True]
+    gating_scores = {k: v for k, v in scores.items() if k not in advisory_standards}
+    avg = int(sum(gating_scores.values()) / len(gating_scores)) if gating_scores else 0
 
     # Deprecated DOCUMENTS/ directory check
     deprecated = []
@@ -214,6 +216,7 @@ def audit_branch(branch: Dict[str, str], bypass_rules: list, pack_path: Path | N
         "branch": branch,
         "results": results,
         "scores": scores,
+        "advisory_standards": advisory_standards,
         "average": avg,
         "deprecated_patterns": deprecated,
         "files_checked": len(all_files),

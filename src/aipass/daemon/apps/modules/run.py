@@ -27,6 +27,7 @@ from aipass.daemon.apps.handlers.schedule.runstate import (
     save_runstate,
     is_job_due,
     update_job_runstate,
+    record_job_failure,
     job_key,
     prune_orphans,
 )
@@ -69,6 +70,38 @@ def print_help():
     console.print("\n[yellow]DESCRIPTION:[/yellow]")
     console.print("  Sweeps src/aipass/*/.daemon/*.json for scheduled jobs,")
     console.print("  evaluates due-ness, and wakes each due branch via wake_branch().")
+    console.print("\n[bold cyan]SCHEDULING — How to author a job:[/bold cyan]")
+    console.print("  [bold]File:[/bold] src/aipass/<branch>/.daemon/schedule.json")
+    console.print()
+    console.print("  [bold]Schema:[/bold]")
+    console.print("    {")
+    console.print('      "version": 1,')
+    console.print('      "branch": "@<branch>",')
+    console.print('      "jobs": [')
+    console.print("        {")
+    console.print('          "id": "my-job",')
+    console.print('          "enabled": true,')
+    console.print('          "schedule": { "type": "interval", "interval_minutes": 30 },')
+    console.print('          "wake": { "fresh": true, "model": "haiku" },')
+    console.print('          "prompt": "Do something, then STOP."')
+    console.print("        }")
+    console.print("      ]")
+    console.print("    }")
+    console.print()
+    console.print("  [bold]Schedule types:[/bold]")
+    console.print("    [cyan]interval[/cyan]  interval_minutes: N")
+    console.print("              [dim]Fires when elapsed >= N since last_run. Fires immediately if never run.[/dim]")
+    console.print("    [cyan]daily[/cyan]     time: HH:MM")
+    console.print("              [dim]+/-15 min window, once per day.[/dim]")
+    console.print("    [cyan]hourly[/cyan]    time: M  [dim](minute of hour)[/dim]")
+    console.print("              [dim]+/-15 min window, once per hour.[/dim]")
+    console.print("    [cyan]once[/cyan]      due_date: YYYY-MM-DD")
+    console.print("              [dim]Fires when date <= today, then marks completed.[/dim]")
+    console.print()
+    console.print("  [bold]wake options:[/bold]  fresh (bool), model (haiku/sonnet — use light models)")
+    console.print()
+    console.print("  [bold]Staggering:[/bold] No native offset field. Seed different last_run values")
+    console.print("  in daemon_json/daemon_runstate.json to offset first-fire timing.")
     console.print()
 
 
@@ -80,18 +113,36 @@ def _log(message: str) -> None:
     console.print(f"[{timestamp}] {message}")
 
 
-def _fire_job(job: dict) -> bool:
-    """Fire a single job via direct wake_branch import (DPLAN-0204 path A)."""
+def _should_notify(job: dict) -> bool:
+    """Check if this job should emit telegram notifications."""
+    return job.get("notify", True)
+
+
+def _fire_job(job: dict) -> tuple:
+    """Fire a single job via direct wake_branch import (DPLAN-0204 path A).
+
+    Returns (ok: bool, error_msg: str).
+    """
     # Cross-branch handler import authorized by DPLAN-0204 §2.8
     from aipass.ai_mail.apps.handlers.dispatch.wake import wake_branch  # noqa: E402
+    from aipass.daemon.apps.handlers.schedule.telegram_notifier import (
+        notify_triggered,
+        notify_complete,
+        notify_error,
+    )
 
     owner = job["owner"]
+    job_id = job["id"]
     prompt = job["prompt"]
     wake = job.get("wake", {})
     fresh = wake.get("fresh", True)
     model = wake.get("model")
+    notify = _should_notify(job)
 
-    _log(f"FIRE: {owner}/{job['id']} -> wake_branch({owner}, fresh={fresh}, model={model})")
+    _log(f"FIRE: {owner}/{job_id} -> wake_branch({owner}, fresh={fresh}, model={model})")
+
+    if notify:
+        notify_triggered(owner, job_id)
 
     try:
         status, ok = wake_branch(
@@ -103,16 +154,24 @@ def _fire_job(job: dict) -> bool:
             model=model,
         )
         if ok:
-            _log(f"OK: {owner}/{job['id']} — {status.summary}")
-            logger.info("[run] Fired %s/%s successfully", owner, job["id"])
+            _log(f"OK: {owner}/{job_id} — {status.summary}")
+            logger.info("[run] Fired %s/%s successfully", owner, job_id)
+            if notify:
+                notify_complete(owner, job_id, status.summary)
+            return True, ""
         else:
-            _log(f"FAIL: {owner}/{job['id']} — {status.summary}")
-            logger.warning("[run] Failed to fire %s/%s: %s", owner, job["id"], status.summary)
-        return ok
+            msg = status.summary
+            _log(f"FAIL: {owner}/{job_id} — {msg}")
+            logger.warning("[run] Failed to fire %s/%s: %s", owner, job_id, msg)
+            if notify:
+                notify_error(owner, job_id, msg)
+            return False, msg
     except Exception as e:
-        logger.error("[run] Exception firing %s/%s: %s", owner, job["id"], e)
-        _log(f"ERROR: {owner}/{job['id']} — {e}")
-        return False
+        logger.error("[run] Exception firing %s/%s: %s", owner, job_id, e)
+        _log(f"ERROR: {owner}/{job_id} — {e}")
+        if notify:
+            notify_error(owner, job_id, str(e))
+        return False, str(e)
 
 
 def run_tick(dry_run: bool = False) -> dict:
@@ -177,13 +236,14 @@ def run_tick(dry_run: bool = False) -> dict:
 
     # Step 4: Fire due jobs
     for job in due_jobs:
-        ok = _fire_job(job)
+        ok, error_msg = _fire_job(job)
         if ok:
             results["fired"] += 1
             update_job_runstate(runstate, job["owner"], job["id"], job["schedule"])
-            save_runstate(runstate)
         else:
             results["failed"] += 1
+            record_job_failure(runstate, job["owner"], job["id"], error_msg)
+        save_runstate(runstate)
 
         if job != due_jobs[-1]:
             time.sleep(1.0)

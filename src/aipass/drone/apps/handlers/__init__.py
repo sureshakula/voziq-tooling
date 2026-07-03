@@ -41,13 +41,15 @@ def _find_real_caller():
     return None, None
 
 
+_BRANCH_ROOT = str(Path(__file__).resolve().parents[2])
+
+
 def _extract_branch_name(filepath: str) -> str:
-    """Extract branch name from a file path."""
-    parts = Path(filepath).parts
-    for i, part in enumerate(parts):
-        if part == "aipass":
-            if i + 1 < len(parts):
-                return parts[i + 1]
+    """Extract branch name from a file path by walking up to .trinity/."""
+    path = Path(filepath)
+    for parent in [path, *path.parents]:
+        if (parent / ".trinity").is_dir():
+            return parent.name
     return "unknown"
 
 
@@ -60,14 +62,13 @@ def _guard_branch_access():
     """
     caller_file, import_line = _find_real_caller()
 
-    # DEBUG: Print what we found
     import os
 
     if os.environ.get("AIPASS_DEBUG_GUARD"):
         import sys
 
-        print(f"[GUARD DEBUG] caller_file = {caller_file}", file=sys.stderr)
-        print(f"[GUARD DEBUG] import_line = {import_line}", file=sys.stderr)
+        sys.stderr.write(f"[GUARD DEBUG] caller_file = {caller_file}\n")
+        sys.stderr.write(f"[GUARD DEBUG] import_line = {import_line}\n")
 
     if caller_file is None:
         # Can't determine caller from real files
@@ -79,10 +80,7 @@ def _guard_branch_access():
                 return  # Allow command-line Python through
         return  # Allow if truly can't determine
 
-    # Check if caller is from our branch
-    # MY_BRANCH is "aipass.drone" (dotted), but filesystem uses "/aipass/drone/"
-    branch_path = "/" + MY_BRANCH.replace(".", "/") + "/"
-    if branch_path in caller_file.replace("\\", "/"):
+    if Path(caller_file).is_relative_to(_BRANCH_ROOT):
         return  # Same branch, allowed
 
     # External caller - block access
@@ -90,6 +88,7 @@ def _guard_branch_access():
     caller_filename = Path(caller_file).name
     blocked_import = import_line if import_line else "unknown"
 
+    module_api = f"{MY_BRANCH}.apps.modules"
     raise ImportError(
         f"\n{'=' * 60}\n"
         f"ACCESS DENIED: Cross-branch handler import blocked\n"
@@ -99,11 +98,7 @@ def _guard_branch_access():
         f"  Blocked:       {blocked_import}\n"
         f"\n"
         f"  Handlers are internal to their branch.\n"
-        f"  Use the module API instead:\n"
-        f"    from {MY_BRANCH}.apps.modules.<module> import <function>\n"
-        f"\n"
-        f"  Example:\n"
-        f"    from {MY_BRANCH}.apps.modules.logger import logger\n"
+        f"  Use the module API instead: {module_api}.<module>\n"
         f"\n"
         f"  For full standards guide:\n"
         f"    drone @seedgo handlers\n"

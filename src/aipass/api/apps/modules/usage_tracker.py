@@ -53,76 +53,44 @@ def print_introspection():
 
 
 def print_help():
-    """Print module help with argparse"""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog="drone @api",
-        description="Usage Tracker - Monitor API usage and costs",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-COMMANDS:
-  track            - Track API usage
-  stats            - Show usage statistics
-  session          - Show session data
-  caller-usage     - Show usage by caller
-  cleanup          - Clean up old usage data
-
-USAGE:
-  drone @api track <caller>
-  drone @api stats
-  drone @api session
-  drone @api caller-usage <caller>
-  drone @api cleanup [days]
-
-ARGUMENTS:
-  caller - Caller identifier
-  days - Number of days to retain (default: 30)
-
-EXAMPLES:
-  # Track usage for a caller
-  drone @api track my_application
-
-  # Show usage statistics
-  drone @api stats
-
-  # Show session data
-  drone @api session
-
-  # Show usage for specific caller
-  drone @api caller-usage my_application
-
-  # Cleanup data older than 60 days
-  drone @api cleanup 60
-        """,
-    )
-
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # track command
-    track_parser = subparsers.add_parser("track", help="Track API usage")
-    track_parser.add_argument("caller", help="Caller identifier")
-
-    # stats command
-    subparsers.add_parser("stats", help="Show usage statistics")
-
-    # session command
-    subparsers.add_parser("session", help="Show session data")
-
-    # caller-usage command
-    caller_parser = subparsers.add_parser("caller-usage", help="Show usage by caller")
-    caller_parser.add_argument("caller", help="Caller identifier")
-
-    # cleanup command
-    cleanup_parser = subparsers.add_parser("cleanup", help="Clean up old usage data")
-    cleanup_parser.add_argument(
-        "days",
-        nargs="?",
-        default=str(DEFAULT_RETENTION_DAYS),
-        help=f"Days to retain (default: {DEFAULT_RETENTION_DAYS})",
-    )
-
-    console.print(parser.format_help())
+    """Print drone-compliant help output with Rich markup"""
+    console.print()
+    console.print("[bold cyan]USAGE_TRACKER — Monitor API usage and costs[/bold cyan]")
+    console.print()
+    console.print("[yellow]COMMANDS:[/yellow]")
+    console.print("  [cyan]track[/cyan]         [dim]Track API usage[/dim]")
+    console.print("  [cyan]stats[/cyan]         [dim]Show usage statistics[/dim]")
+    console.print("  [cyan]session[/cyan]       [dim]Show session data[/dim]")
+    console.print("  [cyan]caller-usage[/cyan]  [dim]Show usage by caller[/dim]")
+    console.print("  [cyan]cleanup[/cyan]       [dim]Clean up old usage data[/dim]")
+    console.print()
+    console.print("[yellow]USAGE:[/yellow]")
+    console.print("  [cyan]drone @api track[/cyan] <caller>")
+    console.print("  [cyan]drone @api stats[/cyan]")
+    console.print("  [cyan]drone @api session[/cyan]")
+    console.print("  [cyan]drone @api caller-usage[/cyan] <caller>")
+    console.print("  [cyan]drone @api cleanup[/cyan] [days]")
+    console.print()
+    console.print("[yellow]ARGUMENTS:[/yellow]")
+    console.print("  [cyan]caller[/cyan]  [dim]Caller identifier[/dim]")
+    console.print("  [cyan]days[/cyan]    [dim]Number of days to retain (default: 30)[/dim]")
+    console.print()
+    console.print("[yellow]EXAMPLES:[/yellow]")
+    console.print("  [dim]# Track usage for a caller[/dim]")
+    console.print("  [cyan]drone @api track my_application[/cyan]")
+    console.print()
+    console.print("  [dim]# Show usage statistics[/dim]")
+    console.print("  [cyan]drone @api stats[/cyan]")
+    console.print()
+    console.print("  [dim]# Show session data[/dim]")
+    console.print("  [cyan]drone @api session[/cyan]")
+    console.print()
+    console.print("  [dim]# Show usage for specific caller[/dim]")
+    console.print("  [cyan]drone @api caller-usage my_application[/cyan]")
+    console.print()
+    console.print("  [dim]# Cleanup data older than 60 days[/dim]")
+    console.print("  [cyan]drone @api cleanup 60[/cyan]")
+    console.print()
 
 
 def handle_command(command: str, args: List[str]) -> bool:
@@ -194,9 +162,10 @@ def track_usage(args: List[str]):
 
     if result.get("success"):
         metrics = result.get("metrics", {})
-        success(
-            f"Tracked: {metrics.get('tokens_prompt', 0)} prompt + {metrics.get('tokens_completion', 0)} completion tokens, ${metrics.get('total_cost', 0):.6f}"
-        )
+        prompt_t = metrics.get("tokens_prompt", 0)
+        comp_t = metrics.get("tokens_completion", 0)
+        cost = metrics.get("total_cost", 0)
+        success(f"Tracked: {prompt_t} prompt + {comp_t} completion tokens, ${cost:.6f}")
     else:
         error(f"Tracking failed: {result.get('error', 'unknown')}")
 

@@ -575,6 +575,6 @@ class TestHandleUpdate:
             patch("aipass.spawn.apps.handlers.update_ops.get_template_dir", return_value=template_dir),
             patch("aipass.spawn.apps.handlers.update_ops.find_registry", return_value=mock_registry),
         ):
-            result = handle_update(["builder", "--all"])
+            result = handle_update(["aipass_framework", "--all"])
 
         assert result == 0

@@ -498,6 +498,41 @@ def test_is_runtime_artifact_known_dirs():
     assert _is_runtime_artifact(Path("/any/path/tests")) is False
 
 
+def test_module_list_skips_disabled_file(tmp_path):
+    """A (disabled) .py in apps/modules/ must not trigger a 'missing module' violation."""
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        check_module_list,
+    )
+
+    modules_dir = tmp_path / "apps" / "modules"
+    modules_dir.mkdir(parents=True)
+    (modules_dir / "__init__.py").write_text("", encoding="utf-8")
+    (modules_dir / "real_module.py").write_text("# real\n", encoding="utf-8")
+    (modules_dir / "old_module(disabled).py").write_text("# disabled\n", encoding="utf-8")
+
+    readme_lines = _lines("# Branch\n\nreal_module is mentioned here.\n")
+    result = check_module_list(readme_lines, tmp_path, "fake.py")
+    assert result["passed"] is True
+    assert "old_module" not in result["message"]
+
+
+def test_count_test_functions_skips_disabled_file(tmp_path):
+    """_count_test_functions must exclude test_*(disabled).py files."""
+    from aipass.seedgo.apps.handlers.aipass_standards.readme_check import (
+        _count_test_functions,
+    )
+
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_active.py").write_text("def test_one(): pass\ndef test_two(): pass\n", encoding="utf-8")
+    (tests_dir / "test_old(disabled).py").write_text(
+        "def test_ghost(): pass\ndef test_phantom(): pass\ndef test_zombie(): pass\n",
+        encoding="utf-8",
+    )
+
+    assert _count_test_functions(tests_dir) == 2
+
+
 def test_directory_tree_passes_absent_runtime_dir(tmp_path):
     """Parity regression: README tree lists runtime dir (logs), dir absent on
     disk, no git available — tree check passes via _is_runtime_artifact."""

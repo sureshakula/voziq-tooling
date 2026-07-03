@@ -7,10 +7,11 @@
       "enabled": false,
       "schedule": {
         "type": "interval",
-        "interval_minutes": 1
+        "interval_minutes": 5
       },
       "wake": {
-        "fresh": true
+        "fresh": true,
+        "model": "haiku"
       },
       "prompt": "AUTOMATED DAEMON TEST. Do ONLY this: run drone @ai_mail email @devpulse \"DAEMON TEST FIRED\" \"Wake received from @daemon scheduler. No memory updated.\" then STOP. Do NOT run startup, do NOT update memory, do NOT do anything else."
     }

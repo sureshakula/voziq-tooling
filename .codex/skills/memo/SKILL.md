@@ -18,14 +18,14 @@ Purpose: Update branch memory files after completing work this session.
 
 ### Always
 
-- **.trinity/local.json** — Add new session entry to `sessions` if significant work was done. Add new `key_learnings` for facts you'd need next time.
+- **.trinity/local.json** — Add a session entry to `sessions` if significant work was done; add `key_learnings` for facts you'd need next time. **Todos: add what you parked, and DELETE every todo you finished this session** — the proof goes in the session entry, not the todo. Rollover never trims todos (they're operational), so done ones you leave behind resurface as "open" next load and you waste time re-confirming them.
 - **.trinity/observations.json** — Add notable collaboration insights: breakthrough moments, pattern corrections, flow states, friction points, preference discoveries. Skip if nothing notable this session.
 
 ### Entry shape — one rule for all four types
 
 `key_learnings`, `sessions`, `todos` (local.json) and `observations` (observations.json) all share ONE shape: a **list of objects, newest at the top (index 0)**. Every entry carries a **`number`** (monotonic int per type — highest = newest, never reused; new = current max + 1) and a **`date`** (ISO), plus its text field + extras: key_learnings `{number, date, key, value}` · sessions `{number, date, summary, status, tags}` · todos `{number, date, task, priority, status}` · observations `{number, date, note, tags}`.
 
-**When adding:** stamp `number` + `date`, then **prepend** (newest on top). **Don't hand-trim** — rollover archives the oldest *by number* to @memory automatically.
+**When adding:** stamp `number` + `date`, then **prepend** (newest on top). **Don't hand-trim** sessions/key_learnings/observations — rollover archives the oldest *by number* to @memory automatically. **Todos are the exception** — rollover never touches them, so you prune done ones by hand (delete finished todos, see above).
 
 ### If Relevant
 

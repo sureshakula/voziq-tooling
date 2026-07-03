@@ -55,7 +55,7 @@ src/aipass/<name>/
  - @skills — capability framework. Discoverable, self-contained skill units any agent can run; consume AIPass services as opt-in imports (e.g. the Telegram skill).
  - @daemon — task scheduler. Cron-triggered firing; each branch owns its `.daemon/schedule.json`, the daemon discovers and fires.
  - @commons — the social space. Where branches post, comment, vote, and gather as a community.
- - @backup — local-first backups. Project-owned snapshots and restore for any directory; no external service.
+ - @backup — local-first backups. Snapshots + versioning + restore for any directory; optional Google Drive sync (planned). `.backup/` is a shared runtime namespace — @memory rollover and @flow (plan archive) also write there.
 
 # Daily commands
 
@@ -96,6 +96,7 @@ Your continuity across sessions. Save proactively — after milestones, decision
  - `local.json` — session log, key learnings, todos.
  - `observations.json` — what you learn about the user.
  - Overflow rolls to vectors automatically — never trim by hand. Two ChromaDB stores: your branch's `.chroma` (local) + a global one across all branches. `drone @memory search "query"` recalls them. Search before assuming you're cold.
+ - Entry caps are hook-enforced (over-limit edit = rejected whole). The live cap is rendered in each file's `*_meta` line — read it before writing, draft to ~80% of it; if rejected, rewrite hard in one pass.
 
 # House rules
 

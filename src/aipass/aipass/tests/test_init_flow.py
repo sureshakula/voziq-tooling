@@ -16,6 +16,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from aipass.aipass.apps.modules.init_flow import (
+    AIPASS_SPECIFIC_STAGES,
+    TEMPLATE_AIPASS,
+    TEMPLATE_CHOICES,
+    TEMPLATE_EMPTY,
     TOTAL_STAGES,
     _get_last_completed_stage,
     _get_setup_progress,
@@ -287,7 +291,7 @@ class TestRunInit:
         assert result == 0
 
     def test_non_interactive_runs_all_stages(self, tmp_local_json) -> None:
-        """non_interactive=True runs all 12 stages from fresh state."""
+        """non_interactive=True with aipass_framework runs all 12 stages."""
         patches = self._patch_all_stages()
         mocks = []
         ctx = __import__("contextlib").ExitStack()
@@ -296,7 +300,7 @@ class TestRunInit:
         with ctx:
             with patch("aipass.aipass.apps.modules.init_flow.json_handler"):
                 with patch("aipass.aipass.apps.modules.init_flow.console"):
-                    result = run_init(non_interactive=True)
+                    result = run_init(non_interactive=True, template=TEMPLATE_AIPASS)
         assert result == 0
 
     def test_keyboard_interrupt_pauses_gracefully(self, tmp_local_json) -> None:
@@ -304,7 +308,7 @@ class TestRunInit:
         with patch("aipass.aipass.apps.modules.init_flow.stage_1_welcome", side_effect=KeyboardInterrupt):
             with patch("aipass.aipass.apps.modules.init_flow.console"):
                 with patch("aipass.aipass.apps.modules.init_flow.warning"):
-                    result = run_init(non_interactive=False)
+                    result = run_init(non_interactive=False, template=TEMPLATE_EMPTY)
         assert result == 0
 
     def test_stage_error_continues(self, tmp_local_json) -> None:
@@ -336,7 +340,7 @@ class TestRunInit:
             warning=MagicMock(),
             console=MagicMock(),
         ):
-            result = run_init(non_interactive=True)
+            result = run_init(non_interactive=True, template=TEMPLATE_AIPASS)
         assert result == 0
 
     def test_resumes_from_last_completed(self, tmp_local_json_with_progress: Path) -> None:
@@ -361,7 +365,7 @@ class TestRunInit:
             warning=MagicMock(),
             console=MagicMock(),
         ):
-            run_init(non_interactive=True)
+            run_init(non_interactive=True, template=TEMPLATE_AIPASS)
         stage_1_mock.assert_not_called()
         stage_4_mock.assert_called_once()
 
@@ -719,3 +723,114 @@ class TestInitUpdateRegistrySync:
         ):
             rc = _handle_init_update([str(tmp_path)])
         assert rc == 0
+
+
+# =============================================================================
+# TestTemplateSelector
+# =============================================================================
+
+
+class TestTemplateSelector:
+    """Tests for the template selector in aipass init."""
+
+    @staticmethod
+    def _stage_patches():
+        """Return patches for all 12 stage functions as no-ops."""
+        stage_names = [
+            "stage_1_welcome",
+            "stage_2_system_detect",
+            "stage_3_doctor",
+            "stage_4_user_profile",
+            "stage_5_style_questions",
+            "stage_6_tool_choice",
+            "stage_7_docker_offer",
+            "stage_8_first_agent",
+            "stage_9_ping_sweep",
+            "stage_10_smoke_test",
+            "stage_11_handoff",
+            "stage_12_done",
+        ]
+        return {name: MagicMock(return_value={}) for name in stage_names}
+
+    def test_empty_project_default_skips_scaffold(self, tmp_local_json) -> None:
+        """empty project (default) = no scaffold, stages 8,9,11,12 skipped."""
+        mocks = self._stage_patches()
+        with patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks):
+            result = run_init(non_interactive=True, template=TEMPLATE_EMPTY)
+        assert result == 0
+        for name in (
+            "stage_1_welcome",
+            "stage_2_system_detect",
+            "stage_3_doctor",
+            "stage_4_user_profile",
+            "stage_5_style_questions",
+            "stage_6_tool_choice",
+            "stage_7_docker_offer",
+            "stage_10_smoke_test",
+        ):
+            assert mocks[name].called, f"{name} should have been called"
+        for name in ("stage_8_first_agent", "stage_9_ping_sweep", "stage_11_handoff", "stage_12_done"):
+            assert not mocks[name].called, f"{name} should NOT have been called"
+
+    def test_aipass_framework_runs_full_scaffold(self, tmp_local_json) -> None:
+        """aipass_framework = full scaffold + all 12 stages."""
+        mocks = self._stage_patches()
+        with patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks):
+            with patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.init_project",
+                return_value={},
+            ):
+                result = run_init(non_interactive=True, template=TEMPLATE_AIPASS)
+        assert result == 0
+        for name in mocks:
+            assert mocks[name].called, f"{name} should have been called"
+
+    def test_list_flag_shows_catalog(self) -> None:
+        """aipass init --list shows the catalog (not swallowed into run)."""
+        with patch(f"{_MOD}.console") as mock_console:
+            result = handle_command("init", ["--list"])
+        assert result is True
+        printed = " ".join(str(c) for c in mock_console.print.call_args_list)
+        for t in TEMPLATE_CHOICES:
+            assert t in printed
+
+    def test_template_flag_form_works(self, tmp_local_json) -> None:
+        """aipass init run --template aipass_framework passes template to run_init."""
+        with patch(f"{_MOD}.run_init", return_value=0) as mock_run:
+            with pytest.raises(SystemExit):
+                handle_command("init", ["run", "--template", TEMPLATE_AIPASS])
+        mock_run.assert_called_once()
+        _, kwargs = mock_run.call_args
+        assert kwargs["template"] == TEMPLATE_AIPASS
+
+    def test_positional_template_routes_to_run_init(self, tmp_local_json) -> None:
+        """aipass init aipass_framework routes to run_init with template."""
+        with patch(f"{_MOD}.run_init", return_value=0) as mock_run:
+            with pytest.raises(SystemExit):
+                handle_command("init", [TEMPLATE_AIPASS])
+        mock_run.assert_called_once()
+        _, kwargs = mock_run.call_args
+        assert kwargs["template"] == TEMPLATE_AIPASS
+
+    def test_positional_path_still_works(self, tmp_local_json) -> None:
+        """Non-template positional args still route to scaffold."""
+        with patch(f"{_MOD}._preflight_check", return_value=None):
+            with patch(f"{_MOD}._handle_init_scaffold", return_value=0) as mock_scaffold:
+                with pytest.raises(SystemExit):
+                    handle_command("init", ["/tmp/test-proj"])
+        mock_scaffold.assert_called_once_with(["/tmp/test-proj"])
+
+    def test_pip_hints_say_clone(self, tmp_local_json) -> None:
+        """in-product hints say clone/setup.sh, not pip."""
+        with patch(f"{_MOD}.console"):
+            with patch(f"{_MOD}.warning") as mock_warn:
+                with patch(f"{_MOD}.shutil.which", return_value=None):
+                    stage_10_smoke_test()
+        for call in mock_warn.call_args_list:
+            msg = call[0][0].lower()
+            assert "setup.sh" in msg
+            assert "pip" not in msg
+
+    def test_aipass_specific_stages_constant(self) -> None:
+        """AIPASS_SPECIFIC_STAGES contains exactly {8, 9, 11, 12}."""
+        assert AIPASS_SPECIFIC_STAGES == {8, 9, 11, 12}

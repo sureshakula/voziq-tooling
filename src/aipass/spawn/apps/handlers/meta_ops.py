@@ -36,11 +36,11 @@ _TEMPLATE_REGISTRY_FILE = ".template_registry.json"
 # =============================================================================
 
 
-def get_template_dir(citizen_class: str = "builder") -> Path:
+def get_template_dir(citizen_class: str = "aipass_framework") -> Path:
     """Return path to template directory for a citizen class.
 
     Args:
-        citizen_class: Name of the citizen class. Defaults to "builder".
+        citizen_class: Name of the citizen class. Defaults to "aipass_framework".
 
     Returns:
         Path to the template directory.
@@ -88,7 +88,7 @@ def load_template_registry(template_dir: Path) -> Optional[dict]:
     """Load .spawn/.template_registry.json from a template directory.
 
     Args:
-        template_dir: Path to the template directory (e.g. builder/).
+        template_dir: Path to the template directory (e.g. aipass_framework/).
 
     Returns:
         Parsed dict of the template registry, or None if missing/unreadable.

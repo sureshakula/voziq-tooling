@@ -123,7 +123,7 @@ def print_help():
     console.print("Search paths (first match wins):")
     console.print("  1. .aipass/skills/           Project-local skills")
     console.print("  2. ~/.aipass/skills/         Global user skills")
-    console.print("  3. src/skills/catalog/       Built-in skills")
+    console.print("  3. src/aipass/skills/lib/     Built-in skills")
 
 
 def _cmd_list():

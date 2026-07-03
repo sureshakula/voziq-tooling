@@ -6,7 +6,7 @@
 # Modified: 2026-04-25
 # =============================================
 
-"""Tests for cli, memory_template_updated, warning_logged, and bulletin_created event handlers."""
+"""Tests for cli, memory_template_updated, and warning_logged event handlers."""
 
 import sys
 from pathlib import Path
@@ -41,7 +41,6 @@ def _mock_infrastructure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
         "aipass.trigger.apps.handlers.events.cli",
         "aipass.trigger.apps.handlers.events.memory_template_updated",
         "aipass.trigger.apps.handlers.events.warning_logged",
-        "aipass.trigger.apps.handlers.events.bulletin_created",
     ):
         monkeypatch.delitem(sys.modules, mod_name, raising=False)
 
@@ -63,13 +62,6 @@ def _import_memory_template_updated():
 def _import_warning_logged():
     """Import warning_logged handler module fresh after mocking."""
     import aipass.trigger.apps.handlers.events.warning_logged as m
-
-    return m
-
-
-def _import_bulletin():
-    """Import bulletin_created handler module fresh after mocking."""
-    import aipass.trigger.apps.handlers.events.bulletin_created as m
 
     return m
 
@@ -196,66 +188,4 @@ class TestHandleWarningLogged:
         """Handler returns None."""
         mod = _import_warning_logged()
         result = mod.handle_warning_logged()
-        assert result is None
-
-
-# ---------------------------------------------------------------------------
-# bulletin_created.py -- handle_bulletin_created
-# ---------------------------------------------------------------------------
-
-
-class TestHandleBulletinCreated:
-    """Tests for handle_bulletin_created from bulletin_created.py."""
-
-    def test_does_not_raise_when_files_missing(self) -> None:
-        """Silently handles missing registry and bulletins files."""
-        mod = _import_bulletin()
-        mod.handle_bulletin_created()
-
-    def test_logs_operation_on_success(self) -> None:
-        """Logs bulletin_event after successful propagation."""
-        mod = _import_bulletin()
-        mod._propagate_bulletins_to_branches = MagicMock()
-        from aipass.trigger.apps.handlers.json import json_handler
-
-        json_handler.log_operation.reset_mock()  # type: ignore[union-attr]
-
-        mod.handle_bulletin_created()
-
-        mod._propagate_bulletins_to_branches.assert_called_once()
-        json_handler.log_operation.assert_called_once_with(  # type: ignore[union-attr]
-            "bulletin_event", {"success": True}
-        )
-
-    def test_catches_propagation_exception(self) -> None:
-        """Does not log operation when propagation raises."""
-        mod = _import_bulletin()
-        mod._propagate_bulletins_to_branches = MagicMock(side_effect=RuntimeError("propagation failed"))
-        from aipass.trigger.apps.handlers.json import json_handler
-
-        json_handler.log_operation.reset_mock()  # type: ignore[union-attr]
-
-        mod.handle_bulletin_created()
-
-        json_handler.log_operation.assert_not_called()  # type: ignore[union-attr]
-
-    def test_accepts_all_params(self) -> None:
-        """Accepts all documented event parameters without error."""
-        mod = _import_bulletin()
-        mod._propagate_bulletins_to_branches = MagicMock()
-
-        mod.handle_bulletin_created(
-            _bulletin_id="b1",
-            _title="System update",
-            _message="Scheduled maintenance",
-            _priority="high",
-            _created_by="devpulse",
-            _timestamp="2026-04-25T10:00:00",
-        )
-
-    def test_returns_none(self) -> None:
-        """Handler returns None."""
-        mod = _import_bulletin()
-        mod._propagate_bulletins_to_branches = MagicMock()
-        result = mod.handle_bulletin_created()
         assert result is None

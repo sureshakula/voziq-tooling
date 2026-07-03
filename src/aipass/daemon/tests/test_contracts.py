@@ -265,6 +265,12 @@ def test_help_preempts() -> None:
     assert result == 0, "--help must return 0 before any module routing"
 
 
+def test_invalid_mode_raises() -> None:
+    """invalid_mode_raises: save_json with invalid_type raises ValueError."""
+    with pytest.raises(ValueError):
+        json_handler.save_json("contract_mod", "invalid_type_xyz", {"bad": True})
+
+
 def test_no_args_triggers() -> None:
     """no_args_triggers: no arguments triggers introspection display."""
     from aipass.daemon.apps import daemon as _daemon_mod

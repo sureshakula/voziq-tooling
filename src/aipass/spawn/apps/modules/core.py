@@ -57,7 +57,44 @@ from aipass.spawn.apps.handlers.class_registry import (
 from aipass.spawn.apps.handlers.json import json_handler
 
 # Default template location (relative to spawn package root)
-DEFAULT_TEMPLATE = Path(__file__).parents[2] / "templates" / "builder"
+DEFAULT_TEMPLATE = Path(__file__).parents[2] / "templates" / "aipass_framework"
+
+_PROJECT_MARKERS = (".git", "pyproject.toml", "setup.py", "setup.cfg")
+
+
+def _find_project_registry(target: Path) -> Path:
+    """Walk up from target to find a project root, return its registry path.
+
+    Used when the default find_registry returned a registry outside the
+    target's project (e.g. AIPass's own registry for an external target).
+    """
+    for parent in [target.parent] + list(target.parent.parents):
+        if any((parent / m).exists() for m in _PROJECT_MARKERS):
+            return parent / "AIPASS_REGISTRY.json"
+        if parent == parent.parent:
+            break
+    return target.parent / "AIPASS_REGISTRY.json"
+
+
+_META_TAB_KEYS = {"TODOS_META", "KEY_LEARNINGS_META", "SESSIONS_META", "OBSERVATIONS_META"}
+
+
+def _load_meta_tabs():
+    """Load memory meta-tab values from @memory's renderer.
+
+    Returns empty dict when @memory is unavailable (standalone project).
+    """
+    try:
+        from aipass.memory.apps.handlers.tracking.tab_renderer import render_all_meta_tabs
+    except ImportError:
+        logger.info("[spawn] @memory not available — meta-tab placeholders will be empty")
+        return {}
+
+    tabs = render_all_meta_tabs()
+    missing = _META_TAB_KEYS - set(tabs or {})
+    if missing:
+        raise RuntimeError(f"render_all_meta_tabs() missing keys: {sorted(missing)}")
+    return tabs
 
 
 def print_introspection():
@@ -157,7 +194,7 @@ def _spawn_agent(
     profile=None,
     template_dir=None,
     registry_path=None,
-    citizen_class="builder",
+    citizen_class="aipass_framework",
 ):
     """
     Create a new AIPass agent from template.
@@ -170,7 +207,7 @@ def _spawn_agent(
         profile: AIPass profile override (default: auto-detect)
         template_dir: Custom template directory (default: class-based lookup)
         registry_path: Path to AIPASS_REGISTRY.json (default: auto-discover)
-        citizen_class: Citizen class name (default: "builder")
+        citizen_class: Citizen class name (default: "aipass_framework")
 
     Returns:
         Dict with creation results:
@@ -214,11 +251,17 @@ def _spawn_agent(
     branch_lower = normalize_branch_name(folder_name, "lower")
     detected_profile = profile or detect_profile(target)
 
-    # Determine citizen number from registry
+    # Determine registry — per-project, never borrow another project's
     reg_path = Path(registry_path) if registry_path else find_registry(target.parent)
+    try:
+        target.relative_to(reg_path.parent)
+    except ValueError:
+        logger.info("[spawn] Target %s outside registry %s — resolving project-local registry", target, reg_path)
+        reg_path = _find_project_registry(target)
     citizen_number = get_next_citizen_number(reg_path)
 
     # Build placeholder replacements
+    meta_tabs = _load_meta_tabs()
     replacements = build_replacements_dict(
         target,
         folder_name,
@@ -227,6 +270,8 @@ def _spawn_agent(
         purpose=purpose or "New agent - purpose TBD",
         profile=detected_profile,
         citizen_number=citizen_number,
+        citizen_class=citizen_class,
+        meta_tabs=meta_tabs,
     )
 
     # Step 1: Copy template with placeholder replacement in content
@@ -312,8 +357,6 @@ def _adopt_existing(target, purpose, profile, registry_path):
     Returns:
         Result dict matching _spawn_agent return format.
     """
-    import json as _json
-
     folder_name = get_branch_name(target)
     branch_upper = normalize_branch_name(folder_name, "upper")
     branch_lower = normalize_branch_name(folder_name, "lower")
@@ -324,12 +367,9 @@ def _adopt_existing(target, purpose, profile, registry_path):
     # Read purpose from passport if not provided
     if not purpose:
         passport_path = target / ".trinity" / "passport.json"
-        try:
-            passport = _json.loads(passport_path.read_text(encoding="utf-8"))
-            purpose = passport.get("identity", {}).get("purpose", "Adopted agent")
-        except (ValueError, OSError) as e:
-            logger.warning("Failed to read passport for purpose: %s", e)
-            purpose = "Adopted agent"
+        # read_json returns None on failure (and logs) — same pattern as line ~250.
+        passport = json_handler.read_json(passport_path)
+        purpose = (passport or {}).get("identity", {}).get("purpose", "Adopted agent")
 
     # Fix registry_id in passport if it doesn't match the current registry
     fix_passport_registry_id(target, reg_path)

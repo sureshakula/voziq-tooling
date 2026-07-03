@@ -1,0 +1,332 @@
+# =================== AIPass ====================
+# Name: tab_renderer.py
+# Description: Config-generated state-tabs for .trinity memory files
+# Version: 1.0.0
+# Created: 2026-06-25
+# Modified: 2026-06-25
+# =============================================
+
+"""
+Tab Renderer Handler
+
+Generates per-section state-tab strings (e.g. ``⟦ rollover ON ... ⟧``) from
+``memory.config.json`` and writes them as ``*_meta`` keys into every branch's
+``.trinity/local.json`` and ``.trinity/observations.json``.
+
+Purpose:
+    Make memory files self-documenting.  Each section carries a single-line
+    banner that tells the editing agent whether rollover is ON/OFF, the keep
+    count, and the char cap — all derived from config so they never drift.
+
+Independence:
+    Uses config_loader for config, detector helpers for branch discovery,
+    and memory_files for safe I/O.  No service or module dependencies.
+"""
+
+from typing import Any, Dict
+
+from aipass.prax.apps.modules.logger import get_system_logger
+from aipass.memory.apps.handlers.json import json_handler
+
+logger = get_system_logger()
+
+_CORRECTED_USAGE_LOCAL = (
+    "Automated file — add entries within your sections, newest on top. "
+    "Rollover auto-archives sessions/key_learnings (+ observations.json) to @memory; "
+    "todos[] are OPERATIONAL and NEVER rolled — prune done ones by hand at /prep. "
+    "Limits live in @memory’s memory.config.json."
+)
+_CORRECTED_USAGE_OBS = (
+    "Automated file — add entries within your sections, newest on top. "
+    "Rollover auto-archives the oldest observations to @memory. "
+    "Limits live in @memory’s memory.config.json."
+)
+
+
+# =============================================================================
+# KEY ORDERING
+# =============================================================================
+
+# Canonical key order for local.json
+_LOCAL_KEY_ORDER = [
+    "document_metadata",
+    "todos_meta",
+    "todos",
+    "key_learnings_meta",
+    "key_learnings",
+    "sessions_meta",
+    "sessions",
+]
+
+# Canonical key order for observations.json
+_OBSERVATIONS_KEY_ORDER = [
+    "document_metadata",
+    "guidelines",
+    "observations_meta",
+    "observations",
+]
+
+
+def _reorder_keys(data: Dict[str, Any], key_order: list[str]) -> Dict[str, Any]:
+    """Rebuild *data* with keys in *key_order* first, then any remaining keys."""
+    ordered: Dict[str, Any] = {}
+    for key in key_order:
+        if key in data:
+            ordered[key] = data[key]
+    # Append any keys not in the canonical order
+    for key in data:
+        if key not in ordered:
+            ordered[key] = data[key]
+    return ordered
+
+
+# =============================================================================
+# TAB RENDERING
+# =============================================================================
+
+
+def render_tab(
+    section_name: str,
+    rollover_cfg: dict,
+    entry_limits_cfg: dict,
+    branch_name: str,
+) -> str:
+    """Generate the state-tab string for a section.
+
+    Args:
+        section_name: One of 'key_learnings', 'sessions', 'observations', 'todos'.
+        rollover_cfg: The ``rollover`` section from memory.config.json.
+        entry_limits_cfg: The ``entry_limits`` section from memory.config.json.
+        branch_name: Branch name (lowercase) for per-branch overrides.
+
+    Returns:
+        The rendered tab string (e.g. ``⟦ rollover ON ... ⟧``).
+    """
+    # --- Resolve entry-limits for this section --------------------------------
+    entry_types = entry_limits_cfg.get("entry_types", {})
+    section_limits = entry_types.get(section_name, {})
+    max_chars = section_limits.get("max_chars", 300)
+    field = section_limits.get("field", "value")
+
+    # --- Todos are special: rollover OFF, static shape ------------------------
+    if section_name == "todos":
+        return (
+            f"⟦ rollover OFF — operational, never trimmed · "
+            f"cap ~10 entries · task ≤{max_chars} chars ⟧ "
+            f"RULE: DELETE each todo when done (never leave status:done) "
+            f"+ reconcile on load; proof goes in the session entry, "
+            f"not the todo. Add freely — BAU."
+        )
+
+    # --- Rollover sections: look up count -------------------------------------
+    per_branch = rollover_cfg.get("per_branch", {})
+    defaults = rollover_cfg.get("defaults", {})
+    branch_cfg = per_branch.get(branch_name, defaults)
+
+    # Determine which file-level block to read
+    if section_name == "observations":
+        file_block = branch_cfg.get("observations", {})
+    else:
+        file_block = branch_cfg.get("local", {})
+
+    section_cfg = file_block.get(section_name, {})
+    count = section_cfg.get("count", 15)
+
+    return f"⟦ rollover ON → oldest archived to @memory · keep {count} · {field} ≤{max_chars} chars ⟧"
+
+
+# =============================================================================
+# PER-FILE TAB WRITERS
+# =============================================================================
+
+
+def _refresh_local(branch_name, local_path, rollover_cfg, entry_limits_cfg):
+    """Inject *_meta tabs into a branch's local.json. Returns (ok, error_msg)."""
+    from aipass.memory.apps.handlers.json.memory_files import (
+        read_memory_file_data,
+        write_memory_file_simple,
+    )
+
+    data = read_memory_file_data(local_path)
+    if data is None:
+        return False, None  # file unreadable, skip silently
+
+    meta = data.get("document_metadata", {})
+    if meta.get("_usage") != _CORRECTED_USAGE_LOCAL:
+        meta["_usage"] = _CORRECTED_USAGE_LOCAL
+
+    data["todos_meta"] = render_tab(
+        "todos",
+        rollover_cfg,
+        entry_limits_cfg,
+        branch_name,
+    )
+    data["key_learnings_meta"] = render_tab(
+        "key_learnings",
+        rollover_cfg,
+        entry_limits_cfg,
+        branch_name,
+    )
+    data["sessions_meta"] = render_tab(
+        "sessions",
+        rollover_cfg,
+        entry_limits_cfg,
+        branch_name,
+    )
+    data = _reorder_keys(data, _LOCAL_KEY_ORDER)
+
+    if write_memory_file_simple(local_path, data):
+        return True, None
+    return False, f"{branch_name}/local.json: write failed"
+
+
+def _refresh_observations(branch_name, obs_path, rollover_cfg, entry_limits_cfg):
+    """Inject observations_meta tab into a branch's observations.json. Returns (ok, error_msg)."""
+    from aipass.memory.apps.handlers.json.memory_files import (
+        read_memory_file_data,
+        write_memory_file_simple,
+    )
+
+    data = read_memory_file_data(obs_path)
+    if data is None:
+        return False, None  # file unreadable, skip silently
+
+    meta = data.get("document_metadata", {})
+    if meta.get("_usage") != _CORRECTED_USAGE_OBS:
+        meta["_usage"] = _CORRECTED_USAGE_OBS
+
+    data["observations_meta"] = render_tab(
+        "observations",
+        rollover_cfg,
+        entry_limits_cfg,
+        branch_name,
+    )
+    data = _reorder_keys(data, _OBSERVATIONS_KEY_ORDER)
+
+    if write_memory_file_simple(obs_path, data):
+        return True, None
+    return False, f"{branch_name}/observations.json: write failed"
+
+
+# =============================================================================
+# REFRESH ALL BRANCHES
+# =============================================================================
+
+
+def refresh_all_tabs() -> dict:
+    """Render and write state-tabs to all branch .trinity files.
+
+    Walks the registry, reads each branch's memory files, computes tab
+    strings from config, injects them as ``*_meta`` keys, and writes back
+    with correct key ordering.
+
+    Returns:
+        Dict with success status and counts.
+    """
+    from aipass.memory.apps.handlers.json.config_loader import (
+        load as load_config,
+    )
+    from aipass.memory.apps.handlers.monitor.detector import (
+        _read_registry,
+        _get_memory_file_path,
+    )
+
+    config = load_config()
+    rollover_cfg = config.get("rollover", {})
+    entry_limits_cfg = config.get("entry_limits", {})
+
+    branches = _read_registry()
+    if not branches:
+        return {
+            "success": True,
+            "updated": 0,
+            "skipped": 0,
+            "message": "No branches in registry",
+        }
+
+    updated = 0
+    skipped = 0
+    errors: list[str] = []
+
+    for branch in branches:
+        branch_name = branch.get("name", "UNKNOWN").lower()
+        for mem_type in ("local", "observations"):
+            u, s, e = _refresh_one_file(
+                branch,
+                branch_name,
+                mem_type,
+                rollover_cfg,
+                entry_limits_cfg,
+                _get_memory_file_path,
+            )
+            updated += u
+            skipped += s
+            errors.extend(e)
+
+    json_handler.log_operation(
+        "refresh_all_tabs",
+        {"updated": updated, "skipped": skipped, "errors": len(errors)},
+        module_name="tab_renderer",
+    )
+    logger.info(
+        f"[tab_renderer] Refreshed tabs: {updated} updated, {skipped} skipped, {len(errors)} errors",
+    )
+
+    return {
+        "success": True,
+        "updated": updated,
+        "skipped": skipped,
+        "errors": errors,
+    }
+
+
+def render_all_meta_tabs() -> dict[str, str]:
+    """Render all four *_meta tab strings from memory.config.json defaults.
+
+    Public API for @spawn (and any other consumer) to resolve ``{{*_META}}``
+    placeholders at branch-creation time.
+
+    Returns:
+        Dict with keys TODOS_META, KEY_LEARNINGS_META, SESSIONS_META,
+        OBSERVATIONS_META — each a rendered state-tab string.
+    """
+    from aipass.memory.apps.handlers.json.config_loader import (
+        load as load_config,
+    )
+
+    config = load_config()
+    rollover_cfg = config.get("rollover", {})
+    entry_limits_cfg = config.get("entry_limits", {})
+
+    _default = "__template_default__"
+    return {
+        "TODOS_META": render_tab("todos", rollover_cfg, entry_limits_cfg, _default),
+        "KEY_LEARNINGS_META": render_tab("key_learnings", rollover_cfg, entry_limits_cfg, _default),
+        "SESSIONS_META": render_tab("sessions", rollover_cfg, entry_limits_cfg, _default),
+        "OBSERVATIONS_META": render_tab("observations", rollover_cfg, entry_limits_cfg, _default),
+    }
+
+
+def _refresh_one_file(branch, branch_name, mem_type, rollover_cfg, entry_limits_cfg, get_path_fn):
+    """Refresh tabs for a single memory file. Returns (updated, skipped, errors)."""
+    file_path = get_path_fn(branch, mem_type)
+    if file_path is None:
+        return 0, 1, []
+
+    refresher = _refresh_local if mem_type == "local" else _refresh_observations
+    try:
+        ok, err = refresher(
+            branch_name,
+            file_path,
+            rollover_cfg,
+            entry_limits_cfg,
+        )
+    except Exception as e:
+        logger.warning(f"[tab_renderer] {branch_name}/{mem_type}.json: {e}")
+        return 0, 0, [f"{branch_name}/{mem_type}.json: {e}"]
+
+    if ok:
+        return 1, 0, []
+    if err:
+        return 0, 0, [err]
+    return 0, 1, []

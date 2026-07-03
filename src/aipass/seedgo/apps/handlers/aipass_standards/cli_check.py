@@ -333,6 +333,7 @@ def check_print_usage(
     # Find print() statements and raw stdout/stderr writes
     print_lines = []
     parser_print_help_lines = []
+    format_help_lines = []
     raw_write_lines = []
 
     # Track if we're inside an if __name__ == '__main__': block
@@ -376,6 +377,15 @@ def check_print_usage(
             else:
                 parser_print_help_lines.append(i)
 
+        # Check for .format_help() - returns plain argparse text
+        if ".format_help()" in stripped:
+            if "#" in line:
+                code_part = line.split("#")[0]
+                if ".format_help()" in code_part:
+                    format_help_lines.append(i)
+            else:
+                format_help_lines.append(i)
+
         # Check for raw sys.stdout.write() / sys.stderr.write() (bypasses Rich)
         if "sys.stdout.write(" in stripped or "sys.stderr.write(" in stripped:
             if "#" in line:
@@ -409,6 +419,16 @@ def check_print_usage(
             "message": (
                 f"Found parser.print_help() in {filename} on lines "
                 f"{parser_print_help_lines[:3]} (uses plain print() - use Rich console.print() instead)"
+            ),
+        }
+
+    if format_help_lines:
+        return {
+            "name": "print() usage",
+            "passed": False,
+            "message": (
+                f"Found .format_help() in {filename} on lines "
+                f"{format_help_lines[:3]} (returns plain argparse text - write Rich help instead)"
             ),
         }
 

@@ -34,9 +34,10 @@ def branches_as_list(branches):
 
 
 def find_registry(start_path=None):
-    """Find *_REGISTRY.json — delegates to aipass.aipass.shared.registry_discovery.
+    """Find *_REGISTRY.json — walks up from start_path only.
 
-    Passes spawn's package root as the fallback for editable installs.
+    Does NOT pass package_root — prevents silent registration in
+    AIPass's own registry when creating agents in external projects.
 
     Args:
         start_path: Directory to start searching from.
@@ -46,7 +47,7 @@ def find_registry(start_path=None):
     """
     from aipass.aipass.shared.registry_discovery import find_registry as _common_find
 
-    return _common_find(start_path=start_path, package_root=Path(__file__).resolve().parent)
+    return _common_find(start_path=start_path)
 
 
 def load_registry(registry_path):

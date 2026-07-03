@@ -43,6 +43,12 @@ from aipass.prax.apps.handlers.monitoring import (
     ModuleTracker,  # module_tracker.py
 )
 from aipass.prax.apps.handlers.monitoring.event_queue import MonitoringEvent
+from aipass.prax.apps.handlers.monitoring.telegram_relay import (
+    init_relay,
+    relay_event,
+    stop_relay,
+    is_relay_enabled_by_env,
+)
 
 
 # =============================================================================
@@ -188,6 +194,10 @@ def print_help():
     console.print("    Monitor specific branches (comma-separated)")
     console.print("    Example: drone @prax monitor run seedgo,cli,flow")
     console.print()
+    console.print("  [cyan]drone @prax monitor run --relay[/cyan]")
+    console.print("    Enable Telegram relay (mirrors feed to prax_monitor bot)")
+    console.print("    Also enabled by env AIPASS_PRAX_MONITOR_RELAY=1")
+    console.print()
     console.print("  [cyan]drone @prax monitor --help[/cyan]")
     console.print("    Show this help")
     console.print()
@@ -249,6 +259,17 @@ def handle_command(command: str, args: List[str]) -> bool:
     return True
 
 
+def _load_relay_config() -> Optional[dict]:
+    """Load Telegram relay config from @api secrets."""
+    try:
+        from aipass.api.apps.modules.secrets import get_secret
+
+        return get_secret("telegram", "prax_monitor", as_json=True)
+    except Exception as e:
+        logger.info("[monitor] Could not load relay config: %s", e)
+        return None
+
+
 def _run_monitor(args: List[str]) -> bool:
     """Launch Mission Control live monitoring."""
     global _event_queue, _module_tracker
@@ -261,6 +282,14 @@ def _run_monitor(args: List[str]) -> bool:
     _event_queue = MonitoringQueue()
     _module_tracker = ModuleTracker()
     _stop_event.clear()
+
+    # Initialize Telegram relay (--relay flag or env var)
+    _relay_enabled = "--relay" in args or is_relay_enabled_by_env()
+    if _relay_enabled:
+        args = [a for a in args if a != "--relay"]
+    init_relay(_relay_enabled, _load_relay_config() if _relay_enabled else None)
+    if _relay_enabled:
+        console.print("[green]monitor → Telegram relay ON (prax_monitor)[/green]")
 
     _is_tty = sys.stdin.isatty()
 
@@ -311,10 +340,11 @@ def _start_threads():
 
 
 def _stop_threads():
-    """Stop all monitoring threads"""
+    """Stop all monitoring threads and Telegram relay"""
     global _event_queue
 
     _stop_event.set()
+    stop_relay()
 
     if _event_queue:
         _event_queue.stop()
@@ -328,7 +358,7 @@ def _stop_threads():
 
 
 def _render_event(event) -> None:
-    """Render a single monitoring event to the console."""
+    """Render a single monitoring event to the console, and relay to Telegram."""
     branch_pid = _get_pid_for_branch(event.branch)
 
     if event.event_type == "command":
@@ -343,6 +373,8 @@ def _render_event(event) -> None:
         print_hook_event(event.branch, event.message, event.action)
     else:
         print_event(event.event_type, event.branch, event.message, event.level, pid=branch_pid)
+
+    relay_event(event)
 
 
 def _display_worker():

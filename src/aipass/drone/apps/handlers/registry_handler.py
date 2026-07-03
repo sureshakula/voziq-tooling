@@ -144,13 +144,16 @@ def find_registry() -> Path:
         if hit is not None:
             return hit
 
-    # Fallback — use package-relative path; glob there too
-    fallback_dir = Path(__file__).resolve().parents[4]
+    # Fallback — walk up from this file to the project root (marker-based)
+    _markers = (".git", "pyproject.toml", "setup.py", "setup.cfg")
+    fallback_dir = Path(__file__).resolve().parent
+    for parent in [fallback_dir, *fallback_dir.parents]:
+        if any((parent / m).exists() for m in _markers):
+            fallback_dir = parent
+            break
     hit = _first_registry_in(fallback_dir)
     if hit is not None:
         return hit
-    # Ultimate fallback: return a conventional name so the caller
-    # gets a clear "not found" path in the error message.
     return fallback_dir / "AIPASS_REGISTRY.json"
 
 

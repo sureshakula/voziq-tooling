@@ -18,6 +18,18 @@ from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.git.lock_handler import find_repo_root
 
 
+def _find_branch_for_path(filepath: str, repo_root: Path) -> tuple[str, Path] | None:
+    """Find which branch a changed file belongs to by walking up to .trinity/."""
+    abs_path = (repo_root / filepath).resolve()
+    root = repo_root.resolve()
+    for parent in [abs_path.parent, *abs_path.parent.parents]:
+        if not parent.is_relative_to(root):
+            break
+        if (parent / ".trinity").is_dir():
+            return parent.name, parent
+    return None
+
+
 def _run_test_gate(repo_root: Path) -> dict | None:
     """Run pytest for changed branches. Returns error dict if tests fail, None if all pass."""
     status_result = subprocess.run(
@@ -26,21 +38,22 @@ def _run_test_gate(repo_root: Path) -> dict | None:
         text=True,
         cwd=str(repo_root),
     )
-    changed_branches: set[str] = set()
+    changed_branches: dict[str, Path] = {}
     for line in status_result.stdout.splitlines():
         if len(line) < 4:
             continue
         filepath = line[3:].split(" -> ")[-1]
-        parts = Path(filepath).parts
-        if len(parts) >= 3 and parts[0] == "src" and parts[1] == "aipass":
-            changed_branches.add(parts[2])
+        result = _find_branch_for_path(filepath, repo_root)
+        if result:
+            name, branch_path = result
+            changed_branches[name] = branch_path
 
     venv_python = repo_root / ".venv" / "bin" / "python"
     python_bin = str(venv_python) if venv_python.exists() else "python3"
 
     failed_branches: list[tuple[str, str]] = []
     for branch_name in sorted(changed_branches):
-        test_dir = repo_root / "src" / "aipass" / branch_name / "tests"
+        test_dir = changed_branches[branch_name] / "tests"
         if not test_dir.is_dir():
             continue
         try:

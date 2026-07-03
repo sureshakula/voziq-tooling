@@ -12,8 +12,7 @@ Maps citizen class names to their template directories. Each class
 defines a different level of branch scaffold.
 
 Classes:
-    builder     — Full 3-layer architecture (apps/, modules/, handlers/)
-    birthright  — Minimal citizenship (.trinity/, .aipass/, README.md only)
+    aipass_framework — Full 3-layer architecture (apps/, modules/, handlers/)
 """
 
 from pathlib import Path
@@ -23,27 +22,22 @@ _TEMPLATES_DIR = Path(__file__).parents[2] / "templates"
 
 # Registry of citizen classes and their template directories
 CITIZEN_CLASSES = {
-    "builder": {
-        "template_dir": "builder",
+    "aipass_framework": {
+        "template_dir": "aipass_framework",
         "description": "Full 3-layer branch with apps/, modules/, handlers/",
         "default": True,
-    },
-    "birthright": {
-        "template_dir": "birthright",
-        "description": "Minimal citizenship — .trinity/, .aipass/, README.md",
-        "default": False,
     },
 }
 
 # The default class when none is specified
-DEFAULT_CLASS = "builder"
+DEFAULT_CLASS = "aipass_framework"
 
 
 def get_template_dir(citizen_class: str = DEFAULT_CLASS) -> Path:
     """Return the absolute path to a citizen class template directory.
 
     Args:
-        citizen_class: Name of the citizen class (e.g. "builder", "birthright").
+        citizen_class: Name of the citizen class (e.g. "aipass_framework").
 
     Returns:
         Path to the template directory.

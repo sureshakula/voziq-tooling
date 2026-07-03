@@ -250,7 +250,7 @@ def update_job_runstate(
     schedule: dict,
     timestamp: Optional[str] = None,
 ) -> None:
-    """Update last_run and next_run for a job after firing."""
+    """Update runstate for a job after successful firing."""
     if timestamp is None:
         timestamp = datetime.now().isoformat()
 
@@ -258,11 +258,36 @@ def update_job_runstate(
     entry = runstate.setdefault("jobs", {}).setdefault(key, {})
     entry["last_run"] = timestamp
     entry["next_run"] = _calc_next_run(schedule, timestamp)
+    entry["last_status"] = "success"
+    entry["last_success_at"] = timestamp
+    entry["last_error"] = None
 
     if schedule.get("type") == "once":
         entry["completed"] = timestamp
 
     json_handler.log_operation("update_job_runstate", {"key": key})
+
+
+def record_job_failure(
+    runstate: dict,
+    owner: str,
+    job_id: str,
+    error_msg: str,
+    status: str = "failed",
+    timestamp: Optional[str] = None,
+) -> None:
+    """Record a failed job firing in runstate."""
+    if timestamp is None:
+        timestamp = datetime.now().isoformat()
+
+    key = job_key(owner, job_id)
+    entry = runstate.setdefault("jobs", {}).setdefault(key, {})
+    entry["last_run"] = timestamp
+    entry["last_status"] = status
+    entry["last_failure_at"] = timestamp
+    entry["last_error"] = error_msg[:500]
+
+    json_handler.log_operation("record_job_failure", {"key": key, "status": status})
 
 
 def prune_orphans(runstate: dict, active_keys: set) -> int:

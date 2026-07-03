@@ -119,6 +119,14 @@ def handle_command(command: str, args: List[str]) -> bool:
             except Exception as e:
                 error(f"Spawn template push crashed: {e}")
                 logger.error(f"[templates] spawn push crashed: {e}")
+            # Refresh state-tabs after template push
+            if not dry_run:
+                try:
+                    from aipass.memory.apps.handlers.tracking.tab_renderer import refresh_all_tabs
+
+                    refresh_all_tabs()
+                except Exception as e:
+                    logger.warning(f"[templates] Tab refresh failed: {e}")
             return True
 
         if sub == "diff-templates":
@@ -162,6 +170,14 @@ def handle_command(command: str, args: List[str]) -> bool:
         except Exception as e:
             error(f"Spawn template push crashed: {e}")
             logger.error(f"[templates] spawn push crashed: {e}")
+        # Refresh state-tabs after template push
+        if not dry_run:
+            try:
+                from aipass.memory.apps.handlers.tracking.tab_renderer import refresh_all_tabs
+
+                refresh_all_tabs()
+            except Exception as e:
+                logger.warning(f"[templates] Tab refresh failed: {e}")
         return True
 
     elif command == "diff-templates":

@@ -387,8 +387,11 @@ class TestCommitChanges:
             stderr="",
         )
 
-        test_dir = repo_dir / "src" / "aipass" / "drone" / "tests"
-        test_dir.mkdir(parents=True)
+        drone_dir = repo_dir / "src" / "aipass" / "drone"
+        drone_dir.mkdir(parents=True)
+        (drone_dir / ".trinity").mkdir()
+        test_dir = drone_dir / "tests"
+        test_dir.mkdir()
 
         with (
             patch("shutil.which", return_value="/usr/bin/ruff"),
@@ -417,8 +420,11 @@ class TestCommitChanges:
         mock_diff = MagicMock(returncode=1, stdout="", stderr="")
         mock_commit = MagicMock(returncode=0, stdout="[main abc999] green commit", stderr="")
 
-        test_dir = repo_dir / "src" / "aipass" / "drone" / "tests"
-        test_dir.mkdir(parents=True)
+        drone_dir = repo_dir / "src" / "aipass" / "drone"
+        drone_dir.mkdir(parents=True)
+        (drone_dir / ".trinity").mkdir()
+        test_dir = drone_dir / "tests"
+        test_dir.mkdir()
 
         with (
             patch("shutil.which", return_value="/usr/bin/ruff"),

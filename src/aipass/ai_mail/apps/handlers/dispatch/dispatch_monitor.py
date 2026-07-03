@@ -245,6 +245,7 @@ def _run_with_startup_check(
 
     try:
         popen_kwargs = {
+            "stdin": subprocess.DEVNULL,
             "stdout": stdout_fh if stdout_fh is not None else subprocess.DEVNULL,
             "stderr": stderr_fh,
             "cwd": cwd,
@@ -326,6 +327,18 @@ def main():
         sys.exit(1)
 
     json_handler.log_operation("dispatch_monitor_start", {"branch": branch_email, "sender": sender})
+
+    # Self-register PID in lock file — the parent may have written its own
+    # PID during pre-spawn lock acquisition (DPLAN-0155), and under
+    # systemd-run the parent PID belongs to the caller, not the monitor.
+    try:
+        lock_path_obj = Path(lock_file)
+        if lock_path_obj.exists():
+            ld = json.loads(lock_path_obj.read_text(encoding="utf-8"))
+            ld["pid"] = os.getpid()
+            lock_path_obj.write_text(json.dumps(ld, indent=2), encoding="utf-8")
+    except (json.JSONDecodeError, OSError):
+        logger.info("[monitor] Could not self-register PID in lock file %s", lock_file)
 
     # Open stderr log for claude output (rotate if > 500KB)
     stderr_fh = None

@@ -38,7 +38,7 @@ def _make_project(tmp_path, project_name="testproj", branches=None):
                 "path": rel_path,
                 "module": f"{project_name}.{name.lower()}",
             },
-            "identity": {"citizen_class": "builder"},
+            "identity": {"citizen_class": "aipass_framework"},
             "citizenship": {"registered": True},
         }
         (trinity / "passport.json").write_text(json.dumps(passport), encoding="utf-8")
@@ -507,13 +507,13 @@ class TestTemplateFiles:
 
     def test_builder_gitignore_has_venv(self):
         """Builder template .gitignore includes .venv/ entry."""
-        gitignore = Path(__file__).resolve().parent.parent / "templates" / "builder" / ".gitignore"
+        gitignore = Path(__file__).resolve().parent.parent / "templates" / "aipass_framework" / ".gitignore"
         content = gitignore.read_text()
         assert ".venv/" in content
 
     def test_requirements_project_exists(self):
         """Builder template includes requirements.project.txt."""
-        req = Path(__file__).resolve().parent.parent / "templates" / "builder" / "requirements.project.txt"
+        req = Path(__file__).resolve().parent.parent / "templates" / "aipass_framework" / "requirements.project.txt"
         assert req.exists()
         content = req.read_text()
         assert "Project-specific" in content

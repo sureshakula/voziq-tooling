@@ -73,6 +73,7 @@ def print_help() -> None:
     console.print("  [green]drive_sync[/green]   Sync backups to the remote drive")
     console.print("  [green]drive_check[/green]  Test the remote drive connection")
     console.print("  [green]drive_stats[/green]  Drive usage statistics")
+    console.print("  [green]share[/green]        Upload a single file to Drive + get a shareable link")
     console.print("  [green]drive_clear[/green]  Clear backups from the remote drive")
     console.print()
 

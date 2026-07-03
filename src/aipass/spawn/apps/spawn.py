@@ -30,7 +30,6 @@ def print_help():
     console.print("[bold cyan]USAGE:[/bold cyan]")
     console.print()
     console.print("  [dim]drone @spawn create [class] <target_path> [options][/dim]")
-    console.print("  [dim]drone @spawn passport <@dirname> [--role ...] [--purpose ...][/dim]")
     console.print("  [dim]drone @spawn update <@branch | class --all> [--apply][/dim]")
     console.print(
         "  [dim]drone @spawn repair <project_path> [--clean-pollution | --relocate @branch <path>] [--apply][/dim]"
@@ -40,7 +39,6 @@ def print_help():
     console.print("[bold cyan]COMMANDS:[/bold cyan]")
     console.print()
     console.print("  [green]create[/green] [class] <path>         Create a new branch from template")
-    console.print("  [green]passport[/green] <@dirname>           Grant birthright citizenship (minimal)")
     console.print(
         "  [green]update[/green] <@branch>              Update single branch from templates (preview-only by default)"
     )
@@ -63,16 +61,15 @@ def print_help():
     console.print("[bold cyan]CITIZEN CLASSES:[/bold cyan]")
     console.print()
     console.print(
-        "  [green]builder[/green]      Full 3-layer scaffold (apps/, modules/, handlers/) [dim][default][/dim]"
+        "  [green]aipass_framework[/green]  Full 3-layer scaffold (apps/, modules/, handlers/) [dim][default][/dim]"
     )
-    console.print("  [green]birthright[/green]   Minimal citizenship (.trinity/, .aipass/, README.md)")
     console.print()
     console.print("[bold cyan]OPTIONS:[/bold cyan]")
     console.print()
     warning("--role", details="Agent role description")
     warning("--traits", details="Agent personality traits")
     warning("--purpose", details="Agent purpose (brief)")
-    warning("--template", details="Template class name (builder, birthright) or custom directory path")
+    warning("--template", details="Template class name (aipass_framework) or custom directory path")
     warning("--registry", details="Path to AIPASS_REGISTRY.json")
     warning("--apply", details="Execute changes (update/repair are preview-only by default)")
     warning("--dry-run", details="Preview changes without modifying files (default for update/repair)")
@@ -118,7 +115,7 @@ def handle_create(args):
 
     parsed = parser.parse_args(remaining_args)
 
-    # --template can be a class name (e.g. "builder") or a raw path
+    # --template can be a class name (e.g. "aipass_framework") or a raw path
     template_dir = parsed.template
     if parsed.template and validate_class(parsed.template):
         citizen_class = parsed.template
@@ -212,7 +209,6 @@ def print_introspection():
     console.print("    [dim]- sync_registry.py (handle_sync_registry — registry repair)[/dim]")
     console.print("    [dim]- sync_templates.py (handle_sync_templates — template synchronization)[/dim]")
     console.print("    [dim]- regenerate_registry.py (handle_regenerate_registry — regenerate template registry)[/dim]")
-    console.print("    [dim]- passport.py (handle_passport — grant birthright citizenship)[/dim]")
     console.print("    [dim]- repair.py (handle_repair — project structure repair)[/dim]")
     console.print()
 
@@ -258,11 +254,6 @@ def main():
         from aipass.spawn.apps.modules.sync_templates import handle_sync_templates
 
         return handle_sync_templates(remaining)
-
-    if command == "passport":
-        from aipass.spawn.apps.modules.passport import handle_passport
-
-        return handle_passport(remaining)
 
     if command == "regenerate-registry":
         from aipass.spawn.apps.modules.regenerate_registry import handle_regenerate_registry

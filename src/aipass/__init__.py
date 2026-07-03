@@ -1,7 +1,6 @@
 """AIPass — Multi-agent orchestration framework.
 
-pip install aipass
-https://github.com/AIOSAI/AIPass
+git clone + ./setup.sh — https://github.com/AIOSAI/AIPass
 """
 
-__version__ = "2.6.0"
+__version__ = "2.6.1"

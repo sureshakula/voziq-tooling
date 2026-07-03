@@ -9,6 +9,451 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-02]
+
+Released as **2.6.1**. Rolls up the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010 /
+FPLAN-0298 batch (unified Telegram↔Claude Code bridge, single-session presence
+gate, live Telegram streaming, `aipass init` template selector + portability,
+`@backup share`) — all documented under `[2026-07-01]` — plus the CI
+stabilization below.
+
+### Fixed
+
+- **CI green — six regressions from the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010
+  batch (PR #646).** The dev branch had gone red across `seedgo-audit`, the
+  `test` matrix, and Windows; root-caused and fixed at source:
+  - **seedgo** — the new `template_check` advisory checker was gating CI.
+    `branch_audit.py` averaged *all* checker scores into the branch total, so
+    `template_check`'s `ADVISORY=True` was never honored and it dragged 7
+    branches below the 100% floor on legitimate README brace-examples. Added a
+    `gating_scores` filter that excludes `ADVISORY is True` checkers before
+    computing the average (strict `is True` to avoid MagicMock false-positives)
+    and exposed `advisory_standards` in the audit output. Also refreshed the
+    provider hooks snapshot fixture to include the `presence_gate`
+    `UserPromptSubmit` hook (FPLAN-0289), fixing 4 `test_hooks_snapshot` tests.
+  - **hooks** — `cc_sessions.py` (added by the bridge, `f6cbe34`) was missing
+    its README entry and a seedgo `modules` bypass (it reads external
+    `~/.claude/sessions/*.json`, not branch data, so `json_handler` is the wrong
+    tool — same precedent as `presence.py`). Added both.
+  - **spawn** — retired the `passport(disabled).py` / `passport_ops(disabled).py`
+    pair to `.archive/`; the `(disabled)` suffix kept them visible to the type
+    checker, which flagged a broken cross-import between them.
+  - **ai_mail** — `test_child_inherits_broker_fd` gave its throwaway test branch
+    a real `.trinity/passport.json` so the broker's new `.trinity`-marker
+    resolution (`f914ab6`) can resolve it and permit the delete.
+  - **spawn** — the `builder→aipass_framework` template rename (`13463c0`) left
+    `.gitignore` exceptions pointing at the old `templates/builder/` path, so
+    `DASHBOARD.local.json` + ~10 other template files were silently untracked
+    since the rename — present on disk (dirty tree passed) but absent from clean
+    clones/CI, so `test_full_spawn` failed only in a clean checkout. Fixed all 23
+    `.gitignore` exception paths and committed the now-visible template
+    scaffolding.
+  - **skills** — `test_streaming` asserted a `+1` newline byte, but `write_text`
+    text mode translates `\n`→`\r\n` on Windows (2 bytes), failing `windows-setup`
+    only. Switched the test's transcript writes to `write_bytes()` for
+    deterministic LF; production `_tail_transcript_bytes` was already CRLF-safe.
+
+## [2026-07-01]
+
+### Added
+
+- **`aipass init` is now a template selector (TDPLAN-0010)** — `init` presents a
+  chooser with **`empty project`** at the top, pre-selected as the default
+  (creates just the project folder, no scaffold), and **`aipass_framework`**
+  below it (the full AIPass agent framework — the old always-on behavior, now
+  opt-in). Flag and positional forms both work: `aipass init --list` (branches
+  before the `--` catch-all) and `aipass init <template>`. The AIPass-specific
+  stages (8 spawn-first-agent / 9 ping-registry / 11 handoff / 12 init_report,
+  `AIPASS_SPECIFIC_STAGES`) and the `bootstrap.init_project()` scaffold are now
+  gated on the chosen template, so an empty project stays empty. In-product pip
+  hints in `init_flow.py` + `doctor.py` retuned to clone/`setup.sh`. 8 new
+  selector tests; 499 tests pass. (built by @aipass, FPLAN-0295, TDPLAN-0010)
+
+- **Unified Telegram ↔ Claude Code bridge — CC-native session discovery
+  (DPLAN-0226)** — a Telegram message to a branch's bot now lands directly in
+  that branch's live Claude Code session, and the reply tails back out to
+  Telegram — a full round trip, **live-proven end-to-end from Patrick's own
+  Telegram client** (not just a self-test). The bot's inbound path
+  (`base_bot.ensure_tmux_session`) discovers the active session by enumerating
+  CC-native `~/.claude/sessions/<pid>.json` files (match `cwd`, confirm PID
+  alive, newest by `startedAt`), maps it to a tmux pane by cwd, and injects the
+  message — replacing the old `PRESENCE.central.json` pointer, which is kept but
+  commented out. The outbound path gains a CC-native "Strategy 0" in
+  `_resolve_active_transcript` that prefers the discovered transcript, so
+  assistant replies relay back reliably. Anthropic ToS rules out a cloud peer,
+  so all delivery is local (tmux/PTY). New `session_boot.py` boot wrapper
+  (attach-if-live-else-start-in-tmux; a thin `~/.bashrc claude()` shim delegates
+  to it). Hooks tests 66 green (presence_gate / cc_sessions / session_boot),
+  telegram presence_pointer 42 green. (DPLAN-0226 P1/P2, FPLAN-0290/0291/0292)
+
+- **Seedgo stale-template audit checker (`template_check`)** — a new advisory
+  standard that flags branches still carrying unrendered template markers in
+  their local prompts / config, so a citizen that never customized its scaffold
+  no longer fails silently. Auto-discovered like every other checker; advisory
+  (warns, never blocks). Ships with `template_content.py` and a `template.md`
+  standard doc, covered by `test_template_check.py`. (built by @seedgo, DPLAN-0228)
+
+### Fixed
+
+- **Drone `--json` output no longer corrupts machine JSON** — `--json`
+  pass-through was routed through Rich's `console.print()`, which defaults to
+  width 80 on a non-TTY and hard-wraps mid-string, producing invalid JSON
+  (e.g. `"Security \nScan"`). Fixed by writing raw JSON with `sys.stdout.write()`
+  in the pass-through paths (`drone.py` + `router.py`) while keeping Rich for
+  drone's own human UI. Verified live end-to-end. (fixed by @drone, td-49)
+
+### Changed
+
+- **README: pip removed, clone-only install (TDPLAN-0010)** — the top-level
+  README no longer documents `pip install aipass` anywhere: the PyPI badge, the
+  install steps (hero + Quick Start), the Project Status version badge, and the
+  uninstall `pip uninstall` line are all removed. Install is now a single path —
+  `git clone … && ./setup.sh` (puts `aipass` + `drone` on PATH), then
+  `aipass init` scaffolds agents into your own project on top. Quick Start
+  reorganized into Install → Your own project → Explore the full framework.
+  (packaging code untouched; docs are clone-first.) (DPLAN-0228, devpulse)
+
+- **Spawn: `builder` template → `aipass_framework`, birthright retired,
+  per-project registry targeting (TDPLAN-0010)** — the citizen_class/template
+  `builder` is renamed to **`aipass_framework`** across `class_registry.py`,
+  `core.py`, `meta_ops.py`, `update_ops.py`, `sync_registry_ops.py`, help text,
+  and the template dir itself (`templates/builder/` → `templates/aipass_framework/`).
+  The class is no longer baked as a literal in the template passport — a new
+  **`{{CITIZEN_CLASS}}` placeholder** (passport line 21, `placeholders.py`) now
+  takes it from the create call. **`birthright`** (0 live users) is retired to
+  `templates/.archive/birthright/` and its `passport` command disabled
+  (`passport.py` / `passport_ops.py` → `(disabled).py`, routing removed).
+  **Per-project registry targeting:** `spawn`'s `find_registry()` no longer
+  passes `package_root` to the shared discovery (killing the silent fallback to
+  AIPass's own registry for external targets), and `_spawn_agent` now validates
+  containment and, if the found registry is outside the target's project, walks
+  up from the target for `.git`/`pyproject.toml`/`setup.py`/`setup.cfg` to use
+  **that project's own registry** — so an agent created into any project is
+  tracked by that project's registry, never AIPass's. The
+  `_validate_path_containment` isolation invariant is untouched. `create` also
+  degrades gracefully when `@memory` is unavailable (empty meta-tabs, no crash).
+  297 tests pass. (built by @spawn, FPLAN-0294, TDPLAN-0010)
+
+- **Drone resolution + access checks made project-portable (TDPLAN-0010
+  foundation)** — five `src/aipass`/fixed-depth self-location hardcodes are
+  replaced with `.trinity/`-marker walk-ups: `rm_handler` sibling protection,
+  `commit_handler` test-gate branch detection, `broker/daemon` allowed-bases,
+  the `handlers/__init__` import-guard access check (now `is_relative_to()`
+  instead of scanning path parts for the literal `aipass`), and
+  `registry_handler`'s `parents[4]` last-resort (now a
+  `.git`/`pyproject.toml`/`setup.py`/`setup.cfg` marker walk). `@name`→path
+  resolution now works for an agent in any project layout via a CWD-first
+  registry walk (AIPASS_HOME only as a last resort when the CWD ancestry has no
+  registry at all). The `_validate_branch_path` containment invariant is
+  untouched — per-project isolation preserved. (Drone uses its own resolver, not
+  the shared `registry_discovery.py`.) 838 tests pass. (built by @drone,
+  FPLAN-0296, TDPLAN-0010)
+
+- **ai_mail routing made project-portable (TDPLAN-0010 foundation)** — the
+  fixed-depth `_REPO_ROOT = parents[2].parents[2]` self-location in
+  `email.py` / `email_send.py` / `dispatch.py` (4 sites) is replaced with the
+  portable `find_repo_root()` marker-walk already used in
+  `delivery.py` / `wake.py` / `paths.py`, so mail resolves via the project
+  marker instead of a hardcoded tree depth — a prerequisite for agents that
+  live outside `src/aipass/`. Per-project isolation preserved (no cross-project
+  mailbox routing). 737 tests + seedgo 100%. (built by @ai_mail, FPLAN-0293,
+  TDPLAN-0010)
+
+- **Presence gate re-sourced to CC-native session files (presence_gate v2)** —
+  the single-session guard now sources truth from `~/.claude/sessions/<pid>.json`
+  via a new `cc_sessions` module (`find_occupant`/`find_live_for_cwd`) instead of
+  `PRESENCE.central.json`. Resume-aware (a `/resume` keeps the same PID, so the
+  session is correctly recognized as re-entry, not a duplicate) and exit-aware
+  (CC deletes the file on clean exit). `handle_stop` is now a plain no-op —
+  cleanup is CC's job. The old `presence.py` / `PRESENCE.central.json` are
+  preserved, just no longer sourced. (DPLAN-0226 P1)
+
+## [2026-06-25]
+
+### Added
+
+- **Daemon auto-runner — systemd user timer (the deferred last mile of the
+  decentralized scheduler)** — `.daemon/schedule.json` jobs now fire **hands-off**.
+  A oneshot `daemon-tick.service` + `daemon-tick.timer` (every ~2 min, mirroring
+  the `prax-monitor.service` pattern: user-scope `~/.config/systemd/user/`, `%h`
+  not hardcoded paths, venv-python ExecStart `-m aipass.daemon.apps.daemon run`,
+  logs to `~/.aipass/daemon-tick.log` outside any tailed dir) reuses the existing
+  fcntl-locked `run.py` tick unchanged — the timer is the ticker. New
+  `apps/modules/timer_install.py` installs/enables it idempotently. Live-proven:
+  @devpulse received a `DAEMON TEST` ping from a branch woken purely by the timer,
+  no human tick. Tick profile: ~1.7s (import overhead only); the earlier CPU spike
+  was `wake_branch` spawning opus agents concurrently, **not** the tick — so
+  scheduled wakes want light models + staggering. Closes the piece DPLAN-0204 /
+  FPLAN-0282 deferred. 461 daemon tests green, seedgo 100%. (FPLAN-0287)
+
+- **Prax monitor → Telegram relay (`prax_monitor` bot)** — the live
+  `drone @prax monitor run` Mission-Control feed now mirrors to a dedicated
+  Telegram bot, so the whole-system monitor is watchable from a phone ("same
+  monitor, different window"). New `monitoring/telegram_relay.py` taps the single
+  render seam (`_render_event`), buffers events, and flushes every 5s (4000-char
+  split, 150-line flood cap, `disable_notification`); fail-silent-once when
+  unconfigured. Gated behind `--relay` / `AIPASS_PRAX_MONITOR_RELAY=1` so a local
+  `monitor run` stays console-only (no double-send). Bot config (token + chat_id)
+  loads from the @api secret `telegram/prax_monitor`. Ships a reboot-survivable
+  `prax-monitor.service` user unit. 937 prax tests green (31 new). (DPLAN-0221)
+
+- **Self-documenting `.trinity` state-tabs** — each memory-file section
+  (`todos` / `key_learnings` / `sessions` / `observations`) now carries a
+  config-sourced `⟦ rollover ON/OFF · keep N · ≤chars ⟧` tab rendered directly
+  above it, so an agent editing a section sees its rollover state and character
+  cap at the edit point (stops over-limit writes). Values are generated from
+  `memory.config.json` (single source of truth) via @memory's new
+  `render_all_meta_tabs()` / `tab_renderer.py`; @memory's `spawn_pusher` carries
+  the `{{*_META}}` placeholders into @spawn's branch templates, and @spawn
+  resolves them at create (`build_replacements_dict`, fail-loud on missing keys)
+  so new branches auto-populate. `refresh_all_tabs` keeps live branches synced;
+  @memory README documents the system. (FPLAN-0285, FPLAN-0286)
+
+### Changed
+
+- **Todo management — delete-on-done discipline** — `todos[]` are operational
+  and exempt from rollover (confirmed; the vestigial `todos` entry was removed
+  from `memory.config.json` rollover defaults). Because rollover never trims
+  them, finished todos must be **deleted**, not left as `status: done` (which
+  pile up and resurface as "open" across sessions). `/prep` and `/memo` (Claude
+  + Codex) and the `CLAUDE.md` startup protocol now codify: delete each todo when
+  done (proof → session entry), reconcile on load. (FPLAN-0285)
+
+### Fixed
+
+- **Daemonized wakes killed by systemd cgroup teardown (td-48)** — timer-fired
+  `wake_branch()` calls spawned the dispatch monitor + claude child, then died
+  within seconds with no email and a stale lock, while the *same* wake from an
+  interactive terminal worked. Root cause: a systemd oneshot service defaults to
+  `KillMode=control-group`, so when the ~1.7s tick process exits, systemd SIGTERMs
+  **every member of its cgroup** — `start_new_session=True` is irrelevant because
+  systemd tracks by cgroup, not process group. Fix in `ai_mail` dispatch: detect
+  the systemd context (`INVOCATION_ID`) and re-spawn the monitor via
+  `systemd-run --user` in its **own transient unit**, escaping the parent cgroup
+  (falls back to direct `Popen` when not under systemd); plus `stdin=DEVNULL` on
+  both the monitor and claude `Popen` calls and monitor PID self-registration in
+  the lock. Now genuinely live-proven through the timer: 3 branches
+  (commons/cli/backup) woken purely by `daemon-tick.timer` each emailed @devpulse
+  and exited clean (~20s, code=0). 737 ai_mail tests green, seedgo 100%.
+
+- **seedgo-audit — telegram ported-but-unwired functions** — the DPLAN-0218
+  relocation pulled the telegram lib into the seedgo gate's scope, surfacing 16
+  `unused_function` flags across 8 handler files. These are *not* dead code —
+  they're ported-but-unwired from the ~9k-line Dev-Pass port (S249), awaiting
+  DPLAN-0220 wiring (on_response hooks, response_router, tmux session mgmt, file
+  up/download, multi-bot, config helpers). Added name-scoped `unused_function`
+  bypasses in `skills/.seedgo/bypass.json` (the existing mechanism), each citing
+  DPLAN-0220, and documented every one in `SKILL.md` → *Ported-but-unwired* with
+  a "remove the bypass as you wire each fn" note. @skills back to 100%.
+
+- **seedgo-audit — @spawn direct JSON read** — `core.py` adopt-path read a
+  passport via `json.loads(path.read_text())` (direct file op), failing the
+  `json_handler` standard and the CI seedgo-audit gate. Switched to
+  `json_handler.read_json()` (the same pattern used a few lines above), dropping
+  the now-unused `import json as _json`. @spawn back to 100%; 315 spawn tests
+  green.
+
+- **Windows CI — telegram `bot_registry` crashed test collection** — the module
+  did a bare `import fcntl` (POSIX-only), so on Windows all 8 telegram test
+  modules that transitively import it failed at *collection* with
+  `ModuleNotFoundError: No module named 'fcntl'`, reddening Windows Test on the
+  last several PRs. Guarded the import (`try/except ImportError → fcntl = None`,
+  the established hooks/daemon convention) and routed the three flock call-sites
+  through no-op-on-Windows `_lock`/`_unlock` helpers — advisory locking still
+  applies on POSIX, is skipped where unavailable. Fixing collection then
+  *unmasked* three telegram tests that had never actually run on Windows, all
+  test-portability bugs (not product bugs): a log-streamer byte-count broke on
+  CRLF translation (fixture now writes `newline=""`); a registry write-failure
+  test used the Unix-only `/proc` path (now a cross-platform file-as-directory
+  parent); and `validate_bot_config` rejected valid POSIX `work_dir`s on Windows
+  because `Path.is_absolute()` is host-dependent (now tests POSIX *and* Windows
+  absoluteness). 493 telegram tests green.
+
+- **prax-monitor service feedback loop** — the unit wrote its own stdout into
+  `system_logs/`, the very directory the monitor tails *and* @trigger watches,
+  creating a self-reinforcing loop (monitor output → re-tailed and recorded by
+  @trigger into `trigger_data.json` → reported as a file change → more output).
+  Moved the service log to `~/.aipass/` to break the cycle. Also corrected the
+  ExecStart to `monitor run` (relay enabled via env) — the module `__main__`
+  rejects the drone-style `run all --relay` argument form. (DPLAN-0221)
+
+## [2026-06-24]
+
+### Changed
+
+- **Skill library relocated to `src/aipass/skills/lib/`** — first-party skills
+  were split across `catalog/` (built-in, cross-branch) and `.aipass/skills/`
+  (the branch-prompt dir, cwd-relative). Renamed `catalog/`→`lib/`, moved the
+  telegram skill in, archived three orphan test-fixture skills, and retired
+  `.aipass/skills/` from the branch. This unifies all 6 first-party skills under
+  one built-in tier and **fixes the telegram skill not being discoverable from
+  other branches** (it sat in a cwd-relative path). The public discovery
+  convention (`.aipass/skills/` + `~/.aipass/skills/`) is unchanged. One
+  functional line changed (`discovery_handler` built-in path); telegram's test
+  `conftest` path-depth, the systemd `.service` ExecStart, and seedgo bypass +
+  test paths were updated to match. Packaging, imports, and gitignore are
+  unaffected (everything stays under `src/aipass/`). 252/252 skills tests green;
+  cross-branch discovery verified from another branch. Moving telegram into the
+  gate's scope newly surfaced 9 pre-existing `unused_function` flags in its
+  handlers — triage tracked separately. (DPLAN-0218)
+
+### Added
+
+- **`@api` in-process `set_secret` write-door** — `aipass.api.apps.modules.secrets.set_secret(provider, slug, value, *, as_json=False)`
+  mirrors the existing `get_secret`, writing `~/.secrets/aipass/<provider>/<slug>.json`
+  (dirs `0o700`, files `0o600`, value never echoed to stdout or logged). The @api
+  secrets store was previously read-only; this is the writer the telegram
+  mother-bot needs to persist a newly-created bot's config so the child can read
+  its token. 515 @api tests pass (11 new), @api seedgo 100%. (DPLAN-0220)
+
+- **Prax-monitor v1 on Telegram — `/monitor` system-wide log subscription** —
+  the old Dev-Pass "prax monitor bot" (a `@prax` push relay on a dedicated token)
+  was stripped during the port; this revives the capability as a feature of the
+  existing `@aipass` bot (no second bot, no new credential). New `/monitor on`
+  (errors+warnings) / `all` (firehose) / `off` / `status` command on `base_bot`,
+  shown in the slash menu + `/help`. The subscribed chat is persisted to the `@api`
+  store (`set_secret('telegram','monitor',{chat_id,mode})`) so it survives restart,
+  and `base_bot` boot-starts the stream from it on startup — set-and-forget under
+  systemd. `LogStreamer` gained `system_wide` (glob all `system_logs/*.log`, not one
+  branch) + `level_filter` (default keeps `WARNING`/`ERROR`/`CRITICAL`, `all` =
+  passthrough); `_init_positions` still seeks EOF so subscribing never floods
+  history. 33 new tests (`test_monitor.py`), telegram suite 493/493, skills 252/252,
+  @skills seedgo 98%. (First @skills run crashed mid-edit on 3 string-handling
+  syntax errors; continued + fixed.) The richer AS-WAS `@prax` event-feed relay
+  (rendered Mission-Control stream, needs a dedicated-bot-token decision) is tracked
+  as Route B. (DPLAN-0221)
+
+### Fixed
+
+- **Telegram port — wave 1 (persistence + monitor + state hygiene)**, surfaced by
+  a full completeness audit against `TELEGRAM_PORT_MAP.md` (366 tags, ~83% ported,
+  452/452 tests green): (1) **bot launch** — `bot_factory.start_bot_process` and
+  `telegram-bot@.service` used a non-existent `~/.venv/bin/python3`; now launch via
+  `sys.executable -m …base_bot` (added `lib/__init__.py` + `lib/telegram/__init__.py`
+  for package resolution, since base_bot uses relative imports). (2) **reboot
+  survival** — `enable_service` now installs the systemd unit to
+  `~/.config/systemd/user/` + `daemon-reload` (previously the unit was never
+  installed, so `enable` silently no-op'd). (3) **state hygiene** — gitignored
+  `skills/.../lib/telegram/.local/` so the runtime registry/offset/lock files stop
+  leaking into the repo. (4) **prax-monitor** — `log_streamer` tailed a hardcoded
+  `~/system_logs` while prax writes to the repo-root `system_logs`; now resolves the
+  repo root (honoring `AIPASS_TEST_LOG_DIR`) so the log stream actually delivers.
+  (5) **auto-create (GAP1)** — `create_bot` wrote a new bot's config only to a disk
+  shadow file while the runtime loads its token exclusively from the @api store, so
+  a minted bot started then exited with no config; `create_bot` now calls
+  `set_secret('telegram', bot_id, config, as_json=True)` (fail-loud) so the
+  create→@api→load round-trip works and the mother-bot can mint startable bots. New
+  round-trip + fail-loud tests; telegram suite 454/454.
+  (6) **/help + Telegram command menu** — `setMyCommands` only ran inside
+  `create_bot`, so hand-launched bots (like the live `@aipass`) had no slash-menu,
+  and the menu list had drifted from `/help`; `base_bot` now sets its menu on
+  startup from a single source (`build_botfather_commands`, also used by
+  `create_bot` — `DEFAULT_BOT_COMMANDS` retired), so the Telegram menu and `/help`
+  list the same enriched commands incl. `/create`/`/cancel`. Wiring the builder
+  (rather than deleting it as "dead") also lifted Unused_Function 92→93%. 6 new
+  tests, telegram suite 460/460. (A running bot needs a restart to pick up the
+  startup menu.)
+  (DPLAN-0220)
+
+- **Telegram `@aipass` deployed under systemd (reboot survival + clean lifecycle)** —
+  the live mother-bot was a hand-launched foreground process: no reboot survival, and
+  `stop_bot`/restart targeted an uninstalled `telegram-bot@base` unit, so there was no
+  working lifecycle command. Installed the user service + `enable --now` +
+  `loginctl enable-linger` (`Linger=yes`); the 17:26 startup log confirms the full
+  chain live — `Telegram API OK`, **`Command menu set (6 commands)`** (the new `/help`
+  menu), stale-lock cleanup, poll loop, tmux Claude session preserved, `NRestarts=0`.
+  Also corrected the ported unit's `StandardOutput`/`StandardError`, which pointed at a
+  non-existent `~/system_logs` (would have crash-looped the service) — now
+  `<repo>/system_logs`, matching where the app already logs. Restart is now
+  `systemctl --user restart telegram-bot@base`. (DPLAN-0220)
+
+- **seedgo CLI help checkers green-lit non-compliant `--help` output** — the
+  `cli`/`help_text`/`introspection` standards are static source scans (they
+  confirm a `print_help` function, `console.print`, and `--help` wiring exist)
+  but never execute `--help`, so a module could score 100% while rendering raw
+  argparse. `@ai_mail` did exactly that via `console.print(parser.format_help())`,
+  laundering argparse's plain text through the approved console API and dodging
+  the existing `parser.print_help()` ban. Closed the loophole: `cli_check` now
+  flags `.format_help()`, `cli.md`/`cli_content.py` name it alongside
+  `print_help()`, +2 regression tests. Also rewrote `@ai_mail`'s `print_help()`
+  to render hand-rolled Rich (the `--help` content was complete, just unstyled).
+  A behavioral `--help` check (run it, assert not raw argparse) is noted as a
+  follow-up. (DPLAN-0217) On its first CI run the tightened checker immediately
+  surfaced the same pattern in 4 `@api` modules (`api_key`, `usage_tracker`,
+  `google_client`, `openrouter_client`) — migrated to Rich, `@api` back to 100%.
+- **seedgo `readme_check` ignored the `(disabled)` marker in self-scans** — its
+  module-list and test-count scans now skip `foo(disabled).py`, matching the
+  central audit collector. An in-place disabled module no longer trips a false
+  "missing module" violation; disabled test files no longer inflate README test
+  counts (td-103).
+- **seedgo `unused_function` bypasses are now name-scoped** — bypasses match by
+  function name (`functions: [...]`) instead of line number (`lines: [...]`),
+  which drifted silently when code shifted and re-flagged exempted functions
+  (bit us S216/S217). `lines` stays supported for other standards. Migrated the
+  10 existing line-scoped entries across drone/memory/skills and dropped 3 dead
+  entries already pointing past EOF (td-009).
+- **Dispatch footer no longer tells workers to close the orchestrator's plan** —
+  the standard email footer's checklist item read `CLOSE FPLAN → drone @flow
+  close <plan_id>`, which led dispatched agents to close the master/parent plan
+  referenced in their brief (bit us in FPLAN-0260). Reworded to `CLOSE YOUR PLAN
+  → ... this task's plan only, never the master/parent` — a worker still closes
+  the sub-plan handed to it, but the master stays the orchestrator's to close on
+  completion (td-6).
+
+### Changed
+
+- **Backup `.backupignore` default moved out of code into a template file** — the
+  seed content backup writes into a new project's `.backupignore` now lives in
+  `backup/templates/backupignore.template` (loaded at register), matching the
+  AIPass convention that templates are data files, not hardcoded Python. Retired
+  the `BUILTIN_IGNORES` list; `_build_backupignore()` reads the template and
+  **raises** if it's missing — never silently empty, since an empty
+  `.backupignore` would back up everything and crash. Docs/comments repointed to
+  the template (td-30).
+
+### Removed
+
+- **Dead `bulletin_created` trigger handler** — the event handler that wrote a
+  `bulletin_board` section into every branch dashboard is retired: nothing fired
+  the event, its `BULLETINS.central.json` store no longer exists, and prax
+  already prunes `bulletin_board` as a deprecated section. Archived + unwired
+  from the event registry; prax's pruning stays (td-102).
+- **Dead `backup/run/` test dir** — leftover from an ad-hoc backup test run
+  (only its generated `.backupignore` had been tracked); removed (td-218).
+
+### Documentation
+
+- **Backup docs corrected** — `.backup/` is now documented as a **shared runtime
+  namespace** (@backup stores + @memory rollover safety copies + @flow plan
+  archive), not @backup-exclusive. @backup's README gained full command coverage,
+  the `.backup/` store layout, and a `.backupignore` ("gitignore for backups")
+  section; its branch prompt's stale `.backup_system/` / `drive_test.py` names
+  were fixed. Root README lists @backup and documents `.backupignore`; the navmap
+  was corrected. The shipped root `/.backupignore` was realigned to
+  `BUILTIN_IGNORES` (dropped stale `.backup_system/` + over-broad `*logs`).
+  @memory and @flow READMEs now cross-reference their `.backup/` writes, and the
+  orphaned `prax/.backupignore` (a stale per-branch config) was removed.
+- **Root README agent roster brought current** — added the three missing agents
+  (`@daemon`, `@skills`, `@commons`) to the tree and tables, and normalized the
+  agent count to **17** everywhere (was an inconsistent mix of "13" and "14").
+  `@daemon` joins Quality & operations; a new "Capabilities and community" group
+  covers `@skills` + `@commons` (td-28).
+- **`/prep` now reconciles todos against reality** — the session-wrap command
+  (both the Claude `.claude/commands/prep.md` and the Codex skill mirror) gained
+  a step to audit every open todo against the actual system (`ls`/`find`/`git
+  ls-files`/`grep`/`audit`) and close what's verifiably done — catching todos
+  finished in a past session but never closed.
+- **Backup ignore architecture documented** — confirmed and written down the
+  two-layer model so it stops getting re-discovered: `BUILTIN_IGNORES` is the
+  **seed** that generates a new project's `.backupignore` at register and is
+  never consulted at backup time; `.backupignore` (via `load_spec`) is the
+  **runtime source of truth**. There's no static fallback, so the seed is
+  safety-critical — an empty `.backupignore` backs up everything and can crash
+  the machine. Added a "How Ignores Work" README section + code comments on
+  `BUILTIN_IGNORES` and `load_spec`. Also added `logs/` to the seed so new
+  projects exclude log directories (e.g. prax `.jsonl` output) by default, not
+  just `*.log` files (td-27).
+
 ## [2026-06-23]
 
 The **2.6.0** release — a large `dev → main` merge spanning several weeks (68 commits).

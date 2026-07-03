@@ -18,6 +18,7 @@ def is_bypassed(
     standard: str,
     line: int | None = None,
     bypass_rules: list | None = None,
+    name: str | None = None,
 ) -> bool:
     """Check if a violation should be bypassed.
 
@@ -26,6 +27,7 @@ def is_bypassed(
         standard: Standard name (e.g., 'cli', 'imports')
         line: Optional specific line number of the violation
         bypass_rules: List of bypass rules from .seedgo/bypass.json
+        name: Optional function/symbol name for name-scoped bypasses
 
     Returns:
         True if this violation should be bypassed
@@ -40,15 +42,20 @@ def is_bypassed(
         rule_file = rule.get("file", "")
         if rule_file and rule_file not in file_path_posix:
             continue
-        rule_lines = rule.get("lines", [])
-        if rule_lines and line is not None and line not in rule_lines:
-            continue
+        functions = rule.get("functions")
+        if functions and name is not None:
+            if name not in functions:
+                continue
+        elif rule.get("lines") and line is not None:
+            if line not in rule["lines"]:
+                continue
         json_handler.log_operation(
             "bypass_matched",
             {
                 "file": file_path,
                 "standard": standard,
                 "line": line,
+                "name": name,
                 "rule_file": rule_file,
             },
         )

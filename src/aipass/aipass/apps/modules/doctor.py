@@ -399,11 +399,23 @@ def _check_services(verbose: bool = False) -> List[CheckResult]:
             results.append(CheckResult("drone", GLYPH_PASS, detail, ""))
         else:
             results.append(
-                CheckResult("drone", GLYPH_FAIL, "exit non-zero", "Ensure aipass is installed: pip install -e .")
+                CheckResult(
+                    "drone",
+                    GLYPH_FAIL,
+                    "exit non-zero",
+                    "Ensure aipass is installed: clone the repo and run setup.sh",
+                )
             )
     except FileNotFoundError as exc:
         logger.warning("[doctor] drone not found: %s", exc)
-        results.append(CheckResult("drone", GLYPH_FAIL, "not found", "Ensure aipass is installed: pip install -e ."))
+        results.append(
+            CheckResult(
+                "drone",
+                GLYPH_FAIL,
+                "not found",
+                "Ensure aipass is installed: clone the repo and run setup.sh",
+            )
+        )
     except subprocess.TimeoutExpired as exc:
         logger.warning("[doctor] drone systems timed out: %s", exc)
         results.append(CheckResult("drone", GLYPH_WARN, "timed out", ""))

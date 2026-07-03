@@ -160,6 +160,12 @@ def _merge_metadata(curr_meta: dict, tmpl_meta: dict) -> List[str]:
             curr_meta[key] = tmpl_val
             changes.append(f"document_metadata.{key}: {old} -> {tmpl_val}")
 
+    # _usage
+    tmpl_usage = tmpl_meta.get("_usage")
+    if tmpl_usage and curr_meta.get("_usage") != tmpl_usage:
+        curr_meta["_usage"] = tmpl_usage
+        changes.append("document_metadata._usage: updated from template")
+
     # Tags
     tmpl_tags = tmpl_meta.get("tags", [])
     if tmpl_tags and set(curr_meta.get("tags", [])) != set(tmpl_tags):

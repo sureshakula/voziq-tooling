@@ -92,6 +92,11 @@ CLI_CHOICES = ["claude", "codex", "other"]
 FLAG_CHOICES = ["default", "skip-permissions"]
 STYLE_CHOICES = ["building-my-own-project", "improving-aipass", "just-exploring"]
 
+TEMPLATE_EMPTY = "empty project"
+TEMPLATE_AIPASS = "aipass_framework"
+TEMPLATE_CHOICES = [TEMPLATE_EMPTY, TEMPLATE_AIPASS]
+AIPASS_SPECIFIC_STAGES = {8, 9, 11, 12}
+
 
 # --- LOCAL JSON HELPERS ---
 def _read_local_json() -> dict:
@@ -597,12 +602,12 @@ def stage_10_smoke_test(non_interactive: bool = False, dry_run: bool = False) ->
     if drone_bin:
         console.print(f"[green]✓[/green] drone: {drone_bin}")
     else:
-        warning("drone not on PATH — run: pip install -e .")
+        warning("drone not on PATH — clone the repo and run setup.sh")
 
     if aipass_bin:
         console.print(f"[green]✓[/green] aipass: {aipass_bin}")
     else:
-        warning("aipass not on PATH — run: pip install -e .")
+        warning("aipass not on PATH — clone the repo and run setup.sh")
 
     _save_stage(10, {"drone": drone_bin, "aipass": aipass_bin}, dry_run=dry_run)
     return {"drone": drone_bin, "aipass": aipass_bin}
@@ -775,6 +780,7 @@ def run_init(
     style: str | None = None,
     no_docker: bool = False,
     dry_run: bool = False,
+    template: str | None = None,
 ) -> int:
     """Run the 12-stage init flow. Returns 0 on success."""
     # Pre-flight: refuse to run inside existing projects or agent dirs
@@ -783,9 +789,20 @@ def run_init(
         console.print(f"[red]✗[/red] {err}")
         return 1
 
-    # Ensure scaffold exists (creates registry, .aipass, etc. if missing)
+    # Template selection — before scaffold
+    if template is None:
+        if non_interactive:
+            template = TEMPLATE_EMPTY
+        else:
+            template = _choose(
+                "Choose a project template:",
+                TEMPLATE_CHOICES,
+                default=TEMPLATE_EMPTY,
+            )
+
+    # Ensure scaffold exists — only for aipass_framework
     cwd = Path.cwd()
-    if not list(cwd.glob("*_REGISTRY.json")):
+    if template == TEMPLATE_AIPASS and not list(cwd.glob("*_REGISTRY.json")):
         from aipass.aipass.apps.handlers.init.bootstrap import init_project
 
         if not dry_run:
@@ -804,7 +821,7 @@ def run_init(
     if last_done > 0:
         warning(f"Resuming from stage {last_done + 1}...")
 
-    accumulated: Dict[str, Any] = {}
+    accumulated: Dict[str, Any] = {"template": template}
 
     stage_fns = [
         (1, lambda: stage_1_welcome(dry_run=dry_run)),
@@ -834,6 +851,9 @@ def run_init(
     for stage_num, fn in stage_fns:
         if stage_num <= last_done:
             continue
+        if stage_num in AIPASS_SPECIFIC_STAGES and template != TEMPLATE_AIPASS:
+            logger.info("[init_flow] skipping stage %d (not aipass_framework)", stage_num)
+            continue
         try:
             result = fn() or {}
             accumulated.update(result)
@@ -845,6 +865,11 @@ def run_init(
             logger.warning("[init_flow] stage %d error: %s", stage_num, exc)
             warning(f"Stage {stage_num} error: {exc} — continuing.")
             _save_stage(stage_num, {"error": str(exc)}, dry_run=dry_run)
+
+    if template != TEMPLATE_AIPASS:
+        console.print()
+        console.print("[green]✓[/green] Project initialized.")
+        console.print("[dim]Run 'aipass init agent <name>' to add an agent.[/dim]")
 
     return 0
 
@@ -878,8 +903,10 @@ def print_help() -> None:
     console.print("  [green]aipass init run --non-interactive[/green]    [dim]# CI/headless[/dim]")
     console.print("  [green]aipass init run --name YourName[/green]      [dim]# pre-fill name[/dim]")
     console.print("  [green]aipass init run --cli claude[/green]         [dim]# pre-fill CLI[/dim]")
+    console.print("  [green]aipass init run --template <name>[/green]    [dim]# select template[/dim]")
     console.print("  [green]aipass init run --no-docker[/green]          [dim]# skip docker offer[/dim]")
     console.print("  [green]aipass init run --dry-run[/green]            [dim]# walk all stages, no writes[/dim]")
+    console.print("  [green]aipass init --list[/green]                   [dim]# list available templates[/dim]")
     console.print()
     console.print("[yellow]STAGES:[/yellow] 12 stages, each saved — resume on ctrl-C")
     console.print()
@@ -1008,6 +1035,15 @@ def handle_command(command: str, args: list[str]) -> bool:
         sys.exit(_handle_init_update(args[1:]))
         return True
 
+    if args[0] == "--list":
+        console.print()
+        console.print("[bold cyan]Available project templates:[/bold cyan]")
+        for t in TEMPLATE_CHOICES:
+            marker = " [dim](default)[/dim]" if t == TEMPLATE_EMPTY else ""
+            console.print(f"  • {t}{marker}")
+        console.print()
+        return True
+
     if args[0] == "run" or args[0].startswith("--"):
         run_args = args[1:] if args[0] == "run" else args
         non_interactive = "--non-interactive" in run_args
@@ -1022,6 +1058,7 @@ def handle_command(command: str, args: list[str]) -> bool:
         name = _flag_value("--name")
         cli = _flag_value("--cli")
         style = _flag_value("--style")
+        template = _flag_value("--template")
         no_docker = "--no-docker" in run_args
         dry_run = "--dry-run" in run_args
 
@@ -1032,11 +1069,18 @@ def handle_command(command: str, args: list[str]) -> bool:
             style=style,
             no_docker=no_docker,
             dry_run=dry_run,
+            template=template,
         )
         json_handler.log_operation(
             "init_run",
             {"non_interactive": non_interactive, "dry_run": dry_run, "exit": result},
         )
+        sys.exit(result)
+        return True
+
+    # Template name as positional arg
+    if args[0] in TEMPLATE_CHOICES:
+        result = run_init(template=args[0])
         sys.exit(result)
         return True
 

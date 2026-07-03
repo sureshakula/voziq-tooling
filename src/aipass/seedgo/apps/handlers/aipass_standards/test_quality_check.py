@@ -195,7 +195,7 @@ def _find_test_files_broad(branch_path: Path) -> list[Path]:
         for py_file in sorted(tests_dir.rglob("*.py")):
             if py_file.name in ("__init__.py", "conftest.py"):
                 continue
-            if "__pycache__" in py_file.parts:
+            if any(_should_skip_dir(part) for part in py_file.relative_to(tests_dir).parts):
                 continue
             resolved = py_file.resolve()
             if resolved not in seen:

@@ -241,9 +241,9 @@ def _handle_module(name: str, args: List[str]) -> int:
         return 1
 
     if result.get("stdout"):
-        console.print(result["stdout"], end="", highlight=False, markup=False)
+        sys.stdout.write(result["stdout"])
     if result.get("stderr"):
-        err_console.print(result["stderr"], end="", highlight=False, markup=False)
+        sys.stderr.write(result["stderr"])
     return result.get("exit_code", 0)
 
 
@@ -357,9 +357,9 @@ def _handle_custom_command(args: list[str]) -> int:
         return 1
 
     if result.stdout:
-        console.print(result.stdout, end="", highlight=False)
+        sys.stdout.write(result.stdout)
     if result.stderr:
-        err_console.print(result.stderr, end="", highlight=False)
+        sys.stderr.write(result.stderr)
     return result.exit_code
 
 
@@ -476,9 +476,9 @@ def _handle_target(args: List[str]) -> int:
         return 1
 
     if result.stdout:
-        console.print(result.stdout, end="", highlight=False)
+        sys.stdout.write(result.stdout)
     if result.stderr:
-        err_console.print(result.stderr, end="", highlight=False)
+        sys.stderr.write(result.stderr)
     return result.exit_code
 
 
@@ -582,9 +582,9 @@ def main() -> int:
             return 1
         if isinstance(result, dict):
             if result.get("stdout"):
-                console.print(result["stdout"], end="", highlight=False)
+                sys.stdout.write(result["stdout"])
             if result.get("stderr"):
-                err_console.print(result["stderr"], end="", highlight=False)
+                sys.stderr.write(result["stderr"])
             return result.get("exit_code", 0)
         return 0 if result else 1
 

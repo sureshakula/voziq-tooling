@@ -65,11 +65,16 @@ def build_replacements_dict(target_dir, branch_name, **overrides):
         "TRAITS": overrides.get("traits", ""),
         "PURPOSE_BRIEF": overrides.get("purpose", "New agent - purpose TBD"),
         "CITIZEN_NUMBER": str(overrides.get("citizen_number", 0)),
+        "CITIZEN_CLASS": overrides.get("citizen_class", "aipass_framework"),
         "REGISTRY_ID": registry_id,
         "KEY_CAPABILITIES": "",
         "DEPENDS_ON": "",
         "PROVIDES_TO": "",
     }
+
+    meta_tabs = overrides.get("meta_tabs")
+    if meta_tabs:
+        replacements.update(meta_tabs)
 
     return replacements
 

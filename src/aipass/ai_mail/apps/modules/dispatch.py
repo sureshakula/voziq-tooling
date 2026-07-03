@@ -269,6 +269,7 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
     from aipass.ai_mail.apps.handlers.email.error_dispatch import dispatch_send_error, on_email_delivered
     from aipass.ai_mail.apps.handlers.users.user import get_current_user
     from aipass.ai_mail.apps.handlers.registry.read import get_branch_by_email
+    from aipass.ai_mail.apps.handlers.paths import find_repo_root
 
     try:
         from aipass.ai_mail.apps.handlers.central_writer import update_central
@@ -277,7 +278,7 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
         update_central = None
 
     _ai_mail_dir = Path(__file__).resolve().parents[2]
-    _repo_root = _ai_mail_dir.parents[2]
+    _repo_root = find_repo_root()
 
     def _delivery_callback(branch_path, new_count, opened_count, total):
         on_email_delivered(
@@ -350,14 +351,14 @@ def _orchestrate_dispatch_send(args: List[str]) -> bool:
 def _spawn_watchdog(target: str) -> None:
     """Auto-spawn devpulse watchdog as a detached background process."""
     from aipass.ai_mail.apps.handlers.registry.read import get_branch_by_email
+    from aipass.ai_mail.apps.handlers.paths import find_repo_root
 
     devpulse_info = get_branch_by_email("@devpulse")
     if not devpulse_info:
         logger.warning("[dispatch] Cannot spawn watchdog — @devpulse not in registry")
         return
 
-    _ai_mail_dir = Path(__file__).resolve().parents[2]
-    _repo_root = _ai_mail_dir.parents[2]
+    _repo_root = find_repo_root()
     devpulse_path = devpulse_info.get("path", "")
     if not devpulse_path:
         logger.warning("[dispatch] Cannot spawn watchdog — @devpulse has no path")

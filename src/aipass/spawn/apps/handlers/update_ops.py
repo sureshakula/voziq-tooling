@@ -264,19 +264,21 @@ def _read_citizen_class(branch_dir: Path) -> str:
 
     passport_path = branch_dir / ".trinity" / "passport.json"
     if not passport_path.exists():
-        return "builder"
+        return "aipass_framework"
     try:
         data = json.loads(passport_path.read_text(encoding="utf-8"))
-        citizen_class = data.get("identity", {}).get("citizen_class", "builder")
+        citizen_class = data.get("identity", {}).get("citizen_class", "aipass_framework")
         if not validate_class(citizen_class):
             logger.warning(
-                "[update] Unknown citizen_class '%s' in %s, falling back to 'builder'", citizen_class, passport_path
+                "[update] Unknown citizen_class '%s' in %s, falling back to 'aipass_framework'",
+                citizen_class,
+                passport_path,
             )
-            return "builder"
+            return "aipass_framework"
         return citizen_class
     except (json.JSONDecodeError, IOError) as e:
         logger.warning("[update] Failed to read citizen_class from passport %s: %s", passport_path, e)
-        return "builder"
+        return "aipass_framework"
 
 
 def _resolve_branch_path(branch_name: str) -> Path | None:

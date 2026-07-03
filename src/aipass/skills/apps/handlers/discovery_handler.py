@@ -39,7 +39,7 @@ def get_search_paths():
     Search order (first match wins for same name):
         1. Current project: .aipass/skills/
         2. Global user: ~/.aipass/skills/
-        3. Built-in: src/skills/catalog/
+        3. Built-in: src/aipass/skills/lib/
 
     Returns:
         list[tuple[Path, str]]: List of (path, source_label) tuples.
@@ -54,8 +54,8 @@ def get_search_paths():
     global_path = Path.home() / ".aipass" / "skills"
     paths.append((global_path, "global"))
 
-    # 3. Built-in catalog
-    builtin_path = Path(__file__).resolve().parent.parent.parent / "catalog"
+    # 3. Built-in lib
+    builtin_path = Path(__file__).resolve().parent.parent.parent / "lib"
     paths.append((builtin_path, "builtin"))
 
     return paths

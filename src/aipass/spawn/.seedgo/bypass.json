@@ -6,6 +6,11 @@
   },
   "bypass": [
     {
+      "file": "apps/spawn.py",
+      "standard": "architecture",
+      "reason": "\"No template for citizen_class 'builder'\" does not reproduce — spawn.py contains no \"builder\" string (verified via grep). builder was renamed to aipass_framework and birthright was retired; DEFAULT_CLASS in class_registry.py is aipass_framework. Stale/cached checker finding predating the rename."
+    },
+    {
       "file": "apps/handlers/json_ops.py",
       "standard": "json_structure",
       "reason": "Pure utility — deep_merge and backup_json only. No operational side effects to log. Migrations archived."
@@ -96,9 +101,29 @@
       "reason": "Imports registry.find_registry — placeholder resolution needs registry path lookup. Registry is a shared data handler."
     },
     {
-      "file": "apps/handlers/passport_ops.py",
+      "file": "apps/handlers/passport_ops(disabled).py",
       "standard": "handlers",
-      "reason": "Imports metadata functions — passport creation needs branch name extraction. Metadata is a shared utility handler."
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010. File renamed, not deleted."
+    },
+    {
+      "file": "apps/handlers/passport_ops(disabled).py",
+      "standard": "naming",
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010. '(disabled)' suffix is the intentional disable-in-place marker so the module is excluded from imports/discovery without deleting history; not a snake_case violation to fix."
+    },
+    {
+      "file": "apps/modules/passport(disabled).py",
+      "standard": "handlers",
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010. File renamed, not deleted."
+    },
+    {
+      "file": "apps/modules/passport(disabled).py",
+      "standard": "naming",
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010. '(disabled)' suffix is the intentional disable-in-place marker so the module is excluded from imports/discovery without deleting history; not a snake_case violation to fix."
+    },
+    {
+      "file": "apps/modules/passport(disabled).py",
+      "standard": "architecture",
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010. No template for citizen_class \"builder\" is expected: builder was renamed to aipass_framework and birthright was retired; this disabled module is dead code kept for history only."
     },
     {
       "file": "apps/handlers/json/json_handler.py",
@@ -116,9 +141,9 @@
       "reason": "dest, source are local variables inside helper functions, not module-level constants. Path objects for template/branch comparison."
     },
     {
-      "file": "apps/handlers/passport_ops.py",
+      "file": "apps/handlers/passport_ops(disabled).py",
       "standard": "naming",
-      "reason": "trinity_dir, role, profile are local variables/parameters inside grant_passport(), not module-level constants."
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010."
     },
     {
       "file": "apps/handlers/delete_ops.py",
@@ -126,9 +151,9 @@
       "reason": "delete_branch() has a docstring at line 45 — checker doesn't recognize it due to multi-line function signature spanning lines 40-44."
     },
     {
-      "file": "apps/handlers/passport_ops.py",
+      "file": "apps/handlers/passport_ops(disabled).py",
       "standard": "documentation",
-      "reason": "grant_passport() has a docstring at line 47 — checker doesn't recognize it due to multi-line function signature spanning lines 42-46."
+      "reason": "RETIRED — birthright passport command disabled per TDPLAN-0010."
     },
     {
       "file": "apps/handlers/regenerate_registry_ops.py",
@@ -169,6 +194,52 @@
       "file": "tests/test_citizen_classes.py",
       "standard": "encapsulation",
       "reason": "Test file — tests must import handlers directly to test them in isolation. Handler imports inside test methods are intentional."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "encapsulation",
+      "reason": "Test file — shared fixtures patch handler-owned internals directly (e.g. file_ops.json_handler, json_handler._JSON_DIR) to isolate tests from real I/O. Direct handler import is required for patch.object targeting."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "meta",
+      "reason": "Test file — pytest fixture module, exempt from application-code META header block convention."
+    },
+    {
+      "file": "tests/conftest.py",
+      "standard": "trigger",
+      "lines": [45],
+      "reason": "backup.unlink() removes a temporary AIPASS_REGISTRY.json.test_backup file created and owned entirely within the _protect_registry test fixture (session-scoped teardown). Not a production data deletion — no trigger.fire() needed for test-harness cleanup of its own scratch file."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "tests/test_handlers.py",
+      "standard": "encapsulation",
+      "reason": "Test file — tests must import handlers directly to test them in isolation. Handler imports inside test methods are intentional."
+    },
+    {
+      "file": "tests/test_regenerate_registry_ops.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "tests/test_regenerate_registry_ops.py",
+      "standard": "encapsulation",
+      "reason": "Test file — tests must import handlers directly (regenerate_template_registry, _scan_template_directory, _next_id) to test them in isolation. Direct handler import is intentional."
+    },
+    {
+      "file": "tests/test_regenerate_registry_ops.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test_* functions are self-documenting via descriptive names (see test_lifecycle.py, test_update.py precedent); docstrings not required on individual test cases by this branch's convention."
     },
     {
       "file": "tests/test_cli_routing.py",
@@ -231,6 +302,11 @@
       "file": "apps/handlers/meta_ops.py",
       "standard": "unused_function",
       "reason": "load_branch_meta() no longer called by P1 engine but has tests and may be reused by sync-registry or P2 shared library."
+    },
+    {
+      "file": "apps/modules/core.py",
+      "standard": "encapsulation",
+      "reason": "Local import of render_all_meta_tabs from memory.apps.handlers.tracking.tab_renderer — @memory has no module entry point for this API. Cross-branch contract per FPLAN-0286."
     }
   ],
   "notes": {

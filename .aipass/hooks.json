@@ -3,6 +3,11 @@
   "hooks_enabled": true,
 
   "UserPromptSubmit": {
+    "presence_gate": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.presence_gate.handle",
+      "matcher": ""
+    },
     "identity_injector": {
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.prompt.identity.handle",
@@ -98,6 +103,11 @@
       "handler": "aipass.hooks.apps.handlers.notification.telegram_response.handle",
       "matcher": "",
       "timeout": 30
+    },
+    "presence_release": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.security.presence_gate.handle_stop",
+      "matcher": ""
     }
   },
 

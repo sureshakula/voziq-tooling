@@ -94,6 +94,8 @@ drone @daemon actions list          # Action registry
 drone @daemon actions <id> on/off   # Toggle action
 drone @daemon actions set reminder 7d "msg" --to @branch
 drone @daemon actions set schedule @branch "prompt" daily 04:00
+drone @daemon install-timer           # Install + enable systemd user timer
+drone @daemon uninstall-timer         # Stop + remove systemd user timer
 ```
 
 Each module accepts `--help` for module-specific usage:
@@ -108,11 +110,56 @@ drone @daemon <command> --help
 | Module | Description | Status |
 |--------|-------------|--------|
 | `update` | Status digest of DAEMON activity | *(partial)* — reads inbox/sessions but data_loader paths return empty |
-| `schedule` | Fire-and-forget scheduled follow-ups and task management | Operational |
+| `queue` | Unified job queue view — Rich table or `--json` (frozen schema for @skills bot) | Operational |
+| `schedule` | *(retired)* Fire-and-forget follow-ups — superseded by `.daemon/schedule.json` | Retired |
 | `activity_report` | Branch activity reports: `activity`, `activity-report`, `branch-health` | Operational |
-| `actions` | Action registry CLI — list, toggle, info, set reminder, set schedule, migrate | Operational |
+| `actions` | *(retired)* Action registry — superseded by `.daemon/schedule.json` | Retired |
 | `scheduler_ops` | Scheduler cron operations facade for scheduler_cron.py | Operational |
 | `wakeup_ops` | Wake-up cron operations facade for daemon_wakeup.py | Operational |
+| `timer_install` | Idempotent systemd user timer installer for daemon scheduler | Operational |
+| `run` | Decentralized scheduler tick: discover .daemon/ jobs, fire due ones | Operational |
+
+---
+
+## Scheduling Jobs
+
+Each branch owns its schedule at `src/aipass/<branch>/.daemon/schedule.json`. The daemon discovers and fires — branches define their own jobs.
+
+### Job file schema
+
+```json
+{
+  "version": 1,
+  "branch": "@<branch>",
+  "jobs": [
+    {
+      "id": "my-job",
+      "enabled": true,
+      "schedule": { "type": "interval", "interval_minutes": 30 },
+      "wake": { "fresh": true, "model": "haiku" },
+      "prompt": "Do something, then STOP."
+    }
+  ]
+}
+```
+
+### Schedule types
+
+| Type | Fields | Due when |
+|------|--------|----------|
+| `interval` | `interval_minutes: N` | Elapsed >= N since last_run. Fires immediately if never run. |
+| `daily` | `time: "HH:MM"` | Within +/-15 min of target time, once per day. |
+| `hourly` | `time: "M"` (minute) | Within +/-15 min of target minute, once per hour. |
+| `once` | `due_date: "YYYY-MM-DD"` | Date <= today, then marks completed. |
+
+### Wake options
+
+- `fresh` (bool) — start a fresh Claude session (true) or resume (false)
+- `model` (string, optional) — `"haiku"` or `"sonnet"` recommended for light wakes
+
+### Staggering
+
+No native offset field. To stagger jobs, seed different `last_run` values in `daemon_json/daemon_runstate.json`.
 
 ---
 
@@ -160,11 +207,11 @@ drone @daemon <command> --help
 
 ## Test Suite
 
-- **448 tests** across 19 test files
-- 8/8 modules covered, 43/51 public functions tested
+- **300 tests** across 15 test files
+- 8/8 modules covered, 30/36 public functions tested
 - Seedgo audit: **100%** across all standards
 
-*Last Updated: 2026-04-07*
+*Last Updated: 2026-06-29*
 
 ---
 [← Back to AIPass](../../../README.md)

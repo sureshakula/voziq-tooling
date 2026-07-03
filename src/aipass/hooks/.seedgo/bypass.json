@@ -870,6 +870,31 @@
       "reason": "sandbox_launch(), build_policy(), build_srt_config(), and resolve_bwrap_command() are consumed CROSS-BRANCH by ai_mail's dispatch_monitor.py (the launch seam at Phase 4). seedgo's intra-branch static analysis cannot see these callers. Verified: dispatch_monitor imports sandbox module to wire build_policy + sandbox_launch at agent launch."
     },
     {
+      "file": "apps/handlers/security/presence_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.presence_gate.handle' — not statically imported by design. Wired in UserPromptSubmit.presence_gate + Stop.presence_release."
+    },
+    {
+      "file": "apps/handlers/security/presence_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() and handle_stop() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.presence_gate and Stop.presence_release."
+    },
+    {
+      "file": "apps/handlers/security/presence_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/modules/presence.py",
+      "standard": "json_structure",
+      "reason": "Presence service uses stdlib json for .ai_central/PRESENCE.central.json — shared runtime namespace, not branch json_handler storage."
+    },
+    {
+      "file": "apps/modules/presence.py",
+      "standard": "unused_function",
+      "reason": "claim(), release(), refresh(), read_all() consumed by presence_gate.py handler (dynamically dispatched via engine). Static analysis cannot trace hooks.json → engine → handler → presence module."
+    },
+    {
       "file": "apps/handlers/notification/telegram_response.py",
       "standard": "unused_function",
       "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in Stop.telegram_response."
@@ -898,6 +923,141 @@
       "file": "tests/test_telegram_response.py",
       "standard": "meta",
       "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "apps/modules/presence.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json for .ai_central/PRESENCE.central.json shared runtime namespace — not branch data storage needing json_handler."
+    },
+    {
+      "file": "apps/modules/presence.py",
+      "standard": "modules",
+      "reason": "Direct file ops on .ai_central/PRESENCE.central.json — a shared runtime namespace (gitignored, cross-branch). Not a handler-level concern; the module IS the presence service that owns this file."
+    },
+    {
+      "file": "apps/modules/presence.py",
+      "standard": "dead_code",
+      "reason": "claim(), release(), refresh(), read_all() consumed by presence_gate.py handler (dynamically dispatched via engine). handle_command() and print_introspection() called by drone routing. Static analysis cannot trace hooks.json → engine → handler → presence module."
+    },
+    {
+      "file": "apps/modules/presence.py",
+      "standard": "unused_function",
+      "reason": "claim(), release(), refresh(), read_all() consumed by presence_gate.py handler (dynamically dispatched via engine). handle_command() and print_introspection() called by drone routing."
+    },
+    {
+      "file": "apps/handlers/security/presence_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.presence_gate.handle' — not statically imported by design. Wired in UserPromptSubmit.presence_gate + Stop.presence_release."
+    },
+    {
+      "file": "apps/handlers/security/presence_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() and handle_stop() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in UserPromptSubmit.presence_gate + Stop.presence_release."
+    },
+    {
+      "file": "apps/handlers/security/presence_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."
+    },
+    {
+      "file": "tests/test_presence.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_presence.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_presence.py",
+      "standard": "encapsulation",
+      "reason": "Tests import modules directly to test implementation details."
+    },
+    {
+      "file": "tests/test_presence.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_presence_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_presence_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_presence_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_presence_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "apps/modules/cc_sessions.py",
+      "standard": "json_structure",
+      "reason": "Reads CC-native ~/.claude/sessions/*.json (external files, not branch data) with stdlib json — no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/modules/cc_sessions.py",
+      "standard": "modules",
+      "reason": "Direct file ops on ~/.claude/sessions/*.json — external CC-native session files, not branch data. The module IS the CC session reader service; json_handler is for branch-managed JSON, not external platform files."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_boot.py",
+      "standard": "json_structure",
+      "reason": "Boot wrapper has no JSON file ops — delegates to cc_sessions module for session reads. No json_handler needed."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_boot.py",
+      "standard": "dead_code",
+      "reason": "Boot wrapper invoked via __main__ entry point from shell shim (tools/install_boot_shim.sh) — not engine-dispatched. boot() and main() called at process entry, not statically imported."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_boot.py",
+      "standard": "unused_function",
+      "reason": "boot() and main() invoked via __main__ entry point from shell shim — not statically imported. _resolve_claude_binary(), _find_live_sessions(), _find_tmux(), etc. are internal helpers called by boot()."
+    },
+    {
+      "file": "tests/test_cc_sessions.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_cc_sessions.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_cc_sessions.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_session_boot.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
     }
   ],
   "notes": {

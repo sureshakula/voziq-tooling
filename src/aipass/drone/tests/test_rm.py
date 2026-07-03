@@ -36,10 +36,11 @@ def project_dir(tmp_path):
 
 @pytest.fixture()
 def project_with_branches(project_dir):
-    """Project root with src/aipass/<branch> layout for sibling tests."""
+    """Project root with branch dirs containing .trinity/ markers."""
     for branch in ("drone", "api", "flow"):
         d = project_dir / "src" / "aipass" / branch
         d.mkdir(parents=True)
+        (d / ".trinity").mkdir()
         (d / "README.md").write_text(f"# {branch}")
     return project_dir
 

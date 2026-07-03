@@ -135,7 +135,9 @@ console.print("[cyan]This is the ONLY approved way to output text[/cyan]")
 
 ### Help Output: Manual Rich Formatting
 
-**DO NOT use `parser.print_help()`** - it outputs plain text.
+**DO NOT use `parser.print_help()` or `parser.format_help()`** - both produce plain argparse text.
+
+Wrapping `format_help()` in `console.print()` still renders plain text — it launders argparse output through the approved API without adding Rich formatting.
 
 **Argparse is for PARSING arguments only, NOT for help output.**
 
@@ -161,6 +163,9 @@ def print_help():
 # DON'T DO THIS - outputs plain text
 parser = argparse.ArgumentParser(...)
 parser.print_help()
+
+# DON'T DO THIS EITHER - format_help() returns plain text
+console.print(parser.format_help())
 ```
 
 ---

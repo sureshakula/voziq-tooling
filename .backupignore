@@ -2,7 +2,6 @@
 # Lines starting with # are comments. Blank lines are ignored.
 # Edit this file to customize. Source defaults: handlers/ignore/patterns.py
 
-.backup_system/
 .backup/
 .git/
 .svn/
@@ -27,4 +26,3 @@ dist/
 *.log
 .ruff_cache/
 .coverage
-*logs

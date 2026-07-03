@@ -15,22 +15,22 @@ inside a target project path, and a ``.backupignore`` at the project root.
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..ignore.patterns import BUILTIN_IGNORES
 from ..json import json_handler
 from ..path import builder
 
+_TEMPLATE_PATH = Path(__file__).resolve().parents[3] / "templates" / "backupignore.template"
+
 
 def _build_backupignore() -> str:
-    """Generate .backupignore content from BUILTIN_IGNORES."""
-    lines = [
-        "# Backup System ignore patterns (gitignore-style)",
-        "# Lines starting with # are comments. Blank lines are ignored.",
-        "# Edit this file to customize. Source defaults: handlers/ignore/patterns.py",
-        "",
-    ]
-    for pattern in BUILTIN_IGNORES:
-        lines.append(pattern)
-    return "\n".join(lines) + "\n"
+    """Read the seed .backupignore content from the template file.
+
+    Raises:
+        FileNotFoundError: If the template is missing.
+        OSError: If the template cannot be read.
+    """
+    if not _TEMPLATE_PATH.exists():
+        raise FileNotFoundError(f"Seed template missing: {_TEMPLATE_PATH} — cannot create a safe .backupignore")
+    return _TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
 DEFAULT_CONFIG = {

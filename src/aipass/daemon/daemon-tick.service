@@ -1,0 +1,22 @@
+# Systemd user service for the daemon scheduler tick (oneshot).
+#
+# Install:
+#   cp daemon-tick.service daemon-tick.timer ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now daemon-tick.timer
+#
+# Usage:
+#   systemctl --user start daemon-tick      # manual single tick
+#   systemctl --user list-timers            # check timer schedule
+#   systemctl --user status daemon-tick     # last tick result
+#   journalctl --user -u daemon-tick        # journal entries
+
+[Unit]
+Description=AIPass Daemon Scheduler Tick — discover and fire due .daemon/ jobs
+
+[Service]
+Type=oneshot
+ExecStart=%h/Projects/AIPass/.venv/bin/python3 -m aipass.daemon.apps.daemon run
+WorkingDirectory=%h/Projects/AIPass
+StandardOutput=append:%h/.aipass/daemon-tick.log
+StandardError=append:%h/.aipass/daemon-tick.log

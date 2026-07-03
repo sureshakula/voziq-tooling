@@ -14,6 +14,7 @@ to the handler layer.
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -58,7 +59,7 @@ def handle_command(command: Optional[str] = None, args: Optional[List[str]] = No
         cmd_args = args[2:] if len(args) > 2 else None
         result = route_command(target, cmd, args=cmd_args)
         if result.stdout:
-            console.print(result.stdout, highlight=False)
+            sys.stdout.write(result.stdout)
         return result.exit_code == 0
     if command == "route_all":
         if not args:
@@ -132,7 +133,8 @@ def print_introspection():
     console.print("[yellow]Connected Handlers:[/yellow]")
     console.print("  [cyan]handlers/[/cyan]")
     console.print(
-        "    - [cyan]router_handler.py[/cyan] [dim](execute_branch_command — resolves and executes branch commands)[/dim]"
+        "    - [cyan]router_handler.py[/cyan] "
+        "[dim](execute_branch_command — resolves and executes branch commands)[/dim]"
     )
     console.print("    - [cyan]executor.py[/cyan] [dim](CommandResult — subprocess execution result dataclass)[/dim]")
     console.print()

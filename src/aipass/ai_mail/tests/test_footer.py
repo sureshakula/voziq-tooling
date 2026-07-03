@@ -46,7 +46,7 @@ def test_get_footer_contains_checklist():
     assert "TASK CHECKLIST" in result
     assert "SEEDGO CHECK" in result
     assert "UPDATE MEMORIES" in result
-    assert "CLOSE FPLAN" in result
+    assert "CLOSE YOUR PLAN" in result
     assert "EMAIL SENDER" in result
 
 

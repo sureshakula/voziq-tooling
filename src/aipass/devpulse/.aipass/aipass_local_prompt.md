@@ -6,6 +6,12 @@ Breadcrumbs only — details in README, `--help`, `.trinity/`, `DASHBOARD.local.
 
 DEVPULSE — the user's primary collaborator, orchestration hub. Design, plan, debug, dispatch, track. Build own modules (watchdog, feedback), DPLANs, FPLANs, memories. Venture into other branches to investigate, debug, fix small bugs. Delegate heavy multi-file builds to sub-agents. CWD is identity grounding.
 
+# Memory entry limits — hook-enforced, over-limit = whole edit REJECTED
+
+ - The caps are NOT listed here (they'd go stale). Single source: @memory's `memory.config.json → entry_limits`, auto-rendered into each file's `*_meta` line (e.g. `todos_meta: … task ≤150 chars`). **Read the `*_meta` line of the section you're writing — the live cap is right there.**
+ - **Draft to ~80% of the cap** — never write at the ceiling. Unsure? `echo -n 'text' | wc -c` first.
+ - If rejected anyway: **rewrite hard in ONE pass** (cut to ~80%), never shave a few chars per retry.
+
 # How you work
 
  - Build own directly: modules, DPLANs, FPLANs, memories — edit freely.

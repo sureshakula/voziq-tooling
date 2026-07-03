@@ -250,55 +250,48 @@ def get_validation_rules(provider: str) -> dict:
 
 
 def print_help():
-    """Print help output for API key management"""
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        prog="drone @api",
-        description="API Key Management Module - Manage API keys and credentials",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-COMMANDS:
-  get-key          - Retrieve API key for a provider
-  get-secret       - Read secret from provider store
-  validate         - Validate API key
-  list-providers   - List available providers
-  init             - Initialize .env template
-
-USAGE:
-  drone @api <command> [args]
-  drone @api --help
-
-EXAMPLES:
-  # Get key for provider
-  drone @api get-key openrouter
-
-  # Check if a secret exists (masked summary, no raw value)
-  drone @api get-secret telegram/bot
-
-  # Write secret to a protected file
-  drone @api get-secret telegram/bot --out /tmp/token.txt
-
-  # Write secret as JSON to a protected file
-  drone @api get-secret telegram/bot --out /tmp/bot.json --json
-
-  # List secrets for a provider
-  drone @api get-secret telegram --list
-
-  # Programmatic access (in-process, no stdout):
-  #   from aipass.api.apps.modules.secrets import get_secret
-
-  # Validate key
-  drone @api validate openrouter
-
-  # List providers
-  drone @api list-providers
-
-  # Initialize environment
-  drone @api init
-        """,
-    )
-    console.print(parser.format_help())
+    """Print drone-compliant help output with Rich markup"""
+    console.print()
+    console.print("[bold cyan]API_KEY — Manage API keys and credentials[/bold cyan]")
+    console.print()
+    console.print("[yellow]COMMANDS:[/yellow]")
+    console.print("  [cyan]get-key[/cyan]         [dim]Retrieve API key for a provider[/dim]")
+    console.print("  [cyan]get-secret[/cyan]      [dim]Read secret from provider store[/dim]")
+    console.print("  [cyan]validate[/cyan]        [dim]Validate API key[/dim]")
+    console.print("  [cyan]list-providers[/cyan]  [dim]List available providers[/dim]")
+    console.print("  [cyan]init[/cyan]            [dim]Initialize .env template[/dim]")
+    console.print()
+    console.print("[yellow]USAGE:[/yellow]")
+    console.print("  [cyan]drone @api[/cyan] <command> [args]")
+    console.print("  [cyan]drone @api[/cyan] --help")
+    console.print()
+    console.print("[yellow]EXAMPLES:[/yellow]")
+    console.print("  [cyan]drone @api get-key openrouter[/cyan]")
+    console.print()
+    console.print("  [dim]# Check if a secret exists (masked summary, no raw value)[/dim]")
+    console.print("  [cyan]drone @api get-secret telegram/bot[/cyan]")
+    console.print()
+    console.print("  [dim]# Write secret to a protected file[/dim]")
+    console.print("  [cyan]drone @api get-secret telegram/bot --out /tmp/token.txt[/cyan]")
+    console.print()
+    console.print("  [dim]# Write secret as JSON to a protected file[/dim]")
+    console.print("  [cyan]drone @api get-secret telegram/bot --out /tmp/bot.json --json[/cyan]")
+    console.print()
+    console.print("  [dim]# List secrets for a provider[/dim]")
+    console.print("  [cyan]drone @api get-secret telegram --list[/cyan]")
+    console.print()
+    console.print("  [dim]# Programmatic access (in-process, no stdout):[/dim]")
+    console.print("  [dim]from aipass.api.apps.modules.secrets import get_secret[/dim]")
+    console.print()
+    console.print("  [dim]# Validate key[/dim]")
+    console.print("  [cyan]drone @api validate openrouter[/cyan]")
+    console.print()
+    console.print("  [dim]# List providers[/dim]")
+    console.print("  [cyan]drone @api list-providers[/cyan]")
+    console.print()
+    console.print("  [dim]# Initialize environment[/dim]")
+    console.print("  [cyan]drone @api init[/cyan]")
+    console.print()
 
 
 if __name__ == "__main__":

@@ -39,10 +39,11 @@ from aipass.ai_mail.apps.handlers.registry.read import get_all_branches, get_bra
 from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.email.close_ops import batch_close, batch_close_post_ops
 from aipass.ai_mail.apps.handlers.email.inbox_resolve import resolve_inbox_target
+from aipass.ai_mail.apps.handlers.paths import find_repo_root
 from aipass.ai_mail.apps.modules.email_send import handle_send
 
 _AI_MAIL_DIR = Path(__file__).resolve().parents[2]
-_REPO_ROOT = _AI_MAIL_DIR.parents[2]
+_REPO_ROOT = find_repo_root()
 
 try:
     from aipass.ai_mail.apps.handlers.central_writer import update_central
