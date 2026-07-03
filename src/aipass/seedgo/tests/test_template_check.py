@@ -382,3 +382,55 @@ class TestCheckBranch:
         prompt_check = next(c for c in result["checks"] if "aipass_local_prompt" in c["name"])
         assert not prompt_check["passed"]
         assert "single-curly" in prompt_check["message"]
+
+    def test_readme_definitive_marker_in_code_not_flagged(self, tmp_path):
+        from aipass.seedgo.apps.handlers.aipass_standards.template_check import (
+            check_branch,
+        )
+
+        aipass_dir = tmp_path / ".aipass"
+        aipass_dir.mkdir()
+        (aipass_dir / "aipass_local_prompt.md").write_text("Real prompt.")
+        (tmp_path / "README.md").write_text(
+            "# Spawn\n\nReal docs.\n\n"
+            "4. **Rename** — Replace `{{BRANCH}}` in directory names\n\n"
+            "```bash\nmv {{BRANCHNAME}} my-branch\n```\n"
+        )
+
+        result = check_branch(str(tmp_path))
+        readme_check = next(c for c in result["checks"] if c["name"] == "README.md")
+        assert readme_check["passed"]
+
+    def test_md_definitive_marker_in_prose_still_flagged(self, tmp_path):
+        from aipass.seedgo.apps.handlers.aipass_standards.template_check import (
+            check_branch,
+        )
+
+        aipass_dir = tmp_path / ".aipass"
+        aipass_dir.mkdir()
+        (aipass_dir / "aipass_local_prompt.md").write_text("# {{BRANCHNAME}} — Branch Prompt\nNEEDS CONFIGURATION\n")
+        (tmp_path / "README.md").write_text("# Branch\nConfigured.")
+
+        result = check_branch(str(tmp_path))
+        prompt_check = next(c for c in result["checks"] if "aipass_local_prompt" in c["name"])
+        assert not prompt_check["passed"]
+        assert "{{BRANCHNAME}}" in prompt_check["message"]
+        assert "NEEDS CONFIGURATION" in prompt_check["message"]
+
+    def test_passport_json_markers_not_code_stripped(self, tmp_path):
+        from aipass.seedgo.apps.handlers.aipass_standards.template_check import (
+            check_branch,
+        )
+
+        aipass_dir = tmp_path / ".aipass"
+        aipass_dir.mkdir()
+        (aipass_dir / "aipass_local_prompt.md").write_text("Real prompt.")
+        (tmp_path / "README.md").write_text("# Branch\nReal docs.")
+        trinity = tmp_path / ".trinity"
+        trinity.mkdir()
+        (trinity / "passport.json").write_text(json.dumps({"branch": "{{BRANCHNAME}}", "role": "test"}))
+
+        result = check_branch(str(tmp_path))
+        passport_check = next(c for c in result["checks"] if "passport" in c["name"])
+        assert not passport_check["passed"]
+        assert "{{BRANCHNAME}}" in passport_check["message"]

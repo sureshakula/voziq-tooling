@@ -53,18 +53,19 @@ def _strip_markdown_code(content: str) -> str:
     return _INLINE_CODE_RE.sub("", content)
 
 
-def _find_markers(content: str, check_single_curly: bool) -> list[str]:
+def _find_markers(content: str, check_single_curly: bool, is_markdown: bool = False) -> list[str]:
     """Return list of matched template marker descriptions."""
     found: list[str] = []
-    content_upper = content.upper()
+
+    scan_content = _strip_markdown_code(content) if is_markdown else content
+    scan_upper = scan_content.upper()
 
     for marker in _DEFINITIVE_MARKERS:
-        if marker.upper() in content_upper:
+        if marker.upper() in scan_upper:
             found.append(marker)
 
     if check_single_curly:
-        stripped = _strip_markdown_code(content)
-        stripped = _DOUBLE_CURLY_RE.sub("", stripped)
+        stripped = _DOUBLE_CURLY_RE.sub("", scan_content)
         curly_matches = _SINGLE_CURLY_RE.findall(stripped)
         if curly_matches:
             examples = curly_matches[:3]
@@ -89,8 +90,9 @@ def _check_file(file_path: Path, bypass_rules: list | None) -> Dict:
         logger.info("Cannot read %s for template check", file_path)
         return {"name": rel, "passed": True, "message": f"{rel} unreadable (skipped)"}
 
+    is_markdown = file_path.suffix == ".md"
     is_prompt = file_path.name == "aipass_local_prompt.md"
-    markers = _find_markers(content, check_single_curly=is_prompt)
+    markers = _find_markers(content, check_single_curly=is_prompt, is_markdown=is_markdown)
 
     if not markers:
         return {"name": rel, "passed": True, "message": "no template markers"}

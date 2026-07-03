@@ -27,22 +27,30 @@ Post-2.6.1 cycle — **unreleased** (held for a later merge).
   flipping `edit`→`send`; +2 regression tests in `TestAdvancePending` (114/114).
   (fixed by @hooks, `f42a98b`, PR #651 — not yet merged)
 
-- **`template` audit checker no longer false-flags memory prose or README code.**
+- **`template` audit checker no longer false-flags documentation *about* templates.**
   The advisory stale-template checker (`seedgo/.../template_check.py`) matched its
-  marker strings anywhere in a file, so it fired on documentation *about* templates
-  rather than un-rendered stubs. Two root causes, both fixed: (1) it globbed
-  **`.trinity/*.json`** — scanning live memory (`local.json`, `observations.json`)
-  that naturally accumulates marker mentions (e.g. seedgo's own note "Detects
-  NEEDS CONFIGURATION", prax's note about `template_pusher` restoring
+  marker strings anywhere in a file, so it fired on prose and code that merely
+  *mention* the markers rather than on un-rendered stubs — flagging 5 branches,
+  only 3 of them real. Three root causes, all fixed:
+  (1) it globbed **`.trinity/*.json`**, scanning live memory (`local.json`,
+  `observations.json`) that naturally accumulates marker mentions (seedgo's own
+  note "Detects NEEDS CONFIGURATION", prax's note about `template_pusher` restoring
   `{{BRANCHNAME}}`); now scans **`passport.json` only**, the sole spawn-templated
-  trinity file. (2) the single-curly `{…}` regex ran on every `.md` and matched
-  inline JSON / f-strings / code paths in READMEs (`{"new": 3}`, `{e}`,
-  `apps/plugins/{name}/`); now single-curly detection runs on the branch **prompt
-  only** (the spawn README template has no single-curly placeholders) and strips
-  fenced + inline code first. Definitive-marker detection unchanged, so real
-  unconfigured stubs (cli/drone/prax prompts) still flag correctly. Verified live:
-  seedgo `100%` (was flagged), drone/prax flag only the real prompt stub; +4 tests
-  (21/21). (fixed by @seedgo, dispatched by @devpulse)
+  trinity file.
+  (2) the single-curly `{…}` regex ran on every `.md` and matched inline JSON /
+  f-strings / code paths in READMEs (`{"new": 3}`, `{e}`, `apps/plugins/{name}/`);
+  now runs on the branch **prompt only** (the spawn README template has no
+  single-curly placeholders).
+  (3) the definitive-marker scan matched `{{BRANCH}}` inside markdown inline code —
+  e.g. spawn's README documenting ``Replace `{{BRANCH}}`…``, which is scaffolding
+  docs, not a stub. For `.md` files, fenced + inline code is now stripped once up
+  front before **both** scans (`passport.json` still scans raw). Safe because real
+  stubs carry markers in prose/headings (the `## Status: NEEDS CONFIGURATION`
+  line), never exclusively in code.
+  Verified system-wide: `Template` avg **80% → 94%**, the two pure false positives
+  (seedgo memory, spawn README) cleared to `100%`, only the three genuine
+  unconfigured prompt stubs (cli/drone/prax) still flag. +7 tests (24/24), full
+  suite green. (fixed by @seedgo across 3 dispatched passes, verified by @devpulse)
 
 ## [2026-07-02]
 
