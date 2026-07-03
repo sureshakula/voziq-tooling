@@ -52,6 +52,14 @@ Post-2.6.1 cycle — **unreleased** (held for a later merge).
   unconfigured prompt stubs (cli/drone/prax) still flag. +7 tests (24/24), full
   suite green. (fixed by @seedgo across 3 dispatched passes, verified by @devpulse)
 
+- **cli / drone / prax branch prompts configured** (were spawn stubs). The three
+  branches the template checker correctly flagged had never had their
+  `.aipass/aipass_local_prompt.md` filled in — they booted with a `NEEDS
+  CONFIGURATION` placeholder and no branch-specific identity. Each branch wrote its
+  own real prompt (identity, key commands, architecture, critical rules,
+  integration points; ~63–67 lines, `PROMPT_STYLE.md` format); all three now score
+  `Template 100%`. (written by @cli/@drone/@prax, dispatched + verified by @devpulse)
+
 ## [2026-07-02]
 
 Released as **2.6.1**. Rolls up the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010 /
