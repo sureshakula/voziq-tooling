@@ -9,6 +9,24 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-03]
+
+Post-2.6.1 cycle — **unreleased** (held for a later merge).
+
+### Fixed
+
+- **Telegram replies no longer overwrite the previous message.** The Stop-hook
+  out-path (`hooks/.../notification/telegram_response.py`) reused a stale
+  `processing_message_id`: after a successful delivery, `_advance_pending` kept
+  the pending file but never cleared the placeholder id, so any reply that fired
+  without a fresh "Processing…" bubble (remote/mirror input, multi-Stop turns)
+  re-*edited* the same Telegram message instead of posting a new one — every
+  response clobbered the last. Now clears `processing_message_id` after the first
+  delivery, so subsequent Stops fall through to `_send_with_retry` (a new
+  message). Root-caused live on the devpulse bot and proven by the delivery log
+  flipping `edit`→`send`; +2 regression tests in `TestAdvancePending` (114/114).
+  (fixed by @hooks, `f42a98b`, PR #651 — not yet merged)
+
 ## [2026-07-02]
 
 Released as **2.6.1**. Rolls up the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010 /
