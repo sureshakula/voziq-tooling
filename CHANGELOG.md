@@ -17,6 +17,17 @@ gate, live Telegram streaming, `aipass init` template selector + portability,
 `@backup share`) — all documented under `[2026-07-01]` — plus the CI
 stabilization below.
 
+### Added
+
+- **`drone @git tag <vX.Y.Z>` — guarded release-tag automation (post-2.6.1).**
+  Devpulse-tier verb that pushes a release tag with no manual step: fetches
+  `origin`, refuses unless the tag's `X.Y.Z` matches **both** `pyproject.toml`
+  and `src/aipass/__init__.py` on `origin/main` (version guard) and the tag
+  doesn't already exist (exists guard), then tags `origin/main` and pushes —
+  firing `publish.yml`. `drone @git tag --list` lists tags. Removes the merge
+  playbook's last manual `git tag`/`push` step, so releases need zero user
+  input. (built by @drone, S274)
+
 ### Fixed
 
 - **CI green — six regressions from the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010
