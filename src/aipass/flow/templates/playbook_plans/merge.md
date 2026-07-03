@@ -16,8 +16,9 @@ Run by **devpulse** (only branch with git write). Tick each step as you go; fill
 > All git writes go through `drone @git` — **run drone from a branch dir** (it needs
 > `.trinity/passport.json` in the cwd; running from the repo root fails with "No
 > passport found"). Read git (`status`, `log`, `diff`, `rev-parse`) is allowed raw.
-> ⚠️ `drone @git` has **no `tag` verb** — pushing the release tag is a MANUAL step
-> (the user, or raw `git tag`/`push` via `!`). All other writes go through drone.
+> Release tags go through **`drone @git tag v<version>`** (devpulse, owner tier) — it
+> version-guards against pyproject/`__init__` on `origin/main`, refuses duplicates,
+> tags the remote ref, and pushes. No manual `git tag`/`push`, no user input (S274).
 
 ---
 
@@ -131,13 +132,7 @@ How the release fires (verified `publish.yml`): a `v*` **git tag push** runs bui
 Steps:
 - [ ] Bump the version in **BOTH** files (they must match the tag, or `__version__` ships wrong): `pyproject.toml` `version` **and** `src/aipass/__init__.py` `__version__`. Do it **on dev so it rides into the PR** (then main's merge commit carries the right version). ⚠️ These two drift easily — `__init__.py` is the one that gets forgotten.
 - [ ] Confirm the CHANGELOG top section is the release notes you want
-- [ ] Get the **real** merged-main sha from the **remote ref** (stay on dev — never checkout main): `git fetch origin` then `git rev-parse origin/main`. **Verify the version on that exact commit BEFORE tagging:** `git show origin/main:pyproject.toml | grep '^version'` and `git show origin/main:src/aipass/__init__.py | grep __version__` — both must equal the tag. (If the user merged via the GitHub UI, their local `main` ref is stale until `git fetch` — always fetch first, always tag `origin/main`, never local `main`.)
-- [ ] **Push the tag — MANUAL (drone has no `tag` verb; devpulse can't push tags):** user runs it, via `!` or terminal. **Tag the remote ref directly so a stale local main can't poison it. Separate lines, no `&&`:**
-      ```
-      git fetch origin
-      git tag v<version> origin/main
-      git push origin v<version>
-      ```
+- [ ] **Push the tag — `drone @git tag v<version>` (devpulse, no user input needed).** The verb (owner tier) does it all safely: `git fetch origin`, **VERSION GUARD** (refuses unless the tag's `X.Y.Z` matches BOTH `origin/main:pyproject.toml` version and `origin/main:src/aipass/__init__.py` `__version__` — so you can't tag the wrong version), **EXISTS GUARD** (refuses if the tag already exists local or remote), then tags `origin/main` (the remote ref, never stale local main) and pushes → fires `publish.yml`. It reports the pushed sha. `drone @git tag --list` shows existing tags. This replaced the old manual `git tag`/`push` step (S274).
 - [ ] Verify PyPI shows the new version + the GitHub Release appeared (`curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`)
 - [ ] Record the tag → Run Summary
 

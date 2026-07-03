@@ -40,6 +40,7 @@ drone @git diff --staged         # Show staged changes
 drone @git log                   # Show recent git log (default: 10)
 drone @git log 20                # Show last 20 commits
 drone @git lock                  # Check lock status
+drone @git tag --list            # List all tags (newest first)
 drone @git issue list            # Passthrough to gh issue list
 drone @git issue view 42         # Passthrough to gh issue view 42
 drone @git run list              # Passthrough to gh run list
@@ -62,6 +63,7 @@ drone @git sync --autostash      # Sync with autostash for dirty trees
 drone @git smart-sync            # Fetch + detect divergence + rebase
 drone @git unlock --force        # Force-release the PR lock
 drone @git system-pr "desc"      # DEPRECATED — returns error message
+drone @git tag v2.6.1            # Create + push annotated release tag
 drone @git fix                   # Auto-fix stuck rebase / detached HEAD
 drone @git fix --dry-run         # Detect issues without fixing
 
@@ -181,7 +183,8 @@ drone/
 │   │       ├── delete_branch_handler.py     # Delete remote branch (main/dev protected)
 │   │       ├── close_pr_handler.py          # Close PR by number (gh pr close)
 │   │       ├── status_handler.py            # Scoped git status (subprocess)
-│   │       └── sync_handler.py              # Safe main sync (--autostash support)
+│   │       ├── sync_handler.py              # Safe main sync (--autostash support)
+│   │       └── tag_handler.py               # Release tagging (version + exists guards)
 │   └── plugins/
 │       ├── devpulse_ops/          # Privileged git operations (auth-gated)
 │       │   ├── auth.py            # Passport-based identity gate (ALLOWED_CALLERS)
@@ -194,7 +197,7 @@ drone/
 ├── docs/                          # Public documentation
 ├── docs.local/                    # Investigation reports and policies
 ├── artifacts/                     # Live acceptance test scripts
-└── tests/                         # 807 tests across 22 test files
+└── tests/                         # 859 tests across 23 test files
 ```
 
 ### Routing Flow
@@ -223,8 +226,8 @@ Auth centralized via `verify_git_access()` in `apps/plugins/devpulse_ops/auth.py
 
 | Tier | Who | Commands |
 |------|-----|----------|
-| **Global** | All branches | `status`, `diff`, `log`, `lock`, `branches`, `issue`, `run`, `workflow` |
-| **Owner** | `devpulse` only | `pr`, `commit`, `checkout`, `dev-pr`, `delete-branch`, `close-pr`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix` |
+| **Global** | All branches | `status`, `diff`, `log`, `lock`, `branches`, `tag --list`, `issue`, `run`, `workflow` |
+| **Owner** | `devpulse` only | `pr`, `commit`, `checkout`, `dev-pr`, `delete-branch`, `close-pr`, `sync`, `unlock`, `system-pr`, `merge`, `smart-sync`, `fix`, `tag` |
 
 - Auth is checked once at the top of `git_module.handle_command()` before any handler is called
 - Unauthorized commands return a clear "Access denied" message with the caller's tier
@@ -337,7 +340,7 @@ Tip: set AIPASS_HOME=/path/to/AIPass to access all branches
 | Area | Files | Tests |
 |------|-------|-------|
 | Core routing | `test_resolver.py`, `test_router.py`, `test_activation.py` | ~128 |
-| Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py`, `test_git_access.py` | ~150 |
+| Git operations | `test_git_module.py`, `test_system_pr.py`, `test_devpulse_plugins.py`, `test_git_access.py`, `test_tag_handler.py` | ~170 |
 | Handlers | `test_executor.py`, `test_registry_handler.py`, `test_discovery.py` | ~99 |
 | Infrastructure | `test_generic_adapter.py`, `test_module_registry.py`, `test_config.py` | ~66 |
 | Features | `test_commands.py`, `test_scan.py`, `test_json_handler.py`, `test_rm.py` | ~181 |
@@ -356,7 +359,7 @@ Run tests: `cd src/aipass/drone && python -m pytest tests/ -q`
 
 ---
 
-**Seedgo:** 100% | **Tests:** 830 pass, 4 skip | **Last Updated:** 2026-06-10
+**Seedgo:** 99% | **Tests:** 859 pass, 4 skip | **Last Updated:** 2026-07-02
 
 ---
 [← Back to AIPass](../../../README.md)

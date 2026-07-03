@@ -33,6 +33,7 @@ from aipass.drone.apps.handlers.git import (
     branches_handler,
     delete_branch_handler,
     close_pr_handler,
+    tag_handler,
 )
 
 DRONE_MODULE = {
@@ -62,6 +63,8 @@ _COMMANDS = (
     "fix",
     "pr",
     "prune-temp",
+    "tag",
+    "tag-list",
 )
 
 _GH_PASSTHROUGH_COMMANDS = ("issue", "run", "workflow")
@@ -124,6 +127,8 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         return {"stdout": "", "stderr": "", "exit_code": 0}
 
     cmd: str = command
+    if cmd == "tag" and (not args or args[0] == "--list"):
+        cmd = "tag-list"
     try:
         from aipass.drone.apps.plugins.devpulse_ops.auth import verify_git_access
 
@@ -170,6 +175,8 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         return _handle_pr(args)
     if command == "prune-temp":
         return _handle_prune_temp()
+    if command == "tag":
+        return _handle_tag(args)
 
     available = ", ".join(_COMMANDS)
     return {
@@ -177,6 +184,20 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
         "stderr": f"Unknown git command: '{command}'. Available: {available}",
         "exit_code": 1,
     }
+
+
+def _handle_tag(args: list[str]) -> dict:
+    """Handle the tag subcommand — create/push release tags or list them."""
+    if not args or args[0] == "--list":
+        result = tag_handler.list_tags()
+        if not result["tags"]:
+            return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+        return {"stdout": "\n".join(result["tags"]), "stderr": "", "exit_code": 0}
+
+    result = tag_handler.tag_release(args[0])
+    if result["success"]:
+        return {"stdout": result["message"], "stderr": "", "exit_code": 0}
+    return {"stdout": "", "stderr": result["message"], "exit_code": 1}
 
 
 def _handle_gh_passthrough(subcommand: str, args: list[str]) -> dict:
@@ -634,6 +655,16 @@ def get_help(command: str | None = None) -> str:
             "Options:\n"
             "  --dry-run   Report without executing fixes.\n"
         )
+    if command == "tag":
+        return (
+            "git tag <vX.Y.Z> — Create and push an annotated release tag [owner]\n"
+            "git tag --list    — List all tags (newest first) [global]\n"
+            "\n"
+            "Safety guards:\n"
+            "  Version guard   Tags on origin/main only after verifying pyproject.toml\n"
+            "                  and __init__.py both match the tag version.\n"
+            "  Exists guard    Refuses if tag already exists locally or on remote.\n"
+        )
 
     return (
         "git — Tier-based git workflow (dev branch model)\n"
@@ -644,6 +675,7 @@ def get_help(command: str | None = None) -> str:
         "  lock                   Check lock status\n"
         "  branches               List remote branches\n"
         "  prune-temp             Delete merged citizen/* temp branches\n"
+        "  tag --list             List all tags (newest first)\n"
         "  issue [args]           Passthrough to gh issue\n"
         "  run [args]             Passthrough to gh run\n"
         "  workflow [args]        Passthrough to gh workflow\n"
@@ -658,6 +690,7 @@ def get_help(command: str | None = None) -> str:
         "  sync [--autostash]     Sync with origin/main (FF on dev)\n"
         "  smart-sync             Fetch + rebase if behind\n"
         "  unlock --force         Force-release the PR lock\n"
+        "  tag <vX.Y.Z>           Create and push release tag\n"
         "  fix [--dry-run]        Fix broken git states\n"
     )
 
@@ -674,8 +707,8 @@ def get_introspective() -> str:
         "  plugins/devpulse_ops/\n"
         "    - auth.py, merge_plugin.py, sync_plugin.py, fix_plugin.py\n"
         "  gh passthrough: issue, run, workflow\n"
-        "Tiers: global (status,diff,log,lock,branches,prune-temp,issue,run,workflow)"
-        " | owner (pr,commit,checkout,dev-pr,delete-branch,close-pr,sync,unlock,merge,smart-sync,fix)\n"
+        "Tiers: global (status,diff,log,lock,branches,prune-temp,tag --list,issue,run,workflow)"
+        " | owner (pr,commit,checkout,dev-pr,delete-branch,close-pr,sync,unlock,merge,smart-sync,fix,tag)\n"
     )
 
 
@@ -705,7 +738,8 @@ def print_introspection() -> None:
     c.print("    - [cyan]commit_handler.py[/cyan], [cyan]checkout_handler.py[/cyan], [cyan]sync_handler.py[/cyan]")
     c.print(
         "    - [cyan]dev_pr_handler.py[/cyan], [cyan]branches_handler.py[/cyan],"
-        " [cyan]delete_branch_handler.py[/cyan], [cyan]close_pr_handler.py[/cyan]"
+        " [cyan]delete_branch_handler.py[/cyan], [cyan]close_pr_handler.py[/cyan],"
+        " [cyan]tag_handler.py[/cyan]"
     )
     c.print("  [cyan]plugins/devpulse_ops/[/cyan]")
     c.print(
@@ -715,9 +749,9 @@ def print_introspection() -> None:
     c.print("  [dim]gh passthrough: issue, run, workflow[/dim]")
     c.print(
         "[yellow]Tiers:[/yellow] [dim]global[/dim]"
-        " [dim](status,diff,log,lock,branches,prune-temp,issue,run,workflow)[/dim]"
+        " [dim](status,diff,log,lock,branches,prune-temp,tag --list,issue,run,workflow)[/dim]"
         " | [dim]owner[/dim]"
-        " [dim](pr,commit,checkout,dev-pr,delete-branch,close-pr,sync,unlock,merge,smart-sync,fix)[/dim]"
+        " [dim](pr,commit,checkout,dev-pr,delete-branch,close-pr,sync,unlock,merge,smart-sync,fix,tag)[/dim]"
     )
     c.print()
 
