@@ -16,7 +16,7 @@ branches know they have unconfigured stub files.
 Checks:
 1. .aipass/aipass_local_prompt.md for template markers
 2. README.md for template markers
-3. .trinity/*.json for template markers (definitive only — no curly brace regex)
+3. .trinity/passport.json for template markers (the only spawn-templated artifact)
 
 AUDIT_SCOPE: branch_level — runs once per branch via check_branch().
 ADVISORY: always passes so it never blocks commits or audits.
@@ -43,9 +43,17 @@ _DEFINITIVE_MARKERS = [
 
 _SINGLE_CURLY_RE = re.compile(r"\{[^{}\n]+\}")
 _DOUBLE_CURLY_RE = re.compile(r"\{\{[^}]*\}\}")
+_FENCED_BLOCK_RE = re.compile(r"(?:```|~~~).*?(?:```|~~~)", re.DOTALL)
+_INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 
 
-def _find_markers(content: str, is_markdown: bool) -> list[str]:
+def _strip_markdown_code(content: str) -> str:
+    """Remove fenced code blocks and inline code spans."""
+    content = _FENCED_BLOCK_RE.sub("", content)
+    return _INLINE_CODE_RE.sub("", content)
+
+
+def _find_markers(content: str, check_single_curly: bool) -> list[str]:
     """Return list of matched template marker descriptions."""
     found: list[str] = []
     content_upper = content.upper()
@@ -54,8 +62,9 @@ def _find_markers(content: str, is_markdown: bool) -> list[str]:
         if marker.upper() in content_upper:
             found.append(marker)
 
-    if is_markdown:
-        stripped = _DOUBLE_CURLY_RE.sub("", content)
+    if check_single_curly:
+        stripped = _strip_markdown_code(content)
+        stripped = _DOUBLE_CURLY_RE.sub("", stripped)
         curly_matches = _SINGLE_CURLY_RE.findall(stripped)
         if curly_matches:
             examples = curly_matches[:3]
@@ -80,8 +89,8 @@ def _check_file(file_path: Path, bypass_rules: list | None) -> Dict:
         logger.info("Cannot read %s for template check", file_path)
         return {"name": rel, "passed": True, "message": f"{rel} unreadable (skipped)"}
 
-    is_md = file_path.suffix == ".md"
-    markers = _find_markers(content, is_md)
+    is_prompt = file_path.name == "aipass_local_prompt.md"
+    markers = _find_markers(content, check_single_curly=is_prompt)
 
     if not markers:
         return {"name": rel, "passed": True, "message": "no template markers"}
@@ -137,8 +146,9 @@ def check_branch(branch_path: str, bypass_rules: list | None = None) -> Dict:
         bp / ".aipass" / "aipass_local_prompt.md",
         bp / "README.md",
     ]
-    for trinity_file in sorted((bp / ".trinity").glob("*.json")) if (bp / ".trinity").is_dir() else []:
-        targets.append(trinity_file)
+    passport = bp / ".trinity" / "passport.json"
+    if passport.exists():
+        targets.append(passport)
 
     for target in targets:
         checks.append(_check_file(target, bypass_rules))

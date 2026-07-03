@@ -27,6 +27,23 @@ Post-2.6.1 cycle — **unreleased** (held for a later merge).
   flipping `edit`→`send`; +2 regression tests in `TestAdvancePending` (114/114).
   (fixed by @hooks, `f42a98b`, PR #651 — not yet merged)
 
+- **`template` audit checker no longer false-flags memory prose or README code.**
+  The advisory stale-template checker (`seedgo/.../template_check.py`) matched its
+  marker strings anywhere in a file, so it fired on documentation *about* templates
+  rather than un-rendered stubs. Two root causes, both fixed: (1) it globbed
+  **`.trinity/*.json`** — scanning live memory (`local.json`, `observations.json`)
+  that naturally accumulates marker mentions (e.g. seedgo's own note "Detects
+  NEEDS CONFIGURATION", prax's note about `template_pusher` restoring
+  `{{BRANCHNAME}}`); now scans **`passport.json` only**, the sole spawn-templated
+  trinity file. (2) the single-curly `{…}` regex ran on every `.md` and matched
+  inline JSON / f-strings / code paths in READMEs (`{"new": 3}`, `{e}`,
+  `apps/plugins/{name}/`); now single-curly detection runs on the branch **prompt
+  only** (the spawn README template has no single-curly placeholders) and strips
+  fenced + inline code first. Definitive-marker detection unchanged, so real
+  unconfigured stubs (cli/drone/prax prompts) still flag correctly. Verified live:
+  seedgo `100%` (was flagged), drone/prax flag only the real prompt stub; +4 tests
+  (21/21). (fixed by @seedgo, dispatched by @devpulse)
+
 ## [2026-07-02]
 
 Released as **2.6.1**. Rolls up the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010 /
