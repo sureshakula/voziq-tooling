@@ -11,11 +11,17 @@ PyPI version — not the changelog header.
 
 ## [2026-07-02]
 
+Released as **2.6.1**. Rolls up the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010 /
+FPLAN-0298 batch (unified Telegram↔Claude Code bridge, single-session presence
+gate, live Telegram streaming, `aipass init` template selector + portability,
+`@backup share`) — all documented under `[2026-07-01]` — plus the CI
+stabilization below.
+
 ### Fixed
 
-- **CI green — four regressions from the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010
-  batch (PR #646).** The dev branch had gone red across `seedgo-audit` and the
-  `test` matrix; root-caused and fixed at source:
+- **CI green — six regressions from the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010
+  batch (PR #646).** The dev branch had gone red across `seedgo-audit`, the
+  `test` matrix, and Windows; root-caused and fixed at source:
   - **seedgo** — the new `template_check` advisory checker was gating CI.
     `branch_audit.py` averaged *all* checker scores into the branch total, so
     `template_check`'s `ADVISORY=True` was never honored and it dragged 7
@@ -35,6 +41,17 @@ PyPI version — not the changelog header.
   - **ai_mail** — `test_child_inherits_broker_fd` gave its throwaway test branch
     a real `.trinity/passport.json` so the broker's new `.trinity`-marker
     resolution (`f914ab6`) can resolve it and permit the delete.
+  - **spawn** — the `builder→aipass_framework` template rename (`13463c0`) left
+    `.gitignore` exceptions pointing at the old `templates/builder/` path, so
+    `DASHBOARD.local.json` + ~10 other template files were silently untracked
+    since the rename — present on disk (dirty tree passed) but absent from clean
+    clones/CI, so `test_full_spawn` failed only in a clean checkout. Fixed all 23
+    `.gitignore` exception paths and committed the now-visible template
+    scaffolding.
+  - **skills** — `test_streaming` asserted a `+1` newline byte, but `write_text`
+    text mode translates `\n`→`\r\n` on Windows (2 bytes), failing `windows-setup`
+    only. Switched the test's transcript writes to `write_bytes()` for
+    deterministic LF; production `_tail_transcript_bytes` was already CRLF-safe.
 
 ## [2026-07-01]
 
