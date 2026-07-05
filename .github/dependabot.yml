@@ -22,3 +22,11 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+    # codeql-action is a monorepo (init/analyze/upload-sarif share one release).
+    # Bumping them in separate PRs leaves mismatched versions in security.yml and
+    # CodeQL hard-fails "init and analyze must be the same version". Group them so
+    # every codeql-action bump lands as a single PR that moves all paths together.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
