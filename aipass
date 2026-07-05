@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# aipass — cold-clone entry point (pre-venv launcher)
+#
+# The first command after cloning:
+#   git clone https://github.com/AIOSAI/AIPass.git
+#   cd AIPass
+#   ./aipass install
+#
+# Pre-setup: only `install` is available — delegates to setup.sh.
+# Post-setup: forwards everything to the venv-installed aipass binary.
+#
+# Stdlib-only, zero AIPass imports, zero third-party deps.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# --- Post-setup: forward to the real binary ---
+if [[ -x "$SCRIPT_DIR/.venv/bin/aipass" ]]; then
+    exec "$SCRIPT_DIR/.venv/bin/aipass" "$@"
+fi
+if [[ -x "$SCRIPT_DIR/.venv/Scripts/aipass.exe" ]]; then
+    exec "$SCRIPT_DIR/.venv/Scripts/aipass.exe" "$@"
+fi
+if [[ -x "$SCRIPT_DIR/.venv/Scripts/aipass" ]]; then
+    exec "$SCRIPT_DIR/.venv/Scripts/aipass" "$@"
+fi
+
+# --- Pre-setup: only 'install' works ---
+if [[ "${1:-}" == "install" ]]; then
+    shift
+    exec bash "$SCRIPT_DIR/setup.sh" "$@"
+fi
+
+# --- Help (no venv, no 'install' verb) ---
+cat <<'HELP'
+AIPass is not set up yet.
+
+  ./aipass install                # set up AIPass (venv + deps + hooks)
+  ./aipass install --no-init      # set up without the guided first-project setup
+  ./aipass install --project DIR  # set the first-project directory
+
+After setup, all aipass commands become available:
+  ./aipass doctor    # system health
+  ./aipass help      # how-does-X-work Q&A
+  ./aipass init run  # scaffold a new project
+
+Quick start:
+  git clone https://github.com/AIOSAI/AIPass.git
+  cd AIPass
+  ./aipass install
+HELP

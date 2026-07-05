@@ -13,6 +13,20 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **`./aipass` — repo-root cold-clone launcher (DPLAN-0234 Strand B).** The
+  branded entry point for the clone-first flow: `git clone`, `cd AIPass`,
+  `./aipass install` — three commands to a working AIPass. Stdlib-only bash
+  (zero deps, runs before anything is installed): pre-setup, only the `install`
+  verb exists and delegates to `setup.sh` with full flag pass-through
+  (`--no-init` / `--with-init` / `--project`); any other verb prints help
+  pointing at `./aipass install`. Post-setup the launcher turns transparent —
+  it execs the venv `aipass` binary for everything, so `./aipass doctor` just
+  works. Bare `aipass` always resolves to the PATH binary; the launcher only
+  ever runs as an explicit `./aipass`. 13 launcher tests (file properties,
+  pre-setup help, install delegation, post-setup forwarding), @aipass suite
+  622 green, seedgo 100%. README Quick Start now leads with `./aipass install`.
+  (built by @aipass)
+
 - **`./setup.sh` chains into `aipass init run` — clone-first one-command install
   (DPLAN-0234 Strand A).** Distribution is git-clone, not pip: the framework
   changes constantly, so a PyPI snapshot goes stale while a clone is always
