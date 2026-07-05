@@ -5,7 +5,8 @@
 [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/AIOSAI/AIPass/badge)](https://scorecard.dev/viewer/?uri=github.com/AIOSAI/AIPass)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13095/badge)](https://www.bestpractices.dev/projects/13095)
-[![HVTrust](https://hvtracker.net/badge/aipass.svg)](https://hvtracker.net/agents/aipass)
+<!-- HVTrust badge temporarily hidden 2026-07-05: hvtracker methodology v4.1 recalibration bug is showing Grade D/~10 (dimensions on the detail page sum to ~78); correction filed as hvtracker issue #109. Restore when resolved. Was:
+[![HVTrust](https://hvtracker.net/badge/aipass.svg)](https://hvtracker.net/agents/aipass) -->
 
 <p align="center">
   <img src="assets/logo.png" alt="AIPass" width="400" />

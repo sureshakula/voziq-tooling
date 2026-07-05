@@ -39,6 +39,7 @@ from aipass.cli.apps.modules import console, warning
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
+from aipass.aipass.apps.handlers.ui.progress import activity_spinner, render_step_header
 from aipass.aipass.apps.handlers.system_detect.system_detector import (
     detect_cpu,
     detect_git,
@@ -233,7 +234,7 @@ def stage_1_welcome(dry_run: bool = False) -> Dict[str, Any]:
     if dry_run:
         console.print("[yellow]\\[dry-run][/yellow] No state will be written, no subprocesses launched.")
     console.print()
-    console.print("[bold cyan]Step 1/10[/bold cyan] — Welcome")
+    console.print(render_step_header(1, TOTAL_STAGES, "Welcome"))
     _save_stage(1, dry_run=dry_run)
     return {}
 
@@ -273,7 +274,7 @@ def _print_os_gap_heads_up() -> None:
 def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Detect OS, Python, shell, RAM, CPU, install method, and optional tools."""
     console.print()
-    console.print("[bold cyan]Step 2/10[/bold cyan] — System detection")
+    console.print(render_step_header(2, TOTAL_STAGES, "System detection"))
 
     from rich.table import Table
 
@@ -329,7 +330,7 @@ def stage_3_user_profile(
 ) -> Dict[str, Any]:
     """Collect user name and OS, save to profile."""
     console.print()
-    console.print("[bold cyan]Step 3/10[/bold cyan] — User profile")
+    console.print(render_step_header(3, TOTAL_STAGES, "User profile"))
 
     from aipass.aipass.apps.modules import profile as profile_mod
 
@@ -369,7 +370,7 @@ def stage_4_style_questions(
 ) -> Dict[str, Any]:
     """Ask what the user wants to do — routes tone of later stages."""
     console.print()
-    console.print("[bold cyan]Step 4/10[/bold cyan] — What brings you here?")
+    console.print(render_step_header(4, TOTAL_STAGES, "What brings you here?"))
 
     if style_override and style_override in STYLE_CHOICES:
         style = style_override
@@ -421,7 +422,7 @@ def _handle_missing_claude(non_interactive: bool) -> None:
 
     raw = _prompt("Claude Code ('claude') not found. Install now? [Y/n]", "Y")
     if raw.lower() in ("y", "yes", ""):
-        console.print("[dim]Installing Claude Code...[/dim]")
+        console.print("[cyan]Installing Claude Code[/cyan] [dim](this can take a minute)…[/dim]")
         if _install_claude_code():
             console.print("[green]✓[/green] Claude Code installed successfully.")
         else:
@@ -438,7 +439,7 @@ def stage_5_tool_choice(
 ) -> Dict[str, Any]:
     """Choose CLI tool and launch flag variant."""
     console.print()
-    console.print("[bold cyan]Step 5/10[/bold cyan] — CLI tool choice")
+    console.print(render_step_header(5, TOTAL_STAGES, "CLI tool choice"))
 
     if cli_override and cli_override in CLI_CHOICES:
         cli_choice = cli_override
@@ -480,7 +481,7 @@ def stage_5_tool_choice(
 def stage_6_first_agent(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Create the user's first AI agent via drone @spawn."""
     console.print()
-    console.print("[bold cyan]Step 6/10[/bold cyan] — Create your first agent")
+    console.print(render_step_header(6, TOTAL_STAGES, "Create your first agent"))
     console.print("Let's create your first AI agent (citizen).")
 
     if non_interactive:
@@ -493,7 +494,7 @@ def stage_6_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
         agent_path = f"{package_dir}/{agent_name}"
     else:
         agent_path = f"src/{agent_name}"
-    console.print(f"Running: [cyan]drone @spawn create {agent_path}[/cyan]")
+    console.print(f"[cyan]Creating your first agent[/cyan] [dim](drone @spawn create {agent_path})…[/dim]")
 
     success = False
     if dry_run:
@@ -520,7 +521,7 @@ def stage_6_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
 def stage_7_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Ping all registered branches via test-convention emails."""
     console.print()
-    console.print("[bold cyan]Step 7/10[/bold cyan] — Pinging agents")
+    console.print(render_step_header(7, TOTAL_STAGES, "Pinging agents"))
 
     from aipass.aipass.apps.handlers import ping_sweep
 
@@ -547,7 +548,8 @@ def stage_7_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
         "[dim]  (Agents with a running session will auto-ack; new agents will time out — that's normal.)[/dim]"
     )
 
-    results = ping_sweep.sweep_all_branches(timeout=10)
+    with activity_spinner("Pinging agents…"):
+        results = ping_sweep.sweep_all_branches(timeout=10)
 
     for branch, status in results.items():
         if status == "ack":
@@ -568,7 +570,7 @@ def stage_7_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
 def stage_8_smoke_test(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Verify drone and aipass binaries are on PATH."""
     console.print()
-    console.print("[bold cyan]Step 8/10[/bold cyan] — Smoke test")
+    console.print(render_step_header(8, TOTAL_STAGES, "Smoke test"))
 
     drone_bin = shutil.which("drone")
     aipass_bin = shutil.which("aipass")
@@ -599,7 +601,7 @@ def stage_9_handoff(
 ) -> Dict[str, Any]:
     """Launch user's chosen CLI — inline (same terminal) or new window."""
     console.print()
-    console.print("[bold cyan]Step 9/10[/bold cyan] — Handoff")
+    console.print(render_step_header(9, TOTAL_STAGES, "Handoff"))
 
     init_prompt = "I just completed aipass init. I am ready to start. What should I do first?"
 
@@ -712,7 +714,7 @@ def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bo
 def stage_10_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = False) -> Dict[str, Any]:
     """Print completion summary and drop init report."""
     console.print()
-    console.print("[bold cyan]Step 10/10[/bold cyan] — Done!")
+    console.print(render_step_header(10, TOTAL_STAGES, "Done!"))
     console.print()
     console.print("[bold green]✓ Setup complete![/bold green]")
     console.print()
@@ -795,7 +797,9 @@ def run_init(
         from aipass.aipass.apps.handlers.init.bootstrap import init_project
 
         if not dry_run:
-            init_project(cwd)
+            with activity_spinner("Building project scaffold…"):
+                init_project(cwd)
+            console.print("[green]✓[/green] Project scaffold ready")
         else:
             console.print("[yellow]\\[dry-run][/yellow] would create project scaffold")
 

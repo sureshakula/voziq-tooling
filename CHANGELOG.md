@@ -9,6 +9,38 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-05]
+
+### Added
+
+- **`aipass install` — one-command framework bootstrap.** The missing half of
+  `pip install aipass`: a single command resolves the install home (default
+  `~/AIPass`), git-clones the public repo, runs `setup.sh` (venv, editable
+  install, hook wiring), verifies the toolchain, and auto-launches `aipass init`
+  in the same terminal — so `pip install aipass && aipass install` bootstraps
+  the whole system with nobody the wiser. New auto-discovered `install.py`
+  module (zero shared-code edits) with flags `--non-interactive / --path /
+  --here / --no-init / --with-init / --project / --dry-run`; 39 unit tests,
+  seedgo 30/30, @aipass suite green. Proven in a clean-room Docker image
+  (nothing pre-baked) across two runs, both exit 0: `pip install` (local wheel)
+  → clone → `setup.sh` (17 branches registered, 13 bootstrapped, hooks wired
+  into `~/.claude/settings.json`, `AIPASS_HOME` set, `drone`/`aipass` on PATH) →
+  live `drone systems`, and `--with-init` chaining straight into `aipass init`
+  to completion. Ships install progress bars, an install→init handoff, and
+  doctor coverage. (built by @aipass, DPLAN-0233 — PyPI release bump pending)
+
+### Changed
+
+- **HVTrust badge temporarily hidden in the root README.** hvtracker's
+  methodology v4.1 recalibration is miscomputing the grade (showing D/~10 while
+  the detail-page dimensions sum to ~78); the badge is commented out until it's
+  corrected. Filed upstream as hvtracker issue #109 — restore when resolved.
+
+- **devpulse branch prompt — sole-git-writer clarity.** Added a note to the git
+  section: because no other agent can commit, merge, or push anywhere, dirty
+  cross-branch files are always someone's live WIP, safe to leave and pick up
+  later — never a loose end needing handoff.
+
 ## [2026-07-03]
 
 Post-2.6.1 cycle — **unreleased** (held for a later merge).
