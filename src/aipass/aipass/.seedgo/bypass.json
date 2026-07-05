@@ -282,6 +282,16 @@
       "reason": "aipass is binary-invoked: aipass profile runs the command; introspection via --info"
     },
     {
+      "file": "apps/modules/install.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare 'aipass install' runs the bootstrap; introspection via --info (same pattern as doctor/init_flow/profile)."
+    },
+    {
+      "file": "apps/modules/install.py",
+      "standard": "modules",
+      "reason": "Thin bootstrap orchestrator — preps the target/project dir (mkdir) immediately before shelling out to git clone / setup.sh / aipass init. Pre-subprocess dir prep, not business file ops; a handler adds indirection for 2 mkdir calls in a linear flow (same pattern as init_flow/doctor)."
+    },
+    {
       "file": "apps/handlers/json/json_handler.py",
       "standard": "test_quality",
       "reason": "save_json now raises ValueError on invalid structure (aipass.aipass.shared contract, TDPLAN-0006 P2). Tested via pytest.raises — no False return path to test."
