@@ -28,8 +28,10 @@ from aipass.aipass.apps.handlers.ui.progress import (
     GLYPH_FAIL,
     GLYPH_PASS,
     GLYPH_WARN,
+    activity_spinner,
     format_check,
     make_doctor_progress,
+    render_step_header,
 )
 from aipass.aipass.apps.modules.doctor import handle_command, run_doctor
 
@@ -272,6 +274,36 @@ class TestProgressHelpers:
 
         prog = make_doctor_progress()
         assert isinstance(prog, Progress)
+
+    def test_render_step_header_shows_step_and_label(self) -> None:
+        """Header carries the step counter and the stage label."""
+        line = render_step_header(3, 10, "User profile")
+        assert "Step 3/10" in line
+        assert "User profile" in line
+
+    def test_render_step_header_bar_fills_with_progress(self) -> None:
+        """The bar has more filled cells later in the flow, full at the end."""
+        early = render_step_header(1, 10, "x", width=18)
+        late = render_step_header(10, 10, "x", width=18)
+        assert late.count("█") > early.count("█")
+        assert late.count("█") == 18
+
+    def test_render_step_header_clamps_out_of_range(self) -> None:
+        """current > total and total <= 0 are clamped — no overflow, no div-by-zero."""
+        over = render_step_header(15, 10, "x", width=18)
+        assert over.count("█") == 18
+        zero = render_step_header(0, 0, "x", width=18)
+        assert "Step 0/1" in zero
+
+    def test_activity_spinner_yields_progress_and_runs_block(self) -> None:
+        """activity_spinner is a context manager yielding a Progress; block runs."""
+        from rich.progress import Progress
+
+        ran = []
+        with activity_spinner("doing a thing…") as prog:
+            assert isinstance(prog, Progress)
+            ran.append(True)
+        assert ran == [True]
 
 
 # =============================================================================

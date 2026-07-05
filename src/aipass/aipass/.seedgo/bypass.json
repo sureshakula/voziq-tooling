@@ -2,8 +2,8 @@
   "metadata": {
     "version": "2.0.0",
     "created": "2026-04-16",
-    "description": "Bypass config for @aipass citizen. Modules operational: concierge/init/doctor/handoff/profile built and tested. Bypasses cover: binary-invocation introspection pattern (bare aipass <cmd> runs, --info for introspection), thin entry-point router (aipass.py uses bare print, no CLI imports), pure-python bootstrap (bootstrap.py/scaffold_content.py run before AIPass services exist), test-isolation patterns (architecture/encapsulation for tests/ directory), and CLI flag name references (permission_flags in test assertions and handoff platform).",
-    "last_updated": "2026-06-02"
+    "description": "Bypass config for @aipass citizen. Modules operational: concierge/init/doctor/handoff/profile/install built and tested. Bypasses cover: binary-invocation introspection pattern (bare aipass <cmd> runs, --info for introspection), thin entry-point router (aipass.py uses bare print, no CLI imports), pure-python bootstrap (bootstrap.py/scaffold_content.py run before AIPass services exist), test-isolation patterns (architecture/encapsulation for tests/ directory), and CLI flag name references (permission_flags in test assertions and handoff platform).",
+    "last_updated": "2026-07-05"
   },
   "bypass": [
     {
@@ -90,6 +90,16 @@
       "file": "tests/test_init_flow.py",
       "standard": "permission_flags",
       "reason": "Assertions verify that the CLI flag name appears/absent in handoff_command output. String is in assertion context only — not a permission bypass in this file."
+    },
+    {
+      "file": "tests/test_install.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_install.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import the install module directly to test home resolution, clone, and setup orchestration in isolation. Entry-point imports would defeat the purpose of unit testing."
     },
     {
       "file": "tests/test_ping_sweep.py",
@@ -270,6 +280,16 @@
       "file": "apps/modules/profile.py",
       "standard": "introspection",
       "reason": "aipass is binary-invoked: aipass profile runs the command; introspection via --info"
+    },
+    {
+      "file": "apps/modules/install.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare 'aipass install' runs the bootstrap; introspection via --info (same pattern as doctor/init_flow/profile)."
+    },
+    {
+      "file": "apps/modules/install.py",
+      "standard": "modules",
+      "reason": "Thin bootstrap orchestrator — preps the target/project dir (mkdir) immediately before shelling out to git clone / setup.sh / aipass init. Pre-subprocess dir prep, not business file ops; a handler adds indirection for 2 mkdir calls in a linear flow (same pattern as init_flow/doctor)."
     },
     {
       "file": "apps/handlers/json/json_handler.py",

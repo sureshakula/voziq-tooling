@@ -21,6 +21,7 @@ aipass/
 │   │   ├── handoff.py                     # CLI handoff (placeholder)
 │   │   ├── help_chat.py                   # README-backed Q&A (reads via readme_map handler)
 │   │   ├── init_flow.py                   # 10-stage guided setup
+│   │   ├── install.py                     # aipass install — one-command bootstrap (clone + setup + init)
 │   │   └── profile.py                     # User profile read/write
 │   ├── handlers/
 │   │   ├── cross_os/                      # Cross-OS pre-flight: gap_registry, preflight, run_record
@@ -34,7 +35,7 @@ aipass/
 │   │   ├── system_detect/                 # OS, shell, Python, RAM, CPU
 │   │   └── ui/                            # Progress bars, menus, banners
 │   └── plugins/
-├── tests/                                 # 569 passing
+├── tests/                                 # 609 passing
 ├── requirements.project.txt               # Project-specific Python dependencies
 ├── .trinity/                              # Identity + session history + observations
 └── README.md
@@ -53,6 +54,7 @@ aipass/
 | `aipass doctor --cross-os --e2e` | ...also runs the real Layer-2 e2e wiring suite (heavy, opt-in) |
 | `aipass doctor --cross-os --record [PATH]` | Write a machine-filled Run Record for the human Layer-3 acceptance pass |
 | `aipass init` | 10-stage guided setup (resumable) |
+| `aipass install` | One-command bootstrap — clone + setup.sh + hooks, then hand off to init (`--no-init`/`--with-init`/`--path`/`--here`) |
 | `aipass profile` | Show/edit user profile |
 | `aipass --version` | Version |
 
@@ -74,7 +76,7 @@ Humans only. Nothing in AIPass depends on this branch.
 
 ## Tests
 
-569 passing — `pytest src/aipass/aipass/tests/`
+609 passing — `pytest src/aipass/aipass/tests/`
 
 ## Known Issues
 
@@ -82,4 +84,4 @@ Humans only. Nothing in AIPass depends on this branch.
 
 ## Last Updated
 
-Last Updated: 2026-07-04
+Last Updated: 2026-07-05

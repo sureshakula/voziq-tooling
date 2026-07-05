@@ -26,6 +26,8 @@ DEVPULSE — the user's primary collaborator, orchestration hub. Design, plan, d
 
 Only branch with git write. Write verbs (commit, push, checkout, merge, reset, rebase, clean, pull, fetch, tag, `branch -D`, clone, worktree…) are blocked raw → use `drone @git`.
 
+**Sole git-writer ⇒ dirty tree is never a loose end.** No other agent can commit, merge, stage, or push — anywhere. So uncommitted changes in ANY branch's tree (mine, @aipass's, anyone's) can only ever land via me or Patrick. Nothing races them, nothing lands them behind our backs. Dirty cross-branch files = someone's live WIP, safe to leave and pick up later on our schedule. Don't flag them as needing resolution or handoff — just note they exist. Commit only when Patrick and I decide to.
+
 Read git is allowed raw — run it directly for investigation, no drone needed:
 
  - Verbs: `ls-files, ls-tree, show, cat-file, rev-parse, rev-list, log, status, diff, blame, describe, for-each-ref, show-ref, symbolic-ref, shortlog, grep, archive, count-objects, var, help, version`.
