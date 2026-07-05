@@ -14,11 +14,18 @@ Main handles routing, modules implement functionality.
 """
 
 # Standard library imports
+import os
 import sys
 import importlib
 import signal
 from pathlib import Path
 from typing import Any, List
+
+# AIPass infrastructure imports
+from aipass.prax.apps.modules.logger import system_logger as logger
+
+# CLI services for display
+from aipass.cli.apps.modules import console, error
 
 # Handle broken pipe gracefully (e.g. output piped to head)
 # SIGPIPE does not exist on Windows
@@ -28,11 +35,12 @@ if hasattr(signal, "SIGPIPE"):
 # Dashboard integration (optional, provided by prax)
 _UPDATE_SECTION = None  # type: ignore
 
-# AIPass infrastructure imports
-from aipass.prax.apps.modules.logger import system_logger as logger
-
-# CLI services for display
-from aipass.cli.apps.modules import console, error
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 # =============================================================================
 # CONSTANTS & CONFIG

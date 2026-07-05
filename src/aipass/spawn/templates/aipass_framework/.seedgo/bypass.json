@@ -4,7 +4,13 @@
     "created": "{{DATE}}",
     "description": "Standards bypass configuration for this branch"
   },
-  "bypass": [],
+  "bypass": [
+    {
+      "file": "tests/test_scaffold.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/, not in the 3-layer apps/ structure by design"
+    }
+  ],
   "notes": {
     "usage": "Add entries to bypass specific seedgo standard violations",
     "example": {

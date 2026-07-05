@@ -1,15 +1,15 @@
 # =================== AIPass ====================
 # Name: init_flow.py
-# Description: 12-stage guided first-run setup — aipass init command
-# Version: 1.0.0
+# Description: 10-stage guided first-run setup — aipass init command
+# Version: 1.2.0
 # Created: 2026-04-16
-# Modified: 2026-04-16
+# Modified: 2026-07-04
 # =============================================
 
 """
 aipass init — guided first-run setup
 
-12 resumable stages. State persists to .aipass/init_progress.json.
+10 resumable stages. State persists to .aipass/init_progress.json.
 Ctrl-C at any stage resumes next time from that stage.
 
 Usage:
@@ -17,9 +17,9 @@ Usage:
     aipass init run                      # interactive
     aipass init run --non-interactive    # CI/headless, all defaults
     aipass init run --name YourName --cli claude
-    aipass init run --dry-run            # walk all 12 stages, no destructive ops
-                                         #   - skips drone @spawn create (stage 8)
-                                         #   - skips tmux/wt handoff (stage 11)
+    aipass init run --dry-run            # walk all 10 stages, no destructive ops
+                                         #   - skips drone @spawn create (stage 6)
+                                         #   - skips tmux/wt handoff (stage 9)
                                          #   - does NOT write .aipass/init_progress.json
 """
 
@@ -41,7 +41,6 @@ from aipass.prax import logger
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.system_detect.system_detector import (
     detect_cpu,
-    detect_docker,
     detect_git,
     detect_install_method,
     detect_os,
@@ -62,7 +61,7 @@ except ImportError as _qe:
     HAS_QUESTIONARY = False
 
 COMMAND = "init"
-TOTAL_STAGES = 12
+TOTAL_STAGES = 10
 
 _BRANCH_ROOT = Path(__file__).resolve().parents[2]
 
@@ -95,7 +94,8 @@ STYLE_CHOICES = ["building-my-own-project", "improving-aipass", "just-exploring"
 TEMPLATE_EMPTY = "empty project"
 TEMPLATE_AIPASS = "aipass_framework"
 TEMPLATE_CHOICES = [TEMPLATE_EMPTY, TEMPLATE_AIPASS]
-AIPASS_SPECIFIC_STAGES = {8, 9, 11, 12}
+# first_agent, ping_sweep, handoff, done — skipped for empty (non-framework) projects
+AIPASS_SPECIFIC_STAGES = {6, 7, 9, 10}
 
 
 # --- LOCAL JSON HELPERS ---
@@ -233,15 +233,47 @@ def stage_1_welcome(dry_run: bool = False) -> Dict[str, Any]:
     if dry_run:
         console.print("[yellow]\\[dry-run][/yellow] No state will be written, no subprocesses launched.")
     console.print()
-    console.print("[bold cyan]Step 1/12[/bold cyan] — Welcome")
+    console.print("[bold cyan]Step 1/10[/bold cyan] — Welcome")
     _save_stage(1, dry_run=dry_run)
     return {}
+
+
+def _print_os_gap_heads_up() -> None:
+    """Print tracked cross-OS gaps that apply to this OS (machine pre-flight, not a guarantee).
+
+    Lightweight: one doc read + parse. Failures are non-fatal — init must not
+    crash here. This is NOT the human acceptance pass; it just surfaces tracked
+    gaps at the moment the user is on the box.
+    """
+    try:
+        from aipass.aipass.apps.handlers.cross_os import CrossOsGapError, gaps_for_platform
+    except ImportError as exc:
+        logger.warning("[init_flow] cross_os handler unavailable: %s", exc)
+        return
+
+    try:
+        gaps = gaps_for_platform(sys.platform)
+    except CrossOsGapError as exc:
+        logger.warning("[init_flow] cross-OS gap registry unavailable: %s", exc)
+        warning("cross-OS gap registry unavailable — skipping OS heads-up.")
+        return
+
+    if not gaps:
+        return
+
+    console.print()
+    console.print(
+        f"[dim]Heads-up — {len(gaps)} tracked cross-OS gap(s) may apply on this OS "
+        "(machine pre-flight, not a guarantee):[/dim]"
+    )
+    for gap in gaps:
+        console.print(f"  [yellow]![/yellow] [dim]gap #{gap.number}: {gap.symptom} [{gap.status}][/dim]")
 
 
 def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Detect OS, Python, shell, RAM, CPU, install method, and optional tools."""
     console.print()
-    console.print("[bold cyan]Step 2/12[/bold cyan] — System detection")
+    console.print("[bold cyan]Step 2/10[/bold cyan] — System detection")
 
     from rich.table import Table
 
@@ -254,7 +286,6 @@ def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) 
     install = detect_install_method()
     has_tmux = detect_tmux()
     has_wt = detect_wt()
-    has_docker = detect_docker()
 
     table = Table(show_header=False, box=None)
     table.add_column("key", style="cyan")
@@ -269,7 +300,6 @@ def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) 
     table.add_row("tmux", "yes" if has_tmux else "no")
     if sys.platform == "win32":
         table.add_row("wt.exe", "yes" if has_wt else "no")
-    table.add_row("docker", "yes" if has_docker else "no")
     console.print(table)
 
     console.print()
@@ -277,50 +307,21 @@ def stage_2_system_detect(non_interactive: bool = False, dry_run: bool = False) 
     install_labels = {"dev": "development (editable source)", "pip": "pip", "clone": "git clone", "unknown": "unknown"}
     console.print(f"Install type: [cyan]{install_labels.get(install, install)}[/cyan]")
 
+    _print_os_gap_heads_up()
+
     system_data: Dict[str, Any] = {
         "os": os_info["os_name"],
         "python": py["version"],
         "shell": sh["name"],
         "ram_gb": ram["total_gb"],
         "install": install,
-        "has_docker": has_docker,
         "has_tmux": has_tmux,
     }
     _save_stage(2, system_data, dry_run=dry_run)
     return system_data
 
 
-def stage_3_doctor(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
-    """Run aipass doctor health checks inline."""
-    console.print()
-    console.print("[bold cyan]Step 3/12[/bold cyan] — System health check")
-
-    error_count = 0
-    provider_gaps: Dict[str, Any] = {}
-    try:
-        from aipass.aipass.apps.modules import doctor
-
-        error_count = doctor.run_doctor(interactive=not non_interactive)
-        try:
-            for r in doctor._check_provider_manifest():
-                if r.glyph != doctor.GLYPH_PASS:
-                    provider_gaps[r.label] = r.detail
-        except Exception as exc:
-            logger.warning("[init_flow] provider manifest check failed: %s", exc)
-    except Exception as exc:
-        logger.warning("[init_flow] doctor run failed: %s", exc)
-        warning(f"Doctor check skipped: {exc}")
-
-    if error_count > 0:
-        warning(f"{error_count} issue(s) found above — review when convenient.")
-    else:
-        console.print("[green]✓[/green] Health check passed.")
-
-    _save_stage(3, {"doctor_errors": error_count}, dry_run=dry_run)
-    return {"doctor_errors": error_count, "provider_gaps": provider_gaps}
-
-
-def stage_4_user_profile(
+def stage_3_user_profile(
     non_interactive: bool = False,
     name_override: str | None = None,
     system_data: dict | None = None,
@@ -328,7 +329,7 @@ def stage_4_user_profile(
 ) -> Dict[str, Any]:
     """Collect user name and OS, save to profile."""
     console.print()
-    console.print("[bold cyan]Step 4/12[/bold cyan] — User profile")
+    console.print("[bold cyan]Step 3/10[/bold cyan] — User profile")
 
     from aipass.aipass.apps.modules import profile as profile_mod
 
@@ -357,18 +358,18 @@ def stage_4_user_profile(
         profile_mod.save_profile(existing)
 
     console.print(f"[green]✓[/green] Hello, {name}!")
-    _save_stage(4, {"name": name}, dry_run=dry_run)
+    _save_stage(3, {"name": name}, dry_run=dry_run)
     return {"name": name}
 
 
-def stage_5_style_questions(
+def stage_4_style_questions(
     non_interactive: bool = False,
     style_override: str | None = None,
     dry_run: bool = False,
 ) -> Dict[str, Any]:
     """Ask what the user wants to do — routes tone of later stages."""
     console.print()
-    console.print("[bold cyan]Step 5/12[/bold cyan] — What brings you here?")
+    console.print("[bold cyan]Step 4/10[/bold cyan] — What brings you here?")
 
     if style_override and style_override in STYLE_CHOICES:
         style = style_override
@@ -378,7 +379,7 @@ def stage_5_style_questions(
         style = _choose("What are you looking to do?", STYLE_CHOICES, default=STYLE_CHOICES[0])
 
     console.print(f"[green]✓[/green] Got it: {style}")
-    _save_stage(5, {"style": style}, dry_run=dry_run)
+    _save_stage(4, {"style": style}, dry_run=dry_run)
     return {"style": style}
 
 
@@ -415,7 +416,7 @@ def _handle_missing_claude(non_interactive: bool) -> None:
     """Prompt to install Claude Code when missing, or warn in non-interactive mode."""
     if non_interactive:
         warning("[bold yellow]Claude Code ('claude') is not installed.[/bold yellow]")
-        console.print("  Stage 11 handoff requires it. Install manually before then.")
+        console.print("  Stage 9 handoff requires it. Install manually before then.")
         return
 
     raw = _prompt("Claude Code ('claude') not found. Install now? [Y/n]", "Y")
@@ -427,17 +428,17 @@ def _handle_missing_claude(non_interactive: bool) -> None:
             warning("[bold yellow]Installation failed.[/bold yellow]")
             console.print("  Install manually: https://claude.ai/download")
     else:
-        console.print("[dim]Skipped. Stage 11 handoff will need 'claude' on PATH.[/dim]")
+        console.print("[dim]Skipped. Stage 9 handoff will need 'claude' on PATH.[/dim]")
 
 
-def stage_6_tool_choice(
+def stage_5_tool_choice(
     non_interactive: bool = False,
     cli_override: str | None = None,
     dry_run: bool = False,
 ) -> Dict[str, Any]:
     """Choose CLI tool and launch flag variant."""
     console.print()
-    console.print("[bold cyan]Step 6/12[/bold cyan] — CLI tool choice")
+    console.print("[bold cyan]Step 5/10[/bold cyan] — CLI tool choice")
 
     if cli_override and cli_override in CLI_CHOICES:
         cli_choice = cli_override
@@ -459,7 +460,7 @@ def stage_6_tool_choice(
         )
 
     console.print(f"[green]✓[/green] {cli_choice} ({flag_variant})")
-    _save_stage(6, {"cli": cli_choice, "flag_variant": flag_variant}, dry_run=dry_run)
+    _save_stage(5, {"cli": cli_choice, "flag_variant": flag_variant}, dry_run=dry_run)
 
     if dry_run:
         console.print(f"[yellow]\\[dry-run][/yellow] would save preferred_cli={cli_choice} to profile")
@@ -476,37 +477,10 @@ def stage_6_tool_choice(
     return {"cli": cli_choice, "flag_variant": flag_variant}
 
 
-def stage_7_docker_offer(
-    non_interactive: bool = False,
-    no_docker: bool = False,
-    has_docker: bool | None = None,
-    dry_run: bool = False,
-) -> Dict[str, Any]:
-    """Offer Docker sandbox test if Docker is detected."""
-    console.print()
-    console.print("[bold cyan]Step 7/12[/bold cyan] — Docker")
-
-    if has_docker is None:
-        has_docker = detect_docker()
-
-    if not has_docker or no_docker or non_interactive:
-        reason = "not detected" if not has_docker else ("--no-docker" if no_docker else "non-interactive")
-        console.print(f"[dim]Docker offer skipped ({reason}).[/dim]")
-        _save_stage(7, {"docker": "skipped"}, dry_run=dry_run)
-        return {"docker": "skipped"}
-
-    raw = _prompt("Test in a Docker sandbox? [y/N]", "N")
-    use_docker = raw.lower() in ("y", "yes")
-    result = "yes" if use_docker else "no"
-    console.print(f"[green]✓[/green] Docker: {result}")
-    _save_stage(7, {"docker": result}, dry_run=dry_run)
-    return {"docker": result}
-
-
-def stage_8_first_agent(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
+def stage_6_first_agent(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Create the user's first AI agent via drone @spawn."""
     console.print()
-    console.print("[bold cyan]Step 8/12[/bold cyan] — Create your first agent")
+    console.print("[bold cyan]Step 6/10[/bold cyan] — Create your first agent")
     console.print("Let's create your first AI agent (citizen).")
 
     if non_interactive:
@@ -530,30 +504,30 @@ def stage_8_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
             proc = subprocess.run(["drone", "@spawn", "create", agent_path], timeout=60)
             success = proc.returncode == 0
         except FileNotFoundError as exc:
-            logger.warning("[init_flow] drone not found in stage 8: %s", exc)
+            logger.warning("[init_flow] drone not found in stage 6: %s", exc)
             warning("drone not found — skipping agent creation.")
         except subprocess.TimeoutExpired as exc:
-            logger.warning("[init_flow] spawn timed out in stage 8: %s", exc)
+            logger.warning("[init_flow] spawn timed out in stage 6: %s", exc)
             warning("spawn timed out — agent may still be created.")
 
     if success:
         console.print(f"[green]✓[/green] Agent created at {agent_path}")
 
-    _save_stage(8, {"agent_name": agent_name, "agent_path": agent_path, "success": success}, dry_run=dry_run)
+    _save_stage(6, {"agent_name": agent_name, "agent_path": agent_path, "success": success}, dry_run=dry_run)
     return {"agent_name": agent_name, "agent_path": agent_path}
 
 
-def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
+def stage_7_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Ping all registered branches via test-convention emails."""
     console.print()
-    console.print("[bold cyan]Step 9/12[/bold cyan] — Pinging agents")
+    console.print("[bold cyan]Step 7/10[/bold cyan] — Pinging agents")
 
     from aipass.aipass.apps.handlers import ping_sweep
 
     branches = ping_sweep._discover_branches()
     if not branches:
         console.print("[dim]  No branches registered yet — skipping ping sweep.[/dim]")
-        _save_stage(9, {"results": {}, "skipped": True}, dry_run=dry_run)
+        _save_stage(7, {"results": {}, "skipped": True}, dry_run=dry_run)
         return {"ping_results": {}}
 
     # Standalone projects can't ping agents via drone (drone only knows AIPass's registry).
@@ -565,7 +539,7 @@ def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
         else:
             console.print(f"[dim]  Found {len(branches)} agent(s) in this project.[/dim]")
             console.print("[dim]  Ping skipped — agents will be reachable after handoff (next step).[/dim]")
-        _save_stage(9, {"results": {}, "skipped_standalone": True}, dry_run=dry_run)
+        _save_stage(7, {"results": {}, "skipped_standalone": True}, dry_run=dry_run)
         return {"ping_results": {}}
 
     console.print(f"[dim]  Found {len(branches)} agent(s). Checking reachability...[/dim]")
@@ -587,14 +561,14 @@ def stage_9_ping_sweep(non_interactive: bool = False, dry_run: bool = False) -> 
 
     summary = ping_sweep.sweep_summary(results)
     console.print(f"  {summary}")
-    _save_stage(9, {"results": results}, dry_run=dry_run)
+    _save_stage(7, {"results": results}, dry_run=dry_run)
     return {"ping_results": results}
 
 
-def stage_10_smoke_test(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
+def stage_8_smoke_test(non_interactive: bool = False, dry_run: bool = False) -> Dict[str, Any]:
     """Verify drone and aipass binaries are on PATH."""
     console.print()
-    console.print("[bold cyan]Step 10/12[/bold cyan] — Smoke test")
+    console.print("[bold cyan]Step 8/10[/bold cyan] — Smoke test")
 
     drone_bin = shutil.which("drone")
     aipass_bin = shutil.which("aipass")
@@ -609,11 +583,13 @@ def stage_10_smoke_test(non_interactive: bool = False, dry_run: bool = False) ->
     else:
         warning("aipass not on PATH — clone the repo and run setup.sh")
 
-    _save_stage(10, {"drone": drone_bin, "aipass": aipass_bin}, dry_run=dry_run)
+    console.print("[dim]Full cross-OS pre-flight: aipass doctor --cross-os[/dim]")
+
+    _save_stage(8, {"drone": drone_bin, "aipass": aipass_bin}, dry_run=dry_run)
     return {"drone": drone_bin, "aipass": aipass_bin}
 
 
-def stage_11_handoff(
+def stage_9_handoff(
     cli_choice: str = "claude",
     flag_variant: str = "default",
     agent_path: str = "src/my_agent",
@@ -623,7 +599,7 @@ def stage_11_handoff(
 ) -> Dict[str, Any]:
     """Launch user's chosen CLI — inline (same terminal) or new window."""
     console.print()
-    console.print("[bold cyan]Step 11/12[/bold cyan] — Handoff")
+    console.print("[bold cyan]Step 9/10[/bold cyan] — Handoff")
 
     init_prompt = "I just completed aipass init. I am ready to start. What should I do first?"
 
@@ -657,8 +633,8 @@ def stage_11_handoff(
         inline = choice != "2"
 
         if inline:
-            _save_stage(11, {"command": command, "launched": True, "inline": True}, dry_run=dry_run)
-            _save_stage(12, dry_run=dry_run)
+            _save_stage(9, {"command": command, "launched": True, "inline": True}, dry_run=dry_run)
+            _save_stage(10, dry_run=dry_run)
             if accumulated:
                 _write_init_report(accumulated.get("agent_path", agent_path), accumulated, dry_run=dry_run)
             console.print()
@@ -679,8 +655,22 @@ def stage_11_handoff(
             )
 
     if not inline:
-        _save_stage(11, {"command": command, "launched": launched}, dry_run=dry_run)
+        _save_stage(9, {"command": command, "launched": launched}, dry_run=dry_run)
     return {"handoff_command": command, "launched": launched}
+
+
+def _collect_provider_gaps() -> Dict[str, Any]:
+    """Gather provider-manifest gaps for the init report — standalone, no full doctor run."""
+    gaps: Dict[str, Any] = {}
+    try:
+        from aipass.aipass.apps.modules import doctor
+
+        for r in doctor._check_provider_manifest():
+            if r.glyph != doctor.GLYPH_PASS:
+                gaps[r.label] = r.detail
+    except Exception as exc:
+        logger.warning("[init_flow] provider manifest check failed: %s", exc)
+    return gaps
 
 
 def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bool = False) -> None:
@@ -707,7 +697,7 @@ def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bo
             " drone @devpulse watchdog agent @target"
         ),
     }
-    provider_gaps = accumulated.get("provider_gaps", {})
+    provider_gaps = _collect_provider_gaps()
     if provider_gaps:
         report["provider_gaps"] = provider_gaps
         report["provider_action"] = (
@@ -719,10 +709,10 @@ def _write_init_report(agent_path: str, accumulated: Dict[str, Any], dry_run: bo
     logger.info("[init_flow] init report written to %s", report_path)
 
 
-def stage_12_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = False) -> Dict[str, Any]:
+def stage_10_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = False) -> Dict[str, Any]:
     """Print completion summary and drop init report."""
     console.print()
-    console.print("[bold cyan]Step 12/12[/bold cyan] — Done!")
+    console.print("[bold cyan]Step 10/10[/bold cyan] — Done!")
     console.print()
     console.print("[bold green]✓ Setup complete![/bold green]")
     console.print()
@@ -732,7 +722,7 @@ def stage_12_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = Fal
     console.print()
     if accumulated:
         _write_init_report(accumulated.get("agent_path", ""), accumulated, dry_run=dry_run)
-    _save_stage(12, dry_run=dry_run)
+    _save_stage(10, dry_run=dry_run)
     return {}
 
 
@@ -778,11 +768,10 @@ def run_init(
     name: str | None = None,
     cli: str | None = None,
     style: str | None = None,
-    no_docker: bool = False,
     dry_run: bool = False,
     template: str | None = None,
 ) -> int:
-    """Run the 12-stage init flow. Returns 0 on success."""
+    """Run the 10-stage init flow. Returns 0 on success."""
     # Pre-flight: refuse to run inside existing projects or agent dirs
     err = _preflight_check()
     if err:
@@ -826,17 +815,15 @@ def run_init(
     stage_fns = [
         (1, lambda: stage_1_welcome(dry_run=dry_run)),
         (2, lambda: stage_2_system_detect(non_interactive, dry_run=dry_run)),
-        (3, lambda: stage_3_doctor(non_interactive, dry_run=dry_run)),
-        (4, lambda: stage_4_user_profile(non_interactive, name, accumulated, dry_run=dry_run)),
-        (5, lambda: stage_5_style_questions(non_interactive, style, dry_run=dry_run)),
-        (6, lambda: stage_6_tool_choice(non_interactive, cli, dry_run=dry_run)),
-        (7, lambda: stage_7_docker_offer(non_interactive, no_docker, accumulated.get("has_docker"), dry_run=dry_run)),
-        (8, lambda: stage_8_first_agent(non_interactive, dry_run=dry_run)),
-        (9, lambda: stage_9_ping_sweep(non_interactive, dry_run=dry_run)),
-        (10, lambda: stage_10_smoke_test(non_interactive, dry_run=dry_run)),
+        (3, lambda: stage_3_user_profile(non_interactive, name, accumulated, dry_run=dry_run)),
+        (4, lambda: stage_4_style_questions(non_interactive, style, dry_run=dry_run)),
+        (5, lambda: stage_5_tool_choice(non_interactive, cli, dry_run=dry_run)),
+        (6, lambda: stage_6_first_agent(non_interactive, dry_run=dry_run)),
+        (7, lambda: stage_7_ping_sweep(non_interactive, dry_run=dry_run)),
+        (8, lambda: stage_8_smoke_test(non_interactive, dry_run=dry_run)),
         (
-            11,
-            lambda: stage_11_handoff(
+            9,
+            lambda: stage_9_handoff(
                 accumulated.get("cli", "claude"),
                 accumulated.get("flag_variant", "default"),
                 accumulated.get("agent_path", "src/my_agent"),
@@ -845,7 +832,7 @@ def run_init(
                 accumulated=accumulated,
             ),
         ),
-        (12, lambda: stage_12_done(accumulated=accumulated, dry_run=dry_run)),
+        (10, lambda: stage_10_done(accumulated=accumulated, dry_run=dry_run)),
     ]
 
     for stage_num, fn in stage_fns:
@@ -881,7 +868,7 @@ def print_introspection() -> None:
     last = progress.get("last_completed_stage", 0)
     console.print()
     console.print("[bold cyan]init_flow Module[/bold cyan]")
-    console.print("12-stage guided first-run setup, resumable")
+    console.print("10-stage guided first-run setup, resumable")
     console.print()
     if last == 0:
         console.print("[dim]Setup not started. Run: aipass init run[/dim]")
@@ -904,11 +891,10 @@ def print_help() -> None:
     console.print("  [green]aipass init run --name YourName[/green]      [dim]# pre-fill name[/dim]")
     console.print("  [green]aipass init run --cli claude[/green]         [dim]# pre-fill CLI[/dim]")
     console.print("  [green]aipass init run --template <name>[/green]    [dim]# select template[/dim]")
-    console.print("  [green]aipass init run --no-docker[/green]          [dim]# skip docker offer[/dim]")
     console.print("  [green]aipass init run --dry-run[/green]            [dim]# walk all stages, no writes[/dim]")
     console.print("  [green]aipass init --list[/green]                   [dim]# list available templates[/dim]")
     console.print()
-    console.print("[yellow]STAGES:[/yellow] 12 stages, each saved — resume on ctrl-C")
+    console.print("[yellow]STAGES:[/yellow] 10 stages, each saved — resume on ctrl-C")
     console.print()
 
 
@@ -1059,7 +1045,6 @@ def handle_command(command: str, args: list[str]) -> bool:
         cli = _flag_value("--cli")
         style = _flag_value("--style")
         template = _flag_value("--template")
-        no_docker = "--no-docker" in run_args
         dry_run = "--dry-run" in run_args
 
         result = run_init(
@@ -1067,7 +1052,6 @@ def handle_command(command: str, args: list[str]) -> bool:
             name=name,
             cli=cli,
             style=style,
-            no_docker=no_docker,
             dry_run=dry_run,
             template=template,
         )
@@ -1094,4 +1078,14 @@ def handle_command(command: str, args: list[str]) -> bool:
 
 
 if __name__ == "__main__":
+    # Windows terminals/pipes default to cp1252, which can't encode the Unicode
+    # Rich emits (✓/✗, box-drawing). Reconfigure live streams to UTF-8 in place
+    # so a direct `python -m ...init_flow` run doesn't crash printing its banner.
+    # Guarded to win32 — mirrors apps/aipass.py (S190 / gap #1).
+    if sys.platform == "win32":
+        os.environ.setdefault("PYTHONUTF8", "1")
+        for _stream in (sys.stdout, sys.stderr):
+            if hasattr(_stream, "reconfigure"):
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+
     handle_command("init", sys.argv[1:])

@@ -15,8 +15,16 @@ Orchestrates API key and credential operations:
 - Initialize .env template
 """
 
+import os
 import sys
 from pathlib import Path
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
@@ -272,10 +280,10 @@ def print_help():
     console.print("  [cyan]drone @api get-secret telegram/bot[/cyan]")
     console.print()
     console.print("  [dim]# Write secret to a protected file[/dim]")
-    console.print("  [cyan]drone @api get-secret telegram/bot --out /tmp/token.txt[/cyan]")
+    console.print("  [cyan]drone @api get-secret telegram/bot --out token.txt[/cyan]")
     console.print()
     console.print("  [dim]# Write secret as JSON to a protected file[/dim]")
-    console.print("  [cyan]drone @api get-secret telegram/bot --out /tmp/bot.json --json[/cyan]")
+    console.print("  [cyan]drone @api get-secret telegram/bot --out bot.json --json[/cyan]")
     console.print()
     console.print("  [dim]# List secrets for a provider[/dim]")
     console.print("  [cyan]drone @api get-secret telegram --list[/cyan]")

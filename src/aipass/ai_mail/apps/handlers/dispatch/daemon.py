@@ -33,6 +33,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.dispatch.status import log_dispatch
 from aipass.ai_mail.apps.handlers.paths import find_repo_root
+from aipass.ai_mail.apps.handlers.dispatch.test_token import scan_and_ack_test_emails
 
 
 # Infrastructure paths
@@ -48,9 +49,6 @@ BRANCH_REGISTRY = _REPO_ROOT / "AIPASS_REGISTRY.json"
 
 # Graceful shutdown
 SHUTDOWN = False
-
-# AIPASS-TEST token handling extracted to test_token.py
-from aipass.ai_mail.apps.handlers.dispatch.test_token import scan_and_ack_test_emails
 
 
 def _handle_signal(signum, _frame):
@@ -415,7 +413,7 @@ def spawn_agent(
             monitor_cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,
+            start_new_session=(sys.platform != "win32"),
             cwd=str(branch_path),
             env=spawn_env,
         )

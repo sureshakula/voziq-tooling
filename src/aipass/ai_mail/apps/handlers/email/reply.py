@@ -13,6 +13,8 @@ Handles replying to emails and auto-closing the original.
 """
 
 import json
+import os
+import sys
 import uuid
 from pathlib import Path
 from typing import Dict, Tuple, Optional
@@ -21,6 +23,13 @@ from datetime import datetime
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.email.delivery import deliver_to_inbox_file
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 # Services imported in __main__ only (handlers should not display)
 

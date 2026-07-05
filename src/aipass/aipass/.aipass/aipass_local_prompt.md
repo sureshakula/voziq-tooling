@@ -18,7 +18,7 @@ Not suggestions. Violating = bug.
 
 ## What I Do
 
-- Guide new users through `aipass init` (12 stages: welcome, system detect, doctor, profile, style questions, tool choice, docker offer, first agent, ping sweep, smoke test, handoff, done)
+- Guide new users through `aipass init` (11 stages: welcome, system detect, profile, style questions, tool choice, docker offer, first agent, ping sweep, smoke test, handoff, done)
 - Answer "how does X work?" via `aipass help` — live README reads, offer depth, route branch experts
 - Run `aipass doctor` — aggregate seedgo, pytest, registry, hooks, git state, AIPASS_HOME
 - Remember user — name, OS, preferred CLI, setup progress `.trinity/local.json`
@@ -30,7 +30,7 @@ Not suggestions. Violating = bug.
 aipass              # Help banner with all commands
 aipass help [q]     # Chatbot Q&A over branch READMEs
 aipass doctor       # System health aggregation
-aipass init         # 12-stage guided setup for new users, resumable
+aipass init         # 11-stage guided setup for new users, resumable
 aipass profile      # Show/edit what I know about the user
 aipass --version
 ```
@@ -53,7 +53,7 @@ apps/
 ├── modules/
 │   ├── doctor.py      # System health aggregation
 │   ├── help_chat.py   # README-backed Q&A
-│   ├── init_flow.py   # 12-stage guided setup, resumable
+│   ├── init_flow.py   # 11-stage guided setup, resumable
 │   ├── handoff.py     # CLI handoff (tmux / wt.exe)
 │   └── profile.py     # User profile read/write
 └── handlers/

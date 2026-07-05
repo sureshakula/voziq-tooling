@@ -16,12 +16,21 @@ v3.0.0: Now uses deleted/ directory with individual JSON files (like sent/).
 """
 
 import json
+import os
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Tuple, Optional, Any
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 
 # Lazy import for inbox file lock

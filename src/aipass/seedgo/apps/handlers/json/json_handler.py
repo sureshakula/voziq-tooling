@@ -7,6 +7,7 @@
 # =============================================
 
 import json
+import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -243,6 +244,11 @@ def update_data_metrics(module_name: str, **metrics) -> bool:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
     from rich.console import Console
     from rich.panel import Panel
 

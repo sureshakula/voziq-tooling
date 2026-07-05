@@ -22,6 +22,18 @@ from aipass.prax import logger
 
 from aipass.aipass.shared.registry_discovery import find_registry as _discover_registry
 
+from aipass.aipass.apps.handlers.cross_os import (
+    CrossOsGapError,
+    PreflightResult,
+    RunRecordError,
+    check_hookstatus,
+    check_routing,
+    check_versions,
+    gaps_for_platform,
+    generate_run_record,
+)
+from aipass.aipass.apps.handlers.cross_os import run_e2e as run_e2e_preflight
+from aipass.aipass.apps.handlers.cross_os.preflight import E2E_UNRUNNABLE_PREFIX
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.sandbox_check.sandbox_checker import (
     check_broker_alive,
@@ -661,6 +673,197 @@ def _check_sandbox() -> List[CheckResult]:
     return results
 
 
+# --- Cross-OS pre-flight group ---
+
+
+def _cross_os_gap_rows() -> List[CheckResult]:
+    """OS-gap cross-reference rows (slice 1): tracked gaps for this platform.
+
+    Machine pre-flight — surfaces OS-specific gaps from tests/CROSS_OS_TESTING.md
+    for this box. Never claims the checklist's human green. WARN per gap, a single
+    PASS when none apply, a single WARN when the registry can't be read (never
+    silent).
+    """
+    platform_name = sys.platform
+    try:
+        gaps = gaps_for_platform(platform_name)
+    except CrossOsGapError as exc:
+        logger.warning("[doctor] cross-OS gap registry unavailable: %s", exc)
+        return [
+            CheckResult(
+                "cross-os registry (pre-flight)",
+                GLYPH_WARN,
+                f"pre-flight: gap registry unavailable — {exc}",
+                "Ensure tests/CROSS_OS_TESTING.md has a 'Known cross-OS gap registry' table",
+            )
+        ]
+
+    if not gaps:
+        return [
+            CheckResult(
+                "cross-os (pre-flight)",
+                GLYPH_PASS,
+                f"pre-flight: no tracked cross-OS gaps for {platform_name}",
+                "",
+            )
+        ]
+
+    return [
+        CheckResult(
+            f"cross-os gap #{gap.number} (pre-flight)",
+            GLYPH_WARN,
+            f"pre-flight: {gap.symptom}",
+            f"tracked gap [{gap.status}] — owner {gap.owner}; human Layer-3 pass still required",
+        )
+        for gap in gaps
+    ]
+
+
+def _preflight_row(label: str, result: PreflightResult, remediation: str) -> CheckResult:
+    """Map a non-mutating PreflightResult to a labelled pre-flight CheckResult.
+
+    ok -> PASS, else FAIL. The detail is always prefixed 'pre-flight:' so a row
+    can never be mistaken for the checklist's human acceptance green.
+    """
+    glyph = GLYPH_PASS if result.ok else GLYPH_FAIL
+    return CheckResult(f"{label} (pre-flight)", glyph, f"pre-flight: {result.detail}", "" if result.ok else remediation)
+
+
+def _e2e_row(result: PreflightResult) -> CheckResult:
+    """Map the heavy e2e PreflightResult to a CheckResult (PASS/FAIL/WARN).
+
+    ok -> PASS. Un-runnable infra cases (dir missing, no pytest, timeout) -> WARN.
+    Real test failures -> FAIL.
+    """
+    if result.ok:
+        glyph, remediation = GLYPH_PASS, ""
+    elif result.detail.startswith(E2E_UNRUNNABLE_PREFIX):
+        glyph = GLYPH_WARN
+        remediation = "Ensure a project .venv with pytest (or system pytest) and tests/e2e are present"
+    else:
+        glyph, remediation = GLYPH_FAIL, "Run 'pytest tests/e2e -q' from the repo root to inspect the failures"
+    return CheckResult("e2e suite (pre-flight)", glyph, f"pre-flight: {result.detail}", remediation)
+
+
+def _check_cross_os(run_e2e: bool = False) -> List[CheckResult]:
+    """Cross-OS pre-flight group (Layer-3-lite): gap cross-reference + machine routes.
+
+    Combines the slice-1 OS-gap rows with the non-mutating routing / --version /
+    hookstatus probes (Phase 4 / 1.3 / 6.3). None of these wake a citizen. When
+    ``run_e2e`` is set, also runs the heavy Phase-2 e2e suite. Every row is
+    labelled pre-flight and still needs the human Layer-3 pass.
+    """
+    results = _cross_os_gap_rows()
+
+    results.append(
+        _preflight_row(
+            "routing", check_routing(), "Ensure aipass is installed (setup.sh) so 'drone systems' and routes resolve"
+        )
+    )
+    results.append(
+        _preflight_row(
+            "versions", check_versions(), "Ensure 'drone' and 'aipass' are on PATH (clone the repo, run setup.sh)"
+        )
+    )
+    results.append(
+        _preflight_row("hookstatus", check_hookstatus(), "Check @hooks routing: 'drone @hooks status' should exit 0")
+    )
+
+    if run_e2e:
+        results.append(_e2e_row(run_e2e_preflight()))
+
+    return results
+
+
+def run_cross_os(run_e2e: bool = False) -> int:
+    """Render only the cross-OS pre-flight group (`aipass doctor --cross-os`).
+
+    Returns the error (FAIL) count; warnings do not fail, matching run_doctor.
+    When ``run_e2e`` is set (``--cross-os --e2e``), the heavy e2e suite runs too.
+    """
+    console.print()
+    console.print("[bold cyan]aipass doctor --cross-os[/bold cyan]")
+    console.print("[dim]machine pre-flight (Layer-3-lite) — augments, never replaces, the human acceptance pass[/dim]")
+    if run_e2e:
+        console.print("[dim]--e2e: running the heavy Phase-2 e2e wiring suite (builds a wheel + fresh venv)…[/dim]")
+    console.print()
+
+    checks = _check_cross_os(run_e2e=run_e2e)
+    pass_count = 0
+    warn_count = 0
+    error_count = 0
+
+    console.print("  [bold]Cross-OS[/bold]")
+    for check in checks:
+        line = format_check(check.label, check.glyph, check.detail, check.remediation)
+        console.print(line)
+        if check.glyph == GLYPH_PASS:
+            pass_count += 1
+        elif check.glyph == GLYPH_WARN:
+            warn_count += 1
+        else:
+            error_count += 1
+    console.print()
+
+    console.print("[dim]─────────────────────────────────[/dim]")
+    console.print(
+        f"  [green]✓ pass: {pass_count}[/green]  "
+        f"[yellow]! warnings: {warn_count}[/yellow]  "
+        f"[red]✗ errors: {error_count}[/red]"
+    )
+    console.print()
+
+    logger.info("[doctor] cross-os run — pass=%d warn=%d error=%d", pass_count, warn_count, error_count)
+    return error_count
+
+
+def _record_path_arg(args: list[str]) -> str | None:
+    """Extract the optional PATH value following ``--record`` (None if absent).
+
+    ``--record`` may stand alone (default path) or be followed by a path; a
+    following token that starts with ``-`` is another flag, not the path.
+    """
+    if "--record" not in args:
+        return None
+    idx = args.index("--record")
+    if idx + 1 < len(args):
+        candidate = args[idx + 1]
+        if not candidate.startswith("-"):
+            return candidate
+    return None
+
+
+def run_cross_os_record(path: str | None = None, run_e2e: bool = False) -> int:
+    """Generate a machine pre-flight Run Record (`aipass doctor --cross-os --record`).
+
+    Thin console wrapper: generation (env capture + machine-provable rows, human
+    rows left blank/marked) lives in the cross_os handler. Returns 0 on success,
+    1 if the file could not be written (never crashes).
+    """
+    console.print()
+    console.print("[bold cyan]aipass doctor --cross-os --record[/bold cyan]")
+    console.print(
+        "[dim]machine pre-flight DRAFT — auto-fills what the machine can prove; "
+        "a human still runs the real Layer-3 pass[/dim]"
+    )
+    if run_e2e:
+        console.print("[dim]--e2e: running the heavy Phase-2 e2e suite (builds a wheel + fresh venv)…[/dim]")
+    console.print()
+
+    try:
+        written = generate_run_record(path, run_heavy_e2e=run_e2e)
+    except RunRecordError as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        logger.error("[doctor] cross-os run record failed: %s", exc)
+        return 1
+
+    console.print(f"[green]✓[/green] Run Record written: [bold]{written}[/bold]")
+    console.print("[dim]Complete the '— human' rows and run the real Layer-3 acceptance pass before it counts.[/dim]")
+    console.print()
+    logger.info("[doctor] cross-os run record written to %s", written)
+    return 0
+
+
 # --- Main doctor run ---
 
 
@@ -752,6 +955,12 @@ def print_help() -> None:
     console.print("  [green]aipass doctor --verbose[/green] [dim]# Show sub-check detail[/dim]")
     console.print("  [green]aipass doctor --fix[/green]     [dim]# Auto-wire + remediation report[/dim]")
     console.print("  [green]aipass doctor --fix --json[/green][dim]# Remediation as JSON (for spawn)[/dim]")
+    console.print("  [green]aipass doctor --cross-os[/green][dim]# OS-gap + routing/version/hooks pre-flight[/dim]")
+    console.print("  [green]aipass doctor --cross-os --e2e[/green][dim]# …also run the heavy e2e suite[/dim]")
+    console.print(
+        "  [green]aipass doctor --cross-os --record [PATH][/green]"
+        "[dim]# write a machine pre-flight Run Record draft (human completes it)[/dim]"
+    )
     console.print()
     console.print("[yellow]OUTPUT:[/yellow]  [green]✓[/green] pass  [yellow]![/yellow] warn  [red]✗[/red] error")
     console.print("[yellow]EXIT:[/yellow]    0 = pass/warn  |  1 = errors found")
@@ -780,6 +989,21 @@ def handle_command(command: str, args: list[str]) -> bool:
 
     if args and args[0] == "--info":
         print_introspection()
+        return True
+
+    if "--cross-os" in args:
+        e2e = "--e2e" in args
+        if "--record" in args:
+            record_path = _record_path_arg(args)
+            rc = run_cross_os_record(record_path, run_e2e=e2e)
+            json_handler.log_operation("doctor_cross_os_record", {"path": record_path, "e2e": e2e, "rc": rc})
+            if rc != 0:
+                raise SystemExit(1)
+            return True
+        error_count = run_cross_os(run_e2e=e2e)
+        json_handler.log_operation("doctor_cross_os", {"error_count": error_count, "e2e": e2e})
+        if error_count > 0:
+            raise SystemExit(1)
         return True
 
     verbose = "--verbose" in args or "-v" in args

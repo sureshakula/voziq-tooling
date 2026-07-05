@@ -21,12 +21,38 @@ Tests the complete lifecycle of posts, comments, votes, rooms, and feeds.
 Uses a temporary SQLite database for each test class to ensure isolation.
 """
 
-import unittest
+import shutil
 import sqlite3
 import tempfile
+import unittest
 from pathlib import Path
 
 from aipass.commons.apps.handlers.database.db import init_db, close_db
+
+_TEMPLATE_DB = None
+
+
+def _get_template_db():
+    global _TEMPLATE_DB
+    if _TEMPLATE_DB is None:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+        path = Path(tmp.name)
+        tmp.close()
+        conn = init_db(path)
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        close_db(conn)
+        _TEMPLATE_DB = path
+    return _TEMPLATE_DB
+
+
+def _fast_db(db_path):
+    shutil.copy2(str(_get_template_db()), str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = MEMORY")
+    conn.execute("PRAGMA synchronous = OFF")
+    return conn
 
 
 class TestPostLifecycle(unittest.TestCase):
@@ -38,7 +64,7 @@ class TestPostLifecycle(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         self.conn.execute(
             "INSERT OR IGNORE INTO agents (branch_name, display_name) VALUES (?, ?)", ("TEST_AGENT", "Test Agent")
@@ -47,7 +73,7 @@ class TestPostLifecycle(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -140,7 +166,7 @@ class TestCommentSystem(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["TEST_AGENT_1", "TEST_AGENT_2"]:
             self.conn.execute(
@@ -157,7 +183,7 @@ class TestCommentSystem(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -257,7 +283,7 @@ class TestVoteSystem(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["VOTER_1", "VOTER_2", "AUTHOR"]:
             self.conn.execute("INSERT OR IGNORE INTO agents (branch_name, display_name) VALUES (?, ?)", (agent, agent))
@@ -277,7 +303,7 @@ class TestVoteSystem(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -420,7 +446,7 @@ class TestFeedSorting(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         self.conn.execute(
             "INSERT OR IGNORE INTO agents (branch_name, display_name) VALUES (?, ?)", ("TEST_AGENT", "Test Agent")
@@ -445,7 +471,7 @@ class TestFeedSorting(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -481,7 +507,7 @@ class TestRoomManagement(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         self.conn.execute(
             "INSERT OR IGNORE INTO agents (branch_name, display_name) VALUES (?, ?)", ("TEST_AGENT", "Test Agent")
@@ -490,7 +516,7 @@ class TestRoomManagement(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -573,7 +599,7 @@ class TestDatabaseIntegrity(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         self.conn.execute(
             "INSERT OR IGNORE INTO agents (branch_name, display_name) VALUES (?, ?)", ("TEST_AGENT", "Test Agent")
@@ -582,7 +608,7 @@ class TestDatabaseIntegrity(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -672,7 +698,7 @@ class TestNotificationPreferences(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["AGENT_A", "AGENT_B", "AGENT_C"]:
             self.conn.execute(
@@ -697,7 +723,7 @@ class TestNotificationPreferences(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -821,7 +847,7 @@ class TestSocialProfiles(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["PROFILE_A", "PROFILE_B"]:
             self.conn.execute(
@@ -850,7 +876,7 @@ class TestSocialProfiles(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -873,6 +899,7 @@ class TestSocialProfiles(unittest.TestCase):
         self.assertTrue(result)
 
         profile = self.get_profile(self.conn, "PROFILE_A")
+        assert profile is not None
         self.assertEqual(profile["bio"], "I enforce code quality standards")
 
     def test_update_status(self):
@@ -881,6 +908,7 @@ class TestSocialProfiles(unittest.TestCase):
         self.assertTrue(result)
 
         profile = self.get_profile(self.conn, "PROFILE_A")
+        assert profile is not None
         self.assertEqual(profile["status"], "Auditing branches")
 
     def test_update_role(self):
@@ -889,6 +917,7 @@ class TestSocialProfiles(unittest.TestCase):
         self.assertTrue(result)
 
         profile = self.get_profile(self.conn, "PROFILE_A")
+        assert profile is not None
         self.assertEqual(profile["role"], "Standards Authority")
 
     def test_increment_post_count(self):
@@ -897,12 +926,14 @@ class TestSocialProfiles(unittest.TestCase):
         self.conn.commit()
 
         stats = self.get_activity_stats(self.conn, "PROFILE_A")
+        assert stats is not None
         self.assertEqual(stats["post_count"], 1)
 
         self.increment_post_count(self.conn, "PROFILE_A")
         self.conn.commit()
 
         stats = self.get_activity_stats(self.conn, "PROFILE_A")
+        assert stats is not None
         self.assertEqual(stats["post_count"], 2)
 
     def test_increment_comment_count(self):
@@ -911,6 +942,7 @@ class TestSocialProfiles(unittest.TestCase):
         self.conn.commit()
 
         stats = self.get_activity_stats(self.conn, "PROFILE_A")
+        assert stats is not None
         self.assertEqual(stats["comment_count"], 1)
 
         for _ in range(3):
@@ -918,6 +950,7 @@ class TestSocialProfiles(unittest.TestCase):
         self.conn.commit()
 
         stats = self.get_activity_stats(self.conn, "PROFILE_A")
+        assert stats is not None
         self.assertEqual(stats["comment_count"], 4)
 
     def test_get_profile_returns_all_fields(self):
@@ -929,6 +962,7 @@ class TestSocialProfiles(unittest.TestCase):
         profile = self.get_profile(self.conn, "PROFILE_B")
 
         self.assertIsNotNone(profile)
+        assert profile is not None
         expected_keys = [
             "branch_name",
             "display_name",
@@ -963,7 +997,7 @@ class TestWelcomeOnboarding(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["WELCOME_A", "WELCOME_B", "WELCOME_C"]:
             self.conn.execute(
@@ -986,7 +1020,7 @@ class TestWelcomeOnboarding(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -1041,6 +1075,7 @@ class TestWelcomeOnboarding(unittest.TestCase):
         nudge = self.get_onboarding_nudge(self.conn, "WELCOME_A")
 
         self.assertIsNotNone(nudge)
+        assert nudge is not None
         self.assertIn("haven't posted yet", nudge)
         self.assertIn("commons post", nudge)
 
@@ -1060,6 +1095,7 @@ class TestWelcomeOnboarding(unittest.TestCase):
         nudge = self.get_onboarding_nudge(self.conn, "WELCOME_C")
 
         self.assertIsNotNone(nudge)
+        assert nudge is not None
         self.assertIn("commenting but never posted", nudge)
 
     def test_welcome_new_branches(self):
@@ -1087,7 +1123,7 @@ class TestSearchAndLogs(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["SEARCH_A", "SEARCH_B", "SEARCH_C"]:
             self.conn.execute(
@@ -1114,7 +1150,7 @@ class TestSearchAndLogs(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 
@@ -1124,6 +1160,7 @@ class TestSearchAndLogs(unittest.TestCase):
             "INSERT INTO posts (room_name, author, title, content) VALUES (?, ?, ?, ?)", (room, author, title, content)
         )
         post_id = cursor.lastrowid
+        assert post_id is not None
         self.conn.commit()
         self.sync_post_to_fts(self.conn, post_id, title, content, author, room)
         self.conn.commit()
@@ -1136,6 +1173,7 @@ class TestSearchAndLogs(unittest.TestCase):
             (post_id, parent_id, author, content),
         )
         comment_id = cursor.lastrowid
+        assert comment_id is not None
         self.conn.commit()
         self.sync_comment_to_fts(self.conn, comment_id, content, author)
         self.conn.commit()
@@ -1207,6 +1245,7 @@ class TestSearchAndLogs(unittest.TestCase):
             ("general", "SEARCH_A", "Unsynced Post", "This is not yet indexed"),
         )
         post_id = cursor.lastrowid
+        assert post_id is not None
         self.conn.commit()
 
         results = self.search_posts(self.conn, "unsynced")
@@ -1251,7 +1290,7 @@ class TestReactionsAndPins(unittest.TestCase):
         self.db_path = Path(self.temp_db.name)
         self.temp_db.close()
 
-        self.conn = init_db(self.db_path)
+        self.conn = _fast_db(self.db_path)
 
         for agent in ["REACT_A", "REACT_B", "REACT_C", "AUTHOR_X"]:
             self.conn.execute(
@@ -1299,7 +1338,7 @@ class TestReactionsAndPins(unittest.TestCase):
 
     def tearDown(self):
         """Clean up test database."""
-        close_db(self.conn)
+        self.conn.close()
         if self.db_path.exists():
             self.db_path.unlink()
 

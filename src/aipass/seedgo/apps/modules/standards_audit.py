@@ -304,7 +304,8 @@ def handle_command(command: str, args: List[str]) -> bool:
             avg = result.get("average", 0)
             style = "green" if avg >= 90 else "yellow" if avg >= 75 else "red"
             progress.console.print(
-                f"  [dim][{idx}/{total_branches}][/dim] [cyan]{branch_name:<12}[/cyan] [{style}]{avg:>3}%[/{style}] [dim]({branch_elapsed:.1f}s)[/dim]"
+                f"  [dim][{idx}/{total_branches}][/dim] [cyan]{branch_name:<12}[/cyan]"
+                f" [{style}]{avg:>3}%[/{style}] [dim]({branch_elapsed:.1f}s)[/dim]"
             )
             progress.advance(task)
 
@@ -376,6 +377,11 @@ def print_help():
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
     # Handle help flag
     if len(sys.argv) > 1 and sys.argv[1] in ["--help", "-h", "help"]:
         print_help()

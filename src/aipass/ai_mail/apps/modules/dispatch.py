@@ -24,6 +24,13 @@ from aipass.cli.apps.modules import console, error
 from aipass.ai_mail.apps.handlers.json import json_handler
 from aipass.ai_mail.apps.handlers.dispatch.status import load_dispatch_log, check_pid_status, calculate_age
 
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
+
 
 def print_help() -> None:
     """Print help for dispatch commands."""
@@ -379,12 +386,13 @@ def _spawn_watchdog(target: str) -> None:
     if local_bin not in spawn_env.get("PATH", ""):
         spawn_env["PATH"] = local_bin + ":" + spawn_env.get("PATH", "")
 
+    _new_session = sys.platform != "win32"
     try:
         subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,
+            start_new_session=_new_session,
             cwd=str(devpulse_dir),
             env=spawn_env,
         )

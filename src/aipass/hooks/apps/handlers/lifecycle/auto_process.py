@@ -12,11 +12,12 @@
 
 import importlib
 import os
+import tempfile
 from pathlib import Path
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 
-_GUARD_DIR = Path("/tmp")
+_GUARD_DIR = Path(tempfile.gettempdir())
 
 
 def _session_guard_path() -> Path | None:

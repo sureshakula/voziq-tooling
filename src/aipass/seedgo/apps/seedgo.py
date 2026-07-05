@@ -233,7 +233,8 @@ def print_help() -> None:
 
     console.print("[yellow]Test Map:[/yellow]")
     console.print(
-        "  [green]drone @seedgo test_map @flow[/green]                 [dim]# Function test coverage map for branch[/dim]"
+        "  [green]drone @seedgo test_map @flow[/green]"
+        "                 [dim]# Function test coverage map for branch[/dim]"
     )
     console.print()
 
@@ -242,7 +243,8 @@ def print_help() -> None:
 
     # Commands line for drone discovery
     console.print(
-        "[dim]Commands: audit, standards_audit, standards_query, checklist, diagnostics, diagnostics_audit, proof, proof_query, test_map, readme, readme_update, --help[/dim]"
+        "[dim]Commands: audit, standards_audit, standards_query, checklist, diagnostics,"
+        " diagnostics_audit, proof, proof_query, test_map, readme, readme_update, --help[/dim]"
     )
     console.print()
 
@@ -287,4 +289,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     sys.exit(main())

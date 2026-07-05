@@ -3,7 +3,7 @@
 # Description: Tests for aipass init_flow Phase 3
 # Version: 1.0.0
 # Created: 2026-04-16
-# Modified: 2026-04-16
+# Modified: 2026-07-04
 # =============================================
 
 """Tests for aipass init_flow module — Phase 3 (FPLAN-0188)."""
@@ -31,16 +31,14 @@ from aipass.aipass.apps.modules.init_flow import (
     run_init,
     stage_1_welcome,
     stage_2_system_detect,
-    stage_3_doctor,
-    stage_4_user_profile,
-    stage_5_style_questions,
-    stage_6_tool_choice,
-    stage_7_docker_offer,
-    stage_8_first_agent,
-    stage_9_ping_sweep,
-    stage_10_smoke_test,
-    stage_11_handoff,
-    stage_12_done,
+    stage_3_user_profile,
+    stage_4_style_questions,
+    stage_5_tool_choice,
+    stage_6_first_agent,
+    stage_7_ping_sweep,
+    stage_8_smoke_test,
+    stage_9_handoff,
+    stage_10_done,
 )
 
 
@@ -245,9 +243,9 @@ class TestHandleCommand:
         with patch("aipass.aipass.apps.modules.init_flow._preflight_check", return_value=None):
             with patch("aipass.aipass.apps.modules.init_flow._handle_init_scaffold", return_value=0) as mock_scaffold:
                 with pytest.raises(SystemExit) as exc_info:
-                    handle_command("init", ["/tmp/test-proj"])
+                    handle_command("init", ["test-proj"])
         assert exc_info.value.code == 0
-        mock_scaffold.assert_called_once_with(["/tmp/test-proj"])
+        mock_scaffold.assert_called_once_with(["test-proj"])
 
 
 # =============================================================================
@@ -264,20 +262,18 @@ def _bypass_preflight():
 
 class TestRunInit:
     def _patch_all_stages(self):
-        """Context manager that patches all 12 stage functions to no-ops."""
+        """Context manager that patches all 10 stage functions to no-ops."""
         stage_names = [
             "stage_1_welcome",
             "stage_2_system_detect",
-            "stage_3_doctor",
-            "stage_4_user_profile",
-            "stage_5_style_questions",
-            "stage_6_tool_choice",
-            "stage_7_docker_offer",
-            "stage_8_first_agent",
-            "stage_9_ping_sweep",
-            "stage_10_smoke_test",
-            "stage_11_handoff",
-            "stage_12_done",
+            "stage_3_user_profile",
+            "stage_4_style_questions",
+            "stage_5_tool_choice",
+            "stage_6_first_agent",
+            "stage_7_ping_sweep",
+            "stage_8_smoke_test",
+            "stage_9_handoff",
+            "stage_10_done",
         ]
         patches = [patch(f"aipass.aipass.apps.modules.init_flow.{name}", return_value={}) for name in stage_names]
         return patches
@@ -291,7 +287,7 @@ class TestRunInit:
         assert result == 0
 
     def test_non_interactive_runs_all_stages(self, tmp_local_json) -> None:
-        """non_interactive=True with aipass_framework runs all 12 stages."""
+        """non_interactive=True with aipass_framework runs all 10 stages."""
         patches = self._patch_all_stages()
         mocks = []
         ctx = __import__("contextlib").ExitStack()
@@ -327,16 +323,14 @@ class TestRunInit:
             _MOD,
             stage_1_welcome=MagicMock(side_effect=boom_once),
             stage_2_system_detect=MagicMock(return_value={}),
-            stage_3_doctor=MagicMock(return_value={}),
-            stage_4_user_profile=MagicMock(return_value={}),
-            stage_5_style_questions=MagicMock(return_value={}),
-            stage_6_tool_choice=MagicMock(return_value={}),
-            stage_7_docker_offer=MagicMock(return_value={}),
-            stage_8_first_agent=MagicMock(return_value={}),
-            stage_9_ping_sweep=MagicMock(return_value={}),
-            stage_10_smoke_test=MagicMock(return_value={}),
-            stage_11_handoff=MagicMock(return_value={}),
-            stage_12_done=MagicMock(return_value={}),
+            stage_3_user_profile=MagicMock(return_value={}),
+            stage_4_style_questions=MagicMock(return_value={}),
+            stage_5_tool_choice=MagicMock(return_value={}),
+            stage_6_first_agent=MagicMock(return_value={}),
+            stage_7_ping_sweep=MagicMock(return_value={}),
+            stage_8_smoke_test=MagicMock(return_value={}),
+            stage_9_handoff=MagicMock(return_value={}),
+            stage_10_done=MagicMock(return_value={}),
             warning=MagicMock(),
             console=MagicMock(),
         ):
@@ -352,16 +346,14 @@ class TestRunInit:
             _MOD,
             stage_1_welcome=stage_1_mock,
             stage_2_system_detect=MagicMock(return_value={}),
-            stage_3_doctor=MagicMock(return_value={}),
-            stage_4_user_profile=stage_4_mock,
-            stage_5_style_questions=MagicMock(return_value={}),
-            stage_6_tool_choice=MagicMock(return_value={}),
-            stage_7_docker_offer=MagicMock(return_value={}),
-            stage_8_first_agent=MagicMock(return_value={}),
-            stage_9_ping_sweep=MagicMock(return_value={}),
-            stage_10_smoke_test=MagicMock(return_value={}),
-            stage_11_handoff=MagicMock(return_value={}),
-            stage_12_done=MagicMock(return_value={}),
+            stage_3_user_profile=MagicMock(return_value={}),
+            stage_4_style_questions=stage_4_mock,
+            stage_5_tool_choice=MagicMock(return_value={}),
+            stage_6_first_agent=MagicMock(return_value={}),
+            stage_7_ping_sweep=MagicMock(return_value={}),
+            stage_8_smoke_test=MagicMock(return_value={}),
+            stage_9_handoff=MagicMock(return_value={}),
+            stage_10_done=MagicMock(return_value={}),
             warning=MagicMock(),
             console=MagicMock(),
         ):
@@ -402,38 +394,13 @@ class TestStages:
             detect_install_method=MagicMock(return_value="pip"),
             detect_tmux=MagicMock(return_value=True),
             detect_wt=MagicMock(return_value=False),
-            detect_docker=MagicMock(return_value=True),
         ):
             result = stage_2_system_detect(non_interactive=True)
         assert result["os"] == "Linux"
         assert result["python"] == "3.12.0"
         assert result["shell"] == "bash"
-        assert result["has_docker"] is True
 
-    def test_stage_3_doctor_no_errors(self, tmp_local_json) -> None:
-        """stage_3_doctor with 0 errors returns doctor_errors=0."""
-        with patch(f"{_MOD}.console"):
-            with patch("aipass.aipass.apps.modules.doctor.run_doctor", return_value=0):
-                result = stage_3_doctor(non_interactive=True)
-        assert result["doctor_errors"] == 0
-
-    def test_stage_3_doctor_with_errors(self, tmp_local_json) -> None:
-        """stage_3_doctor with errors emits warning but continues."""
-        with patch(f"{_MOD}.console"):
-            with patch(f"{_MOD}.warning"):
-                with patch("aipass.aipass.apps.modules.doctor.run_doctor", return_value=2):
-                    result = stage_3_doctor(non_interactive=True)
-        assert result["doctor_errors"] == 2
-
-    def test_stage_3_doctor_import_failure(self, tmp_local_json) -> None:
-        """stage_3_doctor handles run_doctor exception gracefully."""
-        with patch(f"{_MOD}.console"):
-            with patch(f"{_MOD}.warning"):
-                with patch("aipass.aipass.apps.modules.doctor.run_doctor", side_effect=Exception("fail")):
-                    result = stage_3_doctor(non_interactive=True)
-        assert result["doctor_errors"] == 0
-
-    def test_stage_4_non_interactive_uses_default_name(self, tmp_local_json) -> None:
+    def test_stage_3_non_interactive_uses_default_name(self, tmp_local_json) -> None:
         """non_interactive=True sets name to 'User'."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {
@@ -442,10 +409,10 @@ class TestStages:
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.detect_os", return_value={"os_name": "Linux", "release": "6.0", "machine": "x86"}):
                 with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-                    result = stage_4_user_profile(non_interactive=True)
+                    result = stage_3_user_profile(non_interactive=True)
         assert result["name"] == "User"
 
-    def test_stage_4_name_override(self, tmp_local_json) -> None:
+    def test_stage_3_name_override(self, tmp_local_json) -> None:
         """name_override parameter is used when provided."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {
@@ -454,45 +421,45 @@ class TestStages:
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.detect_os", return_value={"os_name": "Linux", "release": "6.0", "machine": "x86"}):
                 with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-                    result = stage_4_user_profile(non_interactive=True, name_override="Alice")
-        assert result["name"] == "Alice"
+                    result = stage_3_user_profile(non_interactive=True, name_override="user")
+        assert result["name"] == "user"
 
-    def test_stage_5_non_interactive_returns_first_choice(self, tmp_local_json) -> None:
+    def test_stage_4_non_interactive_returns_first_choice(self, tmp_local_json) -> None:
         """non_interactive=True selects first STYLE_CHOICES entry."""
         with patch(f"{_MOD}.console"):
-            result = stage_5_style_questions(non_interactive=True)
+            result = stage_4_style_questions(non_interactive=True)
         assert "style" in result
         assert result["style"] is not None
 
-    def test_stage_5_style_override(self, tmp_local_json) -> None:
+    def test_stage_4_style_override(self, tmp_local_json) -> None:
         """style_override is honoured when it's a valid choice."""
         from aipass.aipass.apps.modules.init_flow import STYLE_CHOICES
 
         override = STYLE_CHOICES[0]
         with patch(f"{_MOD}.console"):
-            result = stage_5_style_questions(non_interactive=True, style_override=override)
+            result = stage_4_style_questions(non_interactive=True, style_override=override)
         assert result["style"] == override
 
-    def test_stage_6_non_interactive_defaults_to_claude(self, tmp_local_json) -> None:
+    def test_stage_5_non_interactive_defaults_to_claude(self, tmp_local_json) -> None:
         """non_interactive=True selects 'claude' as CLI."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {}
         with patch(f"{_MOD}.console"):
             with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-                result = stage_6_tool_choice(non_interactive=True)
+                result = stage_5_tool_choice(non_interactive=True)
         assert result["cli"] == "claude"
         assert result["flag_variant"] == "default"
 
-    def test_stage_6_cli_override(self, tmp_local_json) -> None:
+    def test_stage_5_cli_override(self, tmp_local_json) -> None:
         """cli_override sets the CLI choice."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {}
         with patch(f"{_MOD}.console"):
             with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-                result = stage_6_tool_choice(non_interactive=True, cli_override="codex")
+                result = stage_5_tool_choice(non_interactive=True, cli_override="codex")
         assert result["cli"] == "codex"
 
-    def test_stage_6_claude_present_no_prompt(self, tmp_local_json) -> None:
+    def test_stage_5_claude_present_no_prompt(self, tmp_local_json) -> None:
         """When claude is on PATH, no install prompt is shown."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {}
@@ -500,7 +467,7 @@ class TestStages:
             with patch(f"{_MOD}.shutil.which", return_value="/usr/bin/claude"):
                 with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
                     with patch(f"{_MOD}._handle_missing_claude") as mock_handle:
-                        result = stage_6_tool_choice(non_interactive=True)
+                        result = stage_5_tool_choice(non_interactive=True)
         mock_handle.assert_not_called()
         assert result["cli"] == "claude"
 
@@ -509,14 +476,14 @@ class TestStages:
     @patch(f"{_MOD}._prompt", return_value="Y")
     @patch(f"{_MOD}.shutil.which", return_value=None)
     @patch(f"{_MOD}.console")
-    def test_stage_6_claude_missing_interactive_yes(
+    def test_stage_5_claude_missing_interactive_yes(
         self, _con, _which, _prompt, mock_install, _choose, tmp_local_json
     ) -> None:
         """Missing claude + interactive + yes → installer invoked."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {}
         with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-            result = stage_6_tool_choice(non_interactive=False, cli_override="claude")
+            result = stage_5_tool_choice(non_interactive=False, cli_override="claude")
         mock_install.assert_called_once()
         assert result["cli"] == "claude"
 
@@ -525,14 +492,14 @@ class TestStages:
     @patch(f"{_MOD}._prompt", return_value="n")
     @patch(f"{_MOD}.shutil.which", return_value=None)
     @patch(f"{_MOD}.console")
-    def test_stage_6_claude_missing_interactive_no(
+    def test_stage_5_claude_missing_interactive_no(
         self, _con, _which, _prompt, mock_install, _choose, tmp_local_json
     ) -> None:
         """Missing claude + interactive + no → no install, continues."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {}
         with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-            result = stage_6_tool_choice(non_interactive=False, cli_override="claude")
+            result = stage_5_tool_choice(non_interactive=False, cli_override="claude")
         mock_install.assert_not_called()
         assert result["cli"] == "claude"
 
@@ -540,105 +507,143 @@ class TestStages:
     @patch(f"{_MOD}._install_claude_code")
     @patch(f"{_MOD}.shutil.which", return_value=None)
     @patch(f"{_MOD}.console")
-    def test_stage_6_claude_missing_non_interactive_warns(
+    def test_stage_5_claude_missing_non_interactive_warns(
         self, _con, _which, mock_install, mock_warn, tmp_local_json
     ) -> None:
         """Missing claude + non-interactive → warning, no install."""
         mock_profile_mod = MagicMock()
         mock_profile_mod.get_user_profile.return_value = {}
         with patch.dict("sys.modules", {"aipass.aipass.apps.modules.profile": mock_profile_mod}):
-            result = stage_6_tool_choice(non_interactive=True)
+            result = stage_5_tool_choice(non_interactive=True)
         mock_install.assert_not_called()
         mock_warn.assert_called_once()
         assert result["cli"] == "claude"
 
-    def test_stage_7_skipped_when_no_docker(self, tmp_local_json) -> None:
-        """Docker offer is skipped when has_docker=False."""
-        with patch(f"{_MOD}.console"):
-            result = stage_7_docker_offer(non_interactive=False, has_docker=False)
-        assert result["docker"] == "skipped"
-
-    def test_stage_7_skipped_when_no_docker_flag(self, tmp_local_json) -> None:
-        """Docker offer is skipped when no_docker=True."""
-        with patch(f"{_MOD}.console"):
-            result = stage_7_docker_offer(non_interactive=False, no_docker=True, has_docker=True)
-        assert result["docker"] == "skipped"
-
-    def test_stage_7_skipped_when_non_interactive(self, tmp_local_json) -> None:
-        """Docker offer is skipped in non-interactive mode."""
-        with patch(f"{_MOD}.console"):
-            result = stage_7_docker_offer(non_interactive=True, has_docker=True)
-        assert result["docker"] == "skipped"
-
-    def test_stage_8_non_interactive_creates_my_agent(self, tmp_local_json) -> None:
+    def test_stage_6_non_interactive_creates_my_agent(self, tmp_local_json) -> None:
         """non_interactive=True uses 'my_agent' as default name."""
         mock_proc = MagicMock(returncode=0)
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.subprocess.run", return_value=mock_proc):
                 with patch(f"{_MOD}._resolve_package_dir", return_value=None):
-                    result = stage_8_first_agent(non_interactive=True)
+                    result = stage_6_first_agent(non_interactive=True)
         assert result["agent_name"] == "my_agent"
         assert result["agent_path"] == "src/my_agent"
 
-    def test_stage_8_drone_not_found(self, tmp_local_json) -> None:
+    def test_stage_6_drone_not_found(self, tmp_local_json) -> None:
         """FileNotFoundError from drone is handled gracefully."""
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.warning"):
                 with patch(f"{_MOD}.subprocess.run", side_effect=FileNotFoundError):
-                    result = stage_8_first_agent(non_interactive=True)
+                    result = stage_6_first_agent(non_interactive=True)
         assert "agent_name" in result
 
-    def test_stage_9_ping_sweep_calls_sweep(self, tmp_local_json) -> None:
-        """stage_9_ping_sweep calls sweep_all_branches and returns results."""
+    def test_stage_7_ping_sweep_calls_sweep(self, tmp_local_json) -> None:
+        """stage_7_ping_sweep calls sweep_all_branches and returns results."""
         mock_ps = MagicMock()
         mock_ps.sweep_all_branches.return_value = {"drone": "ack", "prax": "timeout"}
         mock_ps.sweep_summary.return_value = "1 ack / 1 timeout / 0 error"
         with patch(f"{_MOD}.console"):
             with patch.dict("sys.modules", {"aipass.aipass.apps.handlers.ping_sweep": mock_ps}):
-                result = stage_9_ping_sweep(non_interactive=True)
+                result = stage_7_ping_sweep(non_interactive=True)
         assert "ping_results" in result
 
-    def test_stage_10_smoke_test_both_found(self, tmp_local_json) -> None:
+    def test_stage_8_smoke_test_both_found(self, tmp_local_json) -> None:
         """smoke test passes when both drone and aipass are on PATH."""
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.shutil.which", return_value="/usr/bin/drone"):
-                result = stage_10_smoke_test()
+                result = stage_8_smoke_test()
         assert result["drone"] == "/usr/bin/drone"
 
-    def test_stage_10_smoke_test_missing(self, tmp_local_json) -> None:
+    def test_stage_8_smoke_test_missing(self, tmp_local_json) -> None:
         """Warnings emitted when binaries not found."""
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.warning"):
                 with patch(f"{_MOD}.shutil.which", return_value=None):
-                    result = stage_10_smoke_test()
+                    result = stage_8_smoke_test()
         assert result["drone"] is None
         assert result["aipass"] is None
 
-    def test_stage_11_default_variant_no_flag(self, tmp_local_json) -> None:
+    def test_stage_9_default_variant_no_flag(self, tmp_local_json) -> None:
         """Default flag variant does not append --dangerously-skip-permissions."""
         with patch(f"{_MOD}.console"):
-            result = stage_11_handoff(cli_choice="claude", flag_variant="default", non_interactive=True)
+            result = stage_9_handoff(cli_choice="claude", flag_variant="default", non_interactive=True)
         assert "--dangerously-skip-permissions" not in result["handoff_command"]
 
-    def test_stage_11_skip_permissions_variant(self, tmp_local_json) -> None:
+    def test_stage_9_skip_permissions_variant(self, tmp_local_json) -> None:
         """skip-permissions variant appends the flag for claude."""
         with patch(f"{_MOD}.console"):
-            result = stage_11_handoff(cli_choice="claude", flag_variant="skip-permissions", non_interactive=True)
+            result = stage_9_handoff(cli_choice="claude", flag_variant="skip-permissions", non_interactive=True)
         assert "--dangerously-skip-permissions" in result["handoff_command"]
 
-    def test_stage_11_handoff_command_contains_path(self, tmp_local_json) -> None:
+    def test_stage_9_handoff_command_contains_path(self, tmp_local_json) -> None:
         """Handoff command includes the agent path."""
         with patch(f"{_MOD}.console"):
-            result = stage_11_handoff(agent_path="src/mybot", non_interactive=True)
+            result = stage_9_handoff(agent_path="src/mybot", non_interactive=True)
         assert "src/mybot" in result["handoff_command"]
 
-    def test_stage_12_done_returns_empty(self, tmp_local_json) -> None:
-        """stage_12_done returns {} and marks stage 12 complete."""
+    def test_stage_10_done_returns_empty(self, tmp_local_json) -> None:
+        """stage_10_done returns {} and marks stage 10 complete."""
         with patch(f"{_MOD}.console"):
-            result = stage_12_done()
+            result = stage_10_done()
         assert result == {}
         stored = json.loads(tmp_local_json.read_text())
-        assert stored["setup_progress"]["last_completed_stage"] == 12
+        assert stored["setup_progress"]["last_completed_stage"] == 10
+
+
+# =============================================================================
+# TestProviderGaps — provider-manifest surfacing, decoupled from the doctor stage
+# =============================================================================
+
+
+class TestProviderGaps:
+    """Provider gaps reach the init report without running the full doctor."""
+
+    def test_collect_provider_gaps_reports_missing(self) -> None:
+        """Non-pass manifest results are collected; run_doctor is never called."""
+        from aipass.aipass.apps.modules import doctor
+        from aipass.aipass.apps.modules.init_flow import _collect_provider_gaps
+
+        gap = MagicMock(glyph="WARN", label="hooks", detail="wire the hook")
+        passing = MagicMock(glyph=doctor.GLYPH_PASS, label="env", detail="")
+        with patch.object(doctor, "_check_provider_manifest", return_value=[gap, passing]):
+            with patch.object(doctor, "run_doctor") as mock_run:
+                gaps = _collect_provider_gaps()
+        assert gaps == {"hooks": "wire the hook"}
+        mock_run.assert_not_called()
+
+    def test_collect_provider_gaps_swallows_errors(self) -> None:
+        """A failing manifest check degrades to an empty dict, not a crash."""
+        from aipass.aipass.apps.modules import doctor
+        from aipass.aipass.apps.modules.init_flow import _collect_provider_gaps
+
+        with patch.object(doctor, "_check_provider_manifest", side_effect=RuntimeError("boom")):
+            with patch(f"{_MOD}.logger"):
+                gaps = _collect_provider_gaps()
+        assert gaps == {}
+
+    def test_init_report_includes_provider_gaps(self, tmp_path: Path) -> None:
+        """_write_init_report embeds provider gaps + action when the manifest reports them."""
+        from aipass.aipass.apps.modules.init_flow import _write_init_report
+
+        agent_dir = tmp_path / "src" / "bot"
+        agent_dir.mkdir(parents=True)
+        with patch(f"{_MOD}._collect_provider_gaps", return_value={"hooks": "missing"}):
+            _write_init_report(str(agent_dir), {"agent_name": "BOT"})
+        report = json.loads((agent_dir / "dropbox" / "init_report.json").read_text())
+        assert report["provider_gaps"] == {"hooks": "missing"}
+        assert "provider_action" in report
+
+    def test_init_report_omits_provider_gaps_when_clean(self, tmp_path: Path) -> None:
+        """No provider keys are written when the manifest is fully satisfied."""
+        from aipass.aipass.apps.modules.init_flow import _write_init_report
+
+        agent_dir = tmp_path / "src" / "bot"
+        agent_dir.mkdir(parents=True)
+        with patch(f"{_MOD}._collect_provider_gaps", return_value={}):
+            _write_init_report(str(agent_dir), {"agent_name": "BOT"})
+        report = json.loads((agent_dir / "dropbox" / "init_report.json").read_text())
+        assert "provider_gaps" not in report
+        assert "provider_action" not in report
 
 
 # =============================================================================
@@ -735,25 +740,23 @@ class TestTemplateSelector:
 
     @staticmethod
     def _stage_patches():
-        """Return patches for all 12 stage functions as no-ops."""
+        """Return patches for all 10 stage functions as no-ops."""
         stage_names = [
             "stage_1_welcome",
             "stage_2_system_detect",
-            "stage_3_doctor",
-            "stage_4_user_profile",
-            "stage_5_style_questions",
-            "stage_6_tool_choice",
-            "stage_7_docker_offer",
-            "stage_8_first_agent",
-            "stage_9_ping_sweep",
-            "stage_10_smoke_test",
-            "stage_11_handoff",
-            "stage_12_done",
+            "stage_3_user_profile",
+            "stage_4_style_questions",
+            "stage_5_tool_choice",
+            "stage_6_first_agent",
+            "stage_7_ping_sweep",
+            "stage_8_smoke_test",
+            "stage_9_handoff",
+            "stage_10_done",
         ]
         return {name: MagicMock(return_value={}) for name in stage_names}
 
     def test_empty_project_default_skips_scaffold(self, tmp_local_json) -> None:
-        """empty project (default) = no scaffold, stages 8,9,11,12 skipped."""
+        """empty project (default) = no scaffold; framework-only stages 6,7,9,10 skipped."""
         mocks = self._stage_patches()
         with patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks):
             result = run_init(non_interactive=True, template=TEMPLATE_EMPTY)
@@ -761,19 +764,17 @@ class TestTemplateSelector:
         for name in (
             "stage_1_welcome",
             "stage_2_system_detect",
-            "stage_3_doctor",
-            "stage_4_user_profile",
-            "stage_5_style_questions",
-            "stage_6_tool_choice",
-            "stage_7_docker_offer",
-            "stage_10_smoke_test",
+            "stage_3_user_profile",
+            "stage_4_style_questions",
+            "stage_5_tool_choice",
+            "stage_8_smoke_test",
         ):
             assert mocks[name].called, f"{name} should have been called"
-        for name in ("stage_8_first_agent", "stage_9_ping_sweep", "stage_11_handoff", "stage_12_done"):
+        for name in ("stage_6_first_agent", "stage_7_ping_sweep", "stage_9_handoff", "stage_10_done"):
             assert not mocks[name].called, f"{name} should NOT have been called"
 
     def test_aipass_framework_runs_full_scaffold(self, tmp_local_json) -> None:
-        """aipass_framework = full scaffold + all 12 stages."""
+        """aipass_framework = full scaffold + all 10 stages."""
         mocks = self._stage_patches()
         with patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks):
             with patch(
@@ -817,20 +818,20 @@ class TestTemplateSelector:
         with patch(f"{_MOD}._preflight_check", return_value=None):
             with patch(f"{_MOD}._handle_init_scaffold", return_value=0) as mock_scaffold:
                 with pytest.raises(SystemExit):
-                    handle_command("init", ["/tmp/test-proj"])
-        mock_scaffold.assert_called_once_with(["/tmp/test-proj"])
+                    handle_command("init", ["test-proj"])
+        mock_scaffold.assert_called_once_with(["test-proj"])
 
     def test_pip_hints_say_clone(self, tmp_local_json) -> None:
         """in-product hints say clone/setup.sh, not pip."""
         with patch(f"{_MOD}.console"):
             with patch(f"{_MOD}.warning") as mock_warn:
                 with patch(f"{_MOD}.shutil.which", return_value=None):
-                    stage_10_smoke_test()
+                    stage_8_smoke_test()
         for call in mock_warn.call_args_list:
             msg = call[0][0].lower()
             assert "setup.sh" in msg
             assert "pip" not in msg
 
     def test_aipass_specific_stages_constant(self) -> None:
-        """AIPASS_SPECIFIC_STAGES contains exactly {8, 9, 11, 12}."""
-        assert AIPASS_SPECIFIC_STAGES == {8, 9, 11, 12}
+        """AIPASS_SPECIFIC_STAGES contains exactly {6, 7, 9, 10}."""
+        assert AIPASS_SPECIFIC_STAGES == {6, 7, 9, 10}

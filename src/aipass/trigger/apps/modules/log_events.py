@@ -16,6 +16,7 @@ Commands: start, stop, status
 Architecture: Module orchestrates handlers
 """
 
+import os
 import sys
 
 
@@ -29,6 +30,13 @@ from aipass.trigger.apps.handlers.watchers.log_watcher import (
     is_log_watcher_active,
     SYSTEM_LOGS_DIR,
 )
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 
 def print_introspection():

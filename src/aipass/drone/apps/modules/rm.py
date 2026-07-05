@@ -14,6 +14,8 @@ checks and deletion. Provider-agnostic alternative to shell ``rm``.
 
 from __future__ import annotations
 
+import tempfile
+
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 from aipass.drone.apps.handlers.json import json_handler
@@ -107,7 +109,8 @@ def print_help() -> None:
     console.print("  • Symlinks are resolved; refuses if target escapes allowed roots")
     console.print("  • Nonexistent paths produce a clean error")
     console.print()
+    _tmp = tempfile.gettempdir()
     console.print("[bold]Examples:[/bold]")
-    console.print("  [green]drone rm /tmp/scratch_dir[/green]")
+    console.print(f"  [green]drone rm {_tmp}/scratch_dir[/green]")
     console.print("  [green]drone rm build/ dist/[/green]")
-    console.print("  [green]drone rm /tmp/aipass_test_abc123[/green]")
+    console.print(f"  [green]drone rm {_tmp}/aipass_test_abc123[/green]")

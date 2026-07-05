@@ -277,6 +277,21 @@
       "reason": "save_json now raises ValueError on invalid structure (aipass.aipass.shared contract, TDPLAN-0006 P2). Tested via pytest.raises — no False return path to test."
     },
     {
+      "file": "tests/test_cross_os.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_cross_os.py",
+      "standard": "encapsulation",
+      "reason": "Unit tests must import the cross_os handler directly to test the parser/filter in isolation. Entry-point imports would defeat the purpose of unit testing."
+    },
+    {
+      "file": "tests/test_cross_os.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names (test_filter_win32_gets_win_and_all, test_missing_doc_raises) that are self-documenting. Adding docstrings to every test function adds noise without value."
+    },
+    {
       "file": "tests/test_sandbox_check.py",
       "standard": "architecture",
       "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."

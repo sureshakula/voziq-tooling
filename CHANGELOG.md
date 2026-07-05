@@ -13,6 +13,17 @@ PyPI version — not the changelog header.
 
 Post-2.6.1 cycle — **unreleased** (held for a later merge).
 
+### Changed
+
+- **All 17 branches now pass the standards audit at 100% — Windows-compat
+  hardening across the board.** Added `sys.stdout/stderr.reconfigure()` UTF-8
+  guards (getattr form) to every Rich/CLI entry point, and platform-branched
+  POSIX-only subprocess kwargs (`start_new_session` → `CREATE_NEW_PROCESS_GROUP`
+  on win32). The seedgo `windows_compat` checker now credits the getattr guard
+  form (not just direct `.reconfigure()` calls), with a locking regression test.
+  Swept per-branch via dispatch; checker fix by @seedgo. Verified by a full
+  17/17 audit (pyright clean).
+
 ### Fixed
 
 - **Telegram replies no longer overwrite the previous message.** The Stop-hook

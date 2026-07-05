@@ -319,7 +319,15 @@ def _parse_extra_args(arg_list):
 
 
 if __name__ == "__main__":
+    import os
     import sys
+
+    if sys.platform == "win32":
+        os.environ.setdefault("PYTHONUTF8", "1")
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
     args = sys.argv[1:]
     if not args:

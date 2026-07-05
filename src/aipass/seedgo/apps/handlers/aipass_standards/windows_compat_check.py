@@ -167,6 +167,110 @@ def _find_os_kill_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[
     return violations
 
 
+def _find_start_new_session_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[int, str]]:
+    """Flag start_new_session=True (POSIX-only subprocess kwarg)."""
+    violations: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or node.lineno in guarded:
+            continue
+        for kw in node.keywords:
+            if kw.arg == "start_new_session" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                violations.append((node.lineno, "start_new_session=True (POSIX-only)"))
+    return violations
+
+
+_TMP_PREFIX = "/" + "tmp" + "/"
+_TMP_EXACT = "/" + "tmp"
+
+
+def _find_hardcoded_tmp_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[int, str]]:
+    """Flag hardcoded /tmp paths — use tempfile module instead."""
+    violations: list[tuple[int, str]] = []
+    seen_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        val = node.value
+        if node.lineno in guarded or node.lineno in seen_lines:
+            continue
+        if val == _TMP_EXACT or _TMP_PREFIX in val:
+            preview = repr(val) if len(val) <= 40 else repr(val[:37] + "...")
+            violations.append((node.lineno, f"hardcoded {_TMP_EXACT} path: {preview}"))
+            seen_lines.add(node.lineno)
+    return violations
+
+
+_APLAY_CMD = "a" + "play"
+
+
+def _find_aplay_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[int, str]]:
+    """Flag POSIX-only audio commands (no macOS/Windows alternative)."""
+    violations: list[tuple[int, str]] = []
+    seen_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        if node.lineno in guarded or node.lineno in seen_lines:
+            continue
+        if _APLAY_CMD in node.value:
+            violations.append((node.lineno, f"{_APLAY_CMD} command (POSIX-only — needs afplay/winsound alternatives)"))
+            seen_lines.add(node.lineno)
+    return violations
+
+
+def _find_shell_true_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[int, str]]:
+    """Flag shell=True in subprocess calls (behavior differs Windows vs Unix)."""
+    violations: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or node.lineno in guarded:
+            continue
+        for kw in node.keywords:
+            if kw.arg == "shell" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                violations.append((node.lineno, "shell=True (behavior differs Windows vs Unix)"))
+    return violations
+
+
+def _is_main_guard(node: ast.AST) -> int:
+    """Return the line number if node is 'if __name__ == "__main__"', else 0."""
+    if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
+        return 0
+    left = node.test.left
+    if not (isinstance(left, ast.Name) and left.id == "__name__"):
+        return 0
+    if any(isinstance(c, ast.Constant) and c.value == "__main__" for c in node.test.comparators):
+        return node.lineno
+    return 0
+
+
+def _find_cp1252_entry_violations(tree: ast.Module) -> list[tuple[int, str]]:
+    """Flag entry points using Rich console without sys.stdout.reconfigure()."""
+    has_rich_import = False
+    has_reconfigure = False
+    main_line = 0
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            if node.module.startswith("rich") or node.module.startswith("aipass.cli"):
+                has_rich_import = True
+        if not main_line:
+            main_line = _is_main_guard(node)
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "reconfigure":
+                has_reconfigure = True
+            elif (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "getattr"
+                and len(node.args) >= 2
+                and isinstance(node.args[1], ast.Constant)
+                and node.args[1].value == "reconfigure"
+            ):
+                has_reconfigure = True
+
+    if has_rich_import and main_line and not has_reconfigure:
+        return [(main_line, "Rich console entry point without sys.stdout.reconfigure() — cp1252 risk on Windows")]
+    return []
+
+
 def _is_test_file(path: Path) -> bool:
     return "tests" in path.parts or path.name.startswith("test_") or path.name.endswith("_test.py")
 
@@ -359,6 +463,11 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     all_violations.extend(_find_posix_constant_violations(tree, guarded))
     all_violations.extend(_find_posix_call_violations(tree, guarded))
     all_violations.extend(_find_os_kill_violations(tree, guarded))
+    all_violations.extend(_find_start_new_session_violations(tree, guarded))
+    all_violations.extend(_find_hardcoded_tmp_violations(tree, guarded))
+    all_violations.extend(_find_aplay_violations(tree, guarded))
+    all_violations.extend(_find_shell_true_violations(tree, guarded))
+    all_violations.extend(_find_cp1252_entry_violations(tree))
 
     if _is_test_file(path):
         all_violations.extend(_find_test_platform_violations(tree, guarded))

@@ -558,6 +558,11 @@ def format_summary(results: Dict) -> str:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
     # CLI usage: drone @seedgo diagnostics [file_or_directory]
     if len(sys.argv) < 2:
         console.print("[yellow]Usage:[/yellow] drone @seedgo diagnostics <file_or_directory>")

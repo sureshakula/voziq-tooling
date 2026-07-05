@@ -341,3 +341,186 @@ def test_getgid_in_test_fails(tmp_path):
     result = check_module(str(f))
     assert result["passed"] is False
     assert "os.getgid()" in result["checks"][0]["message"]
+
+
+# ===========================================================================
+# start_new_session=True detection (gap #3)
+# ===========================================================================
+
+
+def test_unguarded_start_new_session_fails(tmp_path):
+    f = tmp_path / "daemon.py"
+    f.write_text("import subprocess\nsubprocess.Popen(['cmd'], start_new_session=True)\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "start_new_session" in result["checks"][0]["message"]
+
+
+def test_guarded_start_new_session_passes(tmp_path):
+    f = tmp_path / "daemon.py"
+    f.write_text(
+        "import subprocess, sys\nif sys.platform != 'win32':\n    subprocess.Popen(['cmd'], start_new_session=True)\n"
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+# ===========================================================================
+# Hardcoded /tmp detection (gap #6)
+# ===========================================================================
+
+
+def test_hardcoded_tmp_path_fails(tmp_path):
+    f = tmp_path / "writer.py"
+    f.write_text("from pathlib import Path\nout = Path('/tmp/output.log')\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "/tmp" in result["checks"][0]["message"]
+
+
+def test_tempfile_usage_passes(tmp_path):
+    f = tmp_path / "writer.py"
+    f.write_text("import tempfile\nout = tempfile.gettempdir()\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_guarded_tmp_path_passes(tmp_path):
+    f = tmp_path / "writer.py"
+    f.write_text("import sys\nif sys.platform == 'linux':\n    path = '/tmp/cache'\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+# ===========================================================================
+# aplay-only audio detection (gap #7)
+# ===========================================================================
+
+
+def test_aplay_only_audio_fails(tmp_path):
+    f = tmp_path / "sound.py"
+    f.write_text("import subprocess\nsubprocess.run(['aplay', 'beep.wav'])\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "play" in result["checks"][0]["message"]
+
+
+def test_guarded_aplay_passes(tmp_path):
+    f = tmp_path / "sound.py"
+    f.write_text("import subprocess, sys\nif sys.platform == 'linux':\n    subprocess.run(['aplay', 'beep.wav'])\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+# ===========================================================================
+# shell=True detection (gap #8)
+# ===========================================================================
+
+
+def test_shell_true_fails(tmp_path):
+    f = tmp_path / "runner.py"
+    f.write_text("import subprocess\nsubprocess.run('ls -la', shell=True)\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "shell=True" in result["checks"][0]["message"]
+
+
+def test_guarded_shell_true_passes(tmp_path):
+    f = tmp_path / "runner.py"
+    f.write_text("import subprocess, sys\nif sys.platform != 'win32':\n    subprocess.run('ls -la', shell=True)\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_shell_false_passes(tmp_path):
+    f = tmp_path / "runner.py"
+    f.write_text("import subprocess\nsubprocess.run(['ls', '-la'], shell=False)\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+# ===========================================================================
+# cp1252 / Rich entry point detection (gap #1)
+# ===========================================================================
+
+
+def test_rich_entry_without_reconfigure_fails(tmp_path):
+    f = tmp_path / "app.py"
+    f.write_text(
+        "from aipass.cli import console\n\n"
+        "def main():\n"
+        "    console.print('hello')\n\n"
+        'if __name__ == "__main__":\n'
+        "    main()\n"
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "reconfigure" in result["checks"][0]["message"]
+
+
+def test_rich_entry_with_reconfigure_passes(tmp_path):
+    f = tmp_path / "app.py"
+    f.write_text(
+        "import sys\n"
+        "from aipass.cli import console\n\n"
+        "sys.stdout.reconfigure(encoding='utf-8')\n\n"
+        "def main():\n"
+        "    console.print('hello')\n\n"
+        'if __name__ == "__main__":\n'
+        "    main()\n"
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_rich_entry_with_getattr_reconfigure_passes(tmp_path):
+    f = tmp_path / "app.py"
+    f.write_text(
+        "import sys\n"
+        "from aipass.cli import console\n\n"
+        "for _stream in (sys.stdout, sys.stderr):\n"
+        "    _reconfigure = getattr(_stream, 'reconfigure', None)\n"
+        "    if _reconfigure is not None:\n"
+        "        _reconfigure(encoding='utf-8', errors='replace')\n\n"
+        "def main():\n"
+        "    console.print('hello')\n\n"
+        'if __name__ == "__main__":\n'
+        "    main()\n"
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_rich_non_entry_passes(tmp_path):
+    f = tmp_path / "helper.py"
+    f.write_text("from rich.console import Console\nc = Console()\nc.print('hi')\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
