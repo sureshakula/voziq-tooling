@@ -131,7 +131,9 @@ def _run_setup(home: Path, dry_run: bool) -> bool:
         return False
     console.print("[cyan]Building environment[/cyan] [dim](venv, dependencies, hook wiring)…[/dim]")
     try:
-        proc = subprocess.run(["bash", str(setup)], cwd=str(home), timeout=_SETUP_TIMEOUT)
+        # --no-init: install owns the init handoff (_handoff_to_init) — without it,
+        # setup.sh's own init chain (DPLAN-0234) would scaffold the project twice.
+        proc = subprocess.run(["bash", str(setup), "--no-init"], cwd=str(home), timeout=_SETUP_TIMEOUT)
         if proc.returncode == 0:
             return True
         logger.warning("[install] setup.sh exited %s", proc.returncode)

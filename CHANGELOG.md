@@ -13,6 +13,24 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **`./setup.sh` chains into `aipass init run` — clone-first one-command install
+  (DPLAN-0234 Strand A).** Distribution is git-clone, not pip: the framework
+  changes constantly, so a PyPI snapshot goes stale while a clone is always
+  current HEAD. Now `git clone && cd AIPass && ./setup.sh` takes you from cold
+  clone to a working first project in one command: on interactive terminals,
+  setup ends by launching the guided `aipass init run` in a sibling directory
+  (default `~/aipass-project`, prompt to choose — init refuses to run inside the
+  engine tree). New flags mirror `aipass install`'s handoff rules: `--no-init`
+  skips, `--with-init` forces even headless (init chains `--non-interactive`),
+  `--project <dir>` picks the target. CI and piped shells skip automatically
+  (`CI` env or no tty), so the windows/macos-test workflows that run bare
+  `bash setup.sh` are untouched. `install.py` now calls `setup.sh --no-init`
+  since install owns its own init handoff — no double-scaffold. Proven in
+  clean-room Docker, both runs exit 0: bare headless run skips init with a
+  hint; `--with-init` run chains init to `✓ Project initialized.` with the
+  project dir scaffolded. 39/39 install tests, seedgo 30/30. README Quick
+  Start updated to the one-command flow.
+
 - **`aipass install` — one-command framework bootstrap.** The missing half of
   `pip install aipass`: a single command resolves the install home (default
   `~/AIPass`), git-clones the public repo, runs `setup.sh` (venv, editable

@@ -2,6 +2,13 @@
 #
 # AIPass setup script
 # Creates a venv, installs the package in editable mode, and verifies CLI entry points.
+# On interactive terminals it then chains into `aipass init run` to scaffold a first
+# project (DPLAN-0234: one command does setup + init).
+#
+# Usage: ./setup.sh [--no-init] [--with-init] [--project <dir>]
+#   --no-init        skip the first-project init chain
+#   --with-init      force the init chain even headless (init runs --non-interactive)
+#   --project <dir>  first-project directory (default: ~/aipass-project)
 #
 
 set -euo pipefail
@@ -26,6 +33,27 @@ case "${OSTYPE:-}" in
         fi
         ;;
 esac
+
+# --- Args ---
+# Mirrors the `aipass install` handoff rules: --no-init wins, --with-init forces,
+# default (auto) chains into init on interactive terminals only — CI/headless skip.
+RUN_INIT="auto"
+INIT_PROJECT=""
+PREV_ARG=""
+for arg in "$@"; do
+    if [ "$PREV_ARG" = "--project" ]; then
+        INIT_PROJECT="$arg"
+        PREV_ARG=""
+        continue
+    fi
+    case "$arg" in
+        --no-init)   RUN_INIT="no" ;;
+        --with-init) RUN_INIT="yes" ;;
+        --project=*) INIT_PROJECT="${arg#--project=}" ;;
+        --project)   PREV_ARG="--project" ;;
+        *) echo "WARN: unknown argument '$arg' (ignored)" ;;
+    esac
+done
 
 echo "=== AIPass Setup ==="
 echo "Repo root: $SCRIPT_DIR"
@@ -982,6 +1010,77 @@ if [ "$FAIL" -eq 0 ]; then
     echo "  Claude Code: hooks installed to ~/.claude/settings.json"
     command -v codex &>/dev/null && echo "  Codex CLI:   hooks at .codex/hooks.json + config at ~/.codex/config.toml"
     echo ""
+
+    # --- Chain into first-project init (DPLAN-0234: one command does setup + init) ---
+    # `aipass init` refuses to run inside the engine tree, so it always targets a
+    # sibling directory — never the repo itself. Decision mirrors install.py:
+    # --no-init wins, --with-init forces (headless chains --non-interactive),
+    # default = interactive terminals only (CI and piped shells skip).
+    AIPASS_BIN=""
+    if [ "$IS_WINDOWS" -eq 1 ] && [ -f "$SCRIPT_DIR/.venv/Scripts/aipass.exe" ]; then
+        AIPASS_BIN="$SCRIPT_DIR/.venv/Scripts/aipass.exe"
+    elif [ "$IS_WINDOWS" -eq 1 ] && [ -f "$SCRIPT_DIR/.venv/Scripts/aipass" ]; then
+        AIPASS_BIN="$SCRIPT_DIR/.venv/Scripts/aipass"
+    elif [ -f "$SCRIPT_DIR/.venv/bin/aipass" ]; then
+        AIPASS_BIN="$SCRIPT_DIR/.venv/bin/aipass"
+    elif command -v aipass &>/dev/null; then
+        AIPASS_BIN="$(command -v aipass)"
+    fi
+
+    LAUNCH_INIT=0
+    INIT_HEADLESS=0
+    if [ "$RUN_INIT" = "no" ]; then
+        echo "Skipping first-project init (--no-init). Run 'aipass init run' in a fresh directory when ready."
+    elif [ "$RUN_INIT" = "yes" ]; then
+        LAUNCH_INIT=1
+        if [ ! -t 0 ]; then
+            INIT_HEADLESS=1
+        fi
+    elif [ -t 0 ] && [ -z "${CI:-}" ]; then
+        LAUNCH_INIT=1
+    else
+        echo "Non-interactive shell — skipping first-project init. Run 'aipass init run' in a fresh directory when ready."
+    fi
+
+    if [ "$LAUNCH_INIT" -eq 1 ]; then
+        if [ -z "$AIPASS_BIN" ]; then
+            echo "WARN: aipass binary not found — open a new terminal and run 'aipass init run' in a fresh directory."
+        else
+            DEFAULT_PROJECT_DIR="$HOME/aipass-project"
+            PROJECT_DIR="$INIT_PROJECT"
+            if [ -z "$PROJECT_DIR" ] && [ "$INIT_HEADLESS" -eq 0 ] && [ -t 0 ]; then
+                echo "AIPass projects live in their own directory, never inside the engine repo."
+                read -r -p "Set up your first project now? [Y/n]: " INIT_REPLY
+                case "$INIT_REPLY" in
+                    [nN]*)
+                        PROJECT_DIR="-"
+                        echo "  Skipped. Run 'aipass init run' in a fresh directory when ready."
+                        ;;
+                    *)
+                        read -r -p "  Project directory [$DEFAULT_PROJECT_DIR]: " INIT_INPUT
+                        PROJECT_DIR="${INIT_INPUT:-$DEFAULT_PROJECT_DIR}"
+                        ;;
+                esac
+            elif [ -z "$PROJECT_DIR" ]; then
+                PROJECT_DIR="$DEFAULT_PROJECT_DIR"
+            fi
+
+            if [ "$PROJECT_DIR" != "-" ]; then
+                mkdir -p "$PROJECT_DIR"
+                INIT_CMD=("$AIPASS_BIN" init run)
+                if [ "$INIT_HEADLESS" -eq 1 ]; then
+                    INIT_CMD+=(--non-interactive)
+                fi
+                echo ""
+                echo "Launching guided setup in $PROJECT_DIR ..."
+                if (cd "$PROJECT_DIR" && "${INIT_CMD[@]}"); then
+                    echo "First project initialized at $PROJECT_DIR"
+                else
+                    echo "Init didn't complete — run 'aipass init run' in $PROJECT_DIR when ready."
+                fi
+            fi
+        fi
+    fi
 else
     echo "=== Setup finished with errors ==="
     echo "The venv was created and the package was installed, but one or more"
