@@ -386,15 +386,19 @@ def _spawn_watchdog(target: str) -> None:
     if local_bin not in spawn_env.get("PATH", ""):
         spawn_env["PATH"] = local_bin + ":" + spawn_env.get("PATH", "")
 
-    _new_session = sys.platform != "win32"
+    _detach_kwargs: dict = {}
+    if sys.platform == "win32":
+        _detach_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        _detach_kwargs["start_new_session"] = True
     try:
         subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=_new_session,
             cwd=str(devpulse_dir),
             env=spawn_env,
+            **_detach_kwargs,
         )
         console.print(f"[green]Watchdog armed for {target}[/green]")
     except Exception as e:

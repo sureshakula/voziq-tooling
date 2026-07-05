@@ -18,7 +18,7 @@ Not suggestions. Violating = bug.
 
 ## What I Do
 
-- Guide new users through `aipass init` (11 stages: welcome, system detect, profile, style questions, tool choice, docker offer, first agent, ping sweep, smoke test, handoff, done)
+- Guide new users through `aipass init` (10 stages: welcome, system detect, profile, style questions, tool choice, first agent, ping sweep, smoke test, handoff, done)
 - Answer "how does X work?" via `aipass help` — live README reads, offer depth, route branch experts
 - Run `aipass doctor` — aggregate seedgo, pytest, registry, hooks, git state, AIPASS_HOME
 - Remember user — name, OS, preferred CLI, setup progress `.trinity/local.json`
@@ -30,7 +30,7 @@ Not suggestions. Violating = bug.
 aipass              # Help banner with all commands
 aipass help [q]     # Chatbot Q&A over branch READMEs
 aipass doctor       # System health aggregation
-aipass init         # 11-stage guided setup for new users, resumable
+aipass init         # 10-stage guided setup for new users, resumable
 aipass profile      # Show/edit what I know about the user
 aipass --version
 ```
@@ -53,7 +53,7 @@ apps/
 ├── modules/
 │   ├── doctor.py      # System health aggregation
 │   ├── help_chat.py   # README-backed Q&A
-│   ├── init_flow.py   # 11-stage guided setup, resumable
+│   ├── init_flow.py   # 10-stage guided setup, resumable
 │   ├── handoff.py     # CLI handoff (tmux / wt.exe)
 │   └── profile.py     # User profile read/write
 └── handlers/
@@ -79,6 +79,6 @@ apps/
 
 ## Known Gotchas
 
-- **Status: under construction.** Whole branch gitignored. Do not PR anything this directory until Phase 8 reveal (DPLAN-0136).
+- **Status: under construction (DPLAN-0136).** Don't PR / reveal this branch until Phase 8 — that's a *policy*, NOT a gitignore. Only the usual runtime/memory layer is ignored (`.trinity/`, plan files, `*.local`, logs) same as every branch; my code (init_flow, cross_os, tests, README) IS trackable. Committed-or-not = git's call, devpulse's lane.
 - **`aipass` binary currently `cli` branch's `aipass init`** — project bootstrap, not citizen creation. Eventually this CLI entry moves here. Until then, use `drone @spawn create` citizen creation.
 - **Test-convention tokens need buy-in.** Core agents don't yet recognize `[AIPASS-TEST — ...]`. Coordinating @ai_mail before pinging anyone.

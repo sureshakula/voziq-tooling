@@ -408,14 +408,19 @@ def spawn_agent(
         logger.info(f"Lock acquisition failed for {branch_email}: {lock_msg}")
         return False
 
+    _detach_kwargs: dict = {}
+    if sys.platform == "win32":
+        _detach_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        _detach_kwargs["start_new_session"] = True
     try:
         process = subprocess.Popen(
             monitor_cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=(sys.platform != "win32"),
             cwd=str(branch_path),
             env=spawn_env,
+            **_detach_kwargs,
         )
 
         monitor_pid = process.pid

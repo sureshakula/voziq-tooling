@@ -8,6 +8,7 @@ and sibling branches are protected even inside allowed roots.
 
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -49,13 +50,16 @@ def project_with_branches(project_dir):
 def _patch_roots(project_dir):
     """Patch get_allowed_roots to use deterministic test roots."""
     tmpdir = Path(tempfile.gettempdir()).resolve()
-    slash_tmp = Path("/tmp").resolve()
     roots = [project_dir.resolve()]
     seen = set(roots)
-    for r in (slash_tmp, tmpdir):
-        if r not in seen:
-            seen.add(r)
-            roots.append(r)
+    if sys.platform != "win32":
+        slash_tmp = Path("/tmp").resolve()
+        if slash_tmp not in seen:
+            seen.add(slash_tmp)
+            roots.append(slash_tmp)
+    if tmpdir not in seen:
+        seen.add(tmpdir)
+        roots.append(tmpdir)
     with patch(
         "aipass.drone.apps.handlers.rm_handler.get_allowed_roots",
         return_value=roots,
@@ -76,7 +80,8 @@ class TestGetAllowedRoots:
 
     def test_includes_slash_tmp(self):
         roots = get_allowed_roots()
-        assert Path("/tmp").resolve() in roots
+        if sys.platform != "win32":
+            assert Path("/tmp").resolve() in roots
 
     def test_includes_project_root_when_in_project(self, project_dir, monkeypatch):
         monkeypatch.chdir(project_dir)
@@ -91,17 +96,18 @@ class TestGetAllowedRoots:
 
     def test_tmpdir_and_slash_tmp_both_present_when_different(self, monkeypatch):
         """When $TMPDIR != /tmp, both must appear in roots."""
-        fake_tmpdir = "/tmp/claude-9999"
-        os.makedirs(fake_tmpdir, exist_ok=True)
-        try:
-            monkeypatch.setenv("TMPDIR", fake_tmpdir)
-            tempfile.tempdir = None
-            roots = get_allowed_roots()
-            resolved_roots = {r for r in roots}
-            assert Path("/tmp").resolve() in resolved_roots
-            assert Path(fake_tmpdir).resolve() in resolved_roots
-        finally:
-            tempfile.tempdir = None
+        if sys.platform != "win32":
+            fake_tmpdir = "/tmp/claude-9999"
+            os.makedirs(fake_tmpdir, exist_ok=True)
+            try:
+                monkeypatch.setenv("TMPDIR", fake_tmpdir)
+                tempfile.tempdir = None
+                roots = get_allowed_roots()
+                resolved_roots = {r for r in roots}
+                assert Path("/tmp").resolve() in resolved_roots
+                assert Path(fake_tmpdir).resolve() in resolved_roots
+            finally:
+                tempfile.tempdir = None
 
     def test_roots_are_deduplicated(self):
         roots = get_allowed_roots()
@@ -167,7 +173,7 @@ class TestAllowDeletion:
 
     @pytest.mark.usefixtures("_patch_roots")
     def test_delete_nested_tmp_dir(self):
-        """e.g. /tmp/claude-1000/<x>."""
+        """e.g. tempdir/claude-1000/<x>."""
         parent = Path(tempfile.mkdtemp())
         target = parent / "nested"
         target.mkdir()
@@ -243,16 +249,17 @@ class TestAllowDeletion:
 
     @pytest.mark.usefixtures("_patch_roots")
     def test_slash_tmp_literal_allowed(self):
-        """/tmp/<x> must succeed even if $TMPDIR differs."""
-        target = Path("/tmp") / f"rm_test_{os.getpid()}"
-        target.mkdir(exist_ok=True)
-        try:
-            results = safe_delete([str(target)])
-            assert results[0][1] is True
-            assert not target.exists()
-        finally:
-            if target.exists():
-                shutil.rmtree(target)
+        """Literal POSIX tmp path must succeed even if $TMPDIR differs."""
+        if sys.platform != "win32":
+            target = Path("/tmp") / f"rm_test_{os.getpid()}"
+            target.mkdir(exist_ok=True)
+            try:
+                results = safe_delete([str(target)])
+                assert results[0][1] is True
+                assert not target.exists()
+            finally:
+                if target.exists():
+                    shutil.rmtree(target)
 
     @pytest.mark.usefixtures("_patch_roots")
     def test_tmpdir_env_allowed(self):
@@ -333,7 +340,8 @@ class TestRefuseDeletion:
 
     @pytest.mark.usefixtures("_patch_roots")
     def test_nonexistent_path_clean_error(self):
-        results = safe_delete(["/tmp/this_path_does_not_exist_abc123xyz"])
+        nonexistent = os.path.join(tempfile.gettempdir(), "this_path_does_not_exist_abc123xyz")
+        results = safe_delete([nonexistent])
         assert results[0][1] is False
         assert "does not exist" in results[0][2]
 

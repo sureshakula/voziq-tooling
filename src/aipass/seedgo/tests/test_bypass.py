@@ -202,6 +202,14 @@ def test_get_template_ignore_patterns_returns_copy():
     assert a != get_template_ignore_patterns()
 
 
+def test_template_ignore_excludes_test_scaffold():
+    """test_scaffold.py is in TEMPLATE_IGNORE_PATTERNS so branches don't require it."""
+    from aipass.seedgo.apps.handlers.bypass.ignore_handler import get_template_ignore_patterns
+
+    patterns = get_template_ignore_patterns()
+    assert "test_scaffold.py" in patterns
+
+
 def test_get_deprecated_patterns_returns_dict():
     """get_deprecated_patterns returns a dict of string keys and string values."""
     from aipass.seedgo.apps.handlers.bypass.ignore_handler import get_deprecated_patterns
