@@ -125,9 +125,10 @@ def build_policy(branch_path: str | Path) -> dict:
 
     allow_write.append(str(branch_path))
 
-    allow_write.append("/tmp")
+    system_tmp = tempfile.gettempdir()
+    allow_write.append(system_tmp)
     tmpdir = os.environ.get("TMPDIR")
-    if tmpdir and tmpdir != "/tmp":
+    if tmpdir and tmpdir != system_tmp:
         allow_write.append(tmpdir)
 
     allow_write.extend(

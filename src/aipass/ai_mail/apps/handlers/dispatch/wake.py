@@ -578,14 +578,19 @@ def wake_branch(
 
     if not spawned_via_scope:
         try:
+            _detach_kwargs: dict = {}
+            if sys.platform == "win32":
+                _detach_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+            else:
+                _detach_kwargs["start_new_session"] = True
             process = subprocess.Popen(
                 monitor_cmd,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                start_new_session=True,
                 cwd=str(branch_path),
                 env=spawn_env,
+                **_detach_kwargs,
             )
 
             monitor_pid = process.pid

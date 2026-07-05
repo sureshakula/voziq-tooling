@@ -37,22 +37,22 @@ def calculate_relative_location(target_dir: Path, ecosystem_root: Path) -> str:
 
     Examples:
         >>> calculate_relative_location(
-        ...     Path("/repo/src/aipass/flow"),
-        ...     Path("/repo/src/aipass")
+        ...     Path("repo/src/aipass/flow"),
+        ...     Path("repo/src/aipass")
         ... )
         "flow"
 
         >>> calculate_relative_location(
-        ...     Path("/repo/src/aipass"),
-        ...     Path("/repo/src/aipass")
+        ...     Path("repo/src/aipass"),
+        ...     Path("repo/src/aipass")
         ... )
         "root"
 
         >>> calculate_relative_location(
-        ...     Path("/tmp/somewhere"),
-        ...     Path("/repo/src/aipass")
+        ...     Path("other/somewhere"),
+        ...     Path("repo/src/aipass")
         ... )
-        "/tmp/somewhere"
+        "other/somewhere"
     """
     try:
         relative_location = str(target_dir.relative_to(ecosystem_root))
@@ -67,6 +67,7 @@ def calculate_relative_location(target_dir: Path, ecosystem_root: Path) -> str:
     except ValueError:
         # target_dir is outside ecosystem_root
         logger.warning(
-            f"[calculate_relative_path] Target '{target_dir}' is outside ecosystem root '{ecosystem_root}', using absolute path"
+            f"[calculate_relative_path] Target '{target_dir}' is outside ecosystem root"
+            f" '{ecosystem_root}', using absolute path"
         )
         return str(target_dir)

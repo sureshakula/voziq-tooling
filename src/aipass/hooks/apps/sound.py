@@ -11,6 +11,7 @@
 """Shared sound functions for hook handlers. Checks mute flag before playing."""
 
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -18,9 +19,14 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.cli.apps.modules import err_console
 
 CONSOLE = err_console
-MUTE_FLAG = Path("/tmp/aipass-hooks-muted")
+MUTE_FLAG = Path(tempfile.gettempdir()) / "aipass-hooks-muted"
 PIPER_BIN = Path.home() / ".local" / "share" / "piper" / "piper"
 PIPER_VOICE = Path.home() / ".local" / "share" / "piper-voices" / "en_US-amy-medium.onnx"
+
+if sys.platform == "darwin":
+    _PLAY_CMD: list[str] = ["afplay"]
+else:
+    _PLAY_CMD = ["aplay", "-q"]
 
 
 def print_introspection():
@@ -56,7 +62,7 @@ def speak(text: str) -> None:
 
         if piper_result.returncode == 0 and Path(wav_path).exists():
             subprocess.Popen(
-                ["aplay", "-q", wav_path],
+                _PLAY_CMD + [wav_path],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -67,7 +73,7 @@ def speak(text: str) -> None:
 
 
 def play(sound_path: Path) -> None:
-    """Play a WAV file via aplay. Skips if muted."""
+    """Play a WAV file. Skips if muted."""
     if is_muted():
         return
 
@@ -77,7 +83,7 @@ def play(sound_path: Path) -> None:
 
     try:
         subprocess.Popen(
-            ["aplay", "-q", str(sound_path)],
+            _PLAY_CMD + [str(sound_path)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

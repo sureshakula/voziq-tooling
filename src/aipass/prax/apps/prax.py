@@ -13,6 +13,7 @@ Auto-discovers command modules and routes commands to them.
 Entry point contains no business logic - modules implement functionality.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -20,6 +21,13 @@ from pathlib import Path
 import argparse
 import importlib
 from typing import List, Callable
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 # Prax logger
 from aipass.prax.apps.modules.logger import system_logger as logger

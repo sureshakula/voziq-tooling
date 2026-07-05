@@ -31,6 +31,7 @@ TEMPLATE_IGNORE_PATTERNS = [
     ".gitkeep",  # Git placeholder files - not actual requirements
     "notepad.md",  # Optional scratch file
     ".gitignore",  # Optional - branches inherit from root
+    "test_scaffold.py",  # Scaffold example — branches have their own tests
 ]
 
 # =============================================

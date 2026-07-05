@@ -30,6 +30,7 @@ import json
 import os
 import secrets
 import socket
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -46,7 +47,7 @@ _SECRET_NAME = "broker_secret"
 
 _DENYLIST_DIRS = frozenset((".git", ".trinity", ".aipass", ".codex", ".agents"))
 
-_TMP_BASES = (Path("/tmp"), Path("/var/tmp"))
+_TMP_BASES = (Path(tempfile.gettempdir()),)
 
 
 def _find_project_root() -> Path | None:
@@ -67,7 +68,7 @@ def _default_socket_path() -> Path:
     """Return the default broker socket path under the repo root."""
     root = _find_project_root()
     if root is None:
-        return Path("/tmp") / _SOCKET_NAME
+        return Path(tempfile.gettempdir()) / _SOCKET_NAME
     return root / _DEFAULT_SOCKET_DIR / _SOCKET_NAME
 
 
@@ -75,7 +76,7 @@ def _default_audit_path() -> Path:
     """Return the default audit log path."""
     root = _find_project_root()
     if root is None:
-        return Path("/tmp") / _AUDIT_LOG_NAME
+        return Path(tempfile.gettempdir()) / _AUDIT_LOG_NAME
     return root / _DEFAULT_SOCKET_DIR / _AUDIT_LOG_NAME
 
 
@@ -83,7 +84,7 @@ def _default_secret_path() -> Path:
     """Return the default secret path."""
     root = _find_project_root()
     if root is None:
-        return Path("/tmp") / _SECRET_NAME
+        return Path(tempfile.gettempdir()) / _SECRET_NAME
     return root / _DEFAULT_SOCKET_DIR / _SECRET_NAME
 
 

@@ -16,6 +16,8 @@ All handler dependencies are mocked -- these tests verify orchestration
 logic, not business logic.
 """
 
+import subprocess
+import sys
 from contextlib import ExitStack
 
 import pytest
@@ -1005,7 +1007,11 @@ class TestSpawnWatchdog:
 
         assert len(popen_calls) == 1
         assert popen_calls[0]["cmd"] == ["drone", "@devpulse", "watchdog", "agent", "@flow"]
-        assert popen_calls[0]["start_new_session"] is True
+        if sys.platform == "win32":
+            assert popen_calls[0].get("creationflags") == subprocess.CREATE_NEW_PROCESS_GROUP
+            assert "start_new_session" not in popen_calls[0]
+        else:
+            assert popen_calls[0]["start_new_session"] is True
         assert popen_calls[0]["cwd"] == str(devpulse_dir)
         combined = " ".join(printed)
         assert "Watchdog armed for @flow" in combined

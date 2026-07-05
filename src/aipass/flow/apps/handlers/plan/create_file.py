@@ -27,7 +27,7 @@ def create_plan_file(plan_file: Path, content: str) -> Tuple[bool, str]:
     content to the file using UTF-8 encoding.
 
     Args:
-        plan_file: Full path to plan file (e.g., /path/to/PLAN0001.md)
+        plan_file: Full path to plan file (e.g., Path("plans/PLAN0001.md"))
         content: Formatted template content to write
 
     Returns:
@@ -40,7 +40,7 @@ def create_plan_file(plan_file: Path, content: str) -> Tuple[bool, str]:
 
     Example:
         >>> success, error = create_plan_file(
-        ...     Path("/tmp/PLAN0001.md"),
+        ...     Path("plans/PLAN0001.md"),
         ...     "# PLAN 0001\\n\\nContent here"
         ... )
         >>> if not success:

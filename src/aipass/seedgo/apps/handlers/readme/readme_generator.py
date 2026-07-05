@@ -680,6 +680,11 @@ def update_readme_auto_sections(branch_path: str, dry_run: bool = False) -> dict
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+
     from rich.console import Console as _Console
 
     _cli = _Console()

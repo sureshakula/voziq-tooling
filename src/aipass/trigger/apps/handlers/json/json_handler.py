@@ -6,14 +6,24 @@
 # Modified: 2025-11-21
 # =============================================
 
+"""JSON auto-creating handler for trigger data files."""
+
 import json
 import os
+import sys
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 import inspect
 
 from aipass.trigger.apps.config import atomic_write_json
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 # Infrastructure — redirect to temp dir during tests
 _test_log_dir = os.environ.get("AIPASS_TEST_LOG_DIR")

@@ -1358,6 +1358,55 @@ class TestAdvancePending:
 
         assert not pending_file.exists()
 
+    def test_clears_processing_message_id_after_advance(self, tmp_path):
+        """After advance, processing_message_id is None so next Stop sends new msg, not edit."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text("line1\nline2\n", encoding="utf-8")
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {"chat_id": 1, "bot_token": "tok", "processing_message_id": 42}
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, str(transcript))
+
+        updated = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert updated["processing_message_id"] is None
+
+    def test_second_delivery_sends_new_message_after_advance(self, tmp_path):
+        """Two consecutive deliver->advance cycles: 2nd must send, not edit."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _advance_pending
+
+        transcript = tmp_path / "transcript.jsonl"
+        transcript.write_text("line1\nline2\n", encoding="utf-8")
+
+        pending_file = tmp_path / "pending.json"
+        pending_data = {
+            "chat_id": 1,
+            "bot_token": "tok",
+            "processing_message_id": 42,
+        }
+        pending_file.write_text(json.dumps(pending_data), encoding="utf-8")
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, pending_data, str(transcript))
+
+        after_first = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert after_first["processing_message_id"] is None
+        assert after_first["delivered"] is True
+
+        transcript.write_text("line1\nline2\nline3\nline4\n", encoding="utf-8")
+        after_first["delivered"] = False
+
+        with patch(LOGGER_PATCH):
+            _advance_pending(pending_file, after_first, str(transcript))
+
+        after_second = json.loads(pending_file.read_text(encoding="utf-8"))
+        assert after_second["processing_message_id"] is None
+        assert after_second["transcript_line_after"] == 4
+
 
 # ===========================================================================
 # _write_delivery_log

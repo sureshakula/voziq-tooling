@@ -18,6 +18,7 @@ Usage:
     # Or via systemd: systemctl --user start trigger-log-watcher.service
 """
 
+import os
 import signal
 import sys
 import threading
@@ -31,6 +32,13 @@ from aipass.trigger.apps.modules.log_events import (
     start as start_system_watcher,
     stop as stop_system_watcher,
 )
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 
 def print_introspection():

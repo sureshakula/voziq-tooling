@@ -367,6 +367,16 @@
       "reason": "play() called by handler files (stop_sound.py, announce.py) that are dynamically dispatched via importlib \u2014 static analysis cannot trace the call chain from hooks.json \u2192 engine \u2192 handler \u2192 sound.play()."
     },
     {
+      "file": "apps/sound.py",
+      "standard": "open_encoding",
+      "reason": "NamedTemporaryFile creates binary WAV for Piper TTS \u2014 encoding not applicable to binary audio."
+    },
+    {
+      "file": "apps/sound.py",
+      "standard": "cli_flags",
+      "reason": "Shared utility module imported by handlers \u2014 not a CLI entry point. Has print_introspection() for drone discovery but no handle_command() or user-facing CLI."
+    },
+    {
       "standard": "json_handler",
       "reason": "Hooks branch has no json_handler.py — hook engine uses its own JSONL diagnostic logging and stdlib json for hook protocol I/O. Does not follow the module JSON pattern by design."
     },

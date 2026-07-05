@@ -19,10 +19,18 @@ Auto-discovery architecture:
 """
 
 import importlib
+import os
 import signal
 import sys
 from pathlib import Path
 from typing import List, Any
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 # Fix: When run as a script, Python adds apps/ to sys.path[0] which causes
 # this file (commons.py) to shadow the commons package. Remove it so the
@@ -36,8 +44,8 @@ if hasattr(signal, "SIGPIPE"):
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # Cross-branch imports
-from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, header, error, warning
+from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: E402
+from aipass.cli.apps.modules import console, header, error, warning  # noqa: E402
 
 
 # =============================================================================

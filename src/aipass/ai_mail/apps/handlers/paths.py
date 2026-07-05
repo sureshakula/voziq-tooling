@@ -13,9 +13,18 @@ Provides repo root discovery used across all handler files.
 Consolidated from 8 identical copies per DPLAN-0036 audit.
 """
 
+import os
+import sys
 from pathlib import Path
 
 from aipass.ai_mail.apps.handlers.json import json_handler
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 
 def find_repo_root() -> Path:

@@ -201,6 +201,12 @@ def log_operation(operation: str, data: Dict[str, Any] | None = None, module_nam
 
 
 if __name__ == "__main__":
+    import sys
+
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     from rich.console import Console
     from rich.panel import Panel
 

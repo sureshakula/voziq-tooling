@@ -16,6 +16,7 @@ custom functions have tests and which don't.
 Run: drone @seedgo test_map @branch
 """
 
+import sys
 from typing import List
 
 # =============================================================================
@@ -213,6 +214,10 @@ def print_help() -> None:
 # =============================================================================
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     logger.info("[TEST_MAP] Module loaded directly")
     json_handler.log_operation("module_loaded", {"module": "test_map"})
     print_introspection()

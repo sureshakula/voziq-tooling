@@ -18,6 +18,7 @@ Commands: on, off, status, mute, unmute
 Architecture: Module orchestrates, medic_state handler manages persistence
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +36,13 @@ from aipass.trigger.apps.handlers.medic_state import (
     get_suppression_stats,
     get_rate_limit_stats,
 )
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 SERVICE_NAME = "trigger-log-watcher.service"
 _SERVICE_UNIT_PATH = Path.home() / ".config" / "systemd" / "user" / SERVICE_NAME

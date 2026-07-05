@@ -20,6 +20,12 @@ audible hooks). Copy a **Run Record** (bottom of this file) per machine and fill
 Layers 1–2 are free and run on every push. **This file is layer 3** — the human acceptance pass
 you do when you get hardware (a VM, a borrowed Mac, a new laptop).
 
+> **Machine pre-flight (augments, never replaces layer 3).** `aipass init` now runs a layer-3-lite
+> pre-flight: stage 2 prints OS-relevant heads-ups for tracked gaps before scaffolding. For a fuller
+> machine sweep, `aipass doctor --cross-os` reports the known-gap surface, `--e2e` runs the real
+> layer-2 suite, and `--record [PATH]` emits a machine-filled Run Record. These front-run the obvious
+> breakage — but the human acceptance pass below is still the real layer 3.
+
 ---
 
 ## How to use
@@ -81,7 +87,7 @@ you do when you get hardware (a VM, a borrowed Mac, a new laptop).
 | # | Command | Expected | Watch |
 |---|---------|----------|-------|
 | 3.1 | `aipass init /tmp/demo demo` (Win: a temp path) | creates `DEMO_REGISTRY.json`, `.aipass/`, `.claude/settings.json`, `src/demo/` + prints `✓ Project initialized` | ⚠️ cp1252 banner crash (fixed S190 — verify it stays fixed) |
-| 3.2 | `aipass init run --dry-run` | shows the 12-stage plan, no writes | — |
+| 3.2 | `aipass init run --dry-run` | shows the 11-stage plan, no writes | — |
 | 3.3 | `aipass init run --non-interactive` (in a throwaway dir) | completes all stages headless | ⚠️ symlink/daemon steps |
 | 3.4 | `aipass init run` (interactive, manual) | prompts render + accept input; completes | ⚠️ **interactive PTY** — never machine-tested; pexpect territory |
 | 3.5 | `aipass doctor` | health report renders, exit 0 | — |
@@ -119,7 +125,7 @@ you do when you get hardware (a VM, a borrowed Mac, a new laptop).
 |---|------|----------|-------|
 | 6.1 | Trigger `rm_gate` (attempt a raw `rm -rf` via the agent / fire the bridge) | blocked; `src/aipass/hooks/logs/engine.jsonl` gains a record | — |
 | 6.2 | A hook with sound fires | audible cue plays | ⚠️ **`aplay` is Linux-only** — needs `afplay` (macOS) / `winsound` (Windows) |
-| 6.3 | `drone @hooks hookstatus` | per-project hook config renders | ⚠️ hardcoded `/tmp` paths |
+| 6.3 | `drone @hooks status` | per-project hook config renders | ⚠️ hardcoded `/tmp` paths |
 | 6.4 | `drone @hooks hooksound` (mute/unmute) | toggles without error | — |
 
 ---
@@ -129,7 +135,7 @@ you do when you get hardware (a VM, a borrowed Mac, a new laptop).
 | # | Step | Expected | Watch |
 |---|------|----------|-------|
 | 7.1 | Launch an agent session in a terminal | starts, prompt usable | ⚠️ tmux (Linux/mac) vs Windows terminal multiplexer |
-| 7.2 | `aipass init run` full interactive (if not done in 3.4) | all 12 stages accept input | ⚠️ PTY/pexpect |
+| 7.2 | `aipass init run` full interactive (if not done in 3.4) | all 11 stages accept input | ⚠️ PTY/pexpect |
 | 7.3 | Any prompt-driven flow (`--bypass`/flags where available) | bypassable for headless | — |
 
 ---
@@ -158,7 +164,7 @@ under test.
 | **trigger** | ⬜ | `drone @trigger errors` · `drone @trigger core` | ⚠️ `medic` toggle |
 | **memory** | ⬜ | `drone @memory search "test"` · `drone @memory verify` | ⚠️ `rollover` · `watch` (daemon) |
 | **aipass** † | (n/a) | `aipass --version` · `aipass --help` · `aipass init --help` · `aipass doctor` | ⚠️ `aipass init …` (scaffolds) |
-| **hooks** | ⬜ | `drone @hooks hookstatus` · `drone @hooks engine` | ⚠️ `hooksound` (mute) · `claude` (bridge) |
+| **hooks** | ⬜ | `drone @hooks status` · `drone @hooks engine` | ⚠️ `hooksound` (mute) · `claude` (bridge) |
 | **devpulse** | ⬜ | `drone @devpulse feedback` · `drone @devpulse watchdog --help` | ⚠️ `watchdog agent @<b>` (arms wake) |
 
 ---

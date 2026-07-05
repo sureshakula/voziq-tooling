@@ -766,6 +766,27 @@ class TestScanTemplate:
         assert not any("README.md" in f for f in result["files"])
         assert any("entry.py" in f for f in result["files"])
 
+    def test_scan_template_excludes_test_scaffold(self, tmp_path, monkeypatch):
+        import sys
+
+        _arch = "aipass.seedgo.apps.handlers.aipass_standards.architecture_check"
+        monkeypatch.delitem(sys.modules, _arch, raising=False)
+
+        _ignore = sys.modules["aipass.seedgo.apps.handlers.bypass.ignore_handler"]
+        monkeypatch.setattr(_ignore, "get_template_ignore_patterns", MagicMock(return_value=["test_scaffold.py"]))
+
+        from aipass.seedgo.apps.handlers.aipass_standards.architecture_check import (
+            _scan_template,
+        )
+
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "conftest.py").write_text("# conf\n", encoding="utf-8")
+        (tmp_path / "tests" / "test_scaffold.py").write_text("# scaffold\n", encoding="utf-8")
+
+        result = _scan_template(tmp_path)
+        assert not any("test_scaffold.py" in f for f in result["files"])
+        assert any("conftest.py" in f for f in result["files"])
+
 
 # ===========================================================================
 # 7. architecture_check — check_template_baseline with mocked templates

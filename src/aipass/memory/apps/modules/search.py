@@ -19,9 +19,17 @@ Purpose:
     All domain logic lives in handlers.
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import List
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 from rich.panel import Panel
 from rich import box
@@ -210,7 +218,8 @@ def show_search_results(
     if not filtered_results and total_results == 0:
         warning(
             "No matching memories found",
-            details="Try different search terms, broader query without filters, or check if memories have been rolled over (drone @memory status)",
+            details="Try different search terms, broader query without filters, "
+            "or check if memories have been rolled over (drone @memory status)",
         )
         return True
 

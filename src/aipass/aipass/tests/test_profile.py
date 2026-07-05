@@ -94,9 +94,9 @@ class TestSaveProfile:
     def test_saves_profile_to_disk(self, tmp_local_json) -> None:
         """Profile dict is written to user section of local.json."""
         with patch("aipass.aipass.apps.modules.profile.json_handler"):
-            save_profile({"name": "Alice", "os": "Linux"})
+            save_profile({"name": "user", "os": "Linux"})
         stored = json.loads(tmp_local_json.read_text())
-        assert stored["user"]["name"] == "Alice"
+        assert stored["user"]["name"] == "user"
 
     def test_preserves_other_sections(self, tmp_local_json) -> None:
         """Existing keys outside 'user' are not overwritten."""
@@ -199,12 +199,12 @@ class TestHandleCommand:
             assert handle_command("profile", ["help"]) is True
 
     def test_set_valid_field(self, tmp_local_json) -> None:
-        """'set name Alice' stores value and returns True."""
+        """'set name user' stores value and returns True."""
         with patch("aipass.aipass.apps.modules.profile.json_handler.log_operation"):
-            result = handle_command("profile", ["set", "name", "Alice"])
+            result = handle_command("profile", ["set", "name", "user"])
         assert result is True
         stored = json.loads(tmp_local_json.read_text())
-        assert stored["user"]["name"] == "Alice"
+        assert stored["user"]["name"] == "user"
 
     def test_set_invalid_field_returns_true(self, tmp_local_json) -> None:
         """Setting an unknown field returns True (handled with error msg)."""

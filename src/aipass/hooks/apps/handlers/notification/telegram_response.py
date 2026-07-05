@@ -701,6 +701,7 @@ def _advance_pending(pending_file: Path, pending_data: dict, transcript_path: st
                 line_count += 1
         pending_data["transcript_line_after"] = line_count
         pending_data["delivered"] = True
+        pending_data["processing_message_id"] = None
         pending_file.write_text(json.dumps(pending_data, indent=2), encoding="utf-8")
         logger.info("[HOOKS] telegram: cursor advanced to line %d", line_count)
     except OSError as e:

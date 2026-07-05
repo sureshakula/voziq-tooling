@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -47,8 +48,8 @@ def _find_project_root() -> Path | None:
 def get_allowed_roots() -> list[Path]:
     """Return resolved roots under which deletion is permitted.
 
-    Union of: project root, ``/tmp``, and ``tempfile.gettempdir()`` (which
-    honors ``$TMPDIR``).  Deduplicated by resolved path.
+    Union of: project root, system temp dir, and (on POSIX) the canonical
+    temp path.  Deduplicated by resolved path.
     """
     seen: set[Path] = set()
     roots: list[Path] = []
@@ -58,7 +59,12 @@ def get_allowed_roots() -> list[Path]:
         seen.add(project_root)
         roots.append(project_root)
 
-    for tmp_candidate in (Path("/tmp"), Path(tempfile.gettempdir())):
+    tmp_candidates: list[Path] = []
+    if sys.platform != "win32":
+        tmp_candidates.append(Path("/tmp"))
+    tmp_candidates.append(Path(tempfile.gettempdir()))
+
+    for tmp_candidate in tmp_candidates:
         resolved = tmp_candidate.resolve()
         if resolved not in seen:
             seen.add(resolved)
@@ -129,8 +135,8 @@ def check_containment(path: Path, roots: list[Path]) -> tuple[bool, str]:
     """Check if *path* (already resolved) is a strict child of any allowed root.
 
     Returns ``(allowed, reason)``.  Refuses the root directories themselves.
-    When multiple roots are nested (e.g. /tmp and /tmp/claude-1000), the path
-    must not equal ANY root — checked upfront before containment.
+    When multiple roots are nested (e.g. temp dir and a subdirectory of it),
+    the path must not equal ANY root — checked upfront before containment.
     """
     root_set = frozenset(roots)
     if path in root_set:

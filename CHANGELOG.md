@@ -9,6 +9,68 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-03]
+
+Post-2.6.1 cycle — **unreleased** (held for a later merge).
+
+### Changed
+
+- **All 17 branches now pass the standards audit at 100% — Windows-compat
+  hardening across the board.** Added `sys.stdout/stderr.reconfigure()` UTF-8
+  guards (getattr form) to every Rich/CLI entry point, and platform-branched
+  POSIX-only subprocess kwargs (`start_new_session` → `CREATE_NEW_PROCESS_GROUP`
+  on win32). The seedgo `windows_compat` checker now credits the getattr guard
+  form (not just direct `.reconfigure()` calls), with a locking regression test.
+  Swept per-branch via dispatch; checker fix by @seedgo. Verified by a full
+  17/17 audit (pyright clean).
+
+### Fixed
+
+- **Telegram replies no longer overwrite the previous message.** The Stop-hook
+  out-path (`hooks/.../notification/telegram_response.py`) reused a stale
+  `processing_message_id`: after a successful delivery, `_advance_pending` kept
+  the pending file but never cleared the placeholder id, so any reply that fired
+  without a fresh "Processing…" bubble (remote/mirror input, multi-Stop turns)
+  re-*edited* the same Telegram message instead of posting a new one — every
+  response clobbered the last. Now clears `processing_message_id` after the first
+  delivery, so subsequent Stops fall through to `_send_with_retry` (a new
+  message). Root-caused live on the devpulse bot and proven by the delivery log
+  flipping `edit`→`send`; +2 regression tests in `TestAdvancePending` (114/114).
+  (fixed by @hooks, `f42a98b`, PR #651 — not yet merged)
+
+- **`template` audit checker no longer false-flags documentation *about* templates.**
+  The advisory stale-template checker (`seedgo/.../template_check.py`) matched its
+  marker strings anywhere in a file, so it fired on prose and code that merely
+  *mention* the markers rather than on un-rendered stubs — flagging 5 branches,
+  only 3 of them real. Three root causes, all fixed:
+  (1) it globbed **`.trinity/*.json`**, scanning live memory (`local.json`,
+  `observations.json`) that naturally accumulates marker mentions (seedgo's own
+  note "Detects NEEDS CONFIGURATION", prax's note about `template_pusher` restoring
+  `{{BRANCHNAME}}`); now scans **`passport.json` only**, the sole spawn-templated
+  trinity file.
+  (2) the single-curly `{…}` regex ran on every `.md` and matched inline JSON /
+  f-strings / code paths in READMEs (`{"new": 3}`, `{e}`, `apps/plugins/{name}/`);
+  now runs on the branch **prompt only** (the spawn README template has no
+  single-curly placeholders).
+  (3) the definitive-marker scan matched `{{BRANCH}}` inside markdown inline code —
+  e.g. spawn's README documenting ``Replace `{{BRANCH}}`…``, which is scaffolding
+  docs, not a stub. For `.md` files, fenced + inline code is now stripped once up
+  front before **both** scans (`passport.json` still scans raw). Safe because real
+  stubs carry markers in prose/headings (the `## Status: NEEDS CONFIGURATION`
+  line), never exclusively in code.
+  Verified system-wide: `Template` avg **80% → 94%**, the two pure false positives
+  (seedgo memory, spawn README) cleared to `100%`, only the three genuine
+  unconfigured prompt stubs (cli/drone/prax) still flag. +7 tests (24/24), full
+  suite green. (fixed by @seedgo across 3 dispatched passes, verified by @devpulse)
+
+- **cli / drone / prax branch prompts configured** (were spawn stubs). The three
+  branches the template checker correctly flagged had never had their
+  `.aipass/aipass_local_prompt.md` filled in — they booted with a `NEEDS
+  CONFIGURATION` placeholder and no branch-specific identity. Each branch wrote its
+  own real prompt (identity, key commands, architecture, critical rules,
+  integration points; ~63–67 lines, `PROMPT_STYLE.md` format); all three now score
+  `Template 100%`. (written by @cli/@drone/@prax, dispatched + verified by @devpulse)
+
 ## [2026-07-02]
 
 Released as **2.6.1**. Rolls up the DPLAN-0226 / FPLAN-0289 / TDPLAN-0010 /

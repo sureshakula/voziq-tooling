@@ -27,7 +27,17 @@ Commands:
     status  - Show registry status
 """
 
+# ruff: noqa: E402
 import sys
+import os
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
+
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -156,7 +166,8 @@ def handle_command(command: str, args: List[str]) -> bool:
         if result["healing_performed"]:
             change_count = len(result["added"]) + len(result["updated"]) + len(result["removed"])
             warning(
-                f"Registry scan found {change_count} mismatch(es) — trigger event handlers not wired, no changes applied"
+                f"Registry scan found {change_count} mismatch(es) — "
+                "trigger event handlers not wired, no changes applied"
             )
         else:
             console.print("\n[dim]No changes needed - registry is healthy[/dim]")

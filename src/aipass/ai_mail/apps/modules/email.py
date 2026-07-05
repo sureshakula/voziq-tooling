@@ -19,6 +19,7 @@ Module Pattern:
 - NO business logic in this file
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -41,6 +42,13 @@ from aipass.ai_mail.apps.handlers.email.close_ops import batch_close, batch_clos
 from aipass.ai_mail.apps.handlers.email.inbox_resolve import resolve_inbox_target
 from aipass.ai_mail.apps.handlers.paths import find_repo_root
 from aipass.ai_mail.apps.modules.email_send import handle_send
+
+if sys.platform == "win32":
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for _stream in (sys.stdout, sys.stderr):
+        _reconfigure = getattr(_stream, "reconfigure", None)
+        if _reconfigure is not None:
+            _reconfigure(encoding="utf-8", errors="replace")
 
 _AI_MAIL_DIR = Path(__file__).resolve().parents[2]
 _REPO_ROOT = find_repo_root()

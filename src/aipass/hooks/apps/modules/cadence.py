@@ -17,6 +17,7 @@ advances exactly once per real user turn.
 
 import json
 import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -31,7 +32,7 @@ except ImportError:
 
 CONSOLE = err_console
 
-_GUARD_DIR = Path("/tmp")
+_GUARD_DIR = Path(tempfile.gettempdir())
 _BRANCH_ROOT = Path(__file__).resolve().parent.parent.parent
 _CONFIG_PATH = _BRANCH_ROOT / "hooks_json" / "custom_config" / "cadence_config.json"
 _DEBOUNCE_S = 2.0
