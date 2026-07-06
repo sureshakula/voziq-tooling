@@ -13,6 +13,11 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **HVTrust badge restored in the root README.** hvtracker corrected the
+  methodology v4.1 grade-computation bug (issue #109); the badge shows the
+  right grade again, so the temporary comment-out from earlier today is
+  reverted.
+
 - **Installer no longer destroys a user's custom Claude Code hooks (DPLAN-0234
   Strand C).** setup.sh used to write `settings["hooks"]` wholesale — anyone
   with their own hooks in `~/.claude/settings.json` lost them on install or
