@@ -15,7 +15,7 @@ PRs are welcome after an issue has been discussed. Keep changes focused -- one f
 - Python 3.10+
 - Tests: `pytest` (4,900+ tests across the project)
 - Quality: AIPass uses its own standards system ([seedgo](src/aipass/seedgo/README.md)) for automated audits
-- Run `./setup.sh` to bootstrap the full environment
+- Run `./aipass install --no-init` to bootstrap the full environment (contributors work in the engine repo itself — no first-project scaffold needed)
 
 ## Questions?
 

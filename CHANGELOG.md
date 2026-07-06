@@ -11,6 +11,37 @@ PyPI version — not the changelog header.
 
 ## [2026-07-05]
 
+### Fixed
+
+- **HVTrust badge restored in the root README.** hvtracker corrected the
+  methodology v4.1 grade-computation bug (issue #109); the badge shows the
+  right grade again, so the temporary comment-out from earlier today is
+  reverted.
+
+- **Installer no longer destroys a user's custom Claude Code hooks (DPLAN-0234
+  Strand C).** setup.sh used to write `settings["hooks"]` wholesale — anyone
+  with their own hooks in `~/.claude/settings.json` lost them on install or
+  re-run. Now it merges: every AIPass bridge entry (identified by the
+  `bridges/claude.py` marker) is refreshed, while user-wired hooks and custom
+  events are preserved. Verified against fixtures: custom hooks survive, stale
+  AIPass entries are replaced without duplicates, and the fresh-install output
+  is shape-identical to before (7 events, 6 UserPromptSubmit + 6 PreCompact
+  entries). Found while fire-testing a fresh install's hooks in Docker — all
+  17 wired hook entries pass on a cold Linux clone (real kernel/navmap/branch
+  prompt bytes, git gate blocks, clean no-ops on empty state).
+
+- **Windows fresh installs get a working hook bridge.** setup.sh wrote the
+  Claude bridge command with `.venv/bin/python3` on every OS — but Windows
+  venvs put the interpreter at `.venv/Scripts/python.exe` and have no `bin/`,
+  so hooks on a fresh Windows install pointed at a nonexistent python and
+  would never fire. The bridge string is now OS-aware (bash passes
+  `IS_WINDOWS` into the hook-install step). @hooks assessed the rest of the
+  chain: `$AIPASS_HOME` expansion works on Windows because Claude Code runs
+  hooks via Git Bash (which must exist for setup.sh to have run), and the
+  bridge itself has zero POSIX assumptions — the interpreter path was the
+  only gap. Verified: both OS modes produce the right bridge string, merge
+  marker unchanged, custom-hook preservation intact. (assessed by @hooks)
+
 ### Added
 
 - **`./aipass` — repo-root cold-clone launcher (DPLAN-0234 Strand B).** The
