@@ -102,6 +102,11 @@
       "reason": "Unit tests must import the install module directly to test home resolution, clone, and setup orchestration in isolation. Entry-point imports would defeat the purpose of unit testing."
     },
     {
+      "file": "tests/test_launcher.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
       "file": "tests/test_ping_sweep.py",
       "standard": "architecture",
       "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."

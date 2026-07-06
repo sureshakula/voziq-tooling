@@ -32,10 +32,11 @@ AIPass is a CLI-native scaffold that adds **persistent memory, identity, and coo
 
 ```bash
 git clone https://github.com/AIOSAI/AIPass.git
-cd AIPass && ./setup.sh               # installs everything, then walks you into your first project
+cd AIPass
+./aipass install                      # installs everything, then walks you into your first project
 ```
 
-Setup builds the environment, puts `aipass` + `drone` on your PATH, then chains straight into a guided init that creates your project, your first agent, and opens a terminal where that agent is already running. Say "hi" — it knows who it is. Come back tomorrow — it remembers.
+One command does it all: builds the environment, puts `aipass` + `drone` on your PATH, then chains straight into a guided init that creates your project, your first agent, and opens a terminal where that agent is already running. Say "hi" — it knows who it is. Come back tomorrow — it remembers.
 
 This is the base framework. It gives your agents the infrastructure to persist, communicate, and organize — everything else you build on top.
 
@@ -81,10 +82,11 @@ aipass init agent my-agent            # Full agent: apps, mail, memory, identity
 
 ```bash
 git clone https://github.com/AIOSAI/AIPass.git
-cd AIPass && ./setup.sh               # Creates venv, installs, puts `aipass` + `drone` on your PATH, bootstraps 17 agents
+cd AIPass
+./aipass install                      # Creates venv, installs, puts `aipass` + `drone` on your PATH, bootstraps 17 agents
 ```
 
-On an interactive terminal, setup ends by chaining into `aipass init run` — one command takes you from clone to a working first project. Pass `--no-init` to skip the chain, `--project <dir>` to pick where the project lands (CI and piped shells skip automatically).
+On an interactive terminal, install ends by chaining into `aipass init run` — one command takes you from clone to a working first project. Pass `--no-init` to skip the chain, `--project <dir>` to pick where the project lands (CI and piped shells skip automatically). `./aipass` is a thin repo-root launcher over `setup.sh`; after setup it simply forwards to the installed `aipass` binary.
 
 ### 2. Your own project (if you skipped the chain)
 
