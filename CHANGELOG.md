@@ -25,6 +25,18 @@ PyPI version — not the changelog header.
   17 wired hook entries pass on a cold Linux clone (real kernel/navmap/branch
   prompt bytes, git gate blocks, clean no-ops on empty state).
 
+- **Windows fresh installs get a working hook bridge.** setup.sh wrote the
+  Claude bridge command with `.venv/bin/python3` on every OS — but Windows
+  venvs put the interpreter at `.venv/Scripts/python.exe` and have no `bin/`,
+  so hooks on a fresh Windows install pointed at a nonexistent python and
+  would never fire. The bridge string is now OS-aware (bash passes
+  `IS_WINDOWS` into the hook-install step). @hooks assessed the rest of the
+  chain: `$AIPASS_HOME` expansion works on Windows because Claude Code runs
+  hooks via Git Bash (which must exist for setup.sh to have run), and the
+  bridge itself has zero POSIX assumptions — the interpreter path was the
+  only gap. Verified: both OS modes produce the right bridge string, merge
+  marker unchanged, custom-hook preservation intact. (assessed by @hooks)
+
 ### Added
 
 - **`./aipass` — repo-root cold-clone launcher (DPLAN-0234 Strand B).** The

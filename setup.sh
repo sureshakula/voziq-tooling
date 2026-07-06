@@ -633,7 +633,7 @@ if [ -f "$SCRIPT_DIR/src/aipass/hooks/apps/handlers/bridges/claude.py" ]; then
     echo "Installing Claude Code hooks ..."
     mkdir -p "$HOME/.claude"
 
-    "$PYTHON" - "$SCRIPT_DIR" "$CLAUDE_SETTINGS" << 'PYEOF'
+    "$PYTHON" - "$SCRIPT_DIR" "$CLAUDE_SETTINGS" "$IS_WINDOWS" << 'PYEOF'
 import json
 import os
 import sys
@@ -641,11 +641,16 @@ from pathlib import Path
 
 repo_root = sys.argv[1]
 settings_path = Path(sys.argv[2])
+is_windows = len(sys.argv) > 3 and sys.argv[3] == "1"
 
 # Bridge entry point — all hooks route through the engine via this bridge.
 # Uses $AIPASS_HOME env var (injected into settings.env below) so the
-# settings file stays relocatable.
-bridge = "$AIPASS_HOME/.venv/bin/python3 $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py"
+# settings file stays relocatable. CC on Windows runs hooks via Git Bash
+# (which must exist for setup.sh to have run), so $VAR expansion works —
+# but the venv interpreter lives at Scripts/python.exe there, not bin/python3
+# (@hooks assessment, DPLAN-0234 Strand C).
+venv_python = ".venv/Scripts/python.exe" if is_windows else ".venv/bin/python3"
+bridge = f"$AIPASS_HOME/{venv_python} $AIPASS_HOME/src/aipass/hooks/apps/handlers/bridges/claude.py"
 
 # Load existing settings or start fresh
 if settings_path.exists():
