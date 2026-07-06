@@ -657,7 +657,7 @@ else:
 # UserPromptSubmit: 5 separate entries (EventType:hook_name) to avoid output merging
 # PreToolUse, PostToolUse, SubagentStop, Stop, Notification: single aggregate entries
 # PreCompact: 3 hooks x 2 matchers (manual + auto) = 6 entries
-settings["hooks"] = {
+aipass_hooks = {
     "UserPromptSubmit": [
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:tier0_kernel"}]},
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:navmap"}]},
@@ -692,6 +692,19 @@ settings["hooks"] = {
         {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:auto_process", "timeout": 120}]},
     ],
 }
+
+# Merge, don't replace (DPLAN-0234 Strand C): refresh every AIPass bridge entry
+# (identified by the bridges/claude.py marker) but preserve any hooks the user
+# wired themselves. Re-runs stay idempotent; custom hooks survive reinstall.
+existing_hooks = settings.get("hooks", {})
+merged_hooks = {}
+for event in set(existing_hooks) | set(aipass_hooks):
+    user_entries = [
+        entry for entry in existing_hooks.get(event, [])
+        if "bridges/claude.py" not in json.dumps(entry)
+    ]
+    merged_hooks[event] = aipass_hooks.get(event, []) + user_entries
+settings["hooks"] = merged_hooks
 
 # Inject AIPASS_HOME into env block so dispatched agents find AIPass
 env_block = settings.get("env", {})

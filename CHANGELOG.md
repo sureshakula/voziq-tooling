@@ -11,6 +11,20 @@ PyPI version — not the changelog header.
 
 ## [2026-07-05]
 
+### Fixed
+
+- **Installer no longer destroys a user's custom Claude Code hooks (DPLAN-0234
+  Strand C).** setup.sh used to write `settings["hooks"]` wholesale — anyone
+  with their own hooks in `~/.claude/settings.json` lost them on install or
+  re-run. Now it merges: every AIPass bridge entry (identified by the
+  `bridges/claude.py` marker) is refreshed, while user-wired hooks and custom
+  events are preserved. Verified against fixtures: custom hooks survive, stale
+  AIPass entries are replaced without duplicates, and the fresh-install output
+  is shape-identical to before (7 events, 6 UserPromptSubmit + 6 PreCompact
+  entries). Found while fire-testing a fresh install's hooks in Docker — all
+  17 wired hook entries pass on a cold Linux clone (real kernel/navmap/branch
+  prompt bytes, git gate blocks, clean no-ops on empty state).
+
 ### Added
 
 - **`./aipass` — repo-root cold-clone launcher (DPLAN-0234 Strand B).** The
