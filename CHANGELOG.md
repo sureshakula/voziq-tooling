@@ -9,6 +9,25 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-06]
+
+### Fixed
+
+- **prax log watchdog now covers branch `logs/` dirs — `.jsonl` runaway growth
+  caught.** Rotation was hardcoded to `.log` files, and several branches write
+  `.jsonl` logs via raw `open(path, "a")` appenders that bypass prax entirely —
+  `hooks/logs/engine.jsonl` had grown to 63 MB, `backup/logs/operations.jsonl`
+  to 31 MB, `trigger/logs/medic_suppressed.log` to 7 MB, all unrotated. The
+  log-watchdog safety net also only scanned `system_logs/*.log`. @prax extended
+  it: `scan_branch_log_files()` sweeps every `src/aipass/*/logs/` for `.log` +
+  `.jsonl` (WARN at 1 MB unrotated, CRITICAL at 10 MB),
+  `enforce_branch_log_limits()` truncates flagged files to the last 5000 lines,
+  and `drone @prax log-audit` now reports both system and branch scopes. 11 new
+  tests, full prax suite 947 green. The raw-appender writers themselves still
+  need per-owner caps — routed to @hooks, @backup, @trigger. (built by @prax)
+
+---
+
 ## [2026-07-05]
 
 ### Fixed
