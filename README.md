@@ -232,7 +232,7 @@ AIPass is built and tested with **Claude Code** on Linux/WSL.
 | [Claude Code](https://code.claude.com/docs) | `claude -p "prompt" --permission-mode bypassPermissions` | Fully tested |
 | [Codex](https://github.com/openai/codex) | `codex exec "prompt" --dangerously-bypass-approvals-and-sandbox` | Experimental |
 
-setup.sh auto-detects which CLIs are installed and configures hooks for each.
+The installer (`./aipass install`, powered by setup.sh) auto-detects which CLIs are installed and configures hooks for each — merging with any hooks you've already wired, never overwriting them.
 
 ---
 
