@@ -21,8 +21,10 @@ PyPI version — not the changelog header.
   gets full grounding, then every 5th turn after. Wired end-to-end: handler
   (`session_start.py`), project config (`.aipass/hooks.json` + the
   `project_hooks.json` template for external projects), and `setup.sh` seeds
-  the provider `SessionStart` entry for new installs. (built by @hooks +
-  @devpulse)
+  the provider `SessionStart` entry for new installs. Proven end-to-end from a
+  real fresh-user clone of dev in Docker — 19/19 assertions via the new
+  `tests/docker_dev_verify.sh` (bridge-era; supersedes the stale
+  `docker_clone_test.sh`). (built by @hooks + @devpulse)
 
 ### Fixed
 
