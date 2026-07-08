@@ -252,6 +252,38 @@ class TestMain:
         assert result == 0
         mod.handle_command.assert_called_once_with("doctor", [])
 
+    def test_at_prefix_shows_drone_guidance(self) -> None:
+        """@drone prints guidance pointing to drone, not 'Unknown command'."""
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "@drone"]):
+            with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
+                with patch("builtins.print") as mock_print:
+                    result = main()
+        assert result == 1
+        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        assert "@drone" in printed
+        assert "drone routing target" in printed
+        assert "Unknown command" not in printed
+
+    def test_at_prefix_uses_actual_name(self) -> None:
+        """@memory prints guidance with the actual @name the user typed."""
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "@memory"]):
+            with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
+                with patch("builtins.print") as mock_print:
+                    result = main()
+        assert result == 1
+        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        assert "@memory" in printed
+        assert "drone @memory" in printed
+
+    def test_plain_bad_command_still_unknown(self) -> None:
+        """Non-@ bad command still prints 'Unknown command', not drone guidance."""
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "frobnicate"]):
+            with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
+                with patch("builtins.print") as mock_print:
+                    result = main()
+        assert result == 1
+        mock_print.assert_called_with("Unknown command: frobnicate")
+
     def test_command_with_remaining_args(self) -> None:
         """Remaining args are passed to route_command."""
         mod = MagicMock()

@@ -45,7 +45,7 @@ DEFAULTS = {
     "enabled": True,
     "period": 5,
     "loaders": {
-        "tier0": {"period": 1},
+        "tier0": {"period": 5, "offset": 0},
         "navmap": {"period": 5, "offset": 0},
         "branch": {"offset": 0},
     },

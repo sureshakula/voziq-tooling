@@ -44,7 +44,7 @@ Quick checks beat assumptions: `ls`/`find` for files, `git ls-files`/`grep` for 
 - Update their execution logs, status, decision logs with current state
 - If a plan was completed, note it (but don't close — the user does that)
 
-## 3. Git State
+## 3. Git State (Devpulse only)
 
 - Run `git status` — report uncommitted changes
 - If there's a logical commit waiting, suggest it (don't commit without asking)

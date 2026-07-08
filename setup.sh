@@ -662,6 +662,7 @@ else:
 # UserPromptSubmit: 5 separate entries (EventType:hook_name) to avoid output merging
 # PreToolUse, PostToolUse, SubagentStop, Stop, Notification: single aggregate entries
 # PreCompact: 3 hooks x 2 matchers (manual + auto) = 6 entries
+# SessionStart: cadence reset on startup/clear (handler skips resume itself)
 aipass_hooks = {
     "UserPromptSubmit": [
         {"hooks": [{"type": "command", "command": f"{bridge} UserPromptSubmit:tier0_kernel"}]},
@@ -695,6 +696,9 @@ aipass_hooks = {
         {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:pre_compact_rollover", "timeout": 120}]},
         {"matcher": "manual", "hooks": [{"type": "command", "command": f"{bridge} PreCompact:auto_process", "timeout": 120}]},
         {"matcher": "auto",   "hooks": [{"type": "command", "command": f"{bridge} PreCompact:auto_process", "timeout": 120}]},
+    ],
+    "SessionStart": [
+        {"hooks": [{"type": "command", "command": f"{bridge} SessionStart:cadence_reset", "timeout": 30}]},
     ],
 }
 

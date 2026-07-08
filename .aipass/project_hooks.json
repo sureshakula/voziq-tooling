@@ -92,6 +92,14 @@
     }
   },
 
+  "SessionStart": {
+    "cadence_reset": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.session_start.handle",
+      "matcher": ""
+    }
+  },
+
   "PreCompact": {
     "pre_compact": {
       "enabled": true,

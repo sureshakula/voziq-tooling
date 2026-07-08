@@ -9,6 +9,32 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-07]
+
+### Added
+
+- **Fresh-context grounding: cadence reset on new chat / clear / compact.**
+  Both prompt loaders (tier0 kernel + navmap) now run at period 5, and a new
+  `SessionStart` hook resets the cadence counter on `startup`/`clear` (skips
+  `resume` — restored context already carries grounding; `compact` was already
+  reset via PreCompact). Net effect: the first message of every fresh context
+  gets full grounding, then every 5th turn after. Wired end-to-end: handler
+  (`session_start.py`), project config (`.aipass/hooks.json` + the
+  `project_hooks.json` template for external projects), and `setup.sh` seeds
+  the provider `SessionStart` entry for new installs. (built by @hooks +
+  @devpulse)
+
+### Fixed
+
+- **`aipass` ≠ drone-routed — misroutes now guide instead of crash.** `aipass`
+  is the user's front-door CLI, deliberately not resolvable by drone. But
+  `drone aipass` misdirected, `drone @aipass` crashed with a traceback, and
+  `aipass @drone` dead-ended. All three now print clear guidance (what aipass
+  is, what drone is, how to reach each). Kernel + navmap prompts updated so
+  agents know the exception. (built by @drone + @aipass)
+
+---
+
 ## [2026-07-06]
 
 ### Fixed

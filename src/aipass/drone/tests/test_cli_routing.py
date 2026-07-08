@@ -839,3 +839,67 @@ class TestCliEntryPoint:
         ):
             cli_main()
         assert exc_info.value.code == 0
+
+
+# ===========================================================================
+# aipass intercept — drone aipass / drone @aipass
+# ===========================================================================
+
+
+class TestAipassIntercept:
+    """'aipass' is a user CLI, not a drone-routable branch."""
+
+    def test_bare_aipass_shows_guidance(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """'drone aipass' prints guidance to stderr."""
+        from aipass.drone.apps.drone import main
+
+        with patch("sys.argv", ["drone", "aipass"]):
+            result = main()
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "aipass isn't reachable through drone" in captured.err
+        assert "aipass --help" in captured.err
+
+    def test_at_aipass_shows_guidance(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """'drone @aipass' prints guidance to stderr."""
+        from aipass.drone.apps.drone import main
+
+        with patch("sys.argv", ["drone", "@aipass"]):
+            result = main()
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "aipass isn't reachable through drone" in captured.err
+        assert "drone systems" in captured.err
+
+    def test_bare_aipass_no_traceback(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """No python traceback leaks on 'drone aipass'."""
+        from aipass.drone.apps.drone import main
+
+        with patch("sys.argv", ["drone", "aipass"]):
+            result = main()
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Traceback" not in captured.err
+        assert "ModuleNotFoundError" not in captured.err
+
+    def test_at_aipass_no_at_misdirect(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """No 'use @aipass' misdirect on 'drone @aipass'."""
+        from aipass.drone.apps.drone import main
+
+        with patch("sys.argv", ["drone", "@aipass"]):
+            result = main()
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Use '@aipass'" not in captured.err
+
+    def test_real_branch_still_routes(self) -> None:
+        """Real branches still route normally after aipass intercept."""
+        from aipass.drone.apps.drone import main
+
+        with (
+            patch("sys.argv", ["drone", "@git", "status"]),
+            patch(f"{_DRONE}.is_module", return_value=True),
+            patch(f"{_DRONE}.route_module_command", return_value={"stdout": "ok", "stderr": "", "exit_code": 0}),
+        ):
+            result = main()
+        assert result == 0

@@ -41,7 +41,7 @@ src/aipass/<name>/
 
  - @drone — command router. Resolves `@agent`, routes commands, enforces tier-based access. Also the only git interface (`drone @git`).
  - @devpulse — orchestration hub, the user's primary collaborator. Coordinates the other agents, dispatches work, only agent with git write.
- - @aipass — the user-facing front door and a system-ops collaborator. Onboarding (`aipass init`), `doctor` diagnostics, help chat, handoff; also partners with the user on host-level health (disk, thermal, docker, config). Concierge to other branches: reads, never writes.
+ - @aipass — the user's front-door concierge and its OWN CLI, NOT drone-routed: run `aipass` / `aipass --help` directly, never `drone @aipass` (drone can't resolve it). The human's best friend — onboarding (`aipass init`/`install`), `doctor` health, help chat, and OS/system questions ("why's my wifi dropping", "why's CC hogging CPU", "what is drone", "how do I make a project"). Serves humans, not agents — reads, never writes.
  - @ai_mail — inter-agent email. `dispatch` = send + wake (default for handing work), `email` = no wake, plus inbox/view/reply/close.
  - @flow — plan lifecycle: create, list, close, templates, registry. Plan types in the Plans section — never create plan files by hand.
  - @seedgo — code standards and audits. The standard pack, `audit` and `checklist`, the quality gate before and after building.

@@ -138,5 +138,13 @@
       "matcher": "",
       "timeout": 120
     }
+  },
+
+  "SessionStart": {
+    "cadence_reset": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.lifecycle.session_start.handle",
+      "matcher": ""
+    }
   }
 }

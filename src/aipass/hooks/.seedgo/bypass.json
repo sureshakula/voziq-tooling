@@ -242,6 +242,21 @@
       "reason": "Delegates to @memory's auto_process() via importlib \u2014 no direct JSON file ops needing json_handler."
     },
     {
+      "file": "apps/handlers/lifecycle/session_start.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.session_start.handle' \u2014 not statically imported by design. Wired in SessionStart.cadence_reset."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_start.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in SessionStart.cadence_reset."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_start.py",
+      "standard": "json_structure",
+      "reason": "Delegates to cadence.reset_counter() via importlib \u2014 no direct JSON file ops needing json_handler."
+    },
+    {
       "file": "apps/modules/cadence.py",
       "standard": "dead_code",
       "reason": "Cadence module \u2014 should_fire() called from tier0_kernel.py, navmap.py, and branch_loader.py guard lines; reset_counter() called from compact.py PreCompact handler. Not statically discoverable because callers are themselves dynamically dispatched."
@@ -1068,6 +1083,26 @@
       "file": "tests/test_session_boot.py",
       "standard": "encapsulation",
       "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
     }
   ],
   "notes": {

@@ -106,6 +106,14 @@ def main():
     if route_command(command, remaining, modules):
         return 0
 
+    if command.startswith("@"):
+        print(f"{command} is a drone routing target, not an aipass command.")
+        print("aipass is your front-door CLI; drone is the agent router — two separate tools.")
+        print()
+        print(f"  Reach an agent:   drone {command} ...   ·  drone systems")
+        print("  aipass commands:  aipass --help")
+        return 1
+
     print(f"Unknown command: {command}")
     return 1
 

@@ -332,7 +332,7 @@ class TestConfig:
         with patch(f"{MODULE}._CONFIG_PATH", tmp_path / "nonexistent.json"):
             config = _load_config()
 
-        assert config["loaders"]["tier0"]["period"] == 1
+        assert config["loaders"]["tier0"]["period"] == 5
         assert config["loaders"]["navmap"]["period"] == 5
         assert config["loaders"]["navmap"]["offset"] == 0
 
@@ -709,7 +709,9 @@ class TestPostCompactDeterminism:
     def test_compact_handler_calls_reset_with_hook_data(self):
         from aipass.hooks.apps.handlers.lifecycle.compact import handle
 
-        hook_data = {"cwd": "/tmp/fake", "session_id": "test-123"}
+        import tempfile
+
+        hook_data = {"cwd": tempfile.gettempdir() + "/fake", "session_id": "test-123"}
 
         with (
             patch("importlib.import_module") as mock_import,

@@ -73,7 +73,8 @@ src/aipass/hooks/
 │   │   │   ├── auto_fix.py      #   Post-edit diagnostics (ruff, pyright, py_compile)
 │   │   │   ├── auto_watchdog.py #   Watchdog arming after dispatch
 │   │   │   ├── compact.py       #   Pre-compact memory archival
-│   │   │   └── rollover.py      #   Pre-compact memory rollover
+│   │   │   ├── rollover.py      #   Pre-compact memory rollover
+│   │   │   └── session_start.py #   Cadence reset on new chat / clear (SessionStart)
 │   │   └── notification/        # Sound/alert hooks
 │   │       ├── announce.py      #   Announcement tone on notification
 │   │       ├── email.py         #   Inbox check on prompt
