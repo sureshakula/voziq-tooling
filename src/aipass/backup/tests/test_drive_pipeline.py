@@ -549,13 +549,13 @@ class TestDriveUpload:
         result = mod.upload_single_file(client, missing, "testproj", tmp_path)
         assert result is False
 
-    def test_upload_batch_empty(self) -> None:
+    def test_upload_batch_empty(self, tmp_path: Path) -> None:
         """Empty file list returns success immediately."""
         mod = _fresh_import("aipass.backup.apps.handlers.drive.upload")
         client_mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
 
         client = client_mod.DriveClient()
-        result = mod.upload_batch(client, [], "proj", Path("/tmp"), {})
+        result = mod.upload_batch(client, [], "proj", tmp_path, {})
         assert result["success"] is True
         assert result["uploaded"] == 0
         assert result["failed"] == 0
@@ -603,7 +603,7 @@ class TestDriveUpload:
         mod = _fresh_import("aipass.backup.apps.handlers.drive.upload")
         client_mod = _fresh_import("aipass.backup.apps.handlers.drive.client")
 
-        mod.MEDIA_UPLOAD_AVAILABLE = False
+        mod.MEDIA_UPLOAD_AVAILABLE = False  # type: ignore[attr-defined]
 
         client = client_mod.DriveClient()
         client._drive_service = MagicMock()
@@ -813,6 +813,59 @@ class TestDriveSync:
         assert result["uploaded"] == 3
         mock_upload_mod.upload_batch.assert_called_once()
 
+    def test_run_drive_sync_filters_ignored_files(self, tmp_path: Path) -> None:
+        """Files matching .backupignore are excluded from upload list."""
+        project = tmp_path / "project"
+        project.mkdir()
+        bs = project / ".backup" / "versioned"
+
+        (bs / "src" / "app.py" / "app.py").parent.mkdir(parents=True)
+        (bs / "src" / "app.py" / "app.py").write_text("code", encoding="utf-8")
+        (bs / "node_modules" / "pkg" / "index.js" / "index.js").parent.mkdir(parents=True)
+        (bs / "node_modules" / "pkg" / "index.js" / "index.js").write_text("junk", encoding="utf-8")
+        (bs / "node_modules" / "other" / "lib.js" / "lib.js").parent.mkdir(parents=True)
+        (bs / "node_modules" / "other" / "lib.js" / "lib.js").write_text("junk2", encoding="utf-8")
+
+        ignore_file = project / ".backupignore"
+        ignore_file.write_text("node_modules/\n", encoding="utf-8")
+
+        mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
+        mock_class, mock_inst = self._make_mock_client_class(authenticate_rv=True)
+        mock_client_module = MagicMock()
+        mock_client_module.DriveClient = mock_class
+
+        mock_tracker_mod = MagicMock()
+        mock_tracker_mod.load_tracker.return_value = {}
+        mock_tracker_mod.check_needs_upload.return_value = True
+        mock_tracker_mod.save_tracker = MagicMock()
+
+        mock_upload_mod = MagicMock()
+        mock_upload_mod.upload_batch.return_value = {
+            "success": True,
+            "uploaded": 1,
+            "failed": 0,
+        }
+
+        with (
+            patch.dict(
+                sys.modules,
+                {
+                    "aipass.backup.apps.handlers.drive.client": mock_client_module,
+                    "aipass.backup.apps.handlers.drive.tracker": mock_tracker_mod,
+                    "aipass.backup.apps.handlers.drive.upload": mock_upload_mod,
+                },
+            ),
+            patch.object(mod, "build_versioned_store", return_value=bs),
+        ):
+            result = mod.run_drive_sync(str(project), show_panels=False)
+
+        assert result["total"] == 1
+        uploaded_files = mock_upload_mod.upload_batch.call_args[0][1]
+        names = [f.name for f in uploaded_files]
+        assert "app.py" in names
+        assert "index.js" not in names
+        assert "lib.js" not in names
+
     def test_handle_command_help(self) -> None:
         """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
@@ -838,14 +891,17 @@ class TestDriveCheckModule:
     """Tests for drive_check module."""
 
     def test_handle_command_primary(self) -> None:
+        """Primary command returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_check")
         assert mod.handle_command("drive_check", []) is True
 
     def test_handle_command_help(self) -> None:
+        """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_check")
         assert mod.handle_command("drive_check", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
+        """Wrong command returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_check")
         assert mod.handle_command("wrong", []) is False
 
@@ -879,14 +935,17 @@ class TestDriveStatsModule:
     """Tests for drive_stats module."""
 
     def test_handle_command_primary(self) -> None:
+        """Primary command returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
         assert mod.handle_command("drive_stats", []) is True
 
     def test_handle_command_help(self) -> None:
+        """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
         assert mod.handle_command("drive_stats", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
+        """Wrong command returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
         assert mod.handle_command("wrong", []) is False
 
@@ -913,21 +972,24 @@ class TestDriveClearModule:
     """Tests for drive_clear module."""
 
     def test_handle_command_primary(self) -> None:
+        """Primary command returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
         assert mod.handle_command("drive_clear", []) is True
 
     def test_handle_command_help(self) -> None:
+        """--help returns True."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
         assert mod.handle_command("drive_clear", ["--help"]) is True
 
     def test_handle_command_wrong(self) -> None:
+        """Wrong command returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
         assert mod.handle_command("wrong", []) is False
 
-    def test_run_drive_clear_no_force(self) -> None:
+    def test_run_drive_clear_no_force(self, tmp_path: Path) -> None:
         """Without --force, returns False."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
-        result = mod.run_drive_clear("/tmp/project", force=False)
+        result = mod.run_drive_clear(str(tmp_path / "project"), force=False)
         assert result is False
 
     def test_run_drive_clear_with_force(self, tmp_path: Path) -> None:
@@ -1101,24 +1163,28 @@ class TestCommandRouting:
     """Verify drive commands route by underscore names."""
 
     def test_drive_sync_routes_underscore(self) -> None:
+        """drive_sync accepts underscore, rejects hyphen."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_sync")
         assert mod.PRIMARY_COMMAND == "drive_sync"
         assert mod.handle_command("drive_sync", []) is True
         assert mod.handle_command("drive-sync", []) is False
 
     def test_drive_check_routes_underscore(self) -> None:
+        """drive_check accepts underscore, rejects hyphen."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_check")
         assert mod.PRIMARY_COMMAND == "drive_check"
         assert mod.handle_command("drive_check", []) is True
         assert mod.handle_command("drive-check", []) is False
 
     def test_drive_stats_routes_underscore(self) -> None:
+        """drive_stats accepts underscore, rejects hyphen."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_stats")
         assert mod.PRIMARY_COMMAND == "drive_stats"
         assert mod.handle_command("drive_stats", []) is True
         assert mod.handle_command("drive-stats", []) is False
 
     def test_drive_clear_routes_underscore(self) -> None:
+        """drive_clear accepts underscore, rejects hyphen."""
         mod = _fresh_import("aipass.backup.apps.modules.drive_clear")
         assert mod.PRIMARY_COMMAND == "drive_clear"
         assert mod.handle_command("drive_clear", []) is True

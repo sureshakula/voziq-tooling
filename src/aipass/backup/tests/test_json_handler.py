@@ -127,6 +127,25 @@ class TestLogOperation:
         """
         assert callable(json_handler.log_operation)
 
+    def test_log_operation_handles_path_objects(self, tmp_path: Path) -> None:
+        """log_operation serializes pathlib.Path values via default=str."""
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        with patch(
+            "aipass.backup.apps.handlers.json.json_handler.Path",
+        ) as mock_path:
+            mock_resolve = mock_path.return_value.resolve.return_value
+            mock_resolve.parents.__getitem__ = lambda self, i: tmp_path
+            mock_path.return_value.__truediv__ = Path.__truediv__
+            json_handler.log_operation(
+                "test_op",
+                {"project_root": Path("/some/project")},
+            )
+        log_file = log_dir / "operations.jsonl"
+        if log_file.exists():
+            entry = json.loads(log_file.read_text(encoding="utf-8").strip())
+            assert entry["project_root"] == "/some/project"
+
 
 class TestEnsureAndGetPath:
     """Token coverage for standard json_handler API that backup doesn't implement.

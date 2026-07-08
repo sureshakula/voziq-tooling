@@ -11,6 +11,19 @@ PyPI version — not the changelog header.
 
 ## [2026-07-07]
 
+### Fixed
+
+- **Drive sync now respects `.backupignore` on the sync path.** The ignore spec
+  was applied at backup time only — anything already inside `.backup/versioned/`
+  got uploaded regardless. Real case: Vera-Studio's store carried 37K legacy
+  `node_modules` files (92% of the store), turning a KB-sized sync into a 7-8
+  hour crawl (Drive uploads are per-file API round-trips — latency-bound, not
+  bandwidth-bound; the clean store syncs in ~13 min). `drive_sync` now re-filters
+  store files through the project's `.backupignore` before upload and logs the
+  ignored count. Also fixed: `json_handler.log_operation` crashed on `Path`
+  objects (`PosixPath is not JSON serializable`) — now serializes with
+  `default=str`. 2 new tests, backup suite 247 green. (built by @backup)
+
 ### Added
 
 - **Fresh-context grounding: cadence reset on new chat / clear / compact.**

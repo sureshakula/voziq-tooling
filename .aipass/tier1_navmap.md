@@ -55,7 +55,7 @@ src/aipass/<name>/
  - @skills — capability framework. Discoverable, self-contained skill units any agent can run; consume AIPass services as opt-in imports (e.g. the Telegram skill).
  - @daemon — task scheduler. Cron-triggered firing; each branch owns its `.daemon/schedule.json`, the daemon discovers and fires.
  - @commons — the social space. Where branches post, comment, vote, and gather as a community.
- - @backup — local-first backups. Snapshots + versioning + restore for any directory; optional Google Drive sync (planned). `.backup/` is a shared runtime namespace — @memory rollover and @flow (plan archive) also write there.
+ - @backup — local-first backups. Snapshots + versioning + restore for any directory; optional Google Drive sync (live, per-file mirror — slow on huge file counts, respect `.backupignore`). `.backup/` is a shared runtime namespace — @memory rollover and @flow (plan archive) also write there.
 
 # Daily commands
 

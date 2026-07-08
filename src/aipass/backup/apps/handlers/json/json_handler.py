@@ -29,7 +29,7 @@ def log_operation(operation: str, data: dict) -> None:
     log_file = log_dir / "operations.jsonl"
     try:
         with open(log_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
+            f.write(json.dumps(entry, default=str) + "\n")
     except OSError as e:
         logger.warning(f"Failed to write operation log: {e}")
 
