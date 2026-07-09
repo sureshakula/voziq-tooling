@@ -218,7 +218,13 @@ def handle_command(command, args) -> bool:
     if command != "verify":
         return False
 
-    if args and args[0] in ("--help", "-h", "help"):
+    if not args:
+        print_introspection()
+        results = verify_wiring()
+        _render_results(results)
+        return True
+
+    if args[0] in ("--help", "-h", "help"):
         CONSOLE.print("[bold cyan]wire_verify[/bold cyan] — Provider ↔ project hook wiring checker")
         CONSOLE.print()
         CONSOLE.print("  drone @hooks verify     Cross-check provider settings vs project config")
@@ -228,6 +234,4 @@ def handle_command(command, args) -> bool:
         CONSOLE.print("Exits non-zero on any ERROR finding.")
         return True
 
-    results = verify_wiring()
-    _render_results(results)
-    return True
+    return False
