@@ -132,7 +132,8 @@ class TestHandle:
                 result = presence_gate.handle({"cwd": str(branch_dir)})
         parsed = json.loads(result["stdout"])
         assert "devpulse" in parsed["reason"]
-        assert "attach" in parsed["reason"].lower()
+        assert "kill 5000" in parsed["reason"]
+        assert "one session per branch" in parsed["reason"].lower()
 
     def test_gate_error_allows(self):
         with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):

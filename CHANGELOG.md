@@ -9,6 +9,22 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-09]
+
+### Fixed
+
+- **macOS session lock-out: the boot wrapper can now see tmux sessions on
+  macOS.** `session_boot` decided whether a live Claude session lived inside
+  tmux by walking the process tree through `/proc/<pid>/status` — Linux-only.
+  On macOS (no `/proc`) that walk always failed, so the wrapper concluded every
+  live session was "outside tmux" and refused to attach, locking the user out of
+  their own session in an unbreakable loop. Replaced the `/proc` read with a
+  portable `ps -o ppid=` ancestry walk (Linux + macOS). Also: both the boot
+  warning and the presence-gate block now spell out the exact recovery command
+  (`kill <pid> && claude`, `command claude --resume`) instead of a vague "kill it
+  first", and the wrapper no longer doubles `--permission-mode` when the user
+  passes it explicitly. New/updated tests, hooks suite 791 green. (built by @hooks)
+
 ## [2026-07-07]
 
 ### Fixed
