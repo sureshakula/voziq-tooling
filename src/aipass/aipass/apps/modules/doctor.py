@@ -60,6 +60,7 @@ from aipass.aipass.apps.modules.doctor_fix import (
 )
 from aipass.aipass.apps.modules.doctor_wire import (
     _auto_wire_provider,
+    check_wire_verify,
     prompt_auto_wire,
     reconcile_stale_deny,
 )
@@ -467,6 +468,9 @@ def _check_services(verbose: bool = False) -> List[CheckResult]:
     # hooks + env + permissions — manifest-driven provider check
     manifest_checks = _check_provider_manifest()
     results.extend(manifest_checks)
+
+    # wire_verify guard — catch empty/orphaned/duplicate provider hook entries
+    results.extend(CheckResult(*r) for r in check_wire_verify())
 
     # stale rm deny rules — detect only (fix runs in run_doctor when --fix)
     for tup in reconcile_stale_deny(fix=False):
@@ -900,6 +904,10 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
         if stale_results:
             services = groups.get("Services", [])
             groups["Services"] = [r for r in services if r.label != "rm deny migration"] + stale_results
+
+        wire_recheck = [CheckResult(*r) for r in check_wire_verify()]
+        services = groups.get("Services", [])
+        groups["Services"] = [r for r in services if r.label != "wire verify"] + wire_recheck
 
     pass_count = 0
     warn_count = 0

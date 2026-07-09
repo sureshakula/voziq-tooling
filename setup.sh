@@ -712,7 +712,15 @@ for event in set(existing_hooks) | set(aipass_hooks):
         entry for entry in existing_hooks.get(event, [])
         if "bridges/claude.py" not in json.dumps(entry)
     ]
-    merged_hooks[event] = aipass_hooks.get(event, []) + user_entries
+    merged = aipass_hooks.get(event, []) + user_entries
+    # Never emit an empty hook event. If this event had only stale AIPass bridge
+    # entries (no current aipass_hooks definition AND no user-wired hooks), the
+    # filter above orphans it to [] — a half-wired event that fires nothing,
+    # written silently. Drop the key instead and say so, so the state stays honest.
+    if not merged:
+        print(f"  ! dropped orphaned hook event (no live entries): {event}")
+        continue
+    merged_hooks[event] = merged
 settings["hooks"] = merged_hooks
 
 # Inject AIPASS_HOME into env block so dispatched agents find AIPass

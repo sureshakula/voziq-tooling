@@ -774,3 +774,56 @@ class TestReconcileStaleDeny:
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
+
+
+class TestCheckWireVerify:
+    """Tests for check_wire_verify() — hooks wire_verify guard."""
+
+    def test_pass_on_zero_exit(self) -> None:
+        """Exit 0 from drone @hooks verify produces a PASS row."""
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        fake = MagicMock(returncode=0, stdout="✓ Wire check passed\n\n0 errors, 0 warnings\n")
+        with patch("aipass.aipass.apps.modules.doctor_wire.subprocess.run", return_value=fake):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].label == "wire verify"
+        assert results[0].glyph == "[green]✓[/green]"
+
+    def test_fail_on_nonzero_exit(self) -> None:
+        """Non-zero exit from drone @hooks verify produces a FAIL row."""
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        fake = MagicMock(returncode=1, stdout="ERROR empty array\n2 errors, 0 warnings\n")
+        with patch("aipass.aipass.apps.modules.doctor_wire.subprocess.run", return_value=fake):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].glyph == "[red]✗[/red]"
+        assert "errors" in results[0].detail
+
+    def test_warn_on_drone_not_found(self) -> None:
+        """FileNotFoundError (drone missing) produces a WARN row."""
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor_wire.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].glyph == "[yellow]![/yellow]"
+
+    def test_warn_on_timeout(self) -> None:
+        """TimeoutExpired produces a WARN row."""
+        import subprocess as sp
+
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor_wire.subprocess.run",
+            side_effect=sp.TimeoutExpired(cmd="drone", timeout=10),
+        ):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].glyph == "[yellow]![/yellow]"
+        assert "timed out" in results[0].detail

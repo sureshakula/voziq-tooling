@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, NamedTuple
 
 from aipass.cli.apps.modules import console
 from aipass.prax import logger
@@ -304,3 +305,51 @@ def handle_command(command: str, args: list[str]) -> bool:
 
     json_handler.log_operation("doctor_wire_noop", {"command": command})
     return False
+
+
+# =============================================================================
+# WIRE VERIFY GUARD (doctor check row)
+# =============================================================================
+
+
+class WireCheckResult(NamedTuple):
+    """Single doctor check result (mirrors doctor.CheckResult without importing it)."""
+
+    label: str
+    glyph: str
+    detail: str
+    remediation: str
+
+
+_GLYPH_PASS = "[green]✓[/green]"
+_GLYPH_FAIL = "[red]✗[/red]"
+_GLYPH_WARN = "[yellow]![/yellow]"
+
+
+def check_wire_verify() -> list[WireCheckResult]:
+    """Run the hooks wire_verify guard — catch empty/orphaned/duplicate provider entries."""
+    try:
+        proc = subprocess.run(
+            ["drone", "@hooks", "verify"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode == 0:
+            return [WireCheckResult("wire verify", _GLYPH_PASS, "provider hooks wired correctly", "")]
+        lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+        detail = lines[-1] if lines else "errors detected"
+        return [
+            WireCheckResult(
+                "wire verify",
+                _GLYPH_FAIL,
+                detail,
+                "Run 'aipass doctor --fix' to re-wire, then re-run doctor to confirm",
+            )
+        ]
+    except FileNotFoundError as exc:
+        logger.warning("[doctor] drone not found for wire_verify: %s", exc)
+        return [WireCheckResult("wire verify", _GLYPH_WARN, "drone not found", "")]
+    except subprocess.TimeoutExpired as exc:
+        logger.warning("[doctor] wire_verify timed out: %s", exc)
+        return [WireCheckResult("wire verify", _GLYPH_WARN, "timed out", "")]
