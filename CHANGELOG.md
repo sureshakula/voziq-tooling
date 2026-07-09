@@ -24,6 +24,12 @@ PyPI version — not the changelog header.
   (`kill <pid> && claude`, `command claude --resume`) instead of a vague "kill it
   first", and the wrapper no longer doubles `--permission-mode` when the user
   passes it explicitly. New/updated tests, hooks suite 791 green. (built by @hooks)
+- **Boot-shim installer no longer bakes a hardcoded user path.**
+  `install_boot_shim.sh` hardcoded `/home/patrick/Projects/AIPass/.venv/bin/python`
+  into the `claude()` shell function — wrong on any other machine or user. It now
+  resolves the venv interpreter from the script's own location (POSIX
+  `.venv/bin/python`, Windows/git-bash `.venv/Scripts/python.exe`, else PATH
+  `python3`) and bakes the correct one at install time.
 
 ## [2026-07-07]
 
