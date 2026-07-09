@@ -30,6 +30,33 @@ PyPI version — not the changelog header.
   resolves the venv interpreter from the script's own location (POSIX
   `.venv/bin/python`, Windows/git-bash `.venv/Scripts/python.exe`, else PATH
   `python3`) and bakes the correct one at install time.
+- **Silent hook-wiring break: provider settings could be left half-wired with no
+  warning.** A stale `setup.sh` merge orphaned the `SessionStart` hook event to an
+  empty `[]` — the key existed but nothing fired — written silently, and it went
+  unnoticed for weeks because CI skips the provider-settings snapshot test (it
+  needs `~/.claude/settings.json`, absent in CI). Root cause: the merge stripped
+  every AIPass bridge entry per event, then re-added only events still present in
+  its own hook list, orphaning any event it no longer defined. The merge now drops
+  such an event entirely (and says so) instead of emitting an empty array. Also
+  corrected the stale snapshot fixture (dropped the dormant `presence_gate`, which
+  by design ships wired only in project config, and added
+  `SessionStart:cadence_reset`) and marked `presence_gate` `provider_wired: false`
+  so the wiring checker knows it is intentionally not provider-wired.
+- **`json_handler.load_json` crashed on an empty/whitespace file (#667).** Under
+  concurrent audit + tests a writer could truncate a JSON file in the window
+  between `ensure_json_exists` and `load_json`'s own read, raising
+  `JSONDecodeError`. `load_json` now guards an empty/whitespace read and falls back
+  to the type's default template; a non-empty but malformed file still raises (fail
+  honestly). 3 new tests, red-green proven.
+
+### Added
+
+- **`drone @hooks verify` — hook-wiring integrity checker.** Cross-checks
+  `~/.claude/settings.json` against `.aipass/hooks.json` and fails loud on empty
+  provider hook arrays, orphaned entries, enabled handlers with no provider bridge,
+  and duplicate (matcher-aware) entries — so a half-wired hook can never rot
+  silently again. `aipass doctor` now runs this check under Services and re-verifies
+  after `--fix`. 40+ new tests. (built by @hooks + @aipass)
 
 ## [2026-07-07]
 
