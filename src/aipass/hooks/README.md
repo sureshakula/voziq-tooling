@@ -26,6 +26,7 @@ Every hook event flows through one engine. Platform bridges normalize the event 
 | `drone @hooks hooksound off` | Mute all hook sounds |
 | `drone @hooks hooksound on` | Unmute all hook sounds |
 | `drone @hooks cadence` | Show prompt injection cadence config and state |
+| `drone @hooks verify` | Cross-check provider settings vs project hook config |
 | `drone @hooks --help` | Full help reference |
 | `drone @hooks --version` | Version info |
 
@@ -54,7 +55,8 @@ src/aipass/hooks/
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   ├── hookstatus.py        # Config viewer (drone @hooks status)
 │   │   ├── presence.py          # Branch presence — claim/release/refresh for .ai_central/PRESENCE.central.json
-│   │   └── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
+│   │   ├── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
+│   │   └── wire_verify.py       # Wire verification — provider ↔ project hook wiring checker
 │   ├── handlers/
 │   │   ├── bridges/             # One per provider (thin normalization)
 │   │   │   └── claude.py        # Claude Code bridge
@@ -86,7 +88,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 705 tests across 25 test files
+└── tests/                       # 825 tests across 27 test files
 ```
 
 ## How It Works

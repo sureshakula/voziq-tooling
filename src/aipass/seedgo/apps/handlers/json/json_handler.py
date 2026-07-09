@@ -125,14 +125,27 @@ def ensure_json_exists(module_name: str, json_type: str) -> bool:
 
 
 def load_json(module_name: str, json_type: str) -> Optional[Any]:
-    """Load JSON file, auto-create if missing"""
+    """Load JSON file, auto-create if missing.
+
+    Guards against an empty/whitespace file — e.g. a concurrent writer caught
+    mid-truncate in the TOCTOU window between ensure_json_exists() and this
+    read. Rather than raising JSONDecodeError, fall back to the type's default
+    template so callers always get a valid structure. A non-empty but malformed
+    file still raises (fail honestly — that is real corruption, not a race).
+    """
     if not ensure_json_exists(module_name, json_type):
         return None
 
     json_path = get_json_path(module_name, json_type)
 
     with open(json_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        content = f.read()
+
+    if not content.strip():
+        logger.warning("JSON file empty, using default template: %s", json_path)
+        return _create_default(json_type, module_name)
+
+    return json.loads(content)
 
 
 def save_json(module_name: str, json_type: str, data: Any) -> bool:

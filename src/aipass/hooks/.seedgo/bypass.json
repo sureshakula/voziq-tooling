@@ -367,6 +367,11 @@
       "reason": "Read-only config viewer \u2014 delegates JSON loading to config/loader.py, no direct JSON file ops."
     },
     {
+      "file": "apps/modules/wire_verify.py",
+      "standard": "json_structure",
+      "reason": "Reads ~/.claude/settings.json (external provider settings) with stdlib json \u2014 not branch data storage needing json_handler."
+    },
+    {
       "file": "apps/modules/cadence.py",
       "standard": "modules",
       "reason": "Cadence module reads /tmp state file and hooks_json/custom_config/cadence_config.json with stdlib json \u2014 lightweight ephemeral state (turn counter) + tunable config. json_handler is for persistent branch data, not /tmp session state or config knobs."
@@ -1103,6 +1108,31 @@
       "file": "tests/test_session_start.py",
       "standard": "meta",
       "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "encapsulation",
+      "reason": "Tests import modules directly to test implementation details."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "help_text",
+      "reason": "Test fixture _BRIDGE_CMD contains 'python3' as part of a mock provider command string — not user-facing help text."
     }
   ],
   "notes": {
