@@ -144,7 +144,9 @@ class TestLogOperation:
         log_file = log_dir / "operations.jsonl"
         if log_file.exists():
             entry = json.loads(log_file.read_text(encoding="utf-8").strip())
-            assert entry["project_root"] == "/some/project"
+            # default=str serializes via str(Path(...)) — platform-native separators,
+            # so compare against the same (POSIX "/some/project", Windows "\some\project").
+            assert entry["project_root"] == str(Path("/some/project"))
 
 
 class TestEnsureAndGetPath:
