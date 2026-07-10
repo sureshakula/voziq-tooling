@@ -30,6 +30,19 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **`aipass install` no longer silently repoints your global `drone`/`aipass`
+  symlinks (issue #660).** `setup.sh` force-overwrote the global CLI symlinks with
+  `ln -sf` on every run, no check and no opt-out — so `aipass install
+  --path /tmp/scratch` "to try it" silently hijacked your real global commands to
+  the scratch tree, which broke them once `/tmp` cleared, disconnected from the
+  cause. A new `safe_symlink` guard refuses to repoint a symlink that points at a
+  *different* install: it prints a loud from→to warning and leaves the existing
+  link untouched unless you pass `--force-symlink`; `--no-symlink` opts out of
+  symlinking entirely. Both flags thread through `aipass install`. Fresh installs
+  and same-location reinstalls behave exactly as before. Adds a `safe_symlink`
+  regression test (`tests/setup_symlink_guard_test.sh`) and 3 flag-forwarding
+  tests; the touched install output was migrated to `@cli` helpers (#661).
+
 - **`drone @flow close` no longer reports a false "timed out after 30s" on a
   successful close (issue #662).** A single-plan close committed early (plan
   marked closed, file archived) and then ran memory vectorization

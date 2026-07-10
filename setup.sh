@@ -5,10 +5,12 @@
 # On interactive terminals it then chains into `aipass init run` to scaffold a first
 # project (DPLAN-0234: one command does setup + init).
 #
-# Usage: ./setup.sh [--no-init] [--with-init] [--project <dir>]
+# Usage: ./setup.sh [--no-init] [--with-init] [--project <dir>] [--no-symlink] [--force-symlink]
 #   --no-init        skip the first-project init chain
 #   --with-init      force the init chain even headless (init runs --non-interactive)
 #   --project <dir>  first-project directory (default: ~/aipass-project)
+#   --no-symlink     do not create/modify global drone/aipass CLI symlinks
+#   --force-symlink  repoint a global symlink even if it points at a different install (#660)
 #
 
 set -euo pipefail
@@ -39,6 +41,8 @@ esac
 # default (auto) chains into init on interactive terminals only — CI/headless skip.
 RUN_INIT="auto"
 INIT_PROJECT=""
+SKIP_SYMLINK="no"
+FORCE_SYMLINK="no"
 PREV_ARG=""
 for arg in "$@"; do
     if [ "$PREV_ARG" = "--project" ]; then
@@ -47,10 +51,12 @@ for arg in "$@"; do
         continue
     fi
     case "$arg" in
-        --no-init)   RUN_INIT="no" ;;
-        --with-init) RUN_INIT="yes" ;;
-        --project=*) INIT_PROJECT="${arg#--project=}" ;;
-        --project)   PREV_ARG="--project" ;;
+        --no-init)       RUN_INIT="no" ;;
+        --with-init)     RUN_INIT="yes" ;;
+        --no-symlink)    SKIP_SYMLINK="yes" ;;
+        --force-symlink) FORCE_SYMLINK="yes" ;;
+        --project=*)     INIT_PROJECT="${arg#--project=}" ;;
+        --project)       PREV_ARG="--project" ;;
         *) echo "WARN: unknown argument '$arg' (ignored)" ;;
     esac
 done
@@ -964,8 +970,42 @@ else
 fi
 
 # --- Create global symlinks for CLI tools (Linux/macOS only) ---
+# #660: never SILENTLY hijack a global 'drone'/'aipass' that points at a
+# DIFFERENT install. safe_symlink skips a different-target link (loud warning)
+# unless --force-symlink; --no-symlink opts out of symlinking entirely.
+SYMLINK_SKIPPED=0
+safe_symlink() {
+    # safe_symlink <src> <dest> [sudo]  ->  0 linked · 1 skipped(diff target) · 2 ln failed
+    local src="$1" dest="$2" use_sudo="${3:-}" existing=""
+    if [ -L "$dest" ]; then
+        existing="$(readlink "$dest" 2>/dev/null)"
+    elif [ -e "$dest" ]; then
+        existing="$dest (real file, not a symlink)"
+    fi
+    if [ -n "$existing" ] && [ "$existing" != "$src" ]; then
+        if [ "$FORCE_SYMLINK" != "yes" ]; then
+            echo "  SKIP $dest — already points at a different install:"
+            echo "       $existing"
+            echo "       Not repointing (would hijack your existing '$(basename "$dest")'); PATH keeps the above."
+            echo "       Re-run 'aipass install' with --force-symlink to repoint here, or --no-symlink to skip quietly."
+            SYMLINK_SKIPPED=$((SYMLINK_SKIPPED + 1))
+            return 1
+        fi
+        echo "  WARNING: repointing $dest"
+        echo "           from $existing"
+        echo "           to   $src   (--force-symlink)"
+    fi
+    if [ -n "$use_sudo" ]; then
+        $use_sudo ln -sf "$src" "$dest" 2>/dev/null && return 0 || return 2
+    fi
+    ln -sf "$src" "$dest" 2>/dev/null && return 0 || return 2
+}
+
 echo ""
-if [ "$IS_WINDOWS" -eq 1 ]; then
+if [ "$SKIP_SYMLINK" = "yes" ]; then
+    echo "Skipping global CLI symlinks (--no-symlink)."
+    echo "  'drone'/'aipass' resolve from $SCRIPT_DIR/.venv/bin — add it to PATH to use them."
+elif [ "$IS_WINDOWS" -eq 1 ]; then
     echo "Windows: drone available via PATH (set above)"
 elif [ "$IS_MACOS" -eq 1 ]; then
     # Mac: symlink into ~/.local/bin (user-writable, no sudo needed).
@@ -977,9 +1017,11 @@ elif [ "$IS_MACOS" -eq 1 ]; then
 
     for cmd in drone aipass; do
         if [ -f "$VENV_BIN/$cmd" ]; then
-            if ln -sf "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"; then
+            safe_symlink "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"
+            rc=$?
+            if [ "$rc" -eq 0 ]; then
                 echo "  $LOCAL_BIN/$cmd -> $VENV_BIN/$cmd"
-            else
+            elif [ "$rc" -eq 2 ]; then
                 echo "  WARN: Could not create symlink for $cmd"
                 echo "  Manual fix: ln -sf $VENV_BIN/$cmd $LOCAL_BIN/$cmd"
             fi
@@ -992,14 +1034,20 @@ else
 
     for cmd in drone aipass; do
         if [ -f "$VENV_BIN/$cmd" ]; then
-            if sudo ln -sf "$VENV_BIN/$cmd" "/usr/local/bin/$cmd" 2>/dev/null; then
+            safe_symlink "$VENV_BIN/$cmd" "/usr/local/bin/$cmd" "sudo"
+            rc=$?
+            if [ "$rc" -eq 0 ]; then
                 echo "  /usr/local/bin/$cmd -> $VENV_BIN/$cmd"
                 LINUX_SYMLINK_DIR="/usr/local/bin"
+            elif [ "$rc" -eq 1 ]; then
+                :  # skipped a different install — safe_symlink explained; do NOT fall back
             else
-                # Fallback: user-local bin (no sudo needed)
+                # sudo/ln failed (e.g. no sudo) — fall back to user-local bin
                 LOCAL_BIN="$HOME/.local/bin"
                 mkdir -p "$LOCAL_BIN"
-                if ln -sf "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"; then
+                safe_symlink "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"
+                rc=$?
+                if [ "$rc" -eq 0 ]; then
                     echo "  /usr/local/bin failed (no sudo) — using $LOCAL_BIN/$cmd instead"
                     LINUX_SYMLINK_DIR="$LOCAL_BIN"
                     # Ensure ~/.local/bin is on PATH
@@ -1009,13 +1057,19 @@ else
                         echo "  ~/.local/bin added to PATH in $PROFILE"
                     fi
                     export PATH="$HOME/.local/bin:$PATH"
-                else
+                elif [ "$rc" -eq 2 ]; then
                     echo "  WARN: Could not create symlink for $cmd"
                     echo "  Manual fix: ln -sf $VENV_BIN/$cmd $LOCAL_BIN/$cmd"
                 fi
             fi
         fi
     done
+fi
+
+if [ "$SYMLINK_SKIPPED" -gt 0 ]; then
+    echo ""
+    echo "  NOTE: $SYMLINK_SKIPPED global symlink(s) left untouched (pointed at a different install)."
+    echo "        Your existing 'drone'/'aipass' still work. Use --force-symlink to repoint them here."
 fi
 
 # --- Result ---

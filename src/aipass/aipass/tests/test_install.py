@@ -146,6 +146,32 @@ class TestRunSetup:
             assert _run_setup(tmp_path, dry_run=False) is True
             run.assert_called_once()
 
+    def test_no_symlink_flag_forwarded(self, tmp_path: Path) -> None:
+        """--no-symlink passes through to setup.sh (#660)."""
+        (tmp_path / "setup.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            assert _run_setup(tmp_path, dry_run=False, no_symlink=True) is True
+        argv = run.call_args[0][0]
+        assert "--no-symlink" in argv
+        assert "--force-symlink" not in argv
+
+    def test_force_symlink_flag_forwarded(self, tmp_path: Path) -> None:
+        """--force-symlink passes through to setup.sh (#660)."""
+        (tmp_path / "setup.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            assert _run_setup(tmp_path, dry_run=False, force_symlink=True) is True
+        argv = run.call_args[0][0]
+        assert "--force-symlink" in argv
+
+    def test_symlink_flags_absent_by_default(self, tmp_path: Path) -> None:
+        """No symlink flags forwarded unless requested (#660)."""
+        (tmp_path / "setup.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            assert _run_setup(tmp_path, dry_run=False) is True
+        argv = run.call_args[0][0]
+        assert "--no-symlink" not in argv
+        assert "--force-symlink" not in argv
+
 
 class TestRunInstall:
     """The four-step orchestrator."""
