@@ -379,10 +379,10 @@ def is_owner(email, start_path=None):
     """
     if not email:
         return False
-    normalized = email if email.startswith("@") else f"@{email}"
+    normalized = (email if email.startswith("@") else f"@{email}").lower()
     owner = get_owner(start_path=start_path)
     if owner is None:
         return False
     owner_email = owner.get("email", "")
-    owner_normalized = owner_email if owner_email.startswith("@") else f"@{owner_email}"
+    owner_normalized = (owner_email if owner_email.startswith("@") else f"@{owner_email}").lower()
     return normalized == owner_normalized

@@ -154,6 +154,15 @@ class TestIsOwner:
         with patch("aipass.spawn.apps.handlers.registry.find_registry", return_value=registry_with_owner):
             assert is_owner("devpulse", start_path=tmp_path) is True
 
+    def test_case_insensitive(self, registry_with_owner, tmp_path):
+        from aipass.spawn.apps.handlers.registry import is_owner
+
+        with patch("aipass.spawn.apps.handlers.registry.find_registry", return_value=registry_with_owner):
+            assert is_owner("DEVPULSE", start_path=tmp_path) is True
+            assert is_owner("@DEVPULSE", start_path=tmp_path) is True
+            assert is_owner("DevPulse", start_path=tmp_path) is True
+            assert is_owner("ALPHA", start_path=tmp_path) is False
+
     def test_false_for_non_owner(self, registry_with_owner, tmp_path):
         from aipass.spawn.apps.handlers.registry import is_owner
 

@@ -47,6 +47,15 @@ PyPI version — not the changelog header.
   relays. Stall logic extracted into a `StallTracker` for clarity; +9 tests
   (142 green), devpulse audit 100%. (devpulse)
 
+- **`is_owner()` now case-folds — `is_owner('DEVPULSE')` matches `is_owner('devpulse')`
+  (issue #679).** The spawn-registry resolver (`registry.py:382`) `@`-normalized the
+  email but never lowercased, so a mixed-case branch name (registry names are
+  mixed-case: `DEVPULSE` vs `devpulse`) returned `False` against the seated owner.
+  Harmless today (the only caller lowercases first) but the frozen TDPLAN-0012
+  contract promises normalization, and PART-4 owner-gating may pass a raw name.
+  Now lowercases both sides; verified live (every case variant of the owner → True,
+  non-owners → False) + a case-insensitivity test (316 green). (@spawn, verified devpulse)
+
 - **`aipass install` no longer hard-fails (exit 2, silently) when it can't create
   global symlinks (issue #660 follow-up).** `setup.sh` runs under
   `set -euo pipefail`; the #660 `safe_symlink` refactor returns `2` on `ln`
