@@ -440,6 +440,7 @@ def test_update_project_return_dict_structure(tmp_path):
         "updated_files",
         "already_current",
         "skipped_files",
+        "removed_files",
         "aipass_home",
     }
     assert result["project_name"] == "UPD"
@@ -1097,3 +1098,113 @@ def test_with_source_header_is_first_line():
     lines = result.split("\n")
     assert lines[0] == "<!-- Source: /test.md -->"
     assert lines[1] == "content"
+
+
+# ---------------------------------------------------------------------------
+# GAP 1: AGENTS.md sync on update (#676)
+# ---------------------------------------------------------------------------
+
+
+def test_update_project_syncs_agents_md(tmp_path):
+    """update restores AGENTS.md when its content has been altered."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="sync")
+
+    agents_md = target / "AGENTS.md"
+    agents_md.write_text("# Corrupted\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert str(agents_md.resolve()) in result["updated_files"]
+    restored = agents_md.read_text(encoding="utf-8")
+    assert "# SYNC" in restored
+    assert "Startup protocol" in restored
+
+
+def test_update_project_creates_missing_agents_md(tmp_path):
+    """update creates AGENTS.md if it was deleted from the project."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="miss")
+
+    agents_md = target / "AGENTS.md"
+    agents_md.unlink()
+
+    result = update_project(target)
+
+    assert agents_md.exists()
+    assert str(agents_md.resolve()) in result["updated_files"]
+    content = agents_md.read_text(encoding="utf-8")
+    assert "# MISS" in content
+
+
+def test_update_project_agents_md_already_current(tmp_path):
+    """update reports AGENTS.md as already_current when unchanged."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="cur")
+
+    result = update_project(target)
+
+    assert any("AGENTS.md" in f for f in result["already_current"])
+    assert not any("AGENTS.md" in f for f in result["updated_files"])
+
+
+# ---------------------------------------------------------------------------
+# GAP 2: Cruft cleanup on update (#676)
+# ---------------------------------------------------------------------------
+
+
+def test_update_project_removes_stale_global_prompt(tmp_path):
+    """update removes retired .aipass/aipass_global_prompt.md."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="cruft")
+
+    stale = target / ".aipass" / "aipass_global_prompt.md"
+    stale.write_text("# old\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert not stale.exists()
+    assert str(stale) in result["removed_files"]
+
+
+def test_update_project_cleanup_does_not_touch_user_files(tmp_path):
+    """Cruft cleanup never removes user-owned files."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="safe")
+
+    readme = target / "README.md"
+    registry = target / "SAFE_REGISTRY.json"
+
+    result = update_project(target)
+
+    assert readme.exists()
+    assert registry.exists()
+    assert len(result["removed_files"]) == 0
+
+
+def test_update_project_removed_files_in_result(tmp_path):
+    """Return dict always contains the removed_files key."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="rkey")
+
+    result = update_project(target)
+
+    assert "removed_files" in result
+    assert isinstance(result["removed_files"], list)
+
+
+def test_update_project_cleanup_no_stale_is_noop(tmp_path):
+    """When no stale files exist, removed_files is empty."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="clean")
+
+    result = update_project(target)
+
+    assert result["removed_files"] == []

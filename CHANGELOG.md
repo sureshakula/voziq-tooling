@@ -63,6 +63,20 @@ PyPI version — not the changelog header.
   split under the 600-line limit (`pid_cache` extracted). +25 tests.
   (built by @prax, verified by devpulse)
 
+- **`aipass init update` now refreshes `AGENTS.md` and prunes stale managed
+  cruft (issue #676).** Two gaps: (1) `update_project` synced `AGENTS.md` from a
+  `.aipass/project_AGENTS.md` template that never existed, so the branch silently
+  no-op'd and `AGENTS.md` was never refreshed on update (only `CLAUDE.md`, whose
+  template exists, synced) — added the template and reconciled create/update to
+  one source; (2) the update was additive-only — added a whitelist-scoped cleanup
+  pass (`_STALE_MANAGED_FILES`, currently the retired `aipass_global_prompt.md`)
+  that removes only positively-identified managed artifacts, logs every removal,
+  and never touches user-owned files. The template also had to be un-ignored in
+  `.aipass/.gitignore` (allowlist) or it would never have shipped — caught in
+  verify. +7 tests; live repro confirms update emits `AGENTS.md` and clears a
+  planted cruft file. (built by @aipass, verified by devpulse — incl. the
+  gitignore ship-gap)
+
 ---
 
 ## [2026-07-09]

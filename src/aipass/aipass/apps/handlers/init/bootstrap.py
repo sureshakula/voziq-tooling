@@ -43,6 +43,10 @@ from aipass.aipass.apps.handlers.init import scaffold_content as sc
 
 logger = logging.getLogger(__name__)
 
+_STALE_MANAGED_FILES: list[Path] = [
+    Path(".aipass") / "aipass_global_prompt.md",
+]
+
 
 def _sanitize_name(raw: str) -> str:
     """Sanitize a project name for use in filenames.
@@ -474,6 +478,7 @@ def update_project(target: Path) -> dict:
     updated: list[str] = []
     already_current: list[str] = []
     skipped: list[str] = []
+    removed: list[str] = []
     aipass_home: str | None = None
 
     # Managed directories — create if missing (graceful recovery).
@@ -595,11 +600,20 @@ def update_project(target: Path) -> dict:
             venv_link.symlink_to(aipass_venv)
             updated.append(f".venv (symlink to AIPass runtime: {aipass_venv})")
 
+    # --- Cruft cleanup: remove known-stale AIPass-managed artifacts ---
+    for rel in _STALE_MANAGED_FILES:
+        stale_path = target / rel
+        if stale_path.is_file():
+            stale_path.unlink()
+            removed.append(str(stale_path))
+            logger.info("Removed stale managed file: %s", stale_path)
+
     return {
         "project_name": name,
         "target": str(target),
         "updated_files": updated,
         "already_current": already_current,
         "skipped_files": skipped,
+        "removed_files": removed,
         "aipass_home": aipass_home,
     }
