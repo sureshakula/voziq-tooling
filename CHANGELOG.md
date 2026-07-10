@@ -9,6 +9,39 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-10]
+
+### Added
+
+- **Owner-capability model — project ownership sealed in the registry, and the
+  owner is woken back when a dispatched agent completes (issue #678).** The
+  directed-wake round-trip grew into an access-control primitive: watchdog /
+  feedback / wake-back are owner-only privileges, and the owner (first agent /
+  `citizen_class: manager` — devpulse in AIPass) is resolved from the *sealed*
+  `*_REGISTRY.json`, not the self-editable passport (no self-grant). Three parts
+  built in parallel against a frozen `is_owner` contract: `@spawn` writes
+  `owner` + `registry_id` into registry entries and exposes `get_owner()` /
+  `is_owner()` (`ensure_project_has_owner` now keys off the manager signal, not
+  the created-date heuristic that mislabeled `@aipass`); `@hooks` adds a
+  `registry_gate` PreToolUse handler that blocks raw writes/edits/deletes of
+  `*_REGISTRY.json` and redirects to `drone @spawn` (per-clause bypass defeats
+  compound-command smuggling; reads stay allowed); `@ai_mail` reslopes the
+  dispatch wake-back from a `SKIP_SENDERS` blocklist to an `is_owner` allowlist.
+  Cross-part verified end-to-end by devpulse with the real resolver (gate 13/13
+  incl. compound-smuggle, wake-back owner/non-owner/depth-cap).
+  (built by @spawn + @hooks + @ai_mail, verified by devpulse)
+
+### Fixed
+
+- **`drone @devpulse watchdog agent` no longer reports failure on a successful
+  watch (issue #661).** Its "invoke via Monitor tool" reminder was printed
+  through `cli.error()`, which — after the #661 exit-code work — trips a
+  process failure flag, so every successful watch exited non-zero with a red X.
+  Rerouted to a dim console note; genuine argument errors still `error()` →
+  exit 2. (devpulse)
+
+---
+
 ## [2026-07-09]
 
 ### Added
