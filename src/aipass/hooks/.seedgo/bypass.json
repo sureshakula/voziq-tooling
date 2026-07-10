@@ -167,6 +167,51 @@
       "reason": "NamedTemporaryFile creates binary wav for Piper TTS \u2014 encoding not applicable to binary audio."
     },
     {
+      "file": "apps/handlers/security/registry_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.registry_gate.handle' — not statically imported by design. Wired in PreToolUse.registry_gate."
+    },
+    {
+      "file": "apps/handlers/security/registry_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreToolUse.registry_gate."
+    },
+    {
+      "file": "apps/handlers/security/registry_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "hardcoded_path",
+      "reason": "Test fixture CWD string and bash command strings contain paths as test input data — not real filesystem operations."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "windows_compat",
+      "reason": "Test fixture bash command strings contain /tmp paths as scanner input — not real filesystem operations. The handler itself is platform-agnostic (string scanning only)."
+    },
+    {
       "file": "apps/handlers/lifecycle/auto_fix.py",
       "standard": "dead_code",
       "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_fix.handle' \u2014 not statically imported by design. Verified wired in PostToolUse.auto_fix_diagnostics + fires in engine.jsonl."

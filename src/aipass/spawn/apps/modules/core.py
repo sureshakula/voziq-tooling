@@ -283,11 +283,13 @@ def _spawn_agent(
 
     # Step 2b: Set owner field — first agent in the project is the owner
     passport_path = target / ".trinity" / "passport.json"
+    passport_registry_id = ""
     if passport_path.exists():
         passport_data = json_handler.read_json(passport_path)
         if passport_data:
             passport_data.setdefault("citizenship", {})["owner"] = citizen_number == 1
             json_handler.write_json(passport_path, passport_data)
+            passport_registry_id = passport_data.get("citizenship", {}).get("registry_id", "")
 
     # Step 3: Regenerate .template_registry.json with fresh hashes
     regenerate_template_registry(target)
@@ -312,6 +314,7 @@ def _spawn_agent(
         detected_profile,
         f"@{branch_lower}",
         purpose or "New agent - purpose TBD",
+        registry_id=passport_registry_id,
     )
 
     # Step 5: Ensure at least one agent in the project is the owner

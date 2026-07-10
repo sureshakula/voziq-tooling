@@ -19,15 +19,18 @@ from unittest.mock import MagicMock
 
 import aipass.ai_mail.apps.handlers.dispatch.dispatch_monitor as mod
 from aipass.ai_mail.apps.handlers.dispatch.dispatch_monitor import (
+    MAX_WAKE_DEPTH,
     _check_jsonl_activity,
     _check_rate_limited,
     _get_jsonl_projects_dir,
     _is_sandbox_enabled,
     _kill_process,
+    _log_wake_result,
     _make_fresh_cmd,
     _run_with_startup_check,
     _send_bounce,
     _snapshot_jsonl_sizes,
+    _wake_sender,
     _wrap_for_sandbox,
     main,
 )
@@ -50,6 +53,13 @@ def _suppress_log_operation(monkeypatch):
 def _suppress_logger(monkeypatch):
     """Suppress logger output during tests."""
     monkeypatch.setattr(mod, "logger", MagicMock())
+
+
+@pytest.fixture(autouse=True)
+def _suppress_wake(monkeypatch):
+    """Prevent _wake_sender from importing/calling real wake_branch in unrelated tests."""
+    monkeypatch.setattr(mod, "_wake_sender", MagicMock(return_value="skipped_sender"))
+    monkeypatch.setattr(mod, "_log_wake_result", MagicMock())
 
 
 @pytest.fixture
@@ -1824,3 +1834,417 @@ finally:
         finally:
             broker.stop()
             t.join(timeout=3)
+
+
+# === Wake-back tests (TDPLAN-0012) ==========================================
+
+
+class TestWakeSender:
+    """_wake_sender guards and owner-allowlist dispatch."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_is_owner(self, monkeypatch):
+        """Default: is_owner returns False (non-owner). Tests override as needed."""
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=False),
+        )
+
+    def test_skips_empty_sender(self, monkeypatch):
+        """Empty sender returns skipped_sender."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        result = _wake_sender("", "@target", 0, "/fake/lock")
+        assert result == "skipped_sender"
+
+    def test_skips_whitespace_sender(self, monkeypatch):
+        """Whitespace-only sender returns skipped_sender."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        result = _wake_sender("   ", "@target", 0, "/fake/lock")
+        assert result == "skipped_sender"
+
+    def test_skips_non_owner_sender(self, monkeypatch):
+        """Non-owner sender returns skipped_not_owner."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=False),
+        )
+        result = _wake_sender("@someagent", "@target", 0, "/fake/lock")
+        assert result == "skipped_not_owner"
+
+    def test_skips_ai_mail_when_not_owner(self, monkeypatch):
+        """@ai_mail is not owner — skipped."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=False),
+        )
+        result = _wake_sender("@ai_mail", "@target", 0, "/fake/lock")
+        assert result == "skipped_not_owner"
+
+    def test_skips_human_when_not_owner(self, monkeypatch):
+        """@human is not owner — skipped."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=False),
+        )
+        result = _wake_sender("@human", "@target", 0, "/fake/lock")
+        assert result == "skipped_not_owner"
+
+    def test_owner_passes_guard(self, monkeypatch):
+        """Owner sender passes the is_owner guard and reaches wake_branch."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.delenv("AIPASS_WAKE_DEPTH", raising=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+        mock_status = MagicMock()
+        mock_status.summary = "ok"
+        mock_wake = MagicMock(return_value=(mock_status, True))
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            mock_wake,
+        )
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "success"
+        mock_wake.assert_called_once()
+
+    def test_is_owner_called_with_normalized_sender(self, monkeypatch):
+        """is_owner receives normalized @-prefixed lowercase sender."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        mock_is_owner = MagicMock(return_value=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            mock_is_owner,
+        )
+        _wake_sender("DevPulse", "@target", 0, "/fake/lock")
+        mock_is_owner.assert_called_once_with("@devpulse")
+
+    def test_is_owner_import_failure(self, monkeypatch):
+        """ImportError from is_owner returns failed."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fail_import(name, *args, **kwargs):
+            if name == "aipass.spawn.apps.handlers.registry":
+                raise ImportError("no spawn")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fail_import)
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "failed"
+
+    def test_depth_cap_blocks(self, monkeypatch):
+        """AIPASS_WAKE_DEPTH >= MAX_WAKE_DEPTH returns blocked_depth."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+        monkeypatch.setenv("AIPASS_WAKE_DEPTH", str(MAX_WAKE_DEPTH))
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "blocked_depth"
+
+    def test_depth_cap_over_max_blocks(self, monkeypatch):
+        """Depth above max also blocks."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+        monkeypatch.setenv("AIPASS_WAKE_DEPTH", str(MAX_WAKE_DEPTH + 5))
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "blocked_depth"
+
+    def test_success_on_wake(self, monkeypatch):
+        """Successful wake_branch call returns success."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.delenv("AIPASS_WAKE_DEPTH", raising=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+
+        mock_status = MagicMock()
+        mock_status.summary = "ok"
+        mock_wake = MagicMock(return_value=(mock_status, True))
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            mock_wake,
+        )
+
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "success"
+        mock_wake.assert_called_once_with("@devpulse", auto=True, sender="@ai_mail")
+
+    def test_blocked_locked_on_lock_failure(self, monkeypatch):
+        """wake_branch failing with lock-related message returns blocked_locked."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.delenv("AIPASS_WAKE_DEPTH", raising=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+
+        mock_status = MagicMock()
+        mock_status.summary = "lock: Active agent (PID 1234)"
+        mock_wake = MagicMock(return_value=(mock_status, False))
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            mock_wake,
+        )
+
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "blocked_locked"
+
+    def test_blocked_occupied_on_interactive(self, monkeypatch):
+        """wake_branch failing with occupancy message returns blocked_occupied."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.delenv("AIPASS_WAKE_DEPTH", raising=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+
+        mock_status = MagicMock()
+        mock_status.summary = "blocked: Cannot spawn — interactive session running"
+        mock_wake = MagicMock(return_value=(mock_status, False))
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            mock_wake,
+        )
+
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "blocked_occupied"
+
+    def test_failed_on_exception(self, monkeypatch):
+        """Exception during wake returns failed."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.delenv("AIPASS_WAKE_DEPTH", raising=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            MagicMock(side_effect=RuntimeError("broken")),
+        )
+
+        result = _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert result == "failed"
+
+    def test_depth_incremented_before_wake(self, monkeypatch):
+        """AIPASS_WAKE_DEPTH is incremented before calling wake_branch."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.setenv("AIPASS_WAKE_DEPTH", "1")
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+
+        captured_depth = []
+
+        def capture_wake(*args, **kwargs):
+            captured_depth.append(os.environ.get("AIPASS_WAKE_DEPTH"))
+            mock_status = MagicMock()
+            mock_status.summary = "ok"
+            return mock_status, True
+
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            capture_wake,
+        )
+
+        _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert captured_depth == ["2"]
+
+    def test_wake_called_on_failure_exit(self, monkeypatch):
+        """Wake fires on non-zero exit code too."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        monkeypatch.delenv("AIPASS_WAKE_DEPTH", raising=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            MagicMock(return_value=True),
+        )
+
+        mock_status = MagicMock()
+        mock_status.summary = "ok"
+        mock_wake = MagicMock(return_value=(mock_status, True))
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.dispatch.wake.wake_branch",
+            mock_wake,
+        )
+
+        result = _wake_sender("@devpulse", "@target", 1, "/fake/lock")
+        assert result == "success"
+        mock_wake.assert_called_once()
+
+    def test_sender_normalization_for_is_owner(self, monkeypatch):
+        """Sender with or without @ prefix is normalized before is_owner call."""
+        monkeypatch.setattr(mod, "logger", MagicMock())
+        mock_is_owner = MagicMock(return_value=False)
+        monkeypatch.setattr(
+            "aipass.spawn.apps.handlers.registry.is_owner",
+            mock_is_owner,
+        )
+        _wake_sender("devpulse", "@target", 0, "/fake/lock")
+        _wake_sender("@devpulse", "@target", 0, "/fake/lock")
+        assert mock_is_owner.call_count == 2
+        for call in mock_is_owner.call_args_list:
+            assert call[0][0] == "@devpulse"
+
+
+class TestLogWakeResult:
+    """_log_wake_result writes to dispatch_wake.log."""
+
+    def test_creates_log_file(self, tmp_path):
+        """Log file created under target's logs/ directory."""
+        lock = tmp_path / "branch" / ".ai_mail.local" / ".dispatch.lock"
+        lock.parent.mkdir(parents=True)
+        lock.write_text("{}", encoding="utf-8")
+        logs_dir = tmp_path / "branch" / "logs"
+
+        _log_wake_result("@target", "@sender", 0, "success", str(lock))
+
+        log_file = logs_dir / "dispatch_wake.log"
+        assert log_file.exists()
+        content = log_file.read_text(encoding="utf-8")
+        assert "target=@target" in content
+        assert "sender=@sender" in content
+        assert "exit_code=0" in content
+        assert "wake_result=success" in content
+
+    def test_appends_to_existing(self, tmp_path):
+        """Subsequent calls append, not overwrite."""
+        lock = tmp_path / "branch" / ".ai_mail.local" / ".dispatch.lock"
+        lock.parent.mkdir(parents=True)
+        lock.write_text("{}", encoding="utf-8")
+        logs_dir = tmp_path / "branch" / "logs"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "dispatch_wake.log"
+        log_file.write_text("existing line\n", encoding="utf-8")
+
+        _log_wake_result("@target", "@sender", 0, "success", str(lock))
+
+        lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 2
+        assert lines[0] == "existing line"
+        assert "wake_result=success" in lines[1]
+
+    def test_all_result_values(self, tmp_path):
+        """All result enum values are logged correctly."""
+        lock = tmp_path / "branch" / ".ai_mail.local" / ".dispatch.lock"
+        lock.parent.mkdir(parents=True)
+        lock.write_text("{}", encoding="utf-8")
+
+        for result_tag in (
+            "success",
+            "blocked_occupied",
+            "blocked_locked",
+            "blocked_depth",
+            "skipped_sender",
+            "failed",
+        ):
+            _log_wake_result("@t", "@s", 0, result_tag, str(lock))
+
+        log_file = tmp_path / "branch" / "logs" / "dispatch_wake.log"
+        lines = log_file.read_text(encoding="utf-8").strip().split("\n")
+        assert len(lines) == 6
+
+
+class TestWakeBackIntegration:
+    """Wake-back wired into main() — fires after lock cleanup on both paths."""
+
+    def test_wake_called_on_success(self, monkeypatch, main_argv):
+        """_wake_sender called with correct args after successful agent run."""
+        argv, lock_file, stderr_log = main_argv
+
+        wake_calls = []
+
+        def track_wake(sender, branch_email, exit_code, lf):
+            wake_calls.append((sender, branch_email, exit_code))
+            return "success"
+
+        monkeypatch.setattr("sys.argv", argv)
+        monkeypatch.setattr(mod, "_run_with_startup_check", MagicMock(return_value=(0, False)))
+        monkeypatch.setattr(mod, "_send_bounce", MagicMock())
+        monkeypatch.setattr(mod, "_check_rate_limited", MagicMock(return_value=False))
+        monkeypatch.setattr(mod, "_wake_sender", track_wake)
+        monkeypatch.setattr(mod, "_log_wake_result", MagicMock())
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.paths.find_repo_root",
+            MagicMock(return_value=Path("/fake/repo")),
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 0
+        assert len(wake_calls) == 1
+        assert wake_calls[0] == ("@sender", "@test_branch", 0)
+
+    def test_wake_called_on_failure(self, monkeypatch, main_argv):
+        """_wake_sender called after all attempts fail (in addition to bounce)."""
+        argv, lock_file, stderr_log = main_argv
+
+        wake_calls = []
+        mock_bounce = MagicMock()
+
+        def track_wake(sender, branch_email, exit_code, lf):
+            wake_calls.append((sender, branch_email, exit_code))
+            return "success"
+
+        monkeypatch.setattr("sys.argv", argv)
+        monkeypatch.setattr(mod, "_run_with_startup_check", MagicMock(side_effect=[(1, False), (1, False), (1, False)]))
+        monkeypatch.setattr(mod, "_send_bounce", mock_bounce)
+        monkeypatch.setattr(mod, "_check_rate_limited", MagicMock(return_value=False))
+        monkeypatch.setattr(mod, "_wake_sender", track_wake)
+        monkeypatch.setattr(mod, "_log_wake_result", MagicMock())
+        monkeypatch.setattr(
+            mod,
+            "time",
+            MagicMock(time=time.time, strftime=time.strftime, sleep=MagicMock()),
+        )
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.paths.find_repo_root",
+            MagicMock(return_value=Path("/fake/repo")),
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        mock_bounce.assert_called_once()
+        assert len(wake_calls) == 1
+        assert wake_calls[0][2] != 0
+
+    def test_log_wake_result_called(self, monkeypatch, main_argv):
+        """_log_wake_result called with wake result after main completes."""
+        argv, lock_file, stderr_log = main_argv
+
+        log_calls = []
+
+        monkeypatch.setattr("sys.argv", argv)
+        monkeypatch.setattr(mod, "_run_with_startup_check", MagicMock(return_value=(0, False)))
+        monkeypatch.setattr(mod, "_send_bounce", MagicMock())
+        monkeypatch.setattr(mod, "_check_rate_limited", MagicMock(return_value=False))
+        monkeypatch.setattr(mod, "_wake_sender", MagicMock(return_value="success"))
+        monkeypatch.setattr(mod, "_log_wake_result", lambda *a: log_calls.append(a))
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.paths.find_repo_root",
+            MagicMock(return_value=Path("/fake/repo")),
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        assert len(log_calls) == 1
+        branch_email, sender, exit_code, result, lf = log_calls[0]
+        assert branch_email == "@test_branch"
+        assert sender == "@sender"
+        assert exit_code == 0
+        assert result == "success"

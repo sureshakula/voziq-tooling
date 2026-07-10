@@ -69,6 +69,7 @@ src/aipass/hooks/
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
 │   │   │   ├── git_gate.py      #   Enforces git access tiers
 │   │   │   ├── presence_gate.py  #   Single-session gate — blocks duplicate runtimes per branch
+│   │   │   ├── registry_gate.py  #   Seals *_REGISTRY.json — blocks raw writes/edits/deletes, redirects to drone @spawn
 │   │   │   ├── rm_gate.py       #   Guardrail — catches accidental rm -rf, teaches drone rm
 │   │   │   └── subagent_gate.py #   Blocks sub-agent stop until clean
 │   │   ├── lifecycle/           # Session management hooks
@@ -88,7 +89,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 825 tests across 27 test files
+└── tests/                       # 913 tests across 28 test files
 ```
 
 ## How It Works
@@ -110,7 +111,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 | Event | Hooks | Description |
 |---|---|---|
 | UserPromptSubmit | presence_gate, identity, email, branch_loader, tier0_kernel, navmap | Presence gate + prompt injection + inbox check |
-| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
+| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate, registry_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
 | Stop | stop_sound, telegram_response, presence_release | Bell + Telegram delivery + presence release |
