@@ -21,11 +21,12 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, NamedTuple
 
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, success
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
@@ -206,16 +207,20 @@ def prompt_auto_wire(
     console.print(f"\n[bold]{', '.join(parts)} missing[/bold]")
     console.print("[dim]Review details: .claude/hooks/README.md[/dim]")
 
-    try:
-        answer = input("Auto-wire provider settings? [y/N]: ").strip().lower()
-    except (EOFError, KeyboardInterrupt) as exc:
-        logger.info("[doctor] auto-wire prompt interrupted: %s", type(exc).__name__)
+    if not sys.stdin.isatty():
+        logger.info("[doctor] non-interactive stdin — auto-wire prompt skipped, treating as decline")
         answer = "n"
+    else:
+        try:
+            answer = input("Auto-wire provider settings? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt) as exc:
+            logger.info("[doctor] auto-wire prompt interrupted: %s", type(exc).__name__)
+            answer = "n"
 
     if answer in ("y", "yes"):
         actions = _auto_wire_provider(manifest_path, interactive=True)
         for action in actions:
-            console.print(f"[green]✓[/green] {action}")
+            success(action)
         return bool(actions)
 
     _print_manual_wire_warning(missing_hooks, missing_env, missing_deny, missing_ask)

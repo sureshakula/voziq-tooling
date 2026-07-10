@@ -827,3 +827,68 @@ class TestCheckWireVerify:
         assert len(results) == 1
         assert results[0].glyph == "[yellow]![/yellow]"
         assert "timed out" in results[0].detail
+
+
+# =============================================================================
+# prompt_auto_wire — non-interactive stdin guard (issue #663)
+# =============================================================================
+
+
+class TestPromptAutoWireIsatty:
+    """Guard: non-tty stdin must not block on input() (#663)."""
+
+    @staticmethod
+    def _args() -> dict:
+        return {
+            "manifest_path": MagicMock(),
+            "missing_hooks": ["some_hook"],
+            "missing_env": [],
+            "missing_deny": [],
+            "missing_ask": [],
+        }
+
+    def test_non_tty_stdin_skips_prompt_and_declines(self) -> None:
+        """Non-tty stdin must NOT call input() — it declines and warns instead."""
+        from aipass.aipass.apps.modules import doctor_wire
+
+        with (
+            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch("builtins.input") as mock_input,
+            patch.object(doctor_wire, "_print_manual_wire_warning") as mock_warn,
+        ):
+            mock_stdin.isatty.return_value = False
+            result = doctor_wire.prompt_auto_wire(**self._args())
+
+        assert result is False
+        mock_input.assert_not_called()
+        mock_warn.assert_called_once()
+
+    def test_tty_stdin_prompts_and_respects_decline(self) -> None:
+        """Tty stdin still prompts; a 'n' answer declines."""
+        from aipass.aipass.apps.modules import doctor_wire
+
+        with (
+            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch("builtins.input", return_value="n") as mock_input,
+            patch.object(doctor_wire, "_print_manual_wire_warning"),
+        ):
+            mock_stdin.isatty.return_value = True
+            result = doctor_wire.prompt_auto_wire(**self._args())
+
+        assert result is False
+        mock_input.assert_called_once()
+
+    def test_tty_stdin_accepts_and_wires(self) -> None:
+        """Tty stdin with a 'y' answer runs the wire and returns True."""
+        from aipass.aipass.apps.modules import doctor_wire
+
+        with (
+            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch("builtins.input", return_value="y"),
+            patch.object(doctor_wire, "_auto_wire_provider", return_value=["wired hook"]) as mock_wire,
+        ):
+            mock_stdin.isatty.return_value = True
+            result = doctor_wire.prompt_auto_wire(**self._args())
+
+        assert result is True
+        mock_wire.assert_called_once()

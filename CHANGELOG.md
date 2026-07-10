@@ -30,6 +30,16 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **`aipass doctor` no longer hangs on non-interactive stdin (issue #663).** The
+  auto-wire `[y/N]` prompt called `input()` with no tty guard, so a caller with a
+  blocking-but-idle stdin (a script, CI job, or subprocess whose stdin never
+  sends EOF) hung `doctor` indefinitely — reading as a crash from the flagship
+  "check my system" command a new user runs first. `prompt_auto_wire` now guards
+  the prompt with `sys.stdin.isatty()`: a non-tty stdin declines the auto-wire
+  (prints the manual-wire warning) instead of blocking. Verified against the
+  exact repro — a blocking non-tty stdin that never EOFs now completes instead of
+  hanging until killed. Adds 3 regression tests.
+
 - **macOS session lock-out: the boot wrapper can now see tmux sessions on
   macOS.** `session_boot` decided whether a live Claude session lived inside
   tmux by walking the process tree through `/proc/<pid>/status` — Linux-only.
