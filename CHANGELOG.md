@@ -33,6 +33,20 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Watchdog stall detector no longer false-fires on a long single tool call, and
+  a real stall now reaches devpulse live (issue #634).** Liveness was inferred
+  purely from JSONL file-size growth, so an agent doing one genuinely long
+  operation (big read, long-running Bash, heavy compute) wrote no new lines for
+  the span and was misread as `STALLED` while actively working. `watch_agent` now
+  also treats an in-flight `tool_use` (the assistant's last transcript entry while
+  a tool runs) as activity — verified live against real Claude Code transcripts:
+  the `tool_use` line is written at tool *start* and persists for the whole call.
+  Part 2: the stall (and a new long-running-tool advisory, plus a resumed signal)
+  is emitted to **stdout** — which the Monitor-tool wrapper surfaces as a live
+  event — instead of only `stderr`+logger, which Monitor captures but never
+  relays. Stall logic extracted into a `StallTracker` for clarity; +9 tests
+  (142 green), devpulse audit 100%. (devpulse)
+
 - **`aipass install` no longer hard-fails (exit 2, silently) when it can't create
   global symlinks (issue #660 follow-up).** `setup.sh` runs under
   `set -euo pipefail`; the #660 `safe_symlink` refactor returns `2` on `ln`

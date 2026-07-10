@@ -208,6 +208,190 @@ def test_watch_agent_return_keys():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# #634 — in-flight tool detection + stall surfaced to stdout
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _write_jsonl(projects_dir: Path, *lines: dict, name: str = "session.jsonl") -> Path:
+    """Write JSONL entries (one dict per line) into a projects dir."""
+    projects_dir.mkdir(parents=True, exist_ok=True)
+    f = projects_dir / name
+    f.write_text("".join(json.dumps(ln) + "\n" for ln in lines), encoding="utf-8")
+    return f
+
+
+def test_last_entry_is_inflight_tool_true_for_assistant_tool_use(tmp_path):
+    """Last line = assistant message with a tool_use block → in-flight tool call."""
+    proj = tmp_path / "proj"
+    _write_jsonl(
+        proj,
+        {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "go"}]}},
+        {
+            "type": "assistant",
+            "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "a", "name": "Bash", "input": {}}]},
+        },
+    )
+    assert agent_handler._last_entry_is_inflight_tool(proj) is True
+
+
+def test_last_entry_is_inflight_tool_false_for_text_and_results(tmp_path):
+    """Assistant text-only, a returned tool_result, malformed, and empty all → False."""
+    proj = tmp_path / "proj"
+
+    _write_jsonl(
+        proj, {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "done"}]}}
+    )
+    assert agent_handler._last_entry_is_inflight_tool(proj) is False
+
+    _write_jsonl(
+        proj,
+        {
+            "type": "user",
+            "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "a", "content": "ok"}]},
+        },
+    )
+    assert agent_handler._last_entry_is_inflight_tool(proj) is False
+
+    (proj / "session.jsonl").write_text("{not valid json\n", encoding="utf-8")
+    assert agent_handler._last_entry_is_inflight_tool(proj) is False
+
+    # Nonexistent dir and empty dir → False.
+    assert agent_handler._last_entry_is_inflight_tool(tmp_path / "nope") is False
+    (tmp_path / "empty").mkdir()
+    assert agent_handler._last_entry_is_inflight_tool(tmp_path / "empty") is False
+
+
+def test_last_entry_is_inflight_tool_picks_newest_file(tmp_path):
+    """With multiple JSONLs, only the most-recently-modified one decides."""
+    proj = tmp_path / "proj"
+    old = _write_jsonl(
+        proj,
+        {"message": {"role": "assistant", "content": [{"type": "tool_use", "name": "Bash"}]}},
+        name="old.jsonl",
+    )
+    new = _write_jsonl(
+        proj,
+        {"message": {"role": "assistant", "content": [{"type": "text", "text": "hi"}]}},
+        name="new.jsonl",
+    )
+    os.utime(old, (1, 1))
+    os.utime(new, (2, 2))
+    assert agent_handler._last_entry_is_inflight_tool(proj) is False  # newest = text-only
+
+    os.utime(old, (3, 3))  # old is now newest and holds the tool_use
+    assert agent_handler._last_entry_is_inflight_tool(proj) is True
+
+
+def test_stalltracker_reports_stall_after_threshold(monkeypatch, capsys):
+    """No activity past STALL_THRESHOLD → a [watchdog.stall] line on stdout."""
+    monkeypatch.setattr(agent_handler, "_has_jsonl_activity", lambda *a, **kw: False)
+    monkeypatch.setattr(agent_handler, "_last_entry_is_inflight_tool", lambda *a, **kw: False)
+    t = agent_handler.StallTracker("@x", Path("/nope"), {}, now=0.0, pid=123)
+
+    t.observe(now=60.0)  # below threshold
+    assert "[watchdog.stall]" not in capsys.readouterr().out
+    assert t.stall_reported is False
+
+    t.observe(now=agent_handler.StallTracker.STALL_THRESHOLD)  # at threshold
+    assert "[watchdog.stall]" in capsys.readouterr().out
+    assert t.stall_reported is True
+
+
+def test_stalltracker_inflight_tool_prevents_stall(monkeypatch, capsys):
+    """An in-flight tool call resets the idle timer every tick → never a stall."""
+    monkeypatch.setattr(agent_handler, "_has_jsonl_activity", lambda *a, **kw: False)
+    monkeypatch.setattr(agent_handler, "_last_entry_is_inflight_tool", lambda *a, **kw: True)
+    t = agent_handler.StallTracker("@x", Path("/nope"), {}, now=0.0, pid=123)
+
+    for now in (60.0, 120.0, 180.0, 240.0):
+        t.observe(now=now)
+
+    out = capsys.readouterr().out
+    assert "[watchdog.stall]" not in out
+    assert t.stall_reported is False
+
+
+def test_stalltracker_long_tool_advisory(monkeypatch, capsys):
+    """One tool call held in-flight past LONG_TOOL_THRESHOLD → advisory, not a stall."""
+    monkeypatch.setattr(agent_handler, "_has_jsonl_activity", lambda *a, **kw: False)
+    monkeypatch.setattr(agent_handler, "_last_entry_is_inflight_tool", lambda *a, **kw: True)
+    t = agent_handler.StallTracker("@x", Path("/nope"), {}, now=0.0, pid=123)
+
+    t.observe(now=0.0)  # first in-flight tick → anchors in_flight_since
+    t.observe(now=agent_handler.StallTracker.LONG_TOOL_THRESHOLD)
+    out = capsys.readouterr().out
+    assert "[watchdog.longtool]" in out
+    assert "[watchdog.stall]" not in out
+    assert t.long_tool_reported is True
+
+
+def test_stalltracker_resume_clears_stall(monkeypatch, capsys):
+    """After a stall, real activity emits [watchdog.resumed] and clears the flag."""
+    signals = {"size": False}
+    monkeypatch.setattr(agent_handler, "_has_jsonl_activity", lambda *a, **kw: signals["size"])
+    monkeypatch.setattr(agent_handler, "_last_entry_is_inflight_tool", lambda *a, **kw: False)
+    monkeypatch.setattr(agent_handler, "_snapshot_jsonl_sizes", lambda *a, **kw: {})
+    t = agent_handler.StallTracker("@x", Path("/nope"), {}, now=0.0, pid=123)
+
+    t.observe(now=agent_handler.StallTracker.STALL_THRESHOLD)  # stall
+    assert "[watchdog.stall]" in capsys.readouterr().out
+    assert t.stall_reported is True
+
+    signals["size"] = True  # activity resumes
+    t.observe(now=agent_handler.StallTracker.STALL_THRESHOLD + 5)
+    out = capsys.readouterr().out
+    assert "[watchdog.resumed]" in out
+    assert t.stall_reported is False
+
+
+def _fake_clock_sleep(agent_module, monkeypatch, lock_file, unlink_at=200.0, step=60.0):
+    """Patch monotonic + sleep with a fake clock that advances `step`s per sleep
+    and unlinks the dispatch lock once the clock passes `unlink_at` (loop exit)."""
+    clock = {"t": 0.0}
+    monkeypatch.setattr(agent_module.time, "monotonic", lambda: clock["t"])
+
+    def fake_sleep(_seconds):
+        """Advance the fake clock and drop the lock once past unlink_at (loop exit)."""
+        clock["t"] += step
+        if clock["t"] >= unlink_at:
+            lock_file.unlink(missing_ok=True)
+
+    monkeypatch.setattr(agent_module.time, "sleep", fake_sleep)
+
+
+def test_watch_agent_surfaces_stall_to_stdout(monkeypatch, tmp_path, capsys):
+    """End-to-end: a genuine stall reaches STDOUT so the Monitor wrapper relays it."""
+    branch_path = _build_fake_branch(tmp_path)
+    lock_file = _write_lock(branch_path, pid=os.getpid())
+    monkeypatch.setattr(agent_handler, "_find_repo_root", lambda *a, **kw: tmp_path)
+    monkeypatch.setattr(agent_handler, "_pid_alive", lambda pid: True)
+    monkeypatch.setattr(agent_handler, "_has_jsonl_activity", lambda *a, **kw: False)
+    monkeypatch.setattr(agent_handler, "_last_entry_is_inflight_tool", lambda *a, **kw: False)
+    _fake_clock_sleep(agent_handler, monkeypatch, lock_file)
+
+    result = agent_handler.watch_agent("@fakebranch", timeout_seconds=100000, poll_interval=0.01)
+    out = capsys.readouterr().out
+    assert "[watchdog.stall]" in out
+    assert result["woke"] is True
+
+
+def test_watch_agent_inflight_tool_no_false_stall(monkeypatch, tmp_path, capsys):
+    """End-to-end: a long in-flight tool call must NOT surface a stall (#634 part 1)."""
+    branch_path = _build_fake_branch(tmp_path)
+    lock_file = _write_lock(branch_path, pid=os.getpid())
+    monkeypatch.setattr(agent_handler, "_find_repo_root", lambda *a, **kw: tmp_path)
+    monkeypatch.setattr(agent_handler, "_pid_alive", lambda pid: True)
+    monkeypatch.setattr(agent_handler, "_has_jsonl_activity", lambda *a, **kw: False)
+    monkeypatch.setattr(agent_handler, "_last_entry_is_inflight_tool", lambda *a, **kw: True)
+    _fake_clock_sleep(agent_handler, monkeypatch, lock_file)
+
+    result = agent_handler.watch_agent("@fakebranch", timeout_seconds=100000, poll_interval=0.01)
+    out = capsys.readouterr().out
+    assert "[watchdog.stall]" not in out
+    assert result["woke"] is True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Integration tests (require live ai_mail dispatch — skipped by default)
 # ─────────────────────────────────────────────────────────────────────────────
 
