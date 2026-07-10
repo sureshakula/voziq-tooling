@@ -130,3 +130,40 @@ class TestRolloverHandler:
 
         assert not success
         assert "timed out" in msg
+
+
+class TestFindRepoRootFailLoud:
+    """_find_repo_root logs error (not silent skip) when no AIPASS_REGISTRY.json found."""
+
+    def test_bad_root_logs_error(self, tmp_path, caplog):
+        """No AIPASS_REGISTRY.json anywhere -> logger.error with AIPASS_HOME + cwd."""
+        import logging
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _find_repo_root
+
+        with caplog.at_level(logging.ERROR):
+            with patch.dict("os.environ", {"AIPASS_HOME": ""}):
+                with patch(f"{MOD}.Path") as mock_path_cls:
+                    mock_path_cls.cwd.return_value = tmp_path
+                    result = _find_repo_root()
+
+        assert result is None
+        assert "_find_repo_root failed" in caplog.text
+        assert "AIPASS_REGISTRY.json" in caplog.text
+
+    def test_bad_aipass_home_falls_through_to_cwd(self, tmp_path, caplog):
+        """AIPASS_HOME set but no registry there -> falls through, still logs error if cwd also fails."""
+        import logging
+        from aipass.hooks.apps.handlers.lifecycle.rollover import _find_repo_root
+
+        bad_home = str(tmp_path / "nonexistent")
+
+        with caplog.at_level(logging.ERROR):
+            with patch.dict("os.environ", {"AIPASS_HOME": bad_home}):
+                with patch(f"{MOD}.Path") as mock_path_cls:
+                    mock_path_cls.return_value = tmp_path / "nonexistent"
+                    mock_path_cls.cwd.return_value = tmp_path
+                    result = _find_repo_root()
+
+        assert result is None
+        assert "_find_repo_root failed" in caplog.text
+        assert bad_home in caplog.text

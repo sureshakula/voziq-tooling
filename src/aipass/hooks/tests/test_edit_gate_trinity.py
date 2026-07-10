@@ -94,6 +94,9 @@ _ROLLOVER_CONFIG_10 = {
                 "key_learnings": {"count": 25},
                 "todos": {"count": 10},
             },
+            "observations": {
+                "observations": {"count": 15},
+            },
         },
         "per_branch": {},
     },
@@ -109,7 +112,9 @@ def _mock_importlib_modules(limits, rollover_cfg=None):
     entry_limits_mock.changed_entries = el_real.changed_entries
 
     config_loader_mock = MagicMock()
-    config_loader_mock.load.return_value = rollover_cfg if rollover_cfg is not None else _ROLLOVER_CONFIG_10
+    cfg = rollover_cfg if rollover_cfg is not None else _ROLLOVER_CONFIG_10
+    config_loader_mock.load.return_value = cfg
+    config_loader_mock.section.side_effect = lambda name: cfg.get(name, {})
 
     def side_effect(name):
         if "entry_limits" in name:
@@ -1170,3 +1175,137 @@ class TestTrinityTodosCountAdvisory:
 
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+
+
+class TestSectionCountGuard:
+    """Soft count guard: warn (never block) when rolling sections exceed count cap."""
+
+    def test_sessions_over_count_warns(self, tmp_path, caplog):
+        """21 sessions vs 20 cap -> warning logged, write still allowed."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"sessions": [{"summary": "s"} for _ in range(21)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "local.sessions count over limit (21/20)" in caplog.text
+
+    def test_key_learnings_over_count_warns(self, tmp_path, caplog):
+        """26 key_learnings vs 25 cap -> warning logged."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"key_learnings": [{"value": "v"} for _ in range(26)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "local.key_learnings count over limit (26/25)" in caplog.text
+
+    def test_observations_over_count_warns(self, tmp_path, caplog):
+        """16 observations vs 15 cap -> warning logged."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "observations.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"observations": [{"note": "n"} for _ in range(16)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "observations.observations count over limit (16/15)" in caplog.text
+
+    def test_under_count_no_warning(self, tmp_path, caplog):
+        """10 sessions vs 20 cap -> no warning."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"sessions": [{"summary": "s"} for _ in range(10)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "count over limit" not in caplog.text
+
+    def test_at_count_no_warning(self, tmp_path, caplog):
+        """Exactly 20 sessions vs 20 cap -> no warning (only > triggers)."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"sessions": [{"summary": "s"} for _ in range(20)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "count over limit" not in caplog.text
+
+    def test_count_guard_never_blocks(self, tmp_path):
+        """Even with enforce=True char limits, count guard only warns — exit_code always 0."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"sessions": [{"summary": "s"} for _ in range(30)]})
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+
+    def test_per_branch_count_override(self, tmp_path, caplog):
+        """per_branch overrides default count -> 6 sessions vs 5 cap warns."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"sessions": [{"summary": "s"} for _ in range(6)]})
+
+        rollover_cfg = {
+            "rollover": {
+                "defaults": {"local": {"sessions": {"count": 20}}},
+                "per_branch": {"hooks": {"local": {"sessions": {"count": 5}}}},
+            },
+        }
+
+        with patch("importlib.import_module", side_effect=_mock_importlib_modules(_TEST_LIMITS_WARN, rollover_cfg)):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "local.sessions count over limit (6/5)" in caplog.text
+
+    def test_config_loader_import_failure_silent(self, tmp_path, caplog):
+        """config_loader import always fails -> no count warning, no crash, write allowed."""
+        from aipass.hooks.apps.handlers.security.edit_gate import handle
+
+        file_path = _make_trinity_path(tmp_path, "hooks", "local.json")
+        cwd = str(tmp_path / "src" / "aipass" / "hooks")
+        content = json.dumps({"sessions": [{"summary": "s"} for _ in range(30)]})
+
+        el_real = importlib.import_module("aipass.memory.apps.handlers.json.entry_limits")
+        entry_limits_mock = MagicMock()
+        entry_limits_mock.load_entry_limits.return_value = _TEST_LIMITS_WARN
+        entry_limits_mock.changed_entries = el_real.changed_entries
+
+        def _side_effect(name):
+            if "entry_limits" in name:
+                return entry_limits_mock
+            if "config_loader" in name:
+                raise ImportError("no config_loader")
+            return importlib.import_module(name)
+
+        with patch("importlib.import_module", side_effect=_side_effect):
+            result = handle(_hook_data(file_path, content, cwd=cwd))
+
+        assert result["exit_code"] == 0
+        assert "count over limit" not in caplog.text

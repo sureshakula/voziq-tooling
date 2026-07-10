@@ -47,6 +47,17 @@ PyPI version — not the changelog header.
   relays. Stall logic extracted into a `StallTracker` for clarity; +9 tests
   (142 green), devpulse audit 100%. (devpulse)
 
+- **Rollover `_find_repo_root` now fails loud, and `edit_gate` warns on over-count
+  memory sections (issue #683, #664 follow-up).** The PreCompact rollover hook's
+  `_find_repo_root` returned `None` silently when `AIPASS_HOME`/cwd was wrong — the
+  exact silent-skip that hid #664 for months; it now logs a `logger.error` with the
+  `AIPASS_HOME` value and cwd before returning. And `edit_gate` enforced per-entry
+  *character* caps but not entry *counts*, so a branch could drift past its count
+  cap between rollovers; a soft `_check_section_counts` now warns (never blocks),
+  reading the same `memory.config.json` rollover caps @memory uses. +14 tests
+  (70 green); both live-proven (bad root → error logged; over-cap → warn, no block).
+  (@hooks, verified devpulse)
+
 - **`is_owner()` now case-folds — `is_owner('DEVPULSE')` matches `is_owner('devpulse')`
   (issue #679).** The spawn-registry resolver (`registry.py:382`) `@`-normalized the
   email but never lowercased, so a mixed-case branch name (registry names are

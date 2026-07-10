@@ -785,6 +785,31 @@
       "reason": "Test files do not need Version/Modified metadata headers."
     },
     {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "hardcoded_path",
+      "reason": "Test fixture strings contain paths as test input data, not real filesystem ops."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
       "file": "tests/test_git_gate.py",
       "standard": "architecture",
       "reason": "Test files live in tests/, not in the 3-layer apps structure."

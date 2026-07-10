@@ -117,6 +117,35 @@ def _todos_count_advisory(after: dict, branch: str) -> str:
         return ""
 
 
+def _check_section_counts(after: dict, branch: str, file_stem: str) -> None:
+    """Warn (never block) when rolling sections exceed their configured entry-count cap."""
+    try:
+        cl = importlib.import_module("aipass.memory.apps.handlers.json.config_loader")
+        roll = cl.section("rollover")
+        branch_cfg = roll.get("per_branch", {}).get(branch) or roll.get("defaults", {})
+        file_cfg = branch_cfg.get(file_stem, {})
+        for section_name, section_cfg in file_cfg.items():
+            if not isinstance(section_cfg, dict):
+                continue
+            cap = section_cfg.get("count")
+            if cap is None:
+                continue
+            entries = after.get(section_name)
+            if not isinstance(entries, list):
+                continue
+            count = len(entries)
+            if count > cap:
+                logger.warning(
+                    "[HOOKS] edit_gate: %s.%s count over limit (%d/%d) — rollover will trim at next PreCompact",
+                    file_stem,
+                    section_name,
+                    count,
+                    cap,
+                )
+    except Exception as exc:
+        logger.warning("[HOOKS] edit_gate: section count check failed (skipping): %s", exc)
+
+
 def _check_trinity_change(fp: Path, tool_name: str, tool_input: dict, branch: str) -> dict | None:
     """Check .trinity Write/Edit/MultiEdit for over-limit entries. Returns block dict or None."""
     try:
@@ -146,6 +175,8 @@ def _check_trinity_change(fp: Path, tool_name: str, tool_input: dict, branch: st
         block = _evaluate_limits(before, after, limits, el)
         if block:
             return block
+
+        _check_section_counts(after, branch, fp.stem)
 
         if fp.name == "local.json":
             advisory = _todos_count_advisory(after, branch)

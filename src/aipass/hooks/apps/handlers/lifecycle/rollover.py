@@ -27,6 +27,11 @@ def _find_repo_root() -> Path | None:
     for parent in [cwd, *list(cwd.parents)]:
         if (parent / "AIPASS_REGISTRY.json").exists():
             return parent
+    logger.error(
+        "[HOOKS] rollover: _find_repo_root failed — no AIPASS_REGISTRY.json found. AIPASS_HOME=%r, cwd=%s",
+        aipass_home,
+        cwd,
+    )
     return None
 
 
