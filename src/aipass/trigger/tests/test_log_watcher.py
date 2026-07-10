@@ -273,7 +273,7 @@ class TestCallbackAndState:
         """clear_seen_hashes empties the _seen_error_hashes set."""
         lw = _import_log_watcher()
         lw._seen_error_hashes.add("test_hash")
-        with patch.object(lw, "_save_seen_hashes"):
+        with patch.object(lw, "_flush_trigger_data"):
             lw.clear_seen_hashes()
         assert len(lw._seen_error_hashes) == 0
 
@@ -409,7 +409,7 @@ class TestReadNewLines:
             f.write(f"{now} | mod | ERROR | New failure\n")
 
         # Patch _save_log_positions to avoid touching the real file
-        with patch.object(lw, "_save_log_positions"):
+        with patch.object(lw, "_mark_data_dirty"):
             watcher._read_new_lines(file_path)
 
         # Position should have advanced
@@ -430,7 +430,7 @@ class TestReadNewLines:
         # Write new small content
         log_file.write_text("short\n", encoding="utf-8")
 
-        with patch.object(lw, "_save_log_positions"):
+        with patch.object(lw, "_mark_data_dirty"):
             watcher._read_new_lines(file_path)
 
         # Position should be at the end of the new content
@@ -808,6 +808,112 @@ class TestSaveLogPositions:
 
 
 # ---------------------------------------------------------------------------
+# Tests -- debounced trigger_data.json writer
+# ---------------------------------------------------------------------------
+
+
+class TestDebouncedWriter:
+    """Tests for time-based debounced coalesced writes to trigger_data.json."""
+
+    def test_rapid_events_coalesce_into_one_write(self, tmp_path):
+        """N rapid _mark_data_dirty calls produce at most 1 write within the interval."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._last_flush_time = 0.0
+        lw._data_dirty = False
+        lw._active_watcher = MagicMock()
+        lw._active_watcher.log_positions = {"/a.log": 100}
+
+        write_count = 0
+        real_write = lw.atomic_write_json
+
+        def counting_write(path, data):
+            """Wrapper that increments write_count on each call."""
+            nonlocal write_count
+            write_count += 1
+            real_write(path, data)
+
+        with patch.object(lw, "atomic_write_json", side_effect=counting_write):
+            for _ in range(20):
+                lw._mark_data_dirty()
+
+        assert write_count == 1
+
+    def test_flush_writes_both_positions_and_hashes(self, tmp_path):
+        """_flush_trigger_data writes both log_positions and seen_error_hashes."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._data_dirty = True
+        lw._active_watcher = MagicMock()
+        lw._active_watcher.log_positions = {"/x.log": 42}
+        lw._seen_error_hashes = {"hash1", "hash2"}
+
+        lw._flush_trigger_data(force=True)
+
+        data = json.loads(data_file.read_text(encoding="utf-8"))
+        assert data["log_positions"] == {"/x.log": 42}
+        assert set(data["seen_error_hashes"]) == {"hash1", "hash2"}
+
+    def test_restart_survival(self, tmp_path):
+        """Flushed data survives reload — positions and hashes intact."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._active_watcher = MagicMock()
+        lw._active_watcher.log_positions = {"/srv.log": 999}
+        lw._seen_error_hashes = {"abc", "def"}
+        lw._data_dirty = True
+
+        lw._flush_trigger_data(force=True)
+
+        loaded_positions = lw._load_log_positions()
+        assert loaded_positions == {"/srv.log": 999}
+
+        lw._load_seen_hashes()
+        assert lw._seen_error_hashes == {"abc", "def"}
+
+    def test_force_flush_writes_even_when_not_dirty(self, tmp_path):
+        """force=True writes regardless of _data_dirty flag."""
+        lw = _import_log_watcher()
+        data_file = tmp_path / "trigger_data.json"
+        lw.TRIGGER_DATA_FILE = data_file
+        lw._data_dirty = False
+        lw._active_watcher = MagicMock()
+        lw._active_watcher.log_positions = {"/f.log": 10}
+        lw._seen_error_hashes = set()
+
+        lw._flush_trigger_data(force=True)
+
+        assert data_file.exists()
+        data = json.loads(data_file.read_text(encoding="utf-8"))
+        assert data["log_positions"] == {"/f.log": 10}
+
+    def test_dirty_flag_cleared_after_flush(self):
+        """_data_dirty is False after a successful flush."""
+        lw = _import_log_watcher()
+        lw._data_dirty = True
+        lw._active_watcher = None
+        with patch.object(lw, "atomic_write_json"):
+            lw._flush_trigger_data(force=True)
+        assert lw._data_dirty is False
+
+    def test_stop_watcher_forces_flush(self, tmp_path):
+        """stop_branch_log_watcher calls _flush_trigger_data(force=True)."""
+        lw = _import_log_watcher()
+        mock_watcher = MagicMock()
+        mock_watcher.log_positions = {"/a.log": 50}
+        lw._active_watcher = mock_watcher
+        lw._branch_log_observer = MagicMock()
+        lw._branch_log_observer.is_alive.return_value = True
+
+        with patch.object(lw, "_flush_trigger_data") as mock_flush:
+            lw.stop_branch_log_watcher()
+            mock_flush.assert_called_once_with(force=True)
+
+
+# ---------------------------------------------------------------------------
 # Tests -- _is_stale_entry (additional format coverage)
 # ---------------------------------------------------------------------------
 
@@ -993,14 +1099,14 @@ class TestReadNewLinesDeeper:
         watcher.log_positions[file_path] = current_size
 
         watcher._process_log_line = MagicMock()
-        with patch.object(lw, "_save_log_positions"):
+        with patch.object(lw, "_mark_data_dirty"):
             watcher._read_new_lines(file_path)
 
         watcher._process_log_line.assert_not_called()
         assert watcher.log_positions[file_path] == current_size
 
-    def test_position_save_interval_triggers_save(self, tmp_path):
-        """_save_log_positions is called when counter hits interval."""
+    def test_debounce_flushes_when_interval_elapsed(self, tmp_path):
+        """_flush_trigger_data fires when flush interval has elapsed."""
         lw = _import_log_watcher()
         watcher = lw.BranchLogWatcher()
         log_file = tmp_path / "interval.log"
@@ -1008,27 +1114,29 @@ class TestReadNewLinesDeeper:
         log_file.write_text(f"{now} | mod | ERROR | fail\n", encoding="utf-8")
         file_path = str(log_file)
         watcher.log_positions[file_path] = 0
-        watcher._position_save_counter = watcher._POSITION_SAVE_INTERVAL - 1
 
-        with patch.object(lw, "_save_log_positions") as mock_save:
+        lw._last_flush_time = 0.0
+        with patch.object(lw, "_flush_trigger_data") as mock_flush:
             watcher._read_new_lines(file_path)
-            mock_save.assert_called_once()
-        assert watcher._position_save_counter == 0
+            mock_flush.assert_called_once()
 
-    def test_position_save_interval_not_reached(self, tmp_path):
-        """_save_log_positions is NOT called when counter is below interval."""
+    def test_debounce_skips_flush_within_interval(self, tmp_path):
+        """_flush_trigger_data is NOT called when within flush interval."""
         lw = _import_log_watcher()
+        import time
+
         watcher = lw.BranchLogWatcher()
         log_file = tmp_path / "notsaved.log"
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         log_file.write_text(f"{now} | mod | ERROR | fail\n", encoding="utf-8")
         file_path = str(log_file)
         watcher.log_positions[file_path] = 0
-        watcher._position_save_counter = 0
 
-        with patch.object(lw, "_save_log_positions") as mock_save:
+        lw._last_flush_time = time.monotonic()
+        with patch.object(lw, "_flush_trigger_data") as mock_flush:
             watcher._read_new_lines(file_path)
-            mock_save.assert_not_called()
+            mock_flush.assert_not_called()
+        assert lw._data_dirty is True
 
     def test_blank_lines_are_skipped(self, tmp_path):
         """Blank lines in new content do not trigger _process_log_line."""
@@ -1040,7 +1148,7 @@ class TestReadNewLinesDeeper:
         watcher.log_positions[file_path] = 0
 
         watcher._process_log_line = MagicMock()
-        with patch.object(lw, "_save_log_positions"):
+        with patch.object(lw, "_mark_data_dirty"):
             watcher._read_new_lines(file_path)
         watcher._process_log_line.assert_not_called()
 
@@ -1055,7 +1163,7 @@ class TestReadNewLinesDeeper:
         watcher.log_positions[file_path] = 99999
 
         watcher._process_log_line = MagicMock()
-        with patch.object(lw, "_save_log_positions"):
+        with patch.object(lw, "_mark_data_dirty"):
             watcher._read_new_lines(file_path)
 
         watcher._process_log_line.assert_called_once()

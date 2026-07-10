@@ -26,6 +26,8 @@ import json
 import re
 import sys
 import hashlib
+import time
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Set, Optional, Callable
@@ -104,6 +106,13 @@ _active_watcher: Any = None  # Reference to BranchLogWatcher for position persis
 _seen_error_hashes: Set[str] = set()
 _fallback_error_counts: Dict[str, int] = {}  # Local count per hash when registry unavailable
 MAX_SEEN_HASHES = 2000  # Limit memory usage
+
+# Debounced trigger_data.json writer — coalesces positions + hashes into one
+# write per flush interval instead of per-event.
+_FLUSH_INTERVAL = 5.0
+_data_dirty: bool = False
+_last_flush_time: float = 0.0
+_flush_lock = threading.Lock()
 
 # Explicit mapping of system_logs filenames to their owning branch.
 # Used for files that don't follow the <branch>_<module>.log naming convention.
@@ -216,6 +225,37 @@ def _save_log_positions(positions: Dict[str, int]) -> None:
     except Exception as exc:
         logger.warning("Failed to save log positions: %s", exc)
         return  # Write failure - positions remain in memory only
+
+
+def _mark_data_dirty() -> None:
+    """Mark trigger_data.json as needing a flush; flush if interval elapsed."""
+    global _data_dirty
+    _data_dirty = True
+    if time.monotonic() - _last_flush_time >= _FLUSH_INTERVAL:
+        _flush_trigger_data()
+
+
+def _flush_trigger_data(force: bool = False) -> None:
+    """Write both positions and hashes to trigger_data.json in one atomic write."""
+    global _data_dirty, _last_flush_time
+    if not force and not _data_dirty:
+        return
+    with _flush_lock:
+        if not force and not _data_dirty:
+            return
+        try:
+            with json_file_lock(TRIGGER_DATA_FILE):
+                data: Dict[str, Any] = {}
+                if TRIGGER_DATA_FILE.exists():
+                    data = json.loads(TRIGGER_DATA_FILE.read_text(encoding="utf-8"))
+                if _active_watcher is not None:
+                    data["log_positions"] = _active_watcher.log_positions
+                data["seen_error_hashes"] = list(_seen_error_hashes)
+                atomic_write_json(TRIGGER_DATA_FILE, data)
+            _data_dirty = False
+            _last_flush_time = time.monotonic()
+        except Exception as exc:
+            logger.warning("Failed to flush trigger_data.json: %s", exc)
 
 
 def _is_stale_entry(timestamp_str: str) -> bool:
@@ -399,8 +439,6 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
         """Initialize log watcher with position tracking."""
         super().__init__()
         self.log_positions: Dict[str, int] = {}
-        self._position_save_counter: int = 0
-        self._POSITION_SAVE_INTERVAL: int = 10  # Save positions every N file events
 
     def _should_process(self, file_path: str) -> bool:
         """Check if a log file should be processed."""
@@ -432,10 +470,7 @@ class BranchLogWatcher(WatchdogFileSystemEventHandler if WATCHDOG_AVAILABLE else
                         self._process_log_line(line, file_path)
             self.log_positions[file_path] = f.tell()
 
-        self._position_save_counter += 1
-        if self._position_save_counter >= self._POSITION_SAVE_INTERVAL:
-            _save_log_positions(self.log_positions)
-            self._position_save_counter = 0
+        _mark_data_dirty()
 
     def on_modified(self, event) -> None:
         """
@@ -701,9 +736,9 @@ def stop_branch_log_watcher() -> None:
     """Stop the branch log watcher and persist positions to disk."""
     global _branch_log_observer, _active_watcher
 
-    # Persist positions before stopping
+    # Flush positions + hashes before stopping
     if _active_watcher is not None:
-        _save_log_positions(_active_watcher.log_positions)
+        _flush_trigger_data(force=True)
         _active_watcher = None
 
     if _branch_log_observer and _branch_log_observer.is_alive():
@@ -730,7 +765,7 @@ def clear_seen_hashes() -> None:
     """
     global _seen_error_hashes
     _seen_error_hashes.clear()
-    _save_seen_hashes()
+    _flush_trigger_data(force=True)
 
 
 def get_watcher_status() -> Dict[str, Any]:

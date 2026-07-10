@@ -30,6 +30,17 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **`@trigger` no longer rewrites its 44KB `trigger_data.json` on every log event
+  (issue #674).** The branch log watcher persisted dedup hashes and log positions
+  with two separate full-file rewrites *per event*, so a log burst churned the
+  file ~1-2×/sec (surfaced by prax monitoring). Replaced the per-event/counter
+  writes with a debounced coalescing writer: events set a dirty flag and both
+  keys are written in a single atomic write at most once per 5s, with a forced
+  flush on watcher stop so nothing is lost on clean shutdown. Also confirmed the
+  retired `bulletin_created` event handler no longer loads or warns (it lives in
+  `.archive/` with no live references; scrubbed stale README/bypass mentions).
+  564 trigger tests green (+6 debounce tests).
+
 - **`aipass install` no longer silently repoints your global `drone`/`aipass`
   symlinks (issue #660).** `setup.sh` force-overwrote the global CLI symlinks with
   `ln -sf` on every run, no check and no opt-out — so `aipass install

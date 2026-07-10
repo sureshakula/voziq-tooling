@@ -33,7 +33,7 @@
       "reason": "Meta-logging helper: _log_warning() writes directly to file. Its own except block cannot log \u2014 you cannot log a failure to log."
     },
     {
-      "file": "apps/handlers/events/bulletin_created.py",
+      "file": "apps/handlers/events/.archive/bulletin_created.py",
       "standard": "silent_catch",
       "pattern": "_log_warning except",
       "reason": "Meta-logging helper: _log_warning() writes directly to file. Its own except block cannot log \u2014 you cannot log a failure to log."
@@ -78,7 +78,7 @@
       "file": "apps/handlers/log_watcher.py",
       "standard": "handlers",
       "lines": [
-        75
+        77
       ],
       "reason": "log_watcher imports error_registry.report() for Medic v2 dedup. This is a deliberate handler-to-handler dependency \u2014 the registry IS the dedup backend."
     },
@@ -170,7 +170,7 @@
       "reason": "Meta-logging helper _log_warning() \u2014 cannot log a failure to log. Same pattern as silent_catch bypass."
     },
     {
-      "file": "apps/handlers/events/bulletin_created.py",
+      "file": "apps/handlers/events/.archive/bulletin_created.py",
       "standard": "error_handling",
       "lines": [
         55
@@ -324,6 +324,13 @@
       "reason": "JSON handler framework utilities \u2014 part of the json_structure standard infrastructure. Available for future use by modules that need JSON validation and metrics."
     },
     {
+      "file": "apps/handlers/log_watcher.py",
+      "standard": "unused_function",
+      "pattern": "_save_seen_hashes, _save_log_positions",
+      "lines": [168, 208],
+      "reason": "Low-level single-key writers kept for direct unit testing (TestSaveSeenHashes, TestSaveLogPositions). Hot path uses coalesced _flush_trigger_data instead."
+    },
+    {
       "file": "apps/log_watcher_service.py",
       "standard": "cli",
       "reason": "Systemd service \u2014 runs as persistent daemon process, no drone CLI interaction."
@@ -385,9 +392,9 @@
       "file": "apps/handlers/log_watcher.py",
       "standard": "silent_catch",
       "lines": [
-        236
+        290
       ],
-      "reason": "Timestamp parsing loop tries multiple formats. except ValueError: continue is intentional \u2014 on failure, tries next format. Logger.warning fires once after ALL formats fail (line 240)."
+      "reason": "Timestamp parsing loop tries multiple formats. except ValueError: continue is intentional \u2014 on failure, tries next format. Logger.warning fires once after ALL formats fail (line 295)."
     },
     {
       "file": "apps/modules/errors.py",
@@ -421,7 +428,7 @@
       "file": "apps/handlers/log_watcher.py",
       "standard": "silent_catch",
       "lines": [
-        233
+        290
       ],
       "reason": "Timestamp format parsing loop \u2014 tries multiple datetime formats, ValueError is expected control flow on non-matching formats."
     },
