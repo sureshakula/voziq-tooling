@@ -33,6 +33,17 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **`aipass install` no longer hard-fails (exit 2, silently) when it can't create
+  global symlinks (issue #660 follow-up).** `setup.sh` runs under
+  `set -euo pipefail`; the #660 `safe_symlink` refactor returns `2` on `ln`
+  failure, but the call sites captured that code on the *next* line (`rc=$?`), so
+  `set -e` killed the installer at the symlink step — before the `~/.local/bin`
+  fallback (built for exactly the no-sudo case) could run. Any sudo-less
+  environment (containers, CI, locked-down machines) got a silent exit 2 with no
+  symlinks, despite an otherwise-complete install. Fixed all three call sites to
+  `rc=0; safe_symlink … || rc=$?` (set-e-safe). Proven in docker: a sudo-less
+  install now falls back to `~/.local/bin` and exits 0. (devpulse)
+
 - **`drone @devpulse watchdog agent` no longer reports failure on a successful
   watch (issue #661).** Its "invoke via Monitor tool" reminder was printed
   through `cli.error()`, which — after the #661 exit-code work — trips a

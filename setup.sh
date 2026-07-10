@@ -1017,8 +1017,8 @@ elif [ "$IS_MACOS" -eq 1 ]; then
 
     for cmd in drone aipass; do
         if [ -f "$VENV_BIN/$cmd" ]; then
-            safe_symlink "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"
-            rc=$?
+            rc=0
+            safe_symlink "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd" || rc=$?
             if [ "$rc" -eq 0 ]; then
                 echo "  $LOCAL_BIN/$cmd -> $VENV_BIN/$cmd"
             elif [ "$rc" -eq 2 ]; then
@@ -1034,8 +1034,8 @@ else
 
     for cmd in drone aipass; do
         if [ -f "$VENV_BIN/$cmd" ]; then
-            safe_symlink "$VENV_BIN/$cmd" "/usr/local/bin/$cmd" "sudo"
-            rc=$?
+            rc=0
+            safe_symlink "$VENV_BIN/$cmd" "/usr/local/bin/$cmd" "sudo" || rc=$?
             if [ "$rc" -eq 0 ]; then
                 echo "  /usr/local/bin/$cmd -> $VENV_BIN/$cmd"
                 LINUX_SYMLINK_DIR="/usr/local/bin"
@@ -1045,8 +1045,8 @@ else
                 # sudo/ln failed (e.g. no sudo) — fall back to user-local bin
                 LOCAL_BIN="$HOME/.local/bin"
                 mkdir -p "$LOCAL_BIN"
-                safe_symlink "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd"
-                rc=$?
+                rc=0
+                safe_symlink "$VENV_BIN/$cmd" "$LOCAL_BIN/$cmd" || rc=$?
                 if [ "$rc" -eq 0 ]; then
                     echo "  /usr/local/bin failed (no sudo) — using $LOCAL_BIN/$cmd instead"
                     LINUX_SYMLINK_DIR="$LOCAL_BIN"
