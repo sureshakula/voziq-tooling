@@ -325,7 +325,11 @@ def _handle_agent(sub_args: List[str]) -> bool:
         error("Usage: watchdog agent <branch> [--timeout SECONDS]")
         return True
 
-    error("WATCHDOG: Must be invoked via Monitor tool, never run_in_background")
+    # Reminder, not an error: this call blocks until the agent exits, so it must
+    # run via the Monitor tool (not run_in_background) for the wake to fire on
+    # completion. Route through console — error() would print ❌ and trip the
+    # exit-code fail-flag on an otherwise-successful watch (#661 output_routing).
+    console.print("[dim]watchdog agent: invoke via Monitor tool, not run_in_background[/dim]")
 
     timeout = _DEFAULT_AGENT_TIMEOUT
     positional: List[str] = []
