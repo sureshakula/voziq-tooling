@@ -67,11 +67,20 @@ from aipass.flow.apps.handlers.dashboard.update_local import update_dashboard_lo
 from aipass.flow.apps.handlers.dashboard.push_central import push_to_plans_central
 from aipass.flow.apps.handlers.dashboard.push_branch_dashboard import push_flow_to_branch_dashboard
 
-# Internal: Memory template check (lightweight, no API calls)
-from aipass.flow.apps.handlers.mbank.process import is_template_content
+# Internal: Memory template check + archive (lightweight, no API calls)
+from aipass.flow.apps.handlers.mbank.process import is_template_content, archive_plan
 
 # Internal: Close operations handler (implementation)
 from aipass.flow.apps.handlers.plan.close_ops import close_plan_impl, close_all_plans_impl
+
+# Internal: Trigger (optional — may not be installed)
+try:
+    from aipass.trigger.apps.modules.core import trigger as _trigger_module
+
+    _trigger_fire = _trigger_module.fire
+except ImportError:
+    logger.info("[close_plan] Trigger module not available, plan events will be skipped")
+    _trigger_fire = None
 
 # =============================================
 # CONFIGURATION
@@ -264,6 +273,8 @@ def close_plan(
         push_to_plans_central=push_to_plans_central,
         push_flow_to_branch_dashboard=push_flow_to_branch_dashboard,
         close_all_plans_fn=close_all_plans,
+        archive_plan_fn=archive_plan,
+        trigger_fire_fn=_trigger_fire,
     )
 
     # Handle dict result from handler

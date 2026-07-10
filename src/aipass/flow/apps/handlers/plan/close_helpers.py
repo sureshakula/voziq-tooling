@@ -20,6 +20,7 @@ Usage:
         _find_unregistered_plan_file,
         _self_heal_unregistered_plan,
         _spawn_background_runner,
+        _cleanup_orphaned_plan,
     )
 """
 
@@ -251,6 +252,43 @@ def _self_heal_unregistered_plan(
     json_handler.log_operation("self_heal_register", {"prefix": prefix, "plan_key": actual_key, "file": str(plan_file)})
 
     return actual_key, registry
+
+
+def _cleanup_orphaned_plan(
+    plan_file: Path,
+    plan_label: str,
+    plan_info: Dict[str, Any],
+    registry: Dict[str, Any],
+    save_registry: Any,
+    reg_file: Any,
+    messages: List[Dict[str, Any]],
+    archive_plan: Any = None,
+) -> None:
+    """Archive an orphaned .md file (registry-closed but file never moved)."""
+    if archive_plan is None:
+        logger.warning(f"[{MODULE_NAME}] archive_plan not injected, skipping orphan cleanup for {plan_label}")
+        messages.append({"type": "warning", "text": "  Orphan cleanup skipped — archive_plan not available"})
+        return
+
+    messages.append({"type": "dim", "text": f"  Cleaning up: moving {plan_file.name} to processed_plans/"})
+    try:
+        if archive_plan(plan_file):
+            logger.info(f"[{MODULE_NAME}] Cleaned up orphaned file for {plan_label}: {plan_file}")
+            plan_info["processed"] = True
+            plan_info["processed_date"] = datetime.now(timezone.utc).isoformat()
+            plan_info["cleanup_completed"] = True
+            plan_info["cleanup_date"] = datetime.now(timezone.utc).isoformat()
+            if reg_file:
+                save_registry(registry, registry_file=reg_file)
+            else:
+                save_registry(registry)
+            messages.append({"type": "success", "text": "  Orphaned file archived successfully"})
+        else:
+            logger.warning(f"[{MODULE_NAME}] Failed to archive orphaned file for {plan_label}: {plan_file}")
+            messages.append({"type": "error_text", "text": "  Failed to move orphaned file — manual cleanup required"})
+    except Exception as e:
+        logger.warning(f"[{MODULE_NAME}] Error cleaning orphaned file for {plan_label}: {e}")
+        messages.append({"type": "error_text", "text": f"  Error during cleanup: {e}"})
 
 
 def _spawn_background_runner():

@@ -30,6 +30,21 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **`drone @flow close` no longer reports a false "timed out after 30s" on a
+  successful close (issue #662).** A single-plan close committed early (plan
+  marked closed, file archived) and then ran memory vectorization
+  *synchronously* — `drone @memory process-plans` — inline. On the cold first
+  close of a session that crossed drone's 30s executor timeout, so drone killed
+  the flow subprocess and returned exit `1` **after** the close had fully
+  committed. An autonomous agent reading that exit code would retry or abandon an
+  already-closed plan. `close_plan_impl` now honors its long-existing
+  `spawn_background` flag: single close fires the already-detached
+  `_spawn_background_runner` (the same path `close_all` uses) and returns
+  immediately after archive; vectorization runs in the background. Also removed
+  the handler's cross-handler imports (archive/trigger now injected). Verified
+  live: a real close returns in ~5s at exit 0 ("Vectorizing in background") vs
+  the prior 30s-timeout risk. 730 flow tests green (+2 new).
+
 - **`aipass doctor` no longer hangs on non-interactive stdin (issue #663).** The
   auto-wire `[y/N]` prompt called `input()` with no tty guard, so a caller with a
   blocking-but-idle stdin (a script, CI job, or subprocess whose stdin never
