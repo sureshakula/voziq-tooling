@@ -25,7 +25,7 @@ from aipass.devpulse.apps.handlers.feedback.storage import (
     generate_id,
 )
 
-from aipass.cli.apps.modules import err_console
+from aipass.cli.apps.modules import err_console, error
 from aipass.devpulse.apps.handlers.json import json_handler
 
 console = err_console
@@ -133,7 +133,7 @@ def reply_to(msg_id: str, body: str) -> bool:
             break
 
     if msg is None:
-        console.print(f"[red]Message {msg_id} not found.[/red]")
+        error(f"Message {msg_id} not found.")
         return False
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")

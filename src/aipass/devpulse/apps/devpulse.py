@@ -35,7 +35,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import err_console
+from aipass.cli.apps.modules import err_console, resolve_exit, reset_command_state
 
 console = err_console
 
@@ -161,13 +161,14 @@ def _handle_command(command: str, args: list) -> bool:
 
 def main():
     """Main entry point - routes commands or shows help."""
+    reset_command_state()
     args = sys.argv[1:]
 
     if len(args) == 0:
         print_introspection()
         return 0
 
-    return 0 if _handle_command(args[0], args[1:]) else 1
+    return resolve_exit(_handle_command(args[0], args[1:]))
 
 
 if __name__ == "__main__":

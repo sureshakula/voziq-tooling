@@ -11,6 +11,23 @@ PyPI version — not the changelog header.
 
 ## [2026-07-09]
 
+### Added
+
+- **Exit-code contract foundation — failing commands can now exit non-zero
+  (issue #661, in progress).** CLI error paths printed an error but returned exit
+  `0`, so `$?`-checking callers (core to running `drone` as a subprocess) were
+  told success on failure. The dispatch contract was a 2-state bool (`handled` /
+  `not-mine`) with no way to say "handled *and* failed". `@cli` now exposes a
+  process-level failure flag + `resolve_exit(handled)` (→ `0`/`1`/`2`), and
+  `error()` auto-trips the flag — so any failure routed through `error()` gets a
+  correct non-zero exit with zero per-site edits, and it can't regress. Inert
+  until a branch's `main()` adopts it. `@seedgo` added an `output_routing`
+  standard (39th checker) flagging user-facing status output that bypasses the
+  cli helpers — 254 sites across 14 branches, the migration checklist. `devpulse`
+  is the first adopter (`main()`→`resolve_exit`, feedback migrated to `error()`,
+  exit `2`/`0`/`1` verified, 100% seedgo). Fleet migration to follow.
+  (built by @cli + @seedgo)
+
 ### Fixed
 
 - **macOS session lock-out: the boot wrapper can now see tmux sessions on

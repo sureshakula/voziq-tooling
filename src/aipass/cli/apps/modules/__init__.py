@@ -26,6 +26,9 @@ from aipass.cli.apps.modules.display import console, err_console
 # Display functions
 from aipass.cli.apps.modules.display import header, success, error, warning, fatal, section
 
+# Exit-code failure-flag API
+from aipass.cli.apps.modules.display import mark_command_failed, command_failed, reset_command_state, resolve_exit
+
 # Operation templates
 from aipass.cli.apps.modules.templates import operation_start, operation_complete
 
@@ -40,6 +43,11 @@ __all__ = [
     "warning",
     "fatal",
     "section",
+    # Exit-code failure-flag API
+    "mark_command_failed",
+    "command_failed",
+    "reset_command_state",
+    "resolve_exit",
     # Templates
     "operation_start",
     "operation_complete",

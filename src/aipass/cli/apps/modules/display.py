@@ -48,6 +48,36 @@ err_console = Console(stderr=True, force_terminal=sys.stderr.isatty())  # Stderr
 _TRIGGER = None
 _TRIGGER_LOADED = False
 
+# Process-level command failure flag — mutable container avoids global statement
+_CMD_STATE = {"failed": False}
+
+
+def mark_command_failed() -> None:
+    """Set the process-level failure flag (called automatically by error())."""
+    _CMD_STATE["failed"] = True
+
+
+def command_failed() -> bool:
+    """Return whether mark_command_failed() has been called since last reset."""
+    return _CMD_STATE["failed"]
+
+
+def reset_command_state() -> None:
+    """Reset the failure flag to False (for tests and main() entry)."""
+    _CMD_STATE["failed"] = False
+
+
+def resolve_exit(handled: bool) -> int:
+    """Map handled/failed state to an exit code.
+
+    Returns 1 if not handled, 2 if handled but failed, 0 otherwise.
+    """
+    if not handled:
+        return 1
+    if _CMD_STATE["failed"]:
+        return 2
+    return 0
+
 
 # ============================================================================
 # MODULE PATTERN FUNCTIONS (SEEDGO compliant)
@@ -341,6 +371,7 @@ def error(message: str, suggestion: str | None = None) -> None:
     Example:
         error('Branch not found', suggestion='Check branch name spelling')
     """
+    mark_command_failed()
     err_console.print(f"❌ [red bold]{message}[/red bold]")
     if suggestion:
         err_console.print(f"   [yellow]→ Try: {suggestion}[/yellow]")
@@ -411,6 +442,10 @@ __all__ = [
     "warning",
     "fatal",
     "section",
+    "mark_command_failed",
+    "command_failed",
+    "reset_command_state",
+    "resolve_exit",
 ]
 
 # ============================================================================

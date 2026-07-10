@@ -79,6 +79,11 @@ drone @flow create . "Subject" aplan                       # APLAN (FPLAN/DPLAN 
 drone @flow list open                                      # active plans
 ```
 
+# Dispatch — in-flight comms
+
+ - **Steer a working agent with `email` (no wake), NOT `dispatch`.** `dispatch` = send **+ wake** (hand NEW work to a sleeping agent). An agent already running is awake, so `drone @ai_mail email @target "Subject" "Msg"` reaches it mid-task via its hook — no re-wake, no interrupt. Forgot something / need to correct a brief / add context → **email it in-flight**, don't re-dispatch. (`drone @ai_mail --help`)
+ - **No backticks in dispatch/email body strings** — bash runs `` `word` `` as command-substitution and silently eats it. Use single quotes or plain text (hit this live: a backtick'd word vanished from a brief).
+
 # Watchdog
 
 Devpulse module. After dispatch, arm as a background task — it polls the dispatch lock and exits when the agent finishes. Resolves @target → branch path → `.ai_mail.local/.dispatch.lock`. Default timeout 1800s; `drone @devpulse watchdog --help` for the full reference.
