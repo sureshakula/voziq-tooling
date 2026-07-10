@@ -47,6 +47,15 @@ PyPI version — not the changelog header.
   relays. Stall logic extracted into a `StallTracker` for clarity; +9 tests
   (142 green), devpulse audit 100%. (devpulse)
 
+- **`aipass install` shows progress during the slow dependency build, and a README
+  quick-start command is corrected (issue #665, items 6–7).** The editable install of
+  the `[memory]` extras ran with `pip --quiet`, going silent for minutes during wheel
+  builds — it looked hung; dropped `--quiet` on that step and set expectation in the
+  echo. And `README.md` showed `drone @seedgo audit my_project`, which fails
+  (`audit` takes a registered pack name) — corrected to `audit aipass`. Remaining
+  #665 items (version, --help names, subcommand --help, placeholders, hints, crash-vs-
+  unknown) span multiple owners and stay open. (devpulse)
+
 - **Telegram poll loop no longer re-drains a rate-limited backlog; systemd
   suicide-loop + silent config fallback fixed (issues #668, #669).** #668: the poll
   loop advanced the update offset *after* processing, so a rate-limited/erroring
