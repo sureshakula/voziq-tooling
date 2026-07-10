@@ -472,17 +472,17 @@ def create_bot_via_botfather(branch_name: str) -> Optional[dict]:
         Dict with "token", "username", "display_name" on success.
         None on any failure (config missing, connection failed, BotFather error, etc.).
     """
-    # Pre-flight checks
+    # Pre-flight checks — fail loud so callers see the real reason
     ready, reason = check_telethon_setup()
     if not ready:
-        logger.warning("Telethon setup check failed: %s", reason)
-        return None
+        raise RuntimeError(f"Telethon setup failed: {reason}")
 
-    # Load config
     config = _load_telethon_config()
     if config is None:
-        logger.warning("Cannot create bot: Telethon config not loaded")
-        return None
+        raise RuntimeError(
+            "Telethon config could not be loaded (missing api_id or api_hash). "
+            'Set it with: drone @api set-secret telethon_config \'{"api_id": ..., "api_hash": "..."}\''
+        )
 
     api_id = config["api_id"]
     api_hash = config["api_hash"]

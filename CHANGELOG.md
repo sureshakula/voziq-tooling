@@ -47,6 +47,19 @@ PyPI version — not the changelog header.
   relays. Stall logic extracted into a `StallTracker` for clarity; +9 tests
   (142 green), devpulse audit 100%. (devpulse)
 
+- **Telegram poll loop no longer re-drains a rate-limited backlog; systemd
+  suicide-loop + silent config fallback fixed (issues #668, #669).** #668: the poll
+  loop advanced the update offset *after* processing, so a rate-limited/erroring
+  update never advanced it — the same backlog re-fetched in a flood loop. The
+  offset now advances *before* `process_update`, so a consumed update never pins
+  it. #669: (1) systemd unit gets `KillMode=process` so a restart isn't killed by
+  the old instance's cgroup teardown (suicide-loop); (2) `create_bot_via_botfather`
+  now **raises** with an actionable message (naming the `set-secret` fix) instead of
+  silently returning `None` when telethon config is missing (fail-honestly);
+  (3) stale config-mechanism docstrings corrected. Also Windows-hardened
+  `_is_pid_alive`/`_check_lock` and switched `TEMP_DIR` to `tempfile.gettempdir()`.
+  653 telegram tests green. (@skills, verified devpulse)
+
 - **Rollover `_find_repo_root` now fails loud, and `edit_gate` warns on over-count
   memory sections (issue #683, #664 follow-up).** The PreCompact rollover hook's
   `_find_repo_root` returned `None` silently when `AIPASS_HOME`/cwd was wrong — the

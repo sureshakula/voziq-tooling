@@ -602,17 +602,19 @@ class TestBotFatherClientCreateBot:
 class TestCreateBotViaBotfather:
     """Test create_bot_via_botfather: the synchronous entry point."""
 
-    def test_returns_none_when_setup_not_ready(self, monkeypatch):
-        """Returns None when check_telethon_setup says not ready."""
+    def test_raises_when_setup_not_ready(self, monkeypatch):
+        """Raises RuntimeError when check_telethon_setup says not ready."""
         monkeypatch.setattr(
             "apps.handlers.botfather_client.check_telethon_setup",
             lambda: (False, "Telethon not installed"),
         )
-        result = create_bot_via_botfather("dev_central")
-        assert result is None
+        import pytest
 
-    def test_returns_none_when_config_load_fails(self, monkeypatch):
-        """Returns None when _load_telethon_config returns None."""
+        with pytest.raises(RuntimeError, match="Telethon setup failed"):
+            create_bot_via_botfather("dev_central")
+
+    def test_raises_when_config_load_fails(self, monkeypatch):
+        """Raises RuntimeError when _load_telethon_config returns None."""
         monkeypatch.setattr(
             "apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
@@ -621,8 +623,10 @@ class TestCreateBotViaBotfather:
             "apps.handlers.botfather_client._load_telethon_config",
             lambda: None,
         )
-        result = create_bot_via_botfather("dev_central")
-        assert result is None
+        import pytest
+
+        with pytest.raises(RuntimeError, match="could not be loaded"):
+            create_bot_via_botfather("dev_central")
 
     def test_returns_result_on_success(self, monkeypatch):
         """Returns result dict on successful flow."""
