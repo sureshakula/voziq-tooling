@@ -6,17 +6,7 @@
 # Modified: 2026-03-09
 # =============================================
 
-"""
-PRAX Monitor Module - Mission Control for Autonomous Branches
-
-Thin orchestration layer for real-time monitoring of file changes, log events,
-and agent activity across all AIPass branches. Delegates to handlers in
-apps/handlers/monitoring/ (unified_stream, branch_detector, event_queue, etc.)
-
-Usage:
-    drone @prax monitor              # Show introspection
-    drone @prax monitor run          # Monitor all branches
-"""
+"""PRAX Monitor Module - Mission Control for Autonomous Branches."""
 
 import os
 import sys
@@ -57,74 +47,10 @@ from aipass.prax.apps.handlers.monitoring.telegram_relay import (
     stop_relay,
     is_relay_enabled_by_env,
 )
-
-
-# =============================================================================
-# PID CACHE - Maps branch names to active agent PIDs from dispatch lock files
-# =============================================================================
+from aipass.prax.apps.handlers.monitoring.pid_cache import get_pid_for_branch as _get_pid_for_branch
+from aipass.prax.apps.handlers.monitoring import instance_lock
 
 import json as _json
-
-_pid_cache: dict[str, int] = {}
-_pid_cache_lock = threading.Lock()
-_pid_cache_last_refresh: float = 0.0
-_PID_CACHE_TTL = 30.0  # Refresh every 30 seconds
-
-
-def _parse_lock_pid(branch_entry: dict, new_cache: dict[str, int]) -> None:
-    """Parse a single dispatch lock file and add to cache if PID is live."""
-    branch_path = Path(branch_entry.get("path", ""))
-    lock_path = branch_path / "ai_mail.local" / ".dispatch.lock"
-    if not lock_path.exists():
-        return
-    try:
-        lock_data = _json.loads(lock_path.read_text(encoding="utf-8"))
-        pid = lock_data.get("pid", 0)
-        if not pid or not (sys.platform == "linux" and Path(f"/proc/{pid}").exists()):
-            return
-        name = branch_entry.get("name", "").upper()
-        if name:
-            new_cache[name] = pid
-    except (ValueError, OSError) as e:
-        logger.info("[monitor] Skipping dispatch lock %s: %s", lock_path, e)
-
-
-def _refresh_pid_cache() -> None:
-    """Scan dispatch lock files to build branch→PID mapping."""
-    global _pid_cache_last_refresh
-    import time as _time
-
-    now = _time.time()
-    with _pid_cache_lock:
-        if now - _pid_cache_last_refresh < _PID_CACHE_TTL:
-            return
-        _pid_cache_last_refresh = now
-
-    try:
-        from aipass.prax.apps.handlers.config.load import _find_repo_root
-
-        registry_path = _find_repo_root() / "AIPASS_REGISTRY.json"
-        if not registry_path.exists():
-            return
-        data = _json.loads(registry_path.read_text(encoding="utf-8"))
-        new_cache: dict[str, int] = {}
-        for branch in data.get("branches", []):
-            _parse_lock_pid(branch, new_cache)
-        with _pid_cache_lock:
-            _pid_cache.clear()
-            _pid_cache.update(new_cache)
-    except Exception as e:
-        logger.info(f"[monitor] PID cache refresh failed: {e}")
-
-
-def _get_pid_for_branch(branch: str) -> Optional[int]:
-    """Look up PID for a branch from the cache."""
-    _refresh_pid_cache()
-    base = branch.upper()
-    if base.endswith(" AGENT"):
-        base = base[:-6]
-    with _pid_cache_lock:
-        return _pid_cache.get(base)
 
 
 # =============================================================================
@@ -143,6 +69,14 @@ _log_watcher_thread: Optional[threading.Thread] = None
 def print_introspection():
     """Display module introspection - shows connected handlers and architecture."""
     json_handler.log_operation("print_introspection", {"module": "monitor"})
+    _handlers = [
+        ("1. unified_stream.py", "print_event() - Terminal output formatting"),
+        ("2. branch_detector.py", "detect_branch_from_path() - Path-to-branch mapping"),
+        ("3. interactive_filter.py", "FilterState, parse_command() - Runtime filtering"),
+        ("4. monitoring_filters.py", "should_monitor(), get_priority() - Event filtering"),
+        ("5. event_queue.py", "MonitoringEvent, MonitoringQueue - Event buffering"),
+        ("6. module_tracker.py", "ModuleTracker - Module execution tracking"),
+    ]
     console.print()
     console.print("[bold cyan]PRAX Monitor Module[/bold cyan]")
     console.print()
@@ -151,79 +85,49 @@ def print_introspection():
     console.print("  Unified console for file changes, logs, and module activity")
     console.print()
     console.print("[yellow]Connected Handlers (apps/handlers/monitoring/):[/yellow]")
-    console.print()
-    console.print("  [cyan]1. unified_stream.py[/cyan]")
-    console.print("     [dim]→ print_event() - Terminal output formatting[/dim]")
-    console.print()
-    console.print("  [cyan]2. branch_detector.py[/cyan]")
-    console.print("     [dim]→ detect_branch_from_path() - Path-to-branch mapping[/dim]")
-    console.print()
-    console.print("  [cyan]3. interactive_filter.py[/cyan]")
-    console.print("     [dim]→ FilterState, parse_command() - Runtime filtering[/dim]")
-    console.print()
-    console.print("  [cyan]4. monitoring_filters.py[/cyan]")
-    console.print("     [dim]→ should_monitor(), get_priority() - Event filtering[/dim]")
-    console.print()
-    console.print("  [cyan]5. event_queue.py[/cyan]")
-    console.print("     [dim]→ MonitoringEvent, MonitoringQueue - Event buffering[/dim]")
-    console.print()
-    console.print("  [cyan]6. module_tracker.py[/cyan]")
-    console.print("     [dim]→ ModuleTracker - Module execution tracking[/dim]")
-    console.print()
-    console.print("  [cyan]7. file watcher (threaded)[/cyan]")
-    console.print("     [dim]→ Real-time file change detection using watchdog[/dim]")
+    for name, desc in _handlers:
+        console.print(f"\n  [cyan]{name}[/cyan]\n     [dim]{desc}[/dim]")
+    console.print("\n  [cyan]7. file watcher (threaded)[/cyan]")
+    console.print("     [dim]Real-time file change detection using watchdog[/dim]")
     console.print("     [green]STATUS: Active - monitors ECOSYSTEM_ROOT recursively[/green]")
-    console.print()
-    console.print("  [cyan]8. log monitor (threaded)[/cyan]")
-    console.print("     [dim]→ Log stream processing from SYSTEM_LOGS_DIR[/dim]")
+    console.print("\n  [cyan]8. log monitor (threaded)[/cyan]")
+    console.print("     [dim]Log stream processing from SYSTEM_LOGS_DIR[/dim]")
     console.print("     [green]STATUS: Active - watches *.log files for new entries[/green]")
-    console.print()
-    console.print("[dim]Run 'drone @prax monitor --help' for usage[/dim]")
-    console.print()
+    console.print("\n[dim]Run 'drone @prax monitor --help' for usage[/dim]\n")
 
 
 def print_help():
     """Drone-compliant help output - command syntax and examples."""
     console.print()
     console.print("[bold cyan]PRAX Monitor - Unified Branch Monitoring[/bold cyan]")
-    console.print()
-    console.print("[yellow]Commands:[/yellow]")
-    console.print()
-    console.print("  [cyan]drone @prax monitor[/cyan]")
-    console.print("    Show module introspection")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run[/cyan]")
-    console.print("    Start monitoring all branches")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run all[/cyan]")
-    console.print("    Explicit all-branches monitoring")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run [branches][/cyan]")
-    console.print("    Monitor specific branches (comma-separated)")
-    console.print("    Example: drone @prax monitor run seedgo,cli,flow")
-    console.print()
-    console.print("  [cyan]drone @prax monitor run --relay[/cyan]")
-    console.print("    Enable Telegram relay (mirrors feed to prax_monitor bot)")
-    console.print("    Also enabled by env AIPASS_PRAX_MONITOR_RELAY=1")
-    console.print()
-    console.print("  [cyan]drone @prax monitor --help[/cyan]")
-    console.print("    Show this help")
-    console.print()
-    console.print("[yellow]Interactive Mode Commands:[/yellow]")
-    console.print()
+    _cmds = [
+        ("drone @prax monitor", "Show module introspection"),
+        ("drone @prax monitor run", "Start monitoring all branches"),
+        ("drone @prax monitor run all", "Explicit all-branches monitoring"),
+        (
+            "drone @prax monitor run [branches]",
+            "Monitor specific branches (comma-separated)\n    Example: drone @prax monitor run seedgo,cli,flow",
+        ),
+        (
+            "drone @prax monitor run --relay",
+            "Enable Telegram relay (mirrors feed to prax_monitor bot)"
+            "\n    Also enabled by env AIPASS_PRAX_MONITOR_RELAY=1",
+        ),
+        ("drone @prax monitor --help", "Show this help"),
+    ]
+    console.print("\n[yellow]Commands:[/yellow]")
+    for cmd, desc in _cmds:
+        console.print(f"\n  [cyan]{cmd}[/cyan]\n    {desc}")
+    console.print("\n[yellow]Interactive Mode Commands:[/yellow]")
     console.print("  [cyan]help[/cyan]          Show available commands")
     console.print("  [cyan]status[/cyan]        Display current monitoring state")
     console.print("  [cyan]filter [branches][/cyan]  Adjust branch filter")
     console.print("  [cyan]quit/exit[/cyan]     Stop monitoring")
-    console.print()
-    console.print("[yellow]Examples:[/yellow]")
-    console.print()
-    console.print("  [dim]# Monitor all branches[/dim]")
+    console.print("\n[yellow]Examples:[/yellow]")
+    console.print("\n  [dim]# Monitor all branches[/dim]")
     console.print("  $ drone @prax monitor run")
-    console.print()
-    console.print("  [dim]# Monitor specific branches[/dim]")
-    console.print("  $ drone @prax monitor run seedgo,cli,flow")
-    console.print()
+    console.print("\n  [dim]# Monitor specific branches[/dim]")
+    console.print("  $ drone @prax monitor run seedgo,cli,flow\n")
 
 
 # =============================================================================
@@ -232,17 +136,7 @@ def print_help():
 
 
 def handle_command(command: str, args: List[str]) -> bool:
-    """
-    Handle monitor command - required for auto-discovery by prax.py
-
-    Args:
-        command: Command name from prax.py dispatcher
-        args: Command arguments (branch filters, flags, etc.)
-
-    Returns:
-        True if command was handled (command == "monitor")
-        False if not our command (pass to next handler)
-    """
+    """Handle monitor command - required for auto-discovery by prax.py."""
     if command != "monitor":
         return False
 
@@ -282,6 +176,8 @@ def _run_monitor(args: List[str]) -> bool:
     """Launch Mission Control live monitoring."""
     global _event_queue, _module_tracker
     global _display_thread, _file_watcher_thread, _log_watcher_thread
+
+    instance_lock.acquire(error_fn=error)
 
     json_handler.log_operation("monitor_started", {"args": args})
     logger.info(f"Starting unified monitoring (args: {args})")
@@ -362,6 +258,7 @@ def _stop_threads():
         if t is not None and t.is_alive():
             t.join(timeout=2.0)
 
+    instance_lock.release()
     logger.info("All monitoring threads stopped")
 
 

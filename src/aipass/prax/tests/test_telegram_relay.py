@@ -352,6 +352,8 @@ class TestRenderEventCallsRelay:
             "aipass.prax.apps.handlers.monitoring.monitoring_filters": MagicMock(),
             "aipass.prax.apps.handlers.monitoring.file_watcher_integration": MagicMock(),
             "aipass.prax.apps.handlers.monitoring.telegram_relay": MagicMock(),
+            "aipass.prax.apps.handlers.monitoring.pid_cache": MagicMock(),
+            "aipass.prax.apps.handlers.monitoring.instance_lock": MagicMock(),
         }
         with patch.dict(sys.modules, fresh_mocks):
             if "aipass.prax.apps.modules.monitor" in sys.modules:

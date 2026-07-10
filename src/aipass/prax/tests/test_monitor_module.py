@@ -41,6 +41,8 @@ _MONITORING_MOCKS = {
     "aipass.prax.apps.handlers.monitoring.monitoring_filters": MagicMock(),
     "aipass.prax.apps.handlers.monitoring.file_watcher_integration": MagicMock(),
     "aipass.prax.apps.handlers.monitoring.telegram_relay": MagicMock(),
+    "aipass.prax.apps.handlers.monitoring.pid_cache": MagicMock(),
+    "aipass.prax.apps.handlers.monitoring.instance_lock": MagicMock(),
 }
 
 
@@ -207,196 +209,6 @@ class TestGetWatchDirectories:
         # But branch root and .trinity are still there
         assert branch_dir in paths
         assert trinity_dir in paths
-
-
-# ---------------------------------------------------------------------------
-# _parse_lock_pid tests (lines 61-74)
-# ---------------------------------------------------------------------------
-
-
-class TestParseLockPid:
-    """Test dispatch lock file parsing for PID cache."""
-
-    def test_no_lock_file_does_nothing(self, tmp_path):
-        """Branch entry without a lock file adds nothing to cache."""
-        mod = _import_monitor()
-        new_cache: dict[str, int] = {}
-        entry = {"path": str(tmp_path / "somebranch"), "name": "flow"}
-        mod._parse_lock_pid(entry, new_cache)
-        assert new_cache == {}
-
-    def test_lock_file_with_live_pid_on_linux(self, tmp_path):
-        """Lock file with a PID that has a /proc entry adds to cache."""
-        mod = _import_monitor()
-        branch_dir = tmp_path / "mybranch"
-        mail_dir = branch_dir / "ai_mail.local"
-        mail_dir.mkdir(parents=True)
-        lock_data = {"pid": 12345}
-        (mail_dir / ".dispatch.lock").write_text(json.dumps(lock_data), encoding="utf-8")
-
-        new_cache: dict[str, int] = {}
-        entry = {"path": str(branch_dir), "name": "flow"}
-
-        # Mock /proc/12345 existence check
-        with (
-            patch("sys.platform", "linux"),
-            patch("pathlib.Path.exists", side_effect=lambda self=None: True),
-        ):
-            mod._parse_lock_pid(entry, new_cache)
-
-        assert new_cache.get("FLOW") == 12345
-
-    def test_lock_file_with_zero_pid(self, tmp_path):
-        """Lock file with pid=0 skips entry."""
-        mod = _import_monitor()
-        branch_dir = tmp_path / "mybranch"
-        mail_dir = branch_dir / "ai_mail.local"
-        mail_dir.mkdir(parents=True)
-        lock_data = {"pid": 0}
-        (mail_dir / ".dispatch.lock").write_text(json.dumps(lock_data), encoding="utf-8")
-
-        new_cache: dict[str, int] = {}
-        entry = {"path": str(branch_dir), "name": "flow"}
-        mod._parse_lock_pid(entry, new_cache)
-        assert new_cache == {}
-
-    def test_lock_file_with_invalid_json(self, tmp_path):
-        """Lock file with invalid JSON logs warning and continues."""
-        mod = _import_monitor()
-        branch_dir = tmp_path / "mybranch"
-        mail_dir = branch_dir / "ai_mail.local"
-        mail_dir.mkdir(parents=True)
-        (mail_dir / ".dispatch.lock").write_text("{bad json}", encoding="utf-8")
-
-        new_cache: dict[str, int] = {}
-        entry = {"path": str(branch_dir), "name": "flow"}
-        mod._parse_lock_pid(entry, new_cache)
-        assert new_cache == {}
-
-    def test_lock_file_with_empty_name(self, tmp_path):
-        """Branch entry with empty name skips cache update."""
-        mod = _import_monitor()
-        branch_dir = tmp_path / "mybranch"
-        mail_dir = branch_dir / "ai_mail.local"
-        mail_dir.mkdir(parents=True)
-        lock_data = {"pid": 99999}
-        (mail_dir / ".dispatch.lock").write_text(json.dumps(lock_data), encoding="utf-8")
-
-        new_cache: dict[str, int] = {}
-        entry = {"path": str(branch_dir), "name": ""}
-
-        with (
-            patch("sys.platform", "linux"),
-            patch("pathlib.Path.exists", return_value=True),
-        ):
-            mod._parse_lock_pid(entry, new_cache)
-        assert new_cache == {}
-
-
-# ---------------------------------------------------------------------------
-# _refresh_pid_cache tests (lines 80-102)
-# ---------------------------------------------------------------------------
-
-
-class TestRefreshPidCache:
-    """Test PID cache refresh from registry."""
-
-    def test_skips_when_within_ttl(self):
-        """Cache refresh is skipped if within TTL window."""
-        mod = _import_monitor()
-        import time
-
-        # Simulate recent refresh
-        with mod._pid_cache_lock:
-            setattr(mod, "_pid_cache_last_refresh", time.time())
-
-        with patch.object(mod, "_parse_lock_pid") as mock_parse:
-            mod._refresh_pid_cache()
-            mock_parse.assert_not_called()
-
-    def test_refreshes_when_ttl_expired(self, tmp_path):
-        """Cache refresh runs when TTL has expired."""
-        mod = _import_monitor()
-        with mod._pid_cache_lock:
-            setattr(mod, "_pid_cache_last_refresh", 0.0)
-
-        registry_data = {"branches": [{"name": "flow", "path": str(tmp_path / "flow")}]}
-        registry_file = tmp_path / "AIPASS_REGISTRY.json"
-        registry_file.write_text(json.dumps(registry_data), encoding="utf-8")
-
-        mock_find_root = MagicMock(return_value=tmp_path)
-        with patch.dict(
-            sys.modules,
-            {"aipass.prax.apps.handlers.config.load": MagicMock(_find_repo_root=mock_find_root)},
-        ):
-            mod._refresh_pid_cache()
-
-    def test_handles_missing_registry(self, tmp_path):
-        """Missing registry file does not crash."""
-        mod = _import_monitor()
-        with mod._pid_cache_lock:
-            setattr(mod, "_pid_cache_last_refresh", 0.0)
-
-        mock_find_root = MagicMock(return_value=tmp_path)
-        with patch.dict(
-            sys.modules,
-            {"aipass.prax.apps.handlers.config.load": MagicMock(_find_repo_root=mock_find_root)},
-        ):
-            mod._refresh_pid_cache()
-
-    def test_handles_exception_in_refresh(self):
-        """Exception during refresh is caught and logged."""
-        mod = _import_monitor()
-        with mod._pid_cache_lock:
-            setattr(mod, "_pid_cache_last_refresh", 0.0)
-
-        mock_load = MagicMock()
-        mock_load._find_repo_root.side_effect = RuntimeError("boom")
-        with patch.dict(
-            sys.modules,
-            {"aipass.prax.apps.handlers.config.load": mock_load},
-        ):
-            # Should not raise
-            mod._refresh_pid_cache()
-
-
-# ---------------------------------------------------------------------------
-# _get_pid_for_branch tests (lines 107-112)
-# ---------------------------------------------------------------------------
-
-
-class TestGetPidForBranch:
-    """Test PID lookup for branch names."""
-
-    def test_returns_pid_from_cache(self):
-        """Returns PID when branch is in cache."""
-        mod = _import_monitor()
-        with mod._pid_cache_lock:
-            mod._pid_cache["FLOW"] = 42
-
-        with patch.object(mod, "_refresh_pid_cache"):
-            result = mod._get_pid_for_branch("flow")
-        assert result == 42
-
-    def test_strips_agent_suffix(self):
-        """Branch name ending in ' AGENT' is stripped before lookup."""
-        mod = _import_monitor()
-        with mod._pid_cache_lock:
-            mod._pid_cache["FLOW"] = 42
-
-        with patch.object(mod, "_refresh_pid_cache"):
-            result = mod._get_pid_for_branch("flow agent")
-        assert result == 42
-
-    def test_returns_none_when_not_cached(self):
-        """Returns None when branch is not in cache."""
-        mod = _import_monitor()
-        with mod._pid_cache_lock:
-            mod._pid_cache.clear()
-
-        with patch.object(mod, "_refresh_pid_cache"):
-            result = mod._get_pid_for_branch("nonexistent")
-        assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -844,7 +656,7 @@ class TestFileWatcherWorker:
                     "aipass.prax.apps.handlers.config.load": mock_config,
                 },
             ),
-            patch.object(mod, "_get_watch_directories", return_value=[("/tmp", True)]),
+            patch.object(mod, "_get_watch_directories", return_value=[("fakedir", True)]),
             patch.object(mod, "_start_observer_with_fallback", return_value=None),
         ):
             mod._file_watcher_worker()

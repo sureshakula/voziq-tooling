@@ -51,6 +51,18 @@ PyPI version — not the changelog header.
   Rerouted to a dim console note; genuine argument errors still `error()` →
   exit 2. (devpulse)
 
+- **The prax monitor now holds a single-instance lock, so a duplicate/orphan
+  monitor can't double-send Telegram relay messages (issue #671).** A new
+  `instance_lock` handler writes a pidfile (`prax_json/monitor.pid`, outside the
+  tailed `system_logs/`) with a liveness check: `acquire()` runs before relay
+  init and refuses to start (fail-loud, naming the holding PID) if a live monitor
+  already holds the lock, reclaims a stale pidfile when the recorded PID is dead,
+  and `release()` clears it on shutdown. The liveness probe is platform-branched
+  — POSIX `os.kill(pid, 0)`, Windows `OpenProcess`/`GetExitCodeProcess` (a raw
+  `os.kill(pid, 0)` *terminates* the target on Windows). `monitor.py` was also
+  split under the 600-line limit (`pid_cache` extracted). +25 tests.
+  (built by @prax, verified by devpulse)
+
 ---
 
 ## [2026-07-09]
