@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import types
 from unittest.mock import MagicMock, patch
 
@@ -129,23 +130,15 @@ class TestRouteCommand:
         mod2.handle_command.assert_called_once_with("cmd", ["arg1"])
         mod3.handle_command.assert_not_called()
 
-    def test_handles_module_exception(self) -> None:
-        """Exception in a module is caught; returns False if no other handles."""
+    def test_module_exception_re_raises(self) -> None:
+        """Exception in a handler is re-raised so callers see the real error."""
         mod = MagicMock()
         mod.handle_command.side_effect = RuntimeError("crash")
         mod.__name__ = "broken_mod"
-        assert route_command("cmd", [], [mod]) is False
+        import pytest
 
-    def test_exception_in_first_tries_second(self) -> None:
-        """Exception in first module does not prevent second from handling."""
-        mod1 = MagicMock()
-        mod1.handle_command.side_effect = RuntimeError("crash")
-        mod1.__name__ = "mod1"
-        mod2 = MagicMock()
-        mod2.handle_command.return_value = True
-
-        assert route_command("cmd", [], [mod1, mod2]) is True
-        mod2.handle_command.assert_called_once()
+        with pytest.raises(RuntimeError, match="crash"):
+            route_command("cmd", [], [mod])
 
 
 # =============================================================================
@@ -157,22 +150,39 @@ class TestMain:
     """Tests for the main() entry point."""
 
     def test_version_flag(self) -> None:
-        """--version prints version and returns 0."""
+        """--version prints real package version and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "--version"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
                 with patch("builtins.print") as mock_print:
                     result = main()
         assert result == 0
-        mock_print.assert_called_once_with("aipass 0.1.0")
+        printed = mock_print.call_args[0][0]
+        assert printed.startswith("aipass ")
+        assert printed != "aipass 0.1.0"
 
     def test_version_flag_short(self) -> None:
-        """-V prints version and returns 0."""
+        """-V prints real package version and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "-V"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
                 with patch("builtins.print") as mock_print:
                     result = main()
         assert result == 0
-        mock_print.assert_called_once_with("aipass 0.1.0")
+        printed = mock_print.call_args[0][0]
+        assert printed.startswith("aipass ")
+
+    def test_version_flag_fallback(self) -> None:
+        """--version prints 'unknown' when package metadata unavailable."""
+        _not_found = importlib.metadata.PackageNotFoundError
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "--version"]):
+            with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
+                with patch(
+                    "aipass.aipass.apps.aipass.importlib.metadata.version",
+                    side_effect=_not_found,
+                ):
+                    with patch("builtins.print") as mock_print:
+                        result = main()
+        assert result == 0
+        mock_print.assert_called_once_with("aipass unknown")
 
     def test_help_flag_shows_help(self) -> None:
         """--help shows module list and returns 0."""
@@ -294,3 +304,72 @@ class TestMain:
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[mod]):
                 main()
         mod.handle_command.assert_called_once_with("doctor", ["--verbose", "--fix"])
+
+    def test_help_shows_command_constant(self) -> None:
+        """Help listing uses module COMMAND constant, not file stem."""
+        mod = types.ModuleType("aipass.aipass.apps.modules.help_chat")
+        mod.__doc__ = "Help chatbot"
+        mod.COMMAND = "help"  # type: ignore[attr-defined]
+        mod.handle_command = lambda c, a: True  # type: ignore[attr-defined]
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass"]):
+            with patch(
+                "aipass.aipass.apps.aipass.discover_modules",
+                return_value=[mod],
+            ):
+                with patch("builtins.print") as mock_print:
+                    main()
+        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        assert "help" in printed
+        assert "help_chat" not in printed
+
+    def test_help_falls_back_to_stem(self) -> None:
+        """Without COMMAND constant, help listing uses file stem."""
+        mod = types.ModuleType("aipass.aipass.apps.modules.doctor")
+        mod.__doc__ = "Doctor module"
+        mod.handle_command = lambda c, a: True  # type: ignore[attr-defined]
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass"]):
+            with patch(
+                "aipass.aipass.apps.aipass.discover_modules",
+                return_value=[mod],
+            ):
+                with patch("builtins.print") as mock_print:
+                    main()
+        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        assert "doctor" in printed
+
+    def test_handler_crash_surfaces_error(self) -> None:
+        """Handler crash prints real error, not 'Unknown command'."""
+        mod = MagicMock()
+        mod.handle_command.side_effect = RuntimeError("db connection failed")
+        mod.__name__ = "aipass.aipass.apps.modules.doctor"
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "doctor"]):
+            with patch(
+                "aipass.aipass.apps.aipass.discover_modules",
+                return_value=[mod],
+            ):
+                with patch("builtins.print") as mock_print:
+                    result = main()
+        assert result == 1
+        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        assert "db connection failed" in printed
+        assert "Unknown command" not in printed
+
+    def test_import_failure_surfaces_on_command(self) -> None:
+        """Failed module import surfaces when user types that command."""
+        import aipass.aipass.apps.aipass as aipass_mod
+
+        with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "broken"]):
+            with patch(
+                "aipass.aipass.apps.aipass.discover_modules",
+                return_value=[],
+            ):
+                aipass_mod._import_failures.clear()
+                aipass_mod._import_failures["broken"] = ImportError("no module")
+                with patch("builtins.print") as mock_print:
+                    result = main()
+        assert result == 1
+        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        assert "failed to load" in printed
+        assert "no module" in printed
+        assert "Unknown command" not in printed
+        aipass_mod._import_failures.clear()
