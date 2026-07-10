@@ -75,7 +75,7 @@ def print_introspection():
         console.print("  [dim]No modules discovered yet[/dim]")
 
     console.print()
-    console.print("[dim]Run 'drone @memory help' for usage information[/dim]")
+    console.print("[dim]Run 'drone @memory --help' for usage information[/dim]")
     console.print()
 
 
@@ -353,7 +353,7 @@ def main():
         return  # Module handled it successfully
     else:
         console.print()
-        error(f"Unknown command: {command}", suggestion="Run 'drone @memory help' for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @memory --help' for available commands")
         console.print()
         return
 

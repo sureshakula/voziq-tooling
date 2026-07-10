@@ -110,7 +110,7 @@ def print_introspection(modules: List[Any]):
         console.print("  [dim]No modules discovered[/dim]")
 
     console.print()
-    console.print("[dim]Run 'daemon --help' for usage information[/dim]")
+    console.print("[dim]Run 'drone @daemon --help' for usage information[/dim]")
     console.print()
 
 
@@ -132,8 +132,8 @@ def print_help(modules: List[Any]):
 
     console.print("[bold cyan]USAGE:[/bold cyan]")
     console.print()
-    console.print("  [dim]daemon <command> [args...][/dim]")
-    console.print("  [dim]daemon --help[/dim]")
+    console.print("  [dim]drone @daemon <command> [args...][/dim]")
+    console.print("  [dim]drone @daemon --help[/dim]")
     console.print()
     console.print("-" * 70)
     console.print()
@@ -208,7 +208,7 @@ def main():
         return 0
     else:
         console.print()
-        error(f"Unknown command: {command}", suggestion="Run 'daemon --help' for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @daemon --help' for available commands")
         console.print()
         return 1
 
