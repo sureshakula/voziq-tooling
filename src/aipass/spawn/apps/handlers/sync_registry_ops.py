@@ -39,6 +39,33 @@ from aipass.spawn.apps.handlers.class_registry import get_template_dir
 from aipass.spawn.apps.handlers.json import json_handler
 
 
+def _derive_description(branch_path: Path) -> str:
+    """Derive a one-line description from the branch's passport or README."""
+    passport_path = branch_path / ".trinity" / "passport.json"
+    if passport_path.exists():
+        try:
+            passport = json.loads(passport_path.read_text(encoding="utf-8"))
+            identity = passport.get("identity", {})
+            for field in ("purpose", "role"):
+                value = identity.get(field, "").strip()
+                if value:
+                    return value
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning("[sync-registry] Failed to read passport for description (%s): %s", branch_path.name, e)
+
+    readme_path = branch_path / "README.md"
+    if readme_path.exists():
+        try:
+            for line in readme_path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if stripped and not stripped.startswith(("#", "[", "---", "*", ">")):
+                    return stripped
+        except IOError as e:
+            logger.warning("[sync-registry] Failed to read README for description (%s): %s", branch_path.name, e)
+
+    return "Auto-registered branch"
+
+
 def _scan_for_branches(project_root: Path) -> dict[str, Path]:
     """Scan a project directory tree for branches with .trinity/passport.json.
 
@@ -161,6 +188,7 @@ def sync_registry(fix: bool = False) -> dict:
 
     # 4/5. Fix if requested
     fixed = False
+    needs_save = False
     if fix and (stale or unregistered_list):
         # Remove stale entries
         raw_branches = registry.get("branches", [])
@@ -190,7 +218,7 @@ def sync_registry(fix: bool = False) -> dict:
                 "name": name.upper(),
                 "path": rel_path,
                 "profile": "library",
-                "description": "Auto-registered branch",
+                "description": _derive_description(branch_path),
                 "email": f"@{name}",
                 "status": "active",
                 "created": today,
@@ -203,11 +231,28 @@ def sync_registry(fix: bool = False) -> dict:
                 raw_branches.append(entry)
             logger.info(f"[sync-registry] Added unregistered branch: {name}")
 
-        # Update total and save
         registry["metadata"]["total_branches"] = len(branches_as_list(registry["branches"]))
+        needs_save = True
+
+    # Backfill placeholder descriptions on existing entries
+    descriptions_backfilled = []
+    if fix:
+        for entry in branches_as_list(registry.get("branches", [])):
+            if entry.get("description") == "Auto-registered branch":
+                name_lower = entry.get("name", "").lower()
+                branch_path = filesystem_branches.get(name_lower)
+                if branch_path:
+                    derived = _derive_description(branch_path)
+                    if derived != "Auto-registered branch":
+                        entry["description"] = derived
+                        descriptions_backfilled.append(name_lower)
+                        logger.info("[sync-registry] Backfilled description for %s: %s", name_lower, derived)
+        if descriptions_backfilled:
+            needs_save = True
+
+    if fix and needs_save:
         save_result = save_registry(registry_path, registry)
         fixed = save_result
-
         if fixed:
             logger.info("[sync-registry] Registry updated successfully")
         else:
@@ -276,4 +321,5 @@ def sync_registry(fix: bool = False) -> dict:
         "fixed": fixed,
         "spawn_rebuilt": spawn_rebuilt,
         "ids_fixed": ids_fixed,
+        "descriptions_backfilled": descriptions_backfilled,
     }
