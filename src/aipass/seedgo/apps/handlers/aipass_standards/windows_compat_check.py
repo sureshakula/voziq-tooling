@@ -167,6 +167,74 @@ def _find_os_kill_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[
     return violations
 
 
+def _platform_guarded_lines(tree: ast.Module) -> set[int]:
+    """Collect line numbers inside platform guards only (NOT try/except)."""
+    guarded: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and _is_platform_guard(node.test):
+            guarded.update(_collect_child_linenos(node))
+    return guarded
+
+
+def _find_enclosing_function(tree: ast.Module, target_lineno: int) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    best: ast.FunctionDef | ast.AsyncFunctionDef | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if target_lineno in _collect_child_linenos(node):
+            if best is None or node.lineno > best.lineno:
+                best = node
+    return best
+
+
+def _has_early_platform_return(func_node: ast.FunctionDef | ast.AsyncFunctionDef, before_line: int) -> bool:
+    for node in ast.walk(func_node):
+        if not isinstance(node, ast.If) or node.lineno >= before_line:
+            continue
+        if not _is_platform_guard(node.test):
+            continue
+        for body_stmt in node.body:
+            for child in ast.walk(body_stmt):
+                if isinstance(child, (ast.Return, ast.Raise)):
+                    return True
+    return False
+
+
+def _find_os_kill_signal0_violations(tree: ast.Module, platform_guarded: set[int]) -> list[tuple[int, str]]:
+    """Flag os.kill(pid, 0) — the liveness probe that kills on Windows.
+
+    try/except does NOT guard this: the target process is terminated
+    before the exception. Only a platform guard (sys.platform/os.name)
+    is valid — either wrapping the call or early-returning before it.
+    """
+    violations: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (
+            isinstance(func, ast.Attribute)
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "os"
+            and func.attr == "kill"
+        ):
+            continue
+        if len(node.args) < 2:
+            continue
+        sig_arg = node.args[1]
+        if not (isinstance(sig_arg, ast.Constant) and sig_arg.value == 0):
+            continue
+        if node.lineno in platform_guarded:
+            continue
+        enclosing = _find_enclosing_function(tree, node.lineno)
+        if enclosing and _has_early_platform_return(enclosing, node.lineno):
+            continue
+        violations.append(
+            (node.lineno, "os.kill(pid, 0) — terminates target on Windows (use OpenProcess+GetExitCodeProcess)")
+        )
+    return violations
+
+
 def _find_start_new_session_violations(tree: ast.Module, guarded: set[int]) -> list[tuple[int, str]]:
     """Flag start_new_session=True (POSIX-only subprocess kwarg)."""
     violations: list[tuple[int, str]] = []
@@ -457,12 +525,14 @@ def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
         }
 
     guarded = _lines_in_guarded_blocks(tree)
+    platform_only = _platform_guarded_lines(tree)
 
     all_violations: list[tuple[int, str]] = []
     all_violations.extend(_find_posix_import_violations(tree, guarded))
     all_violations.extend(_find_posix_constant_violations(tree, guarded))
     all_violations.extend(_find_posix_call_violations(tree, guarded))
     all_violations.extend(_find_os_kill_violations(tree, guarded))
+    all_violations.extend(_find_os_kill_signal0_violations(tree, platform_only))
     all_violations.extend(_find_start_new_session_violations(tree, guarded))
     all_violations.extend(_find_hardcoded_tmp_violations(tree, guarded))
     all_violations.extend(_find_aplay_violations(tree, guarded))
