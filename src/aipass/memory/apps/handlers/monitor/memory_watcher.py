@@ -369,31 +369,46 @@ def _get_branch_paths() -> list[Path]:
     """
     Get all branch paths from AIPass registry + external project registries.
 
+    Reads persisted known_registries.json AND does the cwd walk so
+    external-project branches are always reachable regardless of caller cwd.
+
     Returns:
         List of Path objects for each branch
     """
     import os
 
+    from aipass.memory.apps.handlers.monitor.detector import load_known_registries, persist_registry
+
     repo_root = _find_repo_root()
     paths = _paths_from_registry(repo_root / "AIPASS_REGISTRY.json", repo_root)
     seen = {p.resolve() for p in paths}
+    aipass_registry = (repo_root / "AIPASS_REGISTRY.json").resolve()
+
+    def _add_from_registry(reg: Path) -> None:
+        for p in _paths_from_registry(reg, reg.parent):
+            if p.resolve() not in seen:
+                paths.append(p)
+                seen.add(p.resolve())
+
+    for reg in load_known_registries():
+        if reg.resolve() != aipass_registry:
+            _add_from_registry(reg)
 
     caller_cwd = (
         Path(os.environ.get("AIPASS_CALLER_CWD", "")).resolve() if os.environ.get("AIPASS_CALLER_CWD") else Path.cwd()
     )
-    aipass_registry = (repo_root / "AIPASS_REGISTRY.json").resolve()
 
-    found_external = False
+    cwd_found: list[Path] = []
     for parent in [caller_cwd] + list(caller_cwd.parents):
         for reg in parent.glob("*_REGISTRY.json"):
             if reg.resolve() != aipass_registry:
-                found_external = True
-                for p in _paths_from_registry(reg, reg.parent):
-                    if p.resolve() not in seen:
-                        paths.append(p)
-                        seen.add(p.resolve())
-        if found_external:
+                cwd_found.append(reg)
+        if cwd_found:
             break
+
+    for reg in cwd_found:
+        _add_from_registry(reg)
+        persist_registry(reg)
 
     return paths
 

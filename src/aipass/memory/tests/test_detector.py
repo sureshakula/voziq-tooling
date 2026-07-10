@@ -595,3 +595,173 @@ class TestRecreateTrinityFile:
         data = json.loads(recreated.read_text(encoding="utf-8"))
         assert data["document_metadata"]["document_name"] == "MYBRANCH.LOCAL"
         assert "limits" not in data["document_metadata"]
+
+
+# ===========================================================================
+# Known registries (persist / load / discovery)
+# ===========================================================================
+
+
+class TestKnownRegistries:
+    """Tests for load_known_registries() and persist_registry()."""
+
+    def test_load_returns_empty_when_file_missing(self, tmp_path: Path, monkeypatch):
+        """No known_registries.json → empty list."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", tmp_path / "nope.json")
+
+        result = detector.load_known_registries()
+
+        assert result == []
+
+    def test_persist_creates_file_and_stores_path(self, tmp_path: Path, monkeypatch):
+        """persist_registry should create the file and store the absolute path."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        kr_path = tmp_path / "known_registries.json"
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", kr_path)
+
+        ext_reg = tmp_path / "EXT_REGISTRY.json"
+        ext_reg.write_text('{"branches":[]}', encoding="utf-8")
+
+        detector.persist_registry(ext_reg)
+
+        assert kr_path.exists()
+        data = json.loads(kr_path.read_text(encoding="utf-8"))
+        assert str(ext_reg.resolve()) in data["registries"]
+
+    def test_persist_deduplicates(self, tmp_path: Path, monkeypatch):
+        """Persisting the same registry twice should not create duplicates."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        kr_path = tmp_path / "known_registries.json"
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", kr_path)
+
+        ext_reg = tmp_path / "EXT_REGISTRY.json"
+        ext_reg.write_text('{"branches":[]}', encoding="utf-8")
+
+        detector.persist_registry(ext_reg)
+        detector.persist_registry(ext_reg)
+
+        data = json.loads(kr_path.read_text(encoding="utf-8"))
+        assert len(data["registries"]) == 1
+
+    def test_load_filters_nonexistent_paths(self, tmp_path: Path, monkeypatch):
+        """load_known_registries filters out paths that no longer exist."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        kr_path = tmp_path / "known_registries.json"
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", kr_path)
+
+        existing = tmp_path / "REAL_REGISTRY.json"
+        existing.write_text('{"branches":[]}', encoding="utf-8")
+
+        kr_path.write_text(
+            json.dumps(
+                {
+                    "registries": [str(existing), "/nonexistent/GHOST_REGISTRY.json"],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = detector.load_known_registries()
+
+        assert len(result) == 1
+        assert result[0] == existing
+
+    def test_load_handles_malformed_json(self, tmp_path: Path, monkeypatch):
+        """Malformed known_registries.json → empty list, not crash."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        kr_path = tmp_path / "known_registries.json"
+        kr_path.write_text("NOT JSON", encoding="utf-8")
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", kr_path)
+
+        result = detector.load_known_registries()
+
+        assert result == []
+
+    def test_find_caller_registries_includes_known(self, tmp_path: Path, monkeypatch):
+        """_find_caller_registries should include registries from known_registries.json."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        kr_path = tmp_path / "known_registries.json"
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", kr_path)
+
+        ext_project = tmp_path / "ext_project"
+        ext_project.mkdir()
+        ext_reg = ext_project / "MYPROJECT_REGISTRY.json"
+        ext_reg.write_text('{"branches":[]}', encoding="utf-8")
+
+        kr_path.write_text(
+            json.dumps(
+                {
+                    "registries": [str(ext_reg)],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        aipass_reg = tmp_path / "AIPASS_REGISTRY.json"
+        aipass_reg.write_text('{"branches":[]}', encoding="utf-8")
+        monkeypatch.setattr(detector, "_REPO_ROOT", tmp_path)
+
+        monkeypatch.setenv("AIPASS_CALLER_CWD", str(tmp_path))
+
+        result = detector._find_caller_registries()
+
+        resolved_paths = [r.resolve() for r in result]
+        assert ext_reg.resolve() in resolved_paths
+
+    def test_read_registry_discovers_external_branches_via_known(self, tmp_path: Path, monkeypatch):
+        """_read_registry should find external branches via known_registries.json
+        even when cwd is AIPass root (the core bug from #664)."""
+        from aipass.memory.apps.handlers.monitor import detector
+
+        core_dir = tmp_path / "aipass"
+        core_dir.mkdir()
+        core_reg = core_dir / "AIPASS_REGISTRY.json"
+        core_reg.write_text(
+            json.dumps(
+                {
+                    "branches": [{"name": "memory", "path": "src/memory"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        ext_project = tmp_path / "myproject"
+        ext_project.mkdir()
+        ext_branch = ext_project / "src" / "mybranch"
+        ext_branch.mkdir(parents=True)
+        ext_reg = ext_project / "MYPROJECT_REGISTRY.json"
+        ext_reg.write_text(
+            json.dumps(
+                {
+                    "branches": [{"name": "mybranch", "path": "src/mybranch"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        kr_path = tmp_path / "known_registries.json"
+        kr_path.write_text(
+            json.dumps(
+                {
+                    "registries": [str(ext_reg)],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr(detector, "_REPO_ROOT", core_dir)
+        monkeypatch.setattr(detector, "_KNOWN_REGISTRIES_PATH", kr_path)
+        monkeypatch.setenv("AIPASS_CALLER_CWD", str(core_dir))
+
+        branches = detector._read_registry()
+
+        names = [b["name"] for b in branches]
+        assert "memory" in names
+        assert "mybranch" in names

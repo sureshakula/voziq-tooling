@@ -48,24 +48,78 @@ def _find_repo_root() -> Path:
 
 
 _REPO_ROOT = _find_repo_root()
+_MEMORY_ROOT = Path(__file__).resolve().parents[3]
+_KNOWN_REGISTRIES_PATH = _MEMORY_ROOT / "memory_json" / "known_registries.json"
+
+
+def load_known_registries() -> List[Path]:
+    """Load persisted external registry paths from known_registries.json.
+
+    Returns only paths that currently exist on disk.
+    """
+    if not _KNOWN_REGISTRIES_PATH.exists():
+        return []
+    try:
+        data = json.loads(_KNOWN_REGISTRIES_PATH.read_text(encoding="utf-8"))
+        return [Path(p) for p in data.get("registries", []) if Path(p).exists()]
+    except Exception as e:
+        logger.warning(f"[detector] Failed to read known_registries.json: {e}")
+        return []
+
+
+def persist_registry(registry_path: Path) -> None:
+    """Persist a newly discovered external registry so future runs find it."""
+    current: List[str] = []
+    if _KNOWN_REGISTRIES_PATH.exists():
+        try:
+            data = json.loads(_KNOWN_REGISTRIES_PATH.read_text(encoding="utf-8"))
+            current = data.get("registries", [])
+        except Exception as e:
+            logger.warning(f"[detector] Failed to parse known_registries.json, starting fresh: {e}")
+    resolved = str(registry_path.resolve())
+    if resolved not in current:
+        current.append(resolved)
+        _KNOWN_REGISTRIES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _KNOWN_REGISTRIES_PATH.write_text(
+            json.dumps({"registries": current}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        logger.info(f"[detector] Persisted external registry: {resolved}")
 
 
 def _find_caller_registries() -> List[Path]:
-    """Find project registries reachable from CWD (for external projects)."""
+    """Find all external project registries (persisted + cwd-reachable)."""
     import os
+
+    aipass_registry = (_REPO_ROOT / "AIPASS_REGISTRY.json").resolve()
+    registries: List[Path] = []
+    seen: set[Path] = set()
+
+    for reg in load_known_registries():
+        resolved = reg.resolve()
+        if resolved != aipass_registry and resolved not in seen:
+            registries.append(reg)
+            seen.add(resolved)
 
     caller_cwd = (
         Path(os.environ.get("AIPASS_CALLER_CWD", "")).resolve() if os.environ.get("AIPASS_CALLER_CWD") else Path.cwd()
     )
-    aipass_registry = (_REPO_ROOT / "AIPASS_REGISTRY.json").resolve()
 
-    registries = []
+    cwd_found: List[Path] = []
     for parent in [caller_cwd] + list(caller_cwd.parents):
         for reg in parent.glob("*_REGISTRY.json"):
             if reg.resolve() != aipass_registry:
-                registries.append(reg)
-        if registries:
+                cwd_found.append(reg)
+        if cwd_found:
             break
+
+    for reg in cwd_found:
+        resolved = reg.resolve()
+        if resolved not in seen:
+            registries.append(reg)
+            seen.add(resolved)
+        persist_registry(reg)
+
     return registries
 
 

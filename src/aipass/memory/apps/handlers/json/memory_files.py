@@ -34,6 +34,7 @@ from typing import Dict, Any, Optional
 
 from aipass.prax.apps.modules.logger import get_system_logger
 from aipass.memory.apps.handlers.json import json_handler
+from aipass.memory.apps.handlers.json import config_loader
 from aipass.memory.apps.handlers.json.entry_limits import load_entry_limits, changed_entries
 
 logger = get_system_logger()
@@ -134,6 +135,47 @@ def _validate_entry_limits(
     return {"success": False, "error": f"Entry limit exceeded: {details}"}
 
 
+def _check_entry_counts(file_path: Path, data: Dict[str, Any]) -> None:
+    """Soft guard: warn when list entry counts exceed rollover limits.
+
+    Does NOT block writes — only logs warnings so over-limit growth
+    between rollovers is visible in prax logs.
+    """
+    if file_path.parent.name != ".trinity":
+        return
+    if file_path.name not in _TRACKED_TRINITY_FILES:
+        return
+
+    branch = file_path.parent.parent.name.lower()
+    file_type = file_path.stem
+
+    cfg = config_loader.section("rollover")
+    per_branch = cfg.get("per_branch", {})
+    defaults = cfg.get("defaults", {})
+
+    file_limits = per_branch.get(branch, {}).get(file_type, {})
+    if not file_limits:
+        file_limits = defaults.get(file_type, {})
+    if not file_limits:
+        return
+
+    for section_name, section_cfg in file_limits.items():
+        if section_name.startswith("_"):
+            continue
+        if not isinstance(section_cfg, dict):
+            continue
+        max_count = section_cfg.get("count")
+        if max_count is None:
+            continue
+        entries = data.get(section_name, [])
+        if isinstance(entries, list) and len(entries) > max_count:
+            logger.warning(
+                f"[memory_files] ENTRY COUNT: {branch} {file_path.name} "
+                f"{section_name} has {len(entries)}/{max_count} entries "
+                f"(+{len(entries) - max_count} over rollover limit)"
+            )
+
+
 # =============================================================================
 # CORE READ/WRITE OPERATIONS
 # =============================================================================
@@ -217,6 +259,12 @@ def write_memory_file(file_path: Path, data: Dict[str, Any]) -> Dict[str, Any]:
             return rejection
     except Exception as exc:
         logger.warning(f"[memory_files] Entry-limits validation error (writing anyway): {exc}")
+
+    # --- Soft entry-count guard (warn-only, never blocks) --------------------
+    try:
+        _check_entry_counts(file_path, data)
+    except Exception as exc:
+        logger.warning(f"[memory_files] Entry-count check error (writing anyway): {exc}")
 
     try:
         # Create temp file in same directory (for atomic rename)

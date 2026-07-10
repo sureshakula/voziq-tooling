@@ -77,6 +77,22 @@ PyPI version — not the changelog header.
   planted cruft file. (built by @aipass, verified by devpulse — incl. the
   gitignore ship-gap)
 
+- **External-project branches now auto-roll — rollover discovery is no longer
+  cwd-scoped (issue #664).** Branch discovery only saw registries reachable by
+  walking up from the caller's cwd, so branches living solely in an external
+  project's `*_REGISTRY.json` were never reached by rollovers fired from the
+  AIPass tree (the PreCompact hook runs with cwd = repo root) — their `.trinity`
+  files grew unbounded (one hit 110 key_learnings against a 15 cap) and vector
+  stores went stale. `@memory` added a persisted `known_registries.json`
+  (gitignored per-install data) that records every external registry seen via the
+  cwd walk, so discovery reaches them regardless of caller cwd; stale/deleted
+  registry paths are filtered on load. Plus a soft entry-**count** guard at write
+  time (warns, never blocks) since the write gates only enforced char caps. The
+  remaining hooks-side harden (`_find_repo_root` fail-loud + the `edit_gate`
+  count-guard) is filed for `@hooks`. +12 tests; live repro confirms a rollover
+  fired from the AIPass root now reaches an external-registry branch.
+  (built by @memory, verified by devpulse)
+
 ---
 
 ## [2026-07-09]
