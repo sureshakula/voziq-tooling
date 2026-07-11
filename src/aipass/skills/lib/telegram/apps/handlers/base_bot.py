@@ -576,12 +576,14 @@ class BaseBot:
             self._handle_monitor_command(chat_id, cmd_args)
             return True
 
-        # /create command — multi-step bot creation
+        # /create and /cancel — base bot only (branch bots must not spawn bots)
+        if cmd_name in ("create", "cancel") and self.branch_name is not None:
+            return False
+
         if cmd_name == "create":
             self._handle_create_command(chat_id, cmd_args)
             return True
 
-        # /cancel command — cancel active /create flow
         if cmd_name == "cancel":
             if chat_id in self._create_state:
                 del self._create_state[chat_id]
@@ -2335,20 +2337,22 @@ class BaseBot:
         Returns:
             Dict of commands in telegram_standards format
         """
-        return {
+        commands = {
             "monitor": {
                 "description": "Subscribe to system-wide log alerts — /monitor on, off, all, status",
                 "menu_text": "Log monitor",
             },
-            "create": {
+        }
+        if self.branch_name is None:
+            commands["create"] = {
                 "description": "Create a Telegram bot for a branch — e.g. /create chat devpulse",
                 "menu_text": "New branch bot",
-            },
-            "cancel": {
+            }
+            commands["cancel"] = {
                 "description": "Cancel an in-progress /create",
                 "menu_text": "Cancel create",
-            },
-        }
+            }
+        return commands
 
     # =============================================
     # LOCK FILE MANAGEMENT

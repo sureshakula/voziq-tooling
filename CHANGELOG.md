@@ -63,6 +63,19 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Telegram `/create` + `/cancel` are now gated to the base @aipass bot (issue
+  #644).** Every per-branch bot inherited `BaseBot`'s `/create` + `/cancel` and
+  could mint new bots — but Patrick designated the base @aipass bot as the *sole*
+  spawner. `base_bot.py` now guards on bot identity (branch bots carry a
+  `branch_name`; the base bot's is `None`): `_dispatch_command` returns `False` for
+  `create`/`cancel` on a branch bot (falls through to normal handling), and
+  `get_custom_commands` advertises them only for the base bot. Rode along in the
+  same @skills pass: fail-loud fixes to `botfather_client.py` (issues #669.2/#669.3,
+  already closed) — `_load_telethon_config` now raises `RuntimeError` naming the
+  config path and the `drone @api set-secret telegram telethon_config` command
+  instead of silently returning `None` — plus poll-offset test coverage (#668).
+  133 telegram tests pass, seedgo 31/31 on both source files.
+
 - **seedgo no longer lints throwaway code (issue #675).** A single disposable POC
   used to fire 8 standard violations (architecture, meta, shebang…). The audit and
   checklist now skip any file resolved under a system temp dir

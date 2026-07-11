@@ -899,8 +899,11 @@ class TestCommandMenuSync:
             build_help_text,
         )
         from apps.handlers.base_bot import BaseBot
+        from unittest.mock import MagicMock
 
-        custom = BaseBot.get_custom_commands(None)
+        mock_self = MagicMock(spec=BaseBot)
+        mock_self.branch_name = None
+        custom = BaseBot.get_custom_commands(mock_self)
         menu_commands = build_botfather_commands(custom_commands=custom)
         menu_names = {c["command"] for c in menu_commands}
 
@@ -917,8 +920,11 @@ class TestCommandMenuSync:
         """The /help text includes the enriched descriptions."""
         from apps.handlers.telegram_standards import build_help_text
         from apps.handlers.base_bot import BaseBot
+        from unittest.mock import MagicMock
 
-        custom = BaseBot.get_custom_commands(None)
+        mock_self = MagicMock(spec=BaseBot)
+        mock_self.branch_name = None
+        custom = BaseBot.get_custom_commands(mock_self)
         help_text = build_help_text(custom_commands=custom)
 
         assert "what this bot is and how to use it" in help_text.lower()
@@ -966,6 +972,7 @@ class TestBaseBotStartupMenu:
         bot = BaseBot.__new__(BaseBot)
         bot.bot_token = "123:ABC"
         bot.custom_commands = {}
+        bot.branch_name = None
 
         bot._set_command_menu()
 
@@ -982,6 +989,7 @@ class TestBaseBotStartupMenu:
         bot = BaseBot.__new__(BaseBot)
         bot.bot_token = "123:ABC"
         bot.custom_commands = {}
+        bot.branch_name = None
 
         bot._set_command_menu()
 

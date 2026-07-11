@@ -47,18 +47,22 @@ class TestLoadTelethonConfig:
         mock_get_secret.assert_called_once_with("telethon_config")
 
     @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_none_when_secret_missing(self, mock_get_secret):
-        """Returns None when the secret doesn't exist."""
+    def test_raises_when_secret_missing(self, mock_get_secret):
+        """Raises RuntimeError when the secret doesn't exist."""
         mock_get_secret.return_value = None
-        result = _load_telethon_config()
-        assert result is None
+        import pytest
+
+        with pytest.raises(RuntimeError, match="not found in secrets store"):
+            _load_telethon_config()
 
     @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_none_when_api_id_missing(self, mock_get_secret):
-        """Returns None when api_id is missing from config."""
+    def test_raises_when_api_id_missing(self, mock_get_secret):
+        """Raises RuntimeError when api_id is missing from config."""
         mock_get_secret.return_value = {"api_hash": "abc123def"}
-        result = _load_telethon_config()
-        assert result is None
+        import pytest
+
+        with pytest.raises(RuntimeError, match="missing api_id or api_hash"):
+            _load_telethon_config()
 
     @patch("apps.handlers.botfather_client._get_secret")
     def test_coerces_api_id_from_string(self, mock_get_secret):
@@ -78,14 +82,10 @@ class TestLoadTelethonConfig:
 class TestCheckTelethonSetup:
     """Test check_telethon_setup: checks library, config, session file."""
 
-    @patch("apps.handlers.botfather_client._get_secret")
     @patch("apps.handlers.botfather_client._load_telethon_config")
-    def test_returns_ready_when_all_in_place(self, mock_load_config, mock_get_secret, tmp_path, monkeypatch):
+    def test_returns_ready_when_all_in_place(self, mock_load_config, tmp_path, monkeypatch):
         """Returns (True, 'ready') when Telethon is available, config valid, session exists."""
         monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        # _get_secret called directly in check_telethon_setup for existence check
-        mock_get_secret.return_value = {"api_id": 12345, "api_hash": "abc123"}
-        # _load_telethon_config called for validation check
         mock_load_config.return_value = {"api_id": 12345, "api_hash": "abc123"}
 
         # Create session file at the new path
@@ -108,34 +108,30 @@ class TestCheckTelethonSetup:
         assert ready is False
         assert "not installed" in reason.lower() or "telethon" in reason.lower()
 
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_false_when_config_not_in_secrets(self, mock_get_secret, monkeypatch):
+    @patch("apps.handlers.botfather_client._load_telethon_config")
+    def test_returns_false_when_config_not_in_secrets(self, mock_load_config, monkeypatch):
         """Returns (False, ...) when secret store has no telethon config."""
         monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        mock_get_secret.return_value = None
+        mock_load_config.side_effect = RuntimeError(
+            "Telethon config not found in secrets store (telegram/telethon_config)"
+        )
         ready, reason = check_telethon_setup()
         assert ready is False
-        assert "config" in reason.lower() or "not found" in reason.lower()
+        assert "not found" in reason.lower()
 
     @patch("apps.handlers.botfather_client._load_telethon_config")
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_false_when_config_invalid(self, mock_get_secret, mock_load_config, monkeypatch):
+    def test_returns_false_when_config_invalid(self, mock_load_config, monkeypatch):
         """Returns (False, ...) when config exists but is invalid (missing fields)."""
         monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        # _get_secret returns something (config exists) but _load_telethon_config
-        # returns None (validation fails due to missing api_id)
-        mock_get_secret.return_value = {"api_hash": "abc123"}
-        mock_load_config.return_value = None
+        mock_load_config.side_effect = RuntimeError("Telethon config incomplete — missing api_id or api_hash")
         ready, reason = check_telethon_setup()
         assert ready is False
-        assert "invalid" in reason.lower()
+        assert "missing api_id or api_hash" in reason
 
     @patch("apps.handlers.botfather_client._load_telethon_config")
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_false_when_session_file_missing(self, mock_get_secret, mock_load_config, tmp_path, monkeypatch):
+    def test_returns_false_when_session_file_missing(self, mock_load_config, tmp_path, monkeypatch):
         """Returns (False, ...) when session file doesn't exist."""
         monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        mock_get_secret.return_value = {"api_id": 12345, "api_hash": "abc123"}
         mock_load_config.return_value = {"api_id": 12345, "api_hash": "abc123"}
 
         session_path = tmp_path / ".telethon"
@@ -614,18 +610,22 @@ class TestCreateBotViaBotfather:
             create_bot_via_botfather("dev_central")
 
     def test_raises_when_config_load_fails(self, monkeypatch):
-        """Raises RuntimeError when _load_telethon_config returns None."""
+        """Raises RuntimeError when _load_telethon_config raises."""
         monkeypatch.setattr(
             "apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
         )
+
+        def _raise():
+            raise RuntimeError("Telethon config not found in secrets store (telegram/telethon_config)")
+
         monkeypatch.setattr(
             "apps.handlers.botfather_client._load_telethon_config",
-            lambda: None,
+            _raise,
         )
         import pytest
 
-        with pytest.raises(RuntimeError, match="could not be loaded"):
+        with pytest.raises(RuntimeError, match="not found in secrets store"):
             create_bot_via_botfather("dev_central")
 
     def test_returns_result_on_success(self, monkeypatch):

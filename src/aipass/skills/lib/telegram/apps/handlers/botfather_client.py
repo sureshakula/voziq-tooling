@@ -71,7 +71,7 @@ MAX_USERNAME_ATTEMPTS = 3
 # =============================================
 
 
-def _load_telethon_config() -> Optional[dict]:
+def _load_telethon_config() -> dict:
     """
     Load Telethon API credentials from the @api secrets store.
 
@@ -79,31 +79,34 @@ def _load_telethon_config() -> Optional[dict]:
         {"api_id": 12345, "api_hash": "abc123..."}
 
     Returns:
-        Dict with "api_id" (int) and "api_hash" (str), or None on failure.
+        Dict with "api_id" (int) and "api_hash" (str).
+
+    Raises:
+        RuntimeError: If config is missing, incomplete, or unreadable.
     """
+    config = _get_secret("telethon_config")
+    if config is None:
+        raise RuntimeError(
+            "Telethon config not found in secrets store (telegram/telethon_config). "
+            "Set it with: drone @api set-secret telegram telethon_config "
+            '\'{"api_id": ..., "api_hash": "..."}\''
+        )
+
+    api_id = config.get("api_id")
+    api_hash = config.get("api_hash")
+
+    if not api_id or not api_hash:
+        raise RuntimeError("Telethon config incomplete — missing api_id or api_hash (telegram/telethon_config)")
+
     try:
-        config = _get_secret("telethon_config")
-        if config is None:
-            logger.warning("Telethon config not found in secrets store")
-            return None
-
-        api_id = config.get("api_id")
-        api_hash = config.get("api_hash")
-
-        if not api_id or not api_hash:
-            logger.warning("Telethon config missing api_id or api_hash")
-            return None
-
-        # Ensure api_id is an integer
         config["api_id"] = int(api_id)
-        config["api_hash"] = str(api_hash)
+    except (ValueError, TypeError) as e:
+        raise RuntimeError(f"Telethon config api_id is not a valid integer: {e}") from e
 
-        logger.info("Telethon config loaded successfully")
-        return config
+    config["api_hash"] = str(api_hash)
 
-    except (ValueError, OSError) as e:
-        logger.warning("Failed to load Telethon config: %s", e)
-        return None
+    logger.info("Telethon config loaded successfully")
+    return config
 
 
 # =============================================
@@ -127,13 +130,11 @@ def check_telethon_setup() -> tuple[bool, str]:
     if not TELETHON_AVAILABLE:
         return (False, "Telethon library not installed. Run: pip install telethon")
 
-    config = _get_secret("telethon_config")
-    if config is None:
-        return (False, "Telethon config not found in secrets store")
-
-    config = _load_telethon_config()
-    if config is None:
-        return (False, "Telethon config is invalid (missing api_id or api_hash)")
+    try:
+        _load_telethon_config()
+    except RuntimeError as e:
+        logger.warning("Telethon setup check failed: %s", e)
+        return (False, str(e))
 
     # Telethon creates session files with .session extension
     session_file = Path(str(SESSION_PATH) + ".session")
@@ -478,11 +479,6 @@ def create_bot_via_botfather(branch_name: str) -> Optional[dict]:
         raise RuntimeError(f"Telethon setup failed: {reason}")
 
     config = _load_telethon_config()
-    if config is None:
-        raise RuntimeError(
-            "Telethon config could not be loaded (missing api_id or api_hash). "
-            'Set it with: drone @api set-secret telethon_config \'{"api_id": ..., "api_hash": "..."}\''
-        )
 
     api_id = config["api_id"]
     api_hash = config["api_hash"]
