@@ -63,6 +63,18 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **`git_gate` block messages now guide external users instead of dead-ending
+  (issue #620).** A blocked raw `git`/`gh` command previously just errored. The
+  block message now explains *why* git is enforced (prevents cross-agent state
+  conflicts), lists the key `drone @git` commands (commit, smart-sync, sync, pr,
+  checkout), points to `drone @git --help`, and shows how to disable the gate in
+  isolation (`git_gate.enabled = false` in `.aipass/hooks.json`) — verified
+  against the engine, which skips a disabled hook per-hook without affecting other
+  hooks or `drone @git`. The combined `GIT_GH_REDIRECT` was split into distinct
+  `GIT_REDIRECT` + `GH_REDIRECT`; `EDIT_REDIRECT` also shows the disable path. An
+  init notice was added to the `project_hooks.json` template and the on/off story
+  documented in the hooks README. 6 new tests (86 in `test_git_gate`).
+
 - **Telegram `/create` + `/cancel` are now gated to the base @aipass bot (issue
   #644).** Every per-branch bot inherited `BaseBot`'s `/create` + `/cancel` and
   could mint new bots — but Patrick designated the base @aipass bot as the *sole*

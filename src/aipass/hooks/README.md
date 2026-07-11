@@ -118,6 +118,26 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 | Notification | announce | Announcement tone |
 | PreCompact | compact, rollover | Memory archival + rollover |
 
+## Git Gate
+
+The `git_gate` handler (`security/git_gate.py`) enforces git access via drone to prevent state conflicts between agents. It is **enabled by default** in every project created by `aipass init`.
+
+**What it blocks:** Raw `git` write commands (push, commit, checkout, merge, etc.) and raw `gh` commands (except `gh api`). Read-only git verbs (status, log, diff, show, blame, grep, etc.) are allowed raw.
+
+**What it protects:** Edits to `.claude/settings.json`, `.claude/hooks/`, and `.git/hooks/` — the enforcement layer itself.
+
+**Disabling for a project:** Set `git_gate.enabled` to `false` in your project's `.aipass/hooks.json`. This disables git enforcement in isolation — all other hooks (edit_gate, rm_gate, prompt injection, etc.) continue to work normally. No sync, rebase, or PR flows depend on git_gate being active; those are handled independently by `drone @git`.
+
+```json
+"git_gate": {
+    "enabled": false,
+    "handler": "aipass.hooks.apps.handlers.security.git_gate.handle",
+    "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit"
+}
+```
+
+**Why it's on by default:** Agents reflexively reach for raw git, which causes state chaos in a multi-agent system. The gate redirects to `drone @git` which enforces access tiers (read-only for most branches, write-only for devpulse). External users who don't need multi-agent git orchestration can safely disable it.
+
 ## Kernel Sandbox (srt/bwrap)
 
 The sandbox module (`apps/modules/sandbox.py`) provides the kernel-level filesystem boundary for agent sessions. It wraps Anthropic's `@anthropic-ai/sandbox-runtime` (srt) library, which uses bubblewrap (bwrap) + Landlock + seccomp on Linux to enforce write/read restrictions at the OS level.

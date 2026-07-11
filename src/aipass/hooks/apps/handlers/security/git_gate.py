@@ -61,20 +61,42 @@ EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 TRUSTED_HOOK_EDITORS = ("devpulse", "seedgo")
 
-GIT_GH_REDIRECT = (
-    "Write git commands are blocked. Read-only verbs (status, log, diff, show, etc.) are allowed raw.\n"
-    "For write operations, use drone:\n"
-    "  drone @git smart-sync     # fetch + rebase\n"
-    "  drone @git sync           # checkout main + pull\n"
-    "  drone @git issue list     # GitHub issues\n"
+GIT_REDIRECT = (
+    "AIPass enforces git via drone to prevent state conflicts between agents.\n"
+    "Read-only verbs (status, log, diff, show, blame, grep, etc.) are allowed raw.\n"
+    "\n"
+    "For write operations, use drone @git:\n"
+    "  drone @git commit <msg> [--all | files]   # commit changes\n"
+    "  drone @git smart-sync                     # fetch + rebase\n"
+    "  drone @git sync                           # checkout main + pull\n"
+    "  drone @git pr <desc>                      # push + create PR\n"
+    "  drone @git checkout <main|dev>            # switch branches\n"
+    "\n"
+    "Run `drone @git --help` for the full command list.\n"
+    "To disable this gate for your project: set git_gate.enabled to false\n"
+    "in your .aipass/hooks.json (this won't break other AIPass hooks)."
+)
+
+GH_REDIRECT = (
+    "AIPass enforces gh via drone to prevent state conflicts between agents.\n"
+    "Only `gh api` is allowed raw.\n"
+    "\n"
+    "For GitHub operations, use drone @git:\n"
+    "  drone @git issue list     # list issues\n"
     "  drone @git run list       # CI runs\n"
-    "  drone @git workflow run   # trigger workflows"
+    "  drone @git workflow run   # trigger workflows\n"
+    "  drone @git pr <desc>      # push + create PR\n"
+    "\n"
+    "Run `drone @git --help` for the full command list.\n"
+    "To disable this gate for your project: set git_gate.enabled to false\n"
+    "in your .aipass/hooks.json (this won't break other AIPass hooks)."
 )
 
 EDIT_REDIRECT = (
     "{path} is protected — settings.json, .claude/hooks/, and .git/hooks/ "
     "govern the enforcement layer itself.\n"
-    "If a real change is needed, ask devpulse to make it directly."
+    "If a real change is needed, ask devpulse to make it directly.\n"
+    "To disable this protection: set git_gate.enabled to false in .aipass/hooks.json."
 )
 
 _BLOCK_ALLOW = {"stdout": "", "exit_code": 0}
@@ -142,9 +164,9 @@ def _check_bash(tool_input: dict) -> dict:
     scan = re.sub(r'"(?:[^"\\]|\\.)*"', '""', cmd)
     scan = re.sub(r"'(?:[^'\\]|\\.)*'", "''", scan)
     if RAW_GIT_RE.search(scan) and not _all_git_reads(scan):
-        return _block(GIT_GH_REDIRECT)
+        return _block(GIT_REDIRECT)
     if RAW_GH_RE.search(scan) and not _is_allowed_gh(cmd):
-        return _block(GIT_GH_REDIRECT)
+        return _block(GH_REDIRECT)
     return _BLOCK_ALLOW
 
 
