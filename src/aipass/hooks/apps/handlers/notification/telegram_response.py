@@ -28,6 +28,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from aipass.prax import append_jsonl
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 PENDING_DIR = Path.home() / ".aipass" / "telegram_pending"
@@ -760,8 +761,6 @@ def _write_delivery_log(intended_text: str, chunks: list[str], chunk_results: li
         record["culprit"] = culprit
 
     try:
-        _DELIVERY_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(_DELIVERY_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record) + "\n")
+        append_jsonl(_DELIVERY_LOG, record)
     except OSError as e:
         logger.warning("[HOOKS] telegram: delivery log write failed: %s", e)

@@ -1073,10 +1073,10 @@ class TestShouldProcessEdgeCases:
         assert watcher._should_process(path) is False
 
     def test_excluded_medic_suppressed(self):
-        """medic_suppressed.log is excluded."""
+        """medic_suppressed.jsonl is excluded."""
         lw = _import_log_watcher()
         watcher = lw.BranchLogWatcher()
-        path = str(Path("/src") / "aipass" / "flow" / "logs" / "medic_suppressed.log")
+        path = str(Path("/src") / "aipass" / "flow" / "logs" / "medic_suppressed.jsonl")
         assert watcher._should_process(path) is False
 
 

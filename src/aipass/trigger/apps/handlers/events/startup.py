@@ -21,14 +21,19 @@ import json
 import hashlib
 import time
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Set
 from aipass.trigger.apps.config import TRIGGER_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
+try:
+    from aipass.prax import append_jsonl as _append_jsonl
+except Exception:
+    _append_jsonl = None
+
 SYSTEM_LOGS_DIR = TRIGGER_ROOT.parent.parent.parent / "system_logs"
 TRIGGER_DATA_FILE = TRIGGER_ROOT / "trigger_json" / "trigger_data.json"
-SUPPRESSED_LOG = TRIGGER_ROOT / "logs" / "medic_suppressed.log"
+SUPPRESSED_LOG = TRIGGER_ROOT / "logs" / "medic_suppressed.jsonl"
 
 MAX_HASHES = 500
 MAX_LOOKBACK_HOURS = 24
@@ -38,18 +43,17 @@ MAX_ERRORS_PER_SCAN = 50  # Stop after this many new errors found
 MAX_FILE_SIZE_BYTES = 512_000  # Skip files larger than 500KB
 SCAN_TIME_BUDGET_SECONDS = 5.0  # Abort entire scan after this many seconds
 
-_HANDLER_LOG = TRIGGER_ROOT / "logs" / "startup_handler.log"
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "startup_handler.jsonl"
 
 
 def _log_warning(message: str) -> None:
-    """Log warning to file (event handlers cannot import Prax logger - causes recursion)."""
+    """Log warning to file (recursion-safe prax path)."""
+    if _append_jsonl is None:
+        return
     try:
-        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        with open(_HANDLER_LOG, "a", encoding="utf-8") as f:
-            f.write(f"{ts} | WARNING | {message}\n")
+        _append_jsonl(_HANDLER_LOG, {"level": "WARNING", "msg": message})
     except Exception:
-        pass
+        pass  # seedgo:bypass meta-logging
 
 
 def _load_trigger_data() -> Dict[str, Any]:
@@ -96,18 +100,13 @@ def _save_trigger_data(data: Dict[str, Any]) -> None:
 
 
 def _log_suppression(reason: str) -> None:
-    """Log a catchup suppression event to medic_suppressed.log.
-
-    Args:
-        reason: Description of why scanning was capped or skipped
-    """
+    """Log a catchup suppression event to medic_suppressed.jsonl."""
+    if _append_jsonl is None:
+        return
     try:
-        SUPPRESSED_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(SUPPRESSED_LOG, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now().isoformat()} | error_catchup: {reason}\n")
+        _append_jsonl(SUPPRESSED_LOG, {"ts": datetime.now().isoformat(), "source": "error_catchup", "reason": reason})
     except Exception as exc:
         _log_warning(f"log suppression write failed: {exc}")
-        return
 
 
 def _generate_error_hash(source_module: str, message: str) -> str:

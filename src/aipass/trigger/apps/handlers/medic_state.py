@@ -28,8 +28,8 @@ from aipass.trigger.apps.handlers.json import json_handler
 logger = get_direct_logger()
 
 TRIGGER_CONFIG_FILE = TRIGGER_ROOT / "trigger_json" / "trigger_config.json"
-MEDIC_SUPPRESSED_LOG = TRIGGER_ROOT / "logs" / "medic_suppressed.log"
-RATE_LIMITED_LOG = TRIGGER_ROOT / "logs" / "rate_limited.log"
+MEDIC_SUPPRESSED_LOG = TRIGGER_ROOT / "logs" / "medic_suppressed.jsonl"
+RATE_LIMITED_LOG = TRIGGER_ROOT / "logs" / "rate_limited.jsonl"
 
 
 def read_config() -> dict:
@@ -190,8 +190,8 @@ def get_suppression_stats() -> Dict[str, Any]:
             lines = MEDIC_SUPPRESSED_LOG.read_text(encoding="utf-8").strip().splitlines()
             suppressed_count = len(lines)
             if lines:
-                last_line = lines[-1]
-                last_suppressed = last_line.split(" | ")[0] if " | " in last_line else "unknown"
+                entry = json.loads(lines[-1])
+                last_suppressed = entry.get("ts", "unknown")
     except Exception as exc:
         logger.warning("get_suppression_stats failed: %s", exc)
         return {"suppressed_count": 0, "last_suppressed": "error reading log"}
@@ -216,8 +216,8 @@ def get_rate_limit_stats() -> Dict[str, Any]:
             lines = RATE_LIMITED_LOG.read_text(encoding="utf-8").strip().splitlines()
             dispatch_count = len(lines)
             if lines:
-                last_line = lines[-1]
-                last_dispatch = last_line.split(" | ")[0] if " | " in last_line else "unknown"
+                entry = json.loads(lines[-1])
+                last_dispatch = entry.get("ts", "unknown")
     except Exception as exc:
         logger.warning("get_rate_limit_stats failed: %s", exc)
         return {"rate_limited_count": 0, "last_rate_limited": "error reading log"}

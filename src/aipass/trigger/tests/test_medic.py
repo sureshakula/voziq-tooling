@@ -307,7 +307,7 @@ def test_handle_command_status_suppression_hint_when_disabled():
 
     console = _get_console()
     printed = _get_print_str_args(console)
-    hint = "  [dim]All error dispatch suppressed. Errors logged to medic_suppressed.log[/dim]"
+    hint = "  [dim]All error dispatch suppressed. Errors logged to medic_suppressed.jsonl[/dim]"
     assert hint in printed, f"Expected suppression hint '{hint}' in printed args: {printed}"
 
 

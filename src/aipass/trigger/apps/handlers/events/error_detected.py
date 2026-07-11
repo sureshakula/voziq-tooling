@@ -35,24 +35,28 @@ Architecture (Medic v2):
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from aipass.trigger.apps.config import TRIGGER_ROOT
 from aipass.trigger.apps.handlers.json import json_handler
 
-_HANDLER_LOG = TRIGGER_ROOT / "logs" / "error_detected_handler.log"
+try:
+    from aipass.prax import append_jsonl as _append_jsonl
+except Exception:
+    _append_jsonl = None
+
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "error_detected_handler.jsonl"
 
 
 def _log_warning(message: str) -> None:
-    """Log warning to file (event handlers cannot import Prax logger - causes recursion)."""
+    """Log warning to file (recursion-safe prax path)."""
+    if _append_jsonl is None:
+        return
     try:
-        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        with open(_HANDLER_LOG, "a", encoding="utf-8") as f:
-            f.write(f"{ts} | WARNING | {message}\n")
+        _append_jsonl(_HANDLER_LOG, {"level": "WARNING", "msg": message})
     except Exception:
-        pass
+        pass  # seedgo:bypass meta-logging
 
 
 def _find_repo_root() -> Path:
@@ -348,22 +352,29 @@ REPORT TO @devpulse:
 
 def _write_suppression_log(reason: str, branch: str, module: str, message: str) -> None:
     """Write a line to the medic suppression log."""
+    if _append_jsonl is None:
+        return
     try:
-        suppressed_log = TRIGGER_ROOT / "logs" / "medic_suppressed.log"
-        suppressed_log.parent.mkdir(parents=True, exist_ok=True)
-        with open(suppressed_log, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now().isoformat()} | {reason} - {branch}: {module} - {message[:100]}\n")
+        suppressed_log = TRIGGER_ROOT / "logs" / "medic_suppressed.jsonl"
+        entry = {
+            "ts": datetime.now().isoformat(),
+            "reason": reason,
+            "branch": branch,
+            "module": module,
+            "msg": message[:100],
+        }
+        _append_jsonl(suppressed_log, entry)
     except Exception as exc:
         _log_warning(f"suppression log write failed ({reason}): {exc}")
 
 
 def _write_rate_log(reason: str, detail: str) -> None:
     """Write a line to the rate-limited log."""
+    if _append_jsonl is None:
+        return
     try:
-        rate_log = TRIGGER_ROOT / "logs" / "rate_limited.log"
-        rate_log.parent.mkdir(parents=True, exist_ok=True)
-        with open(rate_log, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now().isoformat()} | {reason}: {detail}\n")
+        rate_log = TRIGGER_ROOT / "logs" / "rate_limited.jsonl"
+        _append_jsonl(rate_log, {"ts": datetime.now().isoformat(), "reason": reason, "detail": detail})
     except Exception as exc:
         _log_warning(f"rate log write failed ({reason}): {exc}")
 

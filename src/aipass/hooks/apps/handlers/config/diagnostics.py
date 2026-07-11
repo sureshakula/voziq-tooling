@@ -10,9 +10,9 @@
 
 """JSONL diagnostic logging — appends structured entries for hook activity."""
 
-import json
 from pathlib import Path
 
+from aipass.prax import append_jsonl
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 BRANCH_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -22,9 +22,7 @@ LOG_FILE = BRANCH_ROOT / "logs" / "engine.jsonl"
 def log_entry(entry: dict) -> None:
     """Append a JSONL log entry for detailed diagnostics."""
     try:
-        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        append_jsonl(LOG_FILE, entry)
     except OSError as exc:
         logger.error("[HOOKS] log write failed: %s", exc)
 

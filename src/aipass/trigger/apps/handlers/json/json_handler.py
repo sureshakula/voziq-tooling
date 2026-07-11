@@ -12,11 +12,16 @@ import json
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, Any, Optional
 import inspect
 
 from aipass.trigger.apps.config import atomic_write_json
+
+try:
+    from aipass.prax import append_jsonl as _append_jsonl
+except Exception:
+    _append_jsonl = None
 
 if sys.platform == "win32":
     os.environ.setdefault("PYTHONUTF8", "1")
@@ -28,19 +33,19 @@ if sys.platform == "win32":
 # Infrastructure — redirect to temp dir during tests
 _test_log_dir = os.environ.get("AIPASS_TEST_LOG_DIR")
 if _test_log_dir:
-    _LOG_FILE = Path(_test_log_dir) / "trigger" / "json_handler.log"
+    _LOG_FILE = Path(_test_log_dir) / "trigger" / "json_handler.jsonl"
 else:
-    _LOG_FILE = Path(__file__).parent.parent.parent.parent / "logs" / "json_handler.log"
+    _LOG_FILE = Path(__file__).parent.parent.parent.parent / "logs" / "json_handler.jsonl"
 
 
 def _log_warning(msg: str) -> None:
-    """File-based warning logger to avoid circular imports with prax."""
+    """Recursion-safe warning logger via prax append_jsonl."""
+    if _append_jsonl is None:
+        return
     try:
-        _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(_LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} | WARNING | {msg}\n")
+        _append_jsonl(_LOG_FILE, {"level": "WARNING", "msg": msg})
     except Exception:
-        pass  # Meta-logging: cannot log a failure to log
+        pass  # seedgo:bypass meta-logging
 
 
 # Constants

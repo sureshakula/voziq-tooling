@@ -198,11 +198,11 @@ def print_help() -> None:
     console.print()
     console.print("  [yellow]off[/yellow]    Global kill switch. ALL error dispatch stops. No branch")
     console.print("         receives auto-healing emails. Errors still logged to")
-    console.print("         medic_suppressed.log for review.")
+    console.print("         medic_suppressed.jsonl for review.")
     console.print()
     console.print("  [yellow]mute[/yellow]   Per-branch suppress. Only the muted branch stops receiving")
     console.print("         dispatch. All other branches continue normally. Muted errors")
-    console.print("         logged to medic_suppressed.log.")
+    console.print("         logged to medic_suppressed.jsonl.")
     console.print()
     console.rule("EXAMPLES")
     console.print()
@@ -227,7 +227,7 @@ def print_help() -> None:
     console.print("  ->  handler checks medic_enabled  ->  checks branch mute list")
     console.print("  ->  dispatches fix-it email to affected branch (or suppresses)")
     console.print()
-    console.print("  Suppressed errors: trigger/logs/medic_suppressed.log")
+    console.print("  Suppressed errors: trigger/logs/medic_suppressed.jsonl")
     console.print()
 
 
@@ -292,7 +292,7 @@ def _handle_status(console) -> None:
     console.print(f"  Last rate limit: {rate_limits['last_rate_limited']}")
     console.print()
     if not enabled:
-        console.print("  [dim]All error dispatch suppressed. Errors logged to medic_suppressed.log[/dim]")
+        console.print("  [dim]All error dispatch suppressed. Errors logged to medic_suppressed.jsonl[/dim]")
 
 
 def _handle_on(console) -> None:
@@ -342,7 +342,7 @@ def _handle_off(console) -> None:
         Panel(
             "[bold yellow]Medic DISABLED[/bold yellow]\n\n"
             "Error dispatch is [yellow]suppressed[/yellow]. Errors are still detected\n"
-            "and logged to [dim]medic_suppressed.log[/dim] for review.\n"
+            "and logged to [dim]medic_suppressed.jsonl[/dim] for review.\n"
             "Log watcher: [yellow]stopped[/yellow]",
             title="Medic",
             border_style="yellow",

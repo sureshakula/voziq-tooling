@@ -48,8 +48,8 @@ STALE_ENTRY_THRESHOLD_SECONDS = 300  # 5 minutes
 # Compared case-insensitively against Path.name (see on_modified)
 EXCLUDED_LOG_FILES: Set[str] = {
     "dispatch.log",
-    "medic_suppressed.log",
-    "rate_limited.log",
+    "medic_suppressed.jsonl",
+    "rate_limited.jsonl",
     "error_monitor.log",
     "log_watcher.log",
     "log_watcher.log.1",
