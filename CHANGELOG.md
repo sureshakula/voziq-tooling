@@ -31,6 +31,36 @@ PyPI version — not the changelog header.
   incl. compound-smuggle, wake-back owner/non-owner/depth-cap).
   (built by @spawn + @hooks + @ai_mail, verified by devpulse)
 
+- **`subcommand_help` seedgo standard — entry points must intercept `<cmd> --help`
+  before dispatch (issue #685, split from #665 item 3).** `drone @X <cmd> --help`
+  had no framework contract: drone (a router, not a standards enforcer) forwards
+  `--help` as a positional, so behavior was per-branch — 8/16 missed, and two
+  branches *executed* the subcommand instead of showing help. seedgo now owns the
+  contract: a new AST checker flags entry points that don't guard `<cmd> --help`
+  (explicit `remaining_args[0]` guard or argparse `parse_known_args`). 21 tests,
+  cwd-portable. 7/17 branches comply; the 10 offenders are tracked as a fleet
+  migration (#686). (@seedgo, verified devpulse)
+
+- **`windows_compat` now detects `os.kill(pid, 0)` liveness probes, not just
+  documents them (issue #682).** `os.kill(pid, 0)` resolves to `TerminateProcess`
+  on Windows — it *kills* the target instead of probing it. The checker documented
+  the anti-pattern but never flagged it in source. A new detector recognizes the
+  valid early-return platform guard (so the reference impl `watchdog/agent.py` isn't
+  false-flagged) while catching genuinely unguarded sites. 6 tests; verified across
+  the fleet (guarded ref passes, 10 offenders caught → fleet migration #684).
+  (@seedgo, verified devpulse)
+
+- **`append_jsonl` — a sanctioned rotating JSONL writer + a 30-day stale-log sweep
+  (issue #673).** Branches wrote `.jsonl` via raw `open('a')`, bypassing prax
+  rotation (which was `.log`-only) — unbounded log growth. `from aipass.prax import
+  append_jsonl` gives 500 KB / 1-backup atomic (`os.replace`) rotation with zero
+  dependency on the prax logging pipeline (recursion-safe for @trigger's event
+  handlers), and `drone @prax log-audit sweep` deletes logs older than 30 days
+  across system + branch logs. The raw appenders in @backup (1), @hooks (2), and
+  @trigger (11 `.log` sites → `.jsonl`, plus downstream medic readers) all adopted
+  it — zero raw log appenders remain fleet-wide.
+  (@prax + @backup/@hooks/@trigger, verified devpulse)
+
 ### Fixed
 
 - **Watchdog stall detector no longer false-fires on a long single tool call, and
@@ -55,6 +85,17 @@ PyPI version — not the changelog header.
   (`audit` takes a registered pack name) — corrected to `audit aipass`. Remaining
   #665 items (version, --help names, subcommand --help, placeholders, hints, crash-vs-
   unknown) span multiple owners and stay open. (devpulse)
+
+- **`aipass`/`drone` first-contact papercuts resolved — issue #665 fully closed
+  (items 1, 2, 4, 5, 8).** `aipass --version` now reads package metadata (was
+  hardcoded `0.1.0`); `aipass --help` lists real `COMMAND` names, not file stems
+  (`help` not `help_chat`, `init` not `init_flow`); a crashing or unimportable
+  handler surfaces its real cause instead of `Unknown command` (@aipass). `drone
+  systems` placeholder descriptions now derive from each branch's passport/README,
+  fixed in code so they survive registry regen — the earlier gitignored data edit
+  didn't (@spawn). Bare-mode hints point to working commands — `drone @daemon
+  --help` (there is no `daemon` binary) and the standard `drone @memory --help`
+  (@daemon, @memory). Item 3 became the #685 standard. (multi-branch, verified devpulse)
 
 - **Telegram poll loop no longer re-drains a rate-limited backlog; systemd
   suicide-loop + silent config fallback fixed (issues #668, #669).** #668: the poll
