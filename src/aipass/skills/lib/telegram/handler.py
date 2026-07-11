@@ -64,7 +64,7 @@ def _normalize_args(args) -> list:
 def _cmd_start(args: list) -> dict:
     if not args:
         return _err("start requires a bot_id: drone @skills run telegram start <bot_id>")
-    from apps.handlers.bot_operations import start_bot
+    from aipass.skills.lib.telegram.apps.handlers.bot_operations import start_bot
 
     bot_id = args[0]
     exit_code = start_bot(bot_id)
@@ -76,7 +76,7 @@ def _cmd_start(args: list) -> dict:
 def _cmd_stop(args: list) -> dict:
     if not args:
         return _err("stop requires a bot_id: drone @skills run telegram stop <bot_id>")
-    from apps.handlers.bot_operations import stop_bot
+    from aipass.skills.lib.telegram.apps.handlers.bot_operations import stop_bot
 
     success, message = stop_bot(args[0])
     if success:
@@ -85,7 +85,7 @@ def _cmd_stop(args: list) -> dict:
 
 
 def _cmd_status(args: list) -> dict:
-    from apps.handlers.bot_operations import (
+    from aipass.skills.lib.telegram.apps.handlers.bot_operations import (
         format_bot_details,
         format_bot_table,
         get_status,
@@ -102,8 +102,8 @@ def _cmd_status(args: list) -> dict:
 
 
 def _cmd_create(args: list) -> dict:
-    from apps.handlers.bot_factory import create_bot
-    from apps.handlers.bot_operations import parse_create_args
+    from aipass.skills.lib.telegram.apps.handlers.bot_factory import create_bot
+    from aipass.skills.lib.telegram.apps.handlers.bot_operations import parse_create_args
 
     parsed = parse_create_args(args)
     if not parsed:
@@ -122,7 +122,7 @@ def _cmd_create(args: list) -> dict:
 def _cmd_delete(args: list) -> dict:
     if not args:
         return _err("delete requires a bot_id: drone @skills run telegram delete <bot_id>")
-    from apps.handlers.bot_factory import delete_bot
+    from aipass.skills.lib.telegram.apps.handlers.bot_factory import delete_bot
 
     success = delete_bot(args[0])
     if success:
@@ -133,7 +133,7 @@ def _cmd_delete(args: list) -> dict:
 def _cmd_notify(args: list) -> dict:
     if not args:
         return _err('notify requires a message: drone @skills run telegram notify "message"')
-    from apps.handlers.notifier import send_telegram_notification
+    from aipass.skills.lib.telegram.apps.handlers.notifier import send_telegram_notification
 
     message = " ".join(args)
     success = send_telegram_notification(message)

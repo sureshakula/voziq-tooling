@@ -45,11 +45,17 @@ PyPI version — not the changelog header.
   run in CI before because they failed at collection. Added a session-scoped autouse
   `_block_network` conftest fixture that patches `urlopen` on the four network-using
   telegram modules (both bare and fully-qualified import paths, each guarded) so any
-  test attempting a live HTTP call fails loud instead of hanging. Test-infra only —
-  product code byte-unchanged, no telegram behavior change. Full-repo collection now
-  0 errors (11,028 tests); telegram suite 663 passed / 0 failed / 0 hangs, fully
-  hermetic. Coverage intact (zero assertion changes — purely import/patch-target
-  rewiring).
+  test attempting a live HTTP call fails loud instead of hanging. A full-repo CI run
+  then exposed a third layer the isolated suites had hidden: `handler.py` and its
+  routing tests still used bare `from apps.handlers.X import Y` / `mock.patch("apps.
+  handlers.X…")`, which resolve to the *wrong* branch's `apps` in a whole-repo run
+  (AttributeError / ModuleNotFoundError at runtime — 17 `test_handler_routing`
+  failures). Fully-qualified those to `aipass.skills.lib.telegram.apps.handlers.*` in
+  both `handler.py` (7 lazy imports, now house-rule compliant) and the tests; the
+  skill's runtime behaviour is unchanged (verified via `drone @skills run telegram`).
+  Net: full-repo collection 0 errors and the whole 11k-test suite green; telegram
+  suite 663 passed / 0 failed / 0 hangs, fully hermetic; coverage intact (import and
+  patch-target rewiring only — zero assertion changes).
 
 - **`aipass install` from a throwaway path can no longer hijack the machine-wide
   `AIPASS_HOME` (issue #688).** A probe install run from a `/tmp` scratchpad had
