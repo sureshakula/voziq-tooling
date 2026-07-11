@@ -63,6 +63,16 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **SubagentStop gate no longer runs its ~600ms seedgo check on every internal
+  turn (issue #606).** Claude Code creates an internal agent per response turn
+  with an empty `agent_type`, so the `subagent_gate` handler was firing its full
+  `drone @git status` + seedgo modified-files check on every turn, not just when a
+  real Agent-tool sub-agent completed. `handle()` now early-returns `_ALLOW` when
+  `agent_type` is empty; the full check runs only for a real sub-agent
+  (non-empty `agent_type`). Piper speech is a separate notification hook and is
+  unaffected — the trust layer stays visible. 3 new tests (empty skip, missing-key
+  skip, real-agent full check), 17/17 green.
+
 - **Watchdog stall detector no longer false-fires on a long single tool call, and
   a real stall now reaches devpulse live (issue #634).** Liveness was inferred
   purely from JSONL file-size growth, so an agent doing one genuinely long

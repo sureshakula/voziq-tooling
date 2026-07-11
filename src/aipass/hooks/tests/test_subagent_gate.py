@@ -18,14 +18,14 @@ from aipass.hooks.apps.handlers.security.subagent_gate import handle
 class TestSubagentGateHandler:
     def test_no_repo_root_allows(self):
         with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root", return_value=None):
-            result = handle({"cwd": "/tmp/nowhere"})
+            result = handle({"agent_type": "general-purpose", "cwd": "/fake/nowhere"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
         assert "sound" not in result
 
     def test_no_modified_files_allows(self):
         with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root", return_value=None):
-            result = handle({"cwd": "/tmp/somewhere"})
+            result = handle({"agent_type": "general-purpose", "cwd": "/fake/somewhere"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
         assert "sound" not in result
@@ -39,7 +39,7 @@ class TestSubagentGateHandler:
 
         mock_root.return_value = Path("/fake/repo")
         mock_modified.return_value = ["/fake/repo/src/aipass/hooks/apps/test.py"]
-        result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
+        result = handle({"agent_type": "general-purpose", "cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
         assert "sound" not in result
@@ -54,7 +54,7 @@ class TestSubagentGateHandler:
         mock_root.return_value = Path("/fake/repo")
         mock_modified.return_value = ["/fake/repo/src/aipass/hooks/apps/bad.py"]
         mock_seedgo.return_value = ["Missing docstring", "No tests"]
-        result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
+        result = handle({"agent_type": "general-purpose", "cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 2
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "block"
@@ -99,7 +99,7 @@ class TestSubagentGateHandler:
             "Hook files were modified but .claude/hooks/README.md was not updated. "
             "Consider updating the README to reflect your changes."
         )
-        result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
+        result = handle({"agent_type": "Explore", "cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 0
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "allow"
@@ -107,11 +107,41 @@ class TestSubagentGateHandler:
         assert "sound" not in result
 
     def test_empty_hook_data_allows(self):
-        with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root", return_value=None):
-            result = handle({})
+        result = handle({})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
         assert "sound" not in result
+
+    def test_empty_agent_type_skips_heavy_work(self):
+        """Internal CC turns (empty agent_type) skip drone @git status + seedgo."""
+        with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root") as mock_root:
+            result = handle({"agent_type": "", "cwd": "/fake/repo"})
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+        mock_root.assert_not_called()
+
+    def test_missing_agent_type_skips_heavy_work(self):
+        """Missing agent_type key treated same as empty — skip."""
+        with patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root") as mock_root:
+            result = handle({"cwd": "/fake/repo"})
+        assert result["exit_code"] == 0
+        mock_root.assert_not_called()
+
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
+    @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
+    def test_real_agent_type_runs_full_check(self, mock_root, mock_modified, mock_seedgo, mock_readme):
+        """Real sub-agents (non-empty agent_type) get the full seedgo check."""
+        from pathlib import Path
+
+        mock_root.return_value = Path("/fake/repo")
+        mock_modified.return_value = ["/fake/repo/src/aipass/hooks/apps/bad.py"]
+        mock_seedgo.return_value = ["Missing docstring"]
+        result = handle({"agent_type": "general-purpose", "cwd": "/fake/repo/src/aipass/hooks"})
+        assert result["exit_code"] == 2
+        mock_root.assert_called_once()
+        mock_seedgo.assert_called_once()
 
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._get_modified_py_files")
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._find_repo_root")
@@ -120,7 +150,7 @@ class TestSubagentGateHandler:
 
         mock_root.return_value = Path("/fake/repo")
         mock_modified.side_effect = RuntimeError("subprocess died")
-        result = handle({"cwd": "/fake/repo/src/aipass/hooks"})
+        result = handle({"agent_type": "general-purpose", "cwd": "/fake/repo/src/aipass/hooks"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
         assert "sound" not in result
@@ -152,9 +182,9 @@ class TestSubagentGateExternalProject:
     def test_get_package_from_cwd_external(self):
         from aipass.hooks.apps.handlers.security.subagent_gate import _get_package_from_cwd
 
-        assert _get_package_from_cwd("/home/user/Projects/vera/src/vera_studio/quality") == "vera_studio"
-        assert _get_package_from_cwd("/home/user/Projects/AIPass/src/aipass/hooks") == "aipass"
-        assert _get_package_from_cwd("/tmp/no-src-here") == ""
+        assert _get_package_from_cwd("/fake/projects/vera/src/vera_studio/quality") == "vera_studio"
+        assert _get_package_from_cwd("/fake/projects/AIPass/src/aipass/hooks") == "aipass"
+        assert _get_package_from_cwd("/fake/no-src-here") == ""
 
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._check_hook_readme_accountability", return_value=None)
     @patch("aipass.hooks.apps.handlers.security.subagent_gate._run_seedgo_checklist")
@@ -166,7 +196,7 @@ class TestSubagentGateExternalProject:
         mock_root.return_value = Path("/fake/vera")
         mock_modified.return_value = ["/fake/vera/src/vera_studio/quality/apps/bad.py"]
         mock_seedgo.return_value = ["Missing docstring"]
-        result = handle({"cwd": "/fake/vera/src/vera_studio/quality"})
+        result = handle({"agent_type": "general-purpose", "cwd": "/fake/vera/src/vera_studio/quality"})
         assert result["exit_code"] == 2
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "block"
@@ -182,7 +212,7 @@ class TestSubagentGateExternalProject:
 
         mock_root.return_value = Path("/fake/vera")
         mock_modified.return_value = ["/fake/vera/src/vera_studio/quality/apps/clean.py"]
-        result = handle({"cwd": "/fake/vera/src/vera_studio/quality"})
+        result = handle({"agent_type": "Explore", "cwd": "/fake/vera/src/vera_studio/quality"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
         assert "sound" not in result
