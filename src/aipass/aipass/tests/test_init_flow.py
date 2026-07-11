@@ -261,6 +261,11 @@ def _bypass_preflight():
 
 
 class TestRunInit:
+    @pytest.fixture(autouse=True)
+    def _isolate_cwd(self, tmp_path, monkeypatch):
+        """Avoid _guard_init rejecting the real cwd when it has .trinity/."""
+        monkeypatch.chdir(tmp_path)
+
     def _patch_all_stages(self):
         """Context manager that patches all 10 stage functions to no-ops."""
         stage_names = [

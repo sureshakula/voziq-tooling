@@ -278,8 +278,12 @@ def test_init_project_claude_settings_content(tmp_path):
     assert "deny" in data["permissions"]
 
 
-def test_init_project_settings_no_hooks(tmp_path):
+def test_init_project_settings_no_hooks(tmp_path, monkeypatch):
     """.claude/settings.json has no hooks — all hooks fire from provider level."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -451,8 +455,12 @@ def test_update_project_return_dict_structure(tmp_path):
     assert isinstance(result["skipped_files"], list)
 
 
-def test_update_project_already_current_after_init(tmp_path):
+def test_update_project_already_current_after_init(tmp_path, monkeypatch):
     """Running update immediately after init reports all managed files as already current."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="fresh")
@@ -463,8 +471,12 @@ def test_update_project_already_current_after_init(tmp_path):
     assert len(result["already_current"]) >= 5
 
 
-def test_update_project_idempotent(tmp_path):
+def test_update_project_idempotent(tmp_path, monkeypatch):
     """Running update twice in a row produces no changes on second run."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="idem")
@@ -571,8 +583,12 @@ def test_init_project_returns_aipass_home(tmp_path):
     assert result["aipass_home"] is None or isinstance(result["aipass_home"], str)
 
 
-def test_init_project_settings_has_aipass_home_when_detected(tmp_path):
+def test_init_project_settings_has_aipass_home_when_detected(tmp_path, monkeypatch):
     """When AIPASS_HOME is detected, settings.json includes env.AIPASS_HOME."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -598,8 +614,12 @@ def test_update_project_returns_aipass_home(tmp_path):
     assert result["aipass_home"] is None or isinstance(result["aipass_home"], str)
 
 
-def test_update_project_adds_aipass_home_if_missing(tmp_path):
+def test_update_project_adds_aipass_home_if_missing(tmp_path, monkeypatch):
     """update_project injects AIPASS_HOME into settings.json if env section is absent."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="addenv")
