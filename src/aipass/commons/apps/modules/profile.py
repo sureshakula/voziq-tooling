@@ -21,12 +21,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[profile] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 
@@ -85,11 +87,11 @@ def _handle_profile(args: List[str]) -> bool:
     result = show_profile(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     if result["action"] == "set":
-        console.print(f"[green]Updated {result['field']} for {result['branch']}[/green]")
+        success(f"Updated {result['field']} for {result['branch']}")
         return True
 
     # View profile
@@ -128,7 +130,7 @@ def _handle_who(args: List[str]) -> bool:
     result = list_members(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     agents = result["agents"]

@@ -20,12 +20,15 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[comment] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
+
 
 from aipass.commons.apps.handlers.comments.comment_ops import add_comment, vote_on_content
 from aipass.commons.apps.handlers.identity.identity_ops import resolve_display_name
@@ -85,12 +88,12 @@ def _handle_comment(args: List[str]) -> bool:
     result = add_comment(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     parent_note = f" (reply to comment {result['parent_id']})" if result.get("parent_id") else ""
     console.print()
-    console.print(f"[green]Comment added to post {result['post_id']}{parent_note}[/green]")
+    success(f"Comment added to post {result['post_id']}{parent_note}")
     console.print(f"  [dim]Comment ID:[/dim] {result['comment_id']}")
     console.print(f"  [dim]Author:[/dim] {resolve_display_name(result['author'])}")
     if result.get("mentions"):
@@ -105,7 +108,7 @@ def _handle_vote(args: List[str]) -> bool:
     result = vote_on_content(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     action_msg = {
@@ -117,10 +120,7 @@ def _handle_vote(args: List[str]) -> bool:
     arrow = "^" if result["direction"] == "up" else "v"
 
     console.print()
-    console.print(
-        f"[green]{arrow} {action_msg} on {result['target_type']} "
-        f"{result['target_id']}[/green] [dim](score: {result['new_score']})[/dim]"
-    )
+    success(f"{arrow} {action_msg} on {result['target_type']} {result['target_id']} (score: {result['new_score']})")
     console.print()
 
     return True

@@ -20,12 +20,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[leaderboard] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from rich.table import Table
 
@@ -94,7 +95,7 @@ def _handle_leaderboard(args: List[str]) -> bool:
     result = show_leaderboard(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     boards = result["boards"]

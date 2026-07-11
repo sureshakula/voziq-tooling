@@ -20,22 +20,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[space] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
-
-try:
-    from aipass.cli.apps.modules.display import error
-except ImportError:
-    logger.warning("[space] CLI error function unavailable, using fallback")
-
-    def error(message, suggestion=None):
-        """Display error message in red."""
-        console.print(f"[red]{message}[/red]")  # type: ignore[assignment]
-
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 
@@ -146,18 +138,18 @@ def handle_command(command: str, args: List[str]) -> bool:
 def _cmd_enter(args: List[str]) -> bool:
     """Enter a room -- render entrance panel with mood, flavor, decorations."""
     if not args:
-        console.print("[red]Usage: commons enter <room>[/red]")
+        error("Usage: commons enter <room>")
         return True
 
     room_name = args[0].lower()
     data = get_room_enter_data(room_name)
 
     if data.get("error"):
-        console.print(f"[red]{data['error']}[/red]")
+        error(data["error"])
         return True
 
     if not data["found"]:
-        console.print(f"[red]Room '{room_name}' not found[/red]")
+        error(f"Room '{room_name}' not found")
         return True
 
     room = data["room"]
@@ -220,11 +212,11 @@ def _cmd_look(args: List[str]) -> bool:
     data = get_room_look_data(room_name)
 
     if data.get("error"):
-        console.print(f"[red]{data['error']}[/red]")
+        error(data["error"])
         return True
 
     if not data["found"]:
-        console.print(f"[red]Room '{room_name}' not found[/red]")
+        error(f"Room '{room_name}' not found")
         return True
 
     room = data["room"]
@@ -294,11 +286,11 @@ def _cmd_decorate(args: List[str]) -> bool:
 
     if result["success"]:
         console.print()
-        console.print(f"[green]Placed '{result['display_name']}' in r/{room_name}[/green]")
+        success(f"Placed '{result['display_name']}' in r/{room_name}")
         console.print(f"  [dim]{description}[/dim]")
         console.print()
     else:
-        console.print("[red]Failed to place decoration[/red]")
+        error("Failed to place decoration")
 
     return True
 
@@ -311,18 +303,18 @@ def _cmd_decorate(args: List[str]) -> bool:
 def _cmd_visitors(args: List[str]) -> bool:
     """Show recent visitors in a room (last 48h)."""
     if not args:
-        console.print("[red]Usage: commons visitors <room>[/red]")
+        error("Usage: commons visitors <room>")
         return True
 
     room_name = args[0].lower()
     data = get_visitors_data(room_name)
 
     if data.get("error"):
-        console.print(f"[red]{data['error']}[/red]")
+        error(data["error"])
         return True
 
     if not data["found"]:
-        console.print(f"[red]Room '{room_name}' not found[/red]")
+        error(f"Room '{room_name}' not found")
         return True
 
     visitors = data["visitors"]

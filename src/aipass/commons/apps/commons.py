@@ -292,7 +292,7 @@ def print_introspection(modules: List[Any]) -> None:
     console.print("[dim]A gathering place where branches post, comment, vote, and discuss.[/dim]")
     console.print()
 
-    console.print(f"[yellow]Discovered Modules:[/yellow] {len(modules)}")
+    warning(f"Discovered Modules: {len(modules)}")
     console.print()
 
     if modules:

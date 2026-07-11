@@ -21,12 +21,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[engagement] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.engagement.engagement_ops import generate_prompt, create_event
 from aipass.commons.apps.handlers.json import json_handler
@@ -88,7 +90,7 @@ def _handle_prompt(args: List[str]) -> bool:
     result = generate_prompt(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     if result.get("dry_run"):
@@ -100,7 +102,7 @@ def _handle_prompt(args: List[str]) -> bool:
         return True
 
     console.print()
-    console.print("[green]Daily prompt posted![/green]")
+    success("Daily prompt posted!")
     console.print(f"  [dim]ID:[/dim] {result['post_id']}")
     console.print(f"  [dim]Room:[/dim] r/{result['room']}")
     console.print(f"  [dim]Theme:[/dim] {result['theme']}")
@@ -115,7 +117,7 @@ def _handle_event(args: List[str]) -> bool:
     result = create_event(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     if result.get("dry_run"):
@@ -127,7 +129,7 @@ def _handle_event(args: List[str]) -> bool:
         return True
 
     console.print()
-    console.print("[green]Event created![/green]")
+    success("Event created!")
     console.print(f"  [dim]ID:[/dim] {result['post_id']}")
     console.print(f"  [dim]Room:[/dim] r/{result['room']}")
     console.print(f"  [dim]Title:[/dim] {result['title']}")

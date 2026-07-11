@@ -22,7 +22,10 @@ PyPI version — not the changelog header.
   markup. Owners self-audited and self-fixed their own branches; devpulse verified
   each diff + re-ran each audit and committed per wave. Landed so far: spawn,
   drone, flow, daemon, prax, ai_mail, backup, seedgo, memory, trigger, api, cli,
-  aipass. Remaining: commons.
+  aipass, commons — all 14 offenders now at 100%. **Fleet: 17/17 branches at
+  100% seedgo compliance** (hooks, skills, devpulse were already compliant).
+  Owners self-audited and self-fixed; devpulse verified every diff, re-ran each
+  branch's full test suite, and committed per wave.
 
 ### Fixed
 

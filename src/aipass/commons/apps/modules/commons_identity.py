@@ -23,22 +23,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
-    from aipass.cli.apps.modules.display import error, warning
+    from aipass.cli.apps.modules import console, error, warning
 except ImportError:
     logger.warning("[commons_identity] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
-
-    def error(message: str, suggestion: str | None = None) -> None:
-        """Display error message in red."""
-        console.print(f"[red]{message}[/red]")
-
-    def warning(message: str, details: str | None = None) -> None:
-        """Display warning message in yellow."""
-        console.print(f"[yellow]{message}[/yellow]")
-
+    error = console.print  # type: ignore[assignment]
+    warning = console.print  # type: ignore[assignment]
 
 # Re-export all public functions for backward compatibility
 from aipass.commons.apps.handlers.identity.identity_ops import (
@@ -133,5 +125,5 @@ def _handle_whoami(args: List[str]) -> bool:
 
     except Exception as e:
         logger.error(f"[commons.identity] whoami failed: {e}")
-        console.print(f"[red]Error detecting identity:[/red] {e}")
+        error(f"Error detecting identity: {e}")
         return True

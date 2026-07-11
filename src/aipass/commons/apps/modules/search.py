@@ -20,12 +20,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[search] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.search.search_ops import run_search, run_log_export
 from aipass.commons.apps.handlers.json import json_handler
@@ -82,7 +83,7 @@ def _handle_search(args: List[str]) -> bool:
     result = run_search(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     posts = result["posts"]
@@ -137,7 +138,7 @@ def _handle_log(args: List[str]) -> bool:
     result = run_log_export(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()

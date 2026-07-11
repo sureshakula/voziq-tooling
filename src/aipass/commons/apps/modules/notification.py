@@ -21,12 +21,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[notification] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.notifications.notification_ops import (
     set_watch,
@@ -110,7 +111,7 @@ LEVEL_LABELS = {
 def _handle_level(result: dict, level: str) -> bool:
     """Display the result of setting a notification level."""
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     label, color, description = LEVEL_LABELS[level]
@@ -127,7 +128,7 @@ def _handle_preferences(args: List[str]) -> bool:
     result = show_preferences(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     prefs = result["preferences"]

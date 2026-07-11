@@ -20,12 +20,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[capsule] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 from rich.table import Table
@@ -84,7 +85,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 def _handle_seal(args: List[str]) -> bool:
     result = seal_capsule(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
@@ -109,7 +110,7 @@ def _handle_seal(args: List[str]) -> bool:
 def _handle_list(args: List[str]) -> bool:
     result = list_capsules(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     capsules = result["capsules"]
@@ -152,7 +153,7 @@ def _handle_list(args: List[str]) -> bool:
 def _handle_open(args: List[str]) -> bool:
     result = open_capsule(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     capsule = result["capsule"]
