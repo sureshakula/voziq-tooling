@@ -34,6 +34,19 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Flaky `test_deletes_old_system_log` made deterministic (@prax log-sweep tests).**
+  The sweep integration test reached `log_watchdog._get_system_logs_dir` through a
+  `_get_sweep()` wrapper and patched it by string path; a sibling test
+  (`test_logging_handlers.py`) `sys.modules.pop`s and reimports `log_watchdog`,
+  creating a second module object — so the string patch could target a different
+  object than the function's `__globals__`, the sweep scanned the real (empty)
+  `system_logs/`, removed 0 files, and `assert files_removed == 1` failed
+  intermittently (the same commit passed in one CI run and failed in another).
+  Switched to a direct `import log_watchdog as lw` + `patch.object(lw, …)` (shared
+  module `__dict__`) and patched `json_handler` to block real file I/O. Test-only
+  (1 file); prax suite 978 green, two full-repo runs 11,019 passed each, sweep tests
+  deterministic across repeated runs.
+
 - **Telegram skill tests made CI-safe — full-repo collection + hermeticity (issue #691).**
   The 16 test files under `skills/lib/telegram/tests/` imported handlers via bare
   `from apps.handlers…`, which collided with other branches' `apps` packages during
