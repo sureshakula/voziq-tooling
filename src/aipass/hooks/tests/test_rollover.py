@@ -166,4 +166,4 @@ class TestFindRepoRootFailLoud:
 
         assert result is None
         assert "_find_repo_root failed" in caplog.text
-        assert bad_home in caplog.text
+        assert repr(bad_home) in caplog.text

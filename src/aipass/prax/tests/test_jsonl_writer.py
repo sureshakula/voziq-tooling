@@ -69,11 +69,12 @@ class TestAppendJsonl:
         """Verify non-serializable types fall back to str()."""
         append_jsonl = _get_append_jsonl()
         target = tmp_path / "test.jsonl"
+        test_path = Path("/some/path")
 
-        append_jsonl(target, {"path": Path("/some/path")})
+        append_jsonl(target, {"path": test_path})
 
         line = json.loads(target.read_text().strip())
-        assert line["path"] == "/some/path"
+        assert line["path"] == str(test_path)
 
 
 class TestRotation:

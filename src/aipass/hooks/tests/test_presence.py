@@ -435,7 +435,7 @@ class TestReadAll:
 
 class TestLiveness:
     def test_is_pid_alive_true(self):
-        with patch("os.kill") as mock_kill:
+        with patch("sys.platform", "linux"), patch("os.kill") as mock_kill:
             assert presence._is_pid_alive(1234) is True
             mock_kill.assert_called_once_with(1234, 0)
 
@@ -444,7 +444,7 @@ class TestLiveness:
             assert presence._is_pid_alive(1234) is False
 
     def test_is_pid_alive_permission_error(self):
-        with patch("os.kill", side_effect=PermissionError):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=PermissionError):
             assert presence._is_pid_alive(1234) is True
 
     def test_cwd_matches_linux(self):

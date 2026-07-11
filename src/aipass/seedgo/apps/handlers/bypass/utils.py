@@ -40,7 +40,7 @@ def is_bypassed(
         if rule.get("standard") and rule.get("standard") != standard:
             continue
         rule_file = rule.get("file", "")
-        if rule_file and rule_file not in file_path_posix:
+        if rule_file and Path(rule_file).as_posix() not in file_path_posix:
             continue
         functions = rule.get("functions")
         if functions and name is not None:

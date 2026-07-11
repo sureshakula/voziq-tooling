@@ -79,7 +79,7 @@ class TestIsLockStale:
         mod = _import_lock_ops()
         lock = tmp_path / ".test.lock"
         lock.write_text("999999999", encoding="utf-8")
-        with patch(f"{_MOD}.os.kill", side_effect=ProcessLookupError):
+        with patch(f"{_MOD}._pid_alive", return_value=False):
             result = mod.is_lock_stale(lock)
         assert result is True
 
@@ -100,11 +100,11 @@ class TestIsLockStale:
         assert result is True
 
     def test_permission_error_treated_as_alive(self, tmp_path):
-        """PermissionError from os.kill means process exists — lock valid."""
+        """When _pid_alive says process exists, lock is valid (not stale)."""
         mod = _import_lock_ops()
         lock = tmp_path / ".test.lock"
         lock.write_text("1", encoding="utf-8")
-        with patch(f"{_MOD}.os.kill", side_effect=PermissionError):
+        with patch(f"{_MOD}._pid_alive", return_value=True):
             result = mod.is_lock_stale(lock)
         assert result is False
 
@@ -138,7 +138,7 @@ class TestAcquireLock:
         mod = _import_lock_ops()
         lock = tmp_path / ".test.lock"
         lock.write_text("999999999", encoding="utf-8")
-        with patch(f"{_MOD}.os.kill", side_effect=ProcessLookupError):
+        with patch(f"{_MOD}._pid_alive", return_value=False):
             result = mod.acquire_lock(lock)
         assert result is True
         assert lock.read_text(encoding="utf-8") == str(os.getpid())
@@ -149,7 +149,7 @@ class TestAcquireLock:
         lock = tmp_path / ".test.lock"
         lock.write_text("999999999", encoding="utf-8")
         with (
-            patch(f"{_MOD}.os.kill", side_effect=ProcessLookupError),
+            patch(f"{_MOD}._pid_alive", return_value=False),
             patch.object(Path, "unlink", side_effect=OSError("permission denied")),
         ):
             result = mod.acquire_lock(lock)
@@ -170,7 +170,7 @@ class TestAcquireLock:
         mod = _import_lock_ops()
         lock = tmp_path / ".test.lock"
         lock.write_text("999999999", encoding="utf-8")
-        with patch(f"{_MOD}.os.kill", side_effect=ProcessLookupError):
+        with patch(f"{_MOD}._pid_alive", return_value=False):
             mod.acquire_lock(lock)
         call_args = mock_json_handler.call_args
         assert call_args[0][1]["stale_recovery"] is True

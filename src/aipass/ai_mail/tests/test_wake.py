@@ -142,6 +142,7 @@ def test_check_pid_alive_dead(monkeypatch):
 
 def test_check_pid_alive_permission_error(monkeypatch):
     """PermissionError means process exists but cannot signal -- returns True."""
+    monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.setattr(os, "kill", _raise_permission)
     assert _check_pid_alive(1) is True
 
@@ -260,7 +261,7 @@ def test_get_pid_cwd_linux_oserror(monkeypatch):
 def test_get_pid_cwd_darwin(monkeypatch, tmp_path):
     """macOS: reads cwd via lsof."""
     monkeypatch.setattr("sys.platform", "darwin")
-    target = str(tmp_path / "project")
+    target = "/tmp/pytest-project"
 
     class FakeResult:
         returncode = 0
@@ -362,6 +363,7 @@ def test_check_lock_stale_old_timestamp(tmp_path, monkeypatch):
 
 def test_check_lock_permission_error_treated_active(tmp_path, monkeypatch):
     """Lock PID that raises PermissionError is treated as active."""
+    monkeypatch.setattr("sys.platform", "linux")
     lock_dir = tmp_path / ".ai_mail.local"
     lock_dir.mkdir(parents=True)
     lock_file = lock_dir / ".dispatch.lock"

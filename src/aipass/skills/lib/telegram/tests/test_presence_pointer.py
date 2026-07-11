@@ -221,12 +221,12 @@ class TestIsPidAlive:
 
     def test_permission_error_treated_as_alive(self):
         """Treats PermissionError from os.kill as evidence the PID is alive."""
-        with patch("os.kill", side_effect=PermissionError("denied")):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=PermissionError("denied")):
             assert BaseBot._is_pid_alive(42) is True
 
     def test_os_error_treated_as_dead(self):
         """Treats a generic OSError from os.kill as evidence the PID is dead."""
-        with patch("os.kill", side_effect=OSError("some error")):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=OSError("some error")):
             assert BaseBot._is_pid_alive(42) is False
 
 
@@ -546,7 +546,7 @@ class TestHandleMessageNoSession:
             patch("subprocess.run", return_value=MagicMock(returncode=1)),
         ):
             bot.handle_message(42, "hello", {"message_id": 1})
-        msg = bot.send_message.call_args[0][1]
+        msg = bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "No live Claude session" in msg
         assert "api" in msg
 
@@ -559,5 +559,5 @@ class TestHandleMessageNoSession:
             patch("subprocess.run", return_value=MagicMock(returncode=1)),
         ):
             bot.handle_message(42, "hello", {"message_id": 1})
-        msg = bot.send_message.call_args[0][1]
+        msg = bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "No live Claude session" in msg

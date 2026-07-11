@@ -34,6 +34,22 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Windows CI cross-platform fixes — `windows-setup` green (PR659).** Fixing the
+  telegram collection errors unmasked 14 pre-existing Windows-only failures across
+  six branches. Two root causes. **(1) pid-liveness tests** (ai_mail, flow, hooks,
+  skills) mocked `os.kill`, but the production `_is_pid_alive` already branches to a
+  ctypes `OpenProcess` path on Windows and never reaches `os.kill`, so the mocks had
+  no effect and the real path ran instead — pinned `sys.platform` to `linux` in those
+  tests (or patched `_is_pid_alive` directly) so they exercise the POSIX contract
+  deterministically on every platform. **(2) POSIX path assumptions** — prax's jsonl
+  test hardcoded `/some/path` (backslashes under `str(Path)` on Windows) now asserts
+  against `str(test_path)`; hooks' rollover test compares `repr()` (matches `%r`
+  logging); ai_mail's darwin lsof-parser test uses a fixed POSIX path; and seedgo's
+  `is_bypassed()` now normalizes the rule file via `Path(rule_file).as_posix()` before
+  matching (the one production fix — Windows backslash rule paths never matched the
+  forward-slash file path). 10 files (9 test, 1 code); owners self-fixed, devpulse
+  verified every diff + Linux no-regression (525 changed-test assertions green).
+
 - **Flaky `test_deletes_old_system_log` made deterministic (@prax log-sweep tests).**
   The sweep integration test reached `log_watchdog._get_system_logs_dir` through a
   `_get_sweep()` wrapper and patched it by string path; a sibling test

@@ -923,28 +923,28 @@ class TestCreateCommand:
         mock_validate.return_value = {"name": "dev_central", "path": "/home/aipass/dev_central"}
         self.bot._handle_create_command(self.chat_id, "chat dev_central")
         assert self.chat_id in self.bot._create_state
-        self.bot.send_message.assert_called_once()
-        msg = self.bot.send_message.call_args[0][1]
+        self.bot.send_message.assert_called_once()  # type: ignore[union-attr]
+        msg = self.bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "dev_central" in msg
         assert "token" in msg.lower()
 
     def test_create_missing_args(self):
         self.bot._handle_create_command(self.chat_id, "")
-        self.bot.send_message.assert_called_once()
-        msg = self.bot.send_message.call_args[0][1]
+        self.bot.send_message.assert_called_once()  # type: ignore[union-attr]
+        msg = self.bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "Usage" in msg
 
     def test_create_invalid_format(self):
         self.bot._handle_create_command(self.chat_id, "foo bar")
-        self.bot.send_message.assert_called_once()
-        msg = self.bot.send_message.call_args[0][1]
+        self.bot.send_message.assert_called_once()  # type: ignore[union-attr]
+        msg = self.bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "Usage" in msg
 
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch", return_value=None)
     def test_create_branch_not_found(self, mock_validate):
         self.bot._handle_create_command(self.chat_id, "chat nonexistent")
-        self.bot.send_message.assert_called_once()
-        msg = self.bot.send_message.call_args[0][1]
+        self.bot.send_message.assert_called_once()  # type: ignore[union-attr]
+        msg = self.bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "not found" in msg
 
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch")
@@ -953,8 +953,8 @@ class TestCreateCommand:
         mock_validate.return_value = {"name": "dev_central", "path": "/tmp"}
         mock_get_bot.return_value = {"bot_id": "dev_central", "username": "dc_bot"}
         self.bot._handle_create_command(self.chat_id, "chat dev_central")
-        self.bot.send_message.assert_called_once()
-        msg = self.bot.send_message.call_args[0][1]
+        self.bot.send_message.assert_called_once()  # type: ignore[union-attr]
+        msg = self.bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "already has a bot" in msg
 
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
@@ -970,8 +970,8 @@ class TestCreateCommand:
 
     def test_create_single_arg_no_branch(self):
         """Calling /create with only 'chat' and no branch name shows usage."""
-        self.bot._handle_create_command(self.chat_id, "chat")
-        self.bot.send_message.assert_called_once()
+        self.bot._handle_create_command(self.chat_id, "chat")  # type: ignore[union-attr]
+        self.bot.send_message.assert_called_once()  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "Usage" in msg
 
@@ -1022,13 +1022,13 @@ class TestCreateToken:
         self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")
         # Should have been called
         mock_create_bot.assert_called_once()
-        # Last send_message should contain success info
+        # Last send_message should contain success info # type: ignore[union-attr]
         last_msg = self.bot.send_message.call_args[0][1]
         assert "my_new_bot" in last_msg
 
     def test_invalid_token_format_no_colon(self):
         self._set_create_state()
-        self.bot._handle_create_token(self.chat_id, "shorttoken")
+        self.bot._handle_create_token(self.chat_id, "shorttoken")  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "doesn't look like a valid" in msg
         # State should still be present (user can retry)
@@ -1036,7 +1036,7 @@ class TestCreateToken:
 
     def test_invalid_token_format_too_short(self):
         self._set_create_state()
-        self.bot._handle_create_token(self.chat_id, "1:A")
+        self.bot._handle_create_token(self.chat_id, "1:A")  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "doesn't look like a valid" in msg
 
@@ -1044,7 +1044,7 @@ class TestCreateToken:
     def test_token_validation_fails(self, mock_validate_token):
         self._set_create_state()
         self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")
-        mock_validate_token.assert_called_once()
+        mock_validate_token.assert_called_once()  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "validation failed" in msg.lower()
 
@@ -1053,7 +1053,7 @@ class TestCreateToken:
     def test_bot_creation_fails(self, mock_validate_token, mock_create_bot):
         self._set_create_state()
         mock_validate_token.return_value = {"username": "test_bot"}
-        self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")
+        self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "failed" in msg.lower()
 
@@ -1061,7 +1061,7 @@ class TestCreateToken:
         """State older than _create_state_ttl should be rejected."""
         old_time = time.time() - 600  # 10 minutes ago, TTL is 300s
         self._set_create_state(started_at=old_time)
-        self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")
+        self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "expired" in msg.lower()
         assert self.chat_id not in self.bot._create_state
@@ -1125,7 +1125,7 @@ class TestCancelCommand:
         }
         with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
             self.bot.process_update(update)
-        assert self.chat_id not in self.bot._create_state
+        assert self.chat_id not in self.bot._create_state  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "cancelled" in msg.lower()
 
@@ -1140,7 +1140,7 @@ class TestCancelCommand:
             },
         }
         with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
-            self.bot.process_update(update)
+            self.bot.process_update(update)  # type: ignore[union-attr]
         msg = self.bot.send_message.call_args[0][1]
         assert "Nothing to cancel" in msg
 
@@ -1711,6 +1711,7 @@ class TestLockPidReuse:
         assert self.bot._check_lock() is False
         assert not self.bot._lock_file.exists()
 
+    @patch("sys.platform", "linux")
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.os.kill")
     def test_alive_pid_same_bot_returns_true(self, mock_kill):
         """Live PID running this bot returns True (lock held)."""
@@ -1726,6 +1727,7 @@ class TestLockPidReuse:
             assert self.bot._check_lock() is True
         assert self.bot._lock_file.exists()  # Lock preserved
 
+    @patch("sys.platform", "linux")
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.os.kill")
     def test_alive_pid_different_bot_cleans_lock(self, mock_kill):
         """Live PID running a DIFFERENT bot cleans stale lock (PID reuse)."""

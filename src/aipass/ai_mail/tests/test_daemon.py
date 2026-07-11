@@ -9,10 +9,11 @@
 """Tests for dispatch daemon handler -- config loading, state management, inbox scanning."""
 
 import json
+import os
 import sys
 import pytest
 from datetime import datetime, date, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import aipass.ai_mail.apps.handlers.dispatch.daemon as daemon_mod
 from aipass.ai_mail.apps.handlers.dispatch.daemon import (
@@ -25,6 +26,17 @@ from aipass.ai_mail.apps.handlers.dispatch.daemon import (
     get_registered_branches,
     check_inbox_for_dispatch,
     is_protected_branch,
+    _handle_signal,
+    _check_lock,
+    _acquire_lock,
+    _is_registered_sender,
+    poll_cycle,
+    _write_pid_file,
+    _remove_pid_file,
+    _read_session_type,
+    _is_branch_occupied,
+    spawn_agent,
+    run_daemon,
 )
 
 
@@ -764,26 +776,6 @@ def test_poll_cycle_absolute_path_unchanged(tmp_path, monkeypatch):
     assert spawned_paths[0] == branch_dir
 
 
-# ---- Additional imports for new tests --------------------------------
-
-import os
-from unittest.mock import MagicMock, mock_open
-
-from aipass.ai_mail.apps.handlers.dispatch.daemon import (
-    _handle_signal,
-    _check_lock,
-    _acquire_lock,
-    _is_registered_sender,
-    poll_cycle,
-    _write_pid_file,
-    _remove_pid_file,
-    _read_session_type,
-    _is_branch_occupied,
-    spawn_agent,
-    run_daemon,
-)
-
-
 # ---- _handle_signal tests --------------------------------------
 
 
@@ -1003,6 +995,7 @@ def test_write_pid_file_existing_dead_pid(tmp_path, monkeypatch):
 
 def test_write_pid_file_existing_permission_error(tmp_path, monkeypatch):
     """Existing PID file with PermissionError on kill returns False."""
+    monkeypatch.setattr("sys.platform", "linux")
     pid_file = tmp_path / "daemon.pid"
     pid_file.write_text("888888", encoding="utf-8")
     monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)
