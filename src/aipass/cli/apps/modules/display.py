@@ -28,6 +28,7 @@ from typing import Dict, Any, Optional, List
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from rich.columns import Columns
 
 from aipass.cli.apps.handlers.json import json_handler
@@ -372,9 +373,13 @@ def error(message: str, suggestion: str | None = None) -> None:
         error('Branch not found', suggestion='Check branch name spelling')
     """
     mark_command_failed()
-    err_console.print(f"❌ [red bold]{message}[/red bold]")
+    msg = Text("❌ ")
+    msg.append(message, style="red bold")
+    err_console.print(msg)
     if suggestion:
-        err_console.print(f"   [yellow]→ Try: {suggestion}[/yellow]")
+        hint = Text("   → Try: ")
+        hint.append(suggestion, style="yellow")
+        err_console.print(hint)
 
 
 def warning(message: str, details: str | None = None) -> None:
@@ -388,9 +393,13 @@ def warning(message: str, details: str | None = None) -> None:
     Example:
         warning('Branch already exists, skipping')
     """
-    err_console.print(f"⚠️  [yellow]{message}[/yellow]")
+    msg = Text("⚠️  ")
+    msg.append(message, style="yellow")
+    err_console.print(msg)
     if details:
-        err_console.print(f"   [dim]{details}[/dim]")
+        detail_text = Text("   ")
+        detail_text.append(details, style="dim")
+        err_console.print(detail_text)
 
 
 def fatal(message: str, suggestion: str | None = None) -> None:
@@ -406,9 +415,13 @@ def fatal(message: str, suggestion: str | None = None) -> None:
     Example:
         fatal('Config file missing', suggestion='Run aipass init first')
     """
-    err_console.print(f"❌ [red bold]{message}[/red bold]")
+    msg = Text("❌ ")
+    msg.append(message, style="red bold")
+    err_console.print(msg)
     if suggestion:
-        err_console.print(f"   [yellow]→ Try: {suggestion}[/yellow]")
+        hint = Text("   → Try: ")
+        hint.append(suggestion, style="yellow")
+        err_console.print(hint)
     sys.exit(1)
 
 

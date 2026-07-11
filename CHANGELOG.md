@@ -21,7 +21,7 @@ PyPI version — not the changelog header.
   `@cli` `success()/error()/warning()` helpers instead of raw `console.print`
   markup. Owners self-audited and self-fixed their own branches; devpulse verified
   each diff + re-ran each audit and committed per wave. Landed so far: spawn,
-  drone, flow, daemon, prax, ai_mail, backup, seedgo, memory, trigger, api.
+  drone, flow, daemon, prax, ai_mail, backup, seedgo, memory, trigger, api, cli.
   Remaining waves following.
 
 ### Fixed

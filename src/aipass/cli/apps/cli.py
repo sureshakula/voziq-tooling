@@ -282,6 +282,13 @@ def main() -> int:
     command = args[0]
     remaining = args[1:] if len(args) > 1 else []
 
+    if remaining and remaining[0] in ["--help", "-h"]:
+        for module in modules:
+            if module.handle_command(command, ["--help"]):
+                return 0
+        print_help()
+        return 0
+
     # Route to modules
     if route_command(command, remaining, modules):
         return 0
