@@ -61,11 +61,13 @@ def _mock_symbolic_infrastructure(monkeypatch):
     mock_console = MagicMock()
     mock_header = MagicMock()
     mock_error = MagicMock()
+    mock_success = MagicMock()
     mock_warning = MagicMock()
     cli_modules = MagicMock()
     cli_modules.console = mock_console
     cli_modules.header = mock_header
     cli_modules.error = mock_error
+    cli_modules.success = mock_success
     cli_modules.warning = mock_warning
     monkeypatch.setitem(sys.modules, "aipass.cli", MagicMock())
     monkeypatch.setitem(sys.modules, "aipass.cli.apps", MagicMock())
@@ -147,6 +149,7 @@ def _mock_symbolic_infrastructure(monkeypatch):
     _handler_mocks.console = mock_console
     _handler_mocks.header = mock_header
     _handler_mocks.error_fn = mock_error
+    _handler_mocks.success_fn = mock_success
     _handler_mocks.warning_fn = mock_warning
     _handler_mocks.json_handler = mock_json_handler
     _handler_mocks.memory_files = mock_memory_files
@@ -237,7 +240,7 @@ class TestHandleCommand:
         result = symbolic.handle_command("symbolic", ["analyze"])
         assert result is True
         # Should print error about missing file path
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("File path required" in c for c in calls)
 
     def test_symbolic_analyze_with_file(self, tmp_path):
@@ -256,7 +259,7 @@ class TestHandleCommand:
         symbolic = _import_symbolic()
         result = symbolic.handle_command("symbolic", ["extract"])
         assert result is True
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("File path required" in c for c in calls)
 
     def test_symbolic_extract_with_branch(self, tmp_path):
@@ -355,7 +358,7 @@ class TestHandleCommand:
         symbolic = _import_symbolic()
         result = symbolic.handle_command("analyze", [])
         assert result is True
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("File path required" in c for c in calls)
 
     def test_backward_compat_extract(self, tmp_path):
@@ -377,7 +380,7 @@ class TestHandleCommand:
         symbolic = _import_symbolic()
         result = symbolic.handle_command("extract", [])
         assert result is True
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("File path required" in c for c in calls)
 
     def test_backward_compat_bootstrap(self, monkeypatch):
@@ -485,7 +488,7 @@ class TestRunDemo:
 
         _handler_mocks.extractor.analyze_conversation.assert_called_once()
         _handler_mocks.hook.format_fragment_recall.assert_called()
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.success_fn.call_args_list]
         assert any("Analysis complete" in c for c in calls)
 
     def test_run_demo_analysis_failure(self):
@@ -498,7 +501,7 @@ class TestRunDemo:
 
         symbolic.run_demo()
 
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Analysis failed" in c for c in calls)
 
 
@@ -513,7 +516,7 @@ class TestSearchFragmentsCli:
     def test_search_no_args(self):
         symbolic = _import_symbolic()
         symbolic.search_fragments_cli([])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("query, dimension filter, or trigger required" in c for c in calls)
 
     def test_search_query_only(self):
@@ -566,13 +569,13 @@ class TestSearchFragmentsCli:
     def test_search_invalid_n(self):
         symbolic = _import_symbolic()
         symbolic.search_fragments_cli(["query", "--n", "abc"])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Invalid number" in c for c in calls)
 
     def test_search_invalid_dimension(self):
         symbolic = _import_symbolic()
         symbolic.search_fragments_cli(["query", "--dimension", "bad_format_no_equals"])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Invalid dimension format" in c for c in calls)
 
     def test_search_no_results(self):
@@ -592,7 +595,7 @@ class TestSearchFragmentsCli:
             "error": "DB unavailable",
         }
         symbolic.search_fragments_cli(["test"])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("DB unavailable" in c for c in calls)
 
     def test_search_v1_results(self):
@@ -722,14 +725,14 @@ class TestRunHookTest:
         symbolic = _import_symbolic()
         self._setup_hook_mocks(context_success=False)
         symbolic.run_hook_test(["text"])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Failed" in c for c in calls)
 
     def test_hook_test_surfaced(self):
         symbolic = _import_symbolic()
         self._setup_hook_mocks(surfaced=True)
         symbolic.run_hook_test(["text"])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.success_fn.call_args_list]
         assert any("Fragment surfaced" in c for c in calls)
 
     def test_hook_test_not_surfaced(self):
@@ -743,7 +746,7 @@ class TestRunHookTest:
         symbolic = _import_symbolic()
         self._setup_hook_mocks(hook_success=False)
         symbolic.run_hook_test(["text"])
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Hook failed" in c for c in calls)
 
     def test_hook_test_v2_fragments(self):
@@ -800,7 +803,7 @@ class TestAnalyzeFile:
     def test_analyze_file_not_found(self):
         symbolic = _import_symbolic()
         symbolic.analyze_file("/nonexistent/path/to/file.json")
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("File not found" in c for c in calls)
 
     def test_analyze_file_read_fails(self, tmp_path):
@@ -813,7 +816,7 @@ class TestAnalyzeFile:
             "error": "Read error",
         }
         symbolic.analyze_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Read error" in c for c in calls)
 
     def test_analyze_file_not_list(self, tmp_path):
@@ -826,7 +829,7 @@ class TestAnalyzeFile:
             "data": {"not": "a list"},
         }
         symbolic.analyze_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Expected JSON array" in c for c in calls)
 
     def test_analyze_file_success(self, tmp_path):
@@ -842,7 +845,7 @@ class TestAnalyzeFile:
         _handler_mocks.extractor.analyze_conversation.return_value = _default_analysis_result()
 
         symbolic.analyze_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.success_fn.call_args_list]
         assert any("Analysis complete" in c for c in calls)
 
     def test_analyze_file_failure(self, tmp_path):
@@ -861,7 +864,7 @@ class TestAnalyzeFile:
         }
 
         symbolic.analyze_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Analysis failed" in c for c in calls)
 
 
@@ -876,7 +879,7 @@ class TestExtractFile:
     def test_extract_file_not_found(self):
         symbolic = _import_symbolic()
         symbolic.extract_file("/nonexistent/path/to/file.json")
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("File not found" in c for c in calls)
 
     def test_extract_file_read_fails(self, tmp_path):
@@ -889,7 +892,7 @@ class TestExtractFile:
             "error": "Read error",
         }
         symbolic.extract_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Read error" in c for c in calls)
 
     def test_extract_file_not_list(self, tmp_path):
@@ -902,7 +905,7 @@ class TestExtractFile:
             "data": {"not": "a list"},
         }
         symbolic.extract_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Expected JSON array" in c for c in calls)
 
     def test_extract_file_success(self, tmp_path):
@@ -937,7 +940,7 @@ class TestExtractFile:
         }
 
         symbolic.extract_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.success_fn.call_args_list]
         assert any("Pipeline complete" in c for c in calls)
 
     def test_extract_file_with_branch(self, tmp_path):
@@ -976,7 +979,7 @@ class TestExtractFile:
         }
 
         symbolic.extract_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Pipeline failed" in c for c in calls)
 
     def test_extract_file_with_errors(self, tmp_path):
@@ -1011,9 +1014,10 @@ class TestExtractFile:
         ]
 
         symbolic.extract_file(str(chat_file))
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
         # Pipeline should still complete with errors shown
+        calls = [str(c) for c in _handler_mocks.success_fn.call_args_list]
         assert any("Pipeline complete" in c for c in calls)
+        calls = [str(c) for c in _handler_mocks.warning_fn.call_args_list]
         assert any("Errors" in c for c in calls)
 
         # Reset side_effect
@@ -1297,5 +1301,5 @@ class TestBootstrapFromJsonl:
         }
 
         symbolic.bootstrap_from_jsonl()
-        calls = [str(c) for c in _handler_mocks.console.print.call_args_list]
+        calls = [str(c) for c in _handler_mocks.error_fn.call_args_list]
         assert any("Failed" in c for c in calls)

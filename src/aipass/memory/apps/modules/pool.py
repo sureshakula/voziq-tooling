@@ -111,7 +111,7 @@ def _run_process_command() -> None:
     if pool.get("skipped"):
         console.print(f"[dim]Pool: skipped — {pool.get('reason', 'unknown')}[/dim]")
     elif pool.get("success") is False:
-        console.print(f"[red]Pool: failed — {pool.get('error', 'unknown')}[/red]")
+        error(f"Pool: failed — {pool.get('error', 'unknown')}")
     else:
         files = pool.get("files_processed", 0)
         chunks = pool.get("total_chunks", 0)
@@ -125,7 +125,7 @@ def _run_process_command() -> None:
     if rollover.get("skipped"):
         console.print("[dim]Rollover: no triggers[/dim]")
     elif rollover.get("success") is False:
-        console.print(f"[red]Rollover: failed — {rollover.get('error', 'unknown')}[/red]")
+        error(f"Rollover: failed — {rollover.get('error', 'unknown')}")
     else:
         processed = rollover.get("processed", 0)
         total = rollover.get("triggers", 0)

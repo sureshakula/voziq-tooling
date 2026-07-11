@@ -33,7 +33,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, error, success, warning
 from aipass.memory.apps.handlers.json import json_handler
 
 # Handler import (same package family — json handlers)
@@ -161,12 +161,12 @@ def _display_results(result: dict[str, Any], branch_filter: str | None) -> None:
 
     if not violations:
         scope = f"@{branch_filter}" if branch_filter else "all branches"
-        console.print(f"[green]No violations found[/green] across {scope} ({scanned} scanned)")
+        success(f"No violations found across {scope} ({scanned} scanned)")
         console.print()
         return
 
     # Per-violation detail (sorted worst-first by handler)
-    console.print(f"[bold red]{total} violation(s) found[/bold red]")
+    warning(f"{total} violation(s) found")
     console.print()
 
     current_branch: str | None = None

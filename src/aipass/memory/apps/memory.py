@@ -349,6 +349,14 @@ def main():
     command = args[0]
     remaining_args = args[1:] if len(args) > 1 else []
 
+    if remaining_args and remaining_args[0] in ["--help", "-h"]:
+        remaining_args = ["--help"]
+        for module in modules:
+            if module.handle_command(command, remaining_args):
+                return
+        print_help()
+        return
+
     if route_command(command, remaining_args, modules):
         return  # Module handled it successfully
     else:
@@ -367,5 +375,5 @@ if __name__ == "__main__":
         sys.exit(0)
     except Exception as e:
         logger.error(f"[memory] Entry point error: {e}", exc_info=True)
-        console.print(f"\nError: {e}")
+        error(str(e))
         sys.exit(1)

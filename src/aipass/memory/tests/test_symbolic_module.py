@@ -943,7 +943,7 @@ class TestSearchFragmentsCli:
         symbolic.search_fragments_cli([])
 
         # Should print error about missing query
-        assert _handler_mocks.console.print.called
+        assert _handler_mocks.error_fn.called
 
     def test_dimension_filter_parsing(self):
         symbolic = _import_symbolic()
@@ -1091,7 +1091,7 @@ class TestAnalyzeFile:
         symbolic.analyze_file(nonexistent)
 
         # Should print error about missing file
-        assert _handler_mocks.console.print.called
+        assert _handler_mocks.error_fn.called
 
     def test_successful_analysis(self, tmp_path):
         symbolic = _import_symbolic()
@@ -1138,7 +1138,7 @@ class TestAnalyzeFile:
         symbolic.analyze_file(str(chat_file))
 
         # Should print error about expected array
-        assert _handler_mocks.console.print.called
+        assert _handler_mocks.error_fn.called
 
     def test_read_failure(self, tmp_path):
         symbolic = _import_symbolic()
@@ -1153,7 +1153,7 @@ class TestAnalyzeFile:
 
         symbolic.analyze_file(str(chat_file))
 
-        assert _handler_mocks.console.print.called
+        assert _handler_mocks.error_fn.called
 
 
 # ===========================================================================

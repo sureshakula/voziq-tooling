@@ -31,7 +31,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console, error
+from aipass.cli.apps.modules import console, error, warning
 from aipass.memory.apps.handlers.json import json_handler
 
 # =============================================================================
@@ -181,7 +181,7 @@ def _verify_plan(plan_label: str) -> None:
     if found:
         console.print(f"  Plan {plan_label}: [green]Vectorized[/green] ({count} chunks)")
     else:
-        console.print(f"  Plan {plan_label}: [red]NOT vectorized[/red]")
+        warning(f"Plan {plan_label}: NOT vectorized")
     console.print()
 
     json_handler.log_operation(
@@ -292,6 +292,5 @@ if __name__ == "__main__":
     # Execute command via handle_command
     command = sys.argv[1]
     if not handle_command(command, sys.argv[2:]):
-        console.print(f"[red]Unknown command:[/red] {command}")
-        console.print("Run with [cyan]help[/cyan] for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @memory verify --help' for available commands")
         sys.exit(1)
