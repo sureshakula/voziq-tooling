@@ -1206,6 +1206,10 @@ class TestResolvePackPath:
         """run_checklist returns error when pack is not found."""
         import sys
 
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
         monkeypatch.delitem(sys.modules, "aipass.seedgo.apps.modules.checklist", raising=False)
         from aipass.seedgo.apps.modules import checklist
 
@@ -1364,6 +1368,10 @@ class TestRunChecklistCheckerException:
         """Checker that raises exception is captured as a failed result."""
         import sys
 
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
         monkeypatch.delitem(sys.modules, "aipass.seedgo.apps.modules.checklist", raising=False)
         from aipass.seedgo.apps.modules import checklist
 
@@ -1399,6 +1407,10 @@ class TestRunChecklistCheckerException:
         """Checker returning passed=False has detail populated from _format_failure."""
         import sys
 
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
         monkeypatch.delitem(sys.modules, "aipass.seedgo.apps.modules.checklist", raising=False)
         from aipass.seedgo.apps.modules import checklist
 
@@ -1430,6 +1442,10 @@ class TestRunChecklistCheckerException:
         """When no checkers are applicable, returns skip result."""
         import sys
 
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
         monkeypatch.delitem(sys.modules, "aipass.seedgo.apps.modules.checklist", raising=False)
         from aipass.seedgo.apps.modules import checklist
 
@@ -1456,6 +1472,10 @@ class TestRunChecklistCheckerException:
     def test_no_checkers_discovered(self, tmp_path, monkeypatch):
         """When discover_checkers returns empty dict, returns error."""
         import sys
+
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
 
         monkeypatch.delitem(sys.modules, "aipass.seedgo.apps.modules.checklist", raising=False)
         from aipass.seedgo.apps.modules import checklist

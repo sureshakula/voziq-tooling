@@ -63,6 +63,16 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **seedgo no longer lints throwaway code (issue #675).** A single disposable POC
+  used to fire 8 standard violations (architecture, meta, shebang…). The audit and
+  checklist now skip any file resolved under a system temp dir
+  (`tempfile.gettempdir()` / `/tmp`, cross-platform) or a `scratchpad` path, and a
+  new `--prototype` flag (plus an in-file `# seedgo: prototype` marker in the first
+  5 lines) exempts disposable code explicitly. Wired into
+  `branch_audit._collect_py_files` (throwaway filter) and `checklist.run_checklist`
+  (early-return skip). 6 new tests; live-verified that a `/tmp` file and a
+  marker-tagged file both report "✓ (skip)".
+
 - **The `claude()` boot shim now ships and installs on onboarding (issue #666).**
   Its installer (`hooks/tools/install_boot_shim.sh`) lived under a gitignored
   `tools/` dir — never version-controlled, never shipped — so the

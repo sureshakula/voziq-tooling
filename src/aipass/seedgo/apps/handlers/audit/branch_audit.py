@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from aipass.prax import logger
 from aipass.seedgo.apps.handlers.bypass import ignore_handler
-from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import is_disabled_file
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import is_disabled_file, is_throwaway_path
 from aipass.seedgo.apps.handlers.json import json_handler
 from aipass.seedgo.apps.handlers.test_map.function_scanner import scan_branch
 
@@ -51,7 +51,10 @@ def _collect_py_files(branch_path: Path) -> List[Dict[str, str]]:
     return [
         {"file": str(f), "name": f.name}
         for f in apps_dir.rglob("*.py")
-        if f.name != "__init__.py" and not is_disabled_file(f.name) and not any(p in str(f).lower() for p in ign)
+        if f.name != "__init__.py"
+        and not is_disabled_file(f.name)
+        and not is_throwaway_path(str(f))
+        and not any(p in str(f).lower() for p in ign)
     ]
 
 
