@@ -63,6 +63,20 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Interactive-occupancy detection is now cross-platform — the wake-back guard
+  no longer goes blind on macOS (issue #680).** `_is_branch_occupied()` and
+  `_read_session_type()` (duplicated in `dispatch/wake.py` and `dispatch/daemon.py`)
+  read `/proc/{pid}/cwd` + `/proc/{pid}/environ`, which do not exist on macOS —
+  so occupancy always resolved `False` there and an external wake-back could spawn
+  a *second* Claude session on an already-interactive branch (double-session,
+  weakening the TDPLAN-0012/#678 interactive-dispatcher guard). The per-PID cwd
+  and session-type probes are now extracted into platform helpers: `_get_pid_cwd`
+  (Linux `/proc` readlink, macOS `lsof -a -p PID -d cwd -Fn`) and
+  `_read_session_type_darwin` (`ps -p PID -wwE`), applied identically in both
+  files. Fail-safe: an unreadable cwd/env logs at info and continues — never
+  crashes the wake path. +11 tests (macOS cwd, macOS session type, zombie,
+  unsupported platform), seedgo 31/31 on both files.
+
 - **SubagentStop gate no longer runs its ~600ms seedgo check on every internal
   turn (issue #606).** Claude Code creates an internal agent per response turn
   with an empty `agent_type`, so the `subagent_gate` handler was firing its full

@@ -233,18 +233,74 @@ def _load_config() -> dict:
     return config
 
 
-def _read_session_type(pid_str: str) -> str:
-    """Read AIPASS_SESSION_TYPE from /proc/{pid}/environ. Returns 'interactive' if unset."""
-    if sys.platform != "linux":
-        return "interactive"
+def _get_pid_cwd(pid_str: str) -> Optional[str]:
+    """Get the cwd of a process. Cross-platform: Linux /proc, macOS lsof."""
+    if sys.platform == "linux":
+        try:
+            return os.readlink(f"/proc/{pid_str}/cwd")
+        except (OSError, PermissionError):
+            logger.info("[wake] Cannot read cwd for PID %s", pid_str)
+            return None
+    if sys.platform == "darwin":
+        return _get_pid_cwd_darwin(pid_str)
+    logger.info("[wake] Cannot determine cwd for PID %s on %s", pid_str, sys.platform)
+    return None
+
+
+def _get_pid_cwd_darwin(pid_str: str) -> Optional[str]:
+    """macOS: get process cwd via lsof."""
     try:
-        with open(f"/proc/{pid_str}/environ", "rb") as f:
-            data = f.read()
-        for entry in data.split(b"\0"):
-            if entry.startswith(b"AIPASS_SESSION_TYPE="):
-                return entry.split(b"=", 1)[1].decode("utf-8")
-    except (OSError, PermissionError):
-        logger.info("[wake] Cannot read session type for PID %s", pid_str)
+        result = subprocess.run(
+            ["lsof", "-a", "-p", pid_str, "-d", "cwd", "-Fn"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        logger.info("[wake] Cannot read cwd for PID %s on macOS", pid_str)
+        return None
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.strip().split("\n"):
+        if line.startswith("n/"):
+            return line[1:]
+    return None
+
+
+def _read_session_type(pid_str: str) -> str:
+    """Read AIPASS_SESSION_TYPE from process environment. Returns 'interactive' if unset."""
+    if sys.platform == "linux":
+        try:
+            with open(f"/proc/{pid_str}/environ", "rb") as f:
+                data = f.read()
+            for entry in data.split(b"\0"):
+                if entry.startswith(b"AIPASS_SESSION_TYPE="):
+                    return entry.split(b"=", 1)[1].decode("utf-8")
+        except (OSError, PermissionError):
+            logger.info("[wake] Cannot read session type for PID %s", pid_str)
+        return "interactive"
+    if sys.platform == "darwin":
+        return _read_session_type_darwin(pid_str)
+    return "interactive"
+
+
+def _read_session_type_darwin(pid_str: str) -> str:
+    """macOS: read AIPASS_SESSION_TYPE from ps environment output."""
+    try:
+        result = subprocess.run(
+            ["ps", "-p", pid_str, "-wwE", "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        logger.info("[wake] Cannot read session type for PID %s on macOS", pid_str)
+        return "interactive"
+    if result.returncode != 0:
+        return "interactive"
+    for token in result.stdout.split():
+        if token.startswith("AIPASS_SESSION_TYPE="):
+            return token.split("=", 1)[1]
     return "interactive"
 
 
@@ -263,17 +319,13 @@ def _is_branch_occupied(branch_path: Path) -> bool:
             pid_str = pid_str.strip()
             if not pid_str:
                 continue
-            try:
-                if sys.platform != "linux":
-                    continue
-                cwd = os.readlink(f"/proc/{pid_str}/cwd")
-                if str(Path(cwd).resolve()) == resolved:
-                    session_type = _read_session_type(pid_str)
-                    if session_type not in _NON_BLOCKING_SESSION_TYPES:
-                        return True
-            except (OSError, PermissionError, ValueError):
-                logger.info("[wake] Cannot read cwd for PID %s", pid_str)
+            cwd = _get_pid_cwd(pid_str)
+            if cwd is None:
                 continue
+            if str(Path(cwd).resolve()) == resolved:
+                session_type = _read_session_type(pid_str)
+                if session_type not in _NON_BLOCKING_SESSION_TYPES:
+                    return True
     except (subprocess.SubprocessError, OSError):
         logger.info("[wake] Failed to check branch occupancy")
     return False
@@ -313,16 +365,21 @@ def _check_pid_alive(pid: int) -> bool:
     except OSError as exc:
         logger.warning("[wake] PID %s os.kill error (assuming dead): %s", pid, exc)
         return False
-    if sys.platform == "linux":
-        try:
-            with open(f"/proc/{pid}/status", "r") as f:
-                for line in f:
-                    if line.startswith("State:"):
-                        return "Z" not in line
-        except FileNotFoundError as exc:
-            logger.warning("[wake] PID %s /proc not found: %s", pid, exc)
-            return False
+    if sys.platform == "linux" and _is_zombie_linux(pid):
+        return False
     return True
+
+
+def _is_zombie_linux(pid: int) -> bool:
+    """Return True if PID is a zombie (Linux /proc/status check)."""
+    try:
+        with open(f"/proc/{pid}/status", "r") as f:
+            for line in f:
+                if line.startswith("State:"):
+                    return "Z" in line
+    except FileNotFoundError as exc:
+        logger.warning("[wake] PID %s /proc not found: %s", pid, exc)
+    return False
 
 
 def _spawn_in_systemd_scope(monitor_cmd, branch_path, spawn_env, branch_email, lock_file_path, custom_message, status):
