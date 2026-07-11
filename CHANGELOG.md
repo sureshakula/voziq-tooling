@@ -22,8 +22,12 @@ PyPI version — not the changelog header.
   scratchpads never land in global settings); `run_install` refuses a throwaway
   home loudly with `--force-global-home` as the explicit override; and
   `aipass doctor` gains a `global AIPASS_HOME` check that flags a nonexistent or
-  throwaway path with fix guidance. +11 tests. (built by @aipass, verified by
-  devpulse against the real hijack path)
+  throwaway path with fix guidance. +11 tests. Ships with a probe-hygiene SOP
+  (`aipass/docs/probe_hygiene.md`): temp installs are used, deleted, gone — nothing
+  permanent may point at a temp path. Tests made location-independent so the suite
+  is green from any cwd and from a `/tmp` clean-room extraction, not just the repo
+  root. (built by @aipass, verified + test-hardened by devpulse against the real
+  hijack path)
 
 ## [2026-07-10]
 
