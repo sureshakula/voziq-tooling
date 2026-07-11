@@ -25,7 +25,6 @@ See FPLAN-0186 for the build plan and DPLAN-0130 for the design record.
 """
 
 import importlib
-from pathlib import Path
 from typing import List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
@@ -113,11 +112,18 @@ def print_introspection() -> None:
 
 
 def _guard_caller() -> bool:
-    """Reject cross-branch invocation. Devpulse-only tool."""
-    cwd = Path.cwd()
-    if cwd.name == "devpulse" or any(p.name == "devpulse" for p in cwd.parents):
+    """Reject non-owner invocation. Owner-only tool.
+
+    Gates on the PROJECT OWNER (sealed registry) via the shared owner guard, so
+    it works across projects — not a hardcoded 'devpulse' name. (Drone runs a
+    routed module with cwd=<branch_path>, so Path.cwd() can't identify the real
+    caller; the guard reads the AIPASS_CALLER_* env drone sets.) #681.
+    """
+    from aipass.devpulse.apps.handlers.owner.guard import guard_owner_caller
+
+    if guard_owner_caller("watchdog"):
         return True
-    warning("watchdog is a devpulse-only module — refusing cross-branch call")
+    warning("watchdog is an owner-only module — refusing non-owner call")
     return False
 
 

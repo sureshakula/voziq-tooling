@@ -63,6 +63,25 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Owner-capability PART 4 — devpulse's `watchdog` + `feedback` now gate on the
+  sealed-registry owner, and cross-project (issue #681).** Closes the
+  owner-capability model (#678): the last two owner-only tools were still gated
+  by a hardcoded `cwd.name == "devpulse"` check — which, it turns out, was a
+  **no-op through drone**: drone runs a routed module with `cwd=<branch_path>`,
+  so the module's own `Path.cwd()` is *always* the devpulse tree and can't
+  identify the caller (a `@flow` caller sailed straight through). A new shared
+  `handlers/owner/guard.py` resolves the *real* caller from the env drone sets
+  (`AIPASS_CALLER_BRANCH` / `AIPASS_CALLER_CWD`) and checks it against the sealed
+  owner via the frozen `is_owner(email, start_path)` contract — so it works in
+  any project (devpulse in AIPass, whoever owns elsewhere), not a hardcoded name.
+  `feedback send` stays open (it's the inbound channel any agent uses to drop
+  feedback to the owner); every mailbox read/manage verb is owner-only. Fail-safe:
+  if no owner is sealed yet (old/partial install) or the resolver can't import,
+  it falls back to the legacy devpulse-path heuristic so existing installs never
+  hard-break. Live-verified end-to-end: owner allowed, `@flow` denied on both
+  tools, `send` open. 18 new tests (15 guard + 3 gate), branch audit 100%.
+  (built + verified by devpulse)
+
 - **seedgo `json_structure` now sanctions `custom_config/` for operator-editable
   config (issue #643).** The standard said "`{branch}_json/` root, one directory,
   no splits" and the checker ignored subdirs, so `custom_config/` (home of

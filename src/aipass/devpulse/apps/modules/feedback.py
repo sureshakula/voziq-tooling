@@ -27,7 +27,7 @@ from aipass.devpulse.apps.handlers.feedback.compose import (
 )
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import err_console, error
+from aipass.cli.apps.modules import err_console, error, warning
 from aipass.devpulse.apps.handlers.json import json_handler
 
 console = err_console
@@ -45,6 +45,21 @@ HELP_TEXT = """\
   feedback clear --all            Remove all read messages
   feedback --help                 Show this help
 """
+
+
+def _guard_caller() -> bool:
+    """Owner-only gate for mailbox reads/management (see handlers.owner.guard).
+
+    The mailbox belongs to the project owner. `send` and `--help` stay open
+    (send is the inbound channel any agent uses to drop feedback here); every
+    other verb reads or mutates the owner's mail and is owner-gated. #681.
+    """
+    from aipass.devpulse.apps.handlers.owner.guard import guard_owner_caller
+
+    if guard_owner_caller("feedback"):
+        return True
+    warning("feedback mailbox management is owner-only — refusing non-owner call")
+    return False
 
 
 def print_introspection() -> None:
@@ -73,6 +88,20 @@ def handle_command(command: str, args: list[str]) -> bool:
     if command != "feedback":
         return False
 
+    # Open verbs (no owner gate): help + `send`. `send` is the inbound channel
+    # any agent uses to drop feedback into the owner's mailbox. Everything else
+    # reads or manages that mailbox -> owner-only (#681).
+    if args and args[0] in ("--help", "-h", "help"):
+        console.print(HELP_TEXT)
+        return True
+
+    if args and args[0] == "send":
+        json_handler.log_operation("feedback_command", {"subcommand": "send"})
+        return _handle_send(args[1:])
+
+    if not _guard_caller():
+        return True
+
     if not args:
         print_introspection()
         summary = get_summary()
@@ -82,10 +111,6 @@ def handle_command(command: str, args: list[str]) -> bool:
     subcommand = args[0]
     sub_args = args[1:]
     json_handler.log_operation("feedback_command", {"subcommand": subcommand})
-
-    if subcommand in ("--help", "-h", "help"):
-        console.print(HELP_TEXT)
-        return True
 
     if subcommand == "inbox":
         list_messages()
@@ -106,9 +131,6 @@ def handle_command(command: str, args: list[str]) -> bool:
         body = " ".join(sub_args[1:])
         reply_to(msg_id, body)
         return True
-
-    if subcommand == "send":
-        return _handle_send(sub_args)
 
     if subcommand == "clear":
         if not sub_args:
