@@ -200,6 +200,14 @@ def main():
     command = args[0]
     remaining_args = args[1:] if len(args) > 1 else []
 
+    # Subcommand --help guard — intercept before dispatch
+    if remaining_args and remaining_args[0] in ["--help", "-h"]:
+        for module in modules:
+            if module.handle_command(command, ["--help"]):
+                return 0
+        print_help(modules)
+        return 0
+
     json_handler.log_operation("daemon_command", {"command": command})
 
     # Route to modules

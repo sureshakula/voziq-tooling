@@ -11,6 +11,18 @@ PyPI version — not the changelog header.
 
 ## [2026-07-11]
 
+### Changed
+
+- **Fleet seedgo compliance sweep — every branch to 100% (issues #686, #661).**
+  Overnight campaign bringing all branches to 100% on the seedgo standard pack.
+  #686 (Subcommand_Help, per the #685 contract): entry points intercept
+  `<cmd> --help` before dispatch, so `--help` shows help instead of executing.
+  #661 (Output_Routing): status/error console output routed through the shared
+  `@cli` `success()/error()/warning()` helpers instead of raw `console.print`
+  markup. Owners self-audited and self-fixed their own branches; devpulse verified
+  each diff + re-ran each audit and committed per wave. Landed so far: spawn,
+  drone, flow, daemon, prax, ai_mail. Remaining waves following.
+
 ### Fixed
 
 - **`aipass install` from a throwaway path can no longer hijack the machine-wide

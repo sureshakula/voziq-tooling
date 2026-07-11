@@ -373,7 +373,7 @@ def _handle_diff_template(args: List[str]) -> None:
         for a in branch_diff.get("additions", []):
             console.print(f"    [green]+ {a}[/green]")
         for r in branch_diff.get("removals", []):
-            console.print(f"    [red]- {r}[/red]")
+            warning(f"  - {r}")
         for m in branch_diff.get("modifications", []):
             console.print(f"    [yellow]~ {m}[/yellow]")
 
@@ -388,7 +388,10 @@ def _handle_template_status() -> None:
     console.print("[bold]Dashboard Template Status[/bold]")
     console.print("=" * 50)
     console.print(f"  Templates dir:   {status['templates_dir']}")
-    console.print(f"  Template file:   {'[green]found[/green]' if status['template_exists'] else '[red]MISSING[/red]'}")
+    if status["template_exists"]:
+        console.print("  Template file:   found")
+    else:
+        warning("Template file: MISSING")
     console.print(f"  Schema version:  {status.get('version', 'unknown')}")
     console.print(f"  Last updated:    {status.get('last_updated', 'unknown')}")
     console.print(f"  Updated by:      {status.get('updated_by', 'unknown')}")

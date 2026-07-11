@@ -26,7 +26,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, error
+from aipass.cli.apps.modules import console, error, warning
 from aipass.prax.apps.handlers.json import json_handler
 
 
@@ -261,7 +261,7 @@ def _run_sweep():
         return
 
     for entry in result["removed"]:
-        console.print(f"  [red]DELETED[/red] {entry['name']}: {entry['age_days']} days old, {entry['size_kb']} KB")
+        warning(f"DELETED {entry['name']}: {entry['age_days']} days old, {entry['size_kb']} KB")
     console.print(f"\n  Removed {result['files_removed']} file(s), reclaimed {result['total_reclaimed_kb']} KB\n")
     logger.info("[log-audit] Sweep removed %d stale files", result["files_removed"])
 

@@ -68,7 +68,7 @@ def _run_systemctl(*args: str) -> bool:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
         if result.returncode != 0:
             logger.warning("[timer_install] systemctl --user %s failed: %s", " ".join(args), result.stderr.strip())
-            console.print(f"  [red]FAIL:[/red] systemctl --user {' '.join(args)}")
+            error(f"FAIL: systemctl --user {' '.join(args)}")
             if result.stderr.strip():
                 console.print(f"  [dim]{result.stderr.strip()}[/dim]")
             return False
@@ -79,7 +79,7 @@ def _run_systemctl(*args: str) -> bool:
         return False
     except subprocess.TimeoutExpired:
         logger.error("[timer_install] systemctl --user %s timed out", " ".join(args))
-        console.print("  [red]systemctl timed out[/red]")
+        error("systemctl timed out")
         return False
 
 
