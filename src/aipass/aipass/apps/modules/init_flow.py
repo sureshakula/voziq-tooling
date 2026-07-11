@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-from aipass.cli.apps.modules import console, warning
+from aipass.cli.apps.modules import console, error as cli_error, success, warning
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
@@ -210,7 +210,7 @@ def _choose(msg: str, choices: List[str], default: str | None = None) -> str:
                 return choices[idx]
         except ValueError as exc:
             logger.info("[init_flow] invalid menu input %r: %s", raw, exc)
-        console.print("[red]Invalid choice.[/red]")
+        cli_error("Invalid choice.")
 
 
 # --- STAGE FUNCTIONS ---
@@ -358,7 +358,7 @@ def stage_3_user_profile(
     else:
         profile_mod.save_profile(existing)
 
-    console.print(f"[green]✓[/green] Hello, {name}!")
+    success(f"Hello, {name}!")
     _save_stage(3, {"name": name}, dry_run=dry_run)
     return {"name": name}
 
@@ -379,7 +379,7 @@ def stage_4_style_questions(
     else:
         style = _choose("What are you looking to do?", STYLE_CHOICES, default=STYLE_CHOICES[0])
 
-    console.print(f"[green]✓[/green] Got it: {style}")
+    success(f"Got it: {style}")
     _save_stage(4, {"style": style}, dry_run=dry_run)
     return {"style": style}
 
@@ -424,7 +424,7 @@ def _handle_missing_claude(non_interactive: bool) -> None:
     if raw.lower() in ("y", "yes", ""):
         console.print("[cyan]Installing Claude Code[/cyan] [dim](this can take a minute)…[/dim]")
         if _install_claude_code():
-            console.print("[green]✓[/green] Claude Code installed successfully.")
+            success("Claude Code installed successfully.")
         else:
             warning("[bold yellow]Installation failed.[/bold yellow]")
             console.print("  Install manually: https://claude.ai/download")
@@ -460,7 +460,7 @@ def stage_5_tool_choice(
             default="default",
         )
 
-    console.print(f"[green]✓[/green] {cli_choice} ({flag_variant})")
+    success(f"{cli_choice} ({flag_variant})")
     _save_stage(5, {"cli": cli_choice, "flag_variant": flag_variant}, dry_run=dry_run)
 
     if dry_run:
@@ -496,14 +496,14 @@ def stage_6_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
         agent_path = f"src/{agent_name}"
     console.print(f"[cyan]Creating your first agent[/cyan] [dim](drone @spawn create {agent_path})…[/dim]")
 
-    success = False
+    spawned = False
     if dry_run:
         console.print(f"[yellow]\\[dry-run][/yellow] would run: drone @spawn create {agent_path}")
-        success = True
+        spawned = True
     else:
         try:
             proc = subprocess.run(["drone", "@spawn", "create", agent_path], timeout=60)
-            success = proc.returncode == 0
+            spawned = proc.returncode == 0
         except FileNotFoundError as exc:
             logger.warning("[init_flow] drone not found in stage 6: %s", exc)
             warning("drone not found — skipping agent creation.")
@@ -511,10 +511,10 @@ def stage_6_first_agent(non_interactive: bool = False, dry_run: bool = False) ->
             logger.warning("[init_flow] spawn timed out in stage 6: %s", exc)
             warning("spawn timed out — agent may still be created.")
 
-    if success:
-        console.print(f"[green]✓[/green] Agent created at {agent_path}")
+    if spawned:
+        success(f"Agent created at {agent_path}")
 
-    _save_stage(6, {"agent_name": agent_name, "agent_path": agent_path, "success": success}, dry_run=dry_run)
+    _save_stage(6, {"agent_name": agent_name, "agent_path": agent_path, "success": spawned}, dry_run=dry_run)
     return {"agent_name": agent_name, "agent_path": agent_path}
 
 
@@ -576,12 +576,12 @@ def stage_8_smoke_test(non_interactive: bool = False, dry_run: bool = False) -> 
     aipass_bin = shutil.which("aipass")
 
     if drone_bin:
-        console.print(f"[green]✓[/green] drone: {drone_bin}")
+        success(f"drone: {drone_bin}")
     else:
         warning("drone not on PATH — clone the repo and run setup.sh")
 
     if aipass_bin:
-        console.print(f"[green]✓[/green] aipass: {aipass_bin}")
+        success(f"aipass: {aipass_bin}")
     else:
         warning("aipass not on PATH — clone the repo and run setup.sh")
 
@@ -640,7 +640,7 @@ def stage_9_handoff(
             if accumulated:
                 _write_init_report(accumulated.get("agent_path", agent_path), accumulated, dry_run=dry_run)
             console.print()
-            console.print("[bold green]✓ Setup complete![/bold green]")
+            success("Setup complete!")
             console.print()
             from aipass.aipass.apps.handlers.handoff_platform import launch_inline
 
@@ -716,7 +716,7 @@ def stage_10_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = Fal
     console.print()
     console.print(render_step_header(10, TOTAL_STAGES, "Done!"))
     console.print()
-    console.print("[bold green]✓ Setup complete![/bold green]")
+    success("Setup complete!")
     console.print()
     console.print("  [cyan]aipass help[/cyan]     [dim]# Ask any question[/dim]")
     console.print("  [cyan]aipass doctor[/cyan]   [dim]# Check system health[/dim]")
@@ -777,7 +777,7 @@ def run_init(
     # Pre-flight: refuse to run inside existing projects or agent dirs
     err = _preflight_check()
     if err:
-        console.print(f"[red]✗[/red] {err}")
+        cli_error(str(err))
         return 1
 
     # Template selection — before scaffold
@@ -799,7 +799,7 @@ def run_init(
         if not dry_run:
             with activity_spinner("Building project scaffold…"):
                 init_project(cwd)
-            console.print("[green]✓[/green] Project scaffold ready")
+            success("Project scaffold ready")
         else:
             console.print("[yellow]\\[dry-run][/yellow] would create project scaffold")
 
@@ -807,7 +807,7 @@ def run_init(
     last_done = 0 if dry_run else _get_last_completed_stage()
 
     if last_done >= TOTAL_STAGES:
-        console.print("[green]✓[/green] Setup already complete.")
+        success("Setup already complete.")
         console.print("[dim]Run 'aipass doctor' to check status.[/dim]")
         return 0
 
@@ -859,7 +859,7 @@ def run_init(
 
     if template != TEMPLATE_AIPASS:
         console.print()
-        console.print("[green]✓[/green] Project initialized.")
+        success("Project initialized.")
         console.print("[dim]Run 'aipass init agent <name>' to add an agent.[/dim]")
 
     return 0
@@ -877,7 +877,7 @@ def print_introspection() -> None:
     if last == 0:
         console.print("[dim]Setup not started. Run: aipass init run[/dim]")
     elif last >= TOTAL_STAGES:
-        console.print("[green]✓[/green] Setup complete.")
+        success("Setup complete.")
     else:
         console.print(f"[yellow]In progress:[/yellow] stage {last}/{TOTAL_STAGES} completed.")
         console.print(f"[dim]Run 'aipass init run' to resume from stage {last + 1}.[/dim]")
@@ -911,7 +911,7 @@ def _handle_init_scaffold(args: list[str]) -> int:
     project_name = args[1] if len(args) > 1 else None
     try:
         result = init_project(target, project_name)
-        console.print(f"\n[green]✓[/green] Project initialized at [bold]{target}[/bold]")
+        success(f"Project initialized at {target}")
         console.print()
 
         # Find the package directory to show in guidance
@@ -938,7 +938,7 @@ def _handle_init_scaffold(args: list[str]) -> int:
         return 0
     except Exception as exc:
         logger.warning("[init_flow] scaffold failed: %s", exc)
-        console.print(f"[red]✗[/red] Init failed: {exc}")
+        cli_error(f"Init failed: {exc}")
         return 1
 
 
@@ -952,11 +952,11 @@ def _handle_init_update(args: list[str]) -> int:
         updated = result.get("updated_files", [])
         current = result.get("already_current", [])
         if updated:
-            console.print(f"[green]✓[/green] Updated {len(updated)} file(s):")
+            success(f"Updated {len(updated)} file(s):")
             for f in updated:
-                console.print(f"  [green]+[/green] {f}")
+                console.print(f"  + {f}")
         else:
-            console.print("[green]✓[/green] All files already current.")
+            success("All files already current.")
         if current:
             console.print(f"  ({len(current)} already up to date)")
         # Heal registry: prune stale entries (e.g. cross-project ../paths)
@@ -968,7 +968,7 @@ def _handle_init_update(args: list[str]) -> int:
                 timeout=30,
             )
             if sync_proc.returncode == 0:
-                console.print("  [green]Registry synced.[/green]")
+                success("Registry synced.")
         except Exception as sync_exc:
             logger.warning("[init_flow] registry sync during update skipped: %s", sync_exc)
 
@@ -976,14 +976,14 @@ def _handle_init_update(args: list[str]) -> int:
         return 0
     except Exception as exc:
         logger.warning("[init_flow] update failed: %s", exc)
-        console.print(f"[red]✗[/red] Update failed: {exc}")
+        cli_error(f"Update failed: {exc}")
         return 1
 
 
 def _handle_init_agent(args: list[str]) -> int:
     """Handle `aipass init agent <name>` — create a new agent via spawn."""
     if not args:
-        console.print("[red]✗[/red] Usage: aipass init agent <name>")
+        cli_error("Usage: aipass init agent <name>")
         return 1
     agent_name = args[0]
     import subprocess as _sp
@@ -1075,7 +1075,7 @@ def handle_command(command: str, args: list[str]) -> bool:
     # Positional args = target path and/or project name for scaffold
     err = _preflight_check()
     if err:
-        console.print(f"[red]✗[/red] {err}")
+        cli_error(str(err))
         sys.exit(1)
     sys.exit(_handle_init_scaffold(args))
     return True

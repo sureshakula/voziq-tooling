@@ -671,7 +671,8 @@ class TestInitUpdateRegistrySync:
                 return_value={"updated_files": [], "already_current": []},
             ),
             patch(f"{_MOD_UPDATE}.subprocess.run", return_value=mock_result) as mock_run,
-            patch(f"{_MOD_UPDATE}.console") as mock_console,
+            patch(f"{_MOD_UPDATE}.console"),
+            patch(f"{_MOD_UPDATE}.success") as mock_success,
             patch(f"{_MOD_UPDATE}.json_handler"),
         ):
             rc = _handle_init_update([str(tmp_path)])
@@ -682,7 +683,7 @@ class TestInitUpdateRegistrySync:
             text=True,
             timeout=30,
         )
-        sync_calls = [c for c in mock_console.print.call_args_list if "Registry synced" in str(c)]
+        sync_calls = [c for c in mock_success.call_args_list if "Registry synced" in str(c)]
         assert len(sync_calls) == 1
 
     def test_sync_failure_degrades_silently(self, tmp_path: Path) -> None:

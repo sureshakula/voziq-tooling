@@ -121,6 +121,14 @@ def main():
     command = args[0]
     remaining = args[1:] if len(args) > 1 else []
 
+    # Subcommand --help guard: intercept before dispatch
+    if remaining and remaining[0] in ("--help", "-h"):
+        for module in modules:
+            if module.handle_command(command, ["--help"]):
+                return 0
+        print(f"Unknown command: {command}")
+        return 1
+
     try:
         if route_command(command, remaining, modules):
             return 0

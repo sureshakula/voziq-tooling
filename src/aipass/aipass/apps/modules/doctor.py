@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, NamedTuple
 
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, error as cli_error, success
 from aipass.prax import logger
 
 from aipass.aipass.shared.registry_discovery import find_registry as _discover_registry
@@ -60,8 +60,8 @@ from aipass.aipass.apps.modules.doctor_fix import (
 )
 from aipass.aipass.apps.modules.doctor_wire import (
     _auto_wire_provider,
+    _prompt_auto_wire as prompt_auto_wire,
     check_wire_verify,
-    prompt_auto_wire,
     reconcile_stale_deny,
 )
 from aipass.aipass.apps.handlers.system_detect.system_detector import (
@@ -424,7 +424,7 @@ def _check_provider_manifest(interactive: bool = False, fix: bool = False) -> Li
         if fix:
             actions = _auto_wire_provider(manifest_path, interactive=False)
             for action in actions:
-                console.print(f"[green]✓[/green] {action}")
+                success(action)
             wired = bool(actions)
         else:
             wired = prompt_auto_wire(manifest_path, missing_hooks, missing_env, missing_deny, missing_ask)
@@ -899,11 +899,11 @@ def run_cross_os_record(path: str | None = None, run_e2e: bool = False) -> int:
     try:
         written = generate_run_record(path, run_heavy_e2e=run_e2e)
     except RunRecordError as exc:
-        console.print(f"[red]✗[/red] {exc}")
+        cli_error(str(exc))
         logger.error("[doctor] cross-os run record failed: %s", exc)
         return 1
 
-    console.print(f"[green]✓[/green] Run Record written: [bold]{written}[/bold]")
+    success(f"Run Record written: {written}")
     console.print("[dim]Complete the '— human' rows and run the real Layer-3 acceptance pass before it counts.[/dim]")
     console.print()
     logger.info("[doctor] cross-os run record written to %s", written)
@@ -1012,7 +1012,7 @@ def print_help() -> None:
         "[dim]# write a machine pre-flight Run Record draft (human completes it)[/dim]"
     )
     console.print()
-    console.print("[yellow]OUTPUT:[/yellow]  [green]✓[/green] pass  [yellow]![/yellow] warn  [red]✗[/red] error")
+    console.print("[yellow]OUTPUT:[/yellow]  pass / warn / error (color-coded)")
     console.print("[yellow]EXIT:[/yellow]    0 = pass/warn  |  1 = errors found")
     console.print()
 

@@ -658,7 +658,7 @@ class TestReconcileStaleDeny:
         """Missing settings.json returns no results."""
         from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
 
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert results == []
 
@@ -672,7 +672,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(git push --force*)", "Bash(git reset --hard*)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -688,7 +688,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(git push --force*)", "Bash(rm -r *)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_WARN
@@ -706,7 +706,7 @@ class TestReconcileStaleDeny:
             "env": {"AIPASS_HOME": "/test"},
         }
         settings.write_text(json.dumps(original), encoding="utf-8")
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=True)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -727,7 +727,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(git reset --hard*)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=True)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -744,7 +744,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(rm -r *)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             reconcile_stale_deny(fix=True)
             results = reconcile_stale_deny(fix=True)
         assert len(results) == 1
@@ -758,7 +758,7 @@ class TestReconcileStaleDeny:
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
         settings.write_text(json.dumps({"permissions": {"deny": []}}), encoding="utf-8")
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -770,7 +770,7 @@ class TestReconcileStaleDeny:
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
         settings.write_text(json.dumps({"env": {"FOO": "bar"}}), encoding="utf-8")
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -857,7 +857,7 @@ class TestPromptAutoWireIsatty:
             patch.object(doctor_wire, "_print_manual_wire_warning") as mock_warn,
         ):
             mock_stdin.isatty.return_value = False
-            result = doctor_wire.prompt_auto_wire(**self._args())
+            result = doctor_wire._prompt_auto_wire(**self._args())
 
         assert result is False
         mock_input.assert_not_called()
@@ -873,7 +873,7 @@ class TestPromptAutoWireIsatty:
             patch.object(doctor_wire, "_print_manual_wire_warning"),
         ):
             mock_stdin.isatty.return_value = True
-            result = doctor_wire.prompt_auto_wire(**self._args())
+            result = doctor_wire._prompt_auto_wire(**self._args())
 
         assert result is False
         mock_input.assert_called_once()
@@ -888,7 +888,7 @@ class TestPromptAutoWireIsatty:
             patch.object(doctor_wire, "_auto_wire_provider", return_value=["wired hook"]) as mock_wire,
         ):
             mock_stdin.isatty.return_value = True
-            result = doctor_wire.prompt_auto_wire(**self._args())
+            result = doctor_wire._prompt_auto_wire(**self._args())
 
         assert result is True
         mock_wire.assert_called_once()
