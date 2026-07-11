@@ -2,7 +2,7 @@
 
 # Seedgo
 
-**Purpose:** Standards compliance platform for AIPass. Audits all 11 core agents against 35 code standards + diagnostics, manages bypass rules, runs proof certification, and provides per-file checklist validation consumed by auto-fix hooks.
+**Purpose:** Standards compliance platform for AIPass. Audits all 11 core agents against 40 code standards + diagnostics, manages bypass rules, runs proof certification, and provides per-file checklist validation consumed by auto-fix hooks.
 **Module:** `aipass.seedgo`
 **Version:** 2.0.0
 **Created:** 2026-03-05
@@ -12,7 +12,7 @@
 ## Overview
 
 ### What I Do
-- Audit all 11 core agents against 35 code standards + diagnostics (architecture, CLI, imports, logging, naming, silent catch, deep nesting, etc.)
+- Audit all 11 core agents against 40 code standards + diagnostics (architecture, CLI, imports, logging, naming, silent catch, deep nesting, etc.)
 - Score files 0-100 per standard and report violations with actionable details
 - Manage bypass rules (`.seedgo/bypass.json`) for deliberate exceptions
 - Run pyright diagnostics across branches for type error detection
@@ -39,7 +39,7 @@ drone @seedgo --help                                   # Full command listing
 drone @seedgo --version                                # Version string
 
 # Audit
-drone @seedgo audit aipass                             # Audit all 11 agents (35 standards + diagnostics)
+drone @seedgo audit aipass                             # Audit all 11 agents (40 standards + diagnostics)
 drone @seedgo audit aipass @flow                       # Audit single branch
 drone @seedgo audit inbox-ids                          # Inbox message-ID validation
 
@@ -84,7 +84,7 @@ seedgo/
 │   ├── seedgo.py                    # Entry point — thin router (~290 lines)
 │   │                                #   discover_modules() loads apps/modules/*.py
 │   │                                #   route_command() dispatches to first handler returning True
-│   ├── modules/                     # 9 business logic modules
+│   ├── modules/                     # 10 business logic modules
 │   │   ├── standards_audit.py       # Pack-aware compliance audit orchestrator
 │   │   ├── standards_query.py       # Pack-aware content query
 │   │   ├── diagnostics_audit.py     # Pyright diagnostics via audit pipeline
@@ -96,7 +96,7 @@ seedgo/
 │   │   ├── readme_update.py         # README generation module
 │   │   └── test_map.py              # Custom function test coverage mapping
 │   └── handlers/                    # 9 handler directories
-│       ├── aipass_standards/        # 34 checker standards (67 files)
+│       ├── aipass_standards/        # 40 checker standards (120 files)
 │       │   ├── *_check.py           # Checker implementations (score 0-100)
 │       │   ├── *_content.py         # Queryable standard content
 │       │   └── *.md                 # Standard documentation
@@ -118,7 +118,7 @@ seedgo/
 │       ├── json/                    # JSON tracking (json_handler)
 │       ├── readme/                  # README generator + branch resolution
 │       └── test_map/                # Function test coverage scanner
-├── tests/                           # 34 test files, 1045 tests
+├── tests/                           # 38 test files, 1217 tests
 ├── drone_adapter.py                 # Drone routing bridge
 ├── .trinity/                        # Identity + memory
 ├── .seedgo/                         # Self-bypass rules
@@ -138,7 +138,7 @@ seedgo/
 
 ---
 
-## The 34 Standards
+## The 40 Standards
 
 | Standard | Scope | What It Checks |
 |----------|-------|----------------|
@@ -155,9 +155,11 @@ seedgo/
 | handler_import | branch_level | apps/__init__.py contains `from . import handlers` |
 | handlers | entry_point | Handler directory structure |
 | hardcoded_key | all_files | No hardcoded API keys or secrets |
+| hardcoded_path | all_files | No hardcoded absolute paths |
 | help_text | all_files | --help content quality |
 | imports | all_files | Import ordering and grouping |
 | introspection | entry_point | No-args introspection gate |
+| json_handler | branch_level | JSON handler test coverage validation |
 | json_structure | all_files | json_handler import + log_operation calls |
 | log_handler | all_files | Prax logger usage (not stdlib logging) |
 | log_level | all_files | Correct log level usage |
@@ -166,16 +168,20 @@ seedgo/
 | meta | all_files | File header metadata block |
 | modules | all_files | Module structure and naming |
 | naming | all_files | snake_case, column-0 constants |
+| output_routing | all_files | Status output via @cli helpers, not raw console.print |
 | permission_flags | all_files | No dangerous permission overrides |
 | readme | branch_level | README.md exists and is current |
 | ruff | branch_level + per-file | Ruff linter compliance |
 | shebang | all_files | No shebang lines in library code |
 | silent_catch | all_files | No bare except/pass patterns |
 | stderr_routing | all_files | Proper stderr vs stdout usage |
+| subcommand_help | entry_point | Subcommand --help interception before dispatch |
+| template | branch_level | No unresolved spawn template markers |
 | test_quality | branch_level | JSON handler test coverage (51 items, 11 categories) |
 | todo | all_files | No unresolved TODO/FIXME/HACK comments |
 | trigger | all_files | Trigger integration patterns |
 | unused_function | branch_level | No unreferenced public functions |
+| windows_compat | all_files | Cross-platform compatibility (no Unix-only APIs) |
 
 ---
 
@@ -206,7 +212,7 @@ Provider settings route all events through the bridge (`claude.py`), which dispa
 
 ## Tests
 
-- **34 test files**, all passing
+- **38 test files**, all passing
 - **0 type errors** (pyright)
 - Key test areas: standards audit, checklist, bypass, JSON handler, hooks snapshot, permissions, proof, README, diagnostics, line coverage (plugin integrity, diagnostics, audit display, branch audit, architecture, checklist)
 
@@ -238,16 +244,16 @@ Provider settings route all events through the bridge (`claude.py`), which dispa
 
 ---
 
-## Latest Audit (2026-04-26)
+## Latest Audit (2026-07-11)
 
-- **Seedgo score:** 100% (34/34 + diagnostics) — all standards green
-- **Tests:** 1131 passed, 0 failed, 0 skipped
-- **Coverage:** 200 public functions, 200 tested (100%)
+- **Seedgo score:** 100% (40/40 + diagnostics) — all standards green
+- **Tests:** 1217 passed, 0 failed, 0 skipped
+- **Coverage:** 208 public functions, 197 tested (95%)
 - **Type errors:** 0
 
 ---
 
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-07-11
 
 ---
 [<- Back to AIPass](../../../README.md)

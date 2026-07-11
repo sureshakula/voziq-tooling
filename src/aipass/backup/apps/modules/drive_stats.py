@@ -19,7 +19,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, error as cli_error
 
 from aipass.backup.apps.handlers.json import json_handler
 
@@ -78,7 +78,7 @@ def run_drive_stats(project_root: str) -> bool:
         return True
     except Exception as exc:
         logger.warning(f"Failed to load tracker for {project_root}: {exc}")
-        console.print(f"[red]Error loading tracker: {exc}[/red]")
+        cli_error(f"Error loading tracker: {exc}")
         return False
 
 

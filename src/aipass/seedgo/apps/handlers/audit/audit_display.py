@@ -243,7 +243,7 @@ def print_branch_summary(
             failed_checks = [c for c in result_data.get("checks", []) if not c.get("passed", True)]
             if failed_checks:
                 formatted = _format_standard_name(standard_name)
-                console.print(f"    [red]└─ {formatted} issues:[/red]")
+                console.print(f"    └─ {formatted} issues:")
                 for check in failed_checks:
                     console.print(f"       [dim]• {check.get('message', '')}[/dim]")
                 rendered_standards.add(standard_name)
@@ -287,13 +287,13 @@ def print_system_summary(audit_results: List[Dict]):
     console.print("[bold]SYSTEM SUMMARY:[/bold]")
     console.print(f"  Total branches:        {total_branches}")
     console.print(f"  Average compliance:    {avg_compliance}%")
-    console.print(f"  Branches ≥90%:         {excellent} ✅")
-    console.print(f"  Branches 75-89%:       {good} ⚠️")
-    console.print(f"  Branches <75%:         {needs_work} ❌")
+    console.print(f"  Branches ≥90%:         {excellent}")
+    console.print(f"  Branches 75-89%:       {good}")
+    console.print(f"  Branches <75%:         {needs_work}")
     if total_type_errors > 0:
-        console.print(f"  [red]Type errors:           {total_type_errors} ({branches_with_type_errors} branches)[/red]")
+        console.print(f"  Type errors:           {total_type_errors} ({branches_with_type_errors} branches)")
     else:
-        console.print("  Type errors:           [green]0 ✓[/green]")
+        console.print("  Type errors:           0")
     console.print()
 
     # Calculate standard averages

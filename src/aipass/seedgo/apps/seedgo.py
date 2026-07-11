@@ -161,10 +161,10 @@ def print_help() -> None:
     console.print("[bold cyan]WHAT IS SEEDGO?[/bold cyan]")
     console.print()
     console.print("Seedgo is the [bold]AIPass Standards Platform[/bold] — it:")
-    console.print("  [green]✓[/green] Provides [green]queryable code standards[/green] via content modules")
-    console.print("  [green]✓[/green] Runs automated checkers that score files 0-100 per standard")
-    console.print("  [green]✓[/green] Audits all branches with a single command")
-    console.print("  [green]✓[/green] Supports bypass rules for deliberate exceptions")
+    console.print("  [cyan]•[/cyan] Provides [green]queryable code standards[/green] via content modules")
+    console.print("  [cyan]•[/cyan] Runs automated checkers that score files 0-100 per standard")
+    console.print("  [cyan]•[/cyan] Audits all branches with a single command")
+    console.print("  [cyan]•[/cyan] Supports bypass rules for deliberate exceptions")
     console.print()
 
     # Handler packs
@@ -276,6 +276,13 @@ def main() -> int:
 
         command = args[0]
         remaining = args[1:] if len(args) > 1 else []
+
+        if remaining and remaining[0] in ["--help", "-h"]:
+            for module in modules:
+                if module.handle_command(command, ["--help"]):
+                    return 0
+            print_help()
+            return 0
 
         # Route to modules
         if route_command(command, remaining, modules):

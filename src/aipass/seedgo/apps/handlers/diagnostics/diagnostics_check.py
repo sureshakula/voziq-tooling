@@ -583,17 +583,17 @@ if __name__ == "__main__":
         console.print(f"  Files with errors:  {result['files_with_errors']}")
 
         if result["total_errors"] > 0:
-            console.print(f"  [red]Total errors:       {result['total_errors']}[/red]")
+            console.print(f"  Total errors:       {result['total_errors']}")
         else:
             console.print("  [green]Total errors:       0[/green]")
 
         if result["total_warnings"] > 0:
-            console.print(f"  [yellow]Total warnings:     {result['total_warnings']}[/yellow]")
+            console.print(f"  Total warnings:     {result['total_warnings']}")
 
         # File details
         for file_result in result.get("results", [])[:20]:  # Top 20
             if file_result["errors"] > 0:
                 console.print()
-                console.print(f"[red]\u2717[/red] {file_result['file']} [dim]({file_result['errors']} errors)[/dim]")
+                console.print(f"\u2022 {file_result['file']} [dim]({file_result['errors']} errors)[/dim]")
                 for diag in file_result["diagnostics"][:5]:  # Top 5 per file
                     console.print(f"  [dim]Line {diag['line']}:[/dim] {diag['message']}")

@@ -109,7 +109,8 @@ def handle_command(command: str, args: List[str]) -> bool:
         _handle_check(remaining_args)
     else:
         # Unknown subcommand — fail to error, not fallback
-        console.print(f"\n[red]Unknown subcommand:[/red] '{subcommand}'")
+        console.print()
+        display_error(f"Unknown subcommand: '{subcommand}'")
         console.print("[yellow]Valid subcommands:[/yellow] update, check")
         console.print()
         console.print("  [green]drone @seedgo readme update @branch[/green]   [dim]# Update README[/dim]")
@@ -129,12 +130,12 @@ def handle_command(command: str, args: List[str]) -> bool:
 def _handle_update(args: List[str]) -> None:
     """Orchestrate the 'update' subcommand"""
     if load_generator is None:
-        console.print("[red]readme_ops handler not available[/red]")
+        display_error("readme_ops handler not available")
         console.print("[dim]Handler is in .sorting_unprocessed/ — needs migration to handlers/[/dim]")
         return
     generator = load_generator()
     if not generator:
-        console.print("[red]Failed to load README generator[/red]")
+        display_error("Failed to load README generator")
         return
 
     branches, error = resolve_targets(args)
@@ -179,12 +180,12 @@ def _handle_update(args: List[str]) -> None:
 def _handle_check(args: List[str]) -> None:
     """Orchestrate the 'check' subcommand (dry run)"""
     if load_generator is None:
-        console.print("[red]readme_ops handler not available[/red]")
+        display_error("readme_ops handler not available")
         console.print("[dim]Handler is in .sorting_unprocessed/ — needs migration to handlers/[/dim]")
         return
     generator = load_generator()
     if not generator:
-        console.print("[red]Failed to load README generator[/red]")
+        display_error("Failed to load README generator")
         return
 
     branches, error = resolve_targets(args)
@@ -237,7 +238,7 @@ def _print_result(result: dict, is_check: bool = False) -> None:
 
     if errors:
         for err in errors:
-            console.print(f"  [red]Error: {err}[/red]")
+            display_error(str(err))
         return
 
     for section_key, display_name in SECTION_NAMES.items():

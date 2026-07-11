@@ -260,7 +260,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     if specific_branch:
         branches = [b for b in branches if b["name"].upper() == specific_branch.upper()]
         if not branches:
-            console.print(f"[red]Branch '{specific_branch}' not found[/red]")
+            error(f"Branch '{specific_branch}' not found")
             return True
 
     from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn, SpinnerColumn

@@ -383,15 +383,15 @@ def test_flow_entry_passes():
     assert result["passed"] is True, f"flow should pass: {result['checks']}"
 
 
-def test_seedgo_entry_fails():
+def test_seedgo_entry_passes():
     from aipass.seedgo.apps.handlers.aipass_standards.subcommand_help_check import check_module
 
     result = check_module(str(_AIPASS_ROOT / "seedgo" / "apps" / "seedgo.py"))
-    assert result["passed"] is False, f"seedgo should fail (no subcommand guard): {result['checks']}"
+    assert result["passed"] is True, f"seedgo should pass: {result['checks']}"
 
 
-def test_ai_mail_entry_fails():
+def test_ai_mail_entry_passes():
     from aipass.seedgo.apps.handlers.aipass_standards.subcommand_help_check import check_module
 
     result = check_module(str(_AIPASS_ROOT / "ai_mail" / "apps" / "ai_mail.py"))
-    assert result["passed"] is False, f"ai_mail should fail: {result['checks']}"
+    assert result["passed"] is True, f"ai_mail should pass: {result['checks']}"

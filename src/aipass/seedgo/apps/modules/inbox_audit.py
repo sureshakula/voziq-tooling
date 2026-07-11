@@ -22,6 +22,7 @@ from typing import List
 
 from aipass.prax import logger
 from aipass.cli import console, header
+from aipass.cli.apps.modules import error, success
 from aipass.seedgo.apps.handlers.json import json_handler
 
 _HEX8_RE = re.compile(r"^[0-9a-f]{8}$")
@@ -75,15 +76,16 @@ def _run_inbox_id_scan() -> int:
         all_violations.extend(violations)
 
     if not all_violations:
-        console.print("[green]✓[/green] All message ids are valid 8-char hex strings.")
+        success("All message ids are valid 8-char hex strings.")
         console.print()
         return 0
 
-    console.print(f"[red]✗[/red] Found [bold]{len(all_violations)}[/bold] id violation(s):\n")
+    error(f"Found {len(all_violations)} id violation(s):")
+    console.print()
     for v in all_violations:
         rel = Path(v["inbox"]).relative_to(repo_root) if Path(v["inbox"]).is_absolute() else v["inbox"]
         console.print(
-            f"  [red]•[/red] [bold]{rel}[/bold]  id=[yellow]{v['id']!r}[/yellow]  from={v['from']}  subject={v['subject']!r}"
+            f"  • [bold]{rel}[/bold]  id=[yellow]{v['id']!r}[/yellow]  from={v['from']}  subject={v['subject']!r}"
         )
 
     console.print()

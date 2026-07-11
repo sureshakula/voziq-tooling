@@ -245,9 +245,9 @@ def _print_results(results: List[Dict], file_path: str) -> None:
             all_passed = False
             detail = r.get("detail", "")
             if detail:
-                console.print(f"  [red]\u2717[/red] {std}: {detail}")
+                console.print(f"  \u2014 {std}: {detail}")
             else:
-                console.print(f"  [red]\u2717[/red] {std}")
+                console.print(f"  \u2014 {std}")
 
     if all_passed:
         console.print(f"[green]All {len(results)} standards passed[/green]")
@@ -415,7 +415,7 @@ def print_help() -> None:
 
     console.print("[yellow]OUTPUT FORMAT:[/yellow]")
     console.print("  [green]\u2713[/green] standard_name                         [dim]# Passed[/dim]")
-    console.print("  [red]\u2717[/red] standard_name: failure detail           [dim]# Failed with reason[/dim]")
+    console.print("  \u2014 standard_name: failure detail           [dim]# Failed with reason[/dim]")
     console.print()
 
     console.print("[yellow]SCOPE RULES:[/yellow]")
