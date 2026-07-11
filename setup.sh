@@ -804,6 +804,16 @@ else
     echo "Skipping Claude hooks (bridge not found at src/aipass/hooks/apps/handlers/bridges/claude.py)"
 fi
 
+# --- Install claude() boot shim (attach-if-live / start-in-tmux) ---
+# Ships via the .gitignore negation (#666). Idempotent: the installer checks for
+# its marker before appending to the shell rc, and resolves the venv Python from
+# its own location (POSIX/Windows/fallback). Composes with presence_gate seeding.
+BOOT_SHIM="$SCRIPT_DIR/src/aipass/hooks/tools/install_boot_shim.sh"
+if [ -f "$BOOT_SHIM" ]; then
+    echo "Installing claude() boot shim ..."
+    bash "$BOOT_SHIM" || echo "  boot shim install skipped (non-fatal)"
+fi
+
 # --- Install Claude Code commands (provider level) ---
 # memo.md belongs at provider level — works in all projects.
 # prep.md stays at repo root only — it's AIPass-specific.

@@ -63,6 +63,17 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **The `claude()` boot shim now ships and installs on onboarding (issue #666).**
+  Its installer (`hooks/tools/install_boot_shim.sh`) lived under a gitignored
+  `tools/` dir — never version-controlled, never shipped — so the
+  attach-if-live / start-in-tmux boot feature (and presence-gate-via-boot) was
+  dev-local only; a macOS user could not attach/resume their session. A root
+  `.gitignore` negation now tracks exactly that one file (`tools/` re-ignored,
+  only the installer whitelisted — README stays out), and `setup.sh` runs it
+  right after hook installation (idempotent via a marker check, non-fatal on
+  error, venv Python resolved from the script's own location for POSIX/Windows).
+  Fresh clones and `aipass install` now get the shim.
+
 - **Interactive-occupancy detection is now cross-platform — the wake-back guard
   no longer goes blind on macOS (issue #680).** `_is_branch_occupied()` and
   `_read_session_type()` (duplicated in `dispatch/wake.py` and `dispatch/daemon.py`)
