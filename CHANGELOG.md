@@ -63,6 +63,19 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **seedgo `json_structure` now sanctions `custom_config/` for operator-editable
+  config (issue #643).** The standard said "`{branch}_json/` root, one directory,
+  no splits" and the checker ignored subdirs, so `custom_config/` (home of
+  operator-tunable runtime config like `cadence_config.json`, `memory.config.json`)
+  was an undocumented convention. `json_structure_check.py` gained an
+  `ALLOWED_JSON_SUBDIRS` allowlist and a `check_branch_post()` that validates
+  `{branch}_json/` subdirs — `custom_config/` and hidden dirs (`.archive`) pass,
+  any other split is flagged. `json_structure_content.py` documents the directory
+  structure and operator-config location. 5 new tests. (The new check surfaced
+  `devpulse_json/compass/` as an unsanctioned split — handled via a documented
+  devpulse bypass, compass being a legitimate SQLite/FTS5 decision store that
+  needs its own directory.)
+
 - **`git_gate` block messages now guide external users instead of dead-ending
   (issue #620).** A blocked raw `git`/`gh` command previously just errored. The
   block message now explains *why* git is enforced (prevents cross-agent state

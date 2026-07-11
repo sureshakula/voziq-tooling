@@ -133,6 +133,86 @@ def test_json_structure_check_has_standard_field(tmp_path):
     assert "standard" in result
 
 
+def test_json_structure_custom_config_subdir_passes(tmp_path):
+    """Branch with {branch}_json/custom_config/ passes directory check."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import _check_json_dir_structure
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+    json_dir = branch / "mybranch_json"
+    json_dir.mkdir()
+    cc = json_dir / "custom_config"
+    cc.mkdir()
+    (cc / "settings.json").write_text("{}", encoding="utf-8")
+    (json_dir / "config.json").write_text("{}", encoding="utf-8")
+
+    violations = _check_json_dir_structure(str(branch))
+    assert violations == []
+
+
+def test_json_structure_random_subdir_fails(tmp_path):
+    """Branch with an unsanctioned subdir under {branch}_json/ is flagged."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import _check_json_dir_structure
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+    json_dir = branch / "mybranch_json"
+    json_dir.mkdir()
+    (json_dir / "custom_config").mkdir()
+    (json_dir / "extra_stuff").mkdir()
+
+    violations = _check_json_dir_structure(str(branch))
+    assert len(violations) == 1
+    assert "extra_stuff" in violations[0]["message"]
+
+
+def test_json_structure_hidden_subdir_ignored(tmp_path):
+    """Hidden subdirs (e.g. .archive) under {branch}_json/ are not flagged."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import _check_json_dir_structure
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+    json_dir = branch / "mybranch_json"
+    json_dir.mkdir()
+    (json_dir / ".archive").mkdir()
+
+    violations = _check_json_dir_structure(str(branch))
+    assert violations == []
+
+
+def test_json_structure_no_json_dir_passes(tmp_path):
+    """Branch with no {branch}_json/ directory produces no violations."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import _check_json_dir_structure
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+
+    violations = _check_json_dir_structure(str(branch))
+    assert violations == []
+
+
+def test_json_structure_check_branch_post(tmp_path):
+    """check_branch_post returns violations and scores."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import check_branch_post
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+    json_dir = branch / "mybranch_json"
+    json_dir.mkdir()
+    (json_dir / "bad_split").mkdir()
+
+    violations, scores = check_branch_post(str(branch))
+    assert len(violations) == 1
+    assert scores == [0]
+
+    # Clean branch
+    (json_dir / "bad_split").rmdir()
+    (json_dir / "custom_config").mkdir()
+    violations2, scores2 = check_branch_post(str(branch))
+    assert violations2 == []
+    assert scores2 == [100]
+
+
 # ---------------------------------------------------------------------------
 # Tests -- naming_check.is_bypassed
 # ---------------------------------------------------------------------------

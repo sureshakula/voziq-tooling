@@ -31,6 +31,8 @@ from aipass.seedgo.apps.handlers.bypass.utils import is_bypassed
 # Audit scope: scan every .py file, not just entry point
 AUDIT_SCOPE = "all_files"
 
+ALLOWED_JSON_SUBDIRS: frozenset[str] = frozenset({"custom_config"})
+
 
 def check_module(module_path: str, bypass_rules: list | None = None) -> Dict:
     """
@@ -183,7 +185,7 @@ def _check_code_wiring(_path: Path, content: str) -> List[Dict]:
         }
     )
 
-    return checks
+    return checks  # noqa: RET504
 
 
 def _check_json_handler_config(_handler_path: Path, content: str, _bypass_rules: list | None = None) -> List[Dict]:
@@ -288,3 +290,54 @@ def _check_json_handler_config(_handler_path: Path, content: str, _bypass_rules:
     )
 
     return checks
+
+
+# ------------------------------------------------------------------
+# Branch-level post-check: {branch}_json/ directory structure
+# ------------------------------------------------------------------
+
+
+def _find_json_dir(branch_path: str) -> Path | None:
+    """Locate {branch}_json/ under a branch root."""
+    bp = Path(branch_path)
+    json_dir = bp / f"{bp.name}_json"
+    return json_dir if json_dir.is_dir() else None
+
+
+def _check_json_dir_structure(branch_path: str) -> list[dict]:
+    """Validate {branch}_json/ has no unsanctioned subdirectories.
+
+    Allowed: custom_config/ (operator-editable config).
+    Hidden dirs (starting with '.') are ignored (e.g. .archive).
+    """
+    json_dir = _find_json_dir(branch_path)
+    if json_dir is None:
+        return []
+
+    violations = []
+    for child in sorted(json_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        if child.name.startswith("."):
+            continue
+        if child.name in ALLOWED_JSON_SUBDIRS:
+            continue
+        violations.append(
+            {
+                "file": child.name,
+                "path": str(child),
+                "score": 0,
+                "issues": [f"Unsanctioned subdir '{child.name}/' under {json_dir.name}/ — only custom_config/ allowed"],
+                "message": (
+                    f"Unsanctioned subdir '{child.name}/' under {json_dir.name}/ — only custom_config/ allowed"
+                ),
+            }
+        )
+    return violations
+
+
+def check_branch_post(branch_path: str) -> tuple[list, list]:
+    """Post-audit check: validate {branch}_json/ directory structure."""
+    violations = _check_json_dir_structure(branch_path)
+    scores = [0] if violations else [100]
+    return violations, scores
