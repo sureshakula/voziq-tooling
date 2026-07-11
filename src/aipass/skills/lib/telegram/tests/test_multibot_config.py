@@ -12,8 +12,8 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 # Modules under test
-from apps.handlers import config as tg_config
-from apps.handlers.telegram_standards import (
+from aipass.skills.lib.telegram.apps.handlers import config as tg_config
+from aipass.skills.lib.telegram.apps.handlers.telegram_standards import (
     STANDARD_COMMANDS,
     PROCESSING_MSG,
     parse_command,
@@ -23,7 +23,7 @@ from apps.handlers.telegram_standards import (
     build_status_text,
     build_botfather_commands,
 )
-from apps.handlers import bot_operations
+from aipass.skills.lib.telegram.apps.handlers import bot_operations
 
 
 # =============================================
@@ -75,7 +75,7 @@ def sample_bots() -> list[dict]:
 class TestLoadBotConfig:
     """Tests for config.load_bot_config (via _get_secret)."""
 
-    @patch("apps.handlers.config._get_secret")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._get_secret")
     def test_load_valid_config(self, mock_get_secret: MagicMock, valid_bot_config: dict) -> None:
         """Valid config returned from _get_secret loads correctly."""
         mock_get_secret.return_value = valid_bot_config
@@ -88,7 +88,7 @@ class TestLoadBotConfig:
         assert result["branch_name"] == "dev_central"
         mock_get_secret.assert_called_once_with("dev_central")
 
-    @patch("apps.handlers.config._get_secret")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._get_secret")
     def test_load_missing_file(self, mock_get_secret: MagicMock) -> None:
         """Returns None when secret not found."""
         mock_get_secret.return_value = None
@@ -97,7 +97,7 @@ class TestLoadBotConfig:
         assert result is None
         mock_get_secret.assert_called_once_with("nonexistent_bot")
 
-    @patch("apps.handlers.config._get_secret")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._get_secret")
     def test_load_corrupt_json(self, mock_get_secret: MagicMock) -> None:
         """Returns None when _get_secret returns None (e.g., invalid JSON from subprocess)."""
         mock_get_secret.return_value = None
@@ -105,7 +105,7 @@ class TestLoadBotConfig:
         result = tg_config.load_bot_config("broken")
         assert result is None
 
-    @patch("apps.handlers.config._get_secret")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._get_secret")
     def test_load_non_dict_json(self, mock_get_secret: MagicMock) -> None:
         """Returns None when _get_secret returns None (non-dict JSON is filtered by _get_secret)."""
         # _get_secret already filters non-dict responses and returns None
@@ -123,7 +123,7 @@ class TestLoadBotConfig:
 class TestListBotConfigs:
     """Tests for config.list_bot_configs (via in-process secrets API)."""
 
-    @patch("apps.handlers.config._api_list_secrets")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._api_list_secrets")
     def test_list_returns_bot_ids(self, mock_list: MagicMock) -> None:
         """Returns list of bot_ids from the secrets API."""
         mock_list.return_value = ["dev_central", "assistant", "scheduler"]
@@ -136,7 +136,7 @@ class TestListBotConfigs:
         assert len(result) == 3
         mock_list.assert_called_once_with("telegram")
 
-    @patch("apps.handlers.config._api_list_secrets")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._api_list_secrets")
     def test_list_returns_empty_on_failure(self, mock_list: MagicMock) -> None:
         """Returns empty list when the secrets API raises."""
         mock_list.side_effect = RuntimeError("connection failed")
@@ -144,7 +144,7 @@ class TestListBotConfigs:
         result = tg_config.list_bot_configs()
         assert result == []
 
-    @patch("apps.handlers.config._api_list_secrets")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._api_list_secrets")
     def test_list_returns_empty_when_no_secrets(self, mock_list: MagicMock) -> None:
         """Returns empty list when no secrets exist."""
         mock_list.return_value = []
@@ -152,7 +152,7 @@ class TestListBotConfigs:
         result = tg_config.list_bot_configs()
         assert result == []
 
-    @patch("apps.handlers.config._api_list_secrets")
+    @patch("aipass.skills.lib.telegram.apps.handlers.config._api_list_secrets")
     def test_list_returns_empty_on_unexpected_error(self, mock_list: MagicMock) -> None:
         """Returns empty list on unexpected exception."""
         mock_list.side_effect = OSError("disk error")
@@ -352,7 +352,7 @@ class TestHandleStandardCommand:
         assert "@assistant" in result[1]
         assert "fresh" in result[1].lower() or "cleared" in result[1].lower()
 
-    @patch("apps.handlers.telegram_standards._tmux_session_exists")
+    @patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists")
     def test_status_returns_status_text(self, mock_tmux: MagicMock) -> None:
         """The 'status' command returns status text string."""
         mock_tmux.return_value = True
@@ -476,7 +476,7 @@ class TestBuildWelcomeText:
 class TestBuildStatusText:
     """Tests for telegram_standards.build_status_text."""
 
-    @patch("apps.handlers.telegram_standards._tmux_session_exists")
+    @patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists")
     def test_active_session(self, mock_tmux: MagicMock) -> None:
         """Active tmux session shows 'Active' state."""
         mock_tmux.return_value = True
@@ -488,7 +488,7 @@ class TestBuildStatusText:
         assert "@dev_central" in result
         assert "telegram-dev_central" in result
 
-    @patch("apps.handlers.telegram_standards._tmux_session_exists")
+    @patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists")
     def test_inactive_session(self, mock_tmux: MagicMock) -> None:
         """Inactive tmux session shows 'Inactive' state."""
         mock_tmux.return_value = False
@@ -498,7 +498,7 @@ class TestBuildStatusText:
         )
         assert "Inactive" in result
 
-    @patch("apps.handlers.telegram_standards._tmux_session_exists")
+    @patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists")
     def test_optional_fields_included(self, mock_tmux: MagicMock) -> None:
         """Optional fields (uptime, message_count, chat_id) appear when provided."""
         mock_tmux.return_value = True
@@ -513,7 +513,7 @@ class TestBuildStatusText:
         assert "Messages: 99" in result
         assert "Chat ID: 12345" in result
 
-    @patch("apps.handlers.telegram_standards._tmux_session_exists")
+    @patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists")
     def test_optional_fields_omitted(self, mock_tmux: MagicMock) -> None:
         """Optional fields are not shown when not provided."""
         mock_tmux.return_value = True
@@ -753,7 +753,7 @@ class TestFormatBotTable:
 class TestGetStatusAndGetAllBots:
     """Tests for bot_operations.get_status and get_all_bots."""
 
-    @patch("apps.handlers.bot_operations.get_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_operations.get_bot")
     def test_get_status_specific_bot(self, mock_get_bot: MagicMock) -> None:
         """get_status with bot_id delegates to get_bot."""
         mock_get_bot.return_value = {"bot_id": "dev_central", "status": "active"}
@@ -763,7 +763,7 @@ class TestGetStatusAndGetAllBots:
         assert result[0]["bot_id"] == "dev_central"
         mock_get_bot.assert_called_once_with("dev_central")
 
-    @patch("apps.handlers.bot_operations.get_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_operations.get_bot")
     def test_get_status_bot_not_found(self, mock_get_bot: MagicMock) -> None:
         """get_status returns empty list when bot not found."""
         mock_get_bot.return_value = None
@@ -771,7 +771,7 @@ class TestGetStatusAndGetAllBots:
         result = bot_operations.get_status("nonexistent")
         assert result == []
 
-    @patch("apps.handlers.bot_operations.list_bots")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_operations.list_bots")
     def test_get_status_all_bots(self, mock_list_bots: MagicMock) -> None:
         """get_status with no bot_id delegates to list_bots."""
         mock_list_bots.return_value = [
@@ -783,7 +783,7 @@ class TestGetStatusAndGetAllBots:
         assert len(result) == 2
         mock_list_bots.assert_called_once()
 
-    @patch("apps.handlers.bot_operations.list_bots")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_operations.list_bots")
     def test_get_all_bots(self, mock_list_bots: MagicMock) -> None:
         """get_all_bots delegates to list_bots."""
         expected = [{"bot_id": "x"}, {"bot_id": "y"}]
@@ -802,11 +802,11 @@ class TestGetStatusAndGetAllBots:
 class TestCreateBotRoundTrip:
     """Prove GAP1 is closed: create_bot persists config that load_bot_config reads."""
 
-    @patch("apps.handlers.bot_factory.start_bot_process", return_value=True)
-    @patch("apps.handlers.bot_factory.enable_service", return_value=True)
-    @patch("apps.handlers.bot_factory.set_bot_commands", return_value=True)
-    @patch("apps.handlers.bot_factory.validate_token")
-    @patch("apps.handlers.bot_factory.ensure_registry")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.start_bot_process", return_value=True)
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.enable_service", return_value=True)
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.set_bot_commands", return_value=True)
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.ensure_registry")
     def test_create_then_load_roundtrip(
         self,
         mock_ensure_registry,
@@ -818,7 +818,7 @@ class TestCreateBotRoundTrip:
         monkeypatch,
     ):
         """After create_bot, load_bot_config returns the persisted config."""
-        from apps.handlers import bot_factory, config as tg_config
+        from aipass.skills.lib.telegram.apps.handlers import bot_factory, config as tg_config
 
         mock_validate_token.return_value = {"username": "test_bot", "id": 123}
 
@@ -836,9 +836,9 @@ class TestCreateBotRoundTrip:
         monkeypatch.setattr(bot_factory, "_api_set_secret", fake_set_secret)
         monkeypatch.setattr(tg_config, "_api_get_secret", fake_get_secret)
 
-        monkeypatch.setattr("apps.handlers.bot_registry.REGISTRY_DIR", tmp_path / "state")
+        monkeypatch.setattr("aipass.skills.lib.telegram.apps.handlers.bot_registry.REGISTRY_DIR", tmp_path / "state")
         monkeypatch.setattr(
-            "apps.handlers.bot_registry.REGISTRY_FILE",
+            "aipass.skills.lib.telegram.apps.handlers.bot_registry.REGISTRY_FILE",
             tmp_path / "state" / "_registry.json",
         )
 
@@ -857,8 +857,8 @@ class TestCreateBotRoundTrip:
         assert loaded["bot_token"] == "111:AAA-test-token"
         assert loaded["allowed_user_ids"] == [42]
 
-    @patch("apps.handlers.bot_factory.validate_token")
-    @patch("apps.handlers.bot_factory.ensure_registry")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.ensure_registry")
     def test_create_fails_loud_on_set_secret_error(
         self,
         mock_ensure_registry,
@@ -867,7 +867,7 @@ class TestCreateBotRoundTrip:
         monkeypatch,
     ):
         """create_bot returns None and logs error if set_secret raises."""
-        from apps.handlers import bot_factory
+        from aipass.skills.lib.telegram.apps.handlers import bot_factory
 
         mock_validate_token.return_value = {"username": "test_bot", "id": 123}
         monkeypatch.setattr(bot_factory, "_BOT_CONFIG_DIR", tmp_path)
@@ -894,11 +894,11 @@ class TestCommandMenuSync:
 
     def test_menu_and_help_have_same_commands(self):
         """The command names in build_botfather_commands match those in build_help_text."""
-        from apps.handlers.telegram_standards import (
+        from aipass.skills.lib.telegram.apps.handlers.telegram_standards import (
             build_botfather_commands,
             build_help_text,
         )
-        from apps.handlers.base_bot import BaseBot
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
         from unittest.mock import MagicMock
 
         mock_self = MagicMock(spec=BaseBot)
@@ -918,8 +918,8 @@ class TestCommandMenuSync:
 
     def test_help_contains_enriched_descriptions(self):
         """The /help text includes the enriched descriptions."""
-        from apps.handlers.telegram_standards import build_help_text
-        from apps.handlers.base_bot import BaseBot
+        from aipass.skills.lib.telegram.apps.handlers.telegram_standards import build_help_text
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
         from unittest.mock import MagicMock
 
         mock_self = MagicMock(spec=BaseBot)
@@ -936,15 +936,15 @@ class TestCommandMenuSync:
 
     def test_help_footer_updated(self):
         """The /help footer uses the enriched text."""
-        from apps.handlers.telegram_standards import build_help_text
+        from aipass.skills.lib.telegram.apps.handlers.telegram_standards import build_help_text
 
         help_text = build_help_text()
         assert "Just send any message to talk to me" in help_text
 
     def test_create_bot_uses_single_source(self):
         """create_bot calls set_bot_commands with build_botfather_commands output."""
-        from apps.handlers import bot_factory
-        from apps.handlers.telegram_standards import build_botfather_commands
+        from aipass.skills.lib.telegram.apps.handlers import bot_factory
+        from aipass.skills.lib.telegram.apps.handlers.telegram_standards import build_botfather_commands
 
         expected = build_botfather_commands()
         with patch.object(bot_factory, "set_bot_commands") as mock_set:
@@ -963,11 +963,11 @@ class TestCommandMenuSync:
 class TestBaseBotStartupMenu:
     """Verify base_bot sets command menu on startup."""
 
-    @patch("apps.handlers.base_bot.set_bot_commands", return_value=True)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.set_bot_commands", return_value=True)
     def test_set_command_menu_called_on_startup(self, mock_set_commands):
         """_set_command_menu calls set_bot_commands with merged commands."""
-        from apps.handlers.base_bot import BaseBot
-        from apps.handlers.telegram_standards import build_botfather_commands
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
+        from aipass.skills.lib.telegram.apps.handlers.telegram_standards import build_botfather_commands
 
         bot = BaseBot.__new__(BaseBot)
         bot.bot_token = "123:ABC"
@@ -981,10 +981,10 @@ class TestBaseBotStartupMenu:
         expected = build_botfather_commands(custom_commands=bot.get_custom_commands())
         assert actual_commands == expected
 
-    @patch("apps.handlers.base_bot.set_bot_commands", return_value=True)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.set_bot_commands", return_value=True)
     def test_menu_includes_custom_commands(self, mock_set_commands):
         """Menu includes /create and /cancel from get_custom_commands."""
-        from apps.handlers.base_bot import BaseBot
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
         bot = BaseBot.__new__(BaseBot)
         bot.bot_token = "123:ABC"

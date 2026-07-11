@@ -24,8 +24,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
-from apps.handlers.bot_factory import (  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
+from aipass.skills.lib.telegram.apps.handlers.bot_factory import (
     launch_mirror_session,
     start_service,
 )
@@ -39,9 +39,9 @@ from apps.handlers.bot_factory import (  # type: ignore[import-not-found]
 @pytest.fixture
 def _patch_base_bot_deps(tmp_path):
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -53,7 +53,7 @@ def _patch_base_bot_deps(tmp_path):
 def _make_bot(tmp_path, _patch_base_bot_deps, attach_only=False, shared_session=None):
     workdir = tmp_path / "workdir"
     workdir.mkdir(exist_ok=True)
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BaseBot(
             bot_id="mirror_test",
             bot_token="123:FAKETOKEN",
@@ -83,7 +83,7 @@ class TestLaunchMirrorSession:
         side = [no_session, ok, ok, ok]
 
         with (
-            patch("apps.handlers.bot_factory.subprocess.run", side_effect=side),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", side_effect=side),
             patch("time.sleep"),
         ):
             result = launch_mirror_session(
@@ -110,7 +110,7 @@ class TestLaunchMirrorSession:
             return result
 
         with (
-            patch("apps.handlers.bot_factory.subprocess.run", side_effect=_track),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", side_effect=_track),
             patch("time.sleep"),
         ):
             launch_mirror_session(
@@ -127,7 +127,7 @@ class TestLaunchMirrorSession:
         """Returns True without creating if session already exists."""
         has_session = MagicMock(returncode=0)
 
-        with patch("apps.handlers.bot_factory.subprocess.run", return_value=has_session) as mock_run:
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=has_session) as mock_run:
             result = launch_mirror_session(session_name="telegram-api", bot_id="api", work_dir="/tmp/test")
 
         assert result is True
@@ -135,7 +135,7 @@ class TestLaunchMirrorSession:
 
     def test_returns_false_when_tmux_not_found(self):
         """Returns False when tmux is not installed."""
-        with patch("apps.handlers.bot_factory.subprocess.run", side_effect=FileNotFoundError):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", side_effect=FileNotFoundError):
             result = launch_mirror_session(session_name="telegram-api", bot_id="api", work_dir="/tmp/test")
 
         assert result is False
@@ -152,7 +152,7 @@ class TestStartService:
     def test_starts_systemd_service(self):
         """Calls systemctl --user start telegram-bot@{bot_id}."""
         mock_result = MagicMock(returncode=0)
-        with patch("apps.handlers.bot_factory.subprocess.run", return_value=mock_result) as mock_run:
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=mock_result) as mock_run:
             result = start_service("api")
 
         assert result is True
@@ -163,7 +163,7 @@ class TestStartService:
     def test_returns_false_on_failure(self):
         """Returns False when systemctl returns non-zero."""
         mock_result = MagicMock(returncode=1, stderr="unit not found")
-        with patch("apps.handlers.bot_factory.subprocess.run", return_value=mock_result):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=mock_result):
             assert start_service("api") is False
 
     def test_returns_false_on_timeout(self):
@@ -171,7 +171,7 @@ class TestStartService:
         import subprocess
 
         err = subprocess.TimeoutExpired(cmd="", timeout=10)
-        with patch("apps.handlers.bot_factory.subprocess.run", side_effect=err):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", side_effect=err):
             assert start_service("api") is False
 
 
@@ -189,20 +189,20 @@ class TestCreateBotMirror:
         bot_info = {"username": "test_bot", "id": 123}
         branch_info = {"name": "api", "path": "/home/test/api"}
         patches = [
-            patch("apps.handlers.bot_factory.validate_token", return_value=bot_info),
-            patch("apps.handlers.bot_factory.validate_branch", return_value=branch_info),
-            patch("apps.handlers.bot_factory.get_bot", return_value=None),
-            patch("apps.handlers.bot_factory.get_bot_by_branch", return_value=None),
-            patch("apps.handlers.bot_factory.ensure_registry"),
-            patch("apps.handlers.bot_factory._api_set_secret"),
-            patch("apps.handlers.bot_factory.register_bot", return_value=True),
-            patch("apps.handlers.bot_factory.set_bot_commands"),
-            patch("apps.handlers.bot_factory.build_botfather_commands", return_value=[]),
-            patch("apps.handlers.bot_factory.enable_service", return_value=True),
-            patch("apps.handlers.bot_factory.start_bot_process", return_value=True),
-            patch("apps.handlers.bot_factory.launch_mirror_session", return_value=True),
-            patch("apps.handlers.bot_factory.start_service", return_value=True),
-            patch("apps.handlers.bot_factory._BOT_CONFIG_DIR", Path("/tmp/test_bots")),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.validate_token", return_value=bot_info),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.validate_branch", return_value=branch_info),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.get_bot", return_value=None),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.get_bot_by_branch", return_value=None),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.ensure_registry"),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory._api_set_secret"),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.register_bot", return_value=True),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.set_bot_commands"),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.build_botfather_commands", return_value=[]),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.enable_service", return_value=True),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.start_bot_process", return_value=True),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.launch_mirror_session", return_value=True),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.start_service", return_value=True),
+            patch("aipass.skills.lib.telegram.apps.handlers.bot_factory._BOT_CONFIG_DIR", Path("/tmp/test_bots")),
         ]
         mocks = {}
         started = []
@@ -217,9 +217,9 @@ class TestCreateBotMirror:
 
     def test_config_includes_mirror_fields(self, _mock_create_deps, tmp_path):
         """Config written with shared_session, attach_only, chat_id."""
-        from apps.handlers.bot_factory import create_bot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.bot_factory import create_bot
 
-        with patch("apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
             result = create_bot(
                 bot_id="api",
                 bot_token="123:FAKE",
@@ -239,9 +239,9 @@ class TestCreateBotMirror:
 
     def test_launches_mirror_session_when_attach_only(self, _mock_create_deps, tmp_path):
         """launch_mirror_session called when shared_session + attach_only."""
-        from apps.handlers.bot_factory import create_bot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.bot_factory import create_bot
 
-        with patch("apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
             create_bot(
                 bot_id="api",
                 bot_token="123:FAKE",
@@ -254,9 +254,9 @@ class TestCreateBotMirror:
 
     def test_starts_via_systemd_when_mirror(self, _mock_create_deps, tmp_path):
         """Mirror bot started via start_service, not start_bot_process."""
-        from apps.handlers.bot_factory import create_bot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.bot_factory import create_bot
 
-        with patch("apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
             create_bot(
                 bot_id="api",
                 bot_token="123:FAKE",
@@ -270,9 +270,9 @@ class TestCreateBotMirror:
 
     def test_starts_via_popen_when_not_mirror(self, _mock_create_deps, tmp_path):
         """Non-mirror bot still uses start_bot_process."""
-        from apps.handlers.bot_factory import create_bot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.bot_factory import create_bot
 
-        with patch("apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory._BOT_CONFIG_DIR", tmp_path):
             create_bot(
                 bot_id="api",
                 bot_token="123:FAKE",

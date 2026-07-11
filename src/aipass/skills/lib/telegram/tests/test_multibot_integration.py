@@ -13,7 +13,7 @@ import time
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers import tmux_manager as tg_tmux
+from aipass.skills.lib.telegram.apps.handlers import tmux_manager as tg_tmux
 
 try:
     from aipass.hooks.apps.handlers.notification import telegram_response as tg_hook
@@ -67,7 +67,7 @@ def _make_subprocess_result(returncode=0, stdout="", stderr=""):
 class TestTmuxSessionExists:
     """Tests for tmux_manager.session_exists."""
 
-    @patch("apps.handlers.tmux_manager.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.tmux_manager.subprocess.run")
     def test_session_exists_returns_true(self, mock_run):
         """session_exists returns True when tmux has-session succeeds."""
         mock_run.return_value = _make_subprocess_result(returncode=0)
@@ -78,7 +78,7 @@ class TestTmuxSessionExists:
             capture_output=True,
         )
 
-    @patch("apps.handlers.tmux_manager.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.tmux_manager.subprocess.run")
     def test_session_exists_returns_false(self, mock_run):
         """session_exists returns False when tmux has-session fails."""
         mock_run.return_value = _make_subprocess_result(returncode=1)
@@ -89,7 +89,7 @@ class TestTmuxSessionExists:
 class TestTmuxKillSession:
     """Tests for tmux_manager.kill_session."""
 
-    @patch("apps.handlers.tmux_manager.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.tmux_manager.subprocess.run")
     def test_kill_session_returns_true(self, mock_run):
         """kill_session returns True when session exists and is killed."""
         mock_run.side_effect = [
@@ -101,7 +101,7 @@ class TestTmuxKillSession:
         kill_call = mock_run.call_args_list[1]
         assert kill_call[0][0] == ["tmux", "kill-session", "-t", "telegram-dev_central"]
 
-    @patch("apps.handlers.tmux_manager.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.tmux_manager.subprocess.run")
     def test_kill_session_returns_true_when_not_exists(self, mock_run):
         """kill_session returns True when session doesn't exist (nothing to kill)."""
         mock_run.return_value = _make_subprocess_result(returncode=1)  # has-session: not found
@@ -112,7 +112,7 @@ class TestTmuxKillSession:
 class TestTmuxListSessions:
     """Tests for tmux_manager.list_sessions."""
 
-    @patch("apps.handlers.tmux_manager.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.tmux_manager.subprocess.run")
     def test_list_sessions_filters_telegram_prefix(self, mock_run):
         """list_sessions returns only branch names from telegram-* sessions."""
         mock_run.return_value = _make_subprocess_result(
@@ -123,7 +123,7 @@ class TestTmuxListSessions:
 
         assert result == ["dev_central", "flow"]
 
-    @patch("apps.handlers.tmux_manager.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.tmux_manager.subprocess.run")
     def test_list_sessions_returns_empty_on_failure(self, mock_run):
         """list_sessions returns [] when tmux command fails."""
         mock_run.return_value = _make_subprocess_result(returncode=1)

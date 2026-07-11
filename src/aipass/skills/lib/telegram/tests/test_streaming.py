@@ -27,7 +27,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
 
 # =============================================
@@ -39,9 +39,9 @@ from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
 def _patch_deps(tmp_path):
     """Patch signal and atexit for safe BaseBot construction."""
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -54,7 +54,7 @@ def _make_bot(tmp_path, _patch_deps, stream=False):
     """Create a BaseBot with test defaults."""
     workdir = tmp_path / "workdir"
     workdir.mkdir(exist_ok=True)
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BaseBot(
             bot_id="stream_test",
             bot_token="123:FAKETOKEN",
@@ -274,7 +274,7 @@ class TestStreamEdit:
         mock_resp.__enter__ = MagicMock(return_value=mock_resp)
         mock_resp.__exit__ = MagicMock(return_value=False)
 
-        with patch("apps.handlers.base_bot.urlopen", return_value=mock_resp):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", return_value=mock_resp):
             ok, retry = bot._stream_edit(123, 456, "hello")
         assert ok is True
         assert retry == 0.0
@@ -295,7 +295,7 @@ class TestStreamEdit:
         err = HTTPError("url", 429, "Too Many Requests", None, None)  # type: ignore[arg-type]
         err.read = MagicMock(return_value=body)
 
-        with patch("apps.handlers.base_bot.urlopen", side_effect=err):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", side_effect=err):
             ok, retry = bot._stream_edit(123, 456, "hello")
         assert ok is False
         assert retry == 15.0
@@ -315,14 +315,14 @@ class TestStreamEdit:
         err = HTTPError("url", 400, "Bad Request", None, None)  # type: ignore[arg-type]
         err.read = MagicMock(return_value=body)
 
-        with patch("apps.handlers.base_bot.urlopen", side_effect=err):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", side_effect=err):
             ok, retry = bot._stream_edit(123, 456, "same text")
         assert ok is True
         assert retry == 0.0
 
     def test_other_error(self, tmp_path, _patch_deps):
         bot = _make_bot(tmp_path, _patch_deps)
-        with patch("apps.handlers.base_bot.urlopen", side_effect=ConnectionError("fail")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", side_effect=ConnectionError("fail")):
             ok, retry = bot._stream_edit(123, 456, "hello")
         assert ok is False
         assert retry == 0.0
@@ -338,7 +338,7 @@ class TestPendingFileStreaming:
 
     def test_no_streaming_key_when_off(self, tmp_path, _patch_deps):
         bot = _make_bot(tmp_path, _patch_deps, stream=False)
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot.pending_file = tmp_path / "bot-stream_test.json"
             bot.write_pending_file(123, 1, 2)
         data = json.loads(bot.pending_file.read_text(encoding="utf-8"))
@@ -346,7 +346,7 @@ class TestPendingFileStreaming:
 
     def test_streaming_true_when_on(self, tmp_path, _patch_deps):
         bot = _make_bot(tmp_path, _patch_deps, stream=True)
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot.pending_file = tmp_path / "bot-stream_test.json"
             bot.write_pending_file(123, 1, 2)
         data = json.loads(bot.pending_file.read_text(encoding="utf-8"))

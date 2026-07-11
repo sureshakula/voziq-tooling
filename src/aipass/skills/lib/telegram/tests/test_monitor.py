@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers.log_streamer import LogStreamer  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.log_streamer import LogStreamer
 
 
 # =============================================
@@ -37,9 +37,9 @@ def _patch_base_bot_deps(tmp_path):
     """Patch heavy BaseBot dependencies to allow lightweight instantiation."""
     sub_file = tmp_path / "monitor_sub.json"
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -50,7 +50,7 @@ def _patch_base_bot_deps(tmp_path):
 
 def _make_bot(tmp_path, _patch_base_bot_deps):
     """Create a BaseBot with monitor subscription redirected to tmp_path."""
-    from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+    from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
     workdir = tmp_path / "workdir"
     workdir.mkdir()
@@ -81,7 +81,7 @@ class TestSubscribePersists:
         sub_file: Path = _patch_base_bot_deps
         with (
             patch.object(bot, "send_message"),
-            patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer,
         ):
             MockStreamer.return_value = MagicMock()
             bot._monitor_subscribe(42, "default")
@@ -109,7 +109,7 @@ class TestSubscribePersists:
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         with (
             patch.object(bot, "send_message"),
-            patch("apps.handlers.base_bot.LogStreamer") as MockStreamer,
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer,
         ):
             mock_instance = MagicMock()
             MockStreamer.return_value = mock_instance
@@ -130,7 +130,7 @@ class TestSubscribePersists:
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         with (
             patch.object(bot, "send_message") as mock_send,
-            patch("apps.handlers.base_bot.LogStreamer", return_value=MagicMock()),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer", return_value=MagicMock()),
         ):
             bot._monitor_subscribe(42, "default")
             mock_send.assert_called_once()
@@ -144,7 +144,7 @@ class TestSubscribePersists:
 
         with (
             patch.object(bot, "send_message"),
-            patch("apps.handlers.base_bot.LogStreamer", return_value=MagicMock()),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer", return_value=MagicMock()),
         ):
             bot._monitor_subscribe(42, "all")
             old_streamer.stop.assert_called_once()
@@ -176,7 +176,7 @@ class TestBootMonitor:
 
         sub_file.write_text(json.dumps({"chat_id": 42, "mode": "default"}))
 
-        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer:
             mock_instance = MagicMock()
             MockStreamer.return_value = mock_instance
 
@@ -195,7 +195,7 @@ class TestBootMonitor:
     def test_boot_noop_when_no_subscription(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         # No file written — subscription absent
-        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer:
             bot._boot_monitor()
             MockStreamer.assert_not_called()
             assert bot._monitor_streamer is None
@@ -205,7 +205,7 @@ class TestBootMonitor:
         sub_file: Path = _patch_base_bot_deps
         sub_file.write_text("{}")
 
-        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer:
             bot._boot_monitor()
             MockStreamer.assert_not_called()
 
@@ -216,7 +216,7 @@ class TestBootMonitor:
 
         sub_file.write_text(json.dumps({"chat_id": 99, "mode": "all"}))
 
-        with patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer:
             MockStreamer.return_value = MagicMock()
             bot._boot_monitor()
             MockStreamer.assert_called_once_with(
@@ -240,14 +240,14 @@ class TestLevelFilter:
     def streamer_default(self, tmp_path):
         logs_dir = tmp_path / "system_logs"
         logs_dir.mkdir()
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             return LogStreamer("tok", 1, "x", system_wide=True, level_filter="default")
 
     @pytest.fixture
     def streamer_all(self, tmp_path):
         logs_dir = tmp_path / "system_logs"
         logs_dir.mkdir()
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             return LogStreamer("tok", 1, "x", system_wide=True, level_filter="all")
 
     def test_default_keeps_warning(self, streamer_default):
@@ -306,7 +306,7 @@ class TestSystemWideGlob:
         (logs_dir / "prax_main.log").write_text("b\n")
         (logs_dir / "trigger_events.log").write_text("c\n")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             s = LogStreamer("tok", 1, "monitor", system_wide=True, level_filter="all")
 
         assert len(s.log_positions) == 3
@@ -317,7 +317,7 @@ class TestSystemWideGlob:
         (logs_dir / "api_main.log").write_text("a\n")
         (logs_dir / "prax_main.log").write_text("b\n")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             s = LogStreamer("tok", 1, "api", system_wide=False, level_filter="all")
 
         assert len(s.log_positions) == 1
@@ -331,13 +331,13 @@ class TestSystemWideGlob:
         f1.write_text("")
         f2.write_text("")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             s = LogStreamer("tok", 1, "monitor", system_wide=True, level_filter="all")
 
         f1.write_text("api line\n")
         f2.write_text("prax line\n")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             lines = s._read_new_lines()
 
         assert "api line" in lines

@@ -15,15 +15,15 @@ Tests cover:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
 
 @pytest.fixture
 def _patch_base_bot_deps(tmp_path):
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()

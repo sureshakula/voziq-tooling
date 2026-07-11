@@ -8,7 +8,7 @@ No external dependencies beyond pytest.
 import json
 
 import pytest
-from apps.handlers import bot_registry  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers import bot_registry
 
 
 # =============================================

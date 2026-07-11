@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from unittest.mock import MagicMock
 
-import apps.handlers.response_router as response_router  # type: ignore[import-not-found]
+import aipass.skills.lib.telegram.apps.handlers.response_router as response_router
 
 
 # =============================================

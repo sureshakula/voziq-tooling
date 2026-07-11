@@ -33,8 +33,8 @@ import time
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
-from apps.handlers.branch_plugin import BranchPlugin  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
+from aipass.skills.lib.telegram.apps.handlers.branch_plugin import BranchPlugin
 
 
 # =============================================
@@ -47,7 +47,7 @@ def base_bot(tmp_path):
     """Create a BaseBot instance with PENDING_DIR pointed at tmp_path."""
     workdir = tmp_path / "workdir"
     workdir.mkdir()
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BaseBot(
             bot_id="test_bot",
             bot_token="123:FAKETOKEN",
@@ -65,7 +65,7 @@ def base_bot_open(tmp_path):
     """Create a BaseBot with an empty allowlist (allows everyone)."""
     workdir = tmp_path / "workdir"
     workdir.mkdir()
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BaseBot(
             bot_id="open_bot",
             bot_token="456:FAKETOKEN",
@@ -82,7 +82,7 @@ def branch_bot(tmp_path):
     """Create a BranchPlugin instance."""
     workdir = tmp_path / "workdir"
     workdir.mkdir()
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BranchPlugin(
             branch_name="dev_central",
             bot_id="dev_central",
@@ -141,7 +141,7 @@ class TestBaseBotInit:
         assert base_bot.custom_commands == {}
 
     def test_custom_commands_set(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="cmd_bot",
                 bot_token="t",
@@ -151,7 +151,7 @@ class TestBaseBotInit:
         assert bot.custom_commands == {"ping": "Pong!"}
 
     def test_allowed_user_ids_none_becomes_empty_list(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="none_bot",
                 bot_token="t",
@@ -318,14 +318,14 @@ class TestWritePendingFile:
     """Test pending file creation with correct JSON content."""
 
     def test_write_creates_file(self, base_bot, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             with patch.object(base_bot, "_get_transcript_line_count", return_value=42):
                 result = base_bot.write_pending_file(chat_id=12345, message_id=100, processing_message_id=101)
         assert result is True
         assert base_bot.pending_file.exists()
 
     def test_write_correct_json_content(self, base_bot, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             with patch.object(base_bot, "_get_transcript_line_count", return_value=10):
                 base_bot.write_pending_file(chat_id=12345, message_id=100, processing_message_id=101)
         data = json.loads(base_bot.pending_file.read_text())
@@ -339,14 +339,14 @@ class TestWritePendingFile:
         assert isinstance(data["timestamp"], float)
 
     def test_write_with_none_processing_id(self, base_bot, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             with patch.object(base_bot, "_get_transcript_line_count", return_value=0):
                 base_bot.write_pending_file(chat_id=12345, message_id=100, processing_message_id=None)
         data = json.loads(base_bot.pending_file.read_text())
         assert data["processing_message_id"] is None
 
     def test_write_includes_work_dir(self, base_bot, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             with patch.object(base_bot, "_get_transcript_line_count", return_value=0):
                 base_bot.write_pending_file(chat_id=1, message_id=1)
         data = json.loads(base_bot.pending_file.read_text())
@@ -361,7 +361,7 @@ class TestWritePendingFile:
 class TestHeartbeat:
     """Test heartbeat thread updates the processing message with elapsed time."""
 
-    @patch("apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1)
     def test_heartbeat_calls_edit_message(self, base_bot, tmp_path):
         """Verify heartbeat updates the message with elapsed time text."""
         # Create the pending file so heartbeat doesn't exit early
@@ -384,7 +384,7 @@ class TestHeartbeat:
         assert first_call[0][1] == 101  # message_id
         assert "Processing..." in first_call[0][2]
 
-    @patch("apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1)
     def test_heartbeat_stops_when_pending_removed(self, base_bot, tmp_path):
         """Heartbeat should exit when pending file is removed."""
         # Create then immediately remove pending file
@@ -431,30 +431,30 @@ class TestVerifyConnection:
         mock_resp.__exit__ = MagicMock(return_value=False)
         return mock_resp
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_verify_success(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": {"username": "test_bot"}})
         assert base_bot.verify_connection() is True
         mock_urlopen.assert_called_once()
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_verify_api_rejected(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": False, "description": "Unauthorized"})
         assert base_bot.verify_connection() is False
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_verify_network_error(self, mock_urlopen, base_bot):
         from urllib.error import URLError
 
         mock_urlopen.side_effect = URLError("Connection refused")
         assert base_bot.verify_connection() is False
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_verify_unexpected_exception(self, mock_urlopen, base_bot):
         mock_urlopen.side_effect = RuntimeError("unexpected")
         assert base_bot.verify_connection() is False
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_verify_uses_correct_url(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": {"username": "test_bot"}})
         base_bot.verify_connection()
@@ -478,27 +478,27 @@ class TestSendMessage:
         mock_resp.__exit__ = MagicMock(return_value=False)
         return mock_resp
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_send_success(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": {"message_id": 42}})
         result = base_bot.send_message(12345, "Hello!")
         assert result == {"message_id": 42}
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_send_returns_none_on_failure(self, mock_urlopen, base_bot):
         mock_urlopen.side_effect = RuntimeError("fail")
         result = base_bot.send_message(12345, "Hello!")
         assert result is None
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_send_retries_on_failure(self, mock_urlopen, base_bot):
         """send_message retries up to 3 times."""
         mock_urlopen.side_effect = RuntimeError("fail")
-        with patch("apps.handlers.base_bot.time.sleep"):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep"):
             base_bot.send_message(12345, "Hello!")
         assert mock_urlopen.call_count == 3
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_send_with_reply_to(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": {"message_id": 43}})
         result = base_bot.send_message(12345, "reply", reply_to=10)
@@ -507,7 +507,7 @@ class TestSendMessage:
         sent_data = json.loads(mock_urlopen.call_args[0][0].data.decode("utf-8"))
         assert sent_data["reply_to_message_id"] == 10
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_send_uses_correct_url(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": {"message_id": 1}})
         base_bot.send_message(12345, "test")
@@ -526,25 +526,25 @@ class TestEditMessage:
         mock_resp.__exit__ = MagicMock(return_value=False)
         return mock_resp
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_edit_success(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True})
         result = base_bot.edit_message(12345, 42, "Updated text")
         assert result is True
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_edit_failure(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": False, "description": "Message not modified"})
         result = base_bot.edit_message(12345, 42, "Same text")
         assert result is False
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_edit_exception(self, mock_urlopen, base_bot):
         mock_urlopen.side_effect = RuntimeError("network error")
         result = base_bot.edit_message(12345, 42, "text")
         assert result is False
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_edit_sends_correct_payload(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True})
         base_bot.edit_message(12345, 42, "new text")
@@ -553,7 +553,7 @@ class TestEditMessage:
         assert sent_data["message_id"] == 42
         assert sent_data["text"] == "new text"
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_edit_uses_correct_url(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True})
         base_bot.edit_message(12345, 42, "x")
@@ -569,8 +569,8 @@ class TestEditMessage:
 class TestEnsureTmuxSession:
     """Test tmux session creation with mocked subprocess."""
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_session_exists_returns_true(self, mock_run, mock_sleep, base_bot):
         """If tmux session already exists, return True without creating."""
         # has-session returns 0 (session exists)
@@ -581,8 +581,8 @@ class TestEnsureTmuxSession:
         mock_run.assert_called_once()
         assert "has-session" in mock_run.call_args[0][0]
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_no_session_returns_false(self, mock_run, mock_sleep, base_bot):
         """When no session exists, bot returns False (never spawns own brain)."""
         mock_run.return_value = MagicMock(returncode=1)
@@ -596,7 +596,7 @@ class TestEnsureTmuxSession:
     def test_session_refuses_nonexistent_work_dir(self, tmp_path):
         """When work_dir doesn't exist, ensure_tmux_session returns False."""
         bad_dir = tmp_path / "nonexistent"
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="bad_dir_bot",
                 bot_token="t",
@@ -607,7 +607,7 @@ class TestEnsureTmuxSession:
 
     def test_tmux_not_found_returns_false(self, base_bot):
         """FileNotFoundError (tmux not installed) returns False."""
-        with patch("apps.handlers.base_bot.subprocess.run", side_effect=FileNotFoundError("tmux")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run", side_effect=FileNotFoundError("tmux")):
             result = base_bot.ensure_tmux_session()
         assert result is False
 
@@ -620,15 +620,15 @@ class TestEnsureTmuxSession:
 class TestInjectMessage:
     """Test tmux send-keys injection with mocked subprocess."""
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_inject_success(self, mock_run, mock_sleep, base_bot):
         mock_run.return_value = MagicMock(returncode=0)
         result = base_bot.inject_message("hello world")
         assert result is True
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_inject_calls_send_keys_with_text_then_enter(self, mock_run, mock_sleep, base_bot):
         mock_run.return_value = MagicMock(returncode=0)
         base_bot.inject_message("test message")
@@ -647,16 +647,16 @@ class TestInjectMessage:
         assert "send-keys" in second_cmd
         assert "Enter" in second_cmd
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_inject_uses_correct_session_name(self, mock_run, mock_sleep, base_bot):
         mock_run.return_value = MagicMock(returncode=0)
         base_bot.inject_message("x")
         first_cmd = mock_run.call_args_list[0][0][0]
         assert base_bot.session_name in first_cmd
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_inject_failure(self, mock_run, mock_sleep, base_bot):
         import subprocess as sp
 
@@ -664,8 +664,8 @@ class TestInjectMessage:
         result = base_bot.inject_message("hello")
         assert result is False
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_inject_sleeps_between_commands(self, mock_run, mock_sleep, base_bot):
         """Verify there's a delay between sending text and pressing Enter."""
         mock_run.return_value = MagicMock(returncode=0)
@@ -689,20 +689,20 @@ class TestPollUpdates:
         mock_resp.__exit__ = MagicMock(return_value=False)
         return mock_resp
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_poll_returns_updates(self, mock_urlopen, base_bot):
         updates = [{"update_id": 1, "message": {"text": "hi"}}]
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": updates})
         result = base_bot.poll_updates(0)
         assert result == updates
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_poll_returns_empty_on_error(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": False, "description": "Bad Request"})
         result = base_bot.poll_updates(0)
         assert result == []
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_poll_returns_empty_on_exception(self, mock_urlopen, base_bot):
         from urllib.error import URLError
 
@@ -710,7 +710,7 @@ class TestPollUpdates:
         result = base_bot.poll_updates(0)
         assert result == []
 
-    @patch("apps.handlers.base_bot.urlopen")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen")
     def test_poll_includes_offset_in_url(self, mock_urlopen, base_bot):
         mock_urlopen.return_value = self._make_mock_response({"ok": True, "result": []})
         base_bot.poll_updates(42)
@@ -791,7 +791,7 @@ class TestProcessUpdate:
             },
         }
         with patch.object(base_bot, "handle_message") as mock_handle:
-            with patch("apps.handlers.base_bot.parse_command", return_value=None):
+            with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=None):
                 base_bot.process_update(update)
                 mock_handle.assert_called_once()
 
@@ -901,7 +901,7 @@ class TestCreateCommand:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -912,9 +912,9 @@ class TestCreateCommand:
         self.bot.send_message = MagicMock(return_value={"message_id": 42})
         self.chat_id = 12345
 
-    @patch("apps.handlers.base_bot.check_telethon_setup", return_value=(False, "not configured"))
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.check_telethon_setup", return_value=(False, "not configured"))
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
     def test_create_valid_branch(self, mock_validate, mock_get_bot, mock_telethon):
         mock_validate.return_value = {"name": "dev_central", "path": "/home/aipass/dev_central"}
         self.bot._handle_create_command(self.chat_id, "chat dev_central")
@@ -936,15 +936,15 @@ class TestCreateCommand:
         msg = self.bot.send_message.call_args[0][1]
         assert "Usage" in msg
 
-    @patch("apps.handlers.base_bot.validate_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch", return_value=None)
     def test_create_branch_not_found(self, mock_validate):
         self.bot._handle_create_command(self.chat_id, "chat nonexistent")
         self.bot.send_message.assert_called_once()
         msg = self.bot.send_message.call_args[0][1]
         assert "not found" in msg
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch")
-    @patch("apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
     def test_create_branch_already_has_bot(self, mock_validate, mock_get_bot):
         mock_validate.return_value = {"name": "dev_central", "path": "/tmp"}
         mock_get_bot.return_value = {"bot_id": "dev_central", "username": "dc_bot"}
@@ -953,8 +953,8 @@ class TestCreateCommand:
         msg = self.bot.send_message.call_args[0][1]
         assert "already has a bot" in msg
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
     def test_create_sets_state_with_branch_info(self, mock_validate, mock_get_bot):
         mock_validate.return_value = {"name": "flow", "path": "/home/aipass/flow"}
         self.bot._handle_create_command(self.chat_id, "chat @flow")
@@ -971,8 +971,8 @@ class TestCreateCommand:
         msg = self.bot.send_message.call_args[0][1]
         assert "Usage" in msg
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
     def test_create_strips_at_symbol(self, mock_validate, mock_get_bot):
         """Branch name should have @ stripped before lookup."""
         mock_validate.return_value = {"name": "seed", "path": "/home/aipass/seed"}
@@ -990,7 +990,7 @@ class TestCreateToken:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -1009,8 +1009,8 @@ class TestCreateToken:
             "started_at": started_at or time.time(),
         }
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token")
     def test_valid_token_creates_bot(self, mock_validate_token, mock_create_bot):
         self._set_create_state()
         mock_validate_token.return_value = {"username": "my_new_bot"}
@@ -1036,7 +1036,7 @@ class TestCreateToken:
         msg = self.bot.send_message.call_args[0][1]
         assert "doesn't look like a valid" in msg
 
-    @patch("apps.handlers.base_bot.validate_token", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token", return_value=None)
     def test_token_validation_fails(self, mock_validate_token):
         self._set_create_state()
         self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")
@@ -1044,8 +1044,8 @@ class TestCreateToken:
         msg = self.bot.send_message.call_args[0][1]
         assert "validation failed" in msg.lower()
 
-    @patch("apps.handlers.base_bot.create_bot", return_value=None)
-    @patch("apps.handlers.base_bot.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token")
     def test_bot_creation_fails(self, mock_validate_token, mock_create_bot):
         self._set_create_state()
         mock_validate_token.return_value = {"username": "test_bot"}
@@ -1062,8 +1062,8 @@ class TestCreateToken:
         assert "expired" in msg.lower()
         assert self.chat_id not in self.bot._create_state
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token")
     def test_state_cleared_after_success(self, mock_validate_token, mock_create_bot):
         self._set_create_state()
         mock_validate_token.return_value = {"username": "new_bot"}
@@ -1071,8 +1071,8 @@ class TestCreateToken:
         self.bot._handle_create_token(self.chat_id, "123456789:ABCdefGHIjklMNOpqr")
         assert self.chat_id not in self.bot._create_state
 
-    @patch("apps.handlers.base_bot.create_bot", return_value=None)
-    @patch("apps.handlers.base_bot.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token")
     def test_state_cleared_after_failure(self, mock_validate_token, mock_create_bot):
         """State should be cleared even when bot creation fails (after token validated)."""
         self._set_create_state()
@@ -1092,7 +1092,7 @@ class TestCancelCommand:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -1119,7 +1119,7 @@ class TestCancelCommand:
                 "message_id": 1,
             },
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
             self.bot.process_update(update)
         assert self.chat_id not in self.bot._create_state
         msg = self.bot.send_message.call_args[0][1]
@@ -1135,7 +1135,7 @@ class TestCancelCommand:
                 "message_id": 1,
             },
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
             self.bot.process_update(update)
         msg = self.bot.send_message.call_args[0][1]
         assert "Nothing to cancel" in msg
@@ -1162,7 +1162,7 @@ class TestCancelCommand:
                 "message_id": 1,
             },
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
             self.bot.process_update(update)
         assert self.chat_id not in self.bot._create_state
         assert other_chat in self.bot._create_state
@@ -1178,7 +1178,7 @@ class TestStatusWithRegistry:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -1189,7 +1189,7 @@ class TestStatusWithRegistry:
         self.bot.send_message = MagicMock(return_value={"message_id": 42})
         self.chat_id = 12345
 
-    @patch("apps.handlers.base_bot.registry_list_bots")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.registry_list_bots")
     def test_status_includes_registry(self, mock_list_bots):
         mock_list_bots.return_value = [
             {"bot_id": "dev_central", "username": "dc_bot", "status": "running", "branch_name": "dev_central"},
@@ -1204,14 +1204,14 @@ class TestStatusWithRegistry:
                 "message_id": 1,
             },
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("status", "")):
-            with patch("apps.handlers.base_bot.build_status_text", return_value="Bot Status"):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("status", "")):
+            with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", return_value="Bot Status"):
                 self.bot.process_update(update)
         msg = self.bot.send_message.call_args[0][1]
         assert "Registered Bots" in msg
         assert "dc_bot" in msg
 
-    @patch("apps.handlers.base_bot.registry_list_bots", return_value=[])
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.registry_list_bots", return_value=[])
     def test_status_empty_registry(self, mock_list_bots):
         update = {
             "update_id": 1,
@@ -1222,13 +1222,13 @@ class TestStatusWithRegistry:
                 "message_id": 1,
             },
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("status", "")):
-            with patch("apps.handlers.base_bot.build_status_text", return_value="Bot Status"):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("status", "")):
+            with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", return_value="Bot Status"):
                 self.bot.process_update(update)
         msg = self.bot.send_message.call_args[0][1]
         assert "none" in msg.lower()
 
-    @patch("apps.handlers.base_bot.registry_list_bots")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.registry_list_bots")
     def test_build_registry_status_with_bots(self, mock_list_bots):
         mock_list_bots.return_value = [
             {"bot_id": "seed", "username": "seed_bot", "status": "running", "branch_name": "seed"},
@@ -1239,13 +1239,13 @@ class TestStatusWithRegistry:
         assert "seed_bot" in result
         assert "running" in result
 
-    @patch("apps.handlers.base_bot.registry_list_bots")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.registry_list_bots")
     def test_build_registry_status_exception(self, mock_list_bots):
         mock_list_bots.side_effect = RuntimeError("DB error")
         result = self.bot._build_registry_status()
         assert result == ""
 
-    @patch("apps.handlers.base_bot.registry_list_bots", return_value=[])
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.registry_list_bots", return_value=[])
     def test_build_registry_status_empty(self, mock_list_bots):
         result = self.bot._build_registry_status()
         assert result == "Registered Bots: none"
@@ -1261,7 +1261,7 @@ class TestGetCustomCommands:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -1291,7 +1291,7 @@ class TestCreateFlowInProcessUpdate:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -1313,9 +1313,9 @@ class TestCreateFlowInProcessUpdate:
             },
         }
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
-    @patch("apps.handlers.base_bot.parse_command", return_value=("create", "chat test_branch"))
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("create", "chat test_branch"))
     def test_process_update_create_command_routed(self, mock_parse, mock_validate, mock_get_bot):
         """Sending /create chat test_branch should call _handle_create_command."""
         mock_validate.return_value = {"name": "test_branch", "path": "/tmp"}
@@ -1323,8 +1323,8 @@ class TestCreateFlowInProcessUpdate:
             self.bot.process_update(self._make_update("/create chat test_branch"))
             mock_method.assert_called_once_with(self.chat_id, "chat test_branch")
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token")
     def test_process_update_token_paste_during_create_flow(self, mock_validate_token, mock_create_bot):
         """When _create_state is active, non-command text routes to _handle_create_token."""
         self.bot._create_state[self.chat_id] = {
@@ -1341,7 +1341,7 @@ class TestCreateFlowInProcessUpdate:
     def test_process_update_no_token_paste_without_state(self):
         """Without _create_state, non-command text routes to handle_message."""
         with patch.object(self.bot, "handle_message") as mock_handle:
-            with patch("apps.handlers.base_bot.parse_command", return_value=None):
+            with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=None):
                 self.bot.process_update(self._make_update("just regular text"))
                 mock_handle.assert_called_once()
 
@@ -1352,12 +1352,12 @@ class TestCreateFlowInProcessUpdate:
             "branch_path": "/tmp",
             "started_at": time.time(),
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
             self.bot.process_update(self._make_update("/cancel"))
         assert self.chat_id not in self.bot._create_state
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.validate_token")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_token")
     def test_command_during_create_flow_not_treated_as_token(self, mock_validate_token, mock_create_bot):
         """Even with _create_state active, /commands should not be routed to _handle_create_token."""
         self.bot._create_state[self.chat_id] = {
@@ -1365,7 +1365,7 @@ class TestCreateFlowInProcessUpdate:
             "branch_path": "/tmp",
             "started_at": time.time(),
         }
-        with patch("apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("cancel", "")):
             with patch.object(self.bot, "_handle_create_token") as mock_token:
                 self.bot.process_update(self._make_update("/cancel"))
                 mock_token.assert_not_called()
@@ -1381,7 +1381,7 @@ class TestCreateAutomated:
 
     @pytest.fixture(autouse=True)
     def setup_bot(self, tmp_path):
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="test",
                 bot_token="123:FAKE",
@@ -1392,8 +1392,8 @@ class TestCreateAutomated:
         self.bot.send_message = MagicMock(return_value={"message_id": 42})
         self.chat_id = 12345
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.create_bot_via_botfather")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot_via_botfather")
     def test_automated_flow_succeeds(self, mock_bf_create, mock_create_bot):
         """Automated flow: sends progress, calls BotFather, registers, sends success."""
         mock_bf_create.return_value = {
@@ -1423,7 +1423,7 @@ class TestCreateAutomated:
             allowed_user_ids=[111],
         )
 
-    @patch("apps.handlers.base_bot.create_bot_via_botfather")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot_via_botfather")
     def test_automated_flow_botfather_fails_falls_back_to_manual(self, mock_bf_create):
         """When BotFather automation fails, falls back to manual mode (sets _create_state)."""
         mock_bf_create.return_value = None
@@ -1441,8 +1441,8 @@ class TestCreateAutomated:
         assert state["branch_name"] == "flow"
         assert state["branch_path"] == "/home/aipass/flow"
 
-    @patch("apps.handlers.base_bot.create_bot", return_value=None)
-    @patch("apps.handlers.base_bot.create_bot_via_botfather")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot_via_botfather")
     def test_automated_flow_registration_fails(self, mock_bf_create, mock_create_bot):
         """When BotFather succeeds but bot_factory.create_bot fails, sends error."""
         mock_bf_create.return_value = {
@@ -1460,9 +1460,9 @@ class TestCreateAutomated:
         # Should NOT set _create_state (no manual fallback after registration failure)
         assert self.chat_id not in self.bot._create_state
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
-    @patch("apps.handlers.base_bot.check_telethon_setup")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.check_telethon_setup")
     def test_create_command_uses_automated_when_telethon_ready(self, mock_check, mock_validate, mock_get_bot):
         """_handle_create_command uses automated path when Telethon is ready."""
         mock_check.return_value = (True, "ready")
@@ -1472,9 +1472,9 @@ class TestCreateAutomated:
             self.bot._handle_create_command(self.chat_id, "chat dev_central")
             mock_automated.assert_called_once_with(self.chat_id, "dev_central", "/home/aipass/dev_central")
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
-    @patch("apps.handlers.base_bot.check_telethon_setup")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.check_telethon_setup")
     def test_create_command_uses_manual_when_telethon_not_ready(self, mock_check, mock_validate, mock_get_bot):
         """_handle_create_command uses manual path when Telethon is not ready."""
         mock_check.return_value = (False, "Telethon not installed")
@@ -1489,9 +1489,9 @@ class TestCreateAutomated:
         state = self.bot._create_state[self.chat_id]
         assert state["branch_name"] == "flow"
 
-    @patch("apps.handlers.base_bot.get_bot_by_branch", return_value=None)
-    @patch("apps.handlers.base_bot.validate_branch")
-    @patch("apps.handlers.base_bot.check_telethon_setup")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.check_telethon_setup")
     def test_manual_fallback_message_shows_reason(self, mock_check, mock_validate, mock_get_bot):
         """Manual fallback message includes the reason automation is unavailable."""
         mock_check.return_value = (False, "Telethon library not installed. Run: pip install telethon")
@@ -1503,8 +1503,8 @@ class TestCreateAutomated:
         assert "Telethon library not installed" in msg
         assert "Falling back to manual token flow" in msg
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.create_bot_via_botfather")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot_via_botfather")
     def test_automated_success_message_contains_service_info(self, mock_bf_create, mock_create_bot):
         """Success message includes systemd service name and start command."""
         mock_bf_create.return_value = {
@@ -1520,8 +1520,8 @@ class TestCreateAutomated:
         assert "telegram-bot@memory_bank" in success_msg
         assert "systemctl" in success_msg
 
-    @patch("apps.handlers.base_bot.create_bot")
-    @patch("apps.handlers.base_bot.create_bot_via_botfather")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.create_bot_via_botfather")
     def test_automated_flow_passes_allowed_user_ids(self, mock_bf_create, mock_create_bot):
         """Automated flow passes the base bot's allowed_user_ids to create_bot."""
         mock_bf_create.return_value = {
@@ -1551,7 +1551,7 @@ class TestSharedSession:
         self.workdir = tmp_path / "workdir"
         self.workdir.mkdir()
         self.tmp_path = tmp_path
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="dev_central",
                 bot_token="123:FAKETOKEN",
@@ -1571,8 +1571,8 @@ class TestSharedSession:
         """Default session_name is still telegram-{bot_id} until shared session found."""
         assert self.bot.session_name == "telegram-dev_central"
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_ensure_attaches_to_shared_session(self, mock_run, mock_sleep):
         """When shared session exists, bot attaches to it."""
         mock_run.return_value = MagicMock(returncode=0)
@@ -1584,8 +1584,8 @@ class TestSharedSession:
         mock_run.assert_called_once()
         assert mock_run.call_args[0][0] == ["tmux", "has-session", "-t", "pc"]
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_ensure_returns_false_when_shared_missing(self, mock_run, mock_sleep):
         """When shared session doesn't exist and no presence, returns False (no spawn)."""
         mock_run.return_value = MagicMock(returncode=1)
@@ -1596,7 +1596,7 @@ class TestSharedSession:
         for call in calls:
             assert "new-session" not in call
 
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_inject_uses_shared_session_name(self, mock_run):
         """After attaching, inject_message sends to the shared session."""
         self.bot.session_name = "pc"
@@ -1618,8 +1618,8 @@ class TestSharedSession:
         assert self.bot._using_shared_session is False
         assert self.bot.session_name == "telegram-dev_central"
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_pending_file_has_shared_session_name(self, mock_run, mock_sleep):
         """Pending file session_name reflects the shared session."""
         self.bot.session_name = "pc"
@@ -1635,7 +1635,7 @@ class TestSharedSession:
         """Bot without shared_session behaves exactly as before."""
         workdir = tmp_path / "normal"
         workdir.mkdir()
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="flow",
                 bot_token="456:FAKE",
@@ -1645,8 +1645,8 @@ class TestSharedSession:
         assert bot._using_shared_session is False
         assert bot.session_name == "telegram-flow"
 
-    @patch("apps.handlers.base_bot.time.sleep")
-    @patch("apps.handlers.base_bot.subprocess.run")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.time.sleep")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run")
     def test_reattaches_after_new_command(self, mock_run, mock_sleep):
         """After /new detaches, next ensure_tmux_session reattaches to shared session."""
         # Simulate attached to shared session
@@ -1679,7 +1679,7 @@ class TestLockPidReuse:
         self.workdir = tmp_path / "workdir"
         self.workdir.mkdir()
         self.tmp_path = tmp_path
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             self.bot = BaseBot(
                 bot_id="vera",
                 bot_token="123:FAKETOKEN",
@@ -1701,7 +1701,7 @@ class TestLockPidReuse:
         assert self.bot._check_lock() is False
         assert not self.bot._lock_file.exists()
 
-    @patch("apps.handlers.base_bot.os.kill")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.os.kill")
     def test_alive_pid_same_bot_returns_true(self, mock_kill):
         """Live PID running this bot returns True (lock held)."""
         mock_kill.return_value = None  # PID alive
@@ -1716,7 +1716,7 @@ class TestLockPidReuse:
             assert self.bot._check_lock() is True
         assert self.bot._lock_file.exists()  # Lock preserved
 
-    @patch("apps.handlers.base_bot.os.kill")
+    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.os.kill")
     def test_alive_pid_different_bot_cleans_lock(self, mock_kill):
         """Live PID running a DIFFERENT bot cleans stale lock (PID reuse)."""
         mock_kill.return_value = None  # PID alive

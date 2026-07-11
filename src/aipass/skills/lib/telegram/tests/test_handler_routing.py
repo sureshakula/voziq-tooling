@@ -1,16 +1,8 @@
 """Tests for handler.py action routing."""
 
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
-
-# Ensure skill root is on path so handler can import apps.handlers.*
-_skill_root = Path(__file__).resolve().parents[1]
-if str(_skill_root) not in sys.path:
-    sys.path.insert(0, str(_skill_root))
-
-from handler import run, _ok, _err, _ACTIONS, _DISPATCH
+from aipass.skills.lib.telegram.handler import run, _ok, _err, _ACTIONS, _DISPATCH
 
 
 class TestHelpers:

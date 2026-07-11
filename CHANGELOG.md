@@ -34,6 +34,23 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Telegram skill tests made CI-safe — full-repo collection + hermeticity (issue #691).**
+  The 16 test files under `skills/lib/telegram/tests/` imported handlers via bare
+  `from apps.handlers…`, which collided with other branches' `apps` packages during
+  full-repo CI collection (~16 ImportError collection errors → CI red on Linux +
+  Windows). Converted to fully-qualified `aipass.skills.lib.telegram.apps.handlers.*`
+  imports (and matching `mock.patch` targets). Verifying that fix surfaced a second
+  problem the imports had exposed: ~11 tests reached the live Telegram API
+  (`base_bot.run → _set_command_menu → set_bot_commands → urlopen`) — they had never
+  run in CI before because they failed at collection. Added a session-scoped autouse
+  `_block_network` conftest fixture that patches `urlopen` on the four network-using
+  telegram modules (both bare and fully-qualified import paths, each guarded) so any
+  test attempting a live HTTP call fails loud instead of hanging. Test-infra only —
+  product code byte-unchanged, no telegram behavior change. Full-repo collection now
+  0 errors (11,028 tests); telegram suite 663 passed / 0 failed / 0 hangs, fully
+  hermetic. Coverage intact (zero assertion changes — purely import/patch-target
+  rewiring).
+
 - **`aipass install` from a throwaway path can no longer hijack the machine-wide
   `AIPASS_HOME` (issue #688).** A probe install run from a `/tmp` scratchpad had
   rewritten `~/.claude/settings.json` `env.AIPASS_HOME`, silently pointing every

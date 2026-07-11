@@ -9,10 +9,10 @@
 """
 Telegram skill test configuration.
 
-Sets up sys.path so that both aipass.* (installed package) and the local
-apps.handlers.* namespace are importable from tests without a full pip install.
-Also stubs the optional telethon dependency and redirects Prax logger output
-to a temp dir so test runs don't pollute production log files.
+Sets up sys.path so that aipass.* (installed package) is importable from tests
+without a full pip install. Also stubs the optional telethon dependency and
+redirects Prax logger output to a temp dir so test runs don't pollute production
+log files.
 """
 
 import os
@@ -28,9 +28,10 @@ if "AIPASS_TEST_LOG_DIR" not in os.environ:
 
 import pytest
 
-# sys.path setup is intentional test infrastructure — both entries are needed:
-#   _src_root  → resolves aipass.* installed-package imports
-#   _skill_root → resolves the local apps.handlers.* namespace used by all tests
+# sys.path setup:
+#   _src_root   → resolves aipass.* installed-package imports (test imports)
+#   _skill_root → resolves bare 'apps.handlers' lazy imports inside handler.py
+#                  (product code, exercised at test runtime — not at collection)
 _src_root = Path(__file__).resolve().parents[5]
 if str(_src_root) not in sys.path:
     sys.path.insert(0, str(_src_root))
@@ -86,6 +87,49 @@ def _redirect_prax_logs(tmp_path_factory):
     yield
 
     direct_mod._direct_loggers.clear()
+
+
+class _NetworkBlockedError(Exception):
+    """Raised when a test attempts a real network call."""
+
+    def __init__(self):
+        super().__init__("NETWORK BLOCKED: test attempted a live HTTP call. Mock urlopen or the calling function.")
+
+
+def _blocked_urlopen(*args, **kwargs):
+    raise _NetworkBlockedError()
+
+
+_URLOPEN_TARGETS = [
+    "aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen",
+    "aipass.skills.lib.telegram.apps.handlers.bot_factory.urlopen",
+    "aipass.skills.lib.telegram.apps.handlers.notifier.urlopen",
+    "aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen",
+    "apps.handlers.base_bot.urlopen",
+    "apps.handlers.bot_factory.urlopen",
+    "apps.handlers.notifier.urlopen",
+    "apps.handlers.log_streamer.urlopen",
+]
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _block_network():
+    """Block all outbound HTTP in tests. Any test hitting the real network fails loud."""
+    from unittest.mock import patch
+
+    patches = []
+    for target in _URLOPEN_TARGETS:
+        try:
+            p = patch(target, side_effect=_blocked_urlopen)
+            p.start()
+            patches.append(p)
+        except (ModuleNotFoundError, AttributeError):
+            pass
+
+    yield
+
+    for p in patches:
+        p.stop()
 
 
 @pytest.fixture

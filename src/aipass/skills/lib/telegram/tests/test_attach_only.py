@@ -23,15 +23,15 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
 
 @pytest.fixture
 def _patch_base_bot_deps(tmp_path):
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -43,7 +43,7 @@ def _patch_base_bot_deps(tmp_path):
 def _make_bot(tmp_path, _patch_base_bot_deps, attach_only=False, shared_session=None):
     workdir = tmp_path / "workdir"
     workdir.mkdir(exist_ok=True)
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BaseBot(
             bot_id="mirror_test",
             bot_token="123:FAKETOKEN",
@@ -253,7 +253,7 @@ class TestAttachOnlyLock:
             patch.object(bot, "clean_stale_pending"),
             patch.object(bot, "_load_offset", return_value=0),
             patch.object(bot, "poll_updates", side_effect=KeyboardInterrupt),
-            patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
         ):
             bot.run()
 
@@ -273,7 +273,7 @@ class TestAttachOnlyLock:
             patch.object(bot, "clean_stale_pending"),
             patch.object(bot, "_load_offset", return_value=0),
             patch.object(bot, "poll_updates", side_effect=KeyboardInterrupt),
-            patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
         ):
             bot.run()
 

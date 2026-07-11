@@ -25,15 +25,15 @@ import time
 import pytest
 from unittest.mock import patch
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
 
 @pytest.fixture
 def _patch_base_bot_deps(tmp_path):
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -44,7 +44,7 @@ def _patch_base_bot_deps(tmp_path):
 
 def _make_bot(tmp_path, _patch_base_bot_deps, pending_dir=None):
     pdir = pending_dir or tmp_path
-    with patch("apps.handlers.base_bot.PENDING_DIR", pdir):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", pdir):
         workdir = tmp_path / "workdir"
         workdir.mkdir(exist_ok=True)
         bot = BaseBot(
@@ -121,7 +121,7 @@ class TestHeartbeatStopsOnDelivered:
         with (
             patch.object(bot, "edit_message", side_effect=fake_edit),
             patch.object(bot, "_tmux_session_exists", return_value=True),
-            patch("apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
         ):
             bot._start_heartbeat(42, 999)
             time.sleep(0.5)
@@ -144,7 +144,7 @@ class TestHeartbeatStopsOnDelivered:
         with (
             patch.object(bot, "edit_message", side_effect=fake_edit),
             patch.object(bot, "_tmux_session_exists", return_value=True),
-            patch("apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
         ):
             bot._start_heartbeat(42, 999)
             time.sleep(0.5)
@@ -161,7 +161,7 @@ class TestHeartbeatStopsOnDelivered:
         with (
             patch.object(bot, "edit_message") as mock_edit,
             patch.object(bot, "_tmux_session_exists", return_value=True),
-            patch("apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
         ):
             bot._start_heartbeat(42, 999)
             time.sleep(0.4)
@@ -236,7 +236,7 @@ class TestReplyNotClobbered:
         with (
             patch.object(bot, "edit_message") as mock_edit,
             patch.object(bot, "_tmux_session_exists", return_value=True),
-            patch("apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
         ):
             bot._start_heartbeat(42, 999)
             time.sleep(0.4)
