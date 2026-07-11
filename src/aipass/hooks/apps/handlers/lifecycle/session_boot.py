@@ -144,6 +144,13 @@ def boot(cwd: str | None = None, extra_args: list[str] | None = None) -> dict:
 
     defaults = _DEFAULT_ARGS if not (extra_args and "--permission-mode" in extra_args) else []
 
+    if extra_args and "-p" in extra_args:
+        logger.info("[SESSION_BOOT] Headless mode (-p) — running claude directly, no tmux")
+        claude_cmd = [claude_bin] + defaults
+        claude_cmd.extend(extra_args)
+        os.execvp(claude_bin, claude_cmd)
+        return {"exit_code": 0, "action": "direct", "reason": "headless -p mode"}
+
     if os.environ.get("TMUX"):
         logger.info("[SESSION_BOOT] Already inside tmux — running claude directly")
         claude_cmd = [claude_bin] + defaults

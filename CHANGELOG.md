@@ -61,7 +61,28 @@ PyPI version — not the changelog header.
   it — zero raw log appenders remain fleet-wide.
   (@prax + @backup/@hooks/@trigger, verified devpulse)
 
+- **Hook engine: Codex bridge + portable test suite (issue #635, DPLAN-0184
+  leftovers).** The engine now drives Codex hooks the same way it drives Claude:
+  new `handlers/bridges/codex.py` mirrors the claude.py bridge (same
+  `EventType:hook_name` dispatch) with Codex protocol normalization — stdin
+  remaps `input`→`tool_input`, stdout wraps in the `hookSpecificOutput` envelope
+  (`additionalContext` for injection, `permissionDecision` +
+  `permissionDecisionReason` for blocks — fixing the known DPLAN-0205 bugs:
+  missing reason, wrong field name). And `drone @hooks test` is a portable
+  drop-in runner that fires every hook from `.aipass/hooks.json` with mock data
+  per event type and reports fired/blocked/disabled/crashed with timing
+  (`--verbose` previews output). 23 new tests (12 bridge + 11 runner), seedgo
+  31/31 both. (built by @hooks, verified by devpulse)
+
 ### Fixed
+
+- **hooks/bridge: `-p` headless invocations no longer routed through tmux
+  (issue #677, DPLAN-0226 fine-tune leftover).** The boot wrapper
+  (`session_boot.py`) applied its tmux/session-lookup/live-attach logic to every
+  invocation — wrong for `claude -p`, a non-interactive one-shot that never
+  registers in `~/.claude/sessions`. The wrapper now detects `-p` in extra_args
+  and short-circuits to direct `execvp` of claude — no tmux, no session lookup.
+  +5 tests (39 pass). (built by @hooks, verified by devpulse)
 
 - **Owner-capability PART 4 — devpulse's `watchdog` + `feedback` now gate on the
   sealed-registry owner, and cross-project (issue #681).** Closes the

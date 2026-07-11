@@ -50,6 +50,7 @@ src/aipass/hooks/
 │   ├── sound.py                 # Shared sound utilities (speak, play, mute)
 │   ├── modules/
 │   │   ├── cadence.py           # Prompt injection cadence (every-Nth-turn gating)
+│   │   ├── hook_test.py         # Portable test runner (drone @hooks test)
 │   │   ├── cc_sessions.py       # CC-native session file reader (~/.claude/sessions/<pid>.json)
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
@@ -59,7 +60,8 @@ src/aipass/hooks/
 │   │   └── wire_verify.py       # Wire verification — provider ↔ project hook wiring checker
 │   ├── handlers/
 │   │   ├── bridges/             # One per provider (thin normalization)
-│   │   │   └── claude.py        # Claude Code bridge
+│   │   │   ├── claude.py        # Claude Code bridge
+│   │   │   └── codex.py         # Codex bridge (normalizes stdin/stdout envelope)
 │   │   ├── prompt/              # Prompt injection hooks
 │   │   │   ├── branch_loader.py #   Injects aipass_local_prompt.md
 │   │   │   ├── tier0_kernel.py  #   Injects tier0 kernel prompt (every turn)

@@ -245,6 +245,65 @@ class TestMain:
         mock_boot.assert_called_once_with(extra_args=None)
 
 
+class TestHeadlessBypass:
+    def test_p_flag_skips_tmux_and_runs_directly(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "do something"])
+        mock_exec.assert_called_once()
+        args = mock_exec.call_args[0][1]
+        assert args[0] == "/usr/local/bin/claude"
+        assert "-p" in args
+        assert "do something" in args
+
+    def test_p_flag_does_not_look_for_live_sessions(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_live_sessions") as mock_live,
+            patch(f"{_MOD}.os.execvp"),
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query"])
+        mock_live.assert_not_called()
+
+    def test_p_flag_does_not_require_tmux(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value=None),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            result = session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query"])
+        assert result["action"] == "direct"
+        assert result["reason"] == "headless -p mode"
+        mock_exec.assert_called_once()
+
+    def test_p_flag_still_gets_permission_mode_default(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query"])
+        cmd = mock_exec.call_args[0][1]
+        assert "--permission-mode" in cmd
+        assert "bypassPermissions" in cmd
+
+    def test_p_flag_respects_custom_permission_mode(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query", "--permission-mode", "default"])
+        cmd = mock_exec.call_args[0][1]
+        assert cmd.count("--permission-mode") == 1
+        assert "default" in cmd
+
+
 class TestPermissionModeDedupe:
     def test_no_extra_args_includes_default(self, tmp_path):
         with (

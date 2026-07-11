@@ -42,6 +42,36 @@
       "reason": "Bridge imports engine module by design \u2014 sole purpose."
     },
     {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "dead_code",
+      "reason": "Bridge called externally by Codex hook settings subprocess \u2014 no internal import. Wired in .codex/hooks.json."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "unused_function",
+      "reason": "main() called as subprocess entry point from Codex hook settings \u2014 never statically imported."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "handlers",
+      "reason": "Bridges import engine module by design \u2014 that is their entire purpose."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "json_structure",
+      "reason": "Thin entry point using stdlib json for Codex protocol envelope \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "architecture",
+      "reason": "Bridge importing engine module is its architectural purpose."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "imports",
+      "reason": "Bridge imports engine module by design \u2014 sole purpose."
+    },
+    {
       "file": "apps/handlers/prompt/identity.py",
       "standard": "dead_code",
       "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.identity.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.identity_injector + fires in engine.jsonl."
@@ -395,6 +425,11 @@
       "file": "apps/modules/engine.py",
       "standard": "modules",
       "reason": "dispatch() is the engine's core purpose \u2014 it IS the module's primary function, not a handler that belongs elsewhere. The engine exists to dispatch; moving dispatch to handlers/ would leave an empty module."
+    },
+    {
+      "file": "apps/modules/hook_test.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.dumps to serialize mock event data for engine dispatch — no JSON file ops needing json_handler."
     },
     {
       "file": "apps/modules/hooksound.py",
