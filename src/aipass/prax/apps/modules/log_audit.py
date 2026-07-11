@@ -63,6 +63,7 @@ def print_help():
     console.print()
     console.print("  [cyan]audit[/cyan]     Show log health summary + any oversized files")
     console.print("  [cyan]enforce[/cyan]   Truncate all oversized files to 1000 lines")
+    console.print("  [cyan]sweep[/cyan]     Delete log files older than 30 days")
     console.print()
     console.print("[yellow]Usage:[/yellow]")
     console.print()
@@ -71,6 +72,9 @@ def print_help():
     console.print()
     console.print("  [dim]# Truncate all oversized files to 1000 lines[/dim]")
     console.print("  $ drone @prax log-audit enforce")
+    console.print()
+    console.print("  [dim]# Delete log files older than 30 days[/dim]")
+    console.print("  $ drone @prax log-audit sweep")
     console.print()
 
 
@@ -183,6 +187,10 @@ def handle_command(command: str, args: List[str]) -> bool:
         _run_branch_enforce()
         return True
 
+    if subcmd == "sweep":
+        _run_sweep()
+        return True
+
     error(f"Unknown log-audit subcommand: {subcmd}")
     print_help()
     return True
@@ -232,6 +240,30 @@ def _run_branch_enforce():
             console.print(f"  [green]OK[/green] {action['branch']}/{action['name']}: within limits")
     console.print()
     logger.info("[log-audit] Enforced branch log limits on %d files", len(actions))
+
+
+def sweep_stale_logs():
+    """Public re-export of the watchdog sweep for module-layer access."""
+    from aipass.prax.apps.handlers.logging.log_watchdog import sweep_stale_logs as _sweep
+
+    return _sweep()
+
+
+def _run_sweep():
+    """Execute stale log sweep and display results."""
+    from aipass.prax.apps.handlers.logging.log_watchdog import sweep_stale_logs
+
+    console.print("\n[bold cyan]Sweeping stale logs (>30 days)...[/bold cyan]")
+    result = sweep_stale_logs()
+
+    if not result["files_removed"]:
+        console.print("[green]No stale logs found — nothing to delete[/green]\n")
+        return
+
+    for entry in result["removed"]:
+        console.print(f"  [red]DELETED[/red] {entry['name']}: {entry['age_days']} days old, {entry['size_kb']} KB")
+    console.print(f"\n  Removed {result['files_removed']} file(s), reclaimed {result['total_reclaimed_kb']} KB\n")
+    logger.info("[log-audit] Sweep removed %d stale files", result["files_removed"])
 
 
 if __name__ == "__main__":

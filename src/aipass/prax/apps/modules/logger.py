@@ -36,15 +36,12 @@ __all__ = [
     "handle_command",
     "MODULE_NAME",
     "DATA_FILE",
+    "append_jsonl",
 ]
 
 import logging
 import threading
 from typing import Dict, Any
-
-# Stdlib logger for except-block compliance (seedgo requires variable named 'logger')
-# SystemLogger methods shadow this with local 'logger = get_system_logger()' which is fine
-logger = logging.getLogger(__name__)
 
 # NOTE: CLI imports are done lazily inside functions to avoid circular dependency.
 # CLI imports prax logger, so prax logger must not import CLI at module level.
@@ -62,7 +59,12 @@ from aipass.prax.apps.handlers.discovery.watcher import start_file_watcher, is_f
 from aipass.prax.apps.handlers.registry.load import load_module_registry
 from aipass.prax.apps.handlers.config.load import get_system_logs_dir, get_module_logs_dir, PRAX_JSON_DIR
 from aipass.prax.apps.handlers.logging.direct import get_direct_logger, direct_log, DirectLogger
+from aipass.prax.apps.handlers.logging.jsonl_writer import append_jsonl
 from aipass.prax.apps.handlers.json import json_handler
+
+# Stdlib logger for except-block compliance (seedgo requires variable named 'logger')
+# SystemLogger methods shadow this with local 'logger = get_system_logger()' which is fine
+logger = logging.getLogger(__name__)
 
 # Module constants
 MODULE_NAME = "prax_logger"

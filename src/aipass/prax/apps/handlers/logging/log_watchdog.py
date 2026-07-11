@@ -28,6 +28,7 @@ Two modes:
 
 import logging
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -71,6 +72,9 @@ CRITICAL_THRESHOLD_LINES = 10000  # Immediate action recommended
 BRANCH_WARN_SIZE_MB = 1.0
 BRANCH_CRITICAL_SIZE_MB = 10.0
 BRANCH_DEFAULT_MAX_LINES = 5000
+
+# Sweep — stale log cleanup
+SWEEP_MAX_AGE_DAYS = 30
 
 
 # =============================================================================
@@ -413,6 +417,80 @@ def branch_log_health_summary() -> Dict[str, Any]:
         "largest_file": f"{largest['branch']}/{largest['name']}" if largest else None,
         "largest_size_mb": largest["size_mb"] if largest else 0.0,
         "healthy": len(oversized) == 0,
+    }
+
+
+# =============================================================================
+# SWEEP — stale log cleanup (30-day policy)
+# =============================================================================
+
+
+def _file_age_days(filepath: Path) -> float:
+    """Return file age in days based on mtime."""
+    try:
+        mtime = filepath.stat().st_mtime
+    except OSError as exc:
+        logger.warning("Cannot stat %s for age check: %s", filepath, exc)
+        return 0.0
+    return (time.time() - mtime) / 86400.0
+
+
+def _sweep_directory(directory: Path, patterns: List[str], max_age_days: int) -> List[Dict[str, Any]]:
+    """Delete files matching patterns that are older than max_age_days."""
+    removed: List[Dict[str, Any]] = []
+    if not directory.exists():
+        return removed
+
+    for pattern in patterns:
+        for filepath in sorted(directory.glob(pattern)):
+            age = _file_age_days(filepath)
+            if age < max_age_days:
+                continue
+            size_kb = _get_file_size_kb(filepath)
+            try:
+                filepath.unlink()
+                removed.append(
+                    {
+                        "path": str(filepath),
+                        "name": filepath.name,
+                        "age_days": round(age, 1),
+                        "size_kb": round(size_kb, 1),
+                    }
+                )
+            except OSError as exc:
+                logger.warning("Sweep failed to delete %s: %s", filepath, exc)
+
+    return removed
+
+
+def sweep_stale_logs(max_age_days: int = SWEEP_MAX_AGE_DAYS) -> Dict[str, Any]:
+    """Delete log files older than max_age_days across system_logs/ and branch logs/.
+
+    Scans system_logs/ for *.log and *.log.1, and all branch logs/ directories
+    for *.log, *.log.1, *.jsonl, and *.jsonl.1.
+
+    Returns a summary with counts and the list of removed files.
+    """
+    all_removed: List[Dict[str, Any]] = []
+
+    system_patterns = ["*.log", "*.log.1"]
+    all_removed.extend(_sweep_directory(_get_system_logs_dir(), system_patterns, max_age_days))
+
+    branch_patterns = ["*.log", "*.log.1", "*.jsonl", "*.jsonl.1"]
+    eco_root = _get_ecosystem_root()
+    if eco_root.exists():
+        for branch_dir in sorted(eco_root.iterdir()):
+            logs_dir = branch_dir / "logs"
+            if branch_dir.is_dir() and logs_dir.is_dir():
+                all_removed.extend(_sweep_directory(logs_dir, branch_patterns, max_age_days))
+
+    json_handler.log_operation("log_sweep", {"max_age_days": max_age_days, "files_removed": len(all_removed)})
+
+    return {
+        "max_age_days": max_age_days,
+        "files_removed": len(all_removed),
+        "total_reclaimed_kb": round(sum(f["size_kb"] for f in all_removed), 1),
+        "removed": all_removed,
     }
 
 

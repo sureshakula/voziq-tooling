@@ -1,13 +1,18 @@
 """Prax - Monitoring and logging for AIPass."""
 
 try:
+    from aipass.prax.apps.modules.logger import append_jsonl
+except Exception:
+    append_jsonl = None  # type: ignore[assignment]
+
+try:
     from aipass.prax.apps.modules.logger import system_logger as logger
 except Exception:
     # NullLogger fallback — branches must not crash if prax is broken.
     # Provides no-op info/warning/error so callers keep running.
     import logging as _logging
 
-    class _NullLogger:
+    class NullLogger:
         """Fallback logger when prax SystemLogger fails to import."""
 
         def __init__(self):
@@ -25,4 +30,4 @@ except Exception:
         def error(self, message, *args, **kwargs):
             self._logger.error(message, *args, **kwargs)
 
-    logger = _NullLogger()
+    logger = NullLogger()
