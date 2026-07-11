@@ -25,7 +25,12 @@ PyPI version — not the changelog header.
   aipass, commons — all 14 offenders now at 100%. **Fleet: 17/17 branches at
   100% seedgo compliance** (hooks, skills, devpulse were already compliant).
   Owners self-audited and self-fixed; devpulse verified every diff, re-ran each
-  branch's full test suite, and committed per wave.
+  branch's full test suite, and committed per wave. A full 17-branch test run
+  (~10,349 tests) surfaced one pre-existing flaky test in drone
+  (`test_pr_no_branch_dir` / `test_pr_no_args` lacked cwd isolation, so a real
+  checkout's findable passport made the auth path pass unexpectedly) — given
+  `monkeypatch.chdir(tmp_path)` isolation to match its sibling test, so the full
+  suite is now deterministically green.
 
 ### Fixed
 

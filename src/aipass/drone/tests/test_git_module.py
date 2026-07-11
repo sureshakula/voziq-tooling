@@ -857,13 +857,15 @@ class TestGitModuleRouting:
         assert result["exit_code"] == 1
         assert "cannot detect" in result["stderr"].lower()
 
-    def test_pr_no_args(self) -> None:
+    def test_pr_no_args(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """pr command without args fails (auth or usage)."""
+        monkeypatch.chdir(tmp_path)
         result = handle_command("pr")
         assert result["exit_code"] == 1
 
-    def test_pr_no_branch_dir(self) -> None:
+    def test_pr_no_branch_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """pr command without passport returns auth error."""
+        monkeypatch.chdir(tmp_path)
         result = handle_command("pr", ["some description"])
         assert result["exit_code"] == 1
 
