@@ -182,7 +182,7 @@ def audit_branch(branch: Dict[str, str], bypass_rules: list, pack_path: Path | N
     for name, checker in checkers.items():
         if hasattr(checker, "check_branch_post") and name in scores:
             try:
-                pv, ps = checker.check_branch_post(str(branch_path))
+                pv, ps = checker.check_branch_post(str(branch_path), bypass_rules=bypass_rules)
                 all_violations.setdefault(name, []).extend(pv)
                 if ps:
                     scores[name] = int(sum(ps + [scores[name]]) / (len(ps) + 1))

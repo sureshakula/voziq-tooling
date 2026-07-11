@@ -6,6 +6,11 @@
   },
   "bypass": [
     {
+      "standard": "json_structure",
+      "file": "devpulse_json/compass",
+      "reason": "compass/ is the devpulse-owned Compass decision store (SQLite/FTS5 — db + wal + shm) which needs its own directory. Legitimate data subdir, not operator-config (custom_config/) nor auto-gen root data. Sanctioned exception per #643."
+    },
+    {
       "standard": "architecture",
       "reason": "No 'manager' citizen_class template in spawn. Devpulse is the only manager branch."
     },

@@ -213,6 +213,38 @@ def test_json_structure_check_branch_post(tmp_path):
     assert scores2 == [100]
 
 
+def test_json_structure_bypassed_subdir_passes(tmp_path):
+    """A subdir bypassed via bypass_rules is not flagged."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import _check_json_dir_structure
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+    json_dir = branch / "mybranch_json"
+    json_dir.mkdir()
+    (json_dir / "compass").mkdir()
+
+    bypass_rules = [{"standard": "json_structure", "file": "mybranch_json/compass", "reason": "test"}]
+    violations = _check_json_dir_structure(str(branch), bypass_rules=bypass_rules)
+    assert violations == []
+
+
+def test_json_structure_unbypassed_subdir_still_fails(tmp_path):
+    """An unsanctioned subdir without a bypass entry is still flagged."""
+    from aipass.seedgo.apps.handlers.aipass_standards.json_structure_check import _check_json_dir_structure
+
+    branch = tmp_path / "mybranch"
+    branch.mkdir()
+    json_dir = branch / "mybranch_json"
+    json_dir.mkdir()
+    (json_dir / "compass").mkdir()
+    (json_dir / "random_dir").mkdir()
+
+    bypass_rules = [{"standard": "json_structure", "file": "mybranch_json/compass", "reason": "test"}]
+    violations = _check_json_dir_structure(str(branch), bypass_rules=bypass_rules)
+    assert len(violations) == 1
+    assert "random_dir" in violations[0]["message"]
+
+
 # ---------------------------------------------------------------------------
 # Tests -- naming_check.is_bypassed
 # ---------------------------------------------------------------------------
