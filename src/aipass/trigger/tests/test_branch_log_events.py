@@ -246,9 +246,10 @@ def test_handle_command_start_failure_prints_error():
     watcher.start_branch_log_watcher.return_value = None
     result = mod.handle_command("start", [])
     assert result is True
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    assert any("Failed to start" in s for s in printed), f"Expected failure message in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Failed to start" in s for s in err_args), f"Expected failure message in error() args: {err_args}"
 
 
 def test_handle_command_stop():

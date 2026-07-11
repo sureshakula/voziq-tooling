@@ -288,9 +288,5 @@ if __name__ == "__main__":
     if handle_command(command, remaining_args):
         sys.exit(0)
     else:
-        console.print()
-        console.print(f"[red]Unknown command: {command}[/red]")
-        console.print()
-        console.print("Run [dim]drone @api --help[/dim] for available commands")
-        console.print()
+        error(f"Unknown command: {command}", suggestion="Run 'drone @api --help' for available commands")
         sys.exit(1)

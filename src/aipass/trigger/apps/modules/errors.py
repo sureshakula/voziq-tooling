@@ -323,14 +323,18 @@ def _cmd_detail(console, args: list) -> bool:
 
 def _cmd_suppress(console, args: list) -> bool:
     """Mark error as suppressed with optional reason."""
+    from aipass.cli.apps.modules import error, warning
+
     if not args:
-        console.print("[red]Missing error ID or fingerprint[/red]")
-        console.print("Usage: drone @trigger errors suppress <id_or_fingerprint> [reason]")
+        error(
+            "Missing error ID or fingerprint",
+            suggestion="Usage: drone @trigger errors suppress <id_or_fingerprint> [reason]",
+        )
         return True
 
     entry = _find_by_id_or_fp(args[0])
     if not entry:
-        console.print(f"[red]Error not found:[/red] {args[0]}")
+        error(f"Error not found: {args[0]}")
         return True
 
     reason = " ".join(args[1:]) if len(args) > 1 else "No reason provided"
@@ -338,7 +342,7 @@ def _cmd_suppress(console, args: list) -> bool:
 
     if update_status(fp, "suppressed", reason):
         logger.info(f"[ERRORS] Suppressed {entry.get('id', '?')} ({fp[:12]}): {reason}")
-        console.print(f"[yellow]Suppressed[/yellow] error {entry.get('id', '?')} ({fp[:12]})")
+        warning(f"Suppressed error {entry.get('id', '?')} ({fp[:12]})")
         console.print(f"  Reason: {reason}")
 
         # Phase 5: Source fix pipeline - notify source branch
@@ -352,28 +356,32 @@ def _cmd_suppress(console, args: list) -> bool:
                 update_source_fix_status(fp, "pending_fix")
                 console.print("  [dim]Source fix email could not be sent (status: pending_fix)[/dim]")
     else:
-        console.print(f"[red]Failed to suppress error[/red] {args[0]}")
+        error(f"Failed to suppress error {args[0]}")
     return True
 
 
 def _cmd_resolve(console, args: list) -> bool:
     """Mark error as resolved."""
+    from aipass.cli.apps.modules import error, success
+
     if not args:
-        console.print("[red]Missing error ID or fingerprint[/red]")
-        console.print("Usage: drone @trigger errors resolve <id_or_fingerprint>")
+        error(
+            "Missing error ID or fingerprint",
+            suggestion="Usage: drone @trigger errors resolve <id_or_fingerprint>",
+        )
         return True
 
     entry = _find_by_id_or_fp(args[0])
     if not entry:
-        console.print(f"[red]Error not found:[/red] {args[0]}")
+        error(f"Error not found: {args[0]}")
         return True
 
     fp = entry.get("fingerprint", args[0])
     if update_status(fp, "resolved"):
         logger.info(f"[ERRORS] Resolved {entry.get('id', '?')} ({fp[:12]})")
-        console.print(f"[green]Resolved[/green] error {entry.get('id', '?')} ({fp[:12]})")
+        success(f"Resolved error {entry.get('id', '?')} ({fp[:12]})")
     else:
-        console.print(f"[red]Failed to resolve error[/red] {args[0]}")
+        error(f"Failed to resolve error {args[0]}")
     return True
 
 
@@ -433,6 +441,8 @@ def _cmd_stats(console, args: list) -> bool:
 
 def _cmd_circuit_breaker(console, args: list) -> bool:
     """Show or reset the circuit breaker."""
+    from aipass.cli.apps.modules import error
+
     if args and args[0] == "reset":
         circuit_breaker_reset()
         logger.info("[ERRORS] Circuit breaker manually reset to closed")
@@ -459,9 +469,9 @@ def _cmd_circuit_breaker(console, args: list) -> bool:
         cooldown = cb.get("cooldown_seconds", 0)
         if opened_at > 0:
             remaining = max(0, cooldown - int(time.time() - opened_at))
-            console.print(f"  [red]Dispatch paused[/red] - {remaining}s remaining until half-open")
+            error(f"Dispatch paused - {remaining}s remaining until half-open")
         else:
-            console.print("  [red]Dispatch paused[/red]")
+            error("Dispatch paused")
         console.print()
         console.print("  [dim]Run 'drone @trigger errors circuit-breaker reset' to force close[/dim]")
     elif cb_st == "half_open":

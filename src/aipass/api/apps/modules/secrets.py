@@ -32,7 +32,7 @@ if sys.platform == "win32":
 from typing import Any, List, Optional, Union
 
 from aipass.prax import logger  # noqa: F401 — seedgo imports standard
-from aipass.cli.apps.modules import console, header
+from aipass.cli.apps.modules import console, header, error
 from aipass.api.apps.handlers.json import json_handler
 from aipass.api.apps.handlers.auth import secrets as _handler
 
@@ -156,7 +156,5 @@ if __name__ == "__main__":
         print_help()
         sys.exit(0)
 
-    console.print()
-    console.print(f"[red]Unknown command: {args[0]}[/red]")
-    console.print()
+    error(f"Unknown command: {args[0]}")
     sys.exit(1)

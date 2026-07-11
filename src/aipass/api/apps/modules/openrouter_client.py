@@ -29,7 +29,7 @@ if sys.platform == "win32":
 
 from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, header, success, error
+from aipass.cli.apps.modules import console, header, success, error, warning
 from aipass.api.apps.handlers.json import json_handler
 from aipass.api.apps.handlers.auth import keys
 from aipass.api.apps.handlers.openrouter import client, models
@@ -286,7 +286,7 @@ def check_status():
         console.print("  [cyan]Key configured:[/cyan]  [green]yes[/green]")
         console.print(f"  [cyan]Key:[/cyan]             {masked}")
     else:
-        console.print("  [cyan]Key configured:[/cyan]  [red]no[/red]")
+        warning("API key not configured")
         diagnosis = keys.diagnose_key("openrouter")
         console.print(f"  [cyan]Reason:[/cyan]          {diagnosis}")
 
@@ -300,7 +300,7 @@ def check_status():
         console.print("  [cyan]OpenAI SDK:[/cyan]     [green]available[/green]")
     except ImportError:
         logger.warning("OpenAI SDK not installed")
-        console.print("  [cyan]OpenAI SDK:[/cyan]     [red]missing[/red]")
+        warning("OpenAI SDK not installed")
 
     # Client cache stats
     cache_stats = client.get_cache_stats()
@@ -365,9 +365,5 @@ if __name__ == "__main__":
     if handle_command(command, remaining_args):
         sys.exit(0)
     else:
-        console.print()
-        console.print(f"[red]Unknown command: {command}[/red]")
-        console.print()
-        console.print("Run [dim]drone @api --help[/dim] for available commands")
-        console.print()
+        error(f"Unknown command: {command}", suggestion="Run 'drone @api --help' for available commands")
         sys.exit(1)

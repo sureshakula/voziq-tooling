@@ -233,34 +233,38 @@ def print_help() -> None:
 
 def _handle_mute(console, args: list) -> None:
     """Handle 'medic mute @branch'."""
+    from aipass.cli.apps.modules import error
+
     if not args:
-        console.print("[red]Missing branch name[/red] - usage: medic mute @branch")
+        error("Missing branch name", suggestion="Usage: medic mute @branch")
         return
     branch_name = _extract_branch_name(args[0])
     if not branch_name:
-        console.print("[red]Missing branch name[/red] - usage: medic mute @branch")
+        error("Missing branch name", suggestion="Usage: medic mute @branch")
         return
     if mute_branch(branch_name):
         logger.info(f"[MEDIC] Muted branch: {branch_name}")
         console.print(f"  [yellow]Muted[/yellow] @{branch_name} — errors logged but not dispatched")
     else:
-        console.print(f"  [red]Failed to mute[/red] @{branch_name} — check trigger_config.json")
+        error(f"Failed to mute @{branch_name}", suggestion="Check trigger_config.json")
 
 
 def _handle_unmute(console, args: list) -> None:
     """Handle 'medic unmute @branch'."""
+    from aipass.cli.apps.modules import error
+
     if not args:
-        console.print("[red]Missing branch name[/red] - usage: medic unmute @branch")
+        error("Missing branch name", suggestion="Usage: medic unmute @branch")
         return
     branch_name = _extract_branch_name(args[0])
     if not branch_name:
-        console.print("[red]Missing branch name[/red] - usage: medic unmute @branch")
+        error("Missing branch name", suggestion="Usage: medic unmute @branch")
         return
     if unmute_branch(branch_name):
         logger.info(f"[MEDIC] Unmuted branch: {branch_name}")
         console.print(f"  [green]Unmuted[/green] @{branch_name} — dispatch resumed")
     else:
-        console.print(f"  [red]Failed to unmute[/red] @{branch_name} — check trigger_config.json")
+        error(f"Failed to unmute @{branch_name}", suggestion="Check trigger_config.json")
 
 
 def _handle_status(console) -> None:
@@ -298,9 +302,10 @@ def _handle_status(console) -> None:
 def _handle_on(console) -> None:
     """Handle 'medic on' — enable dispatch and start watcher."""
     from rich.panel import Panel
+    from aipass.cli.apps.modules import error
 
     if not set_enabled(True):
-        console.print("[red]Failed to enable Medic[/red] - check trigger_config.json")
+        error("Failed to enable Medic", suggestion="Check trigger_config.json")
         return
 
     logger.info("[MEDIC] Medic ENABLED - error dispatch active")
@@ -328,9 +333,10 @@ def _handle_on(console) -> None:
 def _handle_off(console) -> None:
     """Handle 'medic off' — disable dispatch and stop watcher."""
     from rich.panel import Panel
+    from aipass.cli.apps.modules import error
 
     if not set_enabled(False):
-        console.print("[red]Failed to disable Medic[/red] - check trigger_config.json")
+        error("Failed to disable Medic", suggestion="Check trigger_config.json")
         return
 
     logger.info("[MEDIC] Medic DISABLED - error dispatch suppressed")
