@@ -200,6 +200,7 @@ class TestRunInstall:
         home = tmp_path / "AIPass"
         with (
             patch(f"{_MOD}._resolve_home", return_value=home),
+            patch(f"{_MOD}.is_throwaway_path", return_value=False),
             patch(f"{_MOD}._clone_repo", return_value=True),
             patch(f"{_MOD}._run_setup", return_value=True),
             patch(f"{_MOD}._verify_binaries", return_value={"drone": "/x/drone", "aipass": "/x/aipass"}),
@@ -339,3 +340,52 @@ class TestSmoke:
     def test_total_steps_constant(self) -> None:
         """The install flow advertises four steps."""
         assert TOTAL_STEPS == 4
+
+
+# ---------------------------------------------------------------------------
+# Throwaway-path gate (#688)
+# ---------------------------------------------------------------------------
+
+
+class TestThrowawayGate:
+    """Install refuses throwaway homes unless --force-global-home."""
+
+    def test_refuses_tmp_home(self, tmp_path) -> None:
+        """run_install returns 1 when home resolves to a temp path."""
+        with (
+            patch(
+                "aipass.aipass.apps.modules.install._resolve_home",
+                return_value=tmp_path,
+            ),
+            patch("aipass.aipass.apps.modules.install.sys.argv", ["aipass", "install"]),
+        ):
+            result = run_install(non_interactive=True, no_init=True)
+        assert result == 1
+
+    def test_force_flag_overrides(self, tmp_path) -> None:
+        """--force-global-home lets a temp home proceed past the gate."""
+        with (
+            patch(
+                "aipass.aipass.apps.modules.install._resolve_home",
+                return_value=tmp_path,
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install.sys.argv",
+                ["aipass", "install", "--force-global-home"],
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install._looks_like_aipass_tree",
+                return_value=True,
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install._run_setup",
+                return_value=True,
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install._verify_binaries",
+                return_value={"drone": "x", "aipass": "x"},
+            ),
+            patch("aipass.aipass.apps.modules.install._handoff_to_init"),
+        ):
+            result = run_install(non_interactive=True, no_init=True)
+        assert result == 0

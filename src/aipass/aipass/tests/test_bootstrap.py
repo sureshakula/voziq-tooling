@@ -24,6 +24,7 @@ from aipass.aipass.apps.handlers.init import scaffold_content as sc
 from aipass.aipass.apps.handlers.init.bootstrap import (
     _merge_hooks_json,
     _sanitize_name,
+    is_throwaway_path,
     init_project,
     update_project,
 )
@@ -1208,3 +1209,37 @@ def test_update_project_cleanup_no_stale_is_noop(tmp_path):
     result = update_project(target)
 
     assert result["removed_files"] == []
+
+
+# ---------------------------------------------------------------------------
+# is_throwaway_path tests
+# ---------------------------------------------------------------------------
+
+
+def test_throwaway_path_detects_tmp(tmp_path):
+    """Paths under the system temp dir are throwaway."""
+    assert is_throwaway_path(str(tmp_path))
+
+
+def test_throwaway_path_detects_scratchpad():
+    """Paths containing 'scratchpad' are throwaway."""
+    assert is_throwaway_path(str(Path.home() / ".claude" / "scratchpad" / "probe_1"))
+
+
+def test_throwaway_path_allows_normal():
+    """Normal home-directory paths are not throwaway."""
+    assert not is_throwaway_path(str(Path.home() / "AIPass"))
+
+
+def test_throwaway_path_allows_project():
+    """A typical project path is not throwaway."""
+    assert not is_throwaway_path(str(Path.home() / "Projects" / "myapp"))
+
+
+def test_settings_omits_throwaway_aipass_home(tmp_path):
+    """_claude_settings refuses to write AIPASS_HOME when it's a throwaway path."""
+    from aipass.aipass.apps.handlers.init.bootstrap import _claude_settings
+
+    content = _claude_settings(str(tmp_path))
+    data = json.loads(content)
+    assert "AIPASS_HOME" not in data.get("env", {})

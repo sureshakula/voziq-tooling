@@ -152,6 +152,46 @@ def _check_system() -> List[CheckResult]:
     return results
 
 
+def _check_global_aipass_home() -> List[CheckResult]:
+    """Check ~/.claude/settings.json env.AIPASS_HOME for stale or temp paths."""
+    from aipass.aipass.apps.handlers.init.bootstrap import is_throwaway_path
+
+    results: List[CheckResult] = []
+    settings_path = Path.home() / ".claude" / "settings.json"
+    if not settings_path.exists():
+        return results
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.info("[doctor] global settings.json unreadable: %s", exc)
+        return results
+    home_val = data.get("env", {}).get("AIPASS_HOME", "")
+    if not home_val:
+        return results
+    home_path = Path(home_val)
+    if not home_path.exists():
+        results.append(
+            CheckResult(
+                "global AIPASS_HOME",
+                GLYPH_FAIL,
+                f"path does not exist: {home_val}",
+                "Fix: edit ~/.claude/settings.json env.AIPASS_HOME to the real repo root",
+            )
+        )
+    elif is_throwaway_path(home_val):
+        results.append(
+            CheckResult(
+                "global AIPASS_HOME",
+                GLYPH_FAIL,
+                f"points to throwaway path: {home_val}",
+                "Fix: edit ~/.claude/settings.json env.AIPASS_HOME to the real repo root",
+            )
+        )
+    else:
+        results.append(CheckResult("global AIPASS_HOME", GLYPH_PASS, home_val, ""))
+    return results
+
+
 def _check_identity() -> List[CheckResult]:
     """Run Identity group checks."""
     results: List[CheckResult] = []
@@ -173,6 +213,8 @@ def _check_identity() -> List[CheckResult]:
                     "Set in ~/.bashrc: export AIPASS_HOME=/path/to/aipass",
                 )
             )
+
+    results.extend(_check_global_aipass_home())
 
     if reg_path is None:
         results.append(CheckResult("registry", GLYPH_FAIL, "not found", "Run 'aipass init' to create registry"))

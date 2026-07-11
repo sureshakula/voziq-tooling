@@ -9,6 +9,22 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-11]
+
+### Fixed
+
+- **`aipass install` from a throwaway path can no longer hijack the machine-wide
+  `AIPASS_HOME` (issue #688).** A probe install run from a `/tmp` scratchpad had
+  rewritten `~/.claude/settings.json` `env.AIPASS_HOME`, silently pointing every
+  Claude Code session on the machine at a dead temp tree (stale python, stale
+  hooks — surfaced as bogus ImportErrors in unrelated work). Three defenses:
+  `bootstrap.is_throwaway_path()` gates the settings write itself (temp dirs +
+  scratchpads never land in global settings); `run_install` refuses a throwaway
+  home loudly with `--force-global-home` as the explicit override; and
+  `aipass doctor` gains a `global AIPASS_HOME` check that flags a nonexistent or
+  throwaway path with fix guidance. +11 tests. (built by @aipass, verified by
+  devpulse against the real hijack path)
+
 ## [2026-07-10]
 
 ### Added

@@ -892,3 +892,72 @@ class TestPromptAutoWireIsatty:
 
         assert result is True
         mock_wire.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _check_global_aipass_home tests (#688)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckGlobalAipassHome:
+    """Tests for _check_global_aipass_home doctor check."""
+
+    def test_nonexistent_path_is_error(self, tmp_path):
+        """AIPASS_HOME pointing to a nonexistent path is flagged as error."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"env": {"AIPASS_HOME": str(tmp_path / "gone")}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
+            results = _check_global_aipass_home()
+        fails = [r for r in results if "does not exist" in r.detail]
+        assert len(fails) == 1
+
+    def test_throwaway_path_is_error(self, tmp_path):
+        """AIPASS_HOME pointing to a temp path is flagged as error."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"env": {"AIPASS_HOME": str(tmp_path)}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
+            results = _check_global_aipass_home()
+        fails = [r for r in results if "throwaway" in r.detail]
+        assert len(fails) == 1
+
+    def test_valid_path_passes(self, tmp_path):
+        """AIPASS_HOME pointing to a real, non-temp path passes."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home, GLYPH_PASS
+
+        real_home = tmp_path / "AIPass"
+        real_home.mkdir()
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"env": {"AIPASS_HOME": str(real_home)}}),
+            encoding="utf-8",
+        )
+        with (
+            patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path),
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+                return_value=False,
+            ),
+        ):
+            results = _check_global_aipass_home()
+        assert any(r.glyph == GLYPH_PASS for r in results)
+
+    def test_no_settings_file_is_noop(self, tmp_path):
+        """Missing ~/.claude/settings.json produces no results."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home
+
+        with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
+            results = _check_global_aipass_home()
+        assert results == []

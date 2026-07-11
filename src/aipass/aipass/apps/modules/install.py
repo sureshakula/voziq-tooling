@@ -46,6 +46,7 @@ from typing import Dict
 from aipass.cli.apps.modules import console, success, warning
 from aipass.prax import logger
 
+from aipass.aipass.apps.handlers.init.bootstrap import is_throwaway_path
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.ui.progress import render_step_header
 
@@ -285,6 +286,16 @@ def run_install(
         return 1
     console.print(f"  Home: [cyan]{home}[/cyan]")
 
+    if is_throwaway_path(home):
+        warning(
+            f"REFUSED: '{home}' is a temporary/scratchpad path. "
+            "Installing here would hijack the machine-wide AIPASS_HOME. "
+            "Use a permanent directory, or pass --force-global-home to override."
+        )
+        if "--force-global-home" not in sys.argv:
+            return 1
+        logger.warning("[install] --force-global-home override: proceeding with throwaway home %s", home)
+
     if _looks_like_aipass_tree(home):
         success(f"AIPass already present at {home} — skipping download")
     elif not _clone_repo(home, dry_run):
@@ -334,6 +345,7 @@ def print_help() -> None:
     console.print("  [green]aipass install --no-symlink[/green]         [dim]# skip global CLI symlinks[/dim]")
     console.print("  [green]aipass install --force-symlink[/green]      [dim]# repoint from another install[/dim]")
     console.print("  [green]aipass install --project DIR[/green]        [dim]# where the first project scaffolds[/dim]")
+    console.print("  [green]aipass install --force-global-home[/green]  [dim]# allow install into /tmp (unsafe)[/dim]")
     console.print("  [green]aipass install --dry-run[/green]            [dim]# walk steps, no side effects[/dim]")
     console.print()
     console.print("[yellow]STEPS:[/yellow] resolve home -> fetch -> setup.sh -> verify -> launch init")

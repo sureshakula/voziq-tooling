@@ -33,8 +33,10 @@ RULES:
 import importlib.util
 import json
 import logging
+import os
 import re
 import shutil
+import tempfile
 import uuid
 from datetime import date
 from pathlib import Path
@@ -46,6 +48,25 @@ logger = logging.getLogger(__name__)
 _STALE_MANAGED_FILES: list[Path] = [
     Path(".aipass") / "aipass_global_prompt.md",
 ]
+
+
+def is_throwaway_path(path: str | Path) -> bool:
+    """True if path is under a temp dir or Claude Code scratchpad."""
+    resolved = str(Path(path).resolve())
+    tmp_roots = [tempfile.gettempdir()]
+    if os.name == "posix":
+        tmp_roots.append("/tmp")
+    for root in tmp_roots:
+        try:
+            r = str(Path(root).resolve())
+        except OSError:
+            logger.info("is_throwaway_path: could not resolve %s", root)
+            continue
+        if resolved == r or resolved.startswith(r + os.sep):
+            return True
+    if "scratchpad" in resolved.lower():
+        return True
+    return False
 
 
 def _sanitize_name(raw: str) -> str:
@@ -215,8 +236,13 @@ def _claude_settings(aipass_home: str | None = None) -> str:
         ],
     }
 
-    if aipass_home:
+    if aipass_home and not is_throwaway_path(aipass_home):
         data["env"] = {"AIPASS_HOME": aipass_home}
+    elif aipass_home:
+        logger.warning(
+            "AIPASS_HOME '%s' is a throwaway path — not writing to settings",
+            aipass_home,
+        )
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
