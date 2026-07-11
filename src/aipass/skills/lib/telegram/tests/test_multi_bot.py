@@ -607,7 +607,9 @@ class TestEnsureTmuxSession:
 
     def test_tmux_not_found_returns_false(self, base_bot):
         """FileNotFoundError (tmux not installed) returns False."""
-        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run", side_effect=FileNotFoundError("tmux")):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.base_bot.subprocess.run", side_effect=FileNotFoundError("tmux")
+        ):
             result = base_bot.ensure_tmux_session()
         assert result is False
 
@@ -912,7 +914,9 @@ class TestCreateCommand:
         self.bot.send_message = MagicMock(return_value={"message_id": 42})
         self.chat_id = 12345
 
-    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.check_telethon_setup", return_value=(False, "not configured"))
+    @patch(
+        "aipass.skills.lib.telegram.apps.handlers.base_bot.check_telethon_setup", return_value=(False, "not configured")
+    )
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
     def test_create_valid_branch(self, mock_validate, mock_get_bot, mock_telethon):
@@ -1205,7 +1209,9 @@ class TestStatusWithRegistry:
             },
         }
         with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("status", "")):
-            with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", return_value="Bot Status"):
+            with patch(
+                "aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", return_value="Bot Status"
+            ):
                 self.bot.process_update(update)
         msg = self.bot.send_message.call_args[0][1]
         assert "Registered Bots" in msg
@@ -1223,7 +1229,9 @@ class TestStatusWithRegistry:
             },
         }
         with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("status", "")):
-            with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", return_value="Bot Status"):
+            with patch(
+                "aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", return_value="Bot Status"
+            ):
                 self.bot.process_update(update)
         msg = self.bot.send_message.call_args[0][1]
         assert "none" in msg.lower()
@@ -1315,7 +1323,9 @@ class TestCreateFlowInProcessUpdate:
 
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.get_bot_by_branch", return_value=None)
     @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.validate_branch")
-    @patch("aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("create", "chat test_branch"))
+    @patch(
+        "aipass.skills.lib.telegram.apps.handlers.base_bot.parse_command", return_value=("create", "chat test_branch")
+    )
     def test_process_update_create_command_routed(self, mock_parse, mock_validate, mock_get_bot):
         """Sending /create chat test_branch should call _handle_create_command."""
         mock_validate.return_value = {"name": "test_branch", "path": "/tmp"}

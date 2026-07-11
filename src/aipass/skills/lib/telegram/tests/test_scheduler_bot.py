@@ -170,7 +170,10 @@ class TestQueueCommand:
         bot = _make_scheduler_bot(tmp_path, _patch_base_bot_deps)
         import subprocess as sp
 
-        with patch("aipass.skills.lib.telegram.apps.handlers.scheduler_bot.subprocess.run", side_effect=sp.TimeoutExpired(QUEUE_CMD, 15)):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.scheduler_bot.subprocess.run",
+            side_effect=sp.TimeoutExpired(QUEUE_CMD, 15),
+        ):
             data = bot._fetch_queue()
 
         assert data is None

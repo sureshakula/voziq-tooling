@@ -116,8 +116,12 @@ class TestStatusUptimes:
 
         with (
             patch.object(bot, "send_message"),
-            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", wraps=build_status_text) as mock_build,
-            patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True),
+            patch(
+                "aipass.skills.lib.telegram.apps.handlers.base_bot.build_status_text", wraps=build_status_text
+            ) as mock_build,
+            patch(
+                "aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True
+            ),
         ):
             bot._dispatch_command(42, ("status", ""))
 
@@ -143,7 +147,9 @@ class TestStatusUptimes:
         # Now check /status — conversation uptime should be near 0
         with (
             patch.object(bot, "send_message") as mock_send,
-            patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True),
+            patch(
+                "aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True
+            ),
         ):
             bot._dispatch_command(42, ("status", ""))
 
@@ -163,7 +169,9 @@ class TestStatusUptimes:
 
         with (
             patch.object(bot, "send_message") as mock_send,
-            patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True),
+            patch(
+                "aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True
+            ),
         ):
             bot._dispatch_command(42, ("status", ""))
 
@@ -180,7 +188,9 @@ class TestBuildStatusText:
     """build_status_text renders daemon_uptime when provided."""
 
     def test_includes_daemon_uptime(self):
-        with patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True
+        ):
             text = build_status_text(
                 session_name="telegram-base",
                 branch_name="base",
@@ -192,7 +202,9 @@ class TestBuildStatusText:
         assert "Uptime: 0h 5m 0s" in text
 
     def test_omits_daemon_uptime_when_none(self):
-        with patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True
+        ):
             text = build_status_text(
                 session_name="telegram-base",
                 branch_name="base",
@@ -203,7 +215,9 @@ class TestBuildStatusText:
         assert "Uptime: 1h 0m 0s" in text
 
     def test_uptime_before_daemon_uptime(self):
-        with patch("aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.telegram_standards._tmux_session_exists", return_value=True
+        ):
             text = build_status_text(
                 session_name="telegram-base",
                 branch_name="base",

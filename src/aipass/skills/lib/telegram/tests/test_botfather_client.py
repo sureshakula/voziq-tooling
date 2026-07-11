@@ -318,7 +318,9 @@ class TestBotFatherClientSendAndWait:
 
         # Shrink the timeout to 0 so the while-loop exits immediately
         with patch("aipass.skills.lib.telegram.apps.handlers.botfather_client.MESSAGE_TIMEOUT", 0):
-            with patch("aipass.skills.lib.telegram.apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock):
+            with patch(
+                "aipass.skills.lib.telegram.apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock
+            ):
                 result = asyncio.run(client._send_and_wait(entity, "/newbot"))
 
         assert result is None

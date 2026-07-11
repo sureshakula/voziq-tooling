@@ -248,7 +248,9 @@ class TestSendMessage:
         """Payload should include chat_id, text, and disable_notification."""
         mock_resp = self._make_mock_response({"ok": True})
 
-        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp) as mock_urlopen:
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp
+        ) as mock_urlopen:
             streamer._send_message("hello world")
 
         # Verify the request was made
@@ -311,7 +313,9 @@ class TestSendMessage:
         """Request should have Content-Type: application/json header."""
         mock_resp = self._make_mock_response({"ok": True})
 
-        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp) as mock_urlopen:
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp
+        ) as mock_urlopen:
             streamer._send_message("test")
 
         req = mock_urlopen.call_args[0][0]
@@ -504,7 +508,10 @@ class TestBaseBotIntegration:
         }
 
         # Patch LogStreamer at the import location in base_bot
-        with patch.object(bot, "send_message"), patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with (
+            patch.object(bot, "send_message"),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer,
+        ):
             mock_instance = MagicMock()
             MockStreamer.return_value = mock_instance
 
@@ -537,7 +544,10 @@ class TestBaseBotIntegration:
             }
         }
 
-        with patch.object(bot, "send_message"), patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with (
+            patch.object(bot, "send_message"),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer,
+        ):
             bot.process_update(fake_update)
             MockStreamer.assert_not_called()
 

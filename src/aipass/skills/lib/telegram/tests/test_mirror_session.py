@@ -127,7 +127,9 @@ class TestLaunchMirrorSession:
         """Returns True without creating if session already exists."""
         has_session = MagicMock(returncode=0)
 
-        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=has_session) as mock_run:
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=has_session
+        ) as mock_run:
             result = launch_mirror_session(session_name="telegram-api", bot_id="api", work_dir="/tmp/test")
 
         assert result is True
@@ -135,7 +137,9 @@ class TestLaunchMirrorSession:
 
     def test_returns_false_when_tmux_not_found(self):
         """Returns False when tmux is not installed."""
-        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", side_effect=FileNotFoundError):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", side_effect=FileNotFoundError
+        ):
             result = launch_mirror_session(session_name="telegram-api", bot_id="api", work_dir="/tmp/test")
 
         assert result is False
@@ -152,7 +156,9 @@ class TestStartService:
     def test_starts_systemd_service(self):
         """Calls systemctl --user start telegram-bot@{bot_id}."""
         mock_result = MagicMock(returncode=0)
-        with patch("aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=mock_result) as mock_run:
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.bot_factory.subprocess.run", return_value=mock_result
+        ) as mock_run:
             result = start_service("api")
 
         assert result is True
