@@ -141,6 +141,34 @@ def _read_json(filepath: Path) -> Optional[dict]:
         return None
 
 
+def _pid_alive_windows(pid: int) -> bool:
+    """Windows-safe liveness check via OpenProcess + GetExitCodeProcess."""
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def _check_lock(branch_path: Path) -> Optional[dict]:
     """Check if branch has an active dispatch lock. Returns lock data or None."""
     lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
@@ -151,14 +179,9 @@ def _check_lock(branch_path: Path) -> Optional[dict]:
             data = json.load(f)
         pid = data.get("pid")
         if pid is not None:
-            try:
-                os.kill(pid, 0)
-                return data  # Process alive, lock valid
-            except ProcessLookupError:
-                logger.info("[wake] Lock PID %s dead — cleaning stale lock", pid)
-            except PermissionError as e:
-                logger.warning("[wake] Lock PID %s permission error: %s", pid, e)
-                return data  # Process exists but can't signal — treat as active
+            if _check_pid_alive(pid):
+                return data
+            logger.info("[wake] Lock PID %s dead — cleaning stale lock", pid)
         # Stale lock — check age (10 min timeout)
         ts = data.get("timestamp", "")
         if ts:
@@ -273,21 +296,33 @@ def _clean_zombies() -> int:
 
 def _check_pid_alive(pid: int) -> bool:
     """Check if a process is alive (not zombie)."""
+    if sys.platform == "win32":
+        try:
+            return _pid_alive_windows(pid)
+        except Exception as exc:
+            logger.info("[wake] PID %s Windows check failed (assuming alive): %s", pid, exc)
+            return True
     try:
         os.kill(pid, 0)
-        # Also verify not zombie via /proc (Linux only)
-        if sys.platform == "linux":
+    except ProcessLookupError as exc:
+        logger.warning("[wake] PID %s not found: %s", pid, exc)
+        return False
+    except PermissionError as exc:
+        logger.warning("[wake] PID %s permission denied: %s", pid, exc)
+        return True
+    except OSError as exc:
+        logger.warning("[wake] PID %s os.kill error (assuming dead): %s", pid, exc)
+        return False
+    if sys.platform == "linux":
+        try:
             with open(f"/proc/{pid}/status", "r") as f:
                 for line in f:
                     if line.startswith("State:"):
                         return "Z" not in line
-        return True
-    except (ProcessLookupError, FileNotFoundError) as e:
-        logger.warning("[wake] PID %s not found: %s", pid, e)
-        return False
-    except PermissionError as e:
-        logger.warning("[wake] PID %s permission denied: %s", pid, e)
-        return True  # Exists but can't check — assume alive
+        except FileNotFoundError as exc:
+            logger.warning("[wake] PID %s /proc not found: %s", pid, exc)
+            return False
+    return True
 
 
 def _spawn_in_systemd_scope(monitor_cmd, branch_path, spawn_env, branch_email, lock_file_path, custom_message, status):

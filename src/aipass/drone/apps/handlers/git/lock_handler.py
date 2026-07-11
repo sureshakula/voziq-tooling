@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,6 +28,57 @@ from aipass.drone.apps.handlers.json import json_handler
 
 _LOCK_FILENAME = ".git_pr.lock"
 _STALE_THRESHOLD_SECONDS = 600
+
+
+def _pid_alive_windows(pid: int) -> bool:
+    """Windows-safe liveness check via OpenProcess + GetExitCodeProcess."""
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _pid_alive(pid: int) -> bool:
+    """Return True if the process is alive. Platform-guarded: Windows uses
+    OpenProcess (os.kill on win32 calls TerminateProcess — kills the target)."""
+    if sys.platform == "win32":
+        try:
+            return _pid_alive_windows(pid)
+        except Exception as exc:
+            logger.info("_pid_alive: PID %s Windows check failed (assuming alive): %s", pid, exc)
+            return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        logger.info("_pid_alive: PID %s not found", pid)
+        return False
+    except PermissionError:
+        logger.info("_pid_alive: PID %s permission denied (alive)", pid)
+        return True
+    except OSError as exc:
+        logger.info("_pid_alive: PID %s OSError (assuming dead): %s", pid, exc)
+        return False
+    return True
 
 
 def find_repo_root() -> Path:
@@ -183,19 +235,9 @@ def check_lock_status() -> dict:
 
     # Check if PID is still alive (orphan detection)
     orphaned = False
-    if pid:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            logger.info("check_lock_status: PID %d not found — lock is orphaned", pid)
-            orphaned = True
-        except PermissionError as exc:
-            # Process exists but we can't signal it — not orphaned
-            logger.warning("check_lock_status: PID %d exists but permission denied for signal check: %s", pid, exc)
-        except OSError:
-            # On Windows, os.kill(pid, 0) raises OSError for non-existent PIDs
-            logger.info("check_lock_status: PID %d not found (OSError) — lock is orphaned", pid)
-            orphaned = True
+    if pid and not _pid_alive(pid):
+        logger.info("check_lock_status: PID %d not alive — lock is orphaned", pid)
+        orphaned = True
 
     status = "active"
     if orphaned:

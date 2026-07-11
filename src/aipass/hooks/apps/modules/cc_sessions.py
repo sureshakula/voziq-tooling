@@ -20,6 +20,7 @@ Used by presence_gate to source truth instead of PRESENCE.central.json.
 
 import json
 import os
+import sys
 from pathlib import Path
 
 from aipass.cli.apps.modules import err_console
@@ -30,10 +31,44 @@ CONSOLE = err_console
 CC_SESSIONS_DIR = Path.home() / ".claude" / "sessions"
 
 
+def _pid_alive_windows(pid: int) -> bool:
+    """Windows-safe liveness check via OpenProcess + GetExitCodeProcess."""
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]  # Windows-only
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def _is_pid_alive(pid: int) -> bool:
     """Check if a process with the given PID exists."""
     if pid <= 1:
         return False
+    if sys.platform == "win32":
+        try:
+            return _pid_alive_windows(pid)
+        except Exception as exc:
+            logger.info("[CC_SESSIONS] PID %d Windows check failed (assuming alive): %s", pid, exc)
+            return True
     try:
         os.kill(pid, 0)
         return True

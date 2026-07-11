@@ -86,6 +86,56 @@ def _write_json(filepath: Path, data: Dict[str, Any]) -> bool:
         return False
 
 
+def _pid_alive_windows(pid: int) -> bool:
+    """Windows-safe liveness check via OpenProcess + GetExitCodeProcess."""
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _pid_alive(pid: int) -> bool:
+    """Return True if the process is alive."""
+    if sys.platform == "win32":
+        try:
+            return _pid_alive_windows(pid)
+        except Exception as exc:
+            logger.info("[daemon] PID %s Windows check failed (assuming alive): %s", pid, exc)
+            return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError as exc:
+        logger.info("[daemon] PID %s not found: %s", pid, exc)
+        return False
+    except PermissionError as exc:
+        logger.info("[daemon] PID %s permission denied (alive): %s", pid, exc)
+        return True
+    except OSError as exc:
+        logger.info("[daemon] PID %s os.kill error (assuming dead): %s", pid, exc)
+        return False
+    return True
+
+
 def _check_lock(branch_path: Path) -> Optional[Dict[str, Any]]:
     """Check if branch has an active dispatch lock. Returns lock data or None."""
     lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
@@ -96,14 +146,9 @@ def _check_lock(branch_path: Path) -> Optional[Dict[str, Any]]:
             data = json.load(f)
         pid = data.get("pid")
         if pid is not None:
-            try:
-                os.kill(pid, 0)
-                return data  # Process alive, lock valid
-            except ProcessLookupError:
-                logger.info("Lock PID %s dead — stale lock cleanup needed", pid)
-            except PermissionError as e:
-                logger.warning("[daemon] Lock PID %s permission error: %s", pid, e)
-                return data  # Process exists, can't signal
+            if _pid_alive(pid):
+                return data
+            logger.info("Lock PID %s dead — stale lock cleanup needed", pid)
         # Stale lock — check age (10 min timeout)
         ts = data.get("timestamp", "")
         if ts:
@@ -214,15 +259,10 @@ def _write_pid_file() -> bool:
     # PID file exists — check if the owning process is alive
     try:
         old_pid = int(DAEMON_PID_FILE.read_text().strip())
-        try:
-            os.kill(old_pid, 0)
-            logger.info(f"Another daemon already running (PID {old_pid}). Exiting.")
+        if _pid_alive(old_pid):
+            logger.info("Another daemon already running (PID %s). Exiting.", old_pid)
             return False
-        except ProcessLookupError:
-            logger.info(f"Removing stale PID file (PID {old_pid} is dead)")
-        except PermissionError:
-            logger.info(f"Another daemon already running (PID {old_pid}, permission denied). Exiting.")
-            return False
+        logger.info("Removing stale PID file (PID %s is dead)", old_pid)
     except (ValueError, OSError):
         logger.info("Corrupt PID file — removing")
 

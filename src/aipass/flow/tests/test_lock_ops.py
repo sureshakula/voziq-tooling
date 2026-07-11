@@ -99,14 +99,14 @@ class TestIsLockStale:
         result = mod.is_lock_stale(lock)
         assert result is True
 
-    def test_permission_error_treated_as_stale(self, tmp_path):
-        """PermissionError from os.kill should treat lock as stale."""
+    def test_permission_error_treated_as_alive(self, tmp_path):
+        """PermissionError from os.kill means process exists — lock valid."""
         mod = _import_lock_ops()
         lock = tmp_path / ".test.lock"
         lock.write_text("1", encoding="utf-8")
         with patch(f"{_MOD}.os.kill", side_effect=PermissionError):
             result = mod.is_lock_stale(lock)
-        assert result is True
+        assert result is False
 
 
 # ═══════════════════════════════════════════════════════════

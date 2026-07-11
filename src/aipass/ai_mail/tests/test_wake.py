@@ -222,7 +222,7 @@ def test_check_lock_alive_pid(tmp_path, monkeypatch):
     lock_file = lock_dir / ".dispatch.lock"
     lock_data = {"pid": 1234, "timestamp": "2026-03-29T10:00:00"}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
-    monkeypatch.setattr(os, "kill", lambda pid, sig: None)
+    monkeypatch.setattr(wake_mod, "_check_pid_alive", lambda pid: True)
     result = _check_lock(tmp_path)
     assert result is not None
     assert result["pid"] == 1234
@@ -235,7 +235,7 @@ def test_check_lock_dead_pid_removes_lock(tmp_path, monkeypatch):
     lock_file = lock_dir / ".dispatch.lock"
     lock_data = {"pid": 99999, "timestamp": "2026-03-29T10:00:00"}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
-    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+    monkeypatch.setattr(wake_mod, "_check_pid_alive", lambda pid: False)
     result = _check_lock(tmp_path)
     assert result is None
     assert not lock_file.exists()
