@@ -97,6 +97,16 @@ PyPI version — not the changelog header.
   --help` (there is no `daemon` binary) and the standard `drone @memory --help`
   (@daemon, @memory). Item 3 became the #685 standard. (multi-branch, verified devpulse)
 
+- **`os.kill(pid, 0)` liveness probes across the fleet are now Windows-safe (issue
+  #684).** On Windows `os.kill(pid, 0)` maps to `TerminateProcess` — the "probe"
+  kills the target. Nine sites across @ai_mail (dispatch daemon/wake), @drone (git
+  lock handler), @flow (runner lock), @hooks (cc_sessions/presence) and @devpulse
+  (watchdog registry) now early-return to an `OpenProcess` + `GetExitCodeProcess`
+  check on win32, mirroring the `watchdog/agent.py` reference. The #682 checker
+  confirms 0 unguarded sites remain (down from 10); the last one,
+  `tools/git_lock_tool.py`, is split to #687 (blocked by the tool's pre-existing
+  gate debt). (fleet migration, verified devpulse)
+
 - **Telegram poll loop no longer re-drains a rate-limited backlog; systemd
   suicide-loop + silent config fallback fixed (issues #668, #669).** #668: the poll
   loop advanced the update offset *after* processing, so a rate-limited/erroring
