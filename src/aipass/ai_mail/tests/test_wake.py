@@ -273,6 +273,12 @@ def test_get_pid_cwd_darwin(monkeypatch, tmp_path):
 
 def test_get_pid_cwd_darwin_failure(monkeypatch):
     """macOS: lsof failure returns None."""
+
+    class FailedResult:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FailedResult())
     assert _get_pid_cwd_darwin("999") is None
 
 
@@ -309,6 +315,14 @@ def test_is_zombie_linux_zombie(monkeypatch, tmp_path):
 
 def test_is_zombie_linux_no_proc(monkeypatch):
     """Missing /proc entry returns False (not zombie, just gone)."""
+    _real_open = open
+
+    def _fake_open(path, *a, **kw):
+        if "/proc/99999/" in str(path):
+            raise FileNotFoundError(path)
+        return _real_open(path, *a, **kw)
+
+    monkeypatch.setattr("builtins.open", _fake_open)
     assert _is_zombie_linux(99999) is False
 
 

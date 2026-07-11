@@ -34,6 +34,15 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Two more non-hermetic ai_mail tests made deterministic (PR659).** With the full
+  suite now running on varied CI runners, `test_get_pid_cwd_darwin_failure` and
+  `test_is_zombie_linux_no_proc` intermittently failed: they called the real `lsof`
+  (via `subprocess.run`) and real `open("/proc/…")` for a fixed PID (999 / 99999),
+  so on a runner where that PID happened to exist they returned a non-`None` result
+  instead of the expected failure. Mocked `subprocess.run` and `builtins.open` so the
+  tests assert the failure contract without touching real process/`/proc` state.
+  Test-only; deterministic across repeated runs.
+
 - **Windows CI cross-platform fixes — `windows-setup` green (PR659).** Fixing the
   telegram collection errors unmasked 14 pre-existing Windows-only failures across
   six branches. Two root causes. **(1) pid-liveness tests** (ai_mail, flow, hooks,
