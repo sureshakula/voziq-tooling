@@ -6,9 +6,29 @@
 # Modified: 2026-06-10
 # =============================================
 
-"""*_REGISTRY.json discovery and CRUD operations."""
+"""*_REGISTRY.json discovery and CRUD operations.
+
+Identity model (DPLAN-0239, settled 2026-07-11):
+
+  registry.metadata.id
+      PROJECT credential — authoritative, minted once at ``aipass init``.
+      Passport ``citizenship.registry_id`` conforms to it (drone enforces
+      the pair at routing time). Spawn never mints this; bootstrap.py does.
+
+  branch-entry registry_id
+      PER-CITIZEN UUID — set-once, minted by ``add_to_registry`` at entry
+      creation. Uniquely identifies the citizen *within* the project.
+      NOT the project credential; NOT copied from the passport.
+
+  owner (entry field, ``True`` / absent)
+      Sealed authority flag. First agent = project owner.  Seated via
+      ``ensure_project_has_owner`` at creation time. ``citizen_class ==
+      'manager'`` is a cosmetic preference for the seating heuristic,
+      never the gate — the entry ``owner: true`` IS the gate.
+"""
 
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -136,9 +156,12 @@ def _validate_path_containment(branch_path, registry_path):
         return False
 
 
-def add_to_registry(registry_path, branch_name, branch_path, profile, email, purpose="", registry_id=""):
-    """
-    Add a new branch entry to the registry.
+def add_to_registry(registry_path, branch_name, branch_path, profile, email, purpose=""):
+    """Add a new branch entry to the registry.
+
+    Always mints a fresh per-citizen UUID for the entry's ``registry_id``
+    (the citizen UID).  This is NOT the project credential — that lives
+    in ``metadata.id`` and is copied into passports separately.
 
     Uses file locking around the entire read-modify-write cycle to prevent
     corruption from concurrent spawns. Skips locking on Windows.
@@ -193,9 +216,8 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
             "status": "active",
             "created": today,
             "last_active": today,
+            "registry_id": str(uuid.uuid4()),
         }
-        if registry_id:
-            entry["registry_id"] = registry_id
 
         if isinstance(branches, dict):
             branches[branch_name] = entry
@@ -269,11 +291,49 @@ def fix_passport_registry_id(branch_dir: Path, registry_path: Path) -> bool:
         return False
 
 
+def pick_owner_branch(branches, project_root):
+    """Select which branch entry should be the owner (no writes).
+
+    Canonical heuristic (first match wins):
+      1. citizen_class == "manager" (cosmetic preference, not the gate)
+      2. passport citizenship.owner == true
+      3. First agent by ``created`` date (ultimate fallback)
+
+    Args:
+        branches: List of branch entry dicts.
+        project_root: Path to the project root (registry parent dir).
+
+    Returns:
+        The chosen branch entry dict, or None if branches is empty.
+    """
+    if not branches:
+        return None
+
+    project_root = Path(project_root)
+
+    for branch in branches:
+        branch_path = project_root / branch.get("path", "")
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if passport_path.exists():
+            passport = json_handler.read_json(passport_path)
+            if passport and passport.get("identity", {}).get("citizen_class") == "manager":
+                return branch
+
+    for branch in branches:
+        branch_path = project_root / branch.get("path", "")
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if passport_path.exists():
+            passport = json_handler.read_json(passport_path)
+            if passport and passport.get("citizenship", {}).get("owner") is True:
+                return branch
+
+    return min(branches, key=lambda b: b.get("created", "9999-99-99"))
+
+
 def ensure_project_has_owner(registry_path):
     """Ensure exactly one branch entry in the registry has owner:true.
 
-    Owner is determined by citizen_class=manager (read from passport).
-    Falls back to citizen_number==1 if no manager found.
+    Uses ``pick_owner_branch`` for the canonical seating heuristic.
     Writes to the REGISTRY ENTRY (sealed authority), not the passport.
     """
     registry_path = Path(registry_path)
@@ -286,28 +346,7 @@ def ensure_project_has_owner(registry_path):
         if branch.get("owner") is True:
             return False
 
-    registry_root = registry_path.parent
-    owner_branch = None
-
-    for branch in branches:
-        branch_path = registry_root / branch.get("path", "")
-        passport_path = branch_path / ".trinity" / "passport.json"
-        if passport_path.exists():
-            passport = json_handler.read_json(passport_path)
-            if passport and passport.get("identity", {}).get("citizen_class") == "manager":
-                owner_branch = branch
-                break
-
-    if owner_branch is None:
-        for branch in branches:
-            branch_path = registry_root / branch.get("path", "")
-            passport_path = branch_path / ".trinity" / "passport.json"
-            if passport_path.exists():
-                passport = json_handler.read_json(passport_path)
-                if passport and passport.get("citizenship", {}).get("owner") is True:
-                    owner_branch = branch
-                    break
-
+    owner_branch = pick_owner_branch(branches, registry_path.parent)
     if owner_branch is None:
         return False
 
@@ -318,10 +357,13 @@ def ensure_project_has_owner(registry_path):
 
 
 def backfill_owner_and_registry_id(registry_path):
-    """Backfill owner and registry_id fields into all registry branch entries.
+    """Backfill owner and per-citizen registry_id into branch entries.
 
-    - Sets registry_id from each branch's passport citizenship.registry_id
-    - Sets owner:true on the manager branch (devpulse in AIPass)
+    Mints a fresh UUID for any entry that is missing ``registry_id`` or
+    holds a stale project-id duplicate (same value as another entry).
+    Already-unique UUIDs are never touched.
+
+    Also seats owner via ``ensure_project_has_owner`` if missing.
     """
     registry_path = Path(registry_path)
     reg_data = load_registry(registry_path)
@@ -329,32 +371,26 @@ def backfill_owner_and_registry_id(registry_path):
     if not branches:
         return False
 
-    registry_root = registry_path.parent
     changed = False
 
+    seen_ids: dict[str, int] = {}
     for branch in branches:
-        branch_path = registry_root / branch.get("path", "")
-        passport_path = branch_path / ".trinity" / "passport.json"
-        if not passport_path.exists():
-            continue
-        passport = json_handler.read_json(passport_path)
-        if not passport:
-            continue
+        rid = branch.get("registry_id", "")
+        if rid:
+            seen_ids[rid] = seen_ids.get(rid, 0) + 1
 
-        rid = passport.get("citizenship", {}).get("registry_id", "")
-        if rid and "registry_id" not in branch:
-            branch["registry_id"] = rid
-            changed = True
-
-        citizen_class = passport.get("identity", {}).get("citizen_class", "")
-        if citizen_class == "manager" and not branch.get("owner"):
-            branch["owner"] = True
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        if not rid or seen_ids.get(rid, 0) > 1:
+            branch["registry_id"] = str(uuid.uuid4())
             changed = True
 
     if changed:
         save_registry(registry_path, reg_data)
-        logger.info("[registry] Backfilled owner + registry_id into registry entries")
-    return changed
+        logger.info("[registry] Backfilled per-citizen registry_id into entries")
+
+    owner_seated = ensure_project_has_owner(registry_path)
+    return changed or owner_seated
 
 
 def get_owner(start_path=None):

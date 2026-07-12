@@ -11,6 +11,35 @@ PyPI version — not the changelog header.
 
 ## [2026-07-11]
 
+### Added
+
+- **Owner seating made permanent + self-healing for every project (DPLAN-0239,
+  fixes #693).** The owner-capability guard was correct but the DATA was never
+  seeded: every project created before 2026-07-10 had its owner only in the
+  self-editable passport, never in the sealed registry (8/8 external projects
+  unseated; AIPass's own registry was missing `metadata.id` with 13 entries
+  sharing one stale id). Identity model settled: registry `metadata.id` =
+  project credential (passports conform); branch-entry `registry_id` =
+  set-once PER-CITIZEN UUID minted at entry creation; entry `owner:true` =
+  the authority gate (first agent), chosen by ONE shared heuristic
+  (`pick_owner_branch`: manager → passport owner → first-created).
+  New: `drone @spawn sync-registry --check [--json]` (read-only, 7 health
+  flags, pinned JSON schema) and `--fix [--dry-run]` (idempotent reconcile:
+  seat owner, majority-consensus restore of `metadata.id`, mint citizen UIDs,
+  align passports; dry-run fully read-only; never moves a seated owner).
+  `aipass doctor` renders owner health per flag; `doctor --fix`, `install`,
+  and `init update` delegate repair to spawn — existing/external projects
+  self-heal on next update (the missing DPLAN-0231 PART-4 trigger). The adopt
+  path now seats owners; `placeholders.py` resolves the registry from the
+  target dir (was CWD) and fails loud. @hooks `auto_watchdog` now injects the
+  real Monitor-tool watchdog command with the actual @target (was a dead
+  one-liner + `run_in_background`, which cannot wake a session). Deployed
+  live: AIPass + 6 external projects reconciled and verified clean — VERA is
+  now seated owner of Vera Studio (`is_owner('@vera') = True`, was refused).
+  Owners built (spawn 343 / aipass 673 / hooks 961 tests green); devpulse
+  verified every diff, live-ran every stage, full-repo sweep 9364 passed
+  (1 pre-existing skills litter fail → #694).
+
 ### Changed
 
 - **Fleet seedgo compliance sweep — every branch to 100% (issues #686, #661).**

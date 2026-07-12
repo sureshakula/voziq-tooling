@@ -660,48 +660,74 @@ _MOD_UPDATE = "aipass.aipass.apps.modules.init_flow"
 
 
 class TestInitUpdateRegistrySync:
-    """Tests for registry sync subprocess call in _handle_init_update."""
+    """Tests for owner/identity check+fix in _handle_init_update (DPLAN-0239 P5)."""
 
-    def test_sync_success_prints_message(self, tmp_path: Path) -> None:
-        """Successful drone sync-registry prints 'Registry synced.'"""
-        mock_result = MagicMock(returncode=0)
+    def test_clean_check_prints_ok(self, tmp_path: Path) -> None:
+        """Clean --check (exit 0) prints 'Owner/identity OK.' and skips --fix."""
+        check_proc = MagicMock(returncode=0, stdout="", stderr="")
         with (
             patch(
                 "aipass.aipass.apps.handlers.init.bootstrap.update_project",
                 return_value={"updated_files": [], "already_current": []},
             ),
-            patch(f"{_MOD_UPDATE}.subprocess.run", return_value=mock_result) as mock_run,
+            patch(f"{_MOD_UPDATE}.subprocess.run", return_value=check_proc) as mock_run,
             patch(f"{_MOD_UPDATE}.console"),
             patch(f"{_MOD_UPDATE}.success") as mock_success,
             patch(f"{_MOD_UPDATE}.json_handler"),
         ):
             rc = _handle_init_update([str(tmp_path)])
         assert rc == 0
-        mock_run.assert_called_once_with(
-            ["drone", "@spawn", "sync-registry", "--fix"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        sync_calls = [c for c in mock_success.call_args_list if "Registry synced" in str(c)]
-        assert len(sync_calls) == 1
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        assert "--check" in args
+        ok_calls = [c for c in mock_success.call_args_list if "Owner/identity OK" in str(c)]
+        assert len(ok_calls) == 1
 
-    def test_sync_failure_degrades_silently(self, tmp_path: Path) -> None:
-        """Non-zero exit from drone sync-registry is silently skipped."""
-        mock_result = MagicMock(returncode=1)
+    def test_issues_trigger_fix(self, tmp_path: Path) -> None:
+        """Non-zero --check triggers --fix; success prints reconciled."""
+        check_proc = MagicMock(returncode=1, stdout="", stderr="")
+        fix_proc = MagicMock(returncode=0, stdout="", stderr="")
         with (
             patch(
                 "aipass.aipass.apps.handlers.init.bootstrap.update_project",
                 return_value={"updated_files": [], "already_current": []},
             ),
-            patch(f"{_MOD_UPDATE}.subprocess.run", return_value=mock_result),
-            patch(f"{_MOD_UPDATE}.console") as mock_console,
+            patch(
+                f"{_MOD_UPDATE}.subprocess.run",
+                side_effect=[check_proc, fix_proc],
+            ) as mock_run,
+            patch(f"{_MOD_UPDATE}.console"),
+            patch(f"{_MOD_UPDATE}.success") as mock_success,
+            patch(f"{_MOD_UPDATE}.warning"),
             patch(f"{_MOD_UPDATE}.json_handler"),
         ):
             rc = _handle_init_update([str(tmp_path)])
         assert rc == 0
-        sync_calls = [c for c in mock_console.print.call_args_list if "Registry synced" in str(c)]
-        assert len(sync_calls) == 0
+        assert mock_run.call_count == 2
+        fix_args = mock_run.call_args_list[1][0][0]
+        assert "--fix" in fix_args
+        reconciled = [c for c in mock_success.call_args_list if "reconciled" in str(c)]
+        assert len(reconciled) == 1
+
+    def test_fix_failure_degrades_silently(self, tmp_path: Path) -> None:
+        """Non-zero --fix exit degrades gracefully (no crash)."""
+        check_proc = MagicMock(returncode=1, stdout="", stderr="")
+        fix_proc = MagicMock(returncode=1, stdout="", stderr="")
+        with (
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.update_project",
+                return_value={"updated_files": [], "already_current": []},
+            ),
+            patch(
+                f"{_MOD_UPDATE}.subprocess.run",
+                side_effect=[check_proc, fix_proc],
+            ),
+            patch(f"{_MOD_UPDATE}.console"),
+            patch(f"{_MOD_UPDATE}.warning"),
+            patch(f"{_MOD_UPDATE}.json_handler"),
+        ):
+            rc = _handle_init_update([str(tmp_path)])
+        assert rc == 0
 
     def test_sync_missing_drone_degrades_silently(self, tmp_path: Path) -> None:
         """FileNotFoundError (no drone binary) degrades gracefully."""
@@ -711,13 +737,11 @@ class TestInitUpdateRegistrySync:
                 return_value={"updated_files": [], "already_current": []},
             ),
             patch(f"{_MOD_UPDATE}.subprocess.run", side_effect=FileNotFoundError("drone not found")),
-            patch(f"{_MOD_UPDATE}.console") as mock_console,
+            patch(f"{_MOD_UPDATE}.console"),
             patch(f"{_MOD_UPDATE}.json_handler"),
         ):
             rc = _handle_init_update([str(tmp_path)])
         assert rc == 0
-        sync_calls = [c for c in mock_console.print.call_args_list if "Registry synced" in str(c)]
-        assert len(sync_calls) == 0
 
     def test_sync_timeout_degrades_silently(self, tmp_path: Path) -> None:
         """subprocess.TimeoutExpired degrades gracefully."""

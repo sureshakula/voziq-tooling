@@ -242,6 +242,39 @@ def _handoff_to_init(
         warning(f"Could not launch init: {exc}. Run 'aipass init run' in {project_dir} yourself.")
 
 
+def _check_and_fix_owner(home: Path) -> None:
+    """Run sync-registry --check; if issues found, auto-heal with --fix."""
+    try:
+        check_proc = subprocess.run(
+            ["drone", "@spawn", "sync-registry", "--check"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(home),
+        )
+        if check_proc.returncode != 0:
+            warning("Owner/identity issues detected — auto-repairing…")
+            fix_proc = subprocess.run(
+                ["drone", "@spawn", "sync-registry", "--fix"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(home),
+            )
+            if fix_proc.returncode == 0:
+                success("Registry owner/identity reconciled.")
+            else:
+                logger.warning("[install] sync-registry --fix exit %s", fix_proc.returncode)
+        else:
+            success("Owner/identity OK.")
+    except FileNotFoundError:
+        logger.info("[install] drone not on PATH — skipping owner check")
+    except subprocess.TimeoutExpired:
+        logger.warning("[install] sync-registry timed out during install")
+    except Exception as exc:
+        logger.warning("[install] owner check skipped: %s", exc)
+
+
 def _resolve_project_dir(project: str | None, non_interactive: bool) -> Path | None:
     """Resolve the first-project directory — --project / prompt / DEFAULT_PROJECT."""
     if project:
@@ -316,6 +349,10 @@ def run_install(
     console.print()
     console.print(render_step_header(3, TOTAL_STEPS, "Verifying install"))
     bins = _verify_binaries(home) if not dry_run else {"drone": "dry-run", "aipass": "dry-run"}
+
+    # Owner/identity retro-trigger — check and self-heal via spawn
+    if not dry_run:
+        _check_and_fix_owner(home)
 
     # Step 4 — hand off into init (or print next steps)
     console.print()

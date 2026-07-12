@@ -151,7 +151,7 @@
       "path": ".aipass/README.md"
     },
     "f004": {
-      "content_hash": "bf82b35fa7d5",
+      "content_hash": "840297f5e837",
       "has_branch_placeholder": false,
       "name": "aipass_local_prompt.md",
       "path": ".aipass/aipass_local_prompt.md"

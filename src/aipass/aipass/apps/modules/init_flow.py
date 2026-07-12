@@ -959,16 +959,32 @@ def _handle_init_update(args: list[str]) -> int:
             success("All files already current.")
         if current:
             console.print(f"  ({len(current)} already up to date)")
-        # Heal registry: prune stale entries (e.g. cross-project ../paths)
+        # Owner/identity check + heal via the frozen sync-registry contract
         try:
-            sync_proc = subprocess.run(
-                ["drone", "@spawn", "sync-registry", "--fix"],
+            check_proc = subprocess.run(
+                ["drone", "@spawn", "sync-registry", "--check"],
                 capture_output=True,
                 text=True,
                 timeout=30,
             )
-            if sync_proc.returncode == 0:
-                success("Registry synced.")
+            if check_proc.returncode != 0:
+                warning("Owner/identity issues detected — auto-repairing…")
+                fix_proc = subprocess.run(
+                    ["drone", "@spawn", "sync-registry", "--fix"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if fix_proc.returncode == 0:
+                    success("Registry owner/identity reconciled.")
+                else:
+                    logger.warning("[init_flow] sync-registry --fix exit %s", fix_proc.returncode)
+            else:
+                success("Owner/identity OK.")
+        except FileNotFoundError:
+            logger.info("[init_flow] drone not on PATH — skipping owner check")
+        except subprocess.TimeoutExpired:
+            logger.warning("[init_flow] sync-registry timed out during update")
         except Exception as sync_exc:
             logger.warning("[init_flow] registry sync during update skipped: %s", sync_exc)
 

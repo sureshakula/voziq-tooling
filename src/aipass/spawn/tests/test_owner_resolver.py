@@ -284,9 +284,9 @@ class TestEnsureProjectHasOwner:
 
 
 class TestBackfillOwnerAndRegistryId:
-    """Tests for backfill_owner_and_registry_id()."""
+    """Tests for backfill_owner_and_registry_id() — mints unique per-citizen UUIDs."""
 
-    def test_backfills_registry_id_and_owner(self, tmp_path):
+    def test_mints_unique_uuids_for_entries_missing_registry_id(self, tmp_path):
         from aipass.spawn.apps.handlers.registry import backfill_owner_and_registry_id
 
         reg = tmp_path / "TEST_REGISTRY.json"
@@ -306,9 +306,9 @@ class TestBackfillOwnerAndRegistryId:
                             "last_active": "2026-01-01",
                         },
                         {
-                            "name": "devpulse",
-                            "path": "src/devpulse",
-                            "email": "@devpulse",
+                            "name": "beta",
+                            "path": "src/beta",
+                            "email": "@beta",
                             "status": "active",
                             "profile": "library",
                             "description": "test",
@@ -321,25 +321,50 @@ class TestBackfillOwnerAndRegistryId:
             encoding="utf-8",
         )
 
-        alpha_dir = tmp_path / "src" / "alpha" / ".trinity"
-        alpha_dir.mkdir(parents=True)
-        (alpha_dir / "passport.json").write_text(
-            json.dumps(
-                {
-                    "identity": {"citizen_class": "aipass_framework"},
-                    "citizenship": {"registry_id": "uuid-alpha"},
-                }
-            ),
-            encoding="utf-8",
-        )
+        result = backfill_owner_and_registry_id(reg)
+        assert result is True
 
-        dp_dir = tmp_path / "src" / "devpulse" / ".trinity"
-        dp_dir.mkdir(parents=True)
-        (dp_dir / "passport.json").write_text(
+        data = json.loads(reg.read_text(encoding="utf-8"))
+        alpha_entry = next(b for b in data["branches"] if b["name"] == "alpha")
+        beta_entry = next(b for b in data["branches"] if b["name"] == "beta")
+
+        assert len(alpha_entry["registry_id"]) == 36
+        assert len(beta_entry["registry_id"]) == 36
+        assert alpha_entry["registry_id"] != beta_entry["registry_id"]
+
+    def test_remints_duplicate_registry_ids(self, tmp_path):
+        from aipass.spawn.apps.handlers.registry import backfill_owner_and_registry_id
+
+        shared_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(
             json.dumps(
                 {
-                    "identity": {"citizen_class": "manager"},
-                    "citizenship": {"registry_id": "uuid-dp"},
+                    "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 2},
+                    "branches": [
+                        {
+                            "name": "alpha",
+                            "path": "src/alpha",
+                            "email": "@alpha",
+                            "status": "active",
+                            "profile": "library",
+                            "description": "test",
+                            "created": "2026-01-01",
+                            "last_active": "2026-01-01",
+                            "registry_id": shared_id,
+                        },
+                        {
+                            "name": "beta",
+                            "path": "src/beta",
+                            "email": "@beta",
+                            "status": "active",
+                            "profile": "library",
+                            "description": "test",
+                            "created": "2026-01-02",
+                            "last_active": "2026-01-02",
+                            "registry_id": shared_id,
+                        },
+                    ],
                 }
             ),
             encoding="utf-8",
@@ -349,15 +374,11 @@ class TestBackfillOwnerAndRegistryId:
         assert result is True
 
         data = json.loads(reg.read_text(encoding="utf-8"))
-        alpha_entry = next(b for b in data["branches"] if b["name"] == "alpha")
-        dp_entry = next(b for b in data["branches"] if b["name"] == "devpulse")
+        ids = [b["registry_id"] for b in data["branches"]]
+        assert ids[0] != ids[1]
+        assert ids[0] != shared_id or ids[1] != shared_id
 
-        assert alpha_entry["registry_id"] == "uuid-alpha"
-        assert dp_entry["registry_id"] == "uuid-dp"
-        assert dp_entry["owner"] is True
-        assert alpha_entry.get("owner") is None or alpha_entry.get("owner") is not True
-
-    def test_noop_when_already_backfilled(self, tmp_path):
+    def test_noop_when_already_unique(self, tmp_path):
         from aipass.spawn.apps.handlers.registry import backfill_owner_and_registry_id
 
         reg = tmp_path / "TEST_REGISTRY.json"
@@ -376,21 +397,9 @@ class TestBackfillOwnerAndRegistryId:
                             "created": "2026-01-01",
                             "last_active": "2026-01-01",
                             "owner": True,
-                            "registry_id": "uuid-dp",
+                            "registry_id": "unique-uuid-dp",
                         },
                     ],
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        dp_dir = tmp_path / "src" / "devpulse" / ".trinity"
-        dp_dir.mkdir(parents=True)
-        (dp_dir / "passport.json").write_text(
-            json.dumps(
-                {
-                    "identity": {"citizen_class": "manager"},
-                    "citizenship": {"registry_id": "uuid-dp"},
                 }
             ),
             encoding="utf-8",
@@ -399,7 +408,7 @@ class TestBackfillOwnerAndRegistryId:
         result = backfill_owner_and_registry_id(reg)
         assert result is False
 
-    def test_skips_branches_without_passport(self, tmp_path):
+    def test_seats_owner_when_missing(self, tmp_path):
         from aipass.spawn.apps.handlers.registry import backfill_owner_and_registry_id
 
         reg = tmp_path / "TEST_REGISTRY.json"
@@ -409,9 +418,101 @@ class TestBackfillOwnerAndRegistryId:
                     "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 1},
                     "branches": [
                         {
-                            "name": "ghost",
-                            "path": "src/ghost",
-                            "email": "@ghost",
+                            "name": "alpha",
+                            "path": "src/alpha",
+                            "email": "@alpha",
+                            "status": "active",
+                            "profile": "library",
+                            "description": "test",
+                            "created": "2026-01-01",
+                            "last_active": "2026-01-01",
+                            "registry_id": "unique-alpha-id",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = backfill_owner_and_registry_id(reg)
+        assert result is True
+
+        data = json.loads(reg.read_text(encoding="utf-8"))
+        assert data["branches"][0].get("owner") is True
+
+
+class TestAddToRegistryMintsPerCitizenUid:
+    """Tests for add_to_registry per-citizen UUID minting."""
+
+    def test_always_mints_unique_registry_id(self, tmp_path):
+        from aipass.spawn.apps.handlers.registry import add_to_registry
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(
+            json.dumps(
+                {
+                    "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 0},
+                    "branches": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        add_to_registry(reg, "BRANCH_A", "src/branch_a", "library", "@branch_a", purpose="test")
+
+        data = json.loads(reg.read_text(encoding="utf-8"))
+        entry = data["branches"][0]
+        assert "registry_id" in entry
+        assert len(entry["registry_id"]) == 36  # UUID4 format
+
+    def test_two_entries_get_different_uuids(self, tmp_path):
+        from aipass.spawn.apps.handlers.registry import add_to_registry
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(
+            json.dumps(
+                {
+                    "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 0},
+                    "branches": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        add_to_registry(reg, "BRANCH_A", "src/branch_a", "library", "@branch_a")
+        add_to_registry(reg, "BRANCH_B", "src/branch_b", "library", "@branch_b")
+
+        data = json.loads(reg.read_text(encoding="utf-8"))
+        ids = [b["registry_id"] for b in data["branches"]]
+        assert ids[0] != ids[1]
+
+
+class TestEnsureProjectHasOwnerFirstAgentFallback:
+    """Tests for ensure_project_has_owner first-agent fallback."""
+
+    def test_falls_back_to_first_agent_when_no_manager(self, tmp_path):
+        from aipass.spawn.apps.handlers.registry import ensure_project_has_owner
+
+        reg = tmp_path / "TEST_REGISTRY.json"
+        reg.write_text(
+            json.dumps(
+                {
+                    "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 2},
+                    "branches": [
+                        {
+                            "name": "beta",
+                            "path": "src/beta",
+                            "email": "@beta",
+                            "status": "active",
+                            "profile": "library",
+                            "description": "test",
+                            "created": "2026-02-01",
+                            "last_active": "2026-02-01",
+                        },
+                        {
+                            "name": "alpha",
+                            "path": "src/alpha",
+                            "email": "@alpha",
                             "status": "active",
                             "profile": "library",
                             "description": "test",
@@ -424,58 +525,11 @@ class TestBackfillOwnerAndRegistryId:
             encoding="utf-8",
         )
 
-        result = backfill_owner_and_registry_id(reg)
-        assert result is False
-
-
-class TestAddToRegistryWithRegistryId:
-    """Tests for add_to_registry with registry_id parameter."""
-
-    def test_includes_registry_id_when_provided(self, tmp_path):
-        from aipass.spawn.apps.handlers.registry import add_to_registry
-
-        reg = tmp_path / "TEST_REGISTRY.json"
-        reg.write_text(
-            json.dumps(
-                {
-                    "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 0},
-                    "branches": [],
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        result = add_to_registry(
-            reg,
-            "NEW_BRANCH",
-            "src/new_branch",
-            "library",
-            "@new_branch",
-            purpose="test branch",
-            registry_id="uuid-new",
-        )
+        result = ensure_project_has_owner(reg)
         assert result is True
 
         data = json.loads(reg.read_text(encoding="utf-8"))
-        entry = data["branches"][0]
-        assert entry["registry_id"] == "uuid-new"
-
-    def test_omits_registry_id_when_empty(self, tmp_path):
-        from aipass.spawn.apps.handlers.registry import add_to_registry
-
-        reg = tmp_path / "TEST_REGISTRY.json"
-        reg.write_text(
-            json.dumps(
-                {
-                    "metadata": {"version": "1.0.0", "last_updated": "2026-07-10", "total_branches": 0},
-                    "branches": [],
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        add_to_registry(reg, "NEW_BRANCH", "src/new_branch", "library", "@new_branch")
-
-        data = json.loads(reg.read_text(encoding="utf-8"))
-        entry = data["branches"][0]
-        assert "registry_id" not in entry
+        alpha = next(b for b in data["branches"] if b["name"] == "alpha")
+        beta = next(b for b in data["branches"] if b["name"] == "beta")
+        assert alpha.get("owner") is True
+        assert beta.get("owner") is not True

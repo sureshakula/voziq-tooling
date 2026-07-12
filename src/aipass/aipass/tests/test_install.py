@@ -196,7 +196,7 @@ class TestRunInstall:
         setup.assert_not_called()
 
     def test_full_happy_path(self, tmp_path: Path) -> None:
-        """Clone + setup + verify + next-steps returns success."""
+        """Clone + setup + verify + owner check + next-steps returns success."""
         home = tmp_path / "AIPass"
         with (
             patch(f"{_MOD}._resolve_home", return_value=home),
@@ -204,6 +204,7 @@ class TestRunInstall:
             patch(f"{_MOD}._clone_repo", return_value=True),
             patch(f"{_MOD}._run_setup", return_value=True),
             patch(f"{_MOD}._verify_binaries", return_value={"drone": "/x/drone", "aipass": "/x/aipass"}),
+            patch(f"{_MOD}._check_and_fix_owner"),
             patch(f"{_MOD}._handoff_to_init") as nxt,
         ):
             rc = run_install(non_interactive=True, dry_run=False)
@@ -386,6 +387,63 @@ class TestThrowawayGate:
                 return_value={"drone": "x", "aipass": "x"},
             ),
             patch("aipass.aipass.apps.modules.install._handoff_to_init"),
+            patch("aipass.aipass.apps.modules.install._check_and_fix_owner"),
         ):
             result = run_install(non_interactive=True, no_init=True)
         assert result == 0
+
+
+# ---------------------------------------------------------------------------
+# _check_and_fix_owner tests (DPLAN-0239 P5)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckAndFixOwner:
+    """Tests for install-time owner/identity check+fix retro-trigger."""
+
+    def test_clean_check_skips_fix(self, tmp_path) -> None:
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        mock_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            return_value=mock_proc,
+        ) as mock_run:
+            _check_and_fix_owner(tmp_path)
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        assert "--check" in args
+
+    def test_issues_trigger_fix(self, tmp_path) -> None:
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        check_proc = MagicMock(returncode=1, stdout="", stderr="")
+        fix_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            side_effect=[check_proc, fix_proc],
+        ) as mock_run:
+            _check_and_fix_owner(tmp_path)
+        assert mock_run.call_count == 2
+        fix_args = mock_run.call_args_list[1][0][0]
+        assert "--fix" in fix_args
+
+    def test_drone_not_found_is_silent(self, tmp_path) -> None:
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            _check_and_fix_owner(tmp_path)
+
+    def test_timeout_is_silent(self, tmp_path) -> None:
+        import subprocess as _sp
+
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            side_effect=_sp.TimeoutExpired("drone", 30),
+        ):
+            _check_and_fix_owner(tmp_path)

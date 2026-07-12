@@ -961,3 +961,155 @@ class TestCheckGlobalAipassHome:
         with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
             results = _check_global_aipass_home()
         assert results == []
+
+
+# ---------------------------------------------------------------------------
+# _check_owner_seating / _fix_owner_seating tests (DPLAN-0239 P3+P5)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckOwnerSeating:
+    """Tests for owner/identity detection via sync-registry --check."""
+
+    def test_clean_owner_returns_pass(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        check_json = json.dumps({"clean": True, "owner": "vera", "owner_uid": "8fb38c96-abcd", "issues": []})
+        mock_proc = MagicMock(returncode=0, stdout=check_json, stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_PASS
+        assert "@vera" in results[0].detail
+        assert "8fb38c96" in results[0].detail
+
+    def test_unseated_owner_returns_errors(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        check_json = json.dumps(
+            {
+                "clean": False,
+                "owner": None,
+                "owner_uid": "",
+                "issues": [
+                    {"flag": "no_owner", "detail": "No owner:true in registry"},
+                    {"flag": "metadata_id_missing", "detail": "metadata.id absent"},
+                ],
+            }
+        )
+        mock_proc = MagicMock(returncode=1, stdout=check_json, stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 2
+        assert all(r.glyph == GLYPH_FAIL for r in results)
+        assert results[0].label == "owner/no_owner"
+
+    def test_issue_with_branch_field(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        check_json = json.dumps(
+            {
+                "clean": False,
+                "owner": "vera",
+                "owner_uid": "8fb38c96",
+                "issues": [
+                    {"flag": "entry_rid_stale", "detail": "stale rid", "branch": "vera"},
+                ],
+            }
+        )
+        mock_proc = MagicMock(returncode=1, stdout=check_json, stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_FAIL
+        assert results[0].label == "owner/entry_rid_stale"
+
+    def test_drone_not_found_returns_warn(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+        assert "drone" in results[0].detail
+
+    def test_timeout_returns_warn(self):
+        import subprocess as _sp
+
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=_sp.TimeoutExpired("drone", 30),
+        ):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_non_json_output_returns_warn(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        mock_proc = MagicMock(returncode=1, stdout="not json at all", stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_empty_stdout_exit_zero(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        mock_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_PASS
+
+
+class TestFixOwnerSeating:
+    """Tests for owner/identity repair via sync-registry --fix."""
+
+    def test_fix_success_returns_pass(self):
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        mock_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_PASS
+        assert "reconciled" in results[0].detail
+
+    def test_fix_failure_returns_fail(self):
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        mock_proc = MagicMock(returncode=1, stdout="", stderr="owner conflict")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_FAIL
+
+    def test_fix_drone_not_found(self):
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_fix_timeout(self):
+        import subprocess as _sp
+
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=_sp.TimeoutExpired("drone", 60),
+        ):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN

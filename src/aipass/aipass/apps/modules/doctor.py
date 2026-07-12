@@ -192,6 +192,76 @@ def _check_global_aipass_home() -> List[CheckResult]:
     return results
 
 
+def _check_owner_seating() -> List[CheckResult]:
+    """Check owner/identity health via the frozen sync-registry --check contract."""
+    try:
+        proc = subprocess.run(
+            ["drone", "@spawn", "sync-registry", "--check", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except FileNotFoundError:
+        logger.info("[doctor] drone not on PATH — skipping owner seating check")
+        return [CheckResult("owner", GLYPH_WARN, "drone not found", "Install drone to check owner seating")]
+    except subprocess.TimeoutExpired:
+        logger.warning("[doctor] sync-registry --check timed out")
+        return [CheckResult("owner", GLYPH_WARN, "check timed out", "")]
+
+    stdout = proc.stdout.strip()
+    if not stdout:
+        if proc.returncode == 0:
+            return [CheckResult("owner", GLYPH_PASS, "clean (no details)", "")]
+        return [CheckResult("owner", GLYPH_WARN, "no output from check", "")]
+
+    try:
+        data = json.loads(stdout)
+    except json.JSONDecodeError:
+        logger.warning("[doctor] sync-registry --check returned non-JSON: %s", stdout[:200])
+        return [CheckResult("owner", GLYPH_WARN, "unparseable check output", "")]
+
+    issues = data.get("issues", [])
+    owner_name = data.get("owner")
+    owner_uid = data.get("owner_uid", "")
+    uid_short = owner_uid[:8] if owner_uid else ""
+
+    if data.get("clean", False) and not issues:
+        detail = f"@{owner_name} OK (seated, uid {uid_short})" if owner_name else "OK"
+        return [CheckResult("owner", GLYPH_PASS, detail, "")]
+
+    results: List[CheckResult] = []
+    for issue in issues:
+        flag = issue.get("flag", "unknown")
+        detail = issue.get("detail", flag)
+        results.append(CheckResult(f"owner/{flag}", GLYPH_FAIL, detail, "Run 'aipass doctor --fix'"))
+
+    if not results:
+        label = f"@{owner_name} ISSUES" if owner_name else "UNSEATED"
+        results.append(CheckResult("owner", GLYPH_FAIL, label, "Run 'aipass doctor --fix'"))
+
+    return results
+
+
+def _fix_owner_seating() -> List[CheckResult]:
+    """Delegate owner/identity repair to spawn's sync-registry --fix."""
+    try:
+        proc = subprocess.run(
+            ["drone", "@spawn", "sync-registry", "--fix"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except FileNotFoundError:
+        return [CheckResult("owner fix", GLYPH_WARN, "drone not found", "")]
+    except subprocess.TimeoutExpired:
+        return [CheckResult("owner fix", GLYPH_WARN, "fix timed out", "")]
+
+    if proc.returncode == 0:
+        return [CheckResult("owner fix", GLYPH_PASS, "registry reconciled", "")]
+    detail = proc.stderr.strip()[:120] if proc.stderr else "non-zero exit"
+    return [CheckResult("owner fix", GLYPH_FAIL, detail, "")]
+
+
 def _check_identity() -> List[CheckResult]:
     """Run Identity group checks."""
     results: List[CheckResult] = []
@@ -264,6 +334,8 @@ def _check_identity() -> List[CheckResult]:
             results.append(CheckResult("passport", GLYPH_WARN, "unreadable", "Check .trinity/passport.json"))
     else:
         results.append(CheckResult("passport", GLYPH_WARN, "not found", ""))
+
+    results.extend(_check_owner_seating())
 
     return results
 
@@ -951,6 +1023,10 @@ def run_doctor(verbose: bool = False, interactive: bool = False, fix: bool = Fal
         services = groups.get("Services", [])
         groups["Services"] = [r for r in services if r.label != "wire verify"] + wire_recheck
 
+        owner_fix = _fix_owner_seating()
+        identity = groups.get("Identity", [])
+        groups["Identity"] = [r for r in identity if not r.label.startswith("owner")] + owner_fix
+
     pass_count = 0
     warn_count = 0
     error_count = 0
@@ -1003,7 +1079,7 @@ def print_help() -> None:
     console.print("[yellow]USAGE:[/yellow]")
     console.print("  [green]aipass doctor[/green]           [dim]# Run all checks[/dim]")
     console.print("  [green]aipass doctor --verbose[/green] [dim]# Show sub-check detail[/dim]")
-    console.print("  [green]aipass doctor --fix[/green]     [dim]# Auto-wire + remediation report[/dim]")
+    console.print("  [green]aipass doctor --fix[/green]     [dim]# Auto-wire, owner seat repair + remediation[/dim]")
     console.print("  [green]aipass doctor --fix --json[/green][dim]# Remediation as JSON (for spawn)[/dim]")
     console.print("  [green]aipass doctor --cross-os[/green][dim]# OS-gap + routing/version/hooks pre-flight[/dim]")
     console.print("  [green]aipass doctor --cross-os --e2e[/green][dim]# …also run the heavy e2e suite[/dim]")
