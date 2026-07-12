@@ -63,6 +63,33 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Watchdog Monitor wake no longer double-fires (#693 follow-on, reported by
+  VERA via the feedback channel).** The `watchdog agent` reminder banner
+  ("invoke via Monitor tool, not run_in_background") printed to STDOUT at arm
+  time, and the harness Monitor tool treats every stdout line as a wake event —
+  so every armed watchdog fired a spurious wake the instant it armed, then the
+  real wake at completion. Rerouted to stderr (`err_console`); stdout now
+  carries completion/stall events only, matching the contract the agent handler
+  already followed. Verified live: exactly one wake, on real exit. The devpulse
+  README watchdog/feedback sections were also rewritten to document the owner
+  gate, the 3-step Monitor wake mechanic, why no passive wake can exist, and
+  the 600 s default timeout.
+
+- **Watchdog agent tests thread-race flakes made deterministic (devpulse).**
+  Four tests patched the GLOBAL `time.sleep` with stateful/side-effecting
+  fakes; prax's logger spawns daemon threads on first log, which executed the
+  fakes concurrently with the test (advancing a fake clock, unlinking the
+  fixture lock early, or re-truncating `last_bounce.json` mid-read in
+  `_classify_exit` → `exit_code=None`). All fakes are now thread-scoped via a
+  caller-frame guard: only sleeps from the agent module trigger the test's
+  side effect; foreign threads get a real 1 ms sleep.
+
+- **seedgo-audit back to 100 % after the S300 commits (PR659).** Two 99 %
+  regressions from that day's own work: `aipass` `doctor.py` `_fix_owner_seating`
+  had two silent catches (now log via prax like the sibling check function),
+  and the devpulse README claimed 407 tests where the readme checker counts
+  test functions (corrected to 309).
+
 - **Two more non-hermetic ai_mail tests made deterministic (PR659).** With the full
   suite now running on varied CI runners, `test_get_pid_cwd_darwin_failure` and
   `test_is_zombie_linux_no_proc` intermittently failed: they called the real `lsof`
