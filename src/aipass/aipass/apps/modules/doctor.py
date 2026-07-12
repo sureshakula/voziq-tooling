@@ -252,8 +252,10 @@ def _fix_owner_seating() -> List[CheckResult]:
             timeout=60,
         )
     except FileNotFoundError:
+        logger.info("[doctor] drone not on PATH — skipping owner fix")
         return [CheckResult("owner fix", GLYPH_WARN, "drone not found", "")]
     except subprocess.TimeoutExpired:
+        logger.warning("[doctor] sync-registry --fix timed out")
         return [CheckResult("owner fix", GLYPH_WARN, "fix timed out", "")]
 
     if proc.returncode == 0:

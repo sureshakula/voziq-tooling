@@ -56,6 +56,29 @@ def _write_lock(branch_path: Path, pid: int) -> Path:
     return lock_file
 
 
+def _agent_only_sleep(side_effect):
+    """Wrap a sleep side-effect so ONLY calls from the agent module fire it.
+
+    Patching agent_handler.time.sleep mutates the GLOBAL time module — any
+    daemon thread sleeping during the patch window (prax logger spawns three on
+    first log) would run the side effect concurrently with the main thread,
+    e.g. re-truncating the bounce file mid-read in _classify_exit. Foreign
+    callers get a real 1ms sleep instead. Same guard as _fake_clock_sleep.
+    """
+    agent_file = Path(agent_handler.__file__).resolve()
+    real_sleep = time.sleep
+
+    def fake_sleep(_seconds):
+        caller = Path(sys._getframe(1).f_code.co_filename).resolve()
+        if caller != agent_file:
+            real_sleep(0.001)
+            return
+        side_effect()
+        real_sleep(0.01)
+
+    return fake_sleep
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Unit tests — return shape per branch
 # ─────────────────────────────────────────────────────────────────────────────
@@ -91,17 +114,11 @@ def test_watch_agent_completed_via_lock_removal(monkeypatch, tmp_path):
     lock_file = _write_lock(branch_path, pid=os.getpid())
     monkeypatch.setattr(agent_handler, "_find_repo_root", lambda *a, **kw: tmp_path)
 
-    call_count = {"n": 0}
-    real_sleep = time.sleep
-
-    def fake_sleep(seconds):
-        """Remove the lock on the second poll cycle to simulate clean exit."""
-        call_count["n"] += 1
-        if call_count["n"] >= 1:
-            lock_file.unlink(missing_ok=True)
-        real_sleep(0.01)
-
-    monkeypatch.setattr(agent_handler.time, "sleep", fake_sleep)
+    monkeypatch.setattr(
+        agent_handler.time,
+        "sleep",
+        _agent_only_sleep(lambda: lock_file.unlink(missing_ok=True)),
+    )
 
     result = agent_handler.watch_agent("@fakebranch", timeout_seconds=5, poll_interval=0.01)
 
@@ -121,17 +138,11 @@ def test_watch_agent_completed_replied_via_sent_folder(monkeypatch, tmp_path):
     sent_msg = {"to": "@devpulse", "from": "@fakebranch", "subject": "Done", "timestamp": "2026-04-14 00:01:00"}
     (sent_dir / "reply.json").write_text(json.dumps(sent_msg), encoding="utf-8")
 
-    call_count = {"n": 0}
-    real_sleep = time.sleep
-
-    def fake_sleep(seconds):
-        """Remove lock on first poll to simulate clean exit."""
-        call_count["n"] += 1
-        if call_count["n"] >= 1:
-            lock_file.unlink(missing_ok=True)
-        real_sleep(0.01)
-
-    monkeypatch.setattr(agent_handler.time, "sleep", fake_sleep)
+    monkeypatch.setattr(
+        agent_handler.time,
+        "sleep",
+        _agent_only_sleep(lambda: lock_file.unlink(missing_ok=True)),
+    )
 
     result = agent_handler.watch_agent("@fakebranch", timeout_seconds=5, poll_interval=0.01)
 
@@ -147,15 +158,12 @@ def test_watch_agent_crashed_via_bounce_file(monkeypatch, tmp_path):
     bounce_file = branch_path / ".ai_mail.local" / "last_bounce.json"
     monkeypatch.setattr(agent_handler, "_find_repo_root", lambda *a, **kw: tmp_path)
 
-    real_sleep = time.sleep
-
-    def fake_sleep(seconds):
+    def crash_exit():
         """Drop a bounce file then remove the lock to simulate crash exit."""
         bounce_file.write_text(json.dumps({"exit_code": 1, "reason": "test"}), encoding="utf-8")
         lock_file.unlink(missing_ok=True)
-        real_sleep(0.01)
 
-    monkeypatch.setattr(agent_handler.time, "sleep", fake_sleep)
+    monkeypatch.setattr(agent_handler.time, "sleep", _agent_only_sleep(crash_exit))
 
     result = agent_handler.watch_agent("@fakebranch", timeout_seconds=5, poll_interval=0.01)
 
