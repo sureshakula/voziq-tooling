@@ -86,7 +86,7 @@ drone @flow list open                                      # active plans
 
 # Watchdog
 
-Devpulse module. After dispatch, arm as a background task — it polls the dispatch lock and exits when the agent finishes. Resolves @target → branch path → `.ai_mail.local/.dispatch.lock`. Default timeout 1800s; `drone @devpulse watchdog --help` for the full reference.
+Devpulse module. After dispatch, arm as a background task — it polls the dispatch lock and exits when the agent finishes. Resolves @target → branch path → `.ai_mail.local/.dispatch.lock`. Default timeout **600s** — pass `--timeout <s>` for longer builds (verified live S300; `drone @devpulse watchdog --help` for the full reference).
 
 ```
 drone @ai_mail dispatch @target "Subject" "Body"

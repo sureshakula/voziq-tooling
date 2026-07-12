@@ -20,6 +20,7 @@ a live ai_mail dispatch flow. They're skipped by default in CI.
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -346,12 +347,27 @@ def test_stalltracker_resume_clears_stall(monkeypatch, capsys):
 
 def _fake_clock_sleep(agent_module, monkeypatch, lock_file, unlink_at=200.0, step=60.0):
     """Patch monotonic + sleep with a fake clock that advances `step`s per sleep
-    and unlinks the dispatch lock once the clock passes `unlink_at` (loop exit)."""
+    and unlinks the dispatch lock once the clock passes `unlink_at` (loop exit).
+
+    THREAD-SCOPED (S300): ``agent_module.time`` is the shared stdlib module, so
+    patching ``time.sleep`` is process-global — background daemon threads (prax
+    logger spawns three on first log) also hit the fake and would race the
+    clock forward, unlinking the lock before ``watch_agent`` even reads it
+    (flaked exactly so: 'no active lock' + uptime-sized elapsed). Only sleeps
+    called FROM the agent module advance the clock; foreign callers get a tiny
+    real sleep so they don't spin hot.
+    """
     clock = {"t": 0.0}
+    agent_file = Path(agent_module.__file__).resolve()
+    real_sleep = time.sleep
     monkeypatch.setattr(agent_module.time, "monotonic", lambda: clock["t"])
 
     def fake_sleep(_seconds):
-        """Advance the fake clock and drop the lock once past unlink_at (loop exit)."""
+        """Advance the fake clock for agent-module callers only."""
+        caller = Path(sys._getframe(1).f_code.co_filename).resolve()
+        if caller != agent_file:
+            real_sleep(0.001)  # background thread — keep it off the fake clock
+            return
         clock["t"] += step
         if clock["t"] >= unlink_at:
             lock_file.unlink(missing_ok=True)
