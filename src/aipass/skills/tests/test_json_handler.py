@@ -26,7 +26,7 @@ import pytest
 # Import helper
 # ---------------------------------------------------------------------------
 
-BRANCH_MODULE = "skills"
+BRANCH_MODULE = "aipass.skills"
 _json_mod_path = f"{BRANCH_MODULE}.apps.handlers.json.json_handler"
 
 

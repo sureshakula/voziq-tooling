@@ -9,6 +9,41 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-12]
+
+### Fixed
+
+- **Legacy `builder` citizen_class migration + birth-certificate template
+  (fixes #692).** `builder` was renamed to `aipass_framework` on 2026-07-01
+  (13463c0c) as a pure rename, but passports minted pre-rename kept the retired
+  name, and the seedgo Architecture checker requires
+  `spawn/templates/<citizen_class>/` — hard-capping those citizens below 100%
+  (Vera Studio's @vera/@writer stuck at 99%; same legacy class found in 6
+  external projects). @spawn completed the rename instead of resurrecting a
+  `builder` template: `sync-registry --fix` now migrates the exact value
+  `builder` → `aipass_framework` in passports (idempotent, dry-run safe, 3 new
+  tests), so external projects self-heal via `aipass doctor --fix`. Also fixed
+  the template leftover that kept minting the retired name:
+  `birth_certificate.json` now renders `{{CITIZEN_CLASS}}` like the passport
+  does. Verified: dry-run against Vera Studio's live registry plans exactly the
+  two migrations with zero writes; spawn 347 tests green. #695 closed won't-fix
+  (armed Monitor-tool watchdog is the dispatch indicator; always-arm is the
+  rule).
+- **Order-dependent `test_missing_file` + skills test litter (fixes #694).**
+  Root cause was @prax's `json_handler_module` fixture popping EVERY branch's
+  json_handler from `sys.modules` (never restored), orphaning the module object
+  @skills' conftest had patched — `test_missing_file` then re-imported a fresh
+  module pointed at the real `skills_json/`, planted `ghost_config.json`, and
+  failed on it every later full-repo run (the only failure in an 11k-test
+  sweep). @prax scoped the eviction to `aipass.prax.*` via
+  `monkeypatch.delitem` (auto-restore). @skills made all 4 resilience tests
+  hermetic (patch `SKILLS_JSON_DIR` → `tmp_path` inside the test body, immune
+  to sys.modules state), fully-qualified the legacy bare `skills.`
+  `BRANCH_MODULE` in 3 test files (the source of the remaining litter), and
+  fixed a latent wrong-variable assert. Verified: original failing pair now
+  passes both orders, prax+skills+spawn 1576 tests green, `skills_json/` stays
+  clean after a full run.
+
 ## [2026-07-11]
 
 ### Added

@@ -301,7 +301,7 @@
       "path": "artifacts/README.md"
     },
     "f029": {
-      "content_hash": "0b6e4319781e",
+      "content_hash": "b089aef46e8c",
       "has_branch_placeholder": false,
       "name": "birth_certificate.json",
       "path": "artifacts/birth_certificate.json"
@@ -429,7 +429,7 @@
   },
   "metadata": {
     "description": "Template file tracking registry for ID-based updates",
-    "last_updated": "2026-07-11",
+    "last_updated": "2026-07-12",
     "version": "1.0.0"
   }
 }

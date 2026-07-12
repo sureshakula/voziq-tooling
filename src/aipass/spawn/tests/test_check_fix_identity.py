@@ -454,6 +454,67 @@ class TestFixOwnerIdentity:
         assert result["applied"] is False
 
 
+class TestLegacyCitizenClassMigration:
+    """Tests for builder → aipass_framework passport migration."""
+
+    def test_migrates_builder_to_aipass_framework(self, tmp_path):
+        from aipass.spawn.apps.handlers.sync_registry_ops import fix_owner_identity
+
+        _make_branch(tmp_path, "vera", "src/vera", citizen_class="builder", passport_rid="proj-id")
+        _make_branch(tmp_path, "writer", "src/writer", citizen_class="builder", passport_rid="proj-id")
+        _make_branch(tmp_path, "modern", "src/modern", citizen_class="aipass_framework", passport_rid="proj-id")
+        reg = _write_registry(
+            tmp_path,
+            metadata={"version": "1.0.0", "last_updated": "2026-07-11", "id": "proj-id"},
+            branches=[
+                _entry("vera", "src/vera", owner=True, registry_id="uid-v"),
+                _entry("writer", "src/writer", registry_id="uid-w"),
+                _entry("modern", "src/modern", registry_id="uid-m"),
+            ],
+        )
+
+        result = fix_owner_identity(registry_path=reg)
+        assert any("Migrate" in a and "vera" in a for a in result["actions"])
+        assert any("Migrate" in a and "writer" in a for a in result["actions"])
+        assert not any("modern" in a and "Migrate" in a for a in result["actions"])
+
+        vera_passport = json.loads((tmp_path / "src/vera/.trinity/passport.json").read_text(encoding="utf-8"))
+        assert vera_passport["identity"]["citizen_class"] == "aipass_framework"
+
+        modern_passport = json.loads((tmp_path / "src/modern/.trinity/passport.json").read_text(encoding="utf-8"))
+        assert modern_passport["identity"]["citizen_class"] == "aipass_framework"
+
+    def test_migration_idempotent(self, tmp_path):
+        from aipass.spawn.apps.handlers.sync_registry_ops import fix_owner_identity
+
+        _make_branch(tmp_path, "alpha", "src/alpha", citizen_class="builder", passport_rid="proj-id")
+        reg = _write_registry(
+            tmp_path,
+            metadata={"version": "1.0.0", "last_updated": "2026-07-11", "id": "proj-id"},
+            branches=[_entry("alpha", "src/alpha", owner=True, registry_id="uid-a")],
+        )
+
+        fix_owner_identity(registry_path=reg)
+        result2 = fix_owner_identity(registry_path=reg)
+        assert not any("Migrate" in a for a in result2["actions"])
+
+    def test_migration_dry_run_no_write(self, tmp_path):
+        from aipass.spawn.apps.handlers.sync_registry_ops import fix_owner_identity
+
+        _make_branch(tmp_path, "alpha", "src/alpha", citizen_class="builder", passport_rid="proj-id")
+        reg = _write_registry(
+            tmp_path,
+            metadata={"version": "1.0.0", "last_updated": "2026-07-11", "id": "proj-id"},
+            branches=[_entry("alpha", "src/alpha", owner=True, registry_id="uid-a")],
+        )
+
+        result = fix_owner_identity(registry_path=reg, dry_run=True)
+        assert any("Migrate" in a for a in result["actions"])
+
+        passport = json.loads((tmp_path / "src/alpha/.trinity/passport.json").read_text(encoding="utf-8"))
+        assert passport["identity"]["citizen_class"] == "builder"
+
+
 class TestAdoptCallsEnsureOwner:
     """Test that _adopt_existing calls ensure_project_has_owner."""
 
