@@ -18,7 +18,7 @@ import threading
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers.log_streamer import (  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.log_streamer import (
     LogStreamer,
     TELEGRAM_MAX_LENGTH,
 )
@@ -31,7 +31,7 @@ from apps.handlers.log_streamer import (  # type: ignore[import-not-found]
 
 def _make_streamer(logs_dir, tmp_path, branch_name: str = "api") -> LogStreamer:
     """Build a LogStreamer with SYSTEM_LOGS_DIR redirected to tmp_path."""
-    with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+    with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
         s = LogStreamer(
             bot_token="123:FAKETOKEN",
             chat_id=999888,
@@ -149,7 +149,7 @@ class TestPositionTracking:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write("new_line_3\nnew_line_4\n")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             new_lines = streamer_with_files._read_new_lines()
 
         assert "new_line_3" in new_lines
@@ -157,7 +157,7 @@ class TestPositionTracking:
 
     def test_no_new_content_returns_empty(self, streamer_with_files, logs_dir):
         """If nothing was appended, should return empty list."""
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             new_lines = streamer_with_files._read_new_lines()
         assert new_lines == []
 
@@ -167,7 +167,7 @@ class TestPositionTracking:
         # Simulate rotation: overwrite with smaller content
         log_file.write_text("rotated\n", encoding="utf-8")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             new_lines = streamer_with_files._read_new_lines()
 
         assert "rotated" in new_lines
@@ -177,7 +177,7 @@ class TestPositionTracking:
         new_file = logs_dir / "api_new_module.log"
         new_file.write_text("discovered_line\n", encoding="utf-8")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             new_lines = streamer_with_files._read_new_lines()
 
         assert "discovered_line" in new_lines
@@ -189,7 +189,7 @@ class TestPositionTracking:
         with open(non_matching, "a", encoding="utf-8") as f:
             f.write("should_be_ignored\n")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             new_lines = streamer_with_files._read_new_lines()
 
         assert "should_be_ignored" not in new_lines
@@ -199,7 +199,7 @@ class TestPositionTracking:
         log_file = logs_dir / "api_main.log"
         log_file.unlink()
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             # Should not raise
             new_lines = streamer_with_files._read_new_lines()
 
@@ -215,7 +215,7 @@ class TestPositionTracking:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write("extra\n")
 
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", logs_dir):
             streamer_with_files._read_new_lines()
 
         assert streamer_with_files.log_positions[file_path] > initial_pos
@@ -223,7 +223,7 @@ class TestPositionTracking:
     def test_system_logs_dir_missing_returns_empty(self, streamer, tmp_path):
         """If SYSTEM_LOGS_DIR does not exist, _get_log_files returns empty."""
         missing_dir = tmp_path / "does_not_exist"
-        with patch("apps.handlers.log_streamer.SYSTEM_LOGS_DIR", missing_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.SYSTEM_LOGS_DIR", missing_dir):
             new_lines = streamer._read_new_lines()
         assert new_lines == []
 
@@ -248,7 +248,9 @@ class TestSendMessage:
         """Payload should include chat_id, text, and disable_notification."""
         mock_resp = self._make_mock_response({"ok": True})
 
-        with patch("apps.handlers.log_streamer.urlopen", return_value=mock_resp) as mock_urlopen:
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp
+        ) as mock_urlopen:
             streamer._send_message("hello world")
 
         # Verify the request was made
@@ -264,7 +266,7 @@ class TestSendMessage:
         """Should return True when Telegram responds with ok=True."""
         mock_resp = self._make_mock_response({"ok": True})
 
-        with patch("apps.handlers.log_streamer.urlopen", return_value=mock_resp):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp):
             result = streamer._send_message("test")
 
         assert result is True
@@ -273,14 +275,14 @@ class TestSendMessage:
         """Should return False and not crash on URLError."""
         from urllib.error import URLError
 
-        with patch("apps.handlers.log_streamer.urlopen", side_effect=URLError("fail")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", side_effect=URLError("fail")):
             result = streamer._send_message("test")
 
         assert result is False
 
     def test_returns_false_on_generic_exception(self, streamer):
         """Should return False on any unexpected exception."""
-        with patch("apps.handlers.log_streamer.urlopen", side_effect=RuntimeError("boom")):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", side_effect=RuntimeError("boom")):
             result = streamer._send_message("test")
 
         assert result is False
@@ -290,8 +292,8 @@ class TestSendMessage:
         from urllib.error import URLError
 
         with (
-            patch("apps.handlers.log_streamer.urlopen", side_effect=URLError("network")),
-            patch("apps.handlers.log_streamer.logger") as mock_logger,
+            patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", side_effect=URLError("network")),
+            patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.logger") as mock_logger,
         ):
             streamer._send_message("test")
 
@@ -302,7 +304,7 @@ class TestSendMessage:
         """Should return False when Telegram responds with ok=False."""
         mock_resp = self._make_mock_response({"ok": False})
 
-        with patch("apps.handlers.log_streamer.urlopen", return_value=mock_resp):
+        with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp):
             result = streamer._send_message("test")
 
         assert result is False
@@ -311,7 +313,9 @@ class TestSendMessage:
         """Request should have Content-Type: application/json header."""
         mock_resp = self._make_mock_response({"ok": True})
 
-        with patch("apps.handlers.log_streamer.urlopen", return_value=mock_resp) as mock_urlopen:
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.log_streamer.urlopen", return_value=mock_resp
+        ) as mock_urlopen:
             streamer._send_message("test")
 
         req = mock_urlopen.call_args[0][0]
@@ -420,7 +424,7 @@ class TestStartStop:
             streamer.start()
             first_thread = streamer._thread
 
-            with patch("apps.handlers.log_streamer.logger") as mock_logger:
+            with patch("aipass.skills.lib.telegram.apps.handlers.log_streamer.logger") as mock_logger:
                 streamer.start()
 
             mock_logger.warning.assert_called_once()
@@ -466,9 +470,9 @@ class TestBaseBotIntegration:
     def _patch_base_bot_deps(self, tmp_path):
         """Patch heavy BaseBot dependencies to allow lightweight instantiation."""
         patches = [
-            patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-            patch("apps.handlers.base_bot.signal.signal"),
-            patch("apps.handlers.base_bot.atexit.register"),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
         ]
         for p in patches:
             p.start()
@@ -478,7 +482,7 @@ class TestBaseBotIntegration:
 
     def test_streamer_starts_on_first_message_with_branch_name(self, tmp_path, _patch_base_bot_deps):
         """When branch_name is set, LogStreamer should start on first message."""
-        from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
         workdir = tmp_path / "workdir"
         workdir.mkdir()
@@ -504,7 +508,10 @@ class TestBaseBotIntegration:
         }
 
         # Patch LogStreamer at the import location in base_bot
-        with patch.object(bot, "send_message"), patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with (
+            patch.object(bot, "send_message"),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer,
+        ):
             mock_instance = MagicMock()
             MockStreamer.return_value = mock_instance
 
@@ -515,7 +522,7 @@ class TestBaseBotIntegration:
 
     def test_streamer_not_started_when_branch_name_is_none(self, tmp_path, _patch_base_bot_deps):
         """When branch_name is None (base bot), LogStreamer should NOT be created."""
-        from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
         workdir = tmp_path / "workdir"
         workdir.mkdir()
@@ -537,13 +544,16 @@ class TestBaseBotIntegration:
             }
         }
 
-        with patch.object(bot, "send_message"), patch("apps.handlers.base_bot.LogStreamer") as MockStreamer:
+        with (
+            patch.object(bot, "send_message"),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.LogStreamer") as MockStreamer,
+        ):
             bot.process_update(fake_update)
             MockStreamer.assert_not_called()
 
     def test_cleanup_stops_streamer(self, tmp_path, _patch_base_bot_deps):
         """BaseBot._cleanup should call stop() on the LogStreamer if it exists."""
-        from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
         workdir = tmp_path / "workdir"
         workdir.mkdir()
@@ -566,7 +576,7 @@ class TestBaseBotIntegration:
 
     def test_cleanup_safe_when_no_streamer(self, tmp_path, _patch_base_bot_deps):
         """BaseBot._cleanup should work fine when _log_streamer is None."""
-        from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
         workdir = tmp_path / "workdir"
         workdir.mkdir()

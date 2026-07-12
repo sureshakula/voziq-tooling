@@ -27,7 +27,7 @@ if sys.platform == "win32":
 
 from aipass.prax import logger
 
-from aipass.cli.apps.modules import console, error
+from aipass.cli.apps.modules import console, error, warning
 from aipass.daemon.apps.handlers.json import json_handler
 from aipass.daemon.apps.handlers.update.data_loader import (
     load_inbox,
@@ -117,7 +117,7 @@ def _print_digest(inbox_data: Dict[str, Any], local_data: Dict[str, Any]) -> Non
         console.print("  Recently completed:  [dim]None[/dim]")
     console.print()
 
-    console.print("[bold red]ESCALATIONS NEEDED[/bold red]")
+    warning("ESCALATIONS NEEDED")
     escalations = get_escalations(messages)
     if escalations:
         for msg in escalations:

@@ -30,6 +30,7 @@ if sys.platform == "win32":
 from aipass.prax import logger
 from aipass.cli.apps.modules import console
 
+from aipass.backup.apps.handlers.ignore.patterns import is_ignored, load_spec
 from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.path.builder import build_versioned_store
 from aipass.backup.apps.modules.display import show_drive_result
@@ -116,8 +117,14 @@ def run_drive_sync(
         logger.warning(f"[backup] {result['error']}")
         return result
 
-    # 3. Scan for ALL files (no dotfile filter — the store is already filtered by .backupignore)
-    all_files = [f for f in store_path.rglob("*") if f.is_file()]
+    # 3. Scan store and re-filter through .backupignore (legacy stores may
+    #    contain files swept in before an ignore rule was added).
+    spec = load_spec(str(project_root))
+    raw_files = [f for f in store_path.rglob("*") if f.is_file()]
+    all_files = [f for f in raw_files if not is_ignored(str(f.relative_to(store_path)), spec)]
+    ignored_count = len(raw_files) - len(all_files)
+    if ignored_count:
+        logger.info(f"[backup] Drive sync: filtered {ignored_count} ignored files from store")
 
     result["total"] = len(all_files)
 

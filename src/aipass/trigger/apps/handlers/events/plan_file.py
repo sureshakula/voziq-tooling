@@ -29,6 +29,11 @@ from typing import Optional
 from aipass.trigger.apps.config import TRIGGER_ROOT, AIPASS_PKG_ROOT, atomic_write_json
 from aipass.trigger.apps.handlers.json import json_handler
 
+try:
+    from aipass.prax import append_jsonl as _append_jsonl
+except Exception:
+    _append_jsonl = None
+
 
 def _find_repo_root() -> Path:
     """Walk up from this file to find the repo root (contains AIPASS_REGISTRY.json)."""
@@ -45,21 +50,19 @@ REPO_ROOT = _find_repo_root()
 FLOW_JSON_DIR = AIPASS_PKG_ROOT / "flow" / "flow_json"
 REGISTRY_FILE = FLOW_JSON_DIR / "PLAN_REGISTRY.json"
 
-# Log file for handler errors (no Prax imports in handlers - causes recursion)
-HANDLER_LOG = TRIGGER_ROOT / "logs" / "plan_file_handler.log"
+HANDLER_LOG = TRIGGER_ROOT / "logs" / "plan_file_handler.jsonl"
 
 MODULE_NAME = "trigger.plan_file"
 
 
 def _log_error(message: str) -> None:
-    """Log error to file (handlers cannot import Prax logger - causes recursion)"""
+    """Log error to file (recursion-safe prax path)."""
+    if _append_jsonl is None:
+        return
     try:
-        HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now(timezone.utc).isoformat()
-        with open(HANDLER_LOG, "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] [{MODULE_NAME}] {message}\n")
+        _append_jsonl(HANDLER_LOG, {"level": "ERROR", "module": MODULE_NAME, "msg": message})
     except Exception:
-        pass  # Last resort - cannot fail on logging failure
+        pass  # seedgo:bypass meta-logging
 
 
 def _load_registry() -> dict:

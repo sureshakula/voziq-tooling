@@ -31,7 +31,7 @@ from aipass.prax import logger
 
 # CLI services (display/output formatting)
 from aipass.cli import console, header
-from aipass.cli.apps.modules import warning
+from aipass.cli.apps.modules import error, warning
 
 # JSON handler for tracking
 from aipass.seedgo.apps.handlers.json import json_handler
@@ -118,13 +118,13 @@ def _load_content(content_file: Path, standard_name: str) -> str | None:
         fn = getattr(mod, fn_name, None)
         if fn is None:
             logger.error(f"[standards_query] No {fn_name}() in {content_file.name}")
-            console.print(f"[red]Content handler missing:[/red] {fn_name}() not found in {content_file.name}")
+            error(f"Content handler missing: {fn_name}() not found in {content_file.name}")
             return None
 
         return fn()
     except Exception as e:
         logger.error(f"[standards_query] Failed to load {content_file.name}: {e}")
-        console.print(f"[red]Failed to load content:[/red] {e}")
+        error(f"Failed to load content: {e}")
         return None
 
 
@@ -194,7 +194,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     packs = _discover_packs()
     pack_name = args[0]
     if pack_name not in packs:
-        console.print(f"[red]Unknown pack:[/red] '{pack_name}'")
+        error(f"Unknown pack: '{pack_name}'")
         console.print()
         console.print("[yellow]Available packs:[/yellow]")
         for name in packs:
@@ -211,7 +211,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     standard_name = args[1]
     standards = _discover_standards(packs[pack_name])
     if standard_name not in standards:
-        console.print(f"[red]Unknown standard:[/red] '{standard_name}'")
+        error(f"Unknown standard: '{standard_name}'")
         console.print()
         warning(f"Available standards in {pack_name}:")
         for name in standards:

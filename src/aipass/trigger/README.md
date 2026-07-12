@@ -85,7 +85,7 @@ result = report_error(
 | `plan_file_created` | `plan_file.py` | New PLAN file detected | Updates Flow's PLAN_REGISTRY.json |
 | `plan_file_deleted` | `plan_file.py` | PLAN file removed | Marks plan as deleted in registry |
 | `plan_file_moved` | `plan_file.py` | PLAN file relocated | Updates registry location |
-| `bulletin_created` | `bulletin_created.py` | New system bulletin posted | Propagates to branch dashboards |
+| `bulletin_created` | _(retired → .archive/)_ | New system bulletin posted | **Retired** — handler archived, no longer registered |
 | `memory_threshold_exceeded` | `memory_threshold_exceeded.py` | Memory file near limit (600 lines) | Emails compression notification to branch |
 | `memory_template_updated` | `memory_template_updated.py` | Memory template changed | Pushes template updates to branches |
 | `memory_saved` | `memory.py` | Memory file written | Placeholder for future rollover trigger |
@@ -154,7 +154,7 @@ trigger/
 │       │   ├── error_logged.py     # Monitor-only (no dispatch)
 │       │   ├── warning_logged.py   # Warning monitor
 │       │   ├── plan_file.py        # Plan lifecycle events
-│       │   ├── bulletin_created.py # Bulletin propagation
+│       │   ├── .archive/bulletin_created.py  # Retired
 │       │   ├── memory_threshold_exceeded.py
 │       │   ├── memory_template_updated.py
 │       │   ├── memory.py           # memory_saved placeholder

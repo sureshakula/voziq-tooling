@@ -20,12 +20,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[explore] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 from rich.table import Table
@@ -77,7 +79,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 def _handle_explore(args: List[str]) -> bool:
     result = explore_rooms(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     hidden_rooms = result["hidden_rooms"]
@@ -108,8 +110,8 @@ def _handle_explore(args: List[str]) -> bool:
 
     revealed = result.get("revealed")
     if revealed:
-        console.print(f"[green]Your exploration has paid off! You've visited {rooms_visited} rooms.[/green]")
-        console.print(f"[green]A secret room reveals itself:[/green] [bold magenta]r/{revealed['name']}[/bold magenta]")
+        success(f"Your exploration has paid off! You've visited {rooms_visited} rooms.")
+        success(f"A secret room reveals itself: r/{revealed['name']}")
         console.print(f"  [dim]{revealed['description']}[/dim]")
         console.print()
         console.print(f"[dim]Try: commons enter {revealed['name']}[/dim]")
@@ -126,7 +128,7 @@ def _handle_explore(args: List[str]) -> bool:
 def _handle_secrets(args: List[str]) -> bool:
     result = list_secrets(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     discovered = result["discovered"]

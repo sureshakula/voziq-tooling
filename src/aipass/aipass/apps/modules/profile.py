@@ -24,7 +24,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, error, success, warning
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
@@ -151,13 +151,13 @@ def handle_command(command: str, args: list[str]) -> bool:
             return True
         field, value = args[1], args[2]
         if field not in USER_FIELDS:
-            console.print(f"[red]Unknown field: {field}[/red]")
+            error(f"Unknown field: {field}")
             console.print("[dim]Valid fields: " + ", ".join(USER_FIELDS) + "[/dim]")
             return True
         profile = get_user_profile()
         profile[field] = value
         save_profile(profile)
-        console.print(f"[green]✓[/green] {field} = {value}")
+        success(f"{field} = {value}")
         return True
 
     if args[0] == "clear":
@@ -166,7 +166,7 @@ def handle_command(command: str, args: list[str]) -> bool:
         skip_confirm = any(a in ("--yes", "-y") for a in args[1:])
         if skip_confirm:
             save_profile({f: None for f in USER_FIELDS})
-            console.print("[green]✓[/green] Profile cleared.")
+            success("Profile cleared.")
             return True
         warning("Type 'aipass' to confirm clearing your profile (ctrl-C to cancel):")
         try:
@@ -177,7 +177,7 @@ def handle_command(command: str, args: list[str]) -> bool:
             return True
         if confirm == "aipass":
             save_profile({f: None for f in USER_FIELDS})
-            console.print("[green]✓[/green] Profile cleared.")
+            success("Profile cleared.")
         else:
             console.print("[yellow]Cancelled.[/yellow]")
         return True

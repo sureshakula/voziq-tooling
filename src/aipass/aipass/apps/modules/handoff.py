@@ -21,7 +21,7 @@ Usage:
 
 from __future__ import annotations
 
-from aipass.cli.apps.modules import console, warning
+from aipass.cli.apps.modules import console, success, warning
 from aipass.prax import logger
 
 from aipass.aipass.apps.handlers.json import json_handler
@@ -64,7 +64,7 @@ def do_handoff(
 
     if launched:
         console.print()
-        console.print(f"[green]✓[/green] Session started via tmux/wt — CLI: [cyan]{cli}[/cyan]")
+        success(f"Session started via tmux/wt — CLI: {cli}")
         console.print(f"[dim]Session name: aipass-handoff | cwd: {cwd}[/dim]")
         console.print()
     else:

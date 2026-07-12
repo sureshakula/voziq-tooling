@@ -152,6 +152,10 @@ def _check_hook_readme_accountability(cwd: str, repo_root: Path) -> str | None:
 def handle(hook_data: dict) -> dict:
     """Check modified files against seedgo standards on subagent stop."""
     try:
+        agent_type = hook_data.get("agent_type", "")
+        if not agent_type:
+            return _ALLOW
+
         cwd = hook_data.get("cwd", "") or os.getcwd()
         repo_root = _find_repo_root(cwd)
         if repo_root is None:

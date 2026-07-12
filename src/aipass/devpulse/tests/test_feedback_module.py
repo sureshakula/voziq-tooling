@@ -1,7 +1,10 @@
-# META
-# module: devpulse.feedback
-# description: Tests for feedback module command routing
-# END META
+# =================== AIPass ====================
+# Name: test_feedback_module.py
+# Description: Tests for feedback module command routing
+# Version: 1.0.0
+# Created: 2026-04-11
+# Modified: 2026-07-10
+# =============================================
 
 """Tests for feedback module — command routing via handle_command()."""
 
@@ -11,6 +14,13 @@ import pytest
 
 from aipass.devpulse.apps.handlers.feedback import storage
 from aipass.devpulse.apps.modules import feedback as feedback_module
+
+
+@pytest.fixture(autouse=True)
+def _bypass_caller_guard():
+    """Force _guard_caller to pass so routing tests don't depend on owner env."""
+    with patch.object(feedback_module, "_guard_caller", return_value=True):
+        yield
 
 
 @pytest.fixture
@@ -181,6 +191,35 @@ class TestCommandRouting:
         """Should handle unknown subcommands gracefully."""
         result = feedback_module.handle_command("feedback", ["nonexistent"])
         assert result is True  # Handled (shows error + hint)
+
+
+class TestOwnerGate:
+    """Owner gate wraps mailbox management; send + help stay open (#681)."""
+
+    def test_management_blocked_for_non_owner(self, populated_inbox):
+        """A denied guard blocks a management verb — view does not mark read."""
+        with patch.object(feedback_module, "_guard_caller", return_value=False):
+            result = feedback_module.handle_command("feedback", ["view", "aaa11111"])
+        assert result is True  # command still "handled" (clean refusal)
+
+        data = storage.load_inbox()
+        msg = next(m for m in data["messages"] if m["id"] == "aaa11111")
+        assert msg["read"] is False  # action was gated out
+
+    def test_send_open_for_non_owner(self, empty_inbox):
+        """send bypasses the owner gate — any agent can drop feedback."""
+        with patch.object(feedback_module, "_guard_caller", return_value=False):
+            result = feedback_module.handle_command("feedback", ["send", "seedgo", "Bug report", "Found an issue"])
+        assert result is True
+
+        data = storage.load_inbox()
+        assert data["total_messages"] == 1  # send bypassed the gate
+
+    def test_help_open_for_non_owner(self, empty_inbox):
+        """--help bypasses the owner gate."""
+        with patch.object(feedback_module, "_guard_caller", return_value=False):
+            result = feedback_module.handle_command("feedback", ["--help"])
+        assert result is True
 
 
 class TestHandleCommandHasCorrectSignature:

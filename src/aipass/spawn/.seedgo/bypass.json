@@ -307,6 +307,26 @@
       "file": "apps/modules/core.py",
       "standard": "encapsulation",
       "reason": "Local import of render_all_meta_tabs from memory.apps.handlers.tracking.tab_renderer — @memory has no module entry point for this API. Cross-branch contract per FPLAN-0286."
+    },
+    {
+      "file": "apps/handlers/registry.py",
+      "standard": "unused_function",
+      "reason": "backfill_owner_and_registry_id() is a migration function for TDPLAN-0012 — called manually to backfill existing registries. is_owner() is part of the frozen interface contract (TDPLAN-0012) — consumed by @ai_mail and @devpulse via direct import."
+    },
+    {
+      "file": "tests/test_owner_resolver.py",
+      "standard": "architecture",
+      "reason": "Test file — lives in tests/ by convention, not in the 3-layer app structure. Test files are exempt from layer architecture standard."
+    },
+    {
+      "file": "tests/test_owner_resolver.py",
+      "standard": "encapsulation",
+      "reason": "Test file — tests must import handlers directly to test them in isolation. Handler imports inside test methods are intentional."
+    },
+    {
+      "file": "tests/test_owner_resolver.py",
+      "standard": "documentation",
+      "reason": "Test file — pytest test_* functions are self-documenting via descriptive names; docstrings not required on individual test cases."
     }
   ],
   "notes": {

@@ -146,6 +146,32 @@ class TestRunSetup:
             assert _run_setup(tmp_path, dry_run=False) is True
             run.assert_called_once()
 
+    def test_no_symlink_flag_forwarded(self, tmp_path: Path) -> None:
+        """--no-symlink passes through to setup.sh (#660)."""
+        (tmp_path / "setup.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            assert _run_setup(tmp_path, dry_run=False, no_symlink=True) is True
+        argv = run.call_args[0][0]
+        assert "--no-symlink" in argv
+        assert "--force-symlink" not in argv
+
+    def test_force_symlink_flag_forwarded(self, tmp_path: Path) -> None:
+        """--force-symlink passes through to setup.sh (#660)."""
+        (tmp_path / "setup.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            assert _run_setup(tmp_path, dry_run=False, force_symlink=True) is True
+        argv = run.call_args[0][0]
+        assert "--force-symlink" in argv
+
+    def test_symlink_flags_absent_by_default(self, tmp_path: Path) -> None:
+        """No symlink flags forwarded unless requested (#660)."""
+        (tmp_path / "setup.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as run:
+            assert _run_setup(tmp_path, dry_run=False) is True
+        argv = run.call_args[0][0]
+        assert "--no-symlink" not in argv
+        assert "--force-symlink" not in argv
+
 
 class TestRunInstall:
     """The four-step orchestrator."""
@@ -170,13 +196,15 @@ class TestRunInstall:
         setup.assert_not_called()
 
     def test_full_happy_path(self, tmp_path: Path) -> None:
-        """Clone + setup + verify + next-steps returns success."""
+        """Clone + setup + verify + owner check + next-steps returns success."""
         home = tmp_path / "AIPass"
         with (
             patch(f"{_MOD}._resolve_home", return_value=home),
+            patch(f"{_MOD}.is_throwaway_path", return_value=False),
             patch(f"{_MOD}._clone_repo", return_value=True),
             patch(f"{_MOD}._run_setup", return_value=True),
             patch(f"{_MOD}._verify_binaries", return_value={"drone": "/x/drone", "aipass": "/x/aipass"}),
+            patch(f"{_MOD}._check_and_fix_owner"),
             patch(f"{_MOD}._handoff_to_init") as nxt,
         ):
             rc = run_install(non_interactive=True, dry_run=False)
@@ -313,3 +341,109 @@ class TestSmoke:
     def test_total_steps_constant(self) -> None:
         """The install flow advertises four steps."""
         assert TOTAL_STEPS == 4
+
+
+# ---------------------------------------------------------------------------
+# Throwaway-path gate (#688)
+# ---------------------------------------------------------------------------
+
+
+class TestThrowawayGate:
+    """Install refuses throwaway homes unless --force-global-home."""
+
+    def test_refuses_tmp_home(self, tmp_path) -> None:
+        """run_install returns 1 when home resolves to a temp path."""
+        with (
+            patch(
+                "aipass.aipass.apps.modules.install._resolve_home",
+                return_value=tmp_path,
+            ),
+            patch("aipass.aipass.apps.modules.install.sys.argv", ["aipass", "install"]),
+        ):
+            result = run_install(non_interactive=True, no_init=True)
+        assert result == 1
+
+    def test_force_flag_overrides(self, tmp_path) -> None:
+        """--force-global-home lets a temp home proceed past the gate."""
+        with (
+            patch(
+                "aipass.aipass.apps.modules.install._resolve_home",
+                return_value=tmp_path,
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install.sys.argv",
+                ["aipass", "install", "--force-global-home"],
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install._looks_like_aipass_tree",
+                return_value=True,
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install._run_setup",
+                return_value=True,
+            ),
+            patch(
+                "aipass.aipass.apps.modules.install._verify_binaries",
+                return_value={"drone": "x", "aipass": "x"},
+            ),
+            patch("aipass.aipass.apps.modules.install._handoff_to_init"),
+            patch("aipass.aipass.apps.modules.install._check_and_fix_owner"),
+        ):
+            result = run_install(non_interactive=True, no_init=True)
+        assert result == 0
+
+
+# ---------------------------------------------------------------------------
+# _check_and_fix_owner tests (DPLAN-0239 P5)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckAndFixOwner:
+    """Tests for install-time owner/identity check+fix retro-trigger."""
+
+    def test_clean_check_skips_fix(self, tmp_path) -> None:
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        mock_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            return_value=mock_proc,
+        ) as mock_run:
+            _check_and_fix_owner(tmp_path)
+        mock_run.assert_called_once()
+        args = mock_run.call_args[0][0]
+        assert "--check" in args
+
+    def test_issues_trigger_fix(self, tmp_path) -> None:
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        check_proc = MagicMock(returncode=1, stdout="", stderr="")
+        fix_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            side_effect=[check_proc, fix_proc],
+        ) as mock_run:
+            _check_and_fix_owner(tmp_path)
+        assert mock_run.call_count == 2
+        fix_args = mock_run.call_args_list[1][0][0]
+        assert "--fix" in fix_args
+
+    def test_drone_not_found_is_silent(self, tmp_path) -> None:
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            _check_and_fix_owner(tmp_path)
+
+    def test_timeout_is_silent(self, tmp_path) -> None:
+        import subprocess as _sp
+
+        from aipass.aipass.apps.modules.install import _check_and_fix_owner
+
+        with patch(
+            "aipass.aipass.apps.modules.install.subprocess.run",
+            side_effect=_sp.TimeoutExpired("drone", 30),
+        ):
+            _check_and_fix_owner(tmp_path)

@@ -26,7 +26,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, error
+from aipass.cli.apps.modules import console, error, warning
 from aipass.prax.apps.handlers.json import json_handler
 
 
@@ -63,6 +63,7 @@ def print_help():
     console.print()
     console.print("  [cyan]audit[/cyan]     Show log health summary + any oversized files")
     console.print("  [cyan]enforce[/cyan]   Truncate all oversized files to 1000 lines")
+    console.print("  [cyan]sweep[/cyan]     Delete log files older than 30 days")
     console.print()
     console.print("[yellow]Usage:[/yellow]")
     console.print()
@@ -72,12 +73,15 @@ def print_help():
     console.print("  [dim]# Truncate all oversized files to 1000 lines[/dim]")
     console.print("  $ drone @prax log-audit enforce")
     console.print()
+    console.print("  [dim]# Delete log files older than 30 days[/dim]")
+    console.print("  $ drone @prax log-audit sweep")
+    console.print()
 
 
 def _display_audit(files: list, summary: dict) -> None:
-    """Display audit results."""
+    """Display system_logs/ audit results."""
     console.print()
-    console.print("[bold cyan]System Log Audit[/bold cyan]")
+    console.print("[bold cyan]System Log Audit[/bold cyan] [dim](system_logs/)[/dim]")
     console.print(f"  Total files: {summary['total_files']}")
     console.print(f"  Total lines: {summary['total_lines']:,}")
     if summary.get("largest_file"):
@@ -90,7 +94,6 @@ def _display_audit(files: list, summary: dict) -> None:
     else:
         error(f"Status: {summary['oversized_count']} oversized, {summary['critical_count']} critical")
 
-    # Show oversized files
     oversized = [f for f in files if f["status"] != "ok"]
     if oversized:
         console.print()
@@ -101,8 +104,36 @@ def _display_audit(files: list, summary: dict) -> None:
                 f"  [{status_color}]{f['status'].upper()}[/{status_color}] "
                 f"{f['name']}: {f['lines']:,} lines ({f['size_kb']} KB)"
             )
+    console.print()
+
+
+def _display_branch_audit(files: list, summary: dict) -> None:
+    """Display branch logs/ audit results."""
+    console.print("[bold cyan]Branch Log Audit[/bold cyan] [dim](src/aipass/*/logs/)[/dim]")
+    console.print(f"  Total files: {summary['total_files']}")
+    console.print(f"  Total size: {summary['total_size_mb']} MB")
+    if summary.get("largest_file"):
+        console.print(f"  Largest: {summary['largest_file']} ({summary.get('largest_size_mb', 0)} MB)")
+
+    if summary["healthy"]:
+        console.print("[green]  Status: HEALTHY — no unbounded files[/green]")
+    else:
+        error(f"Status: {summary['oversized_count']} unbounded, {summary['critical_count']} critical")
+
+    oversized = [f for f in files if f["status"] != "ok"]
+    if oversized:
         console.print()
-        console.print("[dim]Run 'drone @prax log-audit enforce' to truncate oversized files[/dim]")
+        console.print("[bold]Unbounded files (no rotation, exceeds size threshold):[/bold]")
+        for f in oversized:
+            status_color = "red" if f["status"] == "critical" else "yellow"
+            rotation = "[green]rotated[/green]" if f["has_rotation"] else "[red]unrotated[/red]"
+            console.print(
+                f"  [{status_color}]{f['status'].upper()}[/{status_color}] "
+                f"{f['branch']}/{f['name']}: {f['size_mb']} MB, "
+                f"{f['lines']:,} lines, {rotation}"
+            )
+        console.print()
+        console.print("[dim]Run 'drone @prax log-audit enforce' to truncate[/dim]")
     console.print()
 
 
@@ -140,10 +171,24 @@ def handle_command(command: str, args: List[str]) -> bool:
         files = scan_log_files()
         summary = log_health_summary()
         _display_audit(files, summary)
+
+        from aipass.prax.apps.handlers.logging.log_watchdog import (
+            scan_branch_log_files,
+            branch_log_health_summary,
+        )
+
+        branch_files = scan_branch_log_files()
+        branch_summary = branch_log_health_summary()
+        _display_branch_audit(branch_files, branch_summary)
         return True
 
     if subcmd == "enforce":
         _run_enforce()
+        _run_branch_enforce()
+        return True
+
+    if subcmd == "sweep":
+        _run_sweep()
         return True
 
     error(f"Unknown log-audit subcommand: {subcmd}")
@@ -172,6 +217,53 @@ def _run_enforce():
             console.print(f"  [green]OK[/green] {action['name']}: within limits")
     console.print()
     logger.info("[log-audit] Enforced limits on %d files", len(actions))
+
+
+def _run_branch_enforce():
+    """Execute branch log enforcement and display results."""
+    from aipass.prax.apps.handlers.logging.log_watchdog import enforce_branch_log_limits
+
+    console.print("[bold cyan]Enforcing branch log limits...[/bold cyan]")
+    actions = enforce_branch_log_limits()
+
+    if not actions:
+        console.print("[green]All branch logs within limits — nothing to truncate[/green]\n")
+        return
+
+    for action in actions:
+        if action["truncated"]:
+            console.print(
+                f"  [red]TRUNCATED[/red] {action['branch']}/{action['name']}: "
+                f"{action['size_mb']} MB, {action['original_lines']:,} → {action['new_lines']:,} lines"
+            )
+        else:
+            console.print(f"  [green]OK[/green] {action['branch']}/{action['name']}: within limits")
+    console.print()
+    logger.info("[log-audit] Enforced branch log limits on %d files", len(actions))
+
+
+def sweep_stale_logs():
+    """Public re-export of the watchdog sweep for module-layer access."""
+    from aipass.prax.apps.handlers.logging.log_watchdog import sweep_stale_logs as _sweep
+
+    return _sweep()
+
+
+def _run_sweep():
+    """Execute stale log sweep and display results."""
+    from aipass.prax.apps.handlers.logging.log_watchdog import sweep_stale_logs
+
+    console.print("\n[bold cyan]Sweeping stale logs (>30 days)...[/bold cyan]")
+    result = sweep_stale_logs()
+
+    if not result["files_removed"]:
+        console.print("[green]No stale logs found — nothing to delete[/green]\n")
+        return
+
+    for entry in result["removed"]:
+        warning(f"DELETED {entry['name']}: {entry['age_days']} days old, {entry['size_kb']} KB")
+    console.print(f"\n  Removed {result['files_removed']} file(s), reclaimed {result['total_reclaimed_kb']} KB\n")
+    logger.info("[log-audit] Sweep removed %d stale files", result["files_removed"])
 
 
 if __name__ == "__main__":

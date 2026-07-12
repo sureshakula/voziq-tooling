@@ -41,16 +41,11 @@ def build_replacements_dict(target_dir, branch_name, **overrides):
     lower = branch_name.lower().replace("-", "_")
     now = datetime.now()
 
-    # Read registry ID — never crash spawn if registry is missing
     registry_id = ""
-    try:
-        registry_path = find_registry()
-        if registry_path.exists():
-            data = json.loads(registry_path.read_text(encoding="utf-8"))
-            registry_id = data.get("metadata", {}).get("id", "")
-    except Exception as e:
-        logger.warning(f"Failed to read registry ID for placeholders: {e}")
-        registry_id = ""
+    registry_path = find_registry(start_path=Path(target_dir).parent)
+    if registry_path.exists():
+        data = json.loads(registry_path.read_text(encoding="utf-8"))
+        registry_id = data.get("metadata", {}).get("id", "")
 
     replacements = {
         "BRANCHNAME": upper,

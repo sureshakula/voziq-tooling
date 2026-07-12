@@ -524,3 +524,83 @@ def test_rich_non_entry_passes(tmp_path):
 
     result = check_module(str(f))
     assert result["passed"] is True
+
+
+# ===========================================================================
+# os.kill(pid, 0) signal-0 detection (#682)
+# ===========================================================================
+
+
+def test_os_kill_signal0_unguarded_fails(tmp_path):
+    f = tmp_path / "probe.py"
+    f.write_text("import os\nos.kill(pid, 0)\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "os.kill(pid, 0)" in result["checks"][0]["message"]
+
+
+def test_os_kill_sigterm_not_flagged_by_signal0(tmp_path):
+    f = tmp_path / "killer.py"
+    f.write_text("import os, signal\ntry:\n    os.kill(pid, signal.SIGTERM)\nexcept OSError:\n    pass\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_os_kill_signal0_platform_guarded_passes(tmp_path):
+    f = tmp_path / "probe.py"
+    f.write_text("import os, sys\nif sys.platform != 'win32':\n    os.kill(pid, 0)\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_os_kill_signal0_try_except_still_fails(tmp_path):
+    f = tmp_path / "probe.py"
+    f.write_text("import os\ntry:\n    os.kill(pid, 0)\nexcept OSError:\n    pass\n")
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "os.kill(pid, 0)" in result["checks"][0]["message"]
+
+
+def test_os_kill_signal0_early_return_guard_passes(tmp_path):
+    f = tmp_path / "probe.py"
+    f.write_text(
+        "import os, sys\n\n"
+        "def _is_pid_alive(pid):\n"
+        "    if sys.platform == 'win32':\n"
+        "        return _pid_alive_windows(pid)\n"
+        "    try:\n"
+        "        os.kill(pid, 0)\n"
+        "        return True\n"
+        "    except ProcessLookupError:\n"
+        "        return False\n"
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is True
+
+
+def test_os_kill_signal0_try_except_no_platform_check_fails(tmp_path):
+    f = tmp_path / "probe.py"
+    f.write_text(
+        "import os\n\n"
+        "def _is_pid_alive(pid):\n"
+        "    try:\n"
+        "        os.kill(pid, 0)\n"
+        "        return True\n"
+        "    except ProcessLookupError:\n"
+        "        return False\n"
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.windows_compat_check import check_module
+
+    result = check_module(str(f))
+    assert result["passed"] is False
+    assert "os.kill(pid, 0)" in result["checks"][0]["message"]

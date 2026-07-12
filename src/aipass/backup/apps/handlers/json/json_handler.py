@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from aipass.prax import logger
+from aipass.prax import append_jsonl, logger
 
 
 def log_operation(operation: str, data: dict) -> None:
@@ -24,12 +24,9 @@ def log_operation(operation: str, data: dict) -> None:
         "operation": operation,
         **data,
     }
-    log_dir = Path(__file__).resolve().parents[3] / "logs"
-    log_dir.mkdir(exist_ok=True)
-    log_file = log_dir / "operations.jsonl"
+    log_file = Path(__file__).resolve().parents[3] / "logs" / "operations.jsonl"
     try:
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry) + "\n")
+        append_jsonl(log_file, entry)
     except OSError as e:
         logger.warning(f"Failed to write operation log: {e}")
 

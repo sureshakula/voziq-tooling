@@ -86,6 +86,56 @@ def _write_json(filepath: Path, data: Dict[str, Any]) -> bool:
         return False
 
 
+def _pid_alive_windows(pid: int) -> bool:
+    """Windows-safe liveness check via OpenProcess + GetExitCodeProcess."""
+    import ctypes
+    from ctypes import wintypes
+
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    STILL_ACTIVE = 259
+
+    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return False
+        return exit_code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _pid_alive(pid: int) -> bool:
+    """Return True if the process is alive."""
+    if sys.platform == "win32":
+        try:
+            return _pid_alive_windows(pid)
+        except Exception as exc:
+            logger.info("[daemon] PID %s Windows check failed (assuming alive): %s", pid, exc)
+            return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError as exc:
+        logger.info("[daemon] PID %s not found: %s", pid, exc)
+        return False
+    except PermissionError as exc:
+        logger.info("[daemon] PID %s permission denied (alive): %s", pid, exc)
+        return True
+    except OSError as exc:
+        logger.info("[daemon] PID %s os.kill error (assuming dead): %s", pid, exc)
+        return False
+    return True
+
+
 def _check_lock(branch_path: Path) -> Optional[Dict[str, Any]]:
     """Check if branch has an active dispatch lock. Returns lock data or None."""
     lock_file = branch_path / ".ai_mail.local" / ".dispatch.lock"
@@ -96,14 +146,9 @@ def _check_lock(branch_path: Path) -> Optional[Dict[str, Any]]:
             data = json.load(f)
         pid = data.get("pid")
         if pid is not None:
-            try:
-                os.kill(pid, 0)
-                return data  # Process alive, lock valid
-            except ProcessLookupError:
-                logger.info("Lock PID %s dead — stale lock cleanup needed", pid)
-            except PermissionError as e:
-                logger.warning("[daemon] Lock PID %s permission error: %s", pid, e)
-                return data  # Process exists, can't signal
+            if _pid_alive(pid):
+                return data
+            logger.info("Lock PID %s dead — stale lock cleanup needed", pid)
         # Stale lock — check age (10 min timeout)
         ts = data.get("timestamp", "")
         if ts:
@@ -214,15 +259,10 @@ def _write_pid_file() -> bool:
     # PID file exists — check if the owning process is alive
     try:
         old_pid = int(DAEMON_PID_FILE.read_text().strip())
-        try:
-            os.kill(old_pid, 0)
-            logger.info(f"Another daemon already running (PID {old_pid}). Exiting.")
+        if _pid_alive(old_pid):
+            logger.info("Another daemon already running (PID %s). Exiting.", old_pid)
             return False
-        except ProcessLookupError:
-            logger.info(f"Removing stale PID file (PID {old_pid} is dead)")
-        except PermissionError:
-            logger.info(f"Another daemon already running (PID {old_pid}, permission denied). Exiting.")
-            return False
+        logger.info("Removing stale PID file (PID %s is dead)", old_pid)
     except (ValueError, OSError):
         logger.info("Corrupt PID file — removing")
 
@@ -474,18 +514,74 @@ def is_protected_branch(branch_email: str) -> bool:
     return branch_email == "@devpulse"
 
 
-def _read_session_type(pid_str: str) -> str:
-    """Read AIPASS_SESSION_TYPE from /proc/{pid}/environ. Returns 'interactive' if unset."""
-    if sys.platform != "linux":
-        return "interactive"
+def _get_pid_cwd(pid_str: str) -> Optional[str]:
+    """Get the cwd of a process. Cross-platform: Linux /proc, macOS lsof."""
+    if sys.platform == "linux":
+        try:
+            return os.readlink(f"/proc/{pid_str}/cwd")
+        except (OSError, PermissionError):
+            logger.info("[daemon] Cannot read cwd for PID %s", pid_str)
+            return None
+    if sys.platform == "darwin":
+        return _get_pid_cwd_darwin(pid_str)
+    logger.info("[daemon] Cannot determine cwd for PID %s on %s", pid_str, sys.platform)
+    return None
+
+
+def _get_pid_cwd_darwin(pid_str: str) -> Optional[str]:
+    """macOS: get process cwd via lsof."""
     try:
-        with open(f"/proc/{pid_str}/environ", "rb") as f:
-            data = f.read()
-        for entry in data.split(b"\0"):
-            if entry.startswith(b"AIPASS_SESSION_TYPE="):
-                return entry.split(b"=", 1)[1].decode("utf-8")
-    except (OSError, PermissionError):
-        logger.info("Cannot read session type for PID %s", pid_str)
+        result = subprocess.run(
+            ["lsof", "-a", "-p", pid_str, "-d", "cwd", "-Fn"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        logger.info("[daemon] Cannot read cwd for PID %s on macOS", pid_str)
+        return None
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.strip().split("\n"):
+        if line.startswith("n/"):
+            return line[1:]
+    return None
+
+
+def _read_session_type(pid_str: str) -> str:
+    """Read AIPASS_SESSION_TYPE from process environment. Returns 'interactive' if unset."""
+    if sys.platform == "linux":
+        try:
+            with open(f"/proc/{pid_str}/environ", "rb") as f:
+                data = f.read()
+            for entry in data.split(b"\0"):
+                if entry.startswith(b"AIPASS_SESSION_TYPE="):
+                    return entry.split(b"=", 1)[1].decode("utf-8")
+        except (OSError, PermissionError):
+            logger.info("[daemon] Cannot read session type for PID %s", pid_str)
+        return "interactive"
+    if sys.platform == "darwin":
+        return _read_session_type_darwin(pid_str)
+    return "interactive"
+
+
+def _read_session_type_darwin(pid_str: str) -> str:
+    """macOS: read AIPASS_SESSION_TYPE from ps environment output."""
+    try:
+        result = subprocess.run(
+            ["ps", "-p", pid_str, "-wwE", "-o", "command="],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.SubprocessError, OSError):
+        logger.info("[daemon] Cannot read session type for PID %s on macOS", pid_str)
+        return "interactive"
+    if result.returncode != 0:
+        return "interactive"
+    for token in result.stdout.split():
+        if token.startswith("AIPASS_SESSION_TYPE="):
+            return token.split("=", 1)[1]
     return "interactive"
 
 
@@ -494,35 +590,25 @@ _NON_BLOCKING_SESSION_TYPES = {"dispatched", "daemon"}
 
 
 def _is_branch_occupied(branch_path: Path) -> bool:
-    """
-    Check if an interactive Claude session is running in this branch.
-
-    Only interactive sessions block dispatch. Telegram, dispatched, and daemon
-    sessions are idle/background and should not prevent new agent spawns.
-    """
-    resolved = branch_path.resolve()
+    """Check if an interactive Claude session is running in this branch."""
+    resolved = str(branch_path.resolve())
     try:
         result = subprocess.run(["pgrep", "-x", "claude"], capture_output=True, text=True, timeout=5)
         if result.returncode != 0:
             return False
-
         for pid_str in result.stdout.strip().split("\n"):
             pid_str = pid_str.strip()
             if not pid_str:
                 continue
-            try:
-                if sys.platform != "linux":
-                    continue
-                cwd = os.readlink(f"/proc/{pid_str}/cwd")
-                if Path(cwd).resolve() == resolved:
-                    session_type = _read_session_type(pid_str)
-                    if session_type not in _NON_BLOCKING_SESSION_TYPES:
-                        return True
-            except (OSError, PermissionError, ValueError):
-                logger.info("Cannot read cwd for PID %s", pid_str)
+            cwd = _get_pid_cwd(pid_str)
+            if cwd is None:
                 continue
+            if str(Path(cwd).resolve()) == resolved:
+                session_type = _read_session_type(pid_str)
+                if session_type not in _NON_BLOCKING_SESSION_TYPES:
+                    return True
     except Exception:
-        logger.info("Failed to check branch occupancy for %s", branch_path)
+        logger.info("[daemon] Failed to check branch occupancy for %s", branch_path)
     return False
 
 

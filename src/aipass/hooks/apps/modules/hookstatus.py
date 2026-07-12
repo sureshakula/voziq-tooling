@@ -27,6 +27,7 @@ EVENT_TYPES = [
     "SubagentStop",
     "Stop",
     "Notification",
+    "SessionStart",
     "PreCompact",
 ]
 

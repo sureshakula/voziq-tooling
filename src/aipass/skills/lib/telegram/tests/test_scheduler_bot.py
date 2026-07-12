@@ -15,7 +15,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-from apps.handlers.scheduler_bot import SchedulerBot, QUEUE_CMD  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.scheduler_bot import SchedulerBot, QUEUE_CMD
 
 
 # =============================================
@@ -63,9 +63,9 @@ EMPTY_QUEUE = {"generated_at": "2026-06-25T15:00:00Z", "count": 0, "jobs": []}
 def _patch_base_bot_deps(tmp_path):
     """Patch heavy BaseBot dependencies to allow lightweight instantiation."""
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -148,7 +148,7 @@ class TestQueueCommand:
         mock_result.returncode = 0
         mock_result.stdout = json.dumps(SAMPLE_QUEUE)
 
-        with patch("apps.handlers.scheduler_bot.subprocess.run", return_value=mock_result):
+        with patch("aipass.skills.lib.telegram.apps.handlers.scheduler_bot.subprocess.run", return_value=mock_result):
             data = bot._fetch_queue()
 
         assert data is not None
@@ -161,7 +161,7 @@ class TestQueueCommand:
         mock_result.returncode = 1
         mock_result.stderr = "error"
 
-        with patch("apps.handlers.scheduler_bot.subprocess.run", return_value=mock_result):
+        with patch("aipass.skills.lib.telegram.apps.handlers.scheduler_bot.subprocess.run", return_value=mock_result):
             data = bot._fetch_queue()
 
         assert data is None
@@ -170,7 +170,10 @@ class TestQueueCommand:
         bot = _make_scheduler_bot(tmp_path, _patch_base_bot_deps)
         import subprocess as sp
 
-        with patch("apps.handlers.scheduler_bot.subprocess.run", side_effect=sp.TimeoutExpired(QUEUE_CMD, 15)):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.scheduler_bot.subprocess.run",
+            side_effect=sp.TimeoutExpired(QUEUE_CMD, 15),
+        ):
             data = bot._fetch_queue()
 
         assert data is None
@@ -199,7 +202,7 @@ class TestNoTmux:
         bot = _make_scheduler_bot(tmp_path, _patch_base_bot_deps)
         with (
             patch.object(bot, "send_message") as mock_send,
-            patch("apps.handlers.base_bot.BaseBot.handle_file") as mock_parent_file,
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.BaseBot.handle_file") as mock_parent_file,
         ):
             bot.handle_file(42, {"message_id": 1, "document": {"file_id": "abc"}})
             mock_parent_file.assert_not_called()
@@ -325,9 +328,9 @@ class TestSecretLoading:
 
     def test_missing_secret_returns_none(self):
         """When get_secret returns None, load_bot_config returns None — bot won't start."""
-        from apps.handlers.config import load_bot_config  # type: ignore[import-not-found]
+        from aipass.skills.lib.telegram.apps.handlers.config import load_bot_config
 
-        with patch("apps.handlers.config._get_secret", return_value=None):
+        with patch("aipass.skills.lib.telegram.apps.handlers.config._get_secret", return_value=None):
             config = load_bot_config("scheduler")
             assert config is None
 

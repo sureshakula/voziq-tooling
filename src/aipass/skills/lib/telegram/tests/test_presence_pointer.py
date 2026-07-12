@@ -26,7 +26,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
+from aipass.skills.lib.telegram.apps.handlers.base_bot import BaseBot
 
 
 # =============================================
@@ -38,9 +38,9 @@ from apps.handlers.base_bot import BaseBot  # type: ignore[import-not-found]
 def _patch_base_bot_deps(tmp_path):
     """Patch signal and atexit for safe BaseBot construction."""
     patches = [
-        patch("apps.handlers.base_bot.PENDING_DIR", tmp_path),
-        patch("apps.handlers.base_bot.signal.signal"),
-        patch("apps.handlers.base_bot.atexit.register"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.signal.signal"),
+        patch("aipass.skills.lib.telegram.apps.handlers.base_bot.atexit.register"),
     ]
     for p in patches:
         p.start()
@@ -53,7 +53,7 @@ def _make_bot(tmp_path, _patch_base_bot_deps, branch_name="devpulse"):
     """Create a BaseBot with test defaults."""
     workdir = tmp_path / "workdir"
     workdir.mkdir(exist_ok=True)
-    with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+    with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
         bot = BaseBot(
             bot_id="cc_test",
             bot_token="123:FAKETOKEN",
@@ -106,7 +106,7 @@ class TestDiscoverCcSession:
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         sessions_dir = tmp_path / "sessions"
         _write_cc_session(sessions_dir, os.getpid(), str(bot.work_dir.resolve()))
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
             result = bot._discover_cc_session()
         assert result is not None
         assert result["pid"] == os.getpid()
@@ -116,7 +116,7 @@ class TestDiscoverCcSession:
         """Returns None when the sessions directory does not exist."""
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         fake_dir = tmp_path / "no_such_dir"
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", fake_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", fake_dir):
             result = bot._discover_cc_session()
         assert result is None
 
@@ -125,7 +125,7 @@ class TestDiscoverCcSession:
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         sessions_dir = tmp_path / "sessions"
         _write_cc_session(sessions_dir, os.getpid(), "/some/other/dir")
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
             result = bot._discover_cc_session()
         assert result is None
 
@@ -134,7 +134,7 @@ class TestDiscoverCcSession:
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         sessions_dir = tmp_path / "sessions"
         _write_cc_session(sessions_dir, 99999999, str(bot.work_dir.resolve()))
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
             result = bot._discover_cc_session()
         assert result is None
 
@@ -147,7 +147,7 @@ class TestDiscoverCcSession:
         _write_cc_session(sessions_dir, my_pid, cwd, session_id="old", started_at=100)
         _write_cc_session(sessions_dir, my_pid + 1, cwd, session_id="new", started_at=200)
         with (
-            patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir),
             patch.object(BaseBot, "_is_pid_alive", return_value=True),
         ):
             result = bot._discover_cc_session()
@@ -161,7 +161,7 @@ class TestDiscoverCcSession:
         sessions_dir.mkdir(parents=True)
         (sessions_dir / "readme.txt").write_text("ignore me")
         (sessions_dir / "notapid.json").write_text("{}")
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
             result = bot._discover_cc_session()
         assert result is None
 
@@ -171,7 +171,7 @@ class TestDiscoverCcSession:
         sessions_dir = tmp_path / "sessions"
         sessions_dir.mkdir(parents=True)
         (sessions_dir / "12345.json").write_text("not json!")
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
             result = bot._discover_cc_session()
         assert result is None
 
@@ -181,7 +181,7 @@ class TestDiscoverCcSession:
         real_dir.mkdir()
         link = tmp_path / "link_workdir"
         link.symlink_to(real_dir)
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="sym_test",
                 bot_token="t",
@@ -190,7 +190,7 @@ class TestDiscoverCcSession:
             )
         sessions_dir = tmp_path / "sessions"
         _write_cc_session(sessions_dir, os.getpid(), str(real_dir))
-        with patch("apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.CC_SESSIONS_DIR", sessions_dir):
             result = bot._discover_cc_session()
         assert result is not None
 
@@ -221,12 +221,12 @@ class TestIsPidAlive:
 
     def test_permission_error_treated_as_alive(self):
         """Treats PermissionError from os.kill as evidence the PID is alive."""
-        with patch("os.kill", side_effect=PermissionError("denied")):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=PermissionError("denied")):
             assert BaseBot._is_pid_alive(42) is True
 
     def test_os_error_treated_as_dead(self):
         """Treats a generic OSError from os.kill as evidence the PID is dead."""
-        with patch("os.kill", side_effect=OSError("some error")):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=OSError("some error")):
             assert BaseBot._is_pid_alive(42) is False
 
 
@@ -438,7 +438,7 @@ class TestEnsureWithCcDiscovery:
         """CC session found but no tmux pane → falls through to Strategy 2."""
         workdir = tmp_path / "workdir"
         workdir.mkdir(exist_ok=True)
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="fb_test",
                 bot_token="t",
@@ -461,7 +461,7 @@ class TestEnsureWithCcDiscovery:
         """When CC discovery returns None, falls back to shared_session config."""
         workdir = tmp_path / "workdir"
         workdir.mkdir(exist_ok=True)
-        with patch("apps.handlers.base_bot.PENDING_DIR", tmp_path):
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.PENDING_DIR", tmp_path):
             bot = BaseBot(
                 bot_id="fb_test",
                 bot_token="t",
@@ -546,7 +546,7 @@ class TestHandleMessageNoSession:
             patch("subprocess.run", return_value=MagicMock(returncode=1)),
         ):
             bot.handle_message(42, "hello", {"message_id": 1})
-        msg = bot.send_message.call_args[0][1]
+        msg = bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "No live Claude session" in msg
         assert "api" in msg
 
@@ -559,5 +559,5 @@ class TestHandleMessageNoSession:
             patch("subprocess.run", return_value=MagicMock(returncode=1)),
         ):
             bot.handle_message(42, "hello", {"message_id": 1})
-        msg = bot.send_message.call_args[0][1]
+        msg = bot.send_message.call_args[0][1]  # type: ignore[union-attr]
         assert "No live Claude session" in msg

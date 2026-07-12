@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: agent.py
 # Description: Watchdog Agent Handler — block until dispatched agent exits
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-04-14
-# Modified: 2026-04-14
+# Modified: 2026-07-10
 # =============================================
 
 # Signal choice: ai_mail dispatch lock file polling.
@@ -42,6 +42,19 @@ def _stderr(msg: str) -> None:
     """Write to stderr — visible in debug runs, doesn't pollute stdout capture."""
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
+
+
+def _stdout_event(msg: str) -> None:
+    """Write one flushed event line to stdout so a Monitor-tool wrapper turns it
+    into a live notification to devpulse.
+
+    The Monitor tool treats each stdout line as an event but only captures stderr
+    to a file (never surfaced). So mid-watch signals a caller must ACT on — a stall
+    or a possibly-hung tool — go here, while the verbose debug trail stays on
+    _stderr + logger. (#634 part 2.)
+    """
+    sys.stdout.write(msg + "\n")
+    sys.stdout.flush()
 
 
 def _find_repo_root(start: Path | None = None) -> Path | None:
@@ -231,6 +244,87 @@ def _has_jsonl_activity(projects_dir: Path, baseline: dict) -> bool:
     return False
 
 
+def _newest_jsonl(projects_dir: Path) -> Path | None:
+    """Return the most-recently-modified .jsonl in projects_dir, or None."""
+    if not projects_dir.exists():
+        return None
+    try:
+        files = list(projects_dir.glob("*.jsonl"))
+    except OSError as exc:
+        logger.info("[watchdog.agent] newest jsonl glob failed: %s", exc)
+        return None
+    newest: Path | None = None
+    newest_mtime = -1.0
+    for f in files:
+        try:
+            mtime = f.stat().st_mtime
+        except OSError as exc:
+            logger.info("[watchdog.agent] newest jsonl stat failed for %s: %s", f.name, exc)
+            continue
+        if mtime > newest_mtime:
+            newest_mtime = mtime
+            newest = f
+    return newest
+
+
+def _tail_last_line(path: Path, max_bytes: int = 1_000_000) -> str | None:
+    """Read the last non-blank newline-delimited line of a file via a bounded tail
+    read. Reads at most ``max_bytes`` from the end so a multi-MB transcript stays
+    cheap; a single line longer than that decodes partially and simply fails to
+    parse downstream (→ treated as no in-flight tool)."""
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as fh:
+            if size > max_bytes:
+                fh.seek(size - max_bytes)
+            chunk = fh.read()
+    except OSError as exc:
+        logger.info("[watchdog.agent] tail read failed for %s: %s", path.name, exc)
+        return None
+    if not chunk:
+        return None
+    text = chunk.decode("utf-8", errors="replace")
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    return lines[-1] if lines else None
+
+
+def _last_entry_is_inflight_tool(projects_dir: Path) -> bool:
+    """True if the newest JSONL's last event is an assistant message dispatching a
+    tool call — an in-flight ``tool_use`` awaiting its result.
+
+    While a tool runs (a big Read, a long Bash, heavy compute) the agent writes NO
+    new JSONL lines, so size-growth alone misreads that span as idle and false-fires
+    STALLED (#634 part 1). The last line being an assistant ``tool_use`` is the
+    precise signal that the agent is actively working, not stuck.
+
+    Best-effort: any read/parse/shape surprise returns False, degrading to the
+    size-based liveness check so the stall detector never crashes on a format drift.
+    """
+    newest = _newest_jsonl(projects_dir)
+    if newest is None:
+        return False
+    last_line = _tail_last_line(newest)
+    if not last_line:
+        return False
+    try:
+        entry = json.loads(last_line)
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.info("[watchdog.agent] last jsonl entry unparseable in %s: %s", newest.name, exc)
+        return False
+    if not isinstance(entry, dict):
+        return False
+    # Schemas vary: role/content may sit under "message" or at the top level.
+    message = entry.get("message")
+    if not isinstance(message, dict):
+        message = entry
+    if message.get("role") != "assistant":
+        return False
+    content = message.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(isinstance(block, dict) and block.get("type") == "tool_use" for block in content)
+
+
 def _read_lock(lock_file: Path) -> dict | None:
     """Read lock file, return dict or None on miss/error."""
     if not lock_file.exists():
@@ -316,6 +410,98 @@ def _classify_exit(
     return ("completed_silent", reason, 0)
 
 
+class StallTracker:
+    """Per-watch JSONL liveness/stall state — one ``observe()`` call per poll tick.
+
+    Liveness signal = new JSONL lines (size growth) OR an in-flight tool call. A
+    long single tool call (big Read, long Bash, heavy compute) writes no new JSONL
+    lines while it runs but leaves an assistant ``tool_use`` as the last entry, so
+    it counts as activity instead of false-firing STALLED (#634 part 1).
+
+    Actionable signals — stall, long-running tool, resumed — go to stdout via
+    ``_stdout_event`` so a Monitor-tool wrapper surfaces them to devpulse live
+    (#634 part 2). The verbose trail stays on ``_stderr`` + logger.
+    """
+
+    STALL_THRESHOLD = 120.0
+    # A single tool call held in-flight this long is surfaced as a soft advisory
+    # (heavy op or a hung tool). Below the 600s default timeout so long watches
+    # get a mid-flight heads-up instead of waiting on the timeout.
+    LONG_TOOL_THRESHOLD = 300.0
+
+    def __init__(self, agent_id: str, jsonl_dir: Path, baseline: dict, now: float, pid: object) -> None:
+        self.agent_id = agent_id
+        self.jsonl_dir = jsonl_dir
+        self.baseline = baseline
+        self.pid = pid
+        self.last_activity_at = now
+        self.in_flight_since: float | None = None
+        self.stall_reported = False
+        self.long_tool_reported = False
+
+    def observe(self, now: float) -> None:
+        """Evaluate one poll tick: reset on activity, else report a stall past threshold."""
+        size_grew = _has_jsonl_activity(self.jsonl_dir, self.baseline)
+        inflight = False if size_grew else _last_entry_is_inflight_tool(self.jsonl_dir)
+        if size_grew or inflight:
+            self._mark_active(now, size_grew, inflight)
+        elif not self.stall_reported and (now - self.last_activity_at) >= self.STALL_THRESHOLD:
+            self._report_stall(now)
+
+    def _mark_active(self, now: float, size_grew: bool, inflight: bool) -> None:
+        if size_grew:
+            self.baseline = _snapshot_jsonl_sizes(self.jsonl_dir)
+        self.last_activity_at = now
+        if self.stall_reported:
+            _stdout_event(f"[watchdog.resumed] {self.agent_id}: JSONL activity resumed — stall cleared")
+            _stderr(f"[watchdog.agent] {self.agent_id}: activity resumed")
+            logger.info("[watchdog.agent] activity resumed agent_id=%s", self.agent_id)
+            self.stall_reported = False
+        if inflight:
+            self._track_inflight(now)
+        else:
+            self.in_flight_since = None
+            self.long_tool_reported = False
+
+    def _track_inflight(self, now: float) -> None:
+        if self.in_flight_since is None:
+            self.in_flight_since = now
+        inflight_secs = int(now - self.in_flight_since)
+        if self.long_tool_reported or inflight_secs < self.LONG_TOOL_THRESHOLD:
+            return
+        _stdout_event(
+            f"[watchdog.longtool] {self.agent_id}: one tool call running {inflight_secs}s "
+            f"(PID {self.pid} alive) — likely a heavy op, but may be a hung tool. "
+            f"Check, or kill+resume if stuck."
+        )
+        logger.info(
+            "[watchdog.agent] long-running tool agent_id=%s inflight=%ss pid=%s",
+            self.agent_id,
+            inflight_secs,
+            self.pid,
+        )
+        self.long_tool_reported = True
+
+    def _report_stall(self, now: float) -> None:
+        idle_secs = int(now - self.last_activity_at)
+        _stdout_event(
+            f"[watchdog.stall] {self.agent_id}: STALLED — no JSONL activity for {idle_secs}s "
+            f"(PID {self.pid} alive, no in-flight tool call). Agent may be stuck — "
+            f"check, or kill+resume."
+        )
+        _stderr(
+            f"[watchdog.agent] {self.agent_id}: STALLED — no JSONL activity for {idle_secs}s "
+            f"(PID {self.pid} still alive)"
+        )
+        logger.info(
+            "[watchdog.agent] stall detected agent_id=%s idle=%ss pid=%s",
+            self.agent_id,
+            idle_secs,
+            self.pid,
+        )
+        self.stall_reported = True
+
+
 def watch_agent(
     agent_id: str,
     timeout_seconds: int = 600,
@@ -383,10 +569,7 @@ def watch_agent(
         _stderr(f"[watchdog.agent] {agent_id}: lock present, monitor PID={initial_pid}")
 
         jsonl_dir = _get_jsonl_projects_dir(branch_path)
-        jsonl_baseline = _snapshot_jsonl_sizes(jsonl_dir)
-        last_activity_at = time.monotonic()
-        stall_reported = False
-        stall_threshold = 120.0
+        tracker = StallTracker(agent_id, jsonl_dir, _snapshot_jsonl_sizes(jsonl_dir), time.monotonic(), initial_pid)
 
         while True:
             elapsed = time.monotonic() - started_at
@@ -441,26 +624,7 @@ def watch_agent(
                     "handle": handle,
                 }
 
-            if _has_jsonl_activity(jsonl_dir, jsonl_baseline):
-                jsonl_baseline = _snapshot_jsonl_sizes(jsonl_dir)
-                last_activity_at = time.monotonic()
-                if stall_reported:
-                    _stderr(f"[watchdog.agent] {agent_id}: activity resumed")
-                    logger.info("[watchdog.agent] activity resumed agent_id=%s", agent_id)
-                    stall_reported = False
-            elif not stall_reported and (time.monotonic() - last_activity_at) >= stall_threshold:
-                idle_secs = int(time.monotonic() - last_activity_at)
-                _stderr(
-                    f"[watchdog.agent] {agent_id}: STALLED — no JSONL activity for {idle_secs}s "
-                    f"(PID {initial_pid} still alive)"
-                )
-                logger.info(
-                    "[watchdog.agent] stall detected agent_id=%s idle=%ss pid=%s",
-                    agent_id,
-                    idle_secs,
-                    initial_pid,
-                )
-                stall_reported = True
+            tracker.observe(time.monotonic())
 
             time.sleep(poll_interval)
     finally:

@@ -23,7 +23,7 @@ def get_cli_standards() -> str:
         str: Formatted standards text with Rich styling
     """
     lines = [
-        "[bold red]OUTPUT STANDARD: Rich console.print() ONLY[/bold red]",
+        "[bold white]OUTPUT STANDARD: Rich console.print() ONLY[/bold white]",
         "",
         "[yellow]POLICY:[/yellow] Rich formatting is THE standard for ALL AIPass output",
         "",
@@ -96,7 +96,7 @@ def get_cli_standards() -> str:
         "",
         "[bold]Usage:[/bold]",
         '  [dim]console.print("[bold green]Success![/bold green]")[/dim]',
-        '  [dim]console.print("[yellow]Warning:[/yellow] Check this")[/dim]',
+        '  [dim]console.print("[yellow]Note:[/yellow] Check this")[/dim]',
         '  [dim]console.print("[dim]Additional info...[/dim]")[/dim]',
         "",
         "[bold]Emojis:[/bold]",

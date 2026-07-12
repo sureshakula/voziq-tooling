@@ -390,6 +390,8 @@ def _adopt_existing(target, purpose, profile, registry_path):
         purpose,
     )
 
+    ensure_project_has_owner(reg_path)
+
     json_handler.log_operation("branch_adopted", data={"branch": branch_upper})
     logger.info("[spawn] Adopted existing branch: %s (registered in %s)", branch_upper, reg_path.name)
 

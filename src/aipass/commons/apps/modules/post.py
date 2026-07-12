@@ -20,12 +20,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[post] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 from rich.text import Text
@@ -91,11 +93,11 @@ def _handle_create_post(args: List[str]) -> bool:
     result = create_post(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
-    console.print(f"[green]Post created in r/{result['room']}[/green]")
+    success(f"Post created in r/{result['room']}")
     console.print(f"  [dim]ID:[/dim] {result['post_id']}")
     console.print(f"  [dim]Title:[/dim] {result['title']}")
     console.print(f"  [dim]Type:[/dim] {result['post_type']}")
@@ -112,7 +114,7 @@ def _handle_view_thread(args: List[str]) -> bool:
     result = view_thread(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     post = result["post"]
@@ -187,8 +189,8 @@ def _handle_delete_post(args: List[str]) -> bool:
     result = delete_post(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
-    console.print(f"[green]Post {result['post_id']} deleted.[/green]")
+    success(f"Post {result['post_id']} deleted.")
     return True

@@ -171,7 +171,7 @@ def print_help() -> None:
     console.print("  [cyan]status[/cyan]      Show rollover statistics for all branches")
     console.print("  [cyan]check[/cyan]       Check which files need rollover (dry run)")
     console.print("  [cyan]sync-lines[/cyan]  Update line count metadata for all branches")
-    console.print("  [cyan]push[/cyan]        ⚠ Reset ALL per_branch limits to defaults (system-wide)")
+    console.print("  [cyan]push[/cyan]        Reset ALL per_branch limits to defaults (system-wide, use with caution)")
     console.print("  [cyan]help[/cyan]        Show this help message")
     console.print()
     console.print("[bold]LIMITS:[/bold]")
@@ -559,6 +559,5 @@ if __name__ == "__main__":
     # Execute command via handle_command
     command = sys.argv[1]
     if not handle_command(command, sys.argv[2:]):
-        console.print(f"[red]Unknown command:[/red] {command}")
-        console.print("Run with [cyan]help[/cyan] for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @memory rollover --help' for available commands")
         sys.exit(1)

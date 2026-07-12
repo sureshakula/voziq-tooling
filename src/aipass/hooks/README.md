@@ -26,6 +26,7 @@ Every hook event flows through one engine. Platform bridges normalize the event 
 | `drone @hooks hooksound off` | Mute all hook sounds |
 | `drone @hooks hooksound on` | Unmute all hook sounds |
 | `drone @hooks cadence` | Show prompt injection cadence config and state |
+| `drone @hooks verify` | Cross-check provider settings vs project hook config |
 | `drone @hooks --help` | Full help reference |
 | `drone @hooks --version` | Version info |
 
@@ -49,15 +50,18 @@ src/aipass/hooks/
 │   ├── sound.py                 # Shared sound utilities (speak, play, mute)
 │   ├── modules/
 │   │   ├── cadence.py           # Prompt injection cadence (every-Nth-turn gating)
+│   │   ├── hook_test.py         # Portable test runner (drone @hooks test)
 │   │   ├── cc_sessions.py       # CC-native session file reader (~/.claude/sessions/<pid>.json)
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   ├── hookstatus.py        # Config viewer (drone @hooks status)
 │   │   ├── presence.py          # Branch presence — claim/release/refresh for .ai_central/PRESENCE.central.json
-│   │   └── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
+│   │   ├── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
+│   │   └── wire_verify.py       # Wire verification — provider ↔ project hook wiring checker
 │   ├── handlers/
 │   │   ├── bridges/             # One per provider (thin normalization)
-│   │   │   └── claude.py        # Claude Code bridge
+│   │   │   ├── claude.py        # Claude Code bridge
+│   │   │   └── codex.py         # Codex bridge (normalizes stdin/stdout envelope)
 │   │   ├── prompt/              # Prompt injection hooks
 │   │   │   ├── branch_loader.py #   Injects aipass_local_prompt.md
 │   │   │   ├── tier0_kernel.py  #   Injects tier0 kernel prompt (every turn)
@@ -67,13 +71,15 @@ src/aipass/hooks/
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
 │   │   │   ├── git_gate.py      #   Enforces git access tiers
 │   │   │   ├── presence_gate.py  #   Single-session gate — blocks duplicate runtimes per branch
+│   │   │   ├── registry_gate.py  #   Seals *_REGISTRY.json — blocks raw writes/edits/deletes, redirects to drone @spawn
 │   │   │   ├── rm_gate.py       #   Guardrail — catches accidental rm -rf, teaches drone rm
 │   │   │   └── subagent_gate.py #   Blocks sub-agent stop until clean
 │   │   ├── lifecycle/           # Session management hooks
 │   │   │   ├── auto_fix.py      #   Post-edit diagnostics (ruff, pyright, py_compile)
 │   │   │   ├── auto_watchdog.py #   Watchdog arming after dispatch
 │   │   │   ├── compact.py       #   Pre-compact memory archival
-│   │   │   └── rollover.py      #   Pre-compact memory rollover
+│   │   │   ├── rollover.py      #   Pre-compact memory rollover
+│   │   │   └── session_start.py #   Cadence reset on new chat / clear (SessionStart)
 │   │   └── notification/        # Sound/alert hooks
 │   │       ├── announce.py      #   Announcement tone on notification
 │   │       ├── email.py         #   Inbox check on prompt
@@ -85,7 +91,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 705 tests across 25 test files
+└── tests/                       # 913 tests across 28 test files
 ```
 
 ## How It Works
@@ -107,12 +113,32 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 | Event | Hooks | Description |
 |---|---|---|
 | UserPromptSubmit | presence_gate, identity, email, branch_loader, tier0_kernel, navmap | Presence gate + prompt injection + inbox check |
-| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate | Security gates + guardrails + sound |
+| PreToolUse | tool_sound, edit_gate, git_gate, rm_gate, registry_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
 | Stop | stop_sound, telegram_response, presence_release | Bell + Telegram delivery + presence release |
 | Notification | announce | Announcement tone |
 | PreCompact | compact, rollover | Memory archival + rollover |
+
+## Git Gate
+
+The `git_gate` handler (`security/git_gate.py`) enforces git access via drone to prevent state conflicts between agents. It is **enabled by default** in every project created by `aipass init`.
+
+**What it blocks:** Raw `git` write commands (push, commit, checkout, merge, etc.) and raw `gh` commands (except `gh api`). Read-only git verbs (status, log, diff, show, blame, grep, etc.) are allowed raw.
+
+**What it protects:** Edits to `.claude/settings.json`, `.claude/hooks/`, and `.git/hooks/` — the enforcement layer itself.
+
+**Disabling for a project:** Set `git_gate.enabled` to `false` in your project's `.aipass/hooks.json`. This disables git enforcement in isolation — all other hooks (edit_gate, rm_gate, prompt injection, etc.) continue to work normally. No sync, rebase, or PR flows depend on git_gate being active; those are handled independently by `drone @git`.
+
+```json
+"git_gate": {
+    "enabled": false,
+    "handler": "aipass.hooks.apps.handlers.security.git_gate.handle",
+    "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit"
+}
+```
+
+**Why it's on by default:** Agents reflexively reach for raw git, which causes state chaos in a multi-agent system. The gate redirects to `drone @git` which enforces access tiers (read-only for most branches, write-only for devpulse). External users who don't need multi-agent git orchestration can safely disable it.
 
 ## Kernel Sandbox (srt/bwrap)
 

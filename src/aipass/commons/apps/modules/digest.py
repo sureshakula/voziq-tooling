@@ -20,12 +20,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[digest] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 
@@ -79,7 +80,7 @@ def _handle_digest(args: List[str]) -> bool:
     result = show_digest(args)
 
     if not result["success"]:
-        console.print(f"[red]Failed to generate digest: {result['error']}[/red]")
+        error(f"Failed to generate digest: {result['error']}")
         return True
 
     top_posts = result["top_posts"]

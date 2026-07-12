@@ -398,9 +398,10 @@ class TestHandleCommandCircuitBreaker:
         result = handle_command("errors", ["circuit-breaker"])
 
         assert result is True
-        printed_texts = [str(c) for c in mocks["console"].print.call_args_list]
-        has_paused = any("paused" in text.lower() for text in printed_texts)
-        assert has_paused, "Expected 'paused' in open circuit breaker output"
+        cli_modules = sys.modules["aipass.cli.apps.modules"]
+        err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+        has_paused = any("paused" in text.lower() for text in err_args)
+        assert has_paused, "Expected 'paused' in error() output"
 
     def test_circuit_breaker_reset(self):
         """circuit-breaker reset calls reset and confirms CLOSED state in output."""
@@ -631,23 +632,25 @@ class TestHandleCommandResolve:
         )
         assert update_call[0][1] == "resolved"
 
-        # Verify confirmation message was printed
-        printed_texts = [str(c) for c in mocks["console"].print.call_args_list]
-        has_resolved = any("Resolved" in text and "e001" in text for text in printed_texts)
-        assert has_resolved, "Expected 'Resolved' confirmation with error ID in output"
+        # Verify confirmation message was routed through success()
+        cli_modules = sys.modules["aipass.cli.apps.modules"]
+        success_args = [str(a) for call in cli_modules.success.call_args_list for a in call.args]
+        has_resolved = any("Resolved" in text and "e001" in text for text in success_args)
+        assert has_resolved, "Expected 'Resolved' confirmation with error ID in success() output"
 
     def test_resolve_no_id_prints_usage(self):
         """resolve with no ID prints a usage hint."""
         from aipass.trigger.apps.modules.errors import handle_command
 
-        mocks = _mocks()
+        _mocks()
 
         result = handle_command("errors", ["resolve"])
 
         assert result is True
-        printed_texts = [str(c) for c in mocks["console"].print.call_args_list]
-        has_missing = any("missing" in text.lower() for text in printed_texts)
-        assert has_missing, "Expected 'missing' in resolve-no-id output"
+        cli_modules = sys.modules["aipass.cli.apps.modules"]
+        err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+        has_missing = any("missing" in text.lower() for text in err_args)
+        assert has_missing, "Expected 'missing' in error() output"
 
 
 # ---------------------------------------------------------------------------

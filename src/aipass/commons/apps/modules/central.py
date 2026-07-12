@@ -21,12 +21,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[central] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.central.central_writer import update_central
 from aipass.commons.apps.handlers.json import json_handler
@@ -74,10 +76,10 @@ def handle_command(command: str, args: List[str]) -> bool:
     try:
         stats = update_central()
         branch_count = len(stats.get("branch_stats", {}))
-        console.print(f"[green]Central file updated:[/green] {branch_count} branches")
+        success(f"Central file updated: {branch_count} branches")
         json_handler.log_operation("push-central_executed", {"command": "push-central", "success": True})
         return True
     except Exception as e:
         logger.error(f"[commons] push-central failed: {e}")
-        console.print(f"[red]Error:[/red] {e}")
+        error(f"Error: {e}")
         return True

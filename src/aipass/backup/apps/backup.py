@@ -30,7 +30,7 @@ if sys.platform == "win32":
 os.environ.setdefault("AIPASS_BRANCH_NAME", "backup")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console, header
+from aipass.cli.apps.modules import console, error, header
 
 VERSION = "1.0.0"
 MODULE_NAME = "backup"
@@ -138,6 +138,14 @@ def main():
         return 0
 
     command = args[0]
+    remaining = args[1:]
+
+    if remaining and remaining[0] in ["--help", "-h"]:
+        for module in modules:
+            if module.handle_command(command, ["--help"]):
+                return 0
+        print_help()
+        return 0
 
     if command == "backup" and len(args) > 1:
         from aipass.backup.apps.modules.register import resolve_project
@@ -145,7 +153,7 @@ def main():
         target = args[1]
         project_root = resolve_project(target)
         if project_root is None:
-            console.print(f"[red]Error:[/red] Cannot resolve project: {target}")
+            error(f"Cannot resolve project: {target}")
             return 1
         remaining = [project_root] + args[2:]
         mode = "snapshot"
@@ -158,7 +166,7 @@ def main():
 
         if route_command(mode, remaining, modules):
             return 0
-        console.print(f"[red]Error:[/red] Unknown mode: {mode}")
+        error(f"Unknown mode: {mode}")
         return 1
 
     remaining = args[1:] if len(args) > 1 else []
@@ -168,14 +176,14 @@ def main():
 
         resolved = resolve_project(remaining[0])
         if resolved is None:
-            console.print(f"[red]Error:[/red] Cannot resolve project: {remaining[0]}")
+            error(f"Cannot resolve project: {remaining[0]}")
             return 1
         remaining = [resolved] + remaining[1:]
 
     if route_command(command, remaining, modules):
         return 0
 
-    console.print(f"[red]Unknown command:[/red] {command}")
+    error(f"Unknown command: {command}")
     return 1
 
 

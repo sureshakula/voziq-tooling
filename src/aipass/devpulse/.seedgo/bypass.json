@@ -6,6 +6,21 @@
   },
   "bypass": [
     {
+      "standard": "json_structure",
+      "file": "devpulse_json/compass",
+      "reason": "compass/ is the devpulse-owned Compass decision store (SQLite/FTS5 — db + wal + shm) which needs its own directory. Legitimate data subdir, not operator-config (custom_config/) nor auto-gen root data. Sanctioned exception per #643."
+    },
+    {
+      "standard": "handlers",
+      "file": "apps/handlers/owner/guard.py",
+      "reason": "Lazy-imports is_owner/get_owner from spawn.apps.handlers.registry inside _owner_decision() — is_owner is the frozen shared owner-capability contract (#191, TDPLAN-0012); spawn is its sole home, no modules re-export. Same authorized cross-branch primitive pattern as ai_mail dispatch_monitor. Import failure falls back to the legacy heuristic. #681."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "apps/handlers/owner/guard.py",
+      "reason": "Lazy cross-branch import of the is_owner/get_owner resolver from spawn.apps.handlers.registry — the frozen owner-capability contract consumed identically by hooks + ai_mail. No spawn modules-level re-export exists; this is the sanctioned entry point. #681."
+    },
+    {
       "standard": "architecture",
       "reason": "No 'manager' citizen_class template in spawn. Devpulse is the only manager branch."
     },
@@ -44,6 +59,16 @@
       "standard": "encapsulation",
       "file": "tests/test_git_gate.py",
       "reason": "Test imports git_gate.py from ~/.claude/hooks/ via importlib — external hook, not a branch module."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "tests/test_feedback_module.py",
+      "reason": "Router test imports the feedback storage handler directly to arrange/assert inbox state (save_inbox/load_inbox) — standard test-fixture access, same pattern as test_feedback_storage.py / test_compass_store.py. #681."
+    },
+    {
+      "standard": "encapsulation",
+      "file": "tests/test_owner_guard.py",
+      "reason": "Unit test imports the owner guard handler (its SUT) and patches spawn.registry's get_owner/is_owner — the guard is a shared handler primitive with no apps/modules/ command entry point. Same direct-SUT pattern as test_compass_store.py. #681."
     },
     {
       "standard": "encapsulation",

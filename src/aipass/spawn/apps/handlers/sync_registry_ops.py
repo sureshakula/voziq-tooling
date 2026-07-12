@@ -17,6 +17,7 @@ looking for *_REGISTRY.json) so it works for both AIPass and external projects.
 """
 
 import json
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +29,7 @@ from aipass.spawn.apps.handlers.registry import (
     save_registry,
     branches_as_list,
     fix_passport_registry_id,
+    pick_owner_branch,
 )
 from aipass.spawn.apps.handlers.meta_ops import (
     load_template_registry,
@@ -37,6 +39,33 @@ from aipass.spawn.apps.handlers.meta_ops import (
 from aipass.spawn.apps.handlers.file_ops import regenerate_template_registry
 from aipass.spawn.apps.handlers.class_registry import get_template_dir
 from aipass.spawn.apps.handlers.json import json_handler
+
+
+def _derive_description(branch_path: Path) -> str:
+    """Derive a one-line description from the branch's passport or README."""
+    passport_path = branch_path / ".trinity" / "passport.json"
+    if passport_path.exists():
+        try:
+            passport = json.loads(passport_path.read_text(encoding="utf-8"))
+            identity = passport.get("identity", {})
+            for field in ("purpose", "role"):
+                value = identity.get(field, "").strip()
+                if value:
+                    return value
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning("[sync-registry] Failed to read passport for description (%s): %s", branch_path.name, e)
+
+    readme_path = branch_path / "README.md"
+    if readme_path.exists():
+        try:
+            for line in readme_path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if stripped and not stripped.startswith(("#", "[", "---", "*", ">")):
+                    return stripped
+        except IOError as e:
+            logger.warning("[sync-registry] Failed to read README for description (%s): %s", branch_path.name, e)
+
+    return "Auto-registered branch"
 
 
 def _scan_for_branches(project_root: Path) -> dict[str, Path]:
@@ -161,6 +190,7 @@ def sync_registry(fix: bool = False) -> dict:
 
     # 4/5. Fix if requested
     fixed = False
+    needs_save = False
     if fix and (stale or unregistered_list):
         # Remove stale entries
         raw_branches = registry.get("branches", [])
@@ -190,7 +220,7 @@ def sync_registry(fix: bool = False) -> dict:
                 "name": name.upper(),
                 "path": rel_path,
                 "profile": "library",
-                "description": "Auto-registered branch",
+                "description": _derive_description(branch_path),
                 "email": f"@{name}",
                 "status": "active",
                 "created": today,
@@ -203,11 +233,28 @@ def sync_registry(fix: bool = False) -> dict:
                 raw_branches.append(entry)
             logger.info(f"[sync-registry] Added unregistered branch: {name}")
 
-        # Update total and save
         registry["metadata"]["total_branches"] = len(branches_as_list(registry["branches"]))
+        needs_save = True
+
+    # Backfill placeholder descriptions on existing entries
+    descriptions_backfilled = []
+    if fix:
+        for entry in branches_as_list(registry.get("branches", [])):
+            if entry.get("description") == "Auto-registered branch":
+                name_lower = entry.get("name", "").lower()
+                branch_path = filesystem_branches.get(name_lower)
+                if branch_path:
+                    derived = _derive_description(branch_path)
+                    if derived != "Auto-registered branch":
+                        entry["description"] = derived
+                        descriptions_backfilled.append(name_lower)
+                        logger.info("[sync-registry] Backfilled description for %s: %s", name_lower, derived)
+        if descriptions_backfilled:
+            needs_save = True
+
+    if fix and needs_save:
         save_result = save_registry(registry_path, registry)
         fixed = save_result
-
         if fixed:
             logger.info("[sync-registry] Registry updated successfully")
         else:
@@ -276,4 +323,300 @@ def sync_registry(fix: bool = False) -> dict:
         "fixed": fixed,
         "spawn_rebuilt": spawn_rebuilt,
         "ids_fixed": ids_fixed,
+        "descriptions_backfilled": descriptions_backfilled,
     }
+
+
+# =============================================================================
+# OWNER / IDENTITY CHECK + FIX  (DPLAN-0239 P4, frozen contract)
+# =============================================================================
+
+
+def check_owner_identity(registry_path=None):
+    """Read-only owner/identity health check — 7 flags.
+
+    Flags:
+      no_owner            — no branch entry has owner:true
+      multi_owner         — more than one branch has owner:true
+      owner_missing_branch — owner entry's path doesn't exist on disk
+      owner_wrong_branch  — owner is not the manager and not the first agent
+      metadata_id_missing — registry metadata.id absent
+      passport_mismatch   — passport citizenship.registry_id != metadata.id
+      entry_rid_stale     — entry registry_id missing, duplicate, or == metadata.id
+
+    Returns:
+        dict with pinned schema:
+          ``clean`` (bool), ``owner`` (name str or None),
+          ``owner_uid`` (entry registry_id str, empty if none),
+          ``issues`` (list of flag/detail/branch dicts).
+    """
+    if registry_path is None:
+        registry_path = find_registry()
+    registry_path = Path(registry_path)
+    reg_data = load_registry(registry_path)
+    branches = branches_as_list(reg_data.get("branches", []))
+    project_root = registry_path.parent
+    metadata_id = reg_data.get("metadata", {}).get("id", "")
+
+    issues: list[dict] = []
+
+    # --- flag 1: no_owner ---
+    owners = [b for b in branches if b.get("owner") is True]
+    if not owners:
+        issues.append({"flag": "no_owner", "detail": "No branch entry has owner:true"})
+
+    # --- flag 2: multi_owner ---
+    if len(owners) > 1:
+        names = [b.get("name", "?") for b in owners]
+        issues.append({"flag": "multi_owner", "detail": f"Multiple owners: {', '.join(names)}"})
+
+    # --- flag 3: owner_missing_branch ---
+    for owner in owners:
+        owner_path = (project_root / owner.get("path", "")).resolve()
+        if not owner_path.is_dir():
+            issues.append(
+                {
+                    "flag": "owner_missing_branch",
+                    "detail": f"Owner {owner.get('name', '?')} path does not exist: {owner.get('path', '')}",
+                }
+            )
+
+    # --- flag 4: owner_wrong_branch ---
+    for owner in owners:
+        owner_dir = project_root / owner.get("path", "")
+        passport_path = owner_dir / ".trinity" / "passport.json"
+        is_manager = False
+        if passport_path.exists():
+            try:
+                passport = json.loads(passport_path.read_text(encoding="utf-8"))
+                is_manager = passport.get("identity", {}).get("citizen_class") == "manager"
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("[check-identity] Cannot read passport for %s: %s", owner.get("name", "?"), e)
+        if not is_manager and branches:
+            first = min(branches, key=lambda b: b.get("created", "9999-99-99"))
+            if owner.get("name") != first.get("name"):
+                issues.append(
+                    {
+                        "flag": "owner_wrong_branch",
+                        "detail": f"Owner {owner.get('name', '?')} is not the manager and not the first agent",
+                    }
+                )
+
+    # --- flag 5: metadata_id_missing ---
+    if not metadata_id:
+        issues.append({"flag": "metadata_id_missing", "detail": "Registry metadata.id is absent"})
+
+    # --- flag 6: passport_mismatch ---
+    if metadata_id:
+        for branch in branches:
+            branch_dir = project_root / branch.get("path", "")
+            passport_path = branch_dir / ".trinity" / "passport.json"
+            if not passport_path.exists():
+                continue
+            try:
+                passport = json.loads(passport_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("[check-identity] Cannot read passport for %s: %s", branch.get("name", "?"), e)
+                continue
+            passport_rid = passport.get("citizenship", {}).get("registry_id", "")
+            if passport_rid and passport_rid != metadata_id:
+                issues.append(
+                    {
+                        "flag": "passport_mismatch",
+                        "detail": (
+                            f"{branch.get('name', '?')}: passport registry_id="
+                            f"{passport_rid[:8]}… != metadata.id={metadata_id[:8]}…"
+                        ),
+                        "branch": branch.get("name", ""),
+                    }
+                )
+
+    # --- flag 7: entry_rid_stale ---
+    rid_counts: dict[str, int] = {}
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        if rid:
+            rid_counts[rid] = rid_counts.get(rid, 0) + 1
+
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        if not rid:
+            issues.append(
+                {
+                    "flag": "entry_rid_stale",
+                    "detail": f"{branch.get('name', '?')}: entry registry_id missing",
+                    "branch": branch.get("name", ""),
+                }
+            )
+        elif metadata_id and rid == metadata_id:
+            issues.append(
+                {
+                    "flag": "entry_rid_stale",
+                    "detail": f"{branch.get('name', '?')}: entry registry_id is a stale copy of metadata.id",
+                    "branch": branch.get("name", ""),
+                }
+            )
+        elif rid_counts.get(rid, 0) > 1:
+            issues.append(
+                {
+                    "flag": "entry_rid_stale",
+                    "detail": f"{branch.get('name', '?')}: entry registry_id={rid[:8]}… is a duplicate",
+                    "branch": branch.get("name", ""),
+                }
+            )
+
+    owner_entry = owners[0] if len(owners) == 1 else None
+    return {
+        "clean": len(issues) == 0,
+        "owner": owner_entry.get("name") if owner_entry else None,
+        "owner_uid": owner_entry.get("registry_id", "") if owner_entry else "",
+        "issues": issues,
+    }
+
+
+def fix_owner_identity(registry_path=None, dry_run=False):
+    """Reconcile owner + identity in the sealed registry.
+
+    Actions (each idempotent, refuses to alter correct state):
+      - Seat missing owner (first agent)
+      - Restore missing metadata.id (consensus from passports, else mint)
+      - Align passports to metadata.id
+      - Mint per-citizen entry registry_id where missing or stale-duplicate
+      - Resolve multi-owner (keep first-created, unseat others)
+
+    Deliberately NEVER moves a seated owner — ``owner_wrong_branch`` is a
+    flag-only diagnostic for human decision.
+
+    Args:
+        registry_path: Path to registry (None = auto-discover from CWD).
+        dry_run: If True, print planned changes but don't write.
+
+    Returns:
+        dict with ``actions`` (list of change descriptions) and ``applied`` (bool).
+    """
+    if registry_path is None:
+        registry_path = find_registry()
+    registry_path = Path(registry_path)
+    reg_data = load_registry(registry_path)
+    branches = branches_as_list(reg_data.get("branches", []))
+    project_root = registry_path.parent
+    metadata_id = reg_data.get("metadata", {}).get("id", "")
+
+    actions: list[str] = []
+    registry_changed = False
+
+    # --- restore missing metadata.id (majority-restore or mint) ---
+    if not metadata_id:
+        passport_id_counts: dict[str, int] = {}
+        for branch in branches:
+            branch_dir = project_root / branch.get("path", "")
+            passport_path = branch_dir / ".trinity" / "passport.json"
+            if not passport_path.exists():
+                continue
+            try:
+                passport = json.loads(passport_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning("[fix-identity] Cannot read passport for consensus: %s", e)
+                continue
+            rid = passport.get("citizenship", {}).get("registry_id", "")
+            if rid:
+                passport_id_counts[rid] = passport_id_counts.get(rid, 0) + 1
+
+        total_with_id = sum(passport_id_counts.values())
+        majority_id = None
+        if passport_id_counts:
+            top_id = max(passport_id_counts, key=lambda k: passport_id_counts[k])
+            if passport_id_counts[top_id] > total_with_id / 2:
+                majority_id = top_id
+
+        if majority_id:
+            metadata_id = majority_id
+            count = passport_id_counts[majority_id]
+            actions.append(f"Restore metadata.id = {metadata_id[:8]}… (passport majority {count} of {total_with_id})")
+        else:
+            metadata_id = str(uuid.uuid4())
+            actions.append(f"Mint metadata.id = {metadata_id[:8]}…")
+
+        reg_data.setdefault("metadata", {})["id"] = metadata_id
+        registry_changed = True
+
+    # --- resolve multi-owner: keep earliest-created, unseat the rest ---
+    owners = [b for b in branches if b.get("owner") is True]
+    if len(owners) > 1:
+        owners_sorted = sorted(owners, key=lambda b: b.get("created", "9999-99-99"))
+        for extra in owners_sorted[1:]:
+            extra.pop("owner", None)
+            actions.append(f"Unseat extra owner: {extra.get('name', '?')}")
+            registry_changed = True
+
+    # --- seat missing owner (canonical heuristic) ---
+    current_owners = [b for b in branches if b.get("owner") is True]
+    if not current_owners and branches:
+        chosen = pick_owner_branch(branches, project_root)
+        if chosen:
+            chosen["owner"] = True
+            actions.append(f"Seat owner: {chosen.get('name', '?')}")
+            registry_changed = True
+
+    # --- mint per-citizen entry registry_id where missing or stale ---
+    rid_counts: dict[str, int] = {}
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        if rid:
+            rid_counts[rid] = rid_counts.get(rid, 0) + 1
+
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        needs_mint = False
+        if not rid:
+            needs_mint = True
+        elif metadata_id and rid == metadata_id:
+            needs_mint = True
+        elif rid_counts.get(rid, 0) > 1:
+            needs_mint = True
+
+        if needs_mint:
+            new_rid = str(uuid.uuid4())
+            old_display = rid[:8] + "…" if rid else "(empty)"
+            branch["registry_id"] = new_rid
+            actions.append(f"Mint citizen UID for {branch.get('name', '?')}: {old_display} → {new_rid[:8]}…")
+            registry_changed = True
+
+    # --- align passports to metadata.id ---
+    passport_actions: list[str] = []
+    for branch in branches:
+        branch_dir = project_root / branch.get("path", "")
+        passport_path = branch_dir / ".trinity" / "passport.json"
+        if not passport_path.exists():
+            continue
+        try:
+            passport = json.loads(passport_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning("[fix-identity] Cannot read passport for %s: %s", branch.get("name", "?"), e)
+            continue
+        passport_rid = passport.get("citizenship", {}).get("registry_id", "")
+        if passport_rid != metadata_id:
+            old_display = passport_rid[:8] + "…" if passport_rid else "(empty)"
+            passport.setdefault("citizenship", {})["registry_id"] = metadata_id
+            if not dry_run:
+                try:
+                    passport_path.write_text(json.dumps(passport, indent=2, ensure_ascii=False), encoding="utf-8")
+                except IOError as e:
+                    logger.warning("[fix-identity] Failed to write passport %s: %s", branch.get("name", "?"), e)
+                    continue
+            passport_actions.append(f"Align passport for {branch.get('name', '?')}: {old_display} → {metadata_id[:8]}…")
+
+    actions.extend(passport_actions)
+
+    applied = False
+    if registry_changed and not dry_run:
+        applied = save_registry(registry_path, reg_data)
+        if applied:
+            logger.info("[fix-identity] Registry updated with %d action(s)", len(actions))
+        else:
+            logger.error("[fix-identity] Failed to save registry")
+
+    if dry_run and actions:
+        logger.info("[fix-identity] Dry-run: %d action(s) planned", len(actions))
+
+    return {"actions": actions, "applied": applied}

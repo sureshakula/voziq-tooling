@@ -233,6 +233,9 @@ def main():
     command = args[0]
     remaining = args[1:] if len(args) > 1 else []
 
+    if remaining and remaining[0] in ["--help", "-h"]:
+        remaining = ["--help"]
+
     if command == "create":
         return handle_create(remaining)
 

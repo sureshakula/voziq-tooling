@@ -144,7 +144,7 @@ drone @branch command [args]    # Every agent, every task. Drone handles routing
 ```
 
 ```bash
-drone @seedgo audit my_project               # Run quality checks on everything
+drone @seedgo audit aipass                   # Run quality checks on everything
 drone @flow create . "Refactor auth module"  # Create a work plan
 drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 30 days"
 ```

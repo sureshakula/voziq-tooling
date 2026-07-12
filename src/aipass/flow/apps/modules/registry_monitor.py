@@ -52,7 +52,7 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.flow.apps.handlers.json import json_handler
 
 # CLI services for display
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, error, success, warning
 
 # Registry handlers
 from aipass.flow.apps.handlers.registry.load_registry import load_registry
@@ -156,7 +156,7 @@ def handle_command(command: str, args: List[str]) -> bool:
         result = scan_plan_files()
 
         console.print()
-        console.print("[green]✓[/green] Scan complete")
+        success("Scan complete")
         console.print(f"  • Total plans: {result['total_plans']}")
         console.print(f"  • Added: {len(result['added'])}")
         console.print(f"  • Updated: {len(result['updated'])}")

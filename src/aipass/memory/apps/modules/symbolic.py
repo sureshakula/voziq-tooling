@@ -32,7 +32,7 @@ if sys.platform == "win32":
 
 # Service imports
 from aipass.prax import logger
-from aipass.cli.apps.modules import console, error, header, warning
+from aipass.cli.apps.modules import console, error, header, success, warning
 from aipass.memory.apps.handlers.json import json_handler
 
 # Handler imports (domain-organized)
@@ -687,16 +687,14 @@ def handle_command(command: str, args: List[str]) -> bool:
 
         if sub == "analyze":
             if not remaining:
-                console.print("[red]Error:[/red] File path required")
-                console.print("Usage: symbolic analyze <conversation.json>")
+                error("File path required", suggestion="Usage: symbolic analyze <conversation.json>")
                 return True
             analyze_file(remaining[0])
             return True
 
         if sub == "extract":
             if not remaining:
-                console.print("[red]Error:[/red] File path required")
-                console.print("Usage: symbolic extract <conversation.json>")
+                error("File path required", suggestion="Usage: symbolic extract <conversation.json>")
                 return True
             extract_file(remaining[0], source_branch=remaining[1] if len(remaining) > 1 else None)
             return True
@@ -726,16 +724,14 @@ def handle_command(command: str, args: List[str]) -> bool:
 
     if command == "analyze":
         if not args:
-            console.print("[red]Error:[/red] File path required")
-            console.print("Usage: symbolic analyze <conversation.json>")
+            error("File path required", suggestion="Usage: symbolic analyze <conversation.json>")
             return True
         analyze_file(args[0])
         return True
 
     if command == "extract":
         if not args:
-            console.print("[red]Error:[/red] File path required")
-            console.print("Usage: symbolic extract <conversation.json>")
+            error("File path required", suggestion="Usage: symbolic extract <conversation.json>")
             return True
         extract_file(args[0], source_branch=args[1] if len(args) > 1 else None)
         return True
@@ -851,7 +847,7 @@ def run_demo() -> None:
         dims = result["dimensions"]
         meta = result["metadata"]
 
-        console.print("[green]✓[/green] Analysis complete")
+        success("Analysis complete")
         console.print()
 
         console.print("[bold cyan]Extracted Dimensions:[/bold cyan]")
@@ -868,7 +864,7 @@ def run_demo() -> None:
         console.print(f"  [dim]Depth:[/dim]    {meta.get('depth', 'unknown')}")
         console.print()
     else:
-        console.print(f"[red]✗[/red] Analysis failed: {result.get('error', 'Unknown error')}")
+        error(f"Analysis failed: {result.get('error', 'Unknown error')}")
 
     # v2 LLM Extraction mock preview
     console.print()
@@ -918,7 +914,7 @@ def run_demo() -> None:
             },
         }
         recall = format_fragment_recall(mock_stored)
-        console.print(f"    [green]Recall:[/green]     {recall}")
+        console.print(f"    [cyan]Recall:[/cyan]     {recall}")
         console.print()
 
     console.print("[dim]Note: Run 'symbolic extract <file>' to use the real LLM pipeline[/dim]")
@@ -945,8 +941,7 @@ def search_fragments_cli(args: List[str]) -> None:
                 key, value = dim_arg.split("=", 1)
                 dimension_filters[key] = value
             else:
-                console.print(f"[red]Error:[/red] Invalid dimension format: {dim_arg}")
-                console.print("Expected: --dimension KEY=VALUE")
+                error(f"Invalid dimension format: {dim_arg}", suggestion="Expected: --dimension KEY=VALUE")
                 return
             i += 2
         elif args[i] == "--trigger" and i + 1 < len(args):
@@ -957,7 +952,7 @@ def search_fragments_cli(args: List[str]) -> None:
                 n_results = int(args[i + 1])
             except ValueError:
                 logger.warning(f"[symbolic] Invalid --n argument: {args[i + 1]}")
-                console.print(f"[red]Error:[/red] Invalid number: {args[i + 1]}")
+                error(f"Invalid number: {args[i + 1]}")
                 return
             i += 2
         else:
@@ -967,8 +962,10 @@ def search_fragments_cli(args: List[str]) -> None:
     query = " ".join(query_parts) if query_parts else None
 
     if not query and not dimension_filters and not trigger_keywords:
-        console.print("[red]Error:[/red] Search query, dimension filter, or trigger required")
-        console.print("Usage: symbolic fragments <query> [--dimension KEY=VALUE] [--trigger KEYWORD]")
+        error(
+            "Search query, dimension filter, or trigger required",
+            suggestion="Usage: symbolic fragments <query> [--dimension KEY=VALUE] [--trigger KEYWORD]",
+        )
         return
 
     console.print()
@@ -996,13 +993,13 @@ def search_fragments_cli(args: List[str]) -> None:
     if not result.get("success"):
         error_msg = result.get("error", "Unknown error")
         logger.error(f"[symbolic] Fragment search failed: {error_msg}")
-        console.print(f"[red]Error:[/red] {error_msg}")
+        error(error_msg)
         return
 
     results = result.get("results", [])
     methods = result.get("search_methods", [])
 
-    console.print(f"[green]Found {len(results)} fragments[/green] (methods: {', '.join(methods)})")
+    success(f"Found {len(results)} fragments (methods: {', '.join(methods)})")
     console.print()
 
     if not results:
@@ -1127,11 +1124,11 @@ def run_hook_test(args: List[str]) -> None:
     context = extract_conversation_context(messages)
 
     if context.get("success"):
-        console.print(f"  [green]Keywords:[/green] {context.get('keywords', [])}")
-        console.print(f"  [green]Mood:[/green] {context.get('mood', 'neutral')}")
-        console.print(f"  [green]Themes:[/green] {context.get('themes', [])}")
+        console.print(f"  [cyan]Keywords:[/cyan] {context.get('keywords', [])}")
+        console.print(f"  [cyan]Mood:[/cyan] {context.get('mood', 'neutral')}")
+        console.print(f"  [cyan]Themes:[/cyan] {context.get('themes', [])}")
     else:
-        console.print(f"  [red]Failed:[/red] {context.get('error', 'Unknown')}")
+        error(f"Failed: {context.get('error', 'Unknown')}")
         return
 
     console.print()
@@ -1142,9 +1139,9 @@ def run_hook_test(args: List[str]) -> None:
 
     if frag_result.get("success"):
         fragments = frag_result.get("fragments", [])
-        console.print(f"  [green]Query used:[/green] {frag_result.get('query_used', '')}")
-        console.print(f"  [green]Threshold:[/green] {frag_result.get('threshold_applied', 0.3)}")
-        console.print(f"  [green]Fragments found:[/green] {len(fragments)}")
+        console.print(f"  [cyan]Query used:[/cyan] {frag_result.get('query_used', '')}")
+        console.print(f"  [cyan]Threshold:[/cyan] {frag_result.get('threshold_applied', 0.3)}")
+        console.print(f"  [cyan]Fragments found:[/cyan] {len(fragments)}")
 
         if fragments:
             for i, frag in enumerate(fragments, 1):
@@ -1152,7 +1149,7 @@ def run_hook_test(args: List[str]) -> None:
                 content = frag.get("content", "")[:80]
                 console.print(f"    [{i}] Score: {score:.2%} - {content}...")
     else:
-        console.print(f"  [yellow]No fragments:[/yellow] {frag_result.get('message', frag_result.get('error', ''))}")
+        warning(f"No fragments: {frag_result.get('message', frag_result.get('error', ''))}")
 
     console.print()
 
@@ -1170,7 +1167,7 @@ def run_hook_test(args: List[str]) -> None:
 
     if result.get("success"):
         if result.get("surfaced"):
-            console.print("[green]Fragment surfaced![/green]")
+            success("Fragment surfaced!")
             console.print()
 
             recall = result.get("recall", "")
@@ -1182,7 +1179,7 @@ def run_hook_test(args: List[str]) -> None:
         else:
             console.print(f"[yellow]Not surfaced:[/yellow] {result.get('reason', 'Unknown')}")
     else:
-        console.print(f"[red]Hook failed:[/red] {result.get('error', 'Unknown')}")
+        error(f"Hook failed: {result.get('error', 'Unknown')}")
 
     console.print()
 
@@ -1193,7 +1190,7 @@ def run_hook_test(args: List[str]) -> None:
             frag_metadata = frag.get("metadata", {})
             if frag_metadata.get("schema_version") == "v2":
                 recall_preview = format_fragment_recall(frag)
-                console.print(f"  [green]Fragment {i} (v2):[/green] {recall_preview}")
+                console.print(f"  [cyan]Fragment {i} (v2):[/cyan] {recall_preview}")
             else:
                 # Show what it would look like if it were v2
                 console.print(f"  [dim]Fragment {i} (v1 - no v2 metadata)[/dim]")
@@ -1220,18 +1217,18 @@ def analyze_file(file_path: str) -> None:
 
     path = Path(file_path)
     if not path.exists():
-        console.print(f"[red]Error:[/red] File not found: {file_path}")
+        error(f"File not found: {file_path}")
         return
 
     read_result = memory_files.read_memory_file(path)
     if not read_result.get("success"):
-        console.print(f"[red]Error:[/red] {read_result.get('error', 'Failed to read JSON')}")
+        error(read_result.get("error", "Failed to read JSON"))
         return
 
     chat_history = read_result.get("data")
 
     if not isinstance(chat_history, list):
-        console.print("[red]Error:[/red] Expected JSON array of messages")
+        error("Expected JSON array of messages")
         return
 
     console.print()
@@ -1244,7 +1241,7 @@ def analyze_file(file_path: str) -> None:
         dims = result["dimensions"]
         meta = result["metadata"]
 
-        console.print("[green]✓[/green] Analysis complete")
+        success("Analysis complete")
         console.print()
 
         console.print("[bold cyan]Extracted Dimensions:[/bold cyan]")
@@ -1262,7 +1259,7 @@ def analyze_file(file_path: str) -> None:
         console.print()
         json_handler.log_operation("symbolic_analyze", {"file": path.name, "messages": result["message_count"]})
     else:
-        console.print(f"[red]✗[/red] Analysis failed: {result.get('error', 'Unknown error')}")
+        error(f"Analysis failed: {result.get('error', 'Unknown error')}")
 
 
 def extract_file(file_path: str, source_branch: str | None = None) -> None:
@@ -1280,18 +1277,18 @@ def extract_file(file_path: str, source_branch: str | None = None) -> None:
 
     path = Path(file_path)
     if not path.exists():
-        console.print(f"[red]Error:[/red] File not found: {file_path}")
+        error(f"File not found: {file_path}")
         return
 
     read_result = memory_files.read_memory_file(path)
     if not read_result.get("success"):
-        console.print(f"[red]Error:[/red] {read_result.get('error', 'Failed to read JSON')}")
+        error(read_result.get("error", "Failed to read JSON"))
         return
 
     chat_history = read_result.get("data")
 
     if not isinstance(chat_history, list):
-        console.print("[red]Error:[/red] Expected JSON array of messages")
+        error("Expected JSON array of messages")
         return
 
     console.print()
@@ -1309,20 +1306,20 @@ def extract_file(file_path: str, source_branch: str | None = None) -> None:
     result = extract_and_store_llm(chat_history, source_branch=source_branch)
 
     if result.get("success"):
-        console.print("[green]Pipeline complete[/green]")
+        success("Pipeline complete")
         console.print()
         console.print(f"  [cyan]Processed:[/cyan]  {result.get('processed', 0)}")
-        console.print(f"  [green]Added:[/green]      {result.get('added', 0)}")
+        console.print(f"  [cyan]Added:[/cyan]      {result.get('added', 0)}")
         console.print(f"  [yellow]Updated:[/yellow]    {result.get('updated', 0)}")
         console.print(f"  [dim]Skipped:[/dim]    {result.get('skipped', 0)}")
 
         if result.get("errors"):
             console.print()
-            console.print(f"  [red]Errors ({len(result['errors'])}):[/red]")
+            warning(f"Errors ({len(result['errors'])})")
             for err in result["errors"]:
                 console.print(f"    - {err}")
     else:
-        console.print(f"[red]Pipeline failed:[/red] {result.get('errors', ['Unknown error'])}")
+        error(f"Pipeline failed: {result.get('errors', ['Unknown error'])}")
 
     console.print()
     logger.info(f"[symbolic] extract_file complete: {result}")
@@ -1539,15 +1536,15 @@ def bootstrap_from_jsonl(max_sessions: int = 8) -> None:
             total_errors += e
             processed_count += 1
             console.print(
-                f"  [green]+{a} added[/green]"
+                f"  [cyan]+{a} added[/cyan]"
                 f"{f', {u} updated' if u else ''}"
                 f"{f', {s} skipped' if s else ''}"
-                f"{f', [red]{e} errors[/red]' if e else ''}"
+                f"{f', {e} errors' if e else ''}"
             )
         else:
             total_errors += 1
             err_msg = result.get("errors", ["Unknown"])
-            console.print(f"  [red]Failed: {err_msg}[/red]")
+            error(f"Failed: {err_msg}")
 
         # Brief pause between API calls to avoid rate limiting
         if i < len(sessions):
@@ -1558,11 +1555,11 @@ def bootstrap_from_jsonl(max_sessions: int = 8) -> None:
     header("Bootstrap Summary")
     console.print()
     console.print(f"  [cyan]Sessions processed:[/cyan] {processed_count}/{len(sessions)}")
-    console.print(f"  [green]Fragments added:[/green]   {total_added}")
+    console.print(f"  [cyan]Fragments added:[/cyan]   {total_added}")
     console.print(f"  [yellow]Fragments updated:[/yellow] {total_updated}")
     console.print(f"  [dim]Skipped (dedup):[/dim]   {total_skipped}")
     if total_errors:
-        console.print(f"  [red]Errors:[/red]             {total_errors}")
+        warning(f"Errors: {total_errors}")
     console.print()
 
     # Verify collection count
@@ -1599,6 +1596,5 @@ if __name__ == "__main__":
     # Execute command via handle_command
     command = sys.argv[1]
     if not handle_command(command, sys.argv[2:]):
-        console.print(f"[red]Unknown command:[/red] {command}")
-        console.print("Run with [cyan]help[/cyan] for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @memory symbolic --help' for available commands")
         sys.exit(1)

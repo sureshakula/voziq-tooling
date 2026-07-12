@@ -34,6 +34,28 @@ class TestAutoWatchdogHandler:
         parsed = json.loads(result["stdout"])
         assert "additionalContext" in parsed
         assert "AUTO-WATCHDOG" in parsed["additionalContext"]
+        assert "Monitor tool" in parsed["additionalContext"]
+        assert "NOT Bash run_in_background" in parsed["additionalContext"]
+        assert "drone @devpulse watchdog agent @hooks" in parsed["additionalContext"]
+
+    def test_dispatch_extracts_target(self):
+        from aipass.hooks.apps.handlers.lifecycle.auto_watchdog import handle
+
+        result = handle(
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": 'drone @ai_mail dispatch @spawn "Task" "Do it"'},
+            }
+        )
+        parsed = json.loads(result["stdout"])
+        assert "drone @devpulse watchdog agent @spawn" in parsed["additionalContext"]
+
+    def test_dispatch_no_target_fallback(self):
+        from aipass.hooks.apps.handlers.lifecycle.auto_watchdog import (
+            _extract_target,
+        )
+
+        assert _extract_target("drone @ai_mail dispatch") == "@<target>"
 
     def test_skip_non_bash(self):
         from aipass.hooks.apps.handlers.lifecycle.auto_watchdog import handle

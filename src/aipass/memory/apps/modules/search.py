@@ -35,7 +35,7 @@ from rich.panel import Panel
 from rich import box
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, error, success, warning
 from aipass.memory.apps.handlers.json import json_handler
 
 # =============================================================================
@@ -212,7 +212,7 @@ def show_search_results(
     filtered_results = result.get("results", [])
 
     # Display summary
-    console.print(f"[green]>[/green] Found {total_results} results in {collections_searched} collections")
+    success(f"Found {total_results} results in {collections_searched} collections")
     console.print()
 
     if not filtered_results and total_results == 0:
@@ -346,6 +346,5 @@ if __name__ == "__main__":
     # Execute command via handle_command
     command = sys.argv[1]
     if not handle_command(command, sys.argv[2:]):
-        console.print(f"[red]Unknown command:[/red] {command}")
-        console.print("Run with [cyan]help[/cyan] for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @memory search --help' for available commands")
         sys.exit(1)

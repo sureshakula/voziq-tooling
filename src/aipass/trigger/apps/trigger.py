@@ -217,6 +217,14 @@ def main():
     command = args[0]
     remaining_args = args[1:] if len(args) > 1 else []
 
+    # Subcommand --help guard
+    if remaining_args and remaining_args[0] in ["--help", "-h"]:
+        for module in modules:
+            if module.handle_command(command, ["--help"]):
+                return 0
+        print_help(modules)
+        return 0
+
     # Route to modules
     if route_command(command, remaining_args, modules):
         return 0
@@ -236,5 +244,5 @@ if __name__ == "__main__":
         sys.exit(0)
     except Exception as e:
         logger.error(f"TRIGGER entry point error: {e}", exc_info=True)
-        console.print(f"\n❌ Error: {e}")
+        error(f"Error: {e}")
         sys.exit(1)

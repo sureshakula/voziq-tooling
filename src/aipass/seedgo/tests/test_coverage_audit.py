@@ -1062,8 +1062,14 @@ class TestCollectPyFiles:
         result = _collect_py_files(tmp_path)
         assert result == []
 
-    def test_collects_py_files(self, tmp_path):
+    def test_collects_py_files(self, tmp_path, monkeypatch):
         """Collects .py from apps/, excluding __init__.py."""
+        import sys
+
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
         from aipass.seedgo.apps.handlers.audit.branch_audit import (
             _collect_py_files,
         )
@@ -1081,9 +1087,13 @@ class TestCollectPyFiles:
         assert "handler.py" in names
         assert "__init__.py" not in names
 
-    def test_respects_ignore_patterns(self, tmp_path):
+    def test_respects_ignore_patterns(self, tmp_path, monkeypatch):
         """Files matching ignore patterns are excluded."""
         import sys
+
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
 
         # Use a unique pattern that will NOT collide with the pytest tmp_path
         # directory name (which includes the test function name).
@@ -1103,8 +1113,14 @@ class TestCollectPyFiles:
         assert "module.py" in names
         assert "xskip_bad.py" not in names
 
-    def test_excludes_disabled_files(self, tmp_path):
+    def test_excludes_disabled_files(self, tmp_path, monkeypatch):
         """Files with (disabled) in the name are excluded from collection."""
+        import sys
+
+        skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+        if skip_dirs:
+            monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
         from aipass.seedgo.apps.handlers.audit.branch_audit import (
             _collect_py_files,
         )

@@ -97,24 +97,34 @@ def _find_tmux_session_for_pid(pid: int) -> str | None:
     return None
 
 
+def _get_ppid(pid: int) -> int | None:
+    """Get parent PID portably (Linux + macOS). Returns None on failure."""
+    try:
+        result = subprocess.run(
+            ["ps", "-o", "ppid=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return int(result.stdout.strip())
+    except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+        logger.info("[SESSION_BOOT] ppid lookup failed for PID %d: %s", pid, exc)
+    return None
+
+
 def _is_descendant(target_pid: int, ancestor_pid: int) -> bool:
-    """Check if target_pid is a descendant of ancestor_pid via /proc."""
+    """Check if target_pid is a descendant of ancestor_pid via process tree walk."""
     pid = target_pid
     for _ in range(20):
         if pid == ancestor_pid:
             return True
         if pid <= 1:
             return False
-        try:
-            for line in Path(f"/proc/{pid}/status").read_text().splitlines():
-                if line.startswith("PPid:"):
-                    pid = int(line.split()[1])
-                    break
-            else:
-                return False
-        except OSError as exc:
-            logger.info("[SESSION_BOOT] Cannot read /proc/%d/status: %s", pid, exc)
+        ppid = _get_ppid(pid)
+        if ppid is None:
             return False
+        pid = ppid
     return False
 
 
@@ -132,9 +142,18 @@ def boot(cwd: str | None = None, extra_args: list[str] | None = None) -> dict:
     branch = Path(cwd).name
     claude_bin = _resolve_claude_binary()
 
+    defaults = _DEFAULT_ARGS if not (extra_args and "--permission-mode" in extra_args) else []
+
+    if extra_args and "-p" in extra_args:
+        logger.info("[SESSION_BOOT] Headless mode (-p) — running claude directly, no tmux")
+        claude_cmd = [claude_bin] + defaults
+        claude_cmd.extend(extra_args)
+        os.execvp(claude_bin, claude_cmd)
+        return {"exit_code": 0, "action": "direct", "reason": "headless -p mode"}
+
     if os.environ.get("TMUX"):
         logger.info("[SESSION_BOOT] Already inside tmux — running claude directly")
-        claude_cmd = [claude_bin] + _DEFAULT_ARGS
+        claude_cmd = [claude_bin] + defaults
         if extra_args:
             claude_cmd.extend(extra_args)
         os.execvp(claude_bin, claude_cmd)
@@ -162,14 +181,20 @@ def boot(cwd: str | None = None, extra_args: list[str] | None = None) -> dict:
         return {
             "exit_code": 1,
             "action": "warn",
-            "error": f"Live session at PID {pid} is not in tmux. Kill it first or attach to its terminal.",
+            "error": (
+                f"{branch} already has a live Claude session (PID {pid}) running outside tmux"
+                f" — Claude allows one session per branch.\n"
+                f"  • Reattach in its own terminal, OR\n"
+                f"  • Reclaim it here:   kill {pid} && claude\n"
+                f"  • Or bypass this wrapper:   command claude --resume"
+            ),
         }
 
     if _tmux_session_exists(branch):
         logger.info("[SESSION_BOOT] Killing stale tmux session '%s'", branch)
         subprocess.run(["tmux", "kill-session", "-t", branch], check=False)
 
-    claude_cmd = [claude_bin] + _DEFAULT_ARGS
+    claude_cmd = [claude_bin] + defaults
     if extra_args:
         claude_cmd.extend(extra_args)
 

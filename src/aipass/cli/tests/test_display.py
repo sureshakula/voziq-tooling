@@ -522,3 +522,62 @@ class TestInfrastructureMocking:
         module_key = "aipass.cli.apps.modules.display"
         assert module_key in sys.modules
         assert sys.modules[module_key] is display
+
+
+# =============================================================================
+# Exit-code failure-flag tests
+# =============================================================================
+
+
+class TestCommandState:
+    """Verify the process-level failure flag and resolve_exit truth table."""
+
+    def setup_method(self):
+        display.reset_command_state()
+
+    def teardown_method(self):
+        display.reset_command_state()
+
+    def test_initial_state_is_not_failed(self):
+        assert display.command_failed() is False
+
+    def test_mark_command_failed_sets_flag(self):
+        display.mark_command_failed()
+        assert display.command_failed() is True
+
+    def test_reset_command_state_clears_flag(self):
+        display.mark_command_failed()
+        display.reset_command_state()
+        assert display.command_failed() is False
+
+    def test_resolve_exit_not_handled(self):
+        assert display.resolve_exit(handled=False) == 1
+
+    def test_resolve_exit_handled_ok(self):
+        assert display.resolve_exit(handled=True) == 0
+
+    def test_resolve_exit_handled_failed(self):
+        display.mark_command_failed()
+        assert display.resolve_exit(handled=True) == 2
+
+    def test_resolve_exit_not_handled_ignores_flag(self):
+        display.mark_command_failed()
+        assert display.resolve_exit(handled=False) == 1
+
+    def test_error_trips_failure_flag(self):
+        cons, _ = _make_capture_console()
+        with patch.object(display, "err_console", cons):
+            display.error("something broke")
+        assert display.command_failed() is True
+
+    def test_warning_does_not_trip_flag(self):
+        cons, _ = _make_capture_console()
+        with patch.object(display, "err_console", cons):
+            display.warning("just a warning")
+        assert display.command_failed() is False
+
+    def test_success_does_not_trip_flag(self):
+        cons, _ = _make_capture_console()
+        with patch.object(display, "CONSOLE", cons):
+            display.success("all good")
+        assert display.command_failed() is False

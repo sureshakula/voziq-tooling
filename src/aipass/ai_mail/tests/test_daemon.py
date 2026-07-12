@@ -9,10 +9,11 @@
 """Tests for dispatch daemon handler -- config loading, state management, inbox scanning."""
 
 import json
+import os
 import sys
 import pytest
 from datetime import datetime, date, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import aipass.ai_mail.apps.handlers.dispatch.daemon as daemon_mod
 from aipass.ai_mail.apps.handlers.dispatch.daemon import (
@@ -25,6 +26,17 @@ from aipass.ai_mail.apps.handlers.dispatch.daemon import (
     get_registered_branches,
     check_inbox_for_dispatch,
     is_protected_branch,
+    _handle_signal,
+    _check_lock,
+    _acquire_lock,
+    _is_registered_sender,
+    poll_cycle,
+    _write_pid_file,
+    _remove_pid_file,
+    _read_session_type,
+    _is_branch_occupied,
+    spawn_agent,
+    run_daemon,
 )
 
 
@@ -764,26 +776,6 @@ def test_poll_cycle_absolute_path_unchanged(tmp_path, monkeypatch):
     assert spawned_paths[0] == branch_dir
 
 
-# ---- Additional imports for new tests --------------------------------
-
-import os
-from unittest.mock import MagicMock, mock_open
-
-from aipass.ai_mail.apps.handlers.dispatch.daemon import (
-    _handle_signal,
-    _check_lock,
-    _acquire_lock,
-    _is_registered_sender,
-    poll_cycle,
-    _write_pid_file,
-    _remove_pid_file,
-    _read_session_type,
-    _is_branch_occupied,
-    spawn_agent,
-    run_daemon,
-)
-
-
 # ---- _handle_signal tests --------------------------------------
 
 
@@ -814,7 +806,7 @@ def test_check_lock_alive_pid(tmp_path, monkeypatch):
     lock_data = {"pid": 99999, "timestamp": datetime.now().isoformat()}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
 
-    monkeypatch.setattr(os, "kill", lambda pid, sig: None)
+    monkeypatch.setattr(daemon_mod, "_pid_alive", lambda pid: True)
 
     result = _check_lock(tmp_path)
 
@@ -823,17 +815,14 @@ def test_check_lock_alive_pid(tmp_path, monkeypatch):
 
 
 def test_check_lock_dead_pid(tmp_path, monkeypatch):
-    """Lock with dead PID (ProcessLookupError) is cleaned up."""
+    """Lock with dead PID is cleaned up."""
     lock_dir = tmp_path / ".ai_mail.local"
     lock_dir.mkdir(parents=True)
     lock_file = lock_dir / ".dispatch.lock"
     lock_data = {"pid": 99999, "timestamp": datetime.now().isoformat()}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
 
-    def _raise_process_lookup(pid, sig):
-        raise ProcessLookupError("No such process")
-
-    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+    monkeypatch.setattr(daemon_mod, "_pid_alive", lambda pid: False)
 
     result = _check_lock(tmp_path)
 
@@ -849,10 +838,7 @@ def test_check_lock_permission_error(tmp_path, monkeypatch):
     lock_data = {"pid": 99999, "timestamp": datetime.now().isoformat()}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
 
-    def _raise_permission(pid, sig):
-        raise PermissionError("Operation not permitted")
-
-    monkeypatch.setattr(os, "kill", _raise_permission)
+    monkeypatch.setattr(daemon_mod, "_pid_alive", lambda pid: True)
 
     result = _check_lock(tmp_path)
 
@@ -869,10 +855,7 @@ def test_check_lock_stale_over_10min_removed(tmp_path, monkeypatch):
     lock_data = {"pid": 99999, "timestamp": old_time}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
 
-    def _raise_process_lookup(pid, sig):
-        raise ProcessLookupError("No such process")
-
-    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+    monkeypatch.setattr(daemon_mod, "_pid_alive", lambda pid: False)
 
     result = _check_lock(tmp_path)
 
@@ -889,10 +872,7 @@ def test_check_lock_stale_under_10min_dead_pid_removed(tmp_path, monkeypatch):
     lock_data = {"pid": 99999, "timestamp": recent_time}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
 
-    def _raise_process_lookup(pid, sig):
-        raise ProcessLookupError("No such process")
-
-    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+    monkeypatch.setattr(daemon_mod, "_pid_alive", lambda pid: False)
 
     result = _check_lock(tmp_path)
 
@@ -1015,6 +995,7 @@ def test_write_pid_file_existing_dead_pid(tmp_path, monkeypatch):
 
 def test_write_pid_file_existing_permission_error(tmp_path, monkeypatch):
     """Existing PID file with PermissionError on kill returns False."""
+    monkeypatch.setattr("sys.platform", "linux")
     pid_file = tmp_path / "daemon.pid"
     pid_file.write_text("888888", encoding="utf-8")
     monkeypatch.setattr(daemon_mod, "DAEMON_PID_FILE", pid_file)

@@ -177,10 +177,10 @@ def test_handle_command_on_failure_prints_error():
             result = medic.handle_command("on", [])
 
     assert result is True
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    expected_msg = "[red]Failed to enable Medic[/red] - check trigger_config.json"
-    assert expected_msg in printed, f"Expected exact error message '{expected_msg}' in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Failed to enable Medic" in s for s in err_args), f"Expected failure message in error() args: {err_args}"
 
 
 # ---------------------------------------------------------------------------
@@ -226,10 +226,12 @@ def test_handle_command_off_failure_prints_error():
             result = medic.handle_command("off", [])
 
     assert result is True
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    expected_msg = "[red]Failed to disable Medic[/red] - check trigger_config.json"
-    assert expected_msg in printed, f"Expected exact error message '{expected_msg}' in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Failed to disable Medic" in s for s in err_args), (
+        f"Expected failure message in error() args: {err_args}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -307,7 +309,7 @@ def test_handle_command_status_suppression_hint_when_disabled():
 
     console = _get_console()
     printed = _get_print_str_args(console)
-    hint = "  [dim]All error dispatch suppressed. Errors logged to medic_suppressed.log[/dim]"
+    hint = "  [dim]All error dispatch suppressed. Errors logged to medic_suppressed.jsonl[/dim]"
     assert hint in printed, f"Expected suppression hint '{hint}' in printed args: {printed}"
 
 
@@ -354,10 +356,10 @@ def test_handle_command_mute_failure_prints_error():
 
     medic.handle_command("mute", ["@api"])
 
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    expected = "  [red]Failed to mute[/red] @api — check trigger_config.json"
-    assert expected in printed, f"Expected mute failure message '{expected}' in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Failed to mute" in s for s in err_args), f"Expected mute failure message in error() args: {err_args}"
 
 
 def test_handle_command_mute_without_branch_name():
@@ -366,10 +368,10 @@ def test_handle_command_mute_without_branch_name():
     result = medic.handle_command("mute", [])
 
     assert result is True
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    expected = "[red]Missing branch name[/red] - usage: medic mute @branch"
-    assert expected in printed, f"Expected usage error '{expected}' in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Missing branch name" in s for s in err_args), f"Expected usage error in error() args: {err_args}"
     # Should NOT have called mute_branch
     state = _get_medic_state()
     state.mute_branch.assert_not_called()
@@ -410,10 +412,12 @@ def test_handle_command_unmute_already_unmuted():
     result = medic.handle_command("unmute", ["@nonexistent"])
 
     assert result is True
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    expected = "  [red]Failed to unmute[/red] @nonexistent — check trigger_config.json"
-    assert expected in printed, f"Expected unmute failure message '{expected}' in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Failed to unmute" in s for s in err_args), (
+        f"Expected unmute failure message in error() args: {err_args}"
+    )
 
 
 def test_handle_command_unmute_without_branch_name():
@@ -422,10 +426,10 @@ def test_handle_command_unmute_without_branch_name():
     result = medic.handle_command("unmute", [])
 
     assert result is True
-    console = _get_console()
-    printed = _get_print_str_args(console)
-    expected = "[red]Missing branch name[/red] - usage: medic unmute @branch"
-    assert expected in printed, f"Expected usage error '{expected}' in printed args: {printed}"
+    cli_modules = sys.modules["aipass.cli.apps.modules"]
+    cli_modules.error.assert_called()
+    err_args = [str(a) for call in cli_modules.error.call_args_list for a in call.args]
+    assert any("Missing branch name" in s for s in err_args), f"Expected usage error in error() args: {err_args}"
     state = _get_medic_state()
     state.unmute_branch.assert_not_called()
 

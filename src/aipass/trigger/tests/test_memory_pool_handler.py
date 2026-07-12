@@ -192,7 +192,7 @@ class TestHandleMemoryPoolAutoProcessedFailure:
             error="pool write failed",
         )
 
-        log_file = tmp_path / "logs" / "memory_pool_handler.log"
+        log_file = tmp_path / "logs" / "memory_pool_handler.jsonl"
         assert log_file.exists()
         content = log_file.read_text()
         assert "pool write failed" in content

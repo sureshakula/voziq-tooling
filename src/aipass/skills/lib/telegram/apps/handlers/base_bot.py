@@ -52,6 +52,7 @@ import signal
 import subprocess
 import sys
 import threading
+import tempfile
 import time
 import uuid
 from datetime import datetime
@@ -136,7 +137,7 @@ HEARTBEAT_INTERVAL = 30  # seconds
 STREAM_INTERVAL = 2  # seconds between streaming edits
 CLAUDE_BIN = str(Path.home() / ".local" / "bin" / "claude")
 MIRROR_SESSION_TYPE = "interactive-mirror"
-TEMP_DIR = Path("/tmp/telegram_uploads")
+TEMP_DIR = Path(tempfile.gettempdir()) / "telegram_uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
@@ -312,13 +313,14 @@ class BaseBot:
                     if not self.state["running"]:
                         break
 
-                    self.process_update(update)
-
-                    # Advance offset
+                    # Advance offset BEFORE processing so a consumed update
+                    # (rate-limited, rejected, or erroring) never pins the offset.
                     new_offset = update.get("update_id", 0) + 1
                     if new_offset > offset:
                         offset = new_offset
                         self._save_offset(offset)
+
+                    self.process_update(update)
 
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt received")
@@ -574,12 +576,14 @@ class BaseBot:
             self._handle_monitor_command(chat_id, cmd_args)
             return True
 
-        # /create command — multi-step bot creation
+        # /create and /cancel — base bot only (branch bots must not spawn bots)
+        if cmd_name in ("create", "cancel") and self.branch_name is not None:
+            return False
+
         if cmd_name == "create":
             self._handle_create_command(chat_id, cmd_args)
             return True
 
-        # /cancel command — cancel active /create flow
         if cmd_name == "cancel":
             if chat_id in self._create_state:
                 del self._create_state[chat_id]
@@ -1630,21 +1634,45 @@ class BaseBot:
 
     @staticmethod
     def _is_pid_alive(pid: int) -> bool:
-        """Check if a process with the given PID exists."""
+        """Check if a process with the given PID exists. Cross-platform."""
         if pid <= 1:
             return False
-        try:
-            os.kill(pid, 0)
-            return True
-        except ProcessLookupError:
-            logger.info("PID %d not found (dead)", pid)
-            return False
-        except PermissionError:
-            logger.info("PID %d exists but permission denied — treating as alive", pid)
-            return True
-        except OSError as exc:
-            logger.info("PID %d liveness check failed: %s — treating as dead", pid, exc)
-            return False
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+
+                kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+                kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+                kernel32.OpenProcess.restype = wintypes.HANDLE
+                handle = kernel32.OpenProcess(0x1000, False, pid)
+                if not handle:
+                    return False
+                try:
+                    exit_code = wintypes.DWORD()
+                    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+                    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+                    if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                        return False
+                    return exit_code.value == 259
+                finally:
+                    kernel32.CloseHandle(handle)
+            except Exception as exc:
+                logger.info("PID %d Windows check failed (assuming alive): %s", pid, exc)
+                return True
+        else:
+            try:
+                os.kill(pid, 0)
+                return True
+            except ProcessLookupError:
+                logger.info("PID %d not found (dead)", pid)
+                return False
+            except PermissionError:
+                logger.info("PID %d exists but permission denied — treating as alive", pid)
+                return True
+            except OSError as exc:
+                logger.info("PID %d liveness check failed: %s — treating as dead", pid, exc)
+                return False
 
     def _find_tmux_pane_by_cwd(self) -> str | None:
         """Find a tmux session with a pane whose CWD matches this bot's work_dir."""
@@ -2309,20 +2337,22 @@ class BaseBot:
         Returns:
             Dict of commands in telegram_standards format
         """
-        return {
+        commands = {
             "monitor": {
                 "description": "Subscribe to system-wide log alerts — /monitor on, off, all, status",
                 "menu_text": "Log monitor",
             },
-            "create": {
+        }
+        if self.branch_name is None:
+            commands["create"] = {
                 "description": "Create a Telegram bot for a branch — e.g. /create chat devpulse",
                 "menu_text": "New branch bot",
-            },
-            "cancel": {
+            }
+            commands["cancel"] = {
                 "description": "Cancel an in-progress /create",
                 "menu_text": "Cancel create",
-            },
-        }
+            }
+        return commands
 
     # =============================================
     # LOCK FILE MANAGEMENT
@@ -2373,37 +2403,32 @@ class BaseBot:
         try:
             lock_data = json.loads(self._lock_file.read_text(encoding="utf-8"))
             pid = lock_data.get("pid", 0)
-
-            if pid:
-                try:
-                    os.kill(pid, 0)  # Signal 0 = check existence
-                except OSError:
-                    logger.info("Cleaning stale lock (PID %d is dead)", pid)
-                    self._lock_file.unlink(missing_ok=True)
-                    return False
-
-                # PID is alive — verify it's actually this bot (not PID reuse)
-                try:
-                    cmdline = Path(f"/proc/{pid}/cmdline").read_bytes()
-                    cmd_str = cmdline.decode("utf-8", errors="replace").replace("\x00", " ")
-                    if f"--bot-id {self.bot_id}" not in cmd_str:
-                        logger.info(
-                            "Cleaning stale lock (PID %d is alive but not bot-%s)",
-                            pid,
-                            self.bot_id,
-                        )
-                        self._lock_file.unlink(missing_ok=True)
-                        return False
-                except OSError:
-                    logger.info("Could not read /proc/%d/cmdline — trusting PID liveness check", pid)
-
-                return True  # PID alive and belongs to this bot
-
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("Stale or corrupt lock file, removing: %s", e)
             self._lock_file.unlink(missing_ok=True)
+            return False
 
-        return False
+        if not pid:
+            return False
+
+        if not self._is_pid_alive(pid):
+            logger.info("Cleaning stale lock (PID %d is dead)", pid)
+            self._lock_file.unlink(missing_ok=True)
+            return False
+
+        # PID is alive — verify it's actually this bot (not PID reuse)
+        if sys.platform != "win32":
+            try:
+                cmdline = Path(f"/proc/{pid}/cmdline").read_bytes()
+                cmd_str = cmdline.decode("utf-8", errors="replace").replace("\x00", " ")
+                if f"--bot-id {self.bot_id}" not in cmd_str:
+                    logger.info("Cleaning stale lock (PID %d is alive but not bot-%s)", pid, self.bot_id)
+                    self._lock_file.unlink(missing_ok=True)
+                    return False
+            except OSError:
+                logger.info("Could not read /proc/%d/cmdline — trusting PID liveness check", pid)
+
+        return True
 
     # =============================================
     # SIGNAL HANDLING

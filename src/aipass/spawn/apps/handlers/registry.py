@@ -6,9 +6,29 @@
 # Modified: 2026-06-10
 # =============================================
 
-"""*_REGISTRY.json discovery and CRUD operations."""
+"""*_REGISTRY.json discovery and CRUD operations.
+
+Identity model (DPLAN-0239, settled 2026-07-11):
+
+  registry.metadata.id
+      PROJECT credential — authoritative, minted once at ``aipass init``.
+      Passport ``citizenship.registry_id`` conforms to it (drone enforces
+      the pair at routing time). Spawn never mints this; bootstrap.py does.
+
+  branch-entry registry_id
+      PER-CITIZEN UUID — set-once, minted by ``add_to_registry`` at entry
+      creation. Uniquely identifies the citizen *within* the project.
+      NOT the project credential; NOT copied from the passport.
+
+  owner (entry field, ``True`` / absent)
+      Sealed authority flag. First agent = project owner.  Seated via
+      ``ensure_project_has_owner`` at creation time. ``citizen_class ==
+      'manager'`` is a cosmetic preference for the seating heuristic,
+      never the gate — the entry ``owner: true`` IS the gate.
+"""
 
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -137,8 +157,11 @@ def _validate_path_containment(branch_path, registry_path):
 
 
 def add_to_registry(registry_path, branch_name, branch_path, profile, email, purpose=""):
-    """
-    Add a new branch entry to the registry.
+    """Add a new branch entry to the registry.
+
+    Always mints a fresh per-citizen UUID for the entry's ``registry_id``
+    (the citizen UID).  This is NOT the project credential — that lives
+    in ``metadata.id`` and is copied into passports separately.
 
     Uses file locking around the entire read-modify-write cycle to prevent
     corruption from concurrent spawns. Skips locking on Windows.
@@ -193,6 +216,7 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
             "status": "active",
             "created": today,
             "last_active": today,
+            "registry_id": str(uuid.uuid4()),
         }
 
         if isinstance(branches, dict):
@@ -206,7 +230,7 @@ def add_to_registry(registry_path, branch_name, branch_path, profile, email, pur
 
         return save_registry(registry_path, registry)
     finally:
-        if lock_fd is not None:
+        if lock_fd is not None and sys.platform != "win32":
             import fcntl
 
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
@@ -267,32 +291,134 @@ def fix_passport_registry_id(branch_dir: Path, registry_path: Path) -> bool:
         return False
 
 
+def pick_owner_branch(branches, project_root):
+    """Select which branch entry should be the owner (no writes).
+
+    Canonical heuristic (first match wins):
+      1. citizen_class == "manager" (cosmetic preference, not the gate)
+      2. passport citizenship.owner == true
+      3. First agent by ``created`` date (ultimate fallback)
+
+    Args:
+        branches: List of branch entry dicts.
+        project_root: Path to the project root (registry parent dir).
+
+    Returns:
+        The chosen branch entry dict, or None if branches is empty.
+    """
+    if not branches:
+        return None
+
+    project_root = Path(project_root)
+
+    for branch in branches:
+        branch_path = project_root / branch.get("path", "")
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if passport_path.exists():
+            passport = json_handler.read_json(passport_path)
+            if passport and passport.get("identity", {}).get("citizen_class") == "manager":
+                return branch
+
+    for branch in branches:
+        branch_path = project_root / branch.get("path", "")
+        passport_path = branch_path / ".trinity" / "passport.json"
+        if passport_path.exists():
+            passport = json_handler.read_json(passport_path)
+            if passport and passport.get("citizenship", {}).get("owner") is True:
+                return branch
+
+    return min(branches, key=lambda b: b.get("created", "9999-99-99"))
+
+
 def ensure_project_has_owner(registry_path):
-    """If no agent in the project has owner:true, assign it to the earliest-created agent."""
+    """Ensure exactly one branch entry in the registry has owner:true.
+
+    Uses ``pick_owner_branch`` for the canonical seating heuristic.
+    Writes to the REGISTRY ENTRY (sealed authority), not the passport.
+    """
     registry_path = Path(registry_path)
     reg_data = load_registry(registry_path)
     branches = branches_as_list(reg_data.get("branches", []))
     if not branches:
         return False
 
-    registry_root = registry_path.parent
     for branch in branches:
-        branch_path = registry_root / branch.get("path", "")
-        passport_path = branch_path / ".trinity" / "passport.json"
-        if passport_path.exists():
-            passport = json_handler.read_json(passport_path)
-            if passport and passport.get("citizenship", {}).get("owner") is True:
-                return False
+        if branch.get("owner") is True:
+            return False
 
-    by_created = sorted(branches, key=lambda b: b.get("created", "9999-99-99"))
-    for branch in by_created:
-        branch_path = registry_root / branch.get("path", "")
-        passport_path = branch_path / ".trinity" / "passport.json"
-        if passport_path.exists():
-            passport = json_handler.read_json(passport_path)
-            if passport:
-                passport.setdefault("citizenship", {})["owner"] = True
-                json_handler.write_json(passport_path, passport)
-                logger.info("[registry] Retroactively set owner=true on %s", branch.get("name", "?"))
-                return True
-    return False
+    owner_branch = pick_owner_branch(branches, registry_path.parent)
+    if owner_branch is None:
+        return False
+
+    owner_branch["owner"] = True
+    save_registry(registry_path, reg_data)
+    logger.info("[registry] Set owner=true on %s (registry entry)", owner_branch.get("name", "?"))
+    return True
+
+
+def backfill_owner_and_registry_id(registry_path):
+    """Backfill owner and per-citizen registry_id into branch entries.
+
+    Mints a fresh UUID for any entry that is missing ``registry_id`` or
+    holds a stale project-id duplicate (same value as another entry).
+    Already-unique UUIDs are never touched.
+
+    Also seats owner via ``ensure_project_has_owner`` if missing.
+    """
+    registry_path = Path(registry_path)
+    reg_data = load_registry(registry_path)
+    branches = branches_as_list(reg_data.get("branches", []))
+    if not branches:
+        return False
+
+    changed = False
+
+    seen_ids: dict[str, int] = {}
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        if rid:
+            seen_ids[rid] = seen_ids.get(rid, 0) + 1
+
+    for branch in branches:
+        rid = branch.get("registry_id", "")
+        if not rid or seen_ids.get(rid, 0) > 1:
+            branch["registry_id"] = str(uuid.uuid4())
+            changed = True
+
+    if changed:
+        save_registry(registry_path, reg_data)
+        logger.info("[registry] Backfilled per-citizen registry_id into entries")
+
+    owner_seated = ensure_project_has_owner(registry_path)
+    return changed or owner_seated
+
+
+def get_owner(start_path=None):
+    """Return the branch entry dict whose owner==true, or None.
+
+    Walks up from start_path (default CWD) to find *_REGISTRY.json.
+    """
+    registry_path = find_registry(start_path=start_path)
+    if not registry_path.exists():
+        return None
+    reg_data = load_registry(registry_path)
+    for branch in branches_as_list(reg_data.get("branches", [])):
+        if branch.get("owner") is True:
+            return branch
+    return None
+
+
+def is_owner(email, start_path=None):
+    """True iff email matches the owner entry's email.
+
+    Normalizes email — tolerates with/without leading '@'.
+    """
+    if not email:
+        return False
+    normalized = (email if email.startswith("@") else f"@{email}").lower()
+    owner = get_owner(start_path=start_path)
+    if owner is None:
+        return False
+    owner_email = owner.get("email", "")
+    owner_normalized = (owner_email if owner_email.startswith("@") else f"@{owner_email}").lower()
+    return normalized == owner_normalized

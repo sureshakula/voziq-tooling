@@ -28,6 +28,7 @@ from typing import Dict, Any, Optional, List
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from rich.columns import Columns
 
 from aipass.cli.apps.handlers.json import json_handler
@@ -47,6 +48,36 @@ err_console = Console(stderr=True, force_terminal=sys.stderr.isatty())  # Stderr
 # Trigger loaded lazily to avoid circular import
 _TRIGGER = None
 _TRIGGER_LOADED = False
+
+# Process-level command failure flag — mutable container avoids global statement
+_CMD_STATE = {"failed": False}
+
+
+def mark_command_failed() -> None:
+    """Set the process-level failure flag (called automatically by error())."""
+    _CMD_STATE["failed"] = True
+
+
+def command_failed() -> bool:
+    """Return whether mark_command_failed() has been called since last reset."""
+    return _CMD_STATE["failed"]
+
+
+def reset_command_state() -> None:
+    """Reset the failure flag to False (for tests and main() entry)."""
+    _CMD_STATE["failed"] = False
+
+
+def resolve_exit(handled: bool) -> int:
+    """Map handled/failed state to an exit code.
+
+    Returns 1 if not handled, 2 if handled but failed, 0 otherwise.
+    """
+    if not handled:
+        return 1
+    if _CMD_STATE["failed"]:
+        return 2
+    return 0
 
 
 # ============================================================================
@@ -341,9 +372,14 @@ def error(message: str, suggestion: str | None = None) -> None:
     Example:
         error('Branch not found', suggestion='Check branch name spelling')
     """
-    err_console.print(f"❌ [red bold]{message}[/red bold]")
+    mark_command_failed()
+    msg = Text("❌ ")
+    msg.append(message, style="red bold")
+    err_console.print(msg)
     if suggestion:
-        err_console.print(f"   [yellow]→ Try: {suggestion}[/yellow]")
+        hint = Text("   → Try: ")
+        hint.append(suggestion, style="yellow")
+        err_console.print(hint)
 
 
 def warning(message: str, details: str | None = None) -> None:
@@ -357,9 +393,13 @@ def warning(message: str, details: str | None = None) -> None:
     Example:
         warning('Branch already exists, skipping')
     """
-    err_console.print(f"⚠️  [yellow]{message}[/yellow]")
+    msg = Text("⚠️  ")
+    msg.append(message, style="yellow")
+    err_console.print(msg)
     if details:
-        err_console.print(f"   [dim]{details}[/dim]")
+        detail_text = Text("   ")
+        detail_text.append(details, style="dim")
+        err_console.print(detail_text)
 
 
 def fatal(message: str, suggestion: str | None = None) -> None:
@@ -375,9 +415,13 @@ def fatal(message: str, suggestion: str | None = None) -> None:
     Example:
         fatal('Config file missing', suggestion='Run aipass init first')
     """
-    err_console.print(f"❌ [red bold]{message}[/red bold]")
+    msg = Text("❌ ")
+    msg.append(message, style="red bold")
+    err_console.print(msg)
     if suggestion:
-        err_console.print(f"   [yellow]→ Try: {suggestion}[/yellow]")
+        hint = Text("   → Try: ")
+        hint.append(suggestion, style="yellow")
+        err_console.print(hint)
     sys.exit(1)
 
 
@@ -411,6 +455,10 @@ __all__ = [
     "warning",
     "fatal",
     "section",
+    "mark_command_failed",
+    "command_failed",
+    "reset_command_state",
+    "resolve_exit",
 ]
 
 # ============================================================================

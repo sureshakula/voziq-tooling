@@ -17,7 +17,11 @@ from aipass.prax import logger
 # CLI service: from cli.apps.modules import console (via aipass namespace)
 from aipass.cli.apps.modules import console, error, warning
 
-from aipass.spawn.apps.handlers.sync_registry_ops import sync_registry
+from aipass.spawn.apps.handlers.sync_registry_ops import (
+    sync_registry,
+    check_owner_identity,
+    fix_owner_identity,
+)
 from aipass.spawn.apps.handlers.json import json_handler
 
 
@@ -75,30 +79,119 @@ def handle_sync_registry(args: list[str]) -> int:
     """Parse args and execute sync.
 
     Args patterns:
-        []           -> report only (show mismatches)
-        ["--fix"]    -> auto-repair mismatches
+        []                          -> report only (show mismatches)
+        ["--fix"]                   -> auto-repair mismatches + owner/identity reconcile
+        ["--check"]                 -> read-only owner/identity health check
+        ["--check", "--json"]       -> machine-readable check output
+        ["--fix", "--dry-run"]      -> show planned owner/identity fixes without applying
 
-    Returns exit code (0=success, 1=failure).
+    An optional positional path can precede any flag to target
+    a specific project registry (default: CWD-based discovery).
+
+    Returns exit code (0=success/clean, 1=failure/issues).
     """
     if args and args[0] in ["--help", "-h"]:
-        warning("Usage: drone @spawn sync-registry [--fix]")
+        warning("Usage: drone @spawn sync-registry [project-path] [--fix|--check] [--json] [--dry-run]")
         console.print()
-        console.print("  [green](no args)[/green]  Report mismatches between registry and filesystem")
-        console.print("  [green]--fix[/green]      Auto-repair: remove stale, add unregistered")
+        console.print("  [green](no args)[/green]      Report mismatches between registry and filesystem")
+        console.print("  [green]--fix[/green]          Auto-repair: stale/unregistered + owner/identity reconcile")
+        console.print("  [green]--fix --dry-run[/green] Show planned owner/identity fixes without applying")
+        console.print("  [green]--check[/green]        Read-only owner/identity health check (exit 0=clean)")
+        console.print("  [green]--check --json[/green]  Machine-readable check output")
         return 0
 
-    fix = "--fix" in args
+    project_path = None
+    flags = set()
+    for arg in args:
+        if arg.startswith("--"):
+            flags.add(arg)
+        elif project_path is None:
+            project_path = arg
+
+    registry_path = None
+    if project_path:
+        from pathlib import Path
+
+        from aipass.spawn.apps.handlers.registry import find_registry
+
+        registry_path = find_registry(start_path=Path(project_path))
+
+    if "--check" in flags:
+        return _handle_check(registry_path, json_output="--json" in flags)
+
+    fix = "--fix" in flags
+    dry_run = "--dry-run" in flags
 
     try:
-        result = sync_registry(fix=fix)
+        result = sync_registry(fix=fix and not dry_run)
     except Exception as exc:
         logger.error(f"[sync-registry] Unexpected error: {exc}")
         error(str(exc))
         return 1
 
     json_handler.log_operation("registry_synced")
-
     _print_summary(result)
+
+    if fix:
+        return _handle_fix(registry_path, dry_run=dry_run)
+
+    return 0
+
+
+def _handle_check(registry_path, json_output=False) -> int:
+    """Run owner/identity health check and report."""
+    import json as _json
+
+    try:
+        result = check_owner_identity(registry_path=registry_path)
+    except Exception as exc:
+        logger.error(f"[sync-registry] Check error: {exc}")
+        error(str(exc))
+        return 1
+
+    if json_output:
+        console.print(_json.dumps(result, indent=2, ensure_ascii=False))
+        return 0 if result["clean"] else 1
+
+    issues = result["issues"]
+    console.print()
+    if not issues:
+        console.print("[green]Owner/identity check: clean[/green]")
+        return 0
+
+    error(f"Owner/identity check: {len(issues)} issue(s)")
+    console.print()
+    for issue in issues:
+        console.print(f"  [{issue['flag']}] {issue['detail']}")
+    console.print()
+    console.print("[dim]Run with --fix to reconcile.[/dim]")
+    return 1
+
+
+def _handle_fix(registry_path, dry_run=False) -> int:
+    """Run owner/identity reconcile."""
+    try:
+        result = fix_owner_identity(registry_path=registry_path, dry_run=dry_run)
+    except Exception as exc:
+        logger.error(f"[sync-registry] Fix error: {exc}")
+        error(str(exc))
+        return 1
+
+    actions = result["actions"]
+    console.print()
+    if not actions:
+        console.print("[green]Owner/identity: nothing to reconcile[/green]")
+        return 0
+
+    label = "Planned" if dry_run else "Applied"
+    console.print(f"[bold]{label} owner/identity actions ({len(actions)}):[/bold]")
+    for action in actions:
+        console.print(f"  {action}")
+
+    if dry_run:
+        console.print()
+        console.print("[dim]Dry-run — no changes written. Remove --dry-run to apply.[/dim]")
+    console.print()
     return 0
 
 

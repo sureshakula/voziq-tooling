@@ -21,12 +21,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[reaction] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.curation.curation_ops import (
     add_react,
@@ -127,7 +129,7 @@ def _handle_react(args: List[str]) -> bool:
     result = add_react(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     emoji = result["emoji"]
@@ -151,7 +153,7 @@ def _handle_unreact(args: List[str]) -> bool:
     result = remove_react(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     emoji = result["emoji"]
@@ -174,7 +176,7 @@ def _handle_reactions(args: List[str]) -> bool:
     result = show_reactions(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     detailed = result["reactions"]
@@ -200,11 +202,11 @@ def _handle_pin(args: List[str]) -> bool:
     result = pin_post_cmd(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
-    console.print(f'[green]Pinned post #{result["post_id"]} "{result["title"]}"[/green]')
+    success(f'Pinned post #{result["post_id"]} "{result["title"]}"')
     console.print()
 
     return True
@@ -215,11 +217,11 @@ def _handle_unpin(args: List[str]) -> bool:
     result = unpin_post_cmd(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
-    console.print(f'[green]Unpinned post #{result["post_id"]} "{result["title"]}"[/green]')
+    success(f'Unpinned post #{result["post_id"]} "{result["title"]}"')
     console.print()
 
     return True
@@ -230,7 +232,7 @@ def _handle_pinned(args: List[str]) -> bool:
     result = show_pinned(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     posts = result["posts"]
@@ -260,7 +262,7 @@ def _handle_trending(args: List[str]) -> bool:
     result = show_trending(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     posts = result["posts"]

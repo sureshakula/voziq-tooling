@@ -336,7 +336,7 @@ def _display_proof_results(pack_name: str, results: dict) -> None:
     if results["certified"]:
         console.print("[bold green]  CERTIFIED[/bold green]")
     else:
-        console.print("[bold red]  NOT CERTIFIED[/bold red]")
+        error("NOT CERTIFIED")
     console.print()
 
 

@@ -20,12 +20,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[catchup] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.catchup.catchup_ops import run_catchup
 from aipass.commons.apps.handlers.json import json_handler
@@ -75,7 +76,7 @@ def _handle_catchup(args: List[str]) -> bool:
     result = run_catchup(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     is_first_visit = result["is_first_visit"]
@@ -139,7 +140,7 @@ def _handle_catchup(args: List[str]) -> bool:
     if karma_change > 0:
         console.print(f"  [green]KARMA:[/green] +{karma_change} since last session")
     elif karma_change < 0:
-        console.print(f"  [red]KARMA:[/red] {karma_change} since last session")
+        error(f"KARMA: {karma_change} since last session")
     else:
         console.print("  [dim]KARMA:[/dim] [dim]No change[/dim]")
 

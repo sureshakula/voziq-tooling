@@ -16,8 +16,6 @@ All handler dependencies are mocked -- these tests verify orchestration
 logic, not business logic.
 """
 
-import subprocess
-import sys
 from contextlib import ExitStack
 
 import pytest
@@ -971,171 +969,17 @@ class TestPrintIntrospection:
 
 
 # ===========================================================================
-# _spawn_watchdog
+# Wake-back messaging (TDPLAN-0012 — retired _spawn_watchdog)
 # ===========================================================================
 
 
-class TestSpawnWatchdog:
-    """Tests for _spawn_watchdog."""
+class TestWakeBackMessaging:
+    """Tests for honest wake-back messaging after watchdog retirement."""
 
-    def test_spawns_detached_subprocess(self, monkeypatch, tmp_path):
-        """Successful watchdog spawn calls Popen with correct args."""
-        devpulse_dir = tmp_path / "src" / "aipass" / "devpulse"
-        devpulse_dir.mkdir(parents=True)
-
+    def test_wake_back_message_on_successful_wake(self, monkeypatch):
+        """Successful send + wake prints wake-back enabled message."""
         printed: list[str] = []
         monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        popen_calls: list[dict] = []
-        mock_popen = MagicMock()
-
-        def tracking_popen(cmd, **kwargs):
-            """Capture Popen arguments."""
-            popen_calls.append({"cmd": cmd, **kwargs})
-            return mock_popen
-
-        with (
-            patch(
-                f"{_H_REG}.get_branch_by_email",
-                return_value={"email": "@devpulse", "path": str(devpulse_dir)},
-            ),
-            patch(f"{MOD}.subprocess.Popen", side_effect=tracking_popen),
-        ):
-            from aipass.ai_mail.apps.modules.dispatch import _spawn_watchdog
-
-            _spawn_watchdog("@flow")
-
-        assert len(popen_calls) == 1
-        assert popen_calls[0]["cmd"] == ["drone", "@devpulse", "watchdog", "agent", "@flow"]
-        if sys.platform == "win32":
-            assert popen_calls[0].get("creationflags") == subprocess.CREATE_NEW_PROCESS_GROUP
-            assert "start_new_session" not in popen_calls[0]
-        else:
-            assert popen_calls[0]["start_new_session"] is True
-        assert popen_calls[0]["cwd"] == str(devpulse_dir)
-        combined = " ".join(printed)
-        assert "Watchdog armed for @flow" in combined
-
-    def test_devpulse_not_in_registry(self, monkeypatch):
-        """No spawn when @devpulse not found in registry."""
-        printed: list[str] = []
-        monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        with (
-            patch(f"{_H_REG}.get_branch_by_email", return_value=None),
-            patch(f"{MOD}.subprocess.Popen") as mock_popen,
-        ):
-            from aipass.ai_mail.apps.modules.dispatch import _spawn_watchdog
-
-            _spawn_watchdog("@flow")
-
-        mock_popen.assert_not_called()
-
-    def test_devpulse_no_path(self, monkeypatch):
-        """No spawn when @devpulse has empty path."""
-        printed: list[str] = []
-        monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        with (
-            patch(
-                f"{_H_REG}.get_branch_by_email",
-                return_value={"email": "@devpulse", "path": ""},
-            ),
-            patch(f"{MOD}.subprocess.Popen") as mock_popen,
-        ):
-            from aipass.ai_mail.apps.modules.dispatch import _spawn_watchdog
-
-            _spawn_watchdog("@flow")
-
-        mock_popen.assert_not_called()
-
-    def test_devpulse_dir_missing(self, monkeypatch, tmp_path):
-        """No spawn when devpulse directory doesn't exist."""
-        printed: list[str] = []
-        monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        with (
-            patch(
-                f"{_H_REG}.get_branch_by_email",
-                return_value={"email": "@devpulse", "path": str(tmp_path / "nonexistent")},
-            ),
-            patch(f"{MOD}.subprocess.Popen") as mock_popen,
-        ):
-            from aipass.ai_mail.apps.modules.dispatch import _spawn_watchdog
-
-            _spawn_watchdog("@flow")
-
-        mock_popen.assert_not_called()
-
-    def test_popen_failure_warns_but_does_not_raise(self, monkeypatch, tmp_path):
-        """Popen failure logs warning but doesn't propagate."""
-        devpulse_dir = tmp_path / "src" / "aipass" / "devpulse"
-        devpulse_dir.mkdir(parents=True)
-
-        printed: list[str] = []
-        monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        with (
-            patch(
-                f"{_H_REG}.get_branch_by_email",
-                return_value={"email": "@devpulse", "path": str(devpulse_dir)},
-            ),
-            patch(f"{MOD}.subprocess.Popen", side_effect=FileNotFoundError("drone not found")),
-        ):
-            from aipass.ai_mail.apps.modules.dispatch import _spawn_watchdog
-
-            _spawn_watchdog("@flow")
-
-        # Should not raise — watchdog is optional
-
-    def test_relative_devpulse_path_resolved(self, monkeypatch, tmp_path):
-        """Relative path from registry is resolved against repo root."""
-        printed: list[str] = []
-        monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        popen_calls: list[dict] = []
-
-        def tracking_popen(cmd, **kwargs):
-            """Capture Popen arguments."""
-            popen_calls.append({"cmd": cmd, **kwargs})
-            return MagicMock()
-
-        from aipass.ai_mail.apps.modules import dispatch as dispatch_mod
-
-        real_repo_root = dispatch_mod.Path(__file__).resolve().parents[4]
-        devpulse_dir = real_repo_root / "src" / "aipass" / "devpulse"
-
-        with (
-            patch(
-                f"{_H_REG}.get_branch_by_email",
-                return_value={"email": "@devpulse", "path": "src/aipass/devpulse"},
-            ),
-            patch(f"{MOD}.subprocess.Popen", side_effect=tracking_popen),
-        ):
-            from aipass.ai_mail.apps.modules.dispatch import _spawn_watchdog
-
-            _spawn_watchdog("@flow")
-
-        if devpulse_dir.is_dir():
-            assert len(popen_calls) == 1
-            assert "devpulse" in popen_calls[0]["cwd"]
-        else:
-            assert len(popen_calls) == 0
-
-
-class TestDispatchSendWatchdogIntegration:
-    """Tests for watchdog integration in _orchestrate_dispatch_send."""
-
-    def test_watchdog_spawned_after_successful_wake(self, monkeypatch):
-        """Watchdog is spawned after successful send + wake."""
-        printed: list[str] = []
-        monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        watchdog_calls: list[str] = []
-        monkeypatch.setattr(
-            f"{MOD}._spawn_watchdog",
-            lambda target: watchdog_calls.append(target),
-        )
 
         patches = _send_patches()
         with patches:
@@ -1144,20 +988,16 @@ class TestDispatchSendWatchdogIntegration:
             result = _orchestrate_dispatch_send(["@target", "Subject", "Body"])
 
         assert result is True
-        assert watchdog_calls == ["@target"]
+        combined = " ".join(printed)
+        assert "Wake-back enabled" in combined
+        assert "Watchdog armed" not in combined
 
-    def test_watchdog_not_spawned_on_wake_failure(self, monkeypatch):
-        """Watchdog is NOT spawned when wake fails."""
+    def test_no_wake_back_message_on_wake_failure(self, monkeypatch):
+        """No wake-back message when wake fails."""
         errors: list[str] = []
         monkeypatch.setattr(f"{MOD}.error", lambda msg: errors.append(msg))
         printed: list[str] = []
         monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        watchdog_calls: list[str] = []
-        monkeypatch.setattr(
-            f"{MOD}._spawn_watchdog",
-            lambda target: watchdog_calls.append(target),
-        )
 
         mock_status = MagicMock()
         mock_status.format.return_value = "WAKE FAILED"
@@ -1171,18 +1011,13 @@ class TestDispatchSendWatchdogIntegration:
 
             _orchestrate_dispatch_send(["@target", "Subject", "Body"])
 
-        assert watchdog_calls == []
+        combined = " ".join(printed)
+        assert "Wake-back enabled" not in combined
 
-    def test_no_watchdog_flag_skips_spawn(self, monkeypatch):
-        """--no-watchdog flag prevents watchdog spawn."""
+    def test_no_watchdog_flag_still_accepted(self, monkeypatch):
+        """--no-watchdog flag is consumed without error (backward compat)."""
         printed: list[str] = []
         monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        watchdog_calls: list[str] = []
-        monkeypatch.setattr(
-            f"{MOD}._spawn_watchdog",
-            lambda target: watchdog_calls.append(target),
-        )
 
         patches = _send_patches()
         with patches:
@@ -1191,20 +1026,13 @@ class TestDispatchSendWatchdogIntegration:
             result = _orchestrate_dispatch_send(["@target", "Subject", "Body", "--no-watchdog"])
 
         assert result is True
-        assert watchdog_calls == []
 
-    def test_watchdog_not_spawned_on_send_failure(self, monkeypatch):
-        """Watchdog is NOT spawned when send fails."""
+    def test_no_watchdog_message_on_send_failure(self, monkeypatch):
+        """No wake-back message when send fails."""
         errors: list[str] = []
         monkeypatch.setattr(f"{MOD}.error", lambda msg: errors.append(msg))
         printed: list[str] = []
         monkeypatch.setattr(f"{MOD}.console", _mock_console(printed))
-
-        watchdog_calls: list[str] = []
-        monkeypatch.setattr(
-            f"{MOD}._spawn_watchdog",
-            lambda target: watchdog_calls.append(target),
-        )
 
         patches = _send_patches(
             {
@@ -1216,4 +1044,5 @@ class TestDispatchSendWatchdogIntegration:
 
             _orchestrate_dispatch_send(["@target", "Subject", "Body"])
 
-        assert watchdog_calls == []
+        combined = " ".join(printed)
+        assert "Wake-back enabled" not in combined

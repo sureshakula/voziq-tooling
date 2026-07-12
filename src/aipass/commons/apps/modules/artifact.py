@@ -20,12 +20,15 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success, warning
 except ImportError:
     logger.warning("[artifact] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
+    warning = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 from rich.table import Table
@@ -96,12 +99,12 @@ def handle_command(command: str, args: List[str]) -> bool:
 def _handle_craft(args: List[str]) -> bool:
     result = craft_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     rarity_color = RARITY_COLORS.get(result["rarity"], "white")
     console.print()
-    console.print("[green]Artifact crafted![/green]")
+    success("Artifact crafted!")
     console.print(f"  [dim]ID:[/dim] {result['artifact_id']}")
     console.print(f"  [dim]Name:[/dim] {result['name']}")
     console.print(f"  [dim]Type:[/dim] {result['type']}")
@@ -115,7 +118,7 @@ def _handle_craft(args: List[str]) -> bool:
 def _handle_list(args: List[str]) -> bool:
     result = list_artifacts(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     artifacts = result["artifacts"]
@@ -155,7 +158,7 @@ def _handle_list(args: List[str]) -> bool:
 def _handle_inspect(args: List[str]) -> bool:
     result = inspect_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     artifact = result["artifact"]
@@ -212,7 +215,7 @@ def _handle_inspect(args: List[str]) -> bool:
             elif action == "found":
                 console.print(f"  [yellow]*[/yellow] {timestamp[:19]} | Found by {to_agent}")
             elif action == "expired":
-                console.print(f"  [red]x[/red] {timestamp[:19]} | Expired: {entry.get('details', '')}")
+                console.print(f"  [dim]x[/dim] {timestamp[:19]} | Expired: {entry.get('details', '')}")
             else:
                 console.print(f"  [dim]-[/dim] {timestamp[:19]} | {action.title()}: {entry.get('details', '')}")
 
@@ -228,15 +231,15 @@ def _handle_inspect(args: List[str]) -> bool:
 def _handle_collab(args: List[str]) -> bool:
     result = collab_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
-    for warning in result.get("warnings", []):
-        console.print(f"[yellow]Warning: {warning}[/yellow]")
+    for warn_msg in result.get("warnings", []):
+        warning(f"Warning: {warn_msg}")
 
     rarity_color = RARITY_COLORS.get(result["rarity"], "white")
     console.print()
-    console.print("[green]Joint artifact initiated![/green]")
+    success("Joint artifact initiated!")
     console.print(f"  [dim]Pending ID:[/dim] {result['pending_id']}")
     console.print(f"  [dim]Name:[/dim] {result['name']}")
     console.print(f"  [dim]Rarity:[/dim] [{rarity_color}]{result['rarity']}[/{rarity_color}]")
@@ -252,13 +255,13 @@ def _handle_collab(args: List[str]) -> bool:
 def _handle_sign(args: List[str]) -> bool:
     result = sign_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     if result["completed"]:
         rarity_color = RARITY_COLORS.get(result["rarity"], "white")
         console.print()
-        console.print("[bold green]Joint artifact completed![/bold green]")
+        success("Joint artifact completed!")
         console.print(f"  [dim]Artifact ID:[/dim] {result['artifact_id']}")
         console.print(f"  [dim]Name:[/dim] [{rarity_color}]{result['name']}[/{rarity_color}]")
         console.print(f"  [dim]Rarity:[/dim] [{rarity_color}]{result['rarity']}[/{rarity_color}]")

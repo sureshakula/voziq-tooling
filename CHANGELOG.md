@@ -9,6 +9,658 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-11]
+
+### Added
+
+- **Owner seating made permanent + self-healing for every project (DPLAN-0239,
+  fixes #693).** The owner-capability guard was correct but the DATA was never
+  seeded: every project created before 2026-07-10 had its owner only in the
+  self-editable passport, never in the sealed registry (8/8 external projects
+  unseated; AIPass's own registry was missing `metadata.id` with 13 entries
+  sharing one stale id). Identity model settled: registry `metadata.id` =
+  project credential (passports conform); branch-entry `registry_id` =
+  set-once PER-CITIZEN UUID minted at entry creation; entry `owner:true` =
+  the authority gate (first agent), chosen by ONE shared heuristic
+  (`pick_owner_branch`: manager → passport owner → first-created).
+  New: `drone @spawn sync-registry --check [--json]` (read-only, 7 health
+  flags, pinned JSON schema) and `--fix [--dry-run]` (idempotent reconcile:
+  seat owner, majority-consensus restore of `metadata.id`, mint citizen UIDs,
+  align passports; dry-run fully read-only; never moves a seated owner).
+  `aipass doctor` renders owner health per flag; `doctor --fix`, `install`,
+  and `init update` delegate repair to spawn — existing/external projects
+  self-heal on next update (the missing DPLAN-0231 PART-4 trigger). The adopt
+  path now seats owners; `placeholders.py` resolves the registry from the
+  target dir (was CWD) and fails loud. @hooks `auto_watchdog` now injects the
+  real Monitor-tool watchdog command with the actual @target (was a dead
+  one-liner + `run_in_background`, which cannot wake a session). Deployed
+  live: AIPass + 6 external projects reconciled and verified clean — VERA is
+  now seated owner of Vera Studio (`is_owner('@vera') = True`, was refused).
+  Owners built (spawn 343 / aipass 673 / hooks 961 tests green); devpulse
+  verified every diff, live-ran every stage, full-repo sweep 9364 passed
+  (1 pre-existing skills litter fail → #694).
+
+### Changed
+
+- **Fleet seedgo compliance sweep — every branch to 100% (issues #686, #661).**
+  Overnight campaign bringing all branches to 100% on the seedgo standard pack.
+  #686 (Subcommand_Help, per the #685 contract): entry points intercept
+  `<cmd> --help` before dispatch, so `--help` shows help instead of executing.
+  #661 (Output_Routing): status/error console output routed through the shared
+  `@cli` `success()/error()/warning()` helpers instead of raw `console.print`
+  markup. Owners self-audited and self-fixed their own branches; devpulse verified
+  each diff + re-ran each audit and committed per wave. Landed so far: spawn,
+  drone, flow, daemon, prax, ai_mail, backup, seedgo, memory, trigger, api, cli,
+  aipass, commons — all 14 offenders now at 100%. **Fleet: 17/17 branches at
+  100% seedgo compliance** (hooks, skills, devpulse were already compliant).
+  Owners self-audited and self-fixed; devpulse verified every diff, re-ran each
+  branch's full test suite, and committed per wave. A full 17-branch test run
+  (~10,349 tests) surfaced one pre-existing flaky test in drone
+  (`test_pr_no_branch_dir` / `test_pr_no_args` lacked cwd isolation, so a real
+  checkout's findable passport made the auth path pass unexpectedly) — given
+  `monkeypatch.chdir(tmp_path)` isolation to match its sibling test, so the full
+  suite is now deterministically green.
+
+### Fixed
+
+- **Watchdog Monitor wake no longer double-fires (#693 follow-on, reported by
+  VERA via the feedback channel).** The `watchdog agent` reminder banner
+  ("invoke via Monitor tool, not run_in_background") printed to STDOUT at arm
+  time, and the harness Monitor tool treats every stdout line as a wake event —
+  so every armed watchdog fired a spurious wake the instant it armed, then the
+  real wake at completion. Rerouted to stderr (`err_console`); stdout now
+  carries completion/stall events only, matching the contract the agent handler
+  already followed. Verified live: exactly one wake, on real exit. The devpulse
+  README watchdog/feedback sections were also rewritten to document the owner
+  gate, the 3-step Monitor wake mechanic, why no passive wake can exist, and
+  the 600 s default timeout.
+
+- **Watchdog agent tests thread-race flakes made deterministic (devpulse).**
+  Four tests patched the GLOBAL `time.sleep` with stateful/side-effecting
+  fakes; prax's logger spawns daemon threads on first log, which executed the
+  fakes concurrently with the test (advancing a fake clock, unlinking the
+  fixture lock early, or re-truncating `last_bounce.json` mid-read in
+  `_classify_exit` → `exit_code=None`). All fakes are now thread-scoped via a
+  caller-frame guard: only sleeps from the agent module trigger the test's
+  side effect; foreign threads get a real 1 ms sleep.
+
+- **seedgo-audit back to 100 % after the S300 commits (PR659).** Two 99 %
+  regressions from that day's own work: `aipass` `doctor.py` `_fix_owner_seating`
+  had two silent catches (now log via prax like the sibling check function),
+  and the devpulse README claimed 407 tests where the readme checker counts
+  test functions (corrected to 309).
+
+- **Two more non-hermetic ai_mail tests made deterministic (PR659).** With the full
+  suite now running on varied CI runners, `test_get_pid_cwd_darwin_failure` and
+  `test_is_zombie_linux_no_proc` intermittently failed: they called the real `lsof`
+  (via `subprocess.run`) and real `open("/proc/…")` for a fixed PID (999 / 99999),
+  so on a runner where that PID happened to exist they returned a non-`None` result
+  instead of the expected failure. Mocked `subprocess.run` and `builtins.open` so the
+  tests assert the failure contract without touching real process/`/proc` state.
+  Test-only; deterministic across repeated runs.
+
+- **Windows CI cross-platform fixes — `windows-setup` green (PR659).** Fixing the
+  telegram collection errors unmasked 14 pre-existing Windows-only failures across
+  six branches. Two root causes. **(1) pid-liveness tests** (ai_mail, flow, hooks,
+  skills) mocked `os.kill`, but the production `_is_pid_alive` already branches to a
+  ctypes `OpenProcess` path on Windows and never reaches `os.kill`, so the mocks had
+  no effect and the real path ran instead — pinned `sys.platform` to `linux` in those
+  tests (or patched `_is_pid_alive` directly) so they exercise the POSIX contract
+  deterministically on every platform. **(2) POSIX path assumptions** — prax's jsonl
+  test hardcoded `/some/path` (backslashes under `str(Path)` on Windows) now asserts
+  against `str(test_path)`; hooks' rollover test compares `repr()` (matches `%r`
+  logging); ai_mail's darwin lsof-parser test uses a fixed POSIX path; and seedgo's
+  `is_bypassed()` now normalizes the rule file via `Path(rule_file).as_posix()` before
+  matching (the one production fix — Windows backslash rule paths never matched the
+  forward-slash file path). 10 files (9 test, 1 code); owners self-fixed, devpulse
+  verified every diff + Linux no-regression (525 changed-test assertions green).
+
+- **Flaky `test_deletes_old_system_log` made deterministic (@prax log-sweep tests).**
+  The sweep integration test reached `log_watchdog._get_system_logs_dir` through a
+  `_get_sweep()` wrapper and patched it by string path; a sibling test
+  (`test_logging_handlers.py`) `sys.modules.pop`s and reimports `log_watchdog`,
+  creating a second module object — so the string patch could target a different
+  object than the function's `__globals__`, the sweep scanned the real (empty)
+  `system_logs/`, removed 0 files, and `assert files_removed == 1` failed
+  intermittently (the same commit passed in one CI run and failed in another).
+  Switched to a direct `import log_watchdog as lw` + `patch.object(lw, …)` (shared
+  module `__dict__`) and patched `json_handler` to block real file I/O. Test-only
+  (1 file); prax suite 978 green, two full-repo runs 11,019 passed each, sweep tests
+  deterministic across repeated runs.
+
+- **Telegram skill tests made CI-safe — full-repo collection + hermeticity (issue #691).**
+  The 16 test files under `skills/lib/telegram/tests/` imported handlers via bare
+  `from apps.handlers…`, which collided with other branches' `apps` packages during
+  full-repo CI collection (~16 ImportError collection errors → CI red on Linux +
+  Windows). Converted to fully-qualified `aipass.skills.lib.telegram.apps.handlers.*`
+  imports (and matching `mock.patch` targets). Verifying that fix surfaced a second
+  problem the imports had exposed: ~11 tests reached the live Telegram API
+  (`base_bot.run → _set_command_menu → set_bot_commands → urlopen`) — they had never
+  run in CI before because they failed at collection. Added a session-scoped autouse
+  `_block_network` conftest fixture that patches `urlopen` on the four network-using
+  telegram modules (both bare and fully-qualified import paths, each guarded) so any
+  test attempting a live HTTP call fails loud instead of hanging. A full-repo CI run
+  then exposed a third layer the isolated suites had hidden: `handler.py` and its
+  routing tests still used bare `from apps.handlers.X import Y` / `mock.patch("apps.
+  handlers.X…")`, which resolve to the *wrong* branch's `apps` in a whole-repo run
+  (AttributeError / ModuleNotFoundError at runtime — 17 `test_handler_routing`
+  failures). Fully-qualified those to `aipass.skills.lib.telegram.apps.handlers.*` in
+  both `handler.py` (7 lazy imports, now house-rule compliant) and the tests; the
+  skill's runtime behaviour is unchanged (verified via `drone @skills run telegram`).
+  Net: full-repo collection 0 errors and the whole 11k-test suite green; telegram
+  suite 663 passed / 0 failed / 0 hangs, fully hermetic; coverage intact (import and
+  patch-target rewiring only — zero assertion changes).
+
+- **`aipass install` from a throwaway path can no longer hijack the machine-wide
+  `AIPASS_HOME` (issue #688).** A probe install run from a `/tmp` scratchpad had
+  rewritten `~/.claude/settings.json` `env.AIPASS_HOME`, silently pointing every
+  Claude Code session on the machine at a dead temp tree (stale python, stale
+  hooks — surfaced as bogus ImportErrors in unrelated work). Three defenses:
+  `bootstrap.is_throwaway_path()` gates the settings write itself (temp dirs +
+  scratchpads never land in global settings); `run_install` refuses a throwaway
+  home loudly with `--force-global-home` as the explicit override; and
+  `aipass doctor` gains a `global AIPASS_HOME` check that flags a nonexistent or
+  throwaway path with fix guidance. +11 tests. Ships with a probe-hygiene SOP
+  (`aipass/docs/probe_hygiene.md`): temp installs are used, deleted, gone — nothing
+  permanent may point at a temp path. Tests made location-independent so the suite
+  is green from any cwd and from a `/tmp` clean-room extraction, not just the repo
+  root. (built by @aipass, verified + test-hardened by devpulse against the real
+  hijack path)
+
+## [2026-07-10]
+
+### Added
+
+- **Owner-capability model — project ownership sealed in the registry, and the
+  owner is woken back when a dispatched agent completes (issue #678).** The
+  directed-wake round-trip grew into an access-control primitive: watchdog /
+  feedback / wake-back are owner-only privileges, and the owner (first agent /
+  `citizen_class: manager` — devpulse in AIPass) is resolved from the *sealed*
+  `*_REGISTRY.json`, not the self-editable passport (no self-grant). Three parts
+  built in parallel against a frozen `is_owner` contract: `@spawn` writes
+  `owner` + `registry_id` into registry entries and exposes `get_owner()` /
+  `is_owner()` (`ensure_project_has_owner` now keys off the manager signal, not
+  the created-date heuristic that mislabeled `@aipass`); `@hooks` adds a
+  `registry_gate` PreToolUse handler that blocks raw writes/edits/deletes of
+  `*_REGISTRY.json` and redirects to `drone @spawn` (per-clause bypass defeats
+  compound-command smuggling; reads stay allowed); `@ai_mail` reslopes the
+  dispatch wake-back from a `SKIP_SENDERS` blocklist to an `is_owner` allowlist.
+  Cross-part verified end-to-end by devpulse with the real resolver (gate 13/13
+  incl. compound-smuggle, wake-back owner/non-owner/depth-cap).
+  (built by @spawn + @hooks + @ai_mail, verified by devpulse)
+
+- **`subcommand_help` seedgo standard — entry points must intercept `<cmd> --help`
+  before dispatch (issue #685, split from #665 item 3).** `drone @X <cmd> --help`
+  had no framework contract: drone (a router, not a standards enforcer) forwards
+  `--help` as a positional, so behavior was per-branch — 8/16 missed, and two
+  branches *executed* the subcommand instead of showing help. seedgo now owns the
+  contract: a new AST checker flags entry points that don't guard `<cmd> --help`
+  (explicit `remaining_args[0]` guard or argparse `parse_known_args`). 21 tests,
+  cwd-portable. 7/17 branches comply; the 10 offenders are tracked as a fleet
+  migration (#686). (@seedgo, verified devpulse)
+
+- **`windows_compat` now detects `os.kill(pid, 0)` liveness probes, not just
+  documents them (issue #682).** `os.kill(pid, 0)` resolves to `TerminateProcess`
+  on Windows — it *kills* the target instead of probing it. The checker documented
+  the anti-pattern but never flagged it in source. A new detector recognizes the
+  valid early-return platform guard (so the reference impl `watchdog/agent.py` isn't
+  false-flagged) while catching genuinely unguarded sites. 6 tests; verified across
+  the fleet (guarded ref passes, 10 offenders caught → fleet migration #684).
+  (@seedgo, verified devpulse)
+
+- **`append_jsonl` — a sanctioned rotating JSONL writer + a 30-day stale-log sweep
+  (issue #673).** Branches wrote `.jsonl` via raw `open('a')`, bypassing prax
+  rotation (which was `.log`-only) — unbounded log growth. `from aipass.prax import
+  append_jsonl` gives 500 KB / 1-backup atomic (`os.replace`) rotation with zero
+  dependency on the prax logging pipeline (recursion-safe for @trigger's event
+  handlers), and `drone @prax log-audit sweep` deletes logs older than 30 days
+  across system + branch logs. The raw appenders in @backup (1), @hooks (2), and
+  @trigger (11 `.log` sites → `.jsonl`, plus downstream medic readers) all adopted
+  it — zero raw log appenders remain fleet-wide.
+  (@prax + @backup/@hooks/@trigger, verified devpulse)
+
+- **Hook engine: Codex bridge + portable test suite (issue #635, DPLAN-0184
+  leftovers).** The engine now drives Codex hooks the same way it drives Claude:
+  new `handlers/bridges/codex.py` mirrors the claude.py bridge (same
+  `EventType:hook_name` dispatch) with Codex protocol normalization — stdin
+  remaps `input`→`tool_input`, stdout wraps in the `hookSpecificOutput` envelope
+  (`additionalContext` for injection, `permissionDecision` +
+  `permissionDecisionReason` for blocks — fixing the known DPLAN-0205 bugs:
+  missing reason, wrong field name). And `drone @hooks test` is a portable
+  drop-in runner that fires every hook from `.aipass/hooks.json` with mock data
+  per event type and reports fired/blocked/disabled/crashed with timing
+  (`--verbose` previews output). 23 new tests (12 bridge + 11 runner), seedgo
+  31/31 both. (built by @hooks, verified by devpulse)
+
+### Fixed
+
+- **hooks/bridge: `-p` headless invocations no longer routed through tmux
+  (issue #677, DPLAN-0226 fine-tune leftover).** The boot wrapper
+  (`session_boot.py`) applied its tmux/session-lookup/live-attach logic to every
+  invocation — wrong for `claude -p`, a non-interactive one-shot that never
+  registers in `~/.claude/sessions`. The wrapper now detects `-p` in extra_args
+  and short-circuits to direct `execvp` of claude — no tmux, no session lookup.
+  +5 tests (39 pass). (built by @hooks, verified by devpulse)
+
+- **Owner-capability PART 4 — devpulse's `watchdog` + `feedback` now gate on the
+  sealed-registry owner, and cross-project (issue #681).** Closes the
+  owner-capability model (#678): the last two owner-only tools were still gated
+  by a hardcoded `cwd.name == "devpulse"` check — which, it turns out, was a
+  **no-op through drone**: drone runs a routed module with `cwd=<branch_path>`,
+  so the module's own `Path.cwd()` is *always* the devpulse tree and can't
+  identify the caller (a `@flow` caller sailed straight through). A new shared
+  `handlers/owner/guard.py` resolves the *real* caller from the env drone sets
+  (`AIPASS_CALLER_BRANCH` / `AIPASS_CALLER_CWD`) and checks it against the sealed
+  owner via the frozen `is_owner(email, start_path)` contract — so it works in
+  any project (devpulse in AIPass, whoever owns elsewhere), not a hardcoded name.
+  `feedback send` stays open (it's the inbound channel any agent uses to drop
+  feedback to the owner); every mailbox read/manage verb is owner-only. Fail-safe:
+  if no owner is sealed yet (old/partial install) or the resolver can't import,
+  it falls back to the legacy devpulse-path heuristic so existing installs never
+  hard-break. Live-verified end-to-end: owner allowed, `@flow` denied on both
+  tools, `send` open. 18 new tests (15 guard + 3 gate), branch audit 100%.
+  (built + verified by devpulse)
+
+- **seedgo `json_structure` now sanctions `custom_config/` for operator-editable
+  config (issue #643).** The standard said "`{branch}_json/` root, one directory,
+  no splits" and the checker ignored subdirs, so `custom_config/` (home of
+  operator-tunable runtime config like `cadence_config.json`, `memory.config.json`)
+  was an undocumented convention. `json_structure_check.py` gained an
+  `ALLOWED_JSON_SUBDIRS` allowlist and a `check_branch_post()` that validates
+  `{branch}_json/` subdirs — `custom_config/` and hidden dirs (`.archive`) pass,
+  any other split is flagged. `json_structure_content.py` documents the directory
+  structure and operator-config location. The subdir check honors
+  `.seedgo/bypass.json` (bypass rules are threaded through
+  `check_branch_post` → `_check_json_dir_structure`), so a branch can sanction a
+  legitimate data subdir while unsanctioned + unbypassed splits still fail. 7 new
+  tests. (The new check surfaced `devpulse_json/compass/` — the devpulse Compass
+  SQLite/FTS5 decision store, which needs its own directory — now sanctioned via a
+  documented devpulse bypass; audit confirms Json_Structure back to 100%.)
+
+- **`git_gate` block messages now guide external users instead of dead-ending
+  (issue #620).** A blocked raw `git`/`gh` command previously just errored. The
+  block message now explains *why* git is enforced (prevents cross-agent state
+  conflicts), lists the key `drone @git` commands (commit, smart-sync, sync, pr,
+  checkout), points to `drone @git --help`, and shows how to disable the gate in
+  isolation (`git_gate.enabled = false` in `.aipass/hooks.json`) — verified
+  against the engine, which skips a disabled hook per-hook without affecting other
+  hooks or `drone @git`. The combined `GIT_GH_REDIRECT` was split into distinct
+  `GIT_REDIRECT` + `GH_REDIRECT`; `EDIT_REDIRECT` also shows the disable path. An
+  init notice was added to the `project_hooks.json` template and the on/off story
+  documented in the hooks README. 6 new tests (86 in `test_git_gate`).
+
+- **Telegram `/create` + `/cancel` are now gated to the base @aipass bot (issue
+  #644).** Every per-branch bot inherited `BaseBot`'s `/create` + `/cancel` and
+  could mint new bots — but Patrick designated the base @aipass bot as the *sole*
+  spawner. `base_bot.py` now guards on bot identity (branch bots carry a
+  `branch_name`; the base bot's is `None`): `_dispatch_command` returns `False` for
+  `create`/`cancel` on a branch bot (falls through to normal handling), and
+  `get_custom_commands` advertises them only for the base bot. Rode along in the
+  same @skills pass: fail-loud fixes to `botfather_client.py` (issues #669.2/#669.3,
+  already closed) — `_load_telethon_config` now raises `RuntimeError` naming the
+  config path and the `drone @api set-secret telegram telethon_config` command
+  instead of silently returning `None` — plus poll-offset test coverage (#668).
+  133 telegram tests pass, seedgo 31/31 on both source files.
+
+- **seedgo no longer lints throwaway code (issue #675).** A single disposable POC
+  used to fire 8 standard violations (architecture, meta, shebang…). The audit and
+  checklist now skip any file resolved under a system temp dir
+  (`tempfile.gettempdir()` / `/tmp`, cross-platform) or a `scratchpad` path, and a
+  new `--prototype` flag (plus an in-file `# seedgo: prototype` marker in the first
+  5 lines) exempts disposable code explicitly. Wired into
+  `branch_audit._collect_py_files` (throwaway filter) and `checklist.run_checklist`
+  (early-return skip). 6 new tests; live-verified that a `/tmp` file and a
+  marker-tagged file both report "✓ (skip)".
+
+- **The `claude()` boot shim now ships and installs on onboarding (issue #666).**
+  Its installer (`hooks/tools/install_boot_shim.sh`) lived under a gitignored
+  `tools/` dir — never version-controlled, never shipped — so the
+  attach-if-live / start-in-tmux boot feature (and presence-gate-via-boot) was
+  dev-local only; a macOS user could not attach/resume their session. A root
+  `.gitignore` negation now tracks exactly that one file (`tools/` re-ignored,
+  only the installer whitelisted — README stays out), and `setup.sh` runs it
+  right after hook installation (idempotent via a marker check, non-fatal on
+  error, venv Python resolved from the script's own location for POSIX/Windows).
+  Fresh clones and `aipass install` now get the shim.
+
+- **Interactive-occupancy detection is now cross-platform — the wake-back guard
+  no longer goes blind on macOS (issue #680).** `_is_branch_occupied()` and
+  `_read_session_type()` (duplicated in `dispatch/wake.py` and `dispatch/daemon.py`)
+  read `/proc/{pid}/cwd` + `/proc/{pid}/environ`, which do not exist on macOS —
+  so occupancy always resolved `False` there and an external wake-back could spawn
+  a *second* Claude session on an already-interactive branch (double-session,
+  weakening the TDPLAN-0012/#678 interactive-dispatcher guard). The per-PID cwd
+  and session-type probes are now extracted into platform helpers: `_get_pid_cwd`
+  (Linux `/proc` readlink, macOS `lsof -a -p PID -d cwd -Fn`) and
+  `_read_session_type_darwin` (`ps -p PID -wwE`), applied identically in both
+  files. Fail-safe: an unreadable cwd/env logs at info and continues — never
+  crashes the wake path. +11 tests (macOS cwd, macOS session type, zombie,
+  unsupported platform), seedgo 31/31 on both files.
+
+- **SubagentStop gate no longer runs its ~600ms seedgo check on every internal
+  turn (issue #606).** Claude Code creates an internal agent per response turn
+  with an empty `agent_type`, so the `subagent_gate` handler was firing its full
+  `drone @git status` + seedgo modified-files check on every turn, not just when a
+  real Agent-tool sub-agent completed. `handle()` now early-returns `_ALLOW` when
+  `agent_type` is empty; the full check runs only for a real sub-agent
+  (non-empty `agent_type`). Piper speech is a separate notification hook and is
+  unaffected — the trust layer stays visible. 3 new tests (empty skip, missing-key
+  skip, real-agent full check), 17/17 green.
+
+- **Watchdog stall detector no longer false-fires on a long single tool call, and
+  a real stall now reaches devpulse live (issue #634).** Liveness was inferred
+  purely from JSONL file-size growth, so an agent doing one genuinely long
+  operation (big read, long-running Bash, heavy compute) wrote no new lines for
+  the span and was misread as `STALLED` while actively working. `watch_agent` now
+  also treats an in-flight `tool_use` (the assistant's last transcript entry while
+  a tool runs) as activity — verified live against real Claude Code transcripts:
+  the `tool_use` line is written at tool *start* and persists for the whole call.
+  Part 2: the stall (and a new long-running-tool advisory, plus a resumed signal)
+  is emitted to **stdout** — which the Monitor-tool wrapper surfaces as a live
+  event — instead of only `stderr`+logger, which Monitor captures but never
+  relays. Stall logic extracted into a `StallTracker` for clarity; +9 tests
+  (142 green), devpulse audit 100%. (devpulse)
+
+- **`aipass install` shows progress during the slow dependency build, and a README
+  quick-start command is corrected (issue #665, items 6–7).** The editable install of
+  the `[memory]` extras ran with `pip --quiet`, going silent for minutes during wheel
+  builds — it looked hung; dropped `--quiet` on that step and set expectation in the
+  echo. And `README.md` showed `drone @seedgo audit my_project`, which fails
+  (`audit` takes a registered pack name) — corrected to `audit aipass`. Remaining
+  #665 items (version, --help names, subcommand --help, placeholders, hints, crash-vs-
+  unknown) span multiple owners and stay open. (devpulse)
+
+- **`aipass`/`drone` first-contact papercuts resolved — issue #665 fully closed
+  (items 1, 2, 4, 5, 8).** `aipass --version` now reads package metadata (was
+  hardcoded `0.1.0`); `aipass --help` lists real `COMMAND` names, not file stems
+  (`help` not `help_chat`, `init` not `init_flow`); a crashing or unimportable
+  handler surfaces its real cause instead of `Unknown command` (@aipass). `drone
+  systems` placeholder descriptions now derive from each branch's passport/README,
+  fixed in code so they survive registry regen — the earlier gitignored data edit
+  didn't (@spawn). Bare-mode hints point to working commands — `drone @daemon
+  --help` (there is no `daemon` binary) and the standard `drone @memory --help`
+  (@daemon, @memory). Item 3 became the #685 standard. (multi-branch, verified devpulse)
+
+- **`os.kill(pid, 0)` liveness probes across the fleet are now Windows-safe (issue
+  #684).** On Windows `os.kill(pid, 0)` maps to `TerminateProcess` — the "probe"
+  kills the target. Nine sites across @ai_mail (dispatch daemon/wake), @drone (git
+  lock handler), @flow (runner lock), @hooks (cc_sessions/presence) and @devpulse
+  (watchdog registry) now early-return to an `OpenProcess` + `GetExitCodeProcess`
+  check on win32, mirroring the `watchdog/agent.py` reference. The #682 checker
+  confirms 0 unguarded sites remain (down from 10); the last one,
+  `tools/git_lock_tool.py`, is split to #687 (blocked by the tool's pre-existing
+  gate debt). (fleet migration, verified devpulse)
+
+- **Telegram poll loop no longer re-drains a rate-limited backlog; systemd
+  suicide-loop + silent config fallback fixed (issues #668, #669).** #668: the poll
+  loop advanced the update offset *after* processing, so a rate-limited/erroring
+  update never advanced it — the same backlog re-fetched in a flood loop. The
+  offset now advances *before* `process_update`, so a consumed update never pins
+  it. #669: (1) systemd unit gets `KillMode=process` so a restart isn't killed by
+  the old instance's cgroup teardown (suicide-loop); (2) `create_bot_via_botfather`
+  now **raises** with an actionable message (naming the `set-secret` fix) instead of
+  silently returning `None` when telethon config is missing (fail-honestly);
+  (3) stale config-mechanism docstrings corrected. Also Windows-hardened
+  `_is_pid_alive`/`_check_lock` and switched `TEMP_DIR` to `tempfile.gettempdir()`.
+  653 telegram tests green. (@skills, verified devpulse)
+
+- **Rollover `_find_repo_root` now fails loud, and `edit_gate` warns on over-count
+  memory sections (issue #683, #664 follow-up).** The PreCompact rollover hook's
+  `_find_repo_root` returned `None` silently when `AIPASS_HOME`/cwd was wrong — the
+  exact silent-skip that hid #664 for months; it now logs a `logger.error` with the
+  `AIPASS_HOME` value and cwd before returning. And `edit_gate` enforced per-entry
+  *character* caps but not entry *counts*, so a branch could drift past its count
+  cap between rollovers; a soft `_check_section_counts` now warns (never blocks),
+  reading the same `memory.config.json` rollover caps @memory uses. +14 tests
+  (70 green); both live-proven (bad root → error logged; over-cap → warn, no block).
+  (@hooks, verified devpulse)
+
+- **`is_owner()` now case-folds — `is_owner('DEVPULSE')` matches `is_owner('devpulse')`
+  (issue #679).** The spawn-registry resolver (`registry.py:382`) `@`-normalized the
+  email but never lowercased, so a mixed-case branch name (registry names are
+  mixed-case: `DEVPULSE` vs `devpulse`) returned `False` against the seated owner.
+  Harmless today (the only caller lowercases first) but the frozen TDPLAN-0012
+  contract promises normalization, and PART-4 owner-gating may pass a raw name.
+  Now lowercases both sides; verified live (every case variant of the owner → True,
+  non-owners → False) + a case-insensitivity test (316 green). (@spawn, verified devpulse)
+
+- **`aipass install` no longer hard-fails (exit 2, silently) when it can't create
+  global symlinks (issue #660 follow-up).** `setup.sh` runs under
+  `set -euo pipefail`; the #660 `safe_symlink` refactor returns `2` on `ln`
+  failure, but the call sites captured that code on the *next* line (`rc=$?`), so
+  `set -e` killed the installer at the symlink step — before the `~/.local/bin`
+  fallback (built for exactly the no-sudo case) could run. Any sudo-less
+  environment (containers, CI, locked-down machines) got a silent exit 2 with no
+  symlinks, despite an otherwise-complete install. Fixed all three call sites to
+  `rc=0; safe_symlink … || rc=$?` (set-e-safe). Proven in docker: a sudo-less
+  install now falls back to `~/.local/bin` and exits 0. (devpulse)
+
+- **`drone @devpulse watchdog agent` no longer reports failure on a successful
+  watch (issue #661).** Its "invoke via Monitor tool" reminder was printed
+  through `cli.error()`, which — after the #661 exit-code work — trips a
+  process failure flag, so every successful watch exited non-zero with a red X.
+  Rerouted to a dim console note; genuine argument errors still `error()` →
+  exit 2. (devpulse)
+
+- **The prax monitor now holds a single-instance lock, so a duplicate/orphan
+  monitor can't double-send Telegram relay messages (issue #671).** A new
+  `instance_lock` handler writes a pidfile (`prax_json/monitor.pid`, outside the
+  tailed `system_logs/`) with a liveness check: `acquire()` runs before relay
+  init and refuses to start (fail-loud, naming the holding PID) if a live monitor
+  already holds the lock, reclaims a stale pidfile when the recorded PID is dead,
+  and `release()` clears it on shutdown. The liveness probe is platform-branched
+  — POSIX `os.kill(pid, 0)`, Windows `OpenProcess`/`GetExitCodeProcess` (a raw
+  `os.kill(pid, 0)` *terminates* the target on Windows). `monitor.py` was also
+  split under the 600-line limit (`pid_cache` extracted). +25 tests.
+  (built by @prax, verified by devpulse)
+
+- **`aipass init update` now refreshes `AGENTS.md` and prunes stale managed
+  cruft (issue #676).** Two gaps: (1) `update_project` synced `AGENTS.md` from a
+  `.aipass/project_AGENTS.md` template that never existed, so the branch silently
+  no-op'd and `AGENTS.md` was never refreshed on update (only `CLAUDE.md`, whose
+  template exists, synced) — added the template and reconciled create/update to
+  one source; (2) the update was additive-only — added a whitelist-scoped cleanup
+  pass (`_STALE_MANAGED_FILES`, currently the retired `aipass_global_prompt.md`)
+  that removes only positively-identified managed artifacts, logs every removal,
+  and never touches user-owned files. The template also had to be un-ignored in
+  `.aipass/.gitignore` (allowlist) or it would never have shipped — caught in
+  verify. +7 tests; live repro confirms update emits `AGENTS.md` and clears a
+  planted cruft file. (built by @aipass, verified by devpulse — incl. the
+  gitignore ship-gap)
+
+- **External-project branches now auto-roll — rollover discovery is no longer
+  cwd-scoped (issue #664).** Branch discovery only saw registries reachable by
+  walking up from the caller's cwd, so branches living solely in an external
+  project's `*_REGISTRY.json` were never reached by rollovers fired from the
+  AIPass tree (the PreCompact hook runs with cwd = repo root) — their `.trinity`
+  files grew unbounded (one hit 110 key_learnings against a 15 cap) and vector
+  stores went stale. `@memory` added a persisted `known_registries.json`
+  (gitignored per-install data) that records every external registry seen via the
+  cwd walk, so discovery reaches them regardless of caller cwd; stale/deleted
+  registry paths are filtered on load. Plus a soft entry-**count** guard at write
+  time (warns, never blocks) since the write gates only enforced char caps. The
+  remaining hooks-side harden (`_find_repo_root` fail-loud + the `edit_gate`
+  count-guard) is filed for `@hooks`. +12 tests; live repro confirms a rollover
+  fired from the AIPass root now reaches an external-registry branch.
+  (built by @memory, verified by devpulse)
+
+---
+
+## [2026-07-09]
+
+### Added
+
+- **Exit-code contract foundation — failing commands can now exit non-zero
+  (issue #661, in progress).** CLI error paths printed an error but returned exit
+  `0`, so `$?`-checking callers (core to running `drone` as a subprocess) were
+  told success on failure. The dispatch contract was a 2-state bool (`handled` /
+  `not-mine`) with no way to say "handled *and* failed". `@cli` now exposes a
+  process-level failure flag + `resolve_exit(handled)` (→ `0`/`1`/`2`), and
+  `error()` auto-trips the flag — so any failure routed through `error()` gets a
+  correct non-zero exit with zero per-site edits, and it can't regress. Inert
+  until a branch's `main()` adopts it. `@seedgo` added an `output_routing`
+  standard (39th checker) flagging user-facing status output that bypasses the
+  cli helpers — 254 sites across 14 branches, the migration checklist. `devpulse`
+  is the first adopter (`main()`→`resolve_exit`, feedback migrated to `error()`,
+  exit `2`/`0`/`1` verified, 100% seedgo). Fleet migration to follow.
+  (built by @cli + @seedgo)
+
+### Fixed
+
+- **`@trigger` no longer rewrites its 44KB `trigger_data.json` on every log event
+  (issue #674).** The branch log watcher persisted dedup hashes and log positions
+  with two separate full-file rewrites *per event*, so a log burst churned the
+  file ~1-2×/sec (surfaced by prax monitoring). Replaced the per-event/counter
+  writes with a debounced coalescing writer: events set a dirty flag and both
+  keys are written in a single atomic write at most once per 5s, with a forced
+  flush on watcher stop so nothing is lost on clean shutdown. Also confirmed the
+  retired `bulletin_created` event handler no longer loads or warns (it lives in
+  `.archive/` with no live references; scrubbed stale README/bypass mentions).
+  564 trigger tests green (+6 debounce tests).
+
+- **`aipass install` no longer silently repoints your global `drone`/`aipass`
+  symlinks (issue #660).** `setup.sh` force-overwrote the global CLI symlinks with
+  `ln -sf` on every run, no check and no opt-out — so `aipass install
+  --path /tmp/scratch` "to try it" silently hijacked your real global commands to
+  the scratch tree, which broke them once `/tmp` cleared, disconnected from the
+  cause. A new `safe_symlink` guard refuses to repoint a symlink that points at a
+  *different* install: it prints a loud from→to warning and leaves the existing
+  link untouched unless you pass `--force-symlink`; `--no-symlink` opts out of
+  symlinking entirely. Both flags thread through `aipass install`. Fresh installs
+  and same-location reinstalls behave exactly as before. Adds a `safe_symlink`
+  regression test (`tests/setup_symlink_guard_test.sh`) and 3 flag-forwarding
+  tests; the touched install output was migrated to `@cli` helpers (#661).
+
+- **`drone @flow close` no longer reports a false "timed out after 30s" on a
+  successful close (issue #662).** A single-plan close committed early (plan
+  marked closed, file archived) and then ran memory vectorization
+  *synchronously* — `drone @memory process-plans` — inline. On the cold first
+  close of a session that crossed drone's 30s executor timeout, so drone killed
+  the flow subprocess and returned exit `1` **after** the close had fully
+  committed. An autonomous agent reading that exit code would retry or abandon an
+  already-closed plan. `close_plan_impl` now honors its long-existing
+  `spawn_background` flag: single close fires the already-detached
+  `_spawn_background_runner` (the same path `close_all` uses) and returns
+  immediately after archive; vectorization runs in the background. Also removed
+  the handler's cross-handler imports (archive/trigger now injected). Verified
+  live: a real close returns in ~5s at exit 0 ("Vectorizing in background") vs
+  the prior 30s-timeout risk. 730 flow tests green (+2 new).
+
+- **`aipass doctor` no longer hangs on non-interactive stdin (issue #663).** The
+  auto-wire `[y/N]` prompt called `input()` with no tty guard, so a caller with a
+  blocking-but-idle stdin (a script, CI job, or subprocess whose stdin never
+  sends EOF) hung `doctor` indefinitely — reading as a crash from the flagship
+  "check my system" command a new user runs first. `prompt_auto_wire` now guards
+  the prompt with `sys.stdin.isatty()`: a non-tty stdin declines the auto-wire
+  (prints the manual-wire warning) instead of blocking. Verified against the
+  exact repro — a blocking non-tty stdin that never EOFs now completes instead of
+  hanging until killed. Adds 3 regression tests.
+
+- **macOS session lock-out: the boot wrapper can now see tmux sessions on
+  macOS.** `session_boot` decided whether a live Claude session lived inside
+  tmux by walking the process tree through `/proc/<pid>/status` — Linux-only.
+  On macOS (no `/proc`) that walk always failed, so the wrapper concluded every
+  live session was "outside tmux" and refused to attach, locking the user out of
+  their own session in an unbreakable loop. Replaced the `/proc` read with a
+  portable `ps -o ppid=` ancestry walk (Linux + macOS). Also: both the boot
+  warning and the presence-gate block now spell out the exact recovery command
+  (`kill <pid> && claude`, `command claude --resume`) instead of a vague "kill it
+  first", and the wrapper no longer doubles `--permission-mode` when the user
+  passes it explicitly. New/updated tests, hooks suite 791 green. (built by @hooks)
+- **Boot-shim installer no longer bakes a hardcoded user path.**
+  `install_boot_shim.sh` hardcoded `/home/patrick/Projects/AIPass/.venv/bin/python`
+  into the `claude()` shell function — wrong on any other machine or user. It now
+  resolves the venv interpreter from the script's own location (POSIX
+  `.venv/bin/python`, Windows/git-bash `.venv/Scripts/python.exe`, else PATH
+  `python3`) and bakes the correct one at install time.
+- **Silent hook-wiring break: provider settings could be left half-wired with no
+  warning.** A stale `setup.sh` merge orphaned the `SessionStart` hook event to an
+  empty `[]` — the key existed but nothing fired — written silently, and it went
+  unnoticed for weeks because CI skips the provider-settings snapshot test (it
+  needs `~/.claude/settings.json`, absent in CI). Root cause: the merge stripped
+  every AIPass bridge entry per event, then re-added only events still present in
+  its own hook list, orphaning any event it no longer defined. The merge now drops
+  such an event entirely (and says so) instead of emitting an empty array. Also
+  corrected the stale snapshot fixture (dropped the dormant `presence_gate`, which
+  by design ships wired only in project config, and added
+  `SessionStart:cadence_reset`) and marked `presence_gate` `provider_wired: false`
+  so the wiring checker knows it is intentionally not provider-wired.
+- **`json_handler.load_json` crashed on an empty/whitespace file (#667).** Under
+  concurrent audit + tests a writer could truncate a JSON file in the window
+  between `ensure_json_exists` and `load_json`'s own read, raising
+  `JSONDecodeError`. `load_json` now guards an empty/whitespace read and falls back
+  to the type's default template; a non-empty but malformed file still raises (fail
+  honestly). 3 new tests, red-green proven.
+
+### Added
+
+- **`drone @hooks verify` — hook-wiring integrity checker.** Cross-checks
+  `~/.claude/settings.json` against `.aipass/hooks.json` and fails loud on empty
+  provider hook arrays, orphaned entries, enabled handlers with no provider bridge,
+  and duplicate (matcher-aware) entries — so a half-wired hook can never rot
+  silently again. `aipass doctor` now runs this check under Services and re-verifies
+  after `--fix`. 40+ new tests. (built by @hooks + @aipass)
+
+## [2026-07-07]
+
+### Fixed
+
+- **Drive sync now respects `.backupignore` on the sync path.** The ignore spec
+  was applied at backup time only — anything already inside `.backup/versioned/`
+  got uploaded regardless. Real case: Vera-Studio's store carried 37K legacy
+  `node_modules` files (92% of the store), turning a KB-sized sync into a 7-8
+  hour crawl (Drive uploads are per-file API round-trips — latency-bound, not
+  bandwidth-bound; the clean store syncs in ~13 min). `drive_sync` now re-filters
+  store files through the project's `.backupignore` before upload and logs the
+  ignored count. Also fixed: `json_handler.log_operation` crashed on `Path`
+  objects (`PosixPath is not JSON serializable`) — now serializes with
+  `default=str`. 2 new tests, backup suite 247 green. (built by @backup)
+
+### Added
+
+- **Fresh-context grounding: cadence reset on new chat / clear / compact.**
+  Both prompt loaders (tier0 kernel + navmap) now run at period 5, and a new
+  `SessionStart` hook resets the cadence counter on `startup`/`clear` (skips
+  `resume` — restored context already carries grounding; `compact` was already
+  reset via PreCompact). Net effect: the first message of every fresh context
+  gets full grounding, then every 5th turn after. Wired end-to-end: handler
+  (`session_start.py`), project config (`.aipass/hooks.json` + the
+  `project_hooks.json` template for external projects), and `setup.sh` seeds
+  the provider `SessionStart` entry for new installs. Proven end-to-end from a
+  real fresh-user clone of dev in Docker — 19/19 assertions via the new
+  `tests/docker_dev_verify.sh` (bridge-era; supersedes the stale
+  `docker_clone_test.sh`). (built by @hooks + @devpulse)
+
+### Fixed
+
+- **`aipass` ≠ drone-routed — misroutes now guide instead of crash.** `aipass`
+  is the user's front-door CLI, deliberately not resolvable by drone. But
+  `drone aipass` misdirected, `drone @aipass` crashed with a traceback, and
+  `aipass @drone` dead-ended. All three now print clear guidance (what aipass
+  is, what drone is, how to reach each). Kernel + navmap prompts updated so
+  agents know the exception. (built by @drone + @aipass)
+
+---
+
+## [2026-07-06]
+
+### Fixed
+
+- **prax log watchdog now covers branch `logs/` dirs — `.jsonl` runaway growth
+  caught.** Rotation was hardcoded to `.log` files, and several branches write
+  `.jsonl` logs via raw `open(path, "a")` appenders that bypass prax entirely —
+  `hooks/logs/engine.jsonl` had grown to 63 MB, `backup/logs/operations.jsonl`
+  to 31 MB, `trigger/logs/medic_suppressed.log` to 7 MB, all unrotated. The
+  log-watchdog safety net also only scanned `system_logs/*.log`. @prax extended
+  it: `scan_branch_log_files()` sweeps every `src/aipass/*/logs/` for `.log` +
+  `.jsonl` (WARN at 1 MB unrotated, CRITICAL at 10 MB),
+  `enforce_branch_log_limits()` truncates flagged files to the last 5000 lines,
+  and `drone @prax log-audit` now reports both system and branch scopes. 11 new
+  tests, full prax suite 947 green. The raw-appender writers themselves still
+  need per-owner caps — routed to @hooks, @backup, @trigger. (built by @prax)
+
+---
+
 ## [2026-07-05]
 
 ### Fixed

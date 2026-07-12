@@ -25,11 +25,10 @@ See FPLAN-0186 for the build plan and DPLAN-0130 for the design record.
 """
 
 import importlib
-from pathlib import Path
 from typing import List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, err_console, error, warning
 from aipass.devpulse.apps.handlers.json import json_handler
 
 _VALID_SUBCOMMANDS = ["agent", "timer", "schedule", "status", "cancel", "list"]
@@ -113,11 +112,18 @@ def print_introspection() -> None:
 
 
 def _guard_caller() -> bool:
-    """Reject cross-branch invocation. Devpulse-only tool."""
-    cwd = Path.cwd()
-    if cwd.name == "devpulse" or any(p.name == "devpulse" for p in cwd.parents):
+    """Reject non-owner invocation. Owner-only tool.
+
+    Gates on the PROJECT OWNER (sealed registry) via the shared owner guard, so
+    it works across projects — not a hardcoded 'devpulse' name. (Drone runs a
+    routed module with cwd=<branch_path>, so Path.cwd() can't identify the real
+    caller; the guard reads the AIPASS_CALLER_* env drone sets.) #681.
+    """
+    from aipass.devpulse.apps.handlers.owner.guard import guard_owner_caller
+
+    if guard_owner_caller("watchdog"):
         return True
-    warning("watchdog is a devpulse-only module — refusing cross-branch call")
+    warning("watchdog is an owner-only module — refusing non-owner call")
     return False
 
 
@@ -325,7 +331,14 @@ def _handle_agent(sub_args: List[str]) -> bool:
         error("Usage: watchdog agent <branch> [--timeout SECONDS]")
         return True
 
-    error("WATCHDOG: Must be invoked via Monitor tool, never run_in_background")
+    # Reminder, not an error: this call blocks until the agent exits, so it must
+    # run via the Monitor tool (not run_in_background) for the wake to fire on
+    # completion. MUST go to stderr: the Monitor tool treats every STDOUT line
+    # as a wake event, so a stdout banner fires a spurious wake at arm time —
+    # stdout carries completion/stall events only (#634 contract; VERA feedback
+    # 315c005e). error() is also wrong — ❌ trips the exit-code fail-flag on an
+    # otherwise-successful watch (#661 output_routing).
+    err_console.print("[dim]watchdog agent: invoke via Monitor tool, not run_in_background[/dim]")
 
     timeout = _DEFAULT_AGENT_TIMEOUT
     positional: List[str] = []

@@ -496,7 +496,7 @@ def create_bot(
     1. Validate token via getMe
     2. If branch_name provided: validate branch name is non-empty
     3. Check bot_id not already registered
-    4. Write per-bot config file to ~/.aipass/telegram_bots/{bot_id}.json
+    4. Persist per-bot config via the in-process @api secrets API
     5. Register in bot registry
     6. Set BotFather commands via setMyCommands API
     7. Enable systemd service

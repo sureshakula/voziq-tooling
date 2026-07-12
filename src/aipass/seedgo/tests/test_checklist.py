@@ -154,6 +154,94 @@ def test_run_checklist_python_file_no_checkers(tmp_path):
     assert isinstance(results[0], dict)
 
 
+def test_run_checklist_throwaway_temp_path_skipped(tmp_path, monkeypatch):
+    """Files under system temp dirs are skipped."""
+    import sys
+
+    from aipass.seedgo.apps.modules.checklist import run_checklist
+
+    skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+    if skip_dirs:
+        monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [tmp_path])
+
+    tmp_file = tmp_path / "test_throwaway.py"
+    tmp_file.write_text("x = 1\n", encoding="utf-8")
+    results = run_checklist(str(tmp_file))
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert "throwaway" in results[0]["detail"].lower() or "temp" in results[0]["detail"].lower()
+
+
+def test_run_checklist_scratchpad_path_skipped(tmp_path):
+    """Files under a scratchpad directory are skipped."""
+    from aipass.seedgo.apps.modules.checklist import run_checklist
+
+    scratch_dir = tmp_path / "scratchpad"
+    scratch_dir.mkdir()
+    f = scratch_dir / "poc.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    results = run_checklist(str(f))
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert "throwaway" in results[0]["detail"].lower() or "scratchpad" in results[0]["detail"].lower()
+
+
+def test_run_checklist_prototype_flag_skips(tmp_path, monkeypatch):
+    """prototype=True skips all standards."""
+    import sys
+
+    skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+    if skip_dirs:
+        monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
+    from aipass.seedgo.apps.modules.checklist import run_checklist
+
+    f = tmp_path / "poc.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    results = run_checklist(str(f), prototype=True)
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert "prototype" in results[0]["detail"].lower()
+
+
+def test_run_checklist_prototype_marker_skips(tmp_path, monkeypatch):
+    """In-file '# seedgo: prototype' marker skips all standards."""
+    import sys
+
+    skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+    if skip_dirs:
+        monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
+    from aipass.seedgo.apps.modules.checklist import run_checklist
+
+    f = tmp_path / "poc.py"
+    f.write_text("# seedgo: prototype\nx = 1\n", encoding="utf-8")
+    results = run_checklist(str(f))
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert "prototype" in results[0]["detail"].lower()
+
+
+def test_run_checklist_normal_file_still_audited(tmp_path, monkeypatch):
+    """A normal file without markers/temp path is still fully audited."""
+    import sys
+
+    skip_dirs = sys.modules.get("aipass.seedgo.apps.handlers.aipass_standards.skip_dirs")
+    if skip_dirs:
+        monkeypatch.setattr(skip_dirs, "_get_temp_roots", lambda: [])
+
+    from aipass.seedgo.apps.modules.checklist import run_checklist
+
+    f = tmp_path / "real_code.py"
+    f.write_text("def main(): pass\n", encoding="utf-8")
+    results = run_checklist(str(f))
+    # Should NOT get throwaway/prototype skip
+    for r in results:
+        detail = r.get("detail", "")
+        assert "throwaway" not in detail.lower()
+        assert "prototype" not in detail.lower()
+
+
 # ---------------------------------------------------------------------------
 # Tests — print_introspection / print_help
 # ---------------------------------------------------------------------------

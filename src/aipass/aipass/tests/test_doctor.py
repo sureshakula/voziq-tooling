@@ -658,7 +658,7 @@ class TestReconcileStaleDeny:
         """Missing settings.json returns no results."""
         from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
 
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert results == []
 
@@ -672,7 +672,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(git push --force*)", "Bash(git reset --hard*)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -688,7 +688,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(git push --force*)", "Bash(rm -r *)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_WARN
@@ -706,7 +706,7 @@ class TestReconcileStaleDeny:
             "env": {"AIPASS_HOME": "/test"},
         }
         settings.write_text(json.dumps(original), encoding="utf-8")
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=True)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -727,7 +727,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(git reset --hard*)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=True)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -744,7 +744,7 @@ class TestReconcileStaleDeny:
             json.dumps({"permissions": {"deny": ["Bash(rm -rf*)", "Bash(rm -r *)"]}}),
             encoding="utf-8",
         )
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             reconcile_stale_deny(fix=True)
             results = reconcile_stale_deny(fix=True)
         assert len(results) == 1
@@ -758,7 +758,7 @@ class TestReconcileStaleDeny:
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
         settings.write_text(json.dumps({"permissions": {"deny": []}}), encoding="utf-8")
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
@@ -770,7 +770,346 @@ class TestReconcileStaleDeny:
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
         settings.write_text(json.dumps({"env": {"FOO": "bar"}}), encoding="utf-8")
-        with patch("aipass.aipass.apps.modules.doctor_wire.Path.home", return_value=tmp_path):
+        with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
         assert len(results) == 1
         assert results[0][1] == GLYPH_PASS
+
+
+class TestCheckWireVerify:
+    """Tests for check_wire_verify() — hooks wire_verify guard."""
+
+    def test_pass_on_zero_exit(self) -> None:
+        """Exit 0 from drone @hooks verify produces a PASS row."""
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        fake = MagicMock(returncode=0, stdout="✓ Wire check passed\n\n0 errors, 0 warnings\n")
+        with patch("aipass.aipass.apps.modules.doctor_wire.subprocess.run", return_value=fake):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].label == "wire verify"
+        assert results[0].glyph == "[green]✓[/green]"
+
+    def test_fail_on_nonzero_exit(self) -> None:
+        """Non-zero exit from drone @hooks verify produces a FAIL row."""
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        fake = MagicMock(returncode=1, stdout="ERROR empty array\n2 errors, 0 warnings\n")
+        with patch("aipass.aipass.apps.modules.doctor_wire.subprocess.run", return_value=fake):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].glyph == "[red]✗[/red]"
+        assert "errors" in results[0].detail
+
+    def test_warn_on_drone_not_found(self) -> None:
+        """FileNotFoundError (drone missing) produces a WARN row."""
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor_wire.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].glyph == "[yellow]![/yellow]"
+
+    def test_warn_on_timeout(self) -> None:
+        """TimeoutExpired produces a WARN row."""
+        import subprocess as sp
+
+        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor_wire.subprocess.run",
+            side_effect=sp.TimeoutExpired(cmd="drone", timeout=10),
+        ):
+            results = check_wire_verify()
+        assert len(results) == 1
+        assert results[0].glyph == "[yellow]![/yellow]"
+        assert "timed out" in results[0].detail
+
+
+# =============================================================================
+# prompt_auto_wire — non-interactive stdin guard (issue #663)
+# =============================================================================
+
+
+class TestPromptAutoWireIsatty:
+    """Guard: non-tty stdin must not block on input() (#663)."""
+
+    @staticmethod
+    def _args() -> dict:
+        return {
+            "manifest_path": MagicMock(),
+            "missing_hooks": ["some_hook"],
+            "missing_env": [],
+            "missing_deny": [],
+            "missing_ask": [],
+        }
+
+    def test_non_tty_stdin_skips_prompt_and_declines(self) -> None:
+        """Non-tty stdin must NOT call input() — it declines and warns instead."""
+        from aipass.aipass.apps.modules import doctor_wire
+
+        with (
+            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch("builtins.input") as mock_input,
+            patch.object(doctor_wire, "_print_manual_wire_warning") as mock_warn,
+        ):
+            mock_stdin.isatty.return_value = False
+            result = doctor_wire._prompt_auto_wire(**self._args())
+
+        assert result is False
+        mock_input.assert_not_called()
+        mock_warn.assert_called_once()
+
+    def test_tty_stdin_prompts_and_respects_decline(self) -> None:
+        """Tty stdin still prompts; a 'n' answer declines."""
+        from aipass.aipass.apps.modules import doctor_wire
+
+        with (
+            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch("builtins.input", return_value="n") as mock_input,
+            patch.object(doctor_wire, "_print_manual_wire_warning"),
+        ):
+            mock_stdin.isatty.return_value = True
+            result = doctor_wire._prompt_auto_wire(**self._args())
+
+        assert result is False
+        mock_input.assert_called_once()
+
+    def test_tty_stdin_accepts_and_wires(self) -> None:
+        """Tty stdin with a 'y' answer runs the wire and returns True."""
+        from aipass.aipass.apps.modules import doctor_wire
+
+        with (
+            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch("builtins.input", return_value="y"),
+            patch.object(doctor_wire, "_auto_wire_provider", return_value=["wired hook"]) as mock_wire,
+        ):
+            mock_stdin.isatty.return_value = True
+            result = doctor_wire._prompt_auto_wire(**self._args())
+
+        assert result is True
+        mock_wire.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _check_global_aipass_home tests (#688)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckGlobalAipassHome:
+    """Tests for _check_global_aipass_home doctor check."""
+
+    def test_nonexistent_path_is_error(self, tmp_path):
+        """AIPASS_HOME pointing to a nonexistent path is flagged as error."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"env": {"AIPASS_HOME": str(tmp_path / "gone")}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
+            results = _check_global_aipass_home()
+        fails = [r for r in results if "does not exist" in r.detail]
+        assert len(fails) == 1
+
+    def test_throwaway_path_is_error(self, tmp_path):
+        """AIPASS_HOME pointing to a temp path is flagged as error."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home
+
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"env": {"AIPASS_HOME": str(tmp_path)}}),
+            encoding="utf-8",
+        )
+        with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
+            results = _check_global_aipass_home()
+        fails = [r for r in results if "throwaway" in r.detail]
+        assert len(fails) == 1
+
+    def test_valid_path_passes(self, tmp_path):
+        """AIPASS_HOME pointing to a real, non-temp path passes."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home, GLYPH_PASS
+
+        real_home = tmp_path / "AIPass"
+        real_home.mkdir()
+        settings = tmp_path / ".claude" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(
+            json.dumps({"env": {"AIPASS_HOME": str(real_home)}}),
+            encoding="utf-8",
+        )
+        with (
+            patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path),
+            patch(
+                "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+                return_value=False,
+            ),
+        ):
+            results = _check_global_aipass_home()
+        assert any(r.glyph == GLYPH_PASS for r in results)
+
+    def test_no_settings_file_is_noop(self, tmp_path):
+        """Missing ~/.claude/settings.json produces no results."""
+        from aipass.aipass.apps.modules.doctor import _check_global_aipass_home
+
+        with patch("aipass.aipass.apps.modules.doctor.Path.home", return_value=tmp_path):
+            results = _check_global_aipass_home()
+        assert results == []
+
+
+# ---------------------------------------------------------------------------
+# _check_owner_seating / _fix_owner_seating tests (DPLAN-0239 P3+P5)
+# ---------------------------------------------------------------------------
+
+
+class TestCheckOwnerSeating:
+    """Tests for owner/identity detection via sync-registry --check."""
+
+    def test_clean_owner_returns_pass(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        check_json = json.dumps({"clean": True, "owner": "vera", "owner_uid": "8fb38c96-abcd", "issues": []})
+        mock_proc = MagicMock(returncode=0, stdout=check_json, stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_PASS
+        assert "@vera" in results[0].detail
+        assert "8fb38c96" in results[0].detail
+
+    def test_unseated_owner_returns_errors(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        check_json = json.dumps(
+            {
+                "clean": False,
+                "owner": None,
+                "owner_uid": "",
+                "issues": [
+                    {"flag": "no_owner", "detail": "No owner:true in registry"},
+                    {"flag": "metadata_id_missing", "detail": "metadata.id absent"},
+                ],
+            }
+        )
+        mock_proc = MagicMock(returncode=1, stdout=check_json, stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 2
+        assert all(r.glyph == GLYPH_FAIL for r in results)
+        assert results[0].label == "owner/no_owner"
+
+    def test_issue_with_branch_field(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        check_json = json.dumps(
+            {
+                "clean": False,
+                "owner": "vera",
+                "owner_uid": "8fb38c96",
+                "issues": [
+                    {"flag": "entry_rid_stale", "detail": "stale rid", "branch": "vera"},
+                ],
+            }
+        )
+        mock_proc = MagicMock(returncode=1, stdout=check_json, stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_FAIL
+        assert results[0].label == "owner/entry_rid_stale"
+
+    def test_drone_not_found_returns_warn(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+        assert "drone" in results[0].detail
+
+    def test_timeout_returns_warn(self):
+        import subprocess as _sp
+
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=_sp.TimeoutExpired("drone", 30),
+        ):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_non_json_output_returns_warn(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        mock_proc = MagicMock(returncode=1, stdout="not json at all", stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_empty_stdout_exit_zero(self):
+        from aipass.aipass.apps.modules.doctor import _check_owner_seating
+
+        mock_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _check_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_PASS
+
+
+class TestFixOwnerSeating:
+    """Tests for owner/identity repair via sync-registry --fix."""
+
+    def test_fix_success_returns_pass(self):
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        mock_proc = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_PASS
+        assert "reconciled" in results[0].detail
+
+    def test_fix_failure_returns_fail(self):
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        mock_proc = MagicMock(returncode=1, stdout="", stderr="owner conflict")
+        with patch("aipass.aipass.apps.modules.doctor.subprocess.run", return_value=mock_proc):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_FAIL
+
+    def test_fix_drone_not_found(self):
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=FileNotFoundError("drone"),
+        ):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN
+
+    def test_fix_timeout(self):
+        import subprocess as _sp
+
+        from aipass.aipass.apps.modules.doctor import _fix_owner_seating
+
+        with patch(
+            "aipass.aipass.apps.modules.doctor.subprocess.run",
+            side_effect=_sp.TimeoutExpired("drone", 60),
+        ):
+            results = _fix_owner_seating()
+        assert len(results) == 1
+        assert results[0].glyph == GLYPH_WARN

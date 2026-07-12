@@ -177,7 +177,7 @@ spawn/
 
 ## Tests
 
-**297 tests | 0 skipped | 0 failed** across 14 test files:
+**344 tests | 0 skipped | 0 failed** across 14 test files:
 
 | File | Focus |
 |------|-------|
@@ -192,9 +192,10 @@ spawn/
 | `test_contracts.py` | Handler contracts and interface compliance |
 | `test_spawn.py` | Basic CLI routing and help |
 | `test_error_resilience.py` | Error handling and edge cases |
+| `test_check_fix_identity.py` | Owner/identity check and fix (DPLAN-0239 P4) |
 | `conftest.py` | Fixtures: mock templates, registry protection |
 
-**Public functions:** 45 total, 41 tested (91%)
+**Public functions:** 50 total, 49 tested (98%)
 
 ---
 
@@ -224,7 +225,7 @@ spawn/
 ## Metrics
 
 - **Seedgo:** 100% (34/34)
-- **Tests:** 253 passed, 0 skipped, 0 failed
+- **Tests:** 340 passed, 0 skipped, 0 failed
 - **Module coverage:** 23/23 (100%)
 - **Template registry:** 44 files, 23 dirs (aipass_framework)
 - **Battle test:** 17/17 commands pass (2026-04-22)

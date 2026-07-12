@@ -110,7 +110,7 @@ def print_introspection(modules: List[Any]):
         console.print("  [dim]No modules discovered[/dim]")
 
     console.print()
-    console.print("[dim]Run 'daemon --help' for usage information[/dim]")
+    console.print("[dim]Run 'drone @daemon --help' for usage information[/dim]")
     console.print()
 
 
@@ -132,8 +132,8 @@ def print_help(modules: List[Any]):
 
     console.print("[bold cyan]USAGE:[/bold cyan]")
     console.print()
-    console.print("  [dim]daemon <command> [args...][/dim]")
-    console.print("  [dim]daemon --help[/dim]")
+    console.print("  [dim]drone @daemon <command> [args...][/dim]")
+    console.print("  [dim]drone @daemon --help[/dim]")
     console.print()
     console.print("-" * 70)
     console.print()
@@ -200,6 +200,14 @@ def main():
     command = args[0]
     remaining_args = args[1:] if len(args) > 1 else []
 
+    # Subcommand --help guard — intercept before dispatch
+    if remaining_args and remaining_args[0] in ["--help", "-h"]:
+        for module in modules:
+            if module.handle_command(command, ["--help"]):
+                return 0
+        print_help(modules)
+        return 0
+
     json_handler.log_operation("daemon_command", {"command": command})
 
     # Route to modules
@@ -208,7 +216,7 @@ def main():
         return 0
     else:
         console.print()
-        error(f"Unknown command: {command}", suggestion="Run 'daemon --help' for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @daemon --help' for available commands")
         console.print()
         return 1
 

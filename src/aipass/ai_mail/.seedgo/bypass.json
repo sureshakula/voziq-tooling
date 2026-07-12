@@ -23,7 +23,7 @@
     {
       "file": "apps/handlers/dispatch/daemon.py",
       "standard": "deep_nesting",
-      "reason": "3 functions: check_inbox_for_dispatch() depth 4 (priority scanning with business logic), run_daemon() depth 4 (main daemon loop), _check_lock() depth 4 (lock validation + PID liveness + cleanup)"
+      "reason": "run_daemon() depth 5 (main daemon loop with retry + signal handling)"
     },
     {
       "file": "apps/handlers/dispatch/wake.py",

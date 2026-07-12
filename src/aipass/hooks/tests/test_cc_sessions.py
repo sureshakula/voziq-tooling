@@ -21,7 +21,7 @@ class TestIsPidAlive:
         assert cc_sessions._is_pid_alive(1) is False
 
     def test_permission_error_treated_as_alive(self):
-        with patch("os.kill", side_effect=PermissionError("denied")):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=PermissionError("denied")):
             assert cc_sessions._is_pid_alive(42) is True
 
     def test_oserror_treated_as_dead(self):

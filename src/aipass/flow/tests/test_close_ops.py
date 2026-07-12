@@ -49,6 +49,8 @@ def _make_deps(**overrides) -> dict:
         "push_to_plans_central": MagicMock(return_value=True),
         "push_flow_to_branch_dashboard": MagicMock(return_value=True),
         "close_all_plans_fn": MagicMock(),
+        "archive_plan_fn": MagicMock(return_value=True),
+        "trigger_fire_fn": MagicMock(),
     }
     deps.update(overrides)
     return deps
@@ -188,8 +190,7 @@ class TestClosePlanImplAlreadyClosedOrphan:
 
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None)
     @patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None)
-    @patch("aipass.flow.apps.handlers.plan.close_ops.archive_plan", create=True)
-    def test_already_closed_orphan_cleanup(self, mock_archive, _mock_find, _mock_resolve, tmp_path):
+    def test_already_closed_orphan_cleanup(self, _mock_find, _mock_resolve, tmp_path):
         close_plan_impl = _import_close_plan_impl()
 
         # Create orphan file on disk
@@ -209,9 +210,7 @@ class TestClosePlanImplAlreadyClosedOrphan:
         deps["load_registry"].return_value = registry
         deps["validate_plan_exists"].return_value = (True, None)
 
-        # Patch archive_plan inside the function (lazy import)
-        with patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True):
-            result = close_plan_impl(plan_num="2", **deps)
+        result = close_plan_impl(plan_num="2", **deps)
 
         assert result["success"] is True
         assert result["plan_key"] == "2"
@@ -257,7 +256,7 @@ class TestClosePlanImplSuccess:
 
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None)
     @patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None)
-    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    @patch("aipass.flow.apps.handlers.plan.close_helpers.subprocess")
     def test_successful_close(self, mock_subprocess, _mock_find, _mock_resolve, tmp_path):
         close_plan_impl = _import_close_plan_impl()
 
@@ -279,7 +278,6 @@ class TestClosePlanImplSuccess:
         deps["validate_plan_exists"].return_value = (True, None)
 
         with (
-            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
             patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
             patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
         ):
@@ -293,6 +291,67 @@ class TestClosePlanImplSuccess:
         # Dashboard updates were called
         deps["update_dashboard_local"].assert_called_once()
         deps["push_to_plans_central"].assert_called_once()
+
+
+class TestSpawnBackgroundBehavior:
+    """#662: spawn_background controls whether vectorization runs inline or in background."""
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops._spawn_background_runner")
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None)
+    @patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None)
+    def test_spawn_background_true_calls_background_runner(self, _mock_find, _mock_resolve, mock_runner, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+        plan_file = tmp_path / "FPLAN-0001_test_2026-03-20.md"
+        plan_file.write_text("# Real content\nNotes here.", encoding="utf-8")
+        registry = {
+            "plans": {
+                "1": {
+                    "status": "open",
+                    "subject": "Test plan",
+                    "location": str(tmp_path),
+                    "file_path": str(plan_file),
+                }
+            }
+        }
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (True, None)
+        with (
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            result = close_plan_impl(plan_num="1", spawn_background=True, **deps)
+        assert result["success"] is True
+        mock_runner.assert_called_once()
+        assert any("background" in m.get("text", "").lower() for m in result["messages"])
+
+    @patch("aipass.flow.apps.handlers.plan.close_ops._spawn_background_runner")
+    @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None)
+    @patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None)
+    def test_spawn_background_false_skips_background_runner(self, _mock_find, _mock_resolve, mock_runner, tmp_path):
+        close_plan_impl = _import_close_plan_impl()
+        plan_file = tmp_path / "FPLAN-0001_test_2026-03-20.md"
+        plan_file.write_text("# Real content\nNotes here.", encoding="utf-8")
+        registry = {
+            "plans": {
+                "1": {
+                    "status": "open",
+                    "subject": "Test plan",
+                    "location": str(tmp_path),
+                    "file_path": str(plan_file),
+                }
+            }
+        }
+        deps = _make_deps()
+        deps["load_registry"].return_value = registry
+        deps["validate_plan_exists"].return_value = (True, None)
+        with (
+            patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
+            patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
+        ):
+            result = close_plan_impl(plan_num="1", spawn_background=False, **deps)
+        assert result["success"] is True
+        mock_runner.assert_not_called()
 
 
 class TestClosePlanImplConfirmCancelled:
@@ -688,7 +747,7 @@ class TestSelfHealCrossPrefixCollision:
 
 class TestClosePlanImplSelfHeal:
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="dplan_registry.json")
-    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    @patch("aipass.flow.apps.handlers.plan.close_helpers.subprocess")
     def test_triggers_self_heal_when_not_in_registry(self, mock_subprocess, _mock_resolve, tmp_path):
         close_plan_impl = _import_close_plan_impl()
 
@@ -723,7 +782,6 @@ class TestClosePlanImplSelfHeal:
                     },
                 ),
             ) as mock_heal,
-            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
             patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
             patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
         ):
@@ -752,7 +810,7 @@ class TestClosePlanImplSelfHeal:
 
 class TestSelfHealVerifyBlock:
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
-    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    @patch("aipass.flow.apps.handlers.plan.close_helpers.subprocess")
     def test_verify_all_pass(self, mock_subprocess, _mock_resolve, tmp_path):
         close_plan_impl = _import_close_plan_impl()
 
@@ -781,9 +839,8 @@ class TestSelfHealVerifyBlock:
         deps["validate_plan_exists"].return_value = (True, None)
 
         with (
-            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
             patch(
-                "aipass.flow.apps.handlers.mbank.process.PROCESSED_PLANS_DIR",
+                "aipass.flow.apps.handlers.plan.close_ops.PROCESSED_PLANS_DIR",
                 processed_dir,
             ),
             patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
@@ -803,7 +860,7 @@ class TestSelfHealVerifyBlock:
         assert len(ok_msgs) >= 2
 
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
-    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    @patch("aipass.flow.apps.handlers.plan.close_helpers.subprocess")
     def test_verify_fails_when_file_not_in_processed(self, mock_subprocess, _mock_resolve, tmp_path):
         close_plan_impl = _import_close_plan_impl()
 
@@ -830,9 +887,8 @@ class TestSelfHealVerifyBlock:
         deps["validate_plan_exists"].return_value = (True, None)
 
         with (
-            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
             patch(
-                "aipass.flow.apps.handlers.mbank.process.PROCESSED_PLANS_DIR",
+                "aipass.flow.apps.handlers.plan.close_ops.PROCESSED_PLANS_DIR",
                 processed_dir,
             ),
             patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
@@ -846,7 +902,7 @@ class TestSelfHealVerifyBlock:
         assert any("NOT found in processed_plans" in m.get("text", "") for m in fail_msgs)
 
     @patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value="fplan_registry.json")
-    @patch("aipass.flow.apps.handlers.plan.close_ops.subprocess")
+    @patch("aipass.flow.apps.handlers.plan.close_helpers.subprocess")
     def test_verify_fails_when_source_still_exists(self, mock_subprocess, _mock_resolve, tmp_path):
         close_plan_impl = _import_close_plan_impl()
 
@@ -874,9 +930,8 @@ class TestSelfHealVerifyBlock:
         deps["validate_plan_exists"].return_value = (True, None)
 
         with (
-            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
             patch(
-                "aipass.flow.apps.handlers.mbank.process.PROCESSED_PLANS_DIR",
+                "aipass.flow.apps.handlers.plan.close_ops.PROCESSED_PLANS_DIR",
                 processed_dir,
             ),
             patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
@@ -913,8 +968,7 @@ class TestSelfHealVerifyBlock:
         with (
             patch("aipass.flow.apps.handlers.plan.close_ops._resolve_registry_file", return_value=None),
             patch("aipass.flow.apps.handlers.plan.close_ops._find_plan_across_registries", return_value=None),
-            patch("aipass.flow.apps.handlers.plan.close_ops.subprocess"),
-            patch("aipass.flow.apps.handlers.mbank.process.archive_plan", return_value=True),
+            patch("aipass.flow.apps.handlers.plan.close_helpers.subprocess"),
             patch("aipass.flow.apps.handlers.plan.close_ops.json_handler"),
             patch("aipass.flow.apps.handlers.plan.append_closed_plan.append_to_closed_plans", create=True),
         ):

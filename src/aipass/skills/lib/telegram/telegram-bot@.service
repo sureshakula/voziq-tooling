@@ -23,6 +23,7 @@ ExecStart=%h/Projects/AIPass/.venv/bin/python3 -m aipass.skills.lib.telegram.app
 WorkingDirectory=%h/Projects/AIPass
 Environment=AIPASS_BOT_ID=%i
 Environment=AIPASS_SESSION_TYPE=telegram
+KillMode=process
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:%h/Projects/AIPass/system_logs/telegram-bot-%i.log

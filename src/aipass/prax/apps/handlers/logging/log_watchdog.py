@@ -9,12 +9,17 @@
 """
 System Log Size Watchdog
 
-Scans the system_logs/ directory for oversized log files and enforces size limits.
-Catches ALL log files regardless of how they were created — even those bypassing
-PRAX's RotatingFileHandler (e.g., telegram bots using plain FileHandler).
+Scans system_logs/ and all branch logs/ directories for oversized files and
+enforces size limits. Catches ALL log files regardless of how they were created
+— even those bypassing PRAX's RotatingFileHandler (e.g., raw open("a") appenders
+writing .jsonl files, telegram bots using plain FileHandler).
 
 This is the safety net: even if a branch misconfigures logging, the watchdog
 prevents unbounded growth that caused the 2026-02-26 system crash (DPLAN-037).
+
+Two scopes:
+  - system_logs/ (central) — scanned by scan_log_files()
+  - src/aipass/*/logs/ (branch-local) — scanned by scan_branch_log_files()
 
 Two modes:
   - audit: Report oversized files without changing anything
@@ -22,14 +27,15 @@ Two modes:
 """
 
 import logging
-
-logger = logging.getLogger(__name__)
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -57,10 +63,18 @@ def _get_system_logs_dir() -> Path:
     return _system_logs_dir_cache
 
 
-# Thresholds
+# Thresholds — system_logs (line-based)
 WARN_THRESHOLD_LINES = 5000  # Fire warning at this line count
 DEFAULT_MAX_LINES = 1000  # Truncate to this many lines (matches prax config)
 CRITICAL_THRESHOLD_LINES = 10000  # Immediate action recommended
+
+# Thresholds — branch logs (size-based, catches .jsonl and unrotated .log)
+BRANCH_WARN_SIZE_MB = 1.0
+BRANCH_CRITICAL_SIZE_MB = 10.0
+BRANCH_DEFAULT_MAX_LINES = 5000
+
+# Sweep — stale log cleanup
+SWEEP_MAX_AGE_DAYS = 30
 
 
 # =============================================================================
@@ -274,6 +288,209 @@ def log_health_summary() -> Dict[str, Any]:
         "largest_file": largest["name"] if largest else None,
         "largest_lines": largest["lines"] if largest else 0,
         "healthy": len(oversized) == 0,
+    }
+
+
+# =============================================================================
+# BRANCH LOG SCANNING — covers .log and .jsonl in src/aipass/*/logs/
+# =============================================================================
+
+
+def _get_ecosystem_root() -> Path:
+    """Find src/aipass/ directory."""
+    return _find_repo_root() / "src" / "aipass"
+
+
+def _has_rotation_sibling(filepath: Path) -> bool:
+    """Check if a file has a .1 rotation sibling."""
+    return (filepath.parent / f"{filepath.name}.1").exists()
+
+
+def _classify_branch_log(log_file: Path, branch_name: str) -> Dict[str, Any]:
+    """Build an audit record for a single branch log file."""
+    size_kb = _get_file_size_kb(log_file)
+    size_mb = size_kb / 1024.0
+    lines = _count_lines(log_file)
+    has_rotation = _has_rotation_sibling(log_file)
+
+    if size_mb >= BRANCH_CRITICAL_SIZE_MB:
+        status = "critical"
+    elif size_mb >= BRANCH_WARN_SIZE_MB and not has_rotation:
+        status = "warning"
+    else:
+        status = "ok"
+
+    return {
+        "path": str(log_file),
+        "name": log_file.name,
+        "branch": branch_name,
+        "lines": lines,
+        "size_kb": round(size_kb, 1),
+        "size_mb": round(size_mb, 1),
+        "has_rotation": has_rotation,
+        "status": status,
+    }
+
+
+def scan_branch_log_files() -> List[Dict[str, Any]]:
+    """
+    Scan all branch logs/ directories for files with unbounded growth.
+
+    Checks .log and .jsonl files. Flags unrotated files exceeding size
+    thresholds — the safety net for writers that bypass RotatingFileHandler.
+    """
+    results: List[Dict[str, Any]] = []
+    eco_root = _get_ecosystem_root()
+
+    if not eco_root.exists():
+        return results
+
+    for branch_dir in sorted(eco_root.iterdir()):
+        logs_dir = branch_dir / "logs"
+        if not branch_dir.is_dir() or not logs_dir.is_dir():
+            continue
+        for log_file in sorted(logs_dir.glob("*.log")) + sorted(logs_dir.glob("*.jsonl")):
+            results.append(_classify_branch_log(log_file, branch_dir.name))
+
+    results.sort(key=lambda x: x["size_kb"], reverse=True)
+    json_handler.log_operation("branch_log_watchdog_check", {"files_scanned": len(results)})
+    return results
+
+
+def get_oversized_branch_files() -> List[Dict[str, Any]]:
+    """Get branch log files exceeding size thresholds."""
+    return [f for f in scan_branch_log_files() if f["status"] != "ok"]
+
+
+def enforce_branch_log_limits(
+    max_lines: int = BRANCH_DEFAULT_MAX_LINES,
+) -> List[Dict[str, Any]]:
+    """
+    Truncate oversized branch log files (including .jsonl).
+
+    Only truncates files flagged as warning or critical by scan_branch_log_files().
+    """
+    actions: List[Dict[str, Any]] = []
+
+    for file_info in get_oversized_branch_files():
+        filepath = Path(file_info["path"])
+        original, new = truncate_log_file(filepath, max_lines)
+
+        actions.append(
+            {
+                "name": file_info["name"],
+                "branch": file_info["branch"],
+                "original_lines": original,
+                "new_lines": new,
+                "size_mb": file_info["size_mb"],
+                "truncated": original != new,
+            }
+        )
+
+    return actions
+
+
+def branch_log_health_summary() -> Dict[str, Any]:
+    """Generate a health summary of branch logs."""
+    files = scan_branch_log_files()
+
+    if not files:
+        return {
+            "total_files": 0,
+            "oversized_count": 0,
+            "critical_count": 0,
+            "total_size_mb": 0.0,
+            "largest_file": None,
+            "healthy": True,
+        }
+
+    oversized = [f for f in files if f["status"] in ("warning", "critical")]
+    critical = [f for f in files if f["status"] == "critical"]
+    largest = files[0] if files else None
+    total_size = sum(f["size_mb"] for f in files)
+
+    return {
+        "total_files": len(files),
+        "oversized_count": len(oversized),
+        "critical_count": len(critical),
+        "total_size_mb": round(total_size, 1),
+        "largest_file": f"{largest['branch']}/{largest['name']}" if largest else None,
+        "largest_size_mb": largest["size_mb"] if largest else 0.0,
+        "healthy": len(oversized) == 0,
+    }
+
+
+# =============================================================================
+# SWEEP — stale log cleanup (30-day policy)
+# =============================================================================
+
+
+def _file_age_days(filepath: Path) -> float:
+    """Return file age in days based on mtime."""
+    try:
+        mtime = filepath.stat().st_mtime
+    except OSError as exc:
+        logger.warning("Cannot stat %s for age check: %s", filepath, exc)
+        return 0.0
+    return (time.time() - mtime) / 86400.0
+
+
+def _sweep_directory(directory: Path, patterns: List[str], max_age_days: int) -> List[Dict[str, Any]]:
+    """Delete files matching patterns that are older than max_age_days."""
+    removed: List[Dict[str, Any]] = []
+    if not directory.exists():
+        return removed
+
+    for pattern in patterns:
+        for filepath in sorted(directory.glob(pattern)):
+            age = _file_age_days(filepath)
+            if age < max_age_days:
+                continue
+            size_kb = _get_file_size_kb(filepath)
+            try:
+                filepath.unlink()
+                removed.append(
+                    {
+                        "path": str(filepath),
+                        "name": filepath.name,
+                        "age_days": round(age, 1),
+                        "size_kb": round(size_kb, 1),
+                    }
+                )
+            except OSError as exc:
+                logger.warning("Sweep failed to delete %s: %s", filepath, exc)
+
+    return removed
+
+
+def sweep_stale_logs(max_age_days: int = SWEEP_MAX_AGE_DAYS) -> Dict[str, Any]:
+    """Delete log files older than max_age_days across system_logs/ and branch logs/.
+
+    Scans system_logs/ for *.log and *.log.1, and all branch logs/ directories
+    for *.log, *.log.1, *.jsonl, and *.jsonl.1.
+
+    Returns a summary with counts and the list of removed files.
+    """
+    all_removed: List[Dict[str, Any]] = []
+
+    system_patterns = ["*.log", "*.log.1"]
+    all_removed.extend(_sweep_directory(_get_system_logs_dir(), system_patterns, max_age_days))
+
+    branch_patterns = ["*.log", "*.log.1", "*.jsonl", "*.jsonl.1"]
+    eco_root = _get_ecosystem_root()
+    if eco_root.exists():
+        for branch_dir in sorted(eco_root.iterdir()):
+            logs_dir = branch_dir / "logs"
+            if branch_dir.is_dir() and logs_dir.is_dir():
+                all_removed.extend(_sweep_directory(logs_dir, branch_patterns, max_age_days))
+
+    json_handler.log_operation("log_sweep", {"max_age_days": max_age_days, "files_removed": len(all_removed)})
+
+    return {
+        "max_age_days": max_age_days,
+        "files_removed": len(all_removed),
+        "total_reclaimed_kb": round(sum(f["size_kb"] for f in all_removed), 1),
+        "removed": all_removed,
     }
 
 

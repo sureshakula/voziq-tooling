@@ -59,6 +59,28 @@ class TestFindTmuxSessionForPid:
             assert session_boot._find_tmux_session_for_pid(9999) is None
 
 
+class TestGetPpid:
+    def test_returns_parent_pid(self):
+        mock_result = MagicMock(returncode=0, stdout="  1234\n")
+        with patch(f"{_MOD}.subprocess.run", return_value=mock_result):
+            assert session_boot._get_ppid(5678) == 1234
+
+    def test_returns_none_on_failure(self):
+        mock_result = MagicMock(returncode=1, stdout="")
+        with patch(f"{_MOD}.subprocess.run", return_value=mock_result):
+            assert session_boot._get_ppid(5678) is None
+
+    def test_returns_none_on_oserror(self):
+        with patch(f"{_MOD}.subprocess.run", side_effect=OSError("no ps")):
+            assert session_boot._get_ppid(5678) is None
+
+    def test_returns_none_on_timeout(self):
+        import subprocess
+
+        with patch(f"{_MOD}.subprocess.run", side_effect=subprocess.TimeoutExpired("ps", 5)):
+            assert session_boot._get_ppid(5678) is None
+
+
 class TestIsDescendant:
     def test_direct_match(self):
         assert session_boot._is_descendant(100, 100) is True
@@ -66,13 +88,22 @@ class TestIsDescendant:
     def test_pid_one_not_descendant(self):
         assert session_boot._is_descendant(1, 999) is False
 
-    def test_proc_walk(self):
-        statuses = {200: "Name:\tpython3\nPPid:\t100\n"}
-        with patch("pathlib.Path.read_text", side_effect=lambda: statuses.get(200, "")):
+    def test_walks_via_ps(self):
+        def mock_ppid(pid):
+            return {200: 150, 150: 100}.get(pid)
+
+        with patch.object(session_boot, "_get_ppid", side_effect=mock_ppid):
             assert session_boot._is_descendant(200, 100) is True
 
-    def test_proc_not_found(self):
-        with patch("pathlib.Path.read_text", side_effect=OSError("no such file")):
+    def test_not_descendant(self):
+        def mock_ppid(pid):
+            return {200: 150, 150: 1}.get(pid)
+
+        with patch.object(session_boot, "_get_ppid", side_effect=mock_ppid):
+            assert session_boot._is_descendant(200, 100) is False
+
+    def test_ppid_none_stops_walk(self):
+        with patch.object(session_boot, "_get_ppid", return_value=None):
             assert session_boot._is_descendant(200, 100) is False
 
 
@@ -135,6 +166,8 @@ class TestBoot:
             result = session_boot.boot(cwd=str(tmp_path))
         assert result["exit_code"] == 1
         assert result["action"] == "warn"
+        assert "kill 1234" in result["error"]
+        assert "command claude --resume" in result["error"]
 
     def test_no_live_session_starts_fresh(self, tmp_path):
         with (
@@ -210,3 +243,113 @@ class TestMain:
         ):
             session_boot.main()
         mock_boot.assert_called_once_with(extra_args=None)
+
+
+class TestHeadlessBypass:
+    def test_p_flag_skips_tmux_and_runs_directly(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "do something"])
+        mock_exec.assert_called_once()
+        args = mock_exec.call_args[0][1]
+        assert args[0] == "/usr/local/bin/claude"
+        assert "-p" in args
+        assert "do something" in args
+
+    def test_p_flag_does_not_look_for_live_sessions(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_live_sessions") as mock_live,
+            patch(f"{_MOD}.os.execvp"),
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query"])
+        mock_live.assert_not_called()
+
+    def test_p_flag_does_not_require_tmux(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value=None),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            result = session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query"])
+        assert result["action"] == "direct"
+        assert result["reason"] == "headless -p mode"
+        mock_exec.assert_called_once()
+
+    def test_p_flag_still_gets_permission_mode_default(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query"])
+        cmd = mock_exec.call_args[0][1]
+        assert "--permission-mode" in cmd
+        assert "bypassPermissions" in cmd
+
+    def test_p_flag_respects_custom_permission_mode(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["-p", "query", "--permission-mode", "default"])
+        cmd = mock_exec.call_args[0][1]
+        assert cmd.count("--permission-mode") == 1
+        assert "default" in cmd
+
+
+class TestPermissionModeDedupe:
+    def test_no_extra_args_includes_default(self, tmp_path):
+        with (
+            patch.dict("os.environ", {"TMUX": "/tmp/tmux-1000/default,1,0"}),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path))
+        cmd = mock_exec.call_args[0][1]
+        assert cmd.count("--permission-mode") == 1
+        assert "bypassPermissions" in cmd
+
+    def test_extra_args_with_permission_mode_no_double(self, tmp_path):
+        with (
+            patch.dict("os.environ", {"TMUX": "/tmp/tmux-1000/default,1,0"}),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["--permission-mode", "default"])
+        cmd = mock_exec.call_args[0][1]
+        assert cmd.count("--permission-mode") == 1
+        assert "default" in cmd
+        assert "bypassPermissions" not in cmd
+
+    def test_extra_args_without_permission_mode_gets_default(self, tmp_path):
+        with (
+            patch.dict("os.environ", {"TMUX": "/tmp/tmux-1000/default,1,0"}),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["--resume"])
+        cmd = mock_exec.call_args[0][1]
+        assert cmd.count("--permission-mode") == 1
+        assert "bypassPermissions" in cmd
+        assert "--resume" in cmd
+
+    def test_fresh_start_dedupes_too(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=[]),
+            patch.object(session_boot, "_tmux_session_exists", return_value=False),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path), extra_args=["--permission-mode", "acceptEdits"])
+        cmd = mock_exec.call_args[0][1]
+        assert cmd.count("--permission-mode") == 1
+        assert "acceptEdits" in cmd

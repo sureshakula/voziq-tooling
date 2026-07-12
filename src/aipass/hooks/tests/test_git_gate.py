@@ -336,3 +336,41 @@ class TestGitGateMisc:
         result = _bash("git push")
         parsed = json.loads(result["stdout"])
         assert "Read-only verbs" in parsed["reason"]
+
+    def test_git_block_explains_why(self):
+        result = _bash("git push")
+        parsed = json.loads(result["stdout"])
+        assert "enforces git via drone" in parsed["reason"]
+
+    def test_git_block_lists_drone_commands(self):
+        result = _bash("git commit -m 'msg'")
+        parsed = json.loads(result["stdout"])
+        assert "drone @git commit" in parsed["reason"]
+        assert "drone @git smart-sync" in parsed["reason"]
+        assert "drone @git --help" in parsed["reason"]
+
+    def test_git_block_shows_disable_path(self):
+        result = _bash("git push")
+        parsed = json.loads(result["stdout"])
+        assert "git_gate.enabled" in parsed["reason"]
+        assert "hooks.json" in parsed["reason"]
+
+    def test_gh_block_separate_message(self):
+        result = _bash("gh pr list")
+        parsed = json.loads(result["stdout"])
+        assert "enforces gh via drone" in parsed["reason"]
+        assert "gh api" in parsed["reason"]
+        assert "drone @git issue" in parsed["reason"]
+
+    def test_edit_block_shows_disable_path(self):
+        from aipass.hooks.apps.handlers.security.git_gate import handle
+
+        result = handle(
+            {
+                "tool_name": "Edit",
+                "tool_input": {"file_path": "/home/patrick/.claude/settings.json"},
+                "cwd": CWD,
+            }
+        )
+        parsed = json.loads(result["stdout"])
+        assert "git_gate.enabled" in parsed["reason"]

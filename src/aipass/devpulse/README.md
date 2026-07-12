@@ -44,7 +44,7 @@ src/aipass/devpulse/
 │   │   └── watchdog/            # Agent, timer, schedule, registry
 │   └── plugins/                 # Plugin extension point
 ├── devpulse_json/               # JSON handler storage (config, data, logs per module)
-├── tests/                       # 282 tests
+├── tests/                       # 309 tests
 ├── artifacts/                   # Birth certificate, reports
 ├── dropbox/                     # Received files, archived plans, install audit
 ├── docs/                        # Transition notes
@@ -55,11 +55,38 @@ src/aipass/devpulse/
 
 All commands via `drone @devpulse <command>`:
 
-### Watchdog — directed wake system
+### Watchdog — directed wake system (owner-only)
+
+**Who may call it:** the project OWNER only — the first agent, seated as `owner: true`
+in the project's sealed `*_REGISTRY.json`. Portable: `@devpulse` in AIPass, `@vera` in
+Vera Studio, whoever owns elsewhere. A refusal means your project's owner isn't seated —
+run `aipass doctor` to see why and `aipass doctor --fix` to repair (DPLAN-0239).
+
+**How the wake works (read this once, save a debugging session):**
+
+1. `drone @ai_mail dispatch @target "Subject" "Body"` — hand off the work.
+2. **Immediately arm the watchdog via the harness Monitor TOOL** — never Bash
+   `run_in_background` (its output goes nowhere and cannot wake you):
+   `drone @devpulse watchdog agent @target --timeout 600`
+3. The status line shows **"1 monitor"** the moment it's armed — that IS the
+   active-dispatch indicator. When `@target` finishes, the watchdog exits, the
+   Monitor completes, and **your session is re-invoked with the result — that IS
+   the wake.**
+
+There is no passive wake: ai_mail's wake-back spawns a new headless process and can
+never inject into a live interactive session (`BLOCKED — interactive session` in the
+logs is that guard working as designed; it only serves senders whose session closed).
+If you dispatched and idle without arming, nothing will ever wake you.
+
+`@target` resolves in the **caller's own project** (then falls back to scanning
+`~/Projects` registries) — external-project owners monitor their own agents with it.
+Default timeout is **600 s**; pass `--timeout <s>` for longer builds. Mid-watch it
+also emits `[watchdog.stall]` / `[watchdog.resumed]` events (no JSONL activity 120 s
+with no in-flight tool = probable stuck agent).
 
 | Command | What it does |
 |---|---|
-| `watchdog agent @target` | Monitor dispatched agent until it finishes |
+| `watchdog agent @target [--timeout s]` | Wake when the dispatched agent exits (default 600 s) |
 | `watchdog timer <duration>` | Wake after duration (5m, 30s, 2h, 1h30m) |
 | `watchdog timer start/stop <name>` | Named duration tracking |
 | `watchdog schedule <HH:MM>` | Wait until a specific time |
@@ -67,7 +94,14 @@ All commands via `drone @devpulse <command>`:
 | `watchdog cancel <id>` | Cancel a running watchdog |
 | `watchdog list` | List all watchdog entries |
 
-### Feedback — personal cross-branch mailbox
+### Feedback — the owner-to-owner channel (owner-only)
+
+ai_mail and dispatch stop at the project boundary — **cross-project comms is
+impossible by design, except feedback.** Project owners (managers) talk owner-to-owner
+through it: an external project's owner runs `drone @devpulse feedback send ...` from
+their project and it lands in devpulse's feedback mailbox; devpulse answers with
+`feedback reply`. Same owner gate as watchdog — unseated projects are refused until
+`aipass doctor --fix` seats them.
 
 | Command | What it does |
 |---|---|
@@ -75,7 +109,7 @@ All commands via `drone @devpulse <command>`:
 | `feedback inbox` | List all messages |
 | `feedback view <id>` | Read a message |
 | `feedback reply <id> "msg"` | Reply to sender |
-| `feedback send "subject" "body"` | Receive feedback from another agent |
+| `feedback send "subject" "body"` | Send feedback to devpulse (any project's owner may call) |
 
 ### Compass — rated decision store
 
@@ -122,7 +156,7 @@ drone @git log                   # Recent commits
 
 All branches via dispatch orchestration. Watchdog monitoring for any dispatched agent. Feedback channel for cross-branch communication. Git operations (commit, PR, merge) for the entire project.
 
-*Last Updated: 2026-06-23*
+*Last Updated: 2026-07-11*
 
 ---
 

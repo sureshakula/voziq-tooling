@@ -243,6 +243,13 @@ def main():
             error("No modules found")
             return 1
 
+        if remaining_args and remaining_args[0] in ["--help", "-h"]:
+            for module in modules:
+                if module.handle_command(command, ["--help"]):
+                    return 0
+            print_help()
+            return 0
+
         # Route command
         if route_command(command, remaining_args, modules):
             return 0

@@ -69,7 +69,7 @@ def print_branch_diagnostics(result: Dict):
             if file_result["errors"] > 0:
                 file_path = file_result["file"]
                 file_errors = file_result["errors"]
-                console.print(f"    [red]✗[/red] {file_path} [dim]({file_errors} errors)[/dim]")
+                console.print(f"    • {file_path} [dim]({file_errors} errors)[/dim]")
 
                 # Show first 3 errors per file
                 for diag in file_result["diagnostics"][:3]:
@@ -93,13 +93,13 @@ def print_system_summary(all_results: List[Dict]):
     console.print("─" * 70)
     console.print("[bold]SYSTEM DIAGNOSTICS SUMMARY:[/bold]")
     console.print(f"  Total branches:        {total_branches}")
-    console.print(f"  Clean branches:        {clean_branches} [green]✓[/green]")
-    console.print(f"  Branches with errors:  {branches_with_errors} [red]✗[/red]")
+    console.print(f"  Clean branches:        {clean_branches}")
+    console.print(f"  Branches with errors:  {branches_with_errors}")
     console.print()
     console.print(f"  Files analyzed:        {total_files}")
     console.print(f"  Files with errors:     {files_with_errors}")
-    console.print(f"  Total errors:          [red]{total_errors}[/red]")
-    console.print(f"  Total warnings:        [yellow]{total_warnings}[/yellow]")
+    console.print(f"  Total errors:          {total_errors}")
+    console.print(f"  Total warnings:        {total_warnings}")
     console.print()
 
     # Top branches by error count
@@ -110,7 +110,7 @@ def print_system_summary(all_results: List[Dict]):
             if result.get("total_errors", 0) > 0:
                 branch = result["branch"]
                 errors = result["total_errors"]
-                console.print(f"  {branch:15} [red]{errors:4} errors[/red]")
+                console.print(f"  {branch:15} {errors:4} errors")
 
     console.print("─" * 70)
     console.print()

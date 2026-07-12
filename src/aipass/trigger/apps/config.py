@@ -19,23 +19,26 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from datetime import datetime, timezone
+
+try:
+    from aipass.prax import append_jsonl as _append_jsonl
+except Exception:
+    _append_jsonl = None
 
 # Trigger package root: .../aipass/trigger/
 TRIGGER_ROOT = Path(__file__).resolve().parents[1]
 
-_CONFIG_LOG = TRIGGER_ROOT / "logs" / "config.log"
+_CONFIG_LOG = TRIGGER_ROOT / "logs" / "config.jsonl"
 
 
 def _log_warning(message: str) -> None:
-    """Log warning to file (config cannot import prax logger — circular)."""
+    """Log warning to file (recursion-safe prax path)."""
+    if _append_jsonl is None:
+        return
     try:
-        _CONFIG_LOG.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        with open(_CONFIG_LOG, "a", encoding="utf-8") as f:
-            f.write(f"{ts} | WARNING | {message}\n")
+        _append_jsonl(_CONFIG_LOG, {"level": "WARNING", "msg": message})
     except Exception:
-        pass  # Meta-logging: cannot log a failure to log
+        pass
 
 
 # AIPass package root: .../aipass/

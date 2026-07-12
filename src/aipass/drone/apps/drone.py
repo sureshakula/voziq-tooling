@@ -568,6 +568,19 @@ def main() -> int:
     if command == "rm":
         return _handle_rm(args[1:])
 
+    # aipass is a user-facing CLI, not a drone-routable branch
+    if command.lstrip("@") == "aipass":
+        err_console.print(
+            "aipass isn't reachable through drone — it's your own front-door CLI,"
+            " the AIPass concierge (onboarding, doctor, help, OS/system questions)."
+            " drone routes the agent citizens (@git, @devpulse, @memory...);"
+            " aipass is separate and serves you directly.\n"
+            "\n"
+            "  Use aipass:   aipass          ·  aipass --help\n"
+            "  See agents:   drone systems"
+        )
+        return 1
+
     # @target — route to branch or module
     if command.startswith("@"):
         return _handle_target(args)

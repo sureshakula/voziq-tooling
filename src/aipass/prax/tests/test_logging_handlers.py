@@ -24,6 +24,7 @@ import importlib  # noqa: F401 — used inside test functions for dynamic module
 import json
 import logging
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 
@@ -188,7 +189,7 @@ class TestGetCallingModulePath:
         """Returns the path from _find_external_caller_path when found."""
         from aipass.prax.apps.handlers.logging import introspection
 
-        fake_path = "/home/user/src/aipass/flow/apps/flow.py"
+        fake_path = str(Path.home() / "src" / "aipass" / "flow" / "apps" / "flow.py")
         with patch.object(introspection, "_find_external_caller_path", return_value=fake_path):
             result = introspection.get_calling_module_path()
             assert result == fake_path
@@ -340,6 +341,156 @@ class TestTruncateLogFile:
             original, new = lw.truncate_log_file(nonexistent, keep_lines=100)
             assert original == 0
             assert new == 0
+
+
+# =============================================
+# log_watchdog.py -- scan_branch_log_files
+# =============================================
+
+
+def _import_watchdog(tmp_path):
+    """Fresh-import log_watchdog with mocked config."""
+    with patch.dict(
+        sys.modules,
+        {
+            "aipass.prax.apps.handlers.config.load": MagicMock(
+                PRAX_JSON_DIR=tmp_path / "prax_json",
+            ),
+        },
+    ):
+        sys.modules.pop("aipass.prax.apps.handlers.logging.log_watchdog", None)
+        import aipass.prax.apps.handlers.logging.log_watchdog as lw
+
+        return lw
+
+
+class TestScanBranchLogFiles:
+    """Tests for log_watchdog.py scan_branch_log_files()."""
+
+    def test_detects_large_jsonl(self, mock_prax_infrastructure, tmp_path):
+        """Flags .jsonl files exceeding size threshold as critical."""
+        lw = _import_watchdog(tmp_path)
+
+        eco = tmp_path / "src" / "aipass"
+        branch_logs = eco / "hooks" / "logs"
+        branch_logs.mkdir(parents=True)
+
+        big_jsonl = branch_logs / "engine.jsonl"
+        big_jsonl.write_text(
+            "\n".join(f'{{"line": {i}, "padding": "{" " * 200}}}' for i in range(10000)) + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(lw, "_get_ecosystem_root", return_value=eco):
+            with patch.object(lw, "BRANCH_WARN_SIZE_MB", 0.5):
+                results = lw.scan_branch_log_files()
+                assert len(results) == 1
+                assert results[0]["name"] == "engine.jsonl"
+                assert results[0]["branch"] == "hooks"
+                assert not results[0]["has_rotation"]
+                assert results[0]["status"] in ("warning", "critical")
+
+    def test_ignores_small_rotated_logs(self, mock_prax_infrastructure, tmp_path):
+        """Small .log files with rotation siblings are status ok."""
+        lw = _import_watchdog(tmp_path)
+
+        eco = tmp_path / "src" / "aipass"
+        branch_logs = eco / "backup" / "logs"
+        branch_logs.mkdir(parents=True)
+
+        small_log = branch_logs / "client.log"
+        small_log.write_text("line1\nline2\n", encoding="utf-8")
+        rotation = branch_logs / "client.log.1"
+        rotation.write_text("old line\n", encoding="utf-8")
+
+        with patch.object(lw, "_get_ecosystem_root", return_value=eco):
+            results = lw.scan_branch_log_files()
+            assert len(results) == 1
+            assert results[0]["name"] == "client.log"
+            assert results[0]["has_rotation"] is True
+            assert results[0]["status"] == "ok"
+
+    def test_empty_ecosystem_returns_empty(self, mock_prax_infrastructure, tmp_path):
+        """Returns empty when ecosystem root does not exist."""
+        lw = _import_watchdog(tmp_path)
+
+        nonexistent = tmp_path / "no_such_dir"
+        with patch.object(lw, "_get_ecosystem_root", return_value=nonexistent):
+            results = lw.scan_branch_log_files()
+            assert results == []
+
+    def test_scans_multiple_branches(self, mock_prax_infrastructure, tmp_path):
+        """Scans logs/ across multiple branches."""
+        lw = _import_watchdog(tmp_path)
+
+        eco = tmp_path / "src" / "aipass"
+        for branch in ("hooks", "backup", "trigger"):
+            logs = eco / branch / "logs"
+            logs.mkdir(parents=True)
+            (logs / "test.log").write_text("line\n" * 10, encoding="utf-8")
+
+        with patch.object(lw, "_get_ecosystem_root", return_value=eco):
+            results = lw.scan_branch_log_files()
+            branches = {r["branch"] for r in results}
+            assert branches == {"hooks", "backup", "trigger"}
+
+
+class TestBranchLogHealthSummary:
+    """Tests for log_watchdog.py branch_log_health_summary()."""
+
+    def test_healthy_summary(self, mock_prax_infrastructure, tmp_path):
+        """Returns healthy when all files are ok."""
+        lw = _import_watchdog(tmp_path)
+
+        eco = tmp_path / "src" / "aipass"
+        logs = eco / "prax" / "logs"
+        logs.mkdir(parents=True)
+        (logs / "test.log").write_text("line\n" * 5, encoding="utf-8")
+
+        with patch.object(lw, "_get_ecosystem_root", return_value=eco):
+            summary = lw.branch_log_health_summary()
+            assert summary["healthy"] is True
+            assert summary["total_files"] == 1
+            assert summary["oversized_count"] == 0
+
+    def test_empty_summary(self, mock_prax_infrastructure, tmp_path):
+        """Returns healthy empty summary when no files found."""
+        lw = _import_watchdog(tmp_path)
+
+        nonexistent = tmp_path / "nope"
+        with patch.object(lw, "_get_ecosystem_root", return_value=nonexistent):
+            summary = lw.branch_log_health_summary()
+            assert summary["healthy"] is True
+            assert summary["total_files"] == 0
+
+
+class TestEnforceBranchLogLimits:
+    """Tests for log_watchdog.py enforce_branch_log_limits()."""
+
+    def test_truncates_oversized_jsonl(self, mock_prax_infrastructure, tmp_path):
+        """Truncates .jsonl files that exceed size threshold."""
+        lw = _import_watchdog(tmp_path)
+
+        eco = tmp_path / "src" / "aipass"
+        logs = eco / "hooks" / "logs"
+        logs.mkdir(parents=True)
+
+        big_jsonl = logs / "engine.jsonl"
+        big_jsonl.write_text(
+            "\n".join(f'{{"line": {i}, "padding": "{" " * 200}}}' for i in range(10000)) + "\n",
+            encoding="utf-8",
+        )
+
+        with patch.object(lw, "_get_ecosystem_root", return_value=eco):
+            with patch.object(lw, "BRANCH_WARN_SIZE_MB", 0.5):
+                actions = lw.enforce_branch_log_limits(max_lines=1000)
+                assert len(actions) >= 1
+                action = actions[0]
+                assert action["truncated"] is True
+                assert action["branch"] == "hooks"
+
+                content = big_jsonl.read_text(encoding="utf-8")
+                assert "LOG TRUNCATED by PRAX watchdog" in content
 
 
 # =============================================

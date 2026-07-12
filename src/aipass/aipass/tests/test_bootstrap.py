@@ -24,6 +24,7 @@ from aipass.aipass.apps.handlers.init import scaffold_content as sc
 from aipass.aipass.apps.handlers.init.bootstrap import (
     _merge_hooks_json,
     _sanitize_name,
+    is_throwaway_path,
     init_project,
     update_project,
 )
@@ -277,8 +278,12 @@ def test_init_project_claude_settings_content(tmp_path):
     assert "deny" in data["permissions"]
 
 
-def test_init_project_settings_no_hooks(tmp_path):
+def test_init_project_settings_no_hooks(tmp_path, monkeypatch):
     """.claude/settings.json has no hooks — all hooks fire from provider level."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -440,6 +445,7 @@ def test_update_project_return_dict_structure(tmp_path):
         "updated_files",
         "already_current",
         "skipped_files",
+        "removed_files",
         "aipass_home",
     }
     assert result["project_name"] == "UPD"
@@ -449,8 +455,12 @@ def test_update_project_return_dict_structure(tmp_path):
     assert isinstance(result["skipped_files"], list)
 
 
-def test_update_project_already_current_after_init(tmp_path):
+def test_update_project_already_current_after_init(tmp_path, monkeypatch):
     """Running update immediately after init reports all managed files as already current."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="fresh")
@@ -461,8 +471,12 @@ def test_update_project_already_current_after_init(tmp_path):
     assert len(result["already_current"]) >= 5
 
 
-def test_update_project_idempotent(tmp_path):
+def test_update_project_idempotent(tmp_path, monkeypatch):
     """Running update twice in a row produces no changes on second run."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="idem")
@@ -569,8 +583,12 @@ def test_init_project_returns_aipass_home(tmp_path):
     assert result["aipass_home"] is None or isinstance(result["aipass_home"], str)
 
 
-def test_init_project_settings_has_aipass_home_when_detected(tmp_path):
+def test_init_project_settings_has_aipass_home_when_detected(tmp_path, monkeypatch):
     """When AIPASS_HOME is detected, settings.json includes env.AIPASS_HOME."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
 
@@ -596,8 +614,12 @@ def test_update_project_returns_aipass_home(tmp_path):
     assert result["aipass_home"] is None or isinstance(result["aipass_home"], str)
 
 
-def test_update_project_adds_aipass_home_if_missing(tmp_path):
+def test_update_project_adds_aipass_home_if_missing(tmp_path, monkeypatch):
     """update_project injects AIPASS_HOME into settings.json if env section is absent."""
+    monkeypatch.setattr(
+        "aipass.aipass.apps.handlers.init.bootstrap.is_throwaway_path",
+        lambda _: False,
+    )
     target = tmp_path / "proj"
     target.mkdir()
     init_project(target, project_name="addenv")
@@ -1097,3 +1119,147 @@ def test_with_source_header_is_first_line():
     lines = result.split("\n")
     assert lines[0] == "<!-- Source: /test.md -->"
     assert lines[1] == "content"
+
+
+# ---------------------------------------------------------------------------
+# GAP 1: AGENTS.md sync on update (#676)
+# ---------------------------------------------------------------------------
+
+
+def test_update_project_syncs_agents_md(tmp_path):
+    """update restores AGENTS.md when its content has been altered."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="sync")
+
+    agents_md = target / "AGENTS.md"
+    agents_md.write_text("# Corrupted\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert str(agents_md.resolve()) in result["updated_files"]
+    restored = agents_md.read_text(encoding="utf-8")
+    assert "# SYNC" in restored
+    assert "Startup protocol" in restored
+
+
+def test_update_project_creates_missing_agents_md(tmp_path):
+    """update creates AGENTS.md if it was deleted from the project."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="miss")
+
+    agents_md = target / "AGENTS.md"
+    agents_md.unlink()
+
+    result = update_project(target)
+
+    assert agents_md.exists()
+    assert str(agents_md.resolve()) in result["updated_files"]
+    content = agents_md.read_text(encoding="utf-8")
+    assert "# MISS" in content
+
+
+def test_update_project_agents_md_already_current(tmp_path):
+    """update reports AGENTS.md as already_current when unchanged."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="cur")
+
+    result = update_project(target)
+
+    assert any("AGENTS.md" in f for f in result["already_current"])
+    assert not any("AGENTS.md" in f for f in result["updated_files"])
+
+
+# ---------------------------------------------------------------------------
+# GAP 2: Cruft cleanup on update (#676)
+# ---------------------------------------------------------------------------
+
+
+def test_update_project_removes_stale_global_prompt(tmp_path):
+    """update removes retired .aipass/aipass_global_prompt.md."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="cruft")
+
+    stale = target / ".aipass" / "aipass_global_prompt.md"
+    stale.write_text("# old\n", encoding="utf-8")
+
+    result = update_project(target)
+
+    assert not stale.exists()
+    assert str(stale) in result["removed_files"]
+
+
+def test_update_project_cleanup_does_not_touch_user_files(tmp_path):
+    """Cruft cleanup never removes user-owned files."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="safe")
+
+    readme = target / "README.md"
+    registry = target / "SAFE_REGISTRY.json"
+
+    result = update_project(target)
+
+    assert readme.exists()
+    assert registry.exists()
+    assert len(result["removed_files"]) == 0
+
+
+def test_update_project_removed_files_in_result(tmp_path):
+    """Return dict always contains the removed_files key."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="rkey")
+
+    result = update_project(target)
+
+    assert "removed_files" in result
+    assert isinstance(result["removed_files"], list)
+
+
+def test_update_project_cleanup_no_stale_is_noop(tmp_path):
+    """When no stale files exist, removed_files is empty."""
+    target = tmp_path / "proj"
+    target.mkdir()
+    init_project(target, project_name="clean")
+
+    result = update_project(target)
+
+    assert result["removed_files"] == []
+
+
+# ---------------------------------------------------------------------------
+# is_throwaway_path tests
+# ---------------------------------------------------------------------------
+
+
+def test_throwaway_path_detects_tmp(tmp_path):
+    """Paths under the system temp dir are throwaway."""
+    assert is_throwaway_path(str(tmp_path))
+
+
+def test_throwaway_path_detects_scratchpad():
+    """Paths containing 'scratchpad' are throwaway."""
+    assert is_throwaway_path(str(Path.home() / ".claude" / "scratchpad" / "probe_1"))
+
+
+def test_throwaway_path_allows_normal():
+    """Normal home-directory paths are not throwaway."""
+    assert not is_throwaway_path(str(Path.home() / "AIPass"))
+
+
+def test_throwaway_path_allows_project():
+    """A typical project path is not throwaway."""
+    assert not is_throwaway_path(str(Path.home() / "Projects" / "myapp"))
+
+
+def test_settings_omits_throwaway_aipass_home(tmp_path):
+    """_claude_settings refuses to write AIPASS_HOME when it's a throwaway path."""
+    from aipass.aipass.apps.handlers.init.bootstrap import _claude_settings
+
+    content = _claude_settings(str(tmp_path))
+    data = json.loads(content)
+    assert "AIPASS_HOME" not in data.get("env", {})

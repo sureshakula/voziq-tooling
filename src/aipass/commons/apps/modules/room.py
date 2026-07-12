@@ -20,12 +20,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, success
 except ImportError:
     logger.warning("[room] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    success = console.print  # type: ignore[assignment]
 
 from rich.table import Table
 
@@ -82,7 +84,7 @@ def handle_command(command: str, args: List[str]) -> bool:
     elif subcommand == "leave":
         result = _handle_leave_room(sub_args)
     else:
-        console.print(f"[red]Unknown room subcommand: {subcommand}[/red]")
+        error(f"Unknown room subcommand: {subcommand}")
         console.print("[dim]Available: create, list, join, leave[/dim]")
         return True
 
@@ -101,11 +103,11 @@ def _handle_create_room(args: List[str]) -> bool:
     result = create_room(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
-    console.print(f"[green]Room '{result['name']}' created![/green]")
+    success(f"Room '{result['name']}' created!")
     if result.get("description"):
         console.print(f"  [dim]Description:[/dim] {result['description']}")
     console.print(f"  [dim]Created by:[/dim] {result['created_by']}")
@@ -119,7 +121,7 @@ def _handle_list_rooms(args: List[str]) -> bool:
     result = list_rooms(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     rooms = result["rooms"]
@@ -158,11 +160,11 @@ def _handle_join_room(args: List[str]) -> bool:
     result = join_room(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
-    console.print(f"[green]{result['agent']} joined room '{result['room']}'![/green]")
+    success(f"{result['agent']} joined room '{result['room']}'!")
     console.print()
 
     return True
@@ -173,11 +175,11 @@ def _handle_leave_room(args: List[str]) -> bool:
     result = leave_room(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
-    console.print(f"[green]{result['agent']} left room '{result['room']}'.[/green]")
+    success(f"{result['agent']} left room '{result['room']}'.")
     console.print()
 
     return True

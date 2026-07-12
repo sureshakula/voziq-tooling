@@ -80,7 +80,11 @@ def handle(hook_data: dict) -> dict:
 
         occ_pid = occupant.get("pid", "?")
         occ_name = occupant.get("name", "")
-        reason = f"{branch} already live at PID {occ_pid}{f' ({occ_name})' if occ_name else ''} — attach, do not spawn."
+        reason = (
+            f"{branch} is already live at PID {occ_pid}{f' ({occ_name})' if occ_name else ''}"
+            f" — Claude allows one session per branch."
+            f" Attach to that session, or run `kill {occ_pid}` to reclaim the branch, then retry."
+        )
         logger.warning("[presence_gate] BLOCKED: %s", reason)
         return {
             "exit_code": 2,

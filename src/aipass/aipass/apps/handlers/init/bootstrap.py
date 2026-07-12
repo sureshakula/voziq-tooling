@@ -33,8 +33,10 @@ RULES:
 import importlib.util
 import json
 import logging
+import os
 import re
 import shutil
+import tempfile
 import uuid
 from datetime import date
 from pathlib import Path
@@ -42,6 +44,29 @@ from pathlib import Path
 from aipass.aipass.apps.handlers.init import scaffold_content as sc
 
 logger = logging.getLogger(__name__)
+
+_STALE_MANAGED_FILES: list[Path] = [
+    Path(".aipass") / "aipass_global_prompt.md",
+]
+
+
+def is_throwaway_path(path: str | Path) -> bool:
+    """True if path is under a temp dir or Claude Code scratchpad."""
+    resolved = str(Path(path).resolve())
+    tmp_roots = [tempfile.gettempdir()]
+    if os.name == "posix":
+        tmp_roots.append("/tmp")
+    for root in tmp_roots:
+        try:
+            r = str(Path(root).resolve())
+        except OSError:
+            logger.info("is_throwaway_path: could not resolve %s", root)
+            continue
+        if resolved == r or resolved.startswith(r + os.sep):
+            return True
+    if "scratchpad" in resolved.lower():
+        return True
+    return False
 
 
 def _sanitize_name(raw: str) -> str:
@@ -211,8 +236,13 @@ def _claude_settings(aipass_home: str | None = None) -> str:
         ],
     }
 
-    if aipass_home:
+    if aipass_home and not is_throwaway_path(aipass_home):
         data["env"] = {"AIPASS_HOME": aipass_home}
+    elif aipass_home:
+        logger.warning(
+            "AIPASS_HOME '%s' is a throwaway path — not writing to settings",
+            aipass_home,
+        )
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -474,6 +504,7 @@ def update_project(target: Path) -> dict:
     updated: list[str] = []
     already_current: list[str] = []
     skipped: list[str] = []
+    removed: list[str] = []
     aipass_home: str | None = None
 
     # Managed directories — create if missing (graceful recovery).
@@ -595,11 +626,20 @@ def update_project(target: Path) -> dict:
             venv_link.symlink_to(aipass_venv)
             updated.append(f".venv (symlink to AIPass runtime: {aipass_venv})")
 
+    # --- Cruft cleanup: remove known-stale AIPass-managed artifacts ---
+    for rel in _STALE_MANAGED_FILES:
+        stale_path = target / rel
+        if stale_path.is_file():
+            stale_path.unlink()
+            removed.append(str(stale_path))
+            logger.info("Removed stale managed file: %s", stale_path)
+
     return {
         "project_name": name,
         "target": str(target),
         "updated_files": updated,
         "already_current": already_current,
         "skipped_files": skipped,
+        "removed_files": removed,
         "aipass_home": aipass_home,
     }

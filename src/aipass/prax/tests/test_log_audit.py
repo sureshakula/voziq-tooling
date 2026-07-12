@@ -47,6 +47,43 @@ def _ensure_watchdog_mock(monkeypatch):
             {"name": "error.log", "truncated": True, "original_lines": 2500, "new_lines": 1000},
         ]
     )
+    mock_watchdog.scan_branch_log_files = MagicMock(
+        return_value=[
+            {
+                "name": "engine.jsonl",
+                "branch": "hooks",
+                "lines": 200000,
+                "size_kb": 64512.0,
+                "size_mb": 63.0,
+                "has_rotation": False,
+                "status": "critical",
+                "path": "/fake/hooks/logs/engine.jsonl",
+            },
+        ]
+    )
+    mock_watchdog.branch_log_health_summary = MagicMock(
+        return_value={
+            "total_files": 5,
+            "oversized_count": 1,
+            "critical_count": 1,
+            "total_size_mb": 95.1,
+            "largest_file": "hooks/engine.jsonl",
+            "largest_size_mb": 63.0,
+            "healthy": False,
+        }
+    )
+    mock_watchdog.enforce_branch_log_limits = MagicMock(
+        return_value=[
+            {
+                "name": "engine.jsonl",
+                "branch": "hooks",
+                "original_lines": 200000,
+                "new_lines": 5001,
+                "size_mb": 63.0,
+                "truncated": True,
+            },
+        ]
+    )
     monkeypatch.setitem(
         sys.modules,
         "aipass.prax.apps.handlers.logging.log_watchdog",
@@ -64,9 +101,10 @@ def _fresh_import():
         print_help,
         print_introspection,
         _display_audit,
+        _display_branch_audit,
     )
 
-    return handle_command, print_help, print_introspection, _display_audit
+    return handle_command, print_help, print_introspection, _display_audit, _display_branch_audit
 
 
 # =============================================
@@ -76,7 +114,7 @@ def _fresh_import():
 
 def test_handle_command_help(mock_prax_infrastructure, monkeypatch):
     """--help flag returns True and displays help text."""
-    handle_command, _, _, _ = _fresh_import()
+    handle_command, _, _, _, _ = _fresh_import()
 
     result = handle_command("log-audit", ["--help"])
     assert result is True
@@ -85,7 +123,7 @@ def test_handle_command_help(mock_prax_infrastructure, monkeypatch):
 
 def test_handle_command_help_h_flag(mock_prax_infrastructure, monkeypatch):
     """-h flag also triggers help with audit-related content."""
-    handle_command, _, _, _ = _fresh_import()
+    handle_command, _, _, _, _ = _fresh_import()
 
     result = handle_command("log-audit", ["-h"])
     assert result is True
@@ -95,7 +133,7 @@ def test_handle_command_help_h_flag(mock_prax_infrastructure, monkeypatch):
 
 def test_handle_command_no_args_calls_introspection(mock_prax_infrastructure, monkeypatch):
     """No args prints introspection and returns True."""
-    handle_command, _, _, _ = _fresh_import()
+    handle_command, _, _, _, _ = _fresh_import()
 
     result = handle_command("log-audit", [])
     assert result is True
@@ -105,7 +143,7 @@ def test_handle_command_no_args_calls_introspection(mock_prax_infrastructure, mo
 
 def test_handle_command_wrong_command(mock_prax_infrastructure, monkeypatch):
     """Wrong command name returns False."""
-    handle_command, _, _, _ = _fresh_import()
+    handle_command, _, _, _, _ = _fresh_import()
 
     result = handle_command("not-log-audit", [])
     assert result is False
@@ -113,7 +151,7 @@ def test_handle_command_wrong_command(mock_prax_infrastructure, monkeypatch):
 
 def test_print_help_runs(mock_prax_infrastructure, monkeypatch):
     """print_help runs without error and includes audit/enforce subcommands."""
-    _, print_help, _, _ = _fresh_import()
+    _, print_help, _, _, _ = _fresh_import()
 
     print_help()
     mock_prax_infrastructure.console.print.assert_called()
@@ -124,7 +162,7 @@ def test_print_help_runs(mock_prax_infrastructure, monkeypatch):
 
 def test_print_introspection_runs(mock_prax_infrastructure, monkeypatch):
     """print_introspection runs without error."""
-    _, _, print_introspection, _ = _fresh_import()
+    _, _, print_introspection, _, _ = _fresh_import()
 
     print_introspection()
     calls = [str(c) for c in mock_prax_infrastructure.console.print.call_args_list]
@@ -133,7 +171,7 @@ def test_print_introspection_runs(mock_prax_infrastructure, monkeypatch):
 
 def test_display_audit_healthy(mock_prax_infrastructure, monkeypatch):
     """_display_audit formats healthy summary correctly."""
-    _, _, _, _display_audit = _fresh_import()
+    _, _, _, _display_audit, _ = _fresh_import()
 
     files = [{"name": "system.log", "lines": 200, "size_kb": 10, "status": "ok"}]
     summary = {
@@ -154,7 +192,7 @@ def test_display_audit_healthy(mock_prax_infrastructure, monkeypatch):
 
 def test_display_audit_oversized(mock_prax_infrastructure, monkeypatch):
     """_display_audit shows oversized files when present."""
-    _, _, _, _display_audit = _fresh_import()
+    _, _, _, _display_audit, _ = _fresh_import()
 
     files = [
         {"name": "system.log", "lines": 500, "size_kb": 45, "status": "ok"},
@@ -185,7 +223,7 @@ def test_display_audit_oversized(mock_prax_infrastructure, monkeypatch):
 def test_handle_command_unknown_subcommand(mock_prax_infrastructure, monkeypatch):
     """Unknown subcommand shows error and help text."""
     _ensure_watchdog_mock(monkeypatch)
-    handle_command, _, _, _ = _fresh_import()
+    handle_command, _, _, _, _ = _fresh_import()
 
     result = handle_command("log-audit", ["bogus"])
     assert result is True
@@ -200,9 +238,86 @@ def test_handle_command_unknown_subcommand(mock_prax_infrastructure, monkeypatch
 def test_handle_command_audit_subcommand(mock_prax_infrastructure, monkeypatch):
     """'audit' subcommand calls scan_log_files and log_health_summary."""
     mock_watchdog = _ensure_watchdog_mock(monkeypatch)
-    handle_command, _, _, _ = _fresh_import()
+    handle_command, _, _, _, _ = _fresh_import()
 
     result = handle_command("log-audit", ["audit"])
     assert result is True
     mock_watchdog.scan_log_files.assert_called_once()
     mock_watchdog.log_health_summary.assert_called_once()
+    mock_watchdog.scan_branch_log_files.assert_called_once()
+    mock_watchdog.branch_log_health_summary.assert_called_once()
+
+
+def test_handle_command_enforce_calls_branch_enforce(mock_prax_infrastructure, monkeypatch):
+    """'enforce' subcommand calls both system and branch enforcement."""
+    mock_watchdog = _ensure_watchdog_mock(monkeypatch)
+    handle_command, _, _, _, _ = _fresh_import()
+
+    result = handle_command("log-audit", ["enforce"])
+    assert result is True
+    mock_watchdog.enforce_log_limits.assert_called_once()
+    mock_watchdog.enforce_branch_log_limits.assert_called_once()
+
+
+def test_display_branch_audit_healthy(mock_prax_infrastructure, monkeypatch):
+    """_display_branch_audit shows healthy status when no unbounded files."""
+    _, _, _, _, _display_branch_audit = _fresh_import()
+
+    files = [
+        {
+            "name": "client.log",
+            "branch": "backup",
+            "lines": 200,
+            "size_kb": 40.0,
+            "size_mb": 0.04,
+            "has_rotation": True,
+            "status": "ok",
+        },
+    ]
+    summary = {
+        "total_files": 1,
+        "oversized_count": 0,
+        "critical_count": 0,
+        "total_size_mb": 0.04,
+        "largest_file": "backup/client.log",
+        "largest_size_mb": 0.04,
+        "healthy": True,
+    }
+
+    _display_branch_audit(files, summary)
+    calls = [str(c) for c in mock_prax_infrastructure.console.print.call_args_list]
+    assert any("HEALTHY" in c for c in calls)
+
+
+def test_display_branch_audit_critical(mock_prax_infrastructure, monkeypatch):
+    """_display_branch_audit shows critical unbounded .jsonl files."""
+    _, _, _, _, _display_branch_audit = _fresh_import()
+
+    files = [
+        {
+            "name": "engine.jsonl",
+            "branch": "hooks",
+            "lines": 200000,
+            "size_kb": 64512.0,
+            "size_mb": 63.0,
+            "has_rotation": False,
+            "status": "critical",
+            "path": "/fake/hooks/logs/engine.jsonl",
+        },
+    ]
+    summary = {
+        "total_files": 1,
+        "oversized_count": 1,
+        "critical_count": 1,
+        "total_size_mb": 63.0,
+        "largest_file": "hooks/engine.jsonl",
+        "largest_size_mb": 63.0,
+        "healthy": False,
+    }
+
+    _display_branch_audit(files, summary)
+    calls = [str(c) for c in mock_prax_infrastructure.console.print.call_args_list]
+    assert any("engine.jsonl" in c for c in calls)
+    assert any("hooks" in c for c in calls)
+    assert any("unrotated" in c for c in calls)
+    mock_prax_infrastructure.cli.error.assert_called()

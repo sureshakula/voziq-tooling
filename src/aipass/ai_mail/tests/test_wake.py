@@ -20,7 +20,11 @@ from aipass.ai_mail.apps.handlers.dispatch.wake import (
     _read_json,
     _check_lock,
     _check_pid_alive,
+    _get_pid_cwd,
+    _get_pid_cwd_darwin,
     _read_session_type,
+    _read_session_type_darwin,
+    _is_zombie_linux,
     _clean_zombies,
     _find_claude_bin,
     resolve_branch,
@@ -138,6 +142,7 @@ def test_check_pid_alive_dead(monkeypatch):
 
 def test_check_pid_alive_permission_error(monkeypatch):
     """PermissionError means process exists but cannot signal -- returns True."""
+    monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.setattr(os, "kill", _raise_permission)
     assert _check_pid_alive(1) is True
 
@@ -201,9 +206,124 @@ def test_read_session_type_not_set(monkeypatch, tmp_path):
 
 
 def test_read_session_type_non_linux(monkeypatch):
-    """Non-linux platform returns 'interactive' immediately."""
-    monkeypatch.setattr("sys.platform", "darwin")
+    """Non-linux, non-darwin platform returns 'interactive' immediately."""
+    monkeypatch.setattr("sys.platform", "win32")
     assert _read_session_type("999") == "interactive"
+
+
+def test_read_session_type_darwin_found(monkeypatch):
+    """macOS: reads AIPASS_SESSION_TYPE from ps -wwE output."""
+    monkeypatch.setattr("sys.platform", "darwin")
+
+    class FakeResult:
+        returncode = 0
+        stdout = "/usr/bin/claude AIPASS_SESSION_TYPE=dispatched HOME=/Users/u"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FakeResult())
+    assert _read_session_type("123") == "dispatched"
+
+
+def test_read_session_type_darwin_not_set(monkeypatch):
+    """macOS: missing env var returns 'interactive'."""
+    monkeypatch.setattr("sys.platform", "darwin")
+
+    class FakeResult:
+        returncode = 0
+        stdout = "/usr/bin/claude HOME=/Users/u"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FakeResult())
+    assert _read_session_type("456") == "interactive"
+
+
+def test_read_session_type_darwin_ps_failure(monkeypatch):
+    """macOS: ps failure returns 'interactive'."""
+    assert _read_session_type_darwin("999") == "interactive"
+
+
+# --- _get_pid_cwd tests ------------------------------------------------
+
+
+def test_get_pid_cwd_linux(monkeypatch, tmp_path):
+    """Linux: reads /proc/{pid}/cwd via readlink."""
+    monkeypatch.setattr("sys.platform", "linux")
+    target = str(tmp_path / "project")
+    monkeypatch.setattr(os, "readlink", lambda p: target)
+    assert _get_pid_cwd("100") == target
+
+
+def test_get_pid_cwd_linux_oserror(monkeypatch):
+    """Linux: OSError returns None."""
+    monkeypatch.setattr("sys.platform", "linux")
+    monkeypatch.setattr(os, "readlink", lambda p: (_ for _ in ()).throw(OSError("no proc")))
+    assert _get_pid_cwd("100") is None
+
+
+def test_get_pid_cwd_darwin(monkeypatch, tmp_path):
+    """macOS: reads cwd via lsof."""
+    monkeypatch.setattr("sys.platform", "darwin")
+    target = "/tmp/pytest-project"
+
+    class FakeResult:
+        returncode = 0
+        stdout = f"p100\nn{target}\n"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FakeResult())
+    assert _get_pid_cwd("100") == target
+
+
+def test_get_pid_cwd_darwin_failure(monkeypatch):
+    """macOS: lsof failure returns None."""
+
+    class FailedResult:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FailedResult())
+    assert _get_pid_cwd_darwin("999") is None
+
+
+def test_get_pid_cwd_unsupported_platform(monkeypatch):
+    """Unsupported platform returns None."""
+    monkeypatch.setattr("sys.platform", "win32")
+    assert _get_pid_cwd("100") is None
+
+
+# --- _is_zombie_linux tests --------------------------------------------
+
+
+def test_is_zombie_linux_not_zombie(monkeypatch, tmp_path):
+    """Non-zombie process returns False."""
+    status_file = tmp_path / "status"
+    status_file.write_text("Name:\tclaude\nState:\tS (sleeping)\nPid:\t42\n")
+    monkeypatch.setattr(
+        "builtins.open",
+        _fake_open_factory(str(status_file), {"/proc/42/status": str(status_file)}),
+    )
+    assert _is_zombie_linux(42) is False
+
+
+def test_is_zombie_linux_zombie(monkeypatch, tmp_path):
+    """Zombie process returns True."""
+    status_file = tmp_path / "status"
+    status_file.write_text("Name:\tclaude\nState:\tZ (zombie)\nPid:\t42\n")
+    monkeypatch.setattr(
+        "builtins.open",
+        _fake_open_factory(str(status_file), {"/proc/42/status": str(status_file)}),
+    )
+    assert _is_zombie_linux(42) is True
+
+
+def test_is_zombie_linux_no_proc(monkeypatch):
+    """Missing /proc entry returns False (not zombie, just gone)."""
+    _real_open = open
+
+    def _fake_open(path, *a, **kw):
+        if "/proc/99999/" in str(path):
+            raise FileNotFoundError(path)
+        return _real_open(path, *a, **kw)
+
+    monkeypatch.setattr("builtins.open", _fake_open)
+    assert _is_zombie_linux(99999) is False
 
 
 # --- _check_lock tests ------------------------------------------------
@@ -222,7 +342,7 @@ def test_check_lock_alive_pid(tmp_path, monkeypatch):
     lock_file = lock_dir / ".dispatch.lock"
     lock_data = {"pid": 1234, "timestamp": "2026-03-29T10:00:00"}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
-    monkeypatch.setattr(os, "kill", lambda pid, sig: None)
+    monkeypatch.setattr(wake_mod, "_check_pid_alive", lambda pid: True)
     result = _check_lock(tmp_path)
     assert result is not None
     assert result["pid"] == 1234
@@ -235,7 +355,7 @@ def test_check_lock_dead_pid_removes_lock(tmp_path, monkeypatch):
     lock_file = lock_dir / ".dispatch.lock"
     lock_data = {"pid": 99999, "timestamp": "2026-03-29T10:00:00"}
     lock_file.write_text(json.dumps(lock_data), encoding="utf-8")
-    monkeypatch.setattr(os, "kill", _raise_process_lookup)
+    monkeypatch.setattr(wake_mod, "_check_pid_alive", lambda pid: False)
     result = _check_lock(tmp_path)
     assert result is None
     assert not lock_file.exists()
@@ -257,6 +377,7 @@ def test_check_lock_stale_old_timestamp(tmp_path, monkeypatch):
 
 def test_check_lock_permission_error_treated_active(tmp_path, monkeypatch):
     """Lock PID that raises PermissionError is treated as active."""
+    monkeypatch.setattr("sys.platform", "linux")
     lock_dir = tmp_path / ".ai_mail.local"
     lock_dir.mkdir(parents=True)
     lock_file = lock_dir / ".dispatch.lock"

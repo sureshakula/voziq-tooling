@@ -17,7 +17,7 @@ from rich.table import Table
 
 from aipass.devpulse.apps.handlers.feedback.storage import load_inbox, save_inbox
 
-from aipass.cli.apps.modules import err_console
+from aipass.cli.apps.modules import err_console, error
 from aipass.devpulse.apps.handlers.json import json_handler
 
 console = err_console
@@ -67,7 +67,7 @@ def view_message(msg_id: str) -> None:
 
     msg = _find_message(messages, msg_id)
     if msg is None:
-        console.print(f"[red]Message {msg_id} not found.[/red]")
+        error(f"Message {msg_id} not found.")
         return
 
     # Mark as read
@@ -105,7 +105,7 @@ def clear_message(msg_id: str) -> None:
 
     msg = _find_message(messages, msg_id)
     if msg is None:
-        console.print(f"[red]Message {msg_id} not found.[/red]")
+        error(f"Message {msg_id} not found.")
         return
 
     was_unread = not msg.get("read")

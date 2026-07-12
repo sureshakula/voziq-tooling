@@ -620,6 +620,47 @@ def test_load_json_empty_file(tmp_path: Path) -> None:
     assert isinstance(result, dict), "load_json must return dict even for empty file"
 
 
+def test_load_json_empty_at_read_survives_race(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#667: empty file at load_json's OWN read.
+
+    The single-threaded case above passes because ensure_json_exists repairs the
+    empty file first. The real bug is a TOCTOU race: ensure_json_exists reports
+    OK, then a concurrent writer truncates the file before load_json re-reads it.
+    Simulate by stubbing ensure_json_exists to pass without repairing.
+    """
+    json_dir = _json_dir_as_path(tmp_path)
+    json_dir.mkdir(parents=True, exist_ok=True)
+    # whitespace-only — what a writer caught mid-truncate can leave behind
+    (json_dir / "raced_config.json").write_text("   \n", encoding="utf-8")
+    monkeypatch.setattr(json_handler, "ensure_json_exists", lambda *a, **k: True)
+    result = json_handler.load_json("raced", "config")
+    assert isinstance(result, dict), "empty-at-read must fall back to default, not crash"
+
+
+def test_load_json_empty_at_read_log_returns_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#667: empty-at-read for a log falls back to the [] default, not a crash."""
+    json_dir = _json_dir_as_path(tmp_path)
+    json_dir.mkdir(parents=True, exist_ok=True)
+    (json_dir / "raced_log.json").write_text("", encoding="utf-8")
+    monkeypatch.setattr(json_handler, "ensure_json_exists", lambda *a, **k: True)
+    result = json_handler.load_json("raced", "log")
+    assert result == [], "empty-at-read log must fall back to the [] default"
+
+
+def test_load_json_malformed_nonempty_still_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#667: a non-empty but malformed file still raises (fail honestly).
+
+    The guard only swallows empty/whitespace (a race artifact). Real corruption
+    must surface, not be masked by a silent default.
+    """
+    json_dir = _json_dir_as_path(tmp_path)
+    json_dir.mkdir(parents=True, exist_ok=True)
+    (json_dir / "corrupt_config.json").write_text("{bad json", encoding="utf-8")
+    monkeypatch.setattr(json_handler, "ensure_json_exists", lambda *a, **k: True)
+    with pytest.raises(json.JSONDecodeError):
+        json_handler.load_json("corrupt", "config")
+
+
 def test_get_json_path_returns_pathlib_path(tmp_path: Path) -> None:
     """paths_return_path: get_json_path returns a pathlib.Path instance."""
     result = json_handler.get_json_path("pathmod", "config")

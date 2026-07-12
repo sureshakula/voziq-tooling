@@ -20,7 +20,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, error
 
 from aipass.backup.apps.handlers.json import json_handler
 from aipass.backup.apps.handlers.project.registry import lookup_project as _lookup_project
@@ -91,12 +91,12 @@ def handle_command(command: str, args: list) -> bool:
             name = args[idx + 1]
 
     if not Path(project_path).is_dir():
-        console.print(f"[red]Error:[/red] {project_path} is not a directory")
+        error(f"{project_path} is not a directory")
         return True
 
     backup_dir = create_backup_dir(project_path)
     if backup_dir is None:
-        console.print(f"[red]Error:[/red] Failed to create .backup/ in {project_path}")
+        error(f"Failed to create .backup/ in {project_path}")
         return True
 
     register_project(name, project_path)

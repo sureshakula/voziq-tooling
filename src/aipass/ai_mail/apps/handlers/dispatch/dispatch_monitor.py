@@ -80,6 +80,86 @@ def _connect_broker(repo_root: Path, branch_name: str) -> socket.socket:
     return create_identified_connection(socket_path, secret_path, branch_name)
 
 
+MAX_WAKE_DEPTH = 3
+
+
+def _wake_sender(sender: str, branch_email: str, exit_code: int, lock_file: str) -> str:
+    """Wake the dispatcher back after target completion.
+
+    Wake-back is owner-only: only the project owner (sealed registry)
+    gets woken.  Non-owners silently skipped.
+
+    Returns a result tag for the dispatch_wake.log:
+      success, blocked_occupied, blocked_locked, blocked_depth,
+      skipped_sender, skipped_not_owner, failed
+    """
+    if not sender or not sender.strip():
+        logger.info("[monitor] Wake-back skipped — no sender")
+        return "skipped_sender"
+
+    normalized = f"@{sender.lstrip('@').lower()}"
+
+    try:
+        from aipass.spawn.apps.handlers.registry import is_owner
+    except ImportError:
+        logger.warning("[monitor] Wake-back skipped — is_owner import failed")
+        return "failed"
+
+    if not is_owner(normalized):
+        logger.info("[monitor] Wake-back skipped — sender %s is not project owner", sender)
+        return "skipped_not_owner"
+
+    depth = int(os.environ.get("AIPASS_WAKE_DEPTH", "0"))
+    if depth >= MAX_WAKE_DEPTH:
+        logger.warning("[monitor] Wake-back skipped — depth %d >= max %d", depth, MAX_WAKE_DEPTH)
+        return "blocked_depth"
+
+    try:
+        from aipass.ai_mail.apps.handlers.dispatch.wake import wake_branch
+
+        os.environ["AIPASS_WAKE_DEPTH"] = str(depth + 1)
+        wake_status, success = wake_branch(sender, auto=True, sender="@ai_mail")
+
+        if success:
+            logger.info("[monitor] Wake-back: %s woken after %s completed (exit %d)", sender, branch_email, exit_code)
+            return "success"
+
+        summary = wake_status.summary
+        lower = summary.lower()
+        if "interactive" in lower or "occupancy" in lower or "occupied" in lower:
+            logger.info("[monitor] Wake-back blocked — sender %s has interactive session: %s", sender, summary)
+            return "blocked_occupied"
+        if "active agent" in lower or "lock" in lower:
+            logger.info("[monitor] Wake-back blocked — sender %s has active lock: %s", sender, summary)
+            return "blocked_locked"
+
+        logger.info("[monitor] Wake-back: %s not woken — %s", sender, summary)
+        return "failed"
+    except Exception as e:
+        logger.warning("[monitor] Wake-back failed for %s: %s", sender, e)
+        return "failed"
+
+
+def _log_wake_result(branch_email: str, sender: str, exit_code: int, result: str, lock_file: str):
+    """Append a wake-back result line to dispatch_wake.log under target's logs/."""
+    lock_path = Path(lock_file).resolve()
+    logs_dir = lock_path.parent.parent / "logs"
+    log_file = logs_dir / "dispatch_wake.log"
+    try:
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        line = (
+            f"{time.strftime('%Y-%m-%dT%H:%M:%S')}"
+            f" target={branch_email}"
+            f" sender={sender}"
+            f" exit_code={exit_code}"
+            f" wake_result={result}\n"
+        )
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(line)
+    except OSError as e:
+        logger.info("[monitor] Failed to write dispatch_wake.log: %s", e)
+
+
 def _send_bounce(branch_email: str, reason: str, sender: str, lock_file: str, stderr_log: str) -> bool:
     """Send return-to-sender bounce email via drone."""
     subject = f"BOUNCE: Dispatch to {branch_email} failed"
@@ -584,6 +664,10 @@ def main():
         send_notification(f"@{branch_name} {status}", f"Duration: {duration}s", source=branch_name, icon=icon)
     except Exception:
         logger.info("[monitor] Desktop notification unavailable")
+
+    # ─── Wake-back: wake the dispatcher ────────────────────
+    wake_result = _wake_sender(sender, branch_email, exit_code, lock_file)
+    _log_wake_result(branch_email, sender, exit_code, wake_result, lock_file)
 
     sys.exit(0 if exit_code == 0 else 1)
 

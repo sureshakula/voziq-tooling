@@ -63,8 +63,8 @@ def state_mod(tmp_path, monkeypatch):
     import aipass.trigger.apps.handlers.medic_state as mod
 
     config_file = tmp_path / "trigger_json" / "trigger_config.json"
-    suppressed_log = tmp_path / "logs" / "medic_suppressed.log"
-    rate_limited_log = tmp_path / "logs" / "rate_limited.log"
+    suppressed_log = tmp_path / "logs" / "medic_suppressed.jsonl"
+    rate_limited_log = tmp_path / "logs" / "rate_limited.jsonl"
 
     monkeypatch.setattr(mod, "TRIGGER_CONFIG_FILE", config_file)
     monkeypatch.setattr(mod, "MEDIC_SUPPRESSED_LOG", suppressed_log)
@@ -424,26 +424,26 @@ class TestGetSuppressionStats:
         assert result["last_suppressed"] == "never"
 
     def test_populated_log(self, state_mod):
-        """get_suppression_stats parses log lines and returns correct stats."""
+        """get_suppression_stats parses JSONL lines and returns correct stats."""
         log_file = state_mod.MEDIC_SUPPRESSED_LOG
         log_file.parent.mkdir(parents=True, exist_ok=True)
         lines = [
-            "2026-04-01 10:00:00 | ImportError | FLOW",
-            "2026-04-02 11:00:00 | TimeoutError | API",
-            "2026-04-03 12:00:00 | ValueError | DRONE",
+            '{"ts": "2026-04-01T10:00:00", "reason": "count<2", "branch": "FLOW"}',
+            '{"ts": "2026-04-02T11:00:00", "reason": "count<2", "branch": "API"}',
+            '{"ts": "2026-04-03T12:00:00", "reason": "count<2", "branch": "DRONE"}',
         ]
         log_file.write_text("\n".join(lines), encoding="utf-8")
 
         result = state_mod.get_suppression_stats()
 
         assert result["suppressed_count"] == 3
-        assert result["last_suppressed"] == "2026-04-03 12:00:00"
+        assert result["last_suppressed"] == "2026-04-03T12:00:00"
 
-    def test_log_line_without_pipe_separator(self, state_mod):
-        """get_suppression_stats returns 'unknown' when last line has no pipe."""
+    def test_log_line_without_ts_field(self, state_mod):
+        """get_suppression_stats returns 'unknown' when last entry has no ts."""
         log_file = state_mod.MEDIC_SUPPRESSED_LOG
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        log_file.write_text("malformed line without pipe", encoding="utf-8")
+        log_file.write_text('{"reason": "no timestamp"}', encoding="utf-8")
 
         result = state_mod.get_suppression_stats()
 
@@ -478,25 +478,25 @@ class TestGetRateLimitStats:
         assert result["last_rate_limited"] == "never"
 
     def test_populated_log(self, state_mod):
-        """get_rate_limit_stats parses log lines and returns correct stats."""
+        """get_rate_limit_stats parses JSONL lines and returns correct stats."""
         log_file = state_mod.RATE_LIMITED_LOG
         log_file.parent.mkdir(parents=True, exist_ok=True)
         lines = [
-            "2026-04-01 08:00:00 | ImportError | fp123",
-            "2026-04-02 09:00:00 | TimeoutError | fp456",
+            '{"ts": "2026-04-01T08:00:00", "reason": "backoff", "detail": "fp123"}',
+            '{"ts": "2026-04-02T09:00:00", "reason": "backoff", "detail": "fp456"}',
         ]
         log_file.write_text("\n".join(lines), encoding="utf-8")
 
         result = state_mod.get_rate_limit_stats()
 
         assert result["rate_limited_count"] == 2
-        assert result["last_rate_limited"] == "2026-04-02 09:00:00"
+        assert result["last_rate_limited"] == "2026-04-02T09:00:00"
 
-    def test_log_line_without_pipe_separator(self, state_mod):
-        """get_rate_limit_stats returns 'unknown' when last line has no pipe."""
+    def test_log_line_without_ts_field(self, state_mod):
+        """get_rate_limit_stats returns 'unknown' when last entry has no ts."""
         log_file = state_mod.RATE_LIMITED_LOG
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        log_file.write_text("malformed line", encoding="utf-8")
+        log_file.write_text('{"reason": "no timestamp"}', encoding="utf-8")
 
         result = state_mod.get_rate_limit_stats()
 

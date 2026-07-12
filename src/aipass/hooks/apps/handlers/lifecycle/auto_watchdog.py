@@ -11,6 +11,13 @@
 """Checks for dispatch commands and reminds the agent to arm the watchdog."""
 
 import json
+import re
+
+
+def _extract_target(command: str) -> str:
+    """Extract the @target branch name from a dispatch command."""
+    match = re.search(r"dispatch\s+@(\S+)", command)
+    return f"@{match.group(1)}" if match else "@<target>"
 
 
 def handle(hook_data: dict) -> dict:
@@ -37,11 +44,15 @@ def handle(hook_data: dict) -> dict:
     if "dispatch wake" in command and "dispatch @" not in command:
         return {"stdout": "", "exit_code": 0}
 
+    target = _extract_target(command)
+
     result = {
         "additionalContext": (
-            "[AUTO-WATCHDOG] Dispatch detected — arm watchdog NOW. "
-            "Run the watchdog one-liner from your local prompt with "
-            "run_in_background: true and timeout: 600000."
+            f"[AUTO-WATCHDOG] Dispatch detected — arm watchdog NOW.\n"
+            f"Use the Monitor tool (NOT Bash run_in_background) to run:\n"
+            f"  drone @devpulse watchdog agent {target}\n"
+            f"The Monitor tool's return is what wakes your session when "
+            f"the dispatched agent finishes. run_in_background cannot wake you."
         )
     }
     return {"stdout": json.dumps(result), "exit_code": 0, "sound": "auto watchdog"}

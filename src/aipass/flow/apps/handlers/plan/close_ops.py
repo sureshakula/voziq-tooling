@@ -19,7 +19,6 @@ Usage:
 """
 
 import sys
-import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List
@@ -28,6 +27,7 @@ from aipass.prax import logger
 
 from aipass.flow.apps.handlers.json import json_handler
 from aipass.flow.apps.handlers.plan.close_helpers import (
+    PROCESSED_PLANS_DIR,
     _extract_prefix,
     _resolve_registry_file,
     _find_plan_across_registries,
@@ -35,6 +35,7 @@ from aipass.flow.apps.handlers.plan.close_helpers import (
     _find_unregistered_plan_file,
     _self_heal_unregistered_plan,
     _spawn_background_runner,
+    _cleanup_orphaned_plan,
 )
 
 MODULE_NAME = "close_plan"
@@ -62,6 +63,8 @@ def close_plan_impl(
     push_to_plans_central: Any = None,
     push_flow_to_branch_dashboard: Any = None,
     close_all_plans_fn: Any = None,
+    archive_plan_fn: Any = None,
+    trigger_fire_fn: Any = None,
 ) -> Dict[str, Any]:
     """
     Implement plan closure workflow
@@ -187,30 +190,16 @@ def close_plan_impl(
                         "text": f"{plan_label} already closed on {closed_date} — orphaned .md file detected",
                     }
                 )
-                messages.append({"type": "dim", "text": f"  Cleaning up: moving {plan_file.name} to processed_plans/"})
-                try:
-                    from aipass.flow.apps.handlers.mbank.process import archive_plan
-
-                    if archive_plan(plan_file):
-                        logger.info(f"[{MODULE_NAME}] Cleaned up orphaned file for {plan_label}: {plan_file}")
-                        # Update registry flags that were missed on the failed first close
-                        plan_info["processed"] = True
-                        plan_info["processed_date"] = datetime.now(timezone.utc).isoformat()
-                        plan_info["cleanup_completed"] = True
-                        plan_info["cleanup_date"] = datetime.now(timezone.utc).isoformat()
-                        if reg_file:
-                            save_registry(registry, registry_file=reg_file)
-                        else:
-                            save_registry(registry)
-                        messages.append({"type": "success", "text": "  Orphaned file archived successfully"})
-                    else:
-                        logger.warning(f"[{MODULE_NAME}] Failed to archive orphaned file for {plan_label}: {plan_file}")
-                        messages.append(
-                            {"type": "error_text", "text": "  Failed to move orphaned file — manual cleanup required"}
-                        )
-                except Exception as e:
-                    logger.warning(f"[{MODULE_NAME}] Error cleaning orphaned file for {plan_label}: {e}")
-                    messages.append({"type": "error_text", "text": f"  Error during cleanup: {e}"})
+                _cleanup_orphaned_plan(
+                    plan_file,
+                    plan_label,
+                    plan_info,
+                    registry,
+                    save_registry,
+                    reg_file,
+                    messages,
+                    archive_plan=archive_plan_fn,
+                )
                 return {
                     "success": True,
                     "messages": messages,
@@ -320,15 +309,12 @@ def close_plan_impl(
         # --- Step 3/5: Archive plan to processed_plans ---
         messages.append({"type": "step", "text": "[3/5] Archiving plan..."})
         try:
-            from aipass.flow.apps.handlers.mbank.process import archive_plan, PROCESSED_PLANS_DIR
-
-            # If file is already in processed_plans (found via relocation search), skip move
             if plan_file.exists() and plan_file.parent == PROCESSED_PLANS_DIR:
                 archive_success = True
                 logger.info(f"[{MODULE_NAME}] {plan_label} already in processed_plans/, skipping move")
                 messages.append({"type": "dim", "text": "  Already in processed_plans/ — skipping move"})
             else:
-                archive_success = archive_plan(plan_file)
+                archive_success = archive_plan_fn(plan_file) if archive_plan_fn else False
 
             if archive_success:
                 plan_info["processed"] = True
@@ -349,35 +335,17 @@ def close_plan_impl(
             logger.error(f"[{MODULE_NAME}] Archive error for {plan_label}: {e}")
             messages.append({"type": "warning", "text": f"  Archive error: {e}"})
 
-        # --- Vector intake + verification ---
-        # Trigger memory's plan processor via drone (no cross-branch imports)
-        try:
-            subprocess.run(
-                ["drone", "@memory", "process-plans"],
-                capture_output=True,
-                timeout=30,
-            )
-        except Exception as e:
-            logger.warning(f"[{MODULE_NAME}] Best-effort drone @memory process-plans failed: {e}")
-
-        # Verify vectorization via memory's verify module
-        try:
-            from aipass.memory.apps.modules.verify import is_plan_vectorized  # type: ignore[import-not-found]
-
-            result = is_plan_vectorized(plan_label)
-            if result.get("found"):
-                chunk_count = result.get("count", 0)
-                logger.info(f"[{MODULE_NAME}] Vectorized: {plan_label} ({chunk_count} chunks)")
-                messages.append({"type": "dim", "text": f"  Vectorized: {chunk_count} chunks in chroma"})
-            else:
-                logger.warning(f"[{MODULE_NAME}] NOT vectorized: {plan_label}")
-                messages.append({"type": "warning", "text": "  NOT vectorized — check drone @memory process-plans"})
-        except ImportError:
-            logger.warning(f"[{MODULE_NAME}] Vector verify unavailable — memory verify module not found")
-            messages.append({"type": "warning", "text": "  Vector status: unknown (memory verify not available)"})
-        except Exception as vec_err:
-            logger.warning(f"[{MODULE_NAME}] Vector verify failed: {vec_err}")
-            messages.append({"type": "warning", "text": f"  Vector status: unknown ({vec_err})"})
+        # --- Vector intake (background) ---
+        if spawn_background:
+            try:
+                _spawn_background_runner()
+                logger.info(f"[{MODULE_NAME}] Spawned background vectorization for {plan_label}")
+                messages.append({"type": "dim", "text": "  Vectorizing in background"})
+            except Exception as e:
+                logger.warning(f"[{MODULE_NAME}] Background vectorization failed to start: {e}")
+                messages.append(
+                    {"type": "warning", "text": "  Background vectorization failed to start — will retry on next close"}
+                )
 
         # --- Step 4/5: Update dashboards ---
         messages.append({"type": "step", "text": "[4/5] Updating dashboards..."})
@@ -416,23 +384,18 @@ def close_plan_impl(
             logger.warning(f"[{MODULE_NAME}] CLOSED_PLANS update failed (non-critical): {e}")
 
         # Fire trigger event for plan closure
-        try:
-            from aipass.trigger.apps.modules.core import trigger
-
-            trigger.fire("plan_closed", plan_number=plan_key, location=str(plan_file.parent))
-        except ImportError:
-            logger.info(f"[{MODULE_NAME}] Trigger module not available, skipping event fire")
-        except Exception as e:
-            logger.warning(f"[{MODULE_NAME}] Trigger fire failed (non-critical): {e}")
+        if trigger_fire_fn is not None:
+            try:
+                trigger_fire_fn("plan_closed", plan_number=plan_key, location=str(plan_file.parent))
+            except Exception as e:
+                logger.warning(f"[{MODULE_NAME}] Trigger fire failed (non-critical): {e}")
 
         # --- VERIFY: Physical state check for self-healed plans ---
         if plan_info.get("self_healed"):
             messages.append({"type": "step", "text": "[VERIFY] Checking physical state..."})
             try:
-                from aipass.flow.apps.handlers.mbank.process import PROCESSED_PLANS_DIR as _VERIFY_DIR
-
                 original_source = Path(plan_info.get("file_path", ""))
-                dest = _VERIFY_DIR / original_source.name
+                dest = PROCESSED_PLANS_DIR / original_source.name
                 if dest.exists():
                     messages.append({"type": "dim", "text": f"  [OK] File in processed_plans/: {original_source.name}"})
                 else:

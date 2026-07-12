@@ -149,11 +149,11 @@ def print_help():
     console.print("[bold cyan]WHAT IS API?[/bold cyan]")
     console.print()
     console.print("API Branch provides:")
-    console.print("  [green]✓[/green] OpenRouter API client integration")
-    console.print("  [green]✓[/green] API key management and validation")
-    console.print("  [green]✓[/green] Model discovery and availability")
-    console.print("  [green]✓[/green] Usage tracking and statistics")
-    console.print("  [green]✓[/green] Connection testing and diagnostics")
+    console.print("  [cyan]•[/cyan] OpenRouter API client integration")
+    console.print("  [cyan]•[/cyan] API key management and validation")
+    console.print("  [cyan]•[/cyan] Model discovery and availability")
+    console.print("  [cyan]•[/cyan] Usage tracking and statistics")
+    console.print("  [cyan]•[/cyan] Connection testing and diagnostics")
     console.print()
 
     console.print("[bold cyan]AVAILABLE COMMANDS:[/bold cyan]")
@@ -286,6 +286,14 @@ def main():
         # Extract command and remaining args (matching seedgo pattern)
         command = args[0]
         remaining_args = args[1:] if len(args) > 1 else []
+
+        # Subcommand --help guard
+        if remaining_args and remaining_args[0] in ["--help", "-h"]:
+            for module in modules:
+                if module.handle_command(command, ["--help"]):
+                    return 0
+            print_help()
+            return 0
 
         # Log api command attempt
         json_handler.log_operation("api_command_attempted", {"command": command, "modules_discovered": len(modules)})

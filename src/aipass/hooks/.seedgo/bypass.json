@@ -42,6 +42,36 @@
       "reason": "Bridge imports engine module by design \u2014 sole purpose."
     },
     {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "dead_code",
+      "reason": "Bridge called externally by Codex hook settings subprocess \u2014 no internal import. Wired in .codex/hooks.json."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "unused_function",
+      "reason": "main() called as subprocess entry point from Codex hook settings \u2014 never statically imported."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "handlers",
+      "reason": "Bridges import engine module by design \u2014 that is their entire purpose."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "json_structure",
+      "reason": "Thin entry point using stdlib json for Codex protocol envelope \u2014 no JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "architecture",
+      "reason": "Bridge importing engine module is its architectural purpose."
+    },
+    {
+      "file": "apps/handlers/bridges/codex.py",
+      "standard": "imports",
+      "reason": "Bridge imports engine module by design \u2014 sole purpose."
+    },
+    {
       "file": "apps/handlers/prompt/identity.py",
       "standard": "dead_code",
       "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.prompt.identity.handle' \u2014 not statically imported by design. Verified wired in UserPromptSubmit.identity_injector + fires in engine.jsonl."
@@ -167,6 +197,51 @@
       "reason": "NamedTemporaryFile creates binary wav for Piper TTS \u2014 encoding not applicable to binary audio."
     },
     {
+      "file": "apps/handlers/security/registry_gate.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.security.registry_gate.handle' — not statically imported by design. Wired in PreToolUse.registry_gate."
+    },
+    {
+      "file": "apps/handlers/security/registry_gate.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in PreToolUse.registry_gate."
+    },
+    {
+      "file": "apps/handlers/security/registry_gate.py",
+      "standard": "json_structure",
+      "reason": "Security gate uses stdlib json.dumps for hook protocol block responses — no JSON file ops needing json_handler."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "hardcoded_path",
+      "reason": "Test fixture CWD string and bash command strings contain paths as test input data — not real filesystem operations."
+    },
+    {
+      "file": "tests/test_registry_gate.py",
+      "standard": "windows_compat",
+      "reason": "Test fixture bash command strings contain /tmp paths as scanner input — not real filesystem operations. The handler itself is platform-agnostic (string scanning only)."
+    },
+    {
       "file": "apps/handlers/lifecycle/auto_fix.py",
       "standard": "dead_code",
       "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.auto_fix.handle' \u2014 not statically imported by design. Verified wired in PostToolUse.auto_fix_diagnostics + fires in engine.jsonl."
@@ -240,6 +315,21 @@
       "file": "apps/handlers/lifecycle/auto_process.py",
       "standard": "json_structure",
       "reason": "Delegates to @memory's auto_process() via importlib \u2014 no direct JSON file ops needing json_handler."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_start.py",
+      "standard": "dead_code",
+      "reason": "Invoked dynamically by engine via importlib from hooks.json handler path 'aipass.hooks.apps.handlers.lifecycle.session_start.handle' \u2014 not statically imported by design. Wired in SessionStart.cadence_reset."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_start.py",
+      "standard": "unused_function",
+      "reason": "handle() called dynamically by engine._run_handler via importlib.import_module + getattr from hooks.json. Wired in SessionStart.cadence_reset."
+    },
+    {
+      "file": "apps/handlers/lifecycle/session_start.py",
+      "standard": "json_structure",
+      "reason": "Delegates to cadence.reset_counter() via importlib \u2014 no direct JSON file ops needing json_handler."
     },
     {
       "file": "apps/modules/cadence.py",
@@ -337,6 +427,11 @@
       "reason": "dispatch() is the engine's core purpose \u2014 it IS the module's primary function, not a handler that belongs elsewhere. The engine exists to dispatch; moving dispatch to handlers/ would leave an empty module."
     },
     {
+      "file": "apps/modules/hook_test.py",
+      "standard": "json_structure",
+      "reason": "Uses stdlib json.dumps to serialize mock event data for engine dispatch — no JSON file ops needing json_handler."
+    },
+    {
       "file": "apps/modules/hooksound.py",
       "standard": "json_structure",
       "reason": "Sound mute toggle \u2014 touches /tmp/aipass-hooks-muted flag file only, no JSON operations or json_handler storage."
@@ -350,6 +445,11 @@
       "file": "apps/modules/hookstatus.py",
       "standard": "json_structure",
       "reason": "Read-only config viewer \u2014 delegates JSON loading to config/loader.py, no direct JSON file ops."
+    },
+    {
+      "file": "apps/modules/wire_verify.py",
+      "standard": "json_structure",
+      "reason": "Reads ~/.claude/settings.json (external provider settings) with stdlib json \u2014 not branch data storage needing json_handler."
     },
     {
       "file": "apps/modules/cadence.py",
@@ -720,6 +820,31 @@
       "reason": "Test files do not need Version/Modified metadata headers."
     },
     {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "hardcoded_path",
+      "reason": "Test fixture strings contain paths as test input data, not real filesystem ops."
+    },
+    {
+      "file": "tests/test_edit_gate_trinity.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
       "file": "tests/test_git_gate.py",
       "standard": "architecture",
       "reason": "Test files live in tests/, not in the 3-layer apps structure."
@@ -1068,6 +1193,51 @@
       "file": "tests/test_session_boot.py",
       "standard": "encapsulation",
       "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "encapsulation",
+      "reason": "Tests import handlers directly to test implementation details."
+    },
+    {
+      "file": "tests/test_session_start.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "architecture",
+      "reason": "Test files live in tests/, not in the 3-layer apps structure."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "documentation",
+      "reason": "Test methods use descriptive names as documentation per pytest convention."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "encapsulation",
+      "reason": "Tests import modules directly to test implementation details."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "meta",
+      "reason": "Test files do not need Version/Modified metadata headers."
+    },
+    {
+      "file": "tests/test_wire_verify.py",
+      "standard": "help_text",
+      "reason": "Test fixture _BRIDGE_CMD contains 'python3' as part of a mock provider command string — not user-facing help text."
     }
   ],
   "notes": {

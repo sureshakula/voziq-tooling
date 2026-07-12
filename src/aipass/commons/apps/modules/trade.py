@@ -20,12 +20,14 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error, warning
 except ImportError:
     logger.warning("[trade] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
+    warning = console.print  # type: ignore[assignment]
 
 from rich.panel import Panel
 
@@ -97,7 +99,7 @@ def handle_command(command: str, args: List[str]) -> bool:
 def _handle_gift(args: List[str]) -> bool:
     result = gift_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     rarity_color = RARITY_COLORS.get(result["rarity"], "white")
@@ -119,7 +121,7 @@ def _handle_gift(args: List[str]) -> bool:
 def _handle_trade(args: List[str]) -> bool:
     result = trade_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     yours = result["your_artifact"]
@@ -147,7 +149,7 @@ def _handle_trade(args: List[str]) -> bool:
 def _handle_drop(args: List[str]) -> bool:
     result = drop_item(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     console.print()
@@ -170,7 +172,7 @@ def _handle_drop(args: List[str]) -> bool:
 def _handle_find(args: List[str]) -> bool:
     result = find_item(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     rarity_color = RARITY_COLORS.get(result["rarity"], "white")
@@ -194,11 +196,11 @@ def _handle_find(args: List[str]) -> bool:
 def _handle_mint(args: List[str]) -> bool:
     result = mint_event_artifact(args)
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
-    for warning in result.get("warnings", []):
-        console.print(f"[yellow]Warning: {warning}[/yellow]")
+    for warn_msg in result.get("warnings", []):
+        warning(f"Warning: {warn_msg}")
 
     minted = result["minted"]
     lines = [f"[bold]Event:[/bold] {result['event_name']}\n"]

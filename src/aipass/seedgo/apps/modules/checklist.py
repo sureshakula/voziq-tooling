@@ -42,6 +42,9 @@ from aipass.seedgo.apps.handlers.bypass.bypass_handler import (
     load_bypass_rules,
 )
 
+# Throwaway / prototype detection
+from aipass.seedgo.apps.handlers.aipass_standards.skip_dirs import is_prototype_file, is_throwaway_path
+
 # JSON handler for tracking
 from aipass.seedgo.apps.handlers.json import json_handler
 
@@ -112,12 +115,13 @@ def _is_applicable(checker, file_path: str) -> bool:
 # =============================================================================
 
 
-def run_checklist(file_path: str, pack_name: str = "aipass") -> List[Dict]:
+def run_checklist(file_path: str, pack_name: str = "aipass", prototype: bool = False) -> List[Dict]:
     """Run applicable standards checkers against a single file.
 
     Args:
         file_path: Absolute path to the file to check.
         pack_name: Checker pack to use (default: "aipass").
+        prototype: If True, skip all standards (disposable code).
 
     Returns:
         List of result dicts: [{"standard": str, "passed": bool, "detail": str|None}]
@@ -129,6 +133,12 @@ def run_checklist(file_path: str, pack_name: str = "aipass") -> List[Dict]:
 
     if not resolved.endswith(".py"):
         return [{"standard": "(skip)", "passed": True, "detail": "Not a Python file"}]
+
+    if is_throwaway_path(resolved):
+        return [{"standard": "(skip)", "passed": True, "detail": "Throwaway path (temp/scratchpad) — skipped"}]
+
+    if prototype or is_prototype_file(resolved):
+        return [{"standard": "(skip)", "passed": True, "detail": "Prototype mode — standards skipped"}]
 
     # Discover pack path
     pack_path = _resolve_pack_path(pack_name)
@@ -235,9 +245,9 @@ def _print_results(results: List[Dict], file_path: str) -> None:
             all_passed = False
             detail = r.get("detail", "")
             if detail:
-                console.print(f"  [red]\u2717[/red] {std}: {detail}")
+                console.print(f"  \u2014 {std}: {detail}")
             else:
-                console.print(f"  [red]\u2717[/red] {std}")
+                console.print(f"  \u2014 {std}")
 
     if all_passed:
         console.print(f"[green]All {len(results)} standards passed[/green]")
@@ -279,12 +289,16 @@ def handle_command(command: str, args: List[str]) -> bool:
     # Parse arguments
     pack_name = "aipass"
     file_path = None
+    prototype = False
 
     i = 0
     while i < len(args):
         if args[i] in ("--pack", "-p") and i + 1 < len(args):
             pack_name = args[i + 1]
             i += 2
+        elif args[i] == "--prototype":
+            prototype = True
+            i += 1
         elif not args[i].startswith("-"):
             file_path = args[i]
             i += 1
@@ -318,13 +332,13 @@ def handle_command(command: str, args: List[str]) -> bool:
             return True
         console.print(f"\n[bold cyan]Checklist — {resolved.name}/[/bold cyan]  [dim]({len(py_files)} files)[/dim]\n")
         for f in py_files:
-            results = run_checklist(str(f), pack_name=pack_name)
+            results = run_checklist(str(f), pack_name=pack_name, prototype=prototype)
             _print_results(results, str(f))
             console.print()
         return True
 
     # Single file mode
-    results = run_checklist(str(resolved), pack_name=pack_name)
+    results = run_checklist(str(resolved), pack_name=pack_name, prototype=prototype)
 
     # Print results
     _print_results(results, str(resolved))
@@ -401,7 +415,7 @@ def print_help() -> None:
 
     console.print("[yellow]OUTPUT FORMAT:[/yellow]")
     console.print("  [green]\u2713[/green] standard_name                         [dim]# Passed[/dim]")
-    console.print("  [red]\u2717[/red] standard_name: failure detail           [dim]# Failed with reason[/dim]")
+    console.print("  \u2014 standard_name: failure detail           [dim]# Failed with reason[/dim]")
     console.print()
 
     console.print("[yellow]SCOPE RULES:[/yellow]")

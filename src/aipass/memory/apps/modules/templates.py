@@ -285,7 +285,7 @@ def _display_push_results(result: dict, dry_run: bool) -> None:
     # Errors
     errors = result.get("errors", [])
     if errors:
-        console.print(f"[red]Errors ({len(errors)}):[/red]")
+        warning(f"Errors ({len(errors)}):")
         for err in errors:
             error(err)
         console.print()
@@ -436,7 +436,7 @@ def _display_diff_results(branch_name: str | None = None) -> None:
             warning(f"{total_diffs} branches have template differences")
             console.print("[dim]Run 'push-templates --dry-run' to preview changes[/dim]")
         if total_errors > 0:
-            console.print(f"[red]{total_errors} errors encountered[/red]")
+            warning(f"{total_errors} errors encountered")
 
     logger.info(f"[templates] Diff complete: {total_diffs} branches with diffs, {total_errors} errors")
     json_handler.log_operation(
@@ -454,7 +454,7 @@ def _display_file_diffs(file_diffs: list) -> None:
                 console.print(f"      [green]+ {a}[/green]")
         if entry.get("removals"):
             for r in entry["removals"]:
-                console.print(f"      [red]- {r}[/red]")
+                console.print(f"      [magenta]- {r}[/magenta]")
         if entry.get("modifications"):
             for m in entry["modifications"]:
                 console.print(f"      [yellow]~ {m}[/yellow]")
@@ -619,6 +619,5 @@ if __name__ == "__main__":
     # Execute command via handle_command
     command = sys.argv[1]
     if not handle_command(command, sys.argv[2:]):
-        console.print(f"[red]Unknown command:[/red] {command}")
-        console.print("Run with [cyan]help[/cyan] for available commands")
+        error(f"Unknown command: {command}", suggestion="Run 'drone @memory templates --help' for available commands")
         sys.exit(1)

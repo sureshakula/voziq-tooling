@@ -20,12 +20,13 @@ from typing import List
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 try:
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, error
 except ImportError:
     logger.warning("[welcome] CLI console unavailable, using fallback")
     from rich.console import Console
 
     console = Console()
+    error = console.print  # type: ignore[assignment]
 
 from aipass.commons.apps.handlers.welcome.welcome_ops import run_welcome
 from aipass.commons.apps.handlers.json import json_handler
@@ -75,7 +76,7 @@ def _handle_welcome(args: List[str]) -> bool:
     result = run_welcome(args)
 
     if not result["success"]:
-        console.print(f"[red]{result['error']}[/red]")
+        error(result["error"])
         return True
 
     if result.get("dry_run"):

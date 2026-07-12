@@ -19,7 +19,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, error as cli_error
 
 from aipass.backup.apps.handlers.json import json_handler
 
@@ -71,10 +71,10 @@ def run_share(file_path: str, *, public: bool = False) -> dict:
 
     client = DriveClient()
     if not client.authenticate():
-        error = f"Drive authentication failed: {client.last_error}"
-        console.print(f"[red]{error}[/red]")
-        logger.warning(f"[backup] {error}")
-        return {"success": False, "link": None, "file_id": None, "error": error}
+        err_msg = f"Drive authentication failed: {client.last_error}"
+        cli_error(err_msg)
+        logger.warning(f"[backup] {err_msg}")
+        return {"success": False, "link": None, "file_id": None, "error": err_msg}
 
     console.print(f"[dim]Uploading {file_path}...[/dim]")
     result = share_file(client, file_path, public=public)
@@ -84,7 +84,7 @@ def run_share(file_path: str, *, public: bool = False) -> dict:
         console.print(f"[green]Shared ({mode}):[/green] {result['link']}")
         logger.info(f"[backup] Shared {file_path} ({mode})")
     else:
-        console.print(f"[red]Share failed:[/red] {result['error']}")
+        cli_error(f"Share failed: {result['error']}")
         logger.warning(f"[backup] Share failed: {result['error']}")
 
     if result.get("link"):

@@ -43,9 +43,10 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from aipass.cli.apps.modules import console, warning
+from aipass.cli.apps.modules import console, success, warning
 from aipass.prax import logger
 
+from aipass.aipass.apps.handlers.init.bootstrap import is_throwaway_path
 from aipass.aipass.apps.handlers.json import json_handler
 from aipass.aipass.apps.handlers.ui.progress import render_step_header
 
@@ -120,20 +121,26 @@ def _clone_repo(home: Path, dry_run: bool) -> bool:
     return False
 
 
-def _run_setup(home: Path, dry_run: bool) -> bool:
+def _run_setup(home: Path, dry_run: bool, no_symlink: bool = False, force_symlink: bool = False) -> bool:
     """Run the repo's setup.sh (venv + editable install + hook wiring + binaries)."""
     setup = home / "setup.sh"
+    # --no-init: install owns the init handoff (_handoff_to_init) — without it,
+    # setup.sh's own init chain (DPLAN-0234) would scaffold the project twice.
+    # --no-symlink / --force-symlink (#660) pass through to setup.sh's CLI-symlink guard.
+    setup_args = ["bash", str(setup), "--no-init"]
+    if no_symlink:
+        setup_args.append("--no-symlink")
+    if force_symlink:
+        setup_args.append("--force-symlink")
     if dry_run:
-        console.print(f"[yellow]\\[dry-run][/yellow] would run: bash {setup}")
+        console.print(f"[yellow]\\[dry-run][/yellow] would run: {' '.join(setup_args)}")
         return True
     if not setup.is_file():
         warning(f"setup.sh not found at {setup} — cannot build the environment.")
         return False
     console.print("[cyan]Building environment[/cyan] [dim](venv, dependencies, hook wiring)…[/dim]")
     try:
-        # --no-init: install owns the init handoff (_handoff_to_init) — without it,
-        # setup.sh's own init chain (DPLAN-0234) would scaffold the project twice.
-        proc = subprocess.run(["bash", str(setup), "--no-init"], cwd=str(home), timeout=_SETUP_TIMEOUT)
+        proc = subprocess.run(setup_args, cwd=str(home), timeout=_SETUP_TIMEOUT)
         if proc.returncode == 0:
             return True
         logger.warning("[install] setup.sh exited %s", proc.returncode)
@@ -162,11 +169,11 @@ def _verify_binaries(home: Path) -> Dict[str, str | None]:
     )
     aipass = _resolve_aipass_bin(home)
     if drone:
-        console.print(f"[green]✓[/green] drone: {drone}")
+        success(f"drone: {drone}")
     else:
         warning("drone not found after setup — check the setup output above.")
     if aipass:
-        console.print(f"[green]✓[/green] aipass: {aipass}")
+        success(f"aipass: {aipass}")
     else:
         warning("aipass not found after setup — check the setup output above.")
     return {"drone": drone, "aipass": aipass}
@@ -201,7 +208,7 @@ def _handoff_to_init(
     headless, init is launched headless too so the whole chain stays non-blocking.
     """
     console.print()
-    console.print(f"[bold green]✓ AIPass is installed at {home}[/bold green]")
+    success(f"AIPass is installed at {home}")
     console.print()
     console.print("  [cyan]drone systems[/cyan]     [dim]# list every agent[/dim]")
     console.print("  [cyan]aipass doctor[/cyan]     [dim]# check system health[/dim]")
@@ -235,6 +242,39 @@ def _handoff_to_init(
         warning(f"Could not launch init: {exc}. Run 'aipass init run' in {project_dir} yourself.")
 
 
+def _check_and_fix_owner(home: Path) -> None:
+    """Run sync-registry --check; if issues found, auto-heal with --fix."""
+    try:
+        check_proc = subprocess.run(
+            ["drone", "@spawn", "sync-registry", "--check"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(home),
+        )
+        if check_proc.returncode != 0:
+            warning("Owner/identity issues detected — auto-repairing…")
+            fix_proc = subprocess.run(
+                ["drone", "@spawn", "sync-registry", "--fix"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(home),
+            )
+            if fix_proc.returncode == 0:
+                success("Registry owner/identity reconciled.")
+            else:
+                logger.warning("[install] sync-registry --fix exit %s", fix_proc.returncode)
+        else:
+            success("Owner/identity OK.")
+    except FileNotFoundError:
+        logger.info("[install] drone not on PATH — skipping owner check")
+    except subprocess.TimeoutExpired:
+        logger.warning("[install] sync-registry timed out during install")
+    except Exception as exc:
+        logger.warning("[install] owner check skipped: %s", exc)
+
+
 def _resolve_project_dir(project: str | None, non_interactive: bool) -> Path | None:
     """Resolve the first-project directory — --project / prompt / DEFAULT_PROJECT."""
     if project:
@@ -258,6 +298,8 @@ def run_install(
     with_init: bool = False,
     no_init: bool = False,
     project: str | None = None,
+    no_symlink: bool = False,
+    force_symlink: bool = False,
 ) -> int:
     """Run the 4-step one-command install. Returns 0 on success, 1 on failure."""
     console.print()
@@ -277,26 +319,40 @@ def run_install(
         return 1
     console.print(f"  Home: [cyan]{home}[/cyan]")
 
+    if is_throwaway_path(home):
+        warning(
+            f"REFUSED: '{home}' is a temporary/scratchpad path. "
+            "Installing here would hijack the machine-wide AIPASS_HOME. "
+            "Use a permanent directory, or pass --force-global-home to override."
+        )
+        if "--force-global-home" not in sys.argv:
+            return 1
+        logger.warning("[install] --force-global-home override: proceeding with throwaway home %s", home)
+
     if _looks_like_aipass_tree(home):
-        console.print(f"[green]✓[/green] AIPass already present at {home} — skipping download")
+        success(f"AIPass already present at {home} — skipping download")
     elif not _clone_repo(home, dry_run):
         warning("Could not fetch AIPass — aborting install.")
         return 1
     else:
-        console.print(f"[green]✓[/green] AIPass downloaded to {home}")
+        success(f"AIPass downloaded to {home}")
 
     # Step 2 — build the environment via setup.sh
     console.print()
     console.print(render_step_header(2, TOTAL_STEPS, "Building environment"))
-    if not _run_setup(home, dry_run):
+    if not _run_setup(home, dry_run, no_symlink=no_symlink, force_symlink=force_symlink):
         warning("Environment build failed — aborting install.")
         return 1
-    console.print("[green]✓[/green] Environment ready")
+    success("Environment ready")
 
     # Step 3 — verify the binaries landed
     console.print()
     console.print(render_step_header(3, TOTAL_STEPS, "Verifying install"))
     bins = _verify_binaries(home) if not dry_run else {"drone": "dry-run", "aipass": "dry-run"}
+
+    # Owner/identity retro-trigger — check and self-heal via spawn
+    if not dry_run:
+        _check_and_fix_owner(home)
 
     # Step 4 — hand off into init (or print next steps)
     console.print()
@@ -323,7 +379,10 @@ def print_help() -> None:
     console.print("  [green]aipass install --here[/green]               [dim]# install into current dir[/dim]")
     console.print("  [green]aipass install --no-init[/green]            [dim]# install only, skip init[/dim]")
     console.print("  [green]aipass install --with-init[/green]          [dim]# force init even when headless[/dim]")
+    console.print("  [green]aipass install --no-symlink[/green]         [dim]# skip global CLI symlinks[/dim]")
+    console.print("  [green]aipass install --force-symlink[/green]      [dim]# repoint from another install[/dim]")
     console.print("  [green]aipass install --project DIR[/green]        [dim]# where the first project scaffolds[/dim]")
+    console.print("  [green]aipass install --force-global-home[/green]  [dim]# allow install into /tmp (unsafe)[/dim]")
     console.print("  [green]aipass install --dry-run[/green]            [dim]# walk steps, no side effects[/dim]")
     console.print()
     console.print("[yellow]STEPS:[/yellow] resolve home -> fetch -> setup.sh -> verify -> launch init")
@@ -368,6 +427,8 @@ def handle_command(command: str, args: list[str]) -> bool:
     here = "--here" in run_args
     with_init = "--with-init" in run_args
     no_init = "--no-init" in run_args
+    no_symlink = "--no-symlink" in run_args
+    force_symlink = "--force-symlink" in run_args
     path = _flag_value("--path")
     project = _flag_value("--project")
 
@@ -379,6 +440,8 @@ def handle_command(command: str, args: list[str]) -> bool:
         with_init=with_init,
         no_init=no_init,
         project=project,
+        no_symlink=no_symlink,
+        force_symlink=force_symlink,
     )
     json_handler.log_operation(
         "install_run",

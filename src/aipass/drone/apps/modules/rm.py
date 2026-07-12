@@ -17,7 +17,7 @@ from __future__ import annotations
 import tempfile
 
 from aipass.prax import logger
-from aipass.cli.apps.modules import console
+from aipass.cli.apps.modules import console, error, success
 from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.rm_handler import (
     safe_delete as _safe_delete,
@@ -76,11 +76,11 @@ def handle_command(command: str | None = None, args: list[str] | None = None) ->
 
     results = _safe_delete(paths)
     ok = True
-    for _path_str, success, message in results:
-        if success:
-            console.print(f"[green]✓[/green] {message}")
+    for _path_str, succeeded, message in results:
+        if succeeded:
+            success(message)
         else:
-            console.print(f"[red]✗[/red] {message}")
+            error(message)
             ok = False
     return ok
 

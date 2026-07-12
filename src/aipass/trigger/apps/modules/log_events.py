@@ -142,7 +142,7 @@ def handle_command(command: str, args: list) -> bool:
     Returns:
         True if command was handled, False otherwise
     """
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, success, error
 
     # Handle module-name routing (drone @trigger log_events <subcmd>)
     if command == "log_events":
@@ -163,13 +163,13 @@ def handle_command(command: str, args: list) -> bool:
 
     if command == "start":
         if start():
-            console.print("✅ Log watcher started")
+            success("Log watcher started")
             console.print(f"   Monitoring: {SYSTEM_LOGS_DIR}")
         else:
-            console.print("❌ Failed to start log watcher")
+            error("Failed to start log watcher")
     elif command == "stop":
         stop()
-        console.print("✅ Log watcher stopped")
+        success("Log watcher stopped")
     elif command == "status":
         info = status()
         console.print("Log Watcher Status")

@@ -51,16 +51,8 @@ def _fresh_memory_files(monkeypatch):
     # of the import.  Otherwise, remove the mock so Python can discover
     # the real package on disk.
     # Try to find the real package by importing with the mock removed
-    saved = sys.modules.pop("aipass.memory.apps.handlers.json", None)
+    sys.modules.pop("aipass.memory.apps.handlers.json", None)
     sys.modules.pop("aipass.memory.apps.handlers.json.memory_files", None)
-
-    try:
-        # Import the real package so memory_files can be found
-        sys.modules.get("aipass.memory.apps.handlers.json")
-    except Exception:
-        # If we can't import the real package, restore the mock
-        if saved is not None:
-            sys.modules["aipass.memory.apps.handlers.json"] = saved
 
     # Now force-reimport memory_files via importlib.reload or fresh import
     mem_files_key = "aipass.memory.apps.handlers.json.memory_files"
@@ -588,3 +580,135 @@ class TestUpdateMetadata:
         assert status["health"] == "healthy"
         assert status["current_lines"] == 200
         assert status["last_health_check"] == "2026-03-24"
+
+
+# =============================================================================
+# _check_entry_counts (soft count guard)
+# =============================================================================
+
+
+class TestCheckEntryCounts:
+    """Tests for the soft entry-count guard added for #664."""
+
+    @staticmethod
+    def _warn_calls(memory_files_mod):  # type: ignore[no-untyped-def]
+        """Get warning call args from the mocked logger."""
+        return getattr(memory_files_mod.logger, "warning").call_args_list
+
+    @staticmethod
+    def _reset_warns(memory_files_mod):  # type: ignore[no-untyped-def]
+        """Reset warning mock on the mocked logger."""
+        getattr(memory_files_mod.logger, "warning").reset_mock()
+
+    def test_warns_when_over_rollover_limit(self, tmp_path: Path, monkeypatch) -> None:
+        """Writing more entries than rollover count limit should log a warning."""
+        from aipass.memory.apps.handlers.json import memory_files
+
+        monkeypatch.setattr(
+            memory_files.config_loader,
+            "section",
+            lambda name: {
+                "per_branch": {},
+                "defaults": {"local": {"sessions": {"count": 5}}},
+            },
+        )
+
+        trinity_dir = tmp_path / "testbranch" / ".trinity"
+        trinity_dir.mkdir(parents=True)
+        file_path = trinity_dir / "local.json"
+
+        data = {"sessions": [{"id": f"s{i}"} for i in range(10)]}
+
+        memory_files._check_entry_counts(file_path, data)
+
+        calls = self._warn_calls(memory_files)
+        assert any("ENTRY COUNT" in str(c) and "10/5" in str(c) for c in calls)
+
+    def test_no_warn_when_under_limit(self, tmp_path: Path, monkeypatch) -> None:
+        """Entries under rollover limit should produce no warning."""
+        from aipass.memory.apps.handlers.json import memory_files
+
+        monkeypatch.setattr(
+            memory_files.config_loader,
+            "section",
+            lambda name: {
+                "per_branch": {},
+                "defaults": {"local": {"sessions": {"count": 20}}},
+            },
+        )
+
+        trinity_dir = tmp_path / "testbranch" / ".trinity"
+        trinity_dir.mkdir(parents=True)
+        file_path = trinity_dir / "local.json"
+
+        data = {"sessions": [{"id": f"s{i}"} for i in range(5)]}
+
+        self._reset_warns(memory_files)
+        memory_files._check_entry_counts(file_path, data)
+
+        calls = self._warn_calls(memory_files)
+        assert not any("ENTRY COUNT" in str(c) for c in calls)
+
+    def test_skips_non_trinity_files(self, tmp_path: Path, monkeypatch) -> None:
+        """Non-.trinity/ files should be silently skipped."""
+        from aipass.memory.apps.handlers.json import memory_files
+
+        file_path = tmp_path / "random.json"
+        data = {"sessions": [{"id": f"s{i}"} for i in range(100)]}
+
+        self._reset_warns(memory_files)
+        memory_files._check_entry_counts(file_path, data)
+
+        calls = self._warn_calls(memory_files)
+        assert not any("ENTRY COUNT" in str(c) for c in calls)
+
+    def test_uses_per_branch_override(self, tmp_path: Path, monkeypatch) -> None:
+        """Per-branch rollover config should take precedence over defaults."""
+        from aipass.memory.apps.handlers.json import memory_files
+
+        monkeypatch.setattr(
+            memory_files.config_loader,
+            "section",
+            lambda name: {
+                "per_branch": {"mybranch": {"local": {"sessions": {"count": 3}}}},
+                "defaults": {"local": {"sessions": {"count": 100}}},
+            },
+        )
+
+        trinity_dir = tmp_path / "mybranch" / ".trinity"
+        trinity_dir.mkdir(parents=True)
+        file_path = trinity_dir / "local.json"
+
+        data = {"sessions": [{"id": f"s{i}"} for i in range(5)]}
+
+        memory_files._check_entry_counts(file_path, data)
+
+        calls = self._warn_calls(memory_files)
+        assert any("ENTRY COUNT" in str(c) and "5/3" in str(c) for c in calls)
+
+    def test_does_not_block_write(self, tmp_path: Path, monkeypatch) -> None:
+        """Entry count guard should never prevent write_memory_file from succeeding."""
+        from aipass.memory.apps.handlers.json import memory_files
+
+        monkeypatch.setattr(
+            memory_files.config_loader,
+            "section",
+            lambda name: {
+                "per_branch": {},
+                "defaults": {"local": {"sessions": {"count": 2}}},
+            },
+        )
+
+        trinity_dir = tmp_path / "testbranch" / ".trinity"
+        trinity_dir.mkdir(parents=True)
+        file_path = trinity_dir / "local.json"
+
+        data = {
+            "document_metadata": {"document_type": "test"},
+            "sessions": [{"id": f"s{i}"} for i in range(20)],
+        }
+
+        result = memory_files.write_memory_file(file_path, data)
+
+        assert result["success"] is True
+        assert file_path.exists()

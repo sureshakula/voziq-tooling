@@ -8,23 +8,25 @@
 
 """Event Handler Registry - Setup all event handlers on startup"""
 
-from datetime import datetime, timezone
-
 from aipass.trigger.apps.handlers.json import json_handler
 from aipass.trigger.apps.config import TRIGGER_ROOT
 
-_HANDLER_LOG = TRIGGER_ROOT / "logs" / "registry_handler.log"
+try:
+    from aipass.prax import append_jsonl as _append_jsonl
+except Exception:
+    _append_jsonl = None
+
+_HANDLER_LOG = TRIGGER_ROOT / "logs" / "registry_handler.jsonl"
 
 
 def _log_warning(message: str) -> None:
-    """Log warning to file (event handlers cannot import Prax logger — causes recursion)."""
+    """Log warning to file (recursion-safe prax path)."""
+    if _append_jsonl is None:
+        return
     try:
-        _HANDLER_LOG.parent.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        with open(_HANDLER_LOG, "a", encoding="utf-8") as f:
-            f.write(f"{ts} | WARNING | {message}\n")
+        _append_jsonl(_HANDLER_LOG, {"level": "WARNING", "msg": message})
     except Exception:
-        pass  # Meta-logging: cannot log a failure to log
+        pass  # seedgo:bypass meta-logging
 
 
 def setup_handlers():

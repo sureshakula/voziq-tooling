@@ -166,7 +166,7 @@ def handle_command(command: str, args: list) -> bool:
     Returns:
         True if command was handled, False otherwise
     """
-    from aipass.cli.apps.modules import console
+    from aipass.cli.apps.modules import console, success, error
 
     # Handle module-name routing (drone @trigger branch_log_events <subcmd>)
     if command == "branch_log_events":
@@ -195,15 +195,15 @@ def handle_command(command: str, args: list) -> bool:
 
     if command == "start":
         if start():
-            console.print("✅ Branch log watcher started")
+            success("Branch log watcher started")
             console.print(f"   Monitoring: {AIPASS_PKG_ROOT}/*/logs/*.log")
             console.print("   Events: error_detected → AI_Mail error_handler")
         else:
-            console.print("❌ Failed to start branch log watcher")
+            error("Failed to start branch log watcher")
             console.print("   Check if watchdog package is installed")
     elif command == "stop":
         stop()
-        console.print("✅ Branch log watcher stopped")
+        success("Branch log watcher stopped")
     elif command == "status":
         info = status()
         console.print("Branch Log Watcher Status")
@@ -213,7 +213,7 @@ def handle_command(command: str, args: list) -> bool:
         console.print(f"  AIPASS root: {info['aipass_root']}")
     elif command == "reset":
         reset_hashes()
-        console.print("✅ Error deduplication hashes cleared")
+        success("Error deduplication hashes cleared")
 
     json_handler.log_operation("watcher_command", {"command": command})
     return True

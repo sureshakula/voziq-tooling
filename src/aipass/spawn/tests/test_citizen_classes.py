@@ -383,31 +383,30 @@ class TestRetroactiveOwner:
     """Tests for retroactive owner assignment on legacy projects."""
 
     def test_retroactive_owner_on_legacy_agents(self, tmp_path):
-        """Creating a new agent in a project where no agent has owner sets the alphabetically first."""
+        """ensure_project_has_owner picks manager passport, falls back to passport owner flag."""
         from aipass.spawn.apps.modules.core import _spawn_agent
 
         reg = tmp_path / "TEST_REGISTRY.json"
         reg.write_text('{"metadata":{"version":"1.0.0","total_branches":0},"branches":[]}')
 
-        # Names chosen so legacy agents sort first alphabetically (alpha < beta < zeta)
         _spawn_agent(str(tmp_path / "alpha"), registry_path=str(reg))
         _spawn_agent(str(tmp_path / "beta"), registry_path=str(reg))
 
-        for name in ["alpha", "beta"]:
-            pp = tmp_path / name / ".trinity" / "passport.json"
-            data = json.loads(pp.read_text())
-            del data["citizenship"]["owner"]
-            pp.write_text(json.dumps(data, indent=2))
+        # Strip owner from registry entries to simulate legacy state (no sealed owner)
+        # Keep alpha's passport owner=True as the fallback signal
+        reg_data = json.loads(reg.read_text())
+        for b in reg_data["branches"]:
+            b.pop("owner", None)
+        reg.write_text(json.dumps(reg_data, indent=2))
 
-        # Create a third agent — triggers retroactive fix on alphabetically first
         _spawn_agent(str(tmp_path / "zeta"), registry_path=str(reg))
 
-        pa = json.loads((tmp_path / "alpha" / ".trinity" / "passport.json").read_text())
-        pb = json.loads((tmp_path / "beta" / ".trinity" / "passport.json").read_text())
-        pz = json.loads((tmp_path / "zeta" / ".trinity" / "passport.json").read_text())
-        assert pa["citizenship"]["owner"] is True
-        assert pb["citizenship"].get("owner") is not True
-        assert pz["citizenship"]["owner"] is False
+        # Owner now lives in the registry entry — alpha picked via passport fallback
+        reg_data = json.loads(reg.read_text())
+        entries = {b["name"]: b for b in reg_data["branches"]}
+        assert entries["ALPHA"].get("owner") is True
+        assert entries["BETA"].get("owner") is not True
+        assert entries["ZETA"].get("owner") is not True
 
     def test_no_retroactive_if_owner_exists(self, tmp_path):
         """If an existing agent already has owner:true, no retroactive change."""
@@ -428,7 +427,7 @@ class TestRetroactiveOwner:
         assert p3["citizenship"]["owner"] is False
 
     def test_ensure_project_has_owner_direct(self, tmp_path):
-        """Direct call to ensure_project_has_owner fixes a legacy project."""
+        """Direct call to ensure_project_has_owner sets owner in registry entry."""
         from aipass.spawn.apps.handlers.registry import ensure_project_has_owner
         from aipass.spawn.apps.modules.core import _spawn_agent
 
@@ -438,17 +437,28 @@ class TestRetroactiveOwner:
         _spawn_agent(str(tmp_path / "agent_x"), registry_path=str(reg))
         _spawn_agent(str(tmp_path / "agent_y"), registry_path=str(reg))
 
-        # Strip owner from both
+        # Strip owner from passports AND registry entries
         for name in ["agent_x", "agent_y"]:
             pp = tmp_path / name / ".trinity" / "passport.json"
             data = json.loads(pp.read_text())
             data["citizenship"].pop("owner", None)
             pp.write_text(json.dumps(data, indent=2))
+        reg_data = json.loads(reg.read_text())
+        for b in reg_data["branches"]:
+            b.pop("owner", None)
+        reg.write_text(json.dumps(reg_data, indent=2))
+
+        # Re-add passport owner on agent_x to simulate fallback signal
+        px_pp = tmp_path / "agent_x" / ".trinity" / "passport.json"
+        px_data = json.loads(px_pp.read_text())
+        px_data["citizenship"]["owner"] = True
+        px_pp.write_text(json.dumps(px_data, indent=2))
 
         result = ensure_project_has_owner(reg)
         assert result is True
 
-        px = json.loads((tmp_path / "agent_x" / ".trinity" / "passport.json").read_text())
-        py = json.loads((tmp_path / "agent_y" / ".trinity" / "passport.json").read_text())
-        assert px["citizenship"]["owner"] is True
-        assert py["citizenship"].get("owner") is not True
+        # Owner is now in the registry entry
+        reg_data = json.loads(reg.read_text())
+        entries = {b["name"]: b for b in reg_data["branches"]}
+        assert entries["AGENT_X"].get("owner") is True
+        assert entries["AGENT_Y"].get("owner") is not True

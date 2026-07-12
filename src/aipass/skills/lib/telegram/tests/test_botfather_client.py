@@ -17,7 +17,7 @@ import asyncio
 from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from apps.handlers.botfather_client import (
+from aipass.skills.lib.telegram.apps.handlers.botfather_client import (
     _load_telethon_config,
     check_telethon_setup,
     _format_display_name,
@@ -36,7 +36,7 @@ from apps.handlers.botfather_client import (
 class TestLoadTelethonConfig:
     """Test _load_telethon_config: secret loading, JSON parsing, validation."""
 
-    @patch("apps.handlers.botfather_client._get_secret")
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._get_secret")
     def test_returns_config_when_valid(self, mock_get_secret):
         """Returns config dict when secret store has valid api_id and api_hash."""
         mock_get_secret.return_value = {"api_id": 12345, "api_hash": "abc123def"}
@@ -46,21 +46,25 @@ class TestLoadTelethonConfig:
         assert result["api_hash"] == "abc123def"
         mock_get_secret.assert_called_once_with("telethon_config")
 
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_none_when_secret_missing(self, mock_get_secret):
-        """Returns None when the secret doesn't exist."""
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._get_secret")
+    def test_raises_when_secret_missing(self, mock_get_secret):
+        """Raises RuntimeError when the secret doesn't exist."""
         mock_get_secret.return_value = None
-        result = _load_telethon_config()
-        assert result is None
+        import pytest
 
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_none_when_api_id_missing(self, mock_get_secret):
-        """Returns None when api_id is missing from config."""
+        with pytest.raises(RuntimeError, match="not found in secrets store"):
+            _load_telethon_config()
+
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._get_secret")
+    def test_raises_when_api_id_missing(self, mock_get_secret):
+        """Raises RuntimeError when api_id is missing from config."""
         mock_get_secret.return_value = {"api_hash": "abc123def"}
-        result = _load_telethon_config()
-        assert result is None
+        import pytest
 
-    @patch("apps.handlers.botfather_client._get_secret")
+        with pytest.raises(RuntimeError, match="missing api_id or api_hash"):
+            _load_telethon_config()
+
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._get_secret")
     def test_coerces_api_id_from_string(self, mock_get_secret):
         """Coerces api_id to int when provided as a string."""
         mock_get_secret.return_value = {"api_id": "99999", "api_hash": "xyz789"}
@@ -78,20 +82,16 @@ class TestLoadTelethonConfig:
 class TestCheckTelethonSetup:
     """Test check_telethon_setup: checks library, config, session file."""
 
-    @patch("apps.handlers.botfather_client._get_secret")
-    @patch("apps.handlers.botfather_client._load_telethon_config")
-    def test_returns_ready_when_all_in_place(self, mock_load_config, mock_get_secret, tmp_path, monkeypatch):
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config")
+    def test_returns_ready_when_all_in_place(self, mock_load_config, tmp_path, monkeypatch):
         """Returns (True, 'ready') when Telethon is available, config valid, session exists."""
-        monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        # _get_secret called directly in check_telethon_setup for existence check
-        mock_get_secret.return_value = {"api_id": 12345, "api_hash": "abc123"}
-        # _load_telethon_config called for validation check
+        monkeypatch.setattr("aipass.skills.lib.telegram.apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
         mock_load_config.return_value = {"api_id": 12345, "api_hash": "abc123"}
 
         # Create session file at the new path
         session_path = tmp_path / ".telethon"
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.SESSION_PATH",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.SESSION_PATH",
             session_path,
         )
         session_file = Path(str(session_path) + ".session")
@@ -103,44 +103,40 @@ class TestCheckTelethonSetup:
 
     def test_returns_false_when_telethon_not_available(self, monkeypatch):
         """Returns (False, ...) when TELETHON_AVAILABLE is False."""
-        monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", False)
+        monkeypatch.setattr("aipass.skills.lib.telegram.apps.handlers.botfather_client.TELETHON_AVAILABLE", False)
         ready, reason = check_telethon_setup()
         assert ready is False
         assert "not installed" in reason.lower() or "telethon" in reason.lower()
 
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_false_when_config_not_in_secrets(self, mock_get_secret, monkeypatch):
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config")
+    def test_returns_false_when_config_not_in_secrets(self, mock_load_config, monkeypatch):
         """Returns (False, ...) when secret store has no telethon config."""
-        monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        mock_get_secret.return_value = None
+        monkeypatch.setattr("aipass.skills.lib.telegram.apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
+        mock_load_config.side_effect = RuntimeError(
+            "Telethon config not found in secrets store (telegram/telethon_config)"
+        )
         ready, reason = check_telethon_setup()
         assert ready is False
-        assert "config" in reason.lower() or "not found" in reason.lower()
+        assert "not found" in reason.lower()
 
-    @patch("apps.handlers.botfather_client._load_telethon_config")
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_false_when_config_invalid(self, mock_get_secret, mock_load_config, monkeypatch):
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config")
+    def test_returns_false_when_config_invalid(self, mock_load_config, monkeypatch):
         """Returns (False, ...) when config exists but is invalid (missing fields)."""
-        monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        # _get_secret returns something (config exists) but _load_telethon_config
-        # returns None (validation fails due to missing api_id)
-        mock_get_secret.return_value = {"api_hash": "abc123"}
-        mock_load_config.return_value = None
+        monkeypatch.setattr("aipass.skills.lib.telegram.apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
+        mock_load_config.side_effect = RuntimeError("Telethon config incomplete — missing api_id or api_hash")
         ready, reason = check_telethon_setup()
         assert ready is False
-        assert "invalid" in reason.lower()
+        assert "missing api_id or api_hash" in reason
 
-    @patch("apps.handlers.botfather_client._load_telethon_config")
-    @patch("apps.handlers.botfather_client._get_secret")
-    def test_returns_false_when_session_file_missing(self, mock_get_secret, mock_load_config, tmp_path, monkeypatch):
+    @patch("aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config")
+    def test_returns_false_when_session_file_missing(self, mock_load_config, tmp_path, monkeypatch):
         """Returns (False, ...) when session file doesn't exist."""
-        monkeypatch.setattr("apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
-        mock_get_secret.return_value = {"api_id": 12345, "api_hash": "abc123"}
+        monkeypatch.setattr("aipass.skills.lib.telegram.apps.handlers.botfather_client.TELETHON_AVAILABLE", True)
         mock_load_config.return_value = {"api_id": 12345, "api_hash": "abc123"}
 
         session_path = tmp_path / ".telethon"
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.SESSION_PATH",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.SESSION_PATH",
             session_path,
         )
         # Do NOT create the session file
@@ -206,7 +202,7 @@ class TestBotFatherClientConnect:
         mock_client_instance.get_me.return_value = MagicMock(first_name="TestUser", id=123)
 
         with patch(
-            "apps.handlers.botfather_client._telethon_check",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client._telethon_check",
             create=True,
         ):
             with patch(
@@ -303,7 +299,7 @@ class TestBotFatherClientSendAndWait:
         # Use a real time base so asyncio loop isn't disrupted.
         # MESSAGE_TIMEOUT is 30s; the mock response arrives immediately,
         # so the while-loop condition is satisfied on the first iteration.
-        with patch("apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock):
+        with patch("aipass.skills.lib.telegram.apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock):
             result = asyncio.run(client._send_and_wait(entity, "/newbot"))
 
         assert result == "Please choose a name for your bot."
@@ -321,8 +317,10 @@ class TestBotFatherClientSendAndWait:
         mock_telethon.get_messages.return_value = [mock_msg]
 
         # Shrink the timeout to 0 so the while-loop exits immediately
-        with patch("apps.handlers.botfather_client.MESSAGE_TIMEOUT", 0):
-            with patch("apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock):
+        with patch("aipass.skills.lib.telegram.apps.handlers.botfather_client.MESSAGE_TIMEOUT", 0):
+            with patch(
+                "aipass.skills.lib.telegram.apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock
+            ):
                 result = asyncio.run(client._send_and_wait(entity, "/newbot"))
 
         assert result is None
@@ -348,7 +346,7 @@ class TestBotFatherClientSendAndWait:
         mock_msg.text = "Response after flood wait"
         mock_telethon.get_messages.return_value = [mock_msg]
 
-        with patch("apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock):
+        with patch("aipass.skills.lib.telegram.apps.handlers.botfather_client.asyncio.sleep", new_callable=AsyncMock):
             with patch("telethon.errors.FloodWaitError", MockFloodWaitError, create=True):
                 with patch("telethon.errors.RPCError", MockRPCError, create=True):
                     result = asyncio.run(client._send_and_wait(entity, "/newbot"))
@@ -602,36 +600,44 @@ class TestBotFatherClientCreateBot:
 class TestCreateBotViaBotfather:
     """Test create_bot_via_botfather: the synchronous entry point."""
 
-    def test_returns_none_when_setup_not_ready(self, monkeypatch):
-        """Returns None when check_telethon_setup says not ready."""
+    def test_raises_when_setup_not_ready(self, monkeypatch):
+        """Raises RuntimeError when check_telethon_setup says not ready."""
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.check_telethon_setup",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.check_telethon_setup",
             lambda: (False, "Telethon not installed"),
         )
-        result = create_bot_via_botfather("dev_central")
-        assert result is None
+        import pytest
 
-    def test_returns_none_when_config_load_fails(self, monkeypatch):
-        """Returns None when _load_telethon_config returns None."""
+        with pytest.raises(RuntimeError, match="Telethon setup failed"):
+            create_bot_via_botfather("dev_central")
+
+    def test_raises_when_config_load_fails(self, monkeypatch):
+        """Raises RuntimeError when _load_telethon_config raises."""
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.check_telethon_setup",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
         )
+
+        def _raise():
+            raise RuntimeError("Telethon config not found in secrets store (telegram/telethon_config)")
+
         monkeypatch.setattr(
-            "apps.handlers.botfather_client._load_telethon_config",
-            lambda: None,
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config",
+            _raise,
         )
-        result = create_bot_via_botfather("dev_central")
-        assert result is None
+        import pytest
+
+        with pytest.raises(RuntimeError, match="not found in secrets store"):
+            create_bot_via_botfather("dev_central")
 
     def test_returns_result_on_success(self, monkeypatch):
         """Returns result dict on successful flow."""
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.check_telethon_setup",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
         )
         monkeypatch.setattr(
-            "apps.handlers.botfather_client._load_telethon_config",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config",
             lambda: {"api_id": 12345, "api_hash": "abc123"},
         )
 
@@ -657,7 +663,7 @@ class TestCreateBotViaBotfather:
         mock_client.disconnect = mock_disconnect
 
         with patch(
-            "apps.handlers.botfather_client.BotFatherClient",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.BotFatherClient",
             return_value=mock_client,
         ):
             result = create_bot_via_botfather("dev_central")
@@ -669,11 +675,11 @@ class TestCreateBotViaBotfather:
     def test_handles_connection_failure(self, monkeypatch):
         """Returns None when connection fails."""
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.check_telethon_setup",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
         )
         monkeypatch.setattr(
-            "apps.handlers.botfather_client._load_telethon_config",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config",
             lambda: {"api_id": 12345, "api_hash": "abc123"},
         )
 
@@ -689,7 +695,7 @@ class TestCreateBotViaBotfather:
         mock_client.disconnect = mock_disconnect
 
         with patch(
-            "apps.handlers.botfather_client.BotFatherClient",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.BotFatherClient",
             return_value=mock_client,
         ):
             result = create_bot_via_botfather("dev_central")
@@ -699,11 +705,11 @@ class TestCreateBotViaBotfather:
     def test_handles_botfather_failure(self, monkeypatch):
         """Returns None when BotFather automation fails."""
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.check_telethon_setup",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
         )
         monkeypatch.setattr(
-            "apps.handlers.botfather_client._load_telethon_config",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config",
             lambda: {"api_id": 12345, "api_hash": "abc123"},
         )
 
@@ -723,7 +729,7 @@ class TestCreateBotViaBotfather:
         mock_client.disconnect = mock_disconnect
 
         with patch(
-            "apps.handlers.botfather_client.BotFatherClient",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.BotFatherClient",
             return_value=mock_client,
         ):
             result = create_bot_via_botfather("dev_central")
@@ -733,11 +739,11 @@ class TestCreateBotViaBotfather:
     def test_handles_existing_event_loop(self, monkeypatch):
         """Handles the edge case where an event loop is already running."""
         monkeypatch.setattr(
-            "apps.handlers.botfather_client.check_telethon_setup",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.check_telethon_setup",
             lambda: (True, "ready"),
         )
         monkeypatch.setattr(
-            "apps.handlers.botfather_client._load_telethon_config",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client._load_telethon_config",
             lambda: {"api_id": 12345, "api_hash": "abc123"},
         )
 
@@ -763,7 +769,7 @@ class TestCreateBotViaBotfather:
         mock_client.disconnect = mock_disconnect
 
         with patch(
-            "apps.handlers.botfather_client.BotFatherClient",
+            "aipass.skills.lib.telegram.apps.handlers.botfather_client.BotFatherClient",
             return_value=mock_client,
         ):
             # Simulate an already-running event loop by patching get_running_loop
@@ -772,7 +778,7 @@ class TestCreateBotViaBotfather:
             mock_loop.is_running.return_value = True
 
             with patch(
-                "apps.handlers.botfather_client.asyncio.get_running_loop",
+                "aipass.skills.lib.telegram.apps.handlers.botfather_client.asyncio.get_running_loop",
                 return_value=mock_loop,
             ):
                 result = create_bot_via_botfather("flow")
