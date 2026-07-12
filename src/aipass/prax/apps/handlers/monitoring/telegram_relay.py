@@ -18,6 +18,7 @@ import json
 import os
 import threading
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from urllib.error import URLError
 from urllib.request import Request
@@ -32,6 +33,9 @@ BATCH_INTERVAL = 5.0
 TELEGRAM_MAX_LENGTH = 4000
 FLOOD_CAP = 150
 
+CONTROL_FILE = Path.home() / ".aipass" / "telegram_bots" / "prax_monitor_control.json"
+_ERROR_MARKERS = ("WARNING", "ERROR", "CRITICAL")
+
 _lock = threading.Lock()
 _buffer: list[str] = []
 _thread: Optional[threading.Thread] = None
@@ -39,6 +43,8 @@ _stop_event = threading.Event()
 _bot_token: Optional[str] = None
 _chat_id: Optional[int] = None
 _RELAY_ACTIVE = False
+_control_mtime: float = 0.0
+_control_cache: dict = {}
 
 
 def init_relay(enabled: bool, config: Optional[dict] = None) -> None:
@@ -143,8 +149,41 @@ def _format_event(event) -> Optional[str]:
     return f"[{ts}] [{branch_label}] {event.message}"
 
 
+def _read_control() -> dict:
+    """Read the control file, caching by mtime. Returns defaults on missing/invalid file."""
+    global _control_mtime, _control_cache
+
+    try:
+        stat = CONTROL_FILE.stat()
+    except OSError:
+        logger.info("[telegram_relay] Control file not found, using defaults")
+        return {}
+
+    if stat.st_mtime == _control_mtime:
+        return _control_cache
+
+    try:
+        data = json.loads(CONTROL_FILE.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("not a dict")
+        _control_mtime = stat.st_mtime
+        _control_cache = data
+        return data
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        logger.warning("[telegram_relay] Control file parse error, using defaults: %s", exc)
+        _control_mtime = stat.st_mtime
+        _control_cache = {}
+        return {}
+
+
 def _flush_buffer() -> None:
-    """Drain buffer and send to Telegram."""
+    """Drain buffer, apply control-file pause/filter, and send to Telegram.
+
+    Control semantics (written by the @skills TG bot):
+    - paused=true: buffer is discarded, nothing sent.
+    - level="errors": only lines containing WARNING/ERROR/CRITICAL are sent.
+    - level="all" (default): everything is sent.
+    """
     with _lock:
         if not _buffer:
             return
@@ -153,6 +192,17 @@ def _flush_buffer() -> None:
 
     if not _bot_token or not _chat_id:
         return
+
+    ctrl = _read_control()
+
+    if ctrl.get("paused", False):
+        return
+
+    level = ctrl.get("level", "all")
+    if level == "errors":
+        lines = [ln for ln in lines if any(m in ln for m in _ERROR_MARKERS)]
+        if not lines:
+            return
 
     if len(lines) > FLOOD_CAP:
         suppressed = len(lines) - FLOOD_CAP

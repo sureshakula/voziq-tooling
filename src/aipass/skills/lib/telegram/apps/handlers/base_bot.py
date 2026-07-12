@@ -509,9 +509,12 @@ class BaseBot:
             self._active_chat_id = chat_id
             self._write_mirror_mapping()
             if self.branch_name is not None and self._log_streamer is None:
-                self._log_streamer = LogStreamer(self.bot_token, chat_id, self.branch_name)
-                self._log_streamer.start()
-                logger.info("Log streamer started for branch: %s", self.branch_name)
+                pref = self._load_logs_preference()
+                pref_mode = pref.get("mode", "all") if pref else "all"
+                if pref_mode != "off":
+                    self._log_streamer = LogStreamer(self.bot_token, chat_id, self.branch_name, level_filter=pref_mode)
+                    self._log_streamer.start()
+                    logger.info("Log streamer started for branch: %s (mode=%s)", self.branch_name, pref_mode)
 
         # Allowlist check
         if not self.is_user_allowed(user_id):
@@ -570,6 +573,11 @@ class BaseBot:
             True if command was handled (caller should return), False to fall through.
         """
         cmd_name, cmd_args = parsed
+
+        # /logs command — session log stream control
+        if cmd_name == "logs":
+            self._handle_logs_command(chat_id, cmd_args)
+            return True
 
         # /monitor command — system-wide log subscription
         if cmd_name == "monitor":
@@ -2327,6 +2335,121 @@ class BaseBot:
             logger.error("Failed to clear monitor subscription: %s", e)
             return False
 
+    # =============================================
+    # /LOGS — SESSION LOG STREAM CONTROL
+    # =============================================
+
+    def _handle_logs_command(self, chat_id: int, args: str) -> None:
+        """Route /logs subcommands: on, off, errors, status."""
+        if self.branch_name is None:
+            self.send_message(chat_id, "Not available — this bot has no branch log stream.")
+            return
+
+        subcmd = args.strip().lower().split()[0] if args.strip() else ""
+
+        if subcmd == "on":
+            self._logs_start(chat_id, mode="all")
+        elif subcmd == "off":
+            self._logs_stop(chat_id)
+        elif subcmd == "errors":
+            self._logs_start(chat_id, mode="default")
+        elif subcmd == "status":
+            self._logs_status(chat_id)
+        else:
+            self.send_message(
+                chat_id,
+                "/logs on — full log stream\n"
+                "/logs errors — warnings & errors only\n"
+                "/logs off — stop streaming\n"
+                "/logs status — current state",
+            )
+
+    def _logs_start(self, chat_id: int, mode: str) -> None:
+        """Start or restart the session log streamer with the given mode."""
+        if self._log_streamer is not None:
+            self._log_streamer.stop()
+            self._log_streamer = None
+
+        if not self._save_logs_preference(chat_id, mode):
+            self.send_message(chat_id, "Failed to save logs preference.")
+            return
+
+        self._log_streamer = LogStreamer(
+            self.bot_token,
+            chat_id,
+            self.branch_name,  # type: ignore[arg-type]  # guarded by _handle_logs_command
+            level_filter=mode,
+        )
+        self._log_streamer.start()
+
+        mode_label = "all levels" if mode == "all" else "errors & warnings"
+        self.send_message(
+            chat_id,
+            f"Log streaming: {mode_label}\n\n/logs off to stop\n/logs errors for filtered mode",
+        )
+        logger.info("Log streaming started: chat_id=%s, mode=%s, branch=%s", chat_id, mode, self.branch_name)
+
+    def _logs_stop(self, chat_id: int) -> None:
+        """Stop the session log streamer."""
+        if self._log_streamer is not None:
+            self._log_streamer.stop()
+            self._log_streamer = None
+
+        self._save_logs_preference(chat_id, "off")
+        self.send_message(chat_id, "Log streaming stopped.\n\n/logs on to resume.")
+        logger.info("Log streaming stopped: chat_id=%s, branch=%s", chat_id, self.branch_name)
+
+    def _logs_status(self, chat_id: int) -> None:
+        """Show current log streaming status."""
+        pref = self._load_logs_preference()
+        running = self._log_streamer is not None and self._log_streamer._running
+
+        if not running:
+            mode_info = ""
+            if pref and pref.get("mode") == "off":
+                mode_info = " (disabled)"
+            self.send_message(chat_id, f"Log streaming: stopped{mode_info}\n\n/logs on to start.")
+            return
+
+        mode = pref.get("mode", "all") if pref else "all"
+        mode_label = "all levels" if mode == "all" else "errors & warnings"
+        self.send_message(
+            chat_id,
+            f"Log streaming: active\nMode: {mode_label}\nBranch: {self.branch_name}",
+        )
+
+    def _logs_preference_file(self) -> Path:
+        """Return path to the local logs preference file."""
+        return Path.home() / ".aipass" / "telegram_bots" / f".{self.bot_id}_logs.json"
+
+    def _load_logs_preference(self) -> dict | None:
+        """Load logs preference from local state file."""
+        pref_file = self._logs_preference_file()
+        if not pref_file.exists():
+            return None
+        try:
+            data = json.loads(pref_file.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+            return None
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load logs preference: %s", e)
+            return None
+
+    def _save_logs_preference(self, chat_id: int, mode: str) -> bool:
+        """Persist logs preference to local state file."""
+        pref_file = self._logs_preference_file()
+        try:
+            pref_file.parent.mkdir(parents=True, exist_ok=True)
+            pref_file.write_text(
+                json.dumps({"chat_id": chat_id, "mode": mode}, indent=2),
+                encoding="utf-8",
+            )
+            return True
+        except OSError as e:
+            logger.error("Failed to save logs preference: %s", e)
+            return False
+
     def get_custom_commands(self) -> dict:
         """
         Hook: return additional bot-specific commands.
@@ -2343,6 +2466,11 @@ class BaseBot:
                 "menu_text": "Log monitor",
             },
         }
+        if self.branch_name is not None:
+            commands["logs"] = {
+                "description": "Control branch log streaming — /logs on, off, errors, status",
+                "menu_text": "Log streaming",
+            }
         if self.branch_name is None:
             commands["create"] = {
                 "description": "Create a Telegram bot for a branch — e.g. /create chat devpulse",
@@ -2484,6 +2612,7 @@ class BaseBot:
 
 _BOT_CLASSES = {
     "scheduler": ".scheduler_bot:SchedulerBot",
+    "prax_monitor": ".prax_monitor_bot:PraxMonitorBot",
 }
 
 

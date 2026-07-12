@@ -11,6 +11,23 @@ PyPI version — not the changelog header.
 
 ## [2026-07-12]
 
+### Added
+
+- **Telegram log-stream control: `/logs` on branch bots + interactive Prax
+  Monitor chat.** The per-branch session LogStreamer auto-started on first
+  message hardwired to full firehose with no off switch; the Prax Monitor
+  relay chat was send-only — no command menu, and anything typed there was
+  silently never read (nothing polled that token). @skills added `/logs
+  on|errors|off|status` to all branch bots (preference persisted per chat,
+  honored by the auto-start; 33 tests) and a new `PraxMonitorBot` receiver
+  service (`telegram-bot@prax_monitor`) with `/pause /resume /errors /all
+  /status` and a registered command menu (34 tests). @prax made the relay
+  honor the shared control file (`~/.aipass/telegram_bots/
+  prax_monitor_control.json`, frozen contract: paused + level) each 5s flush —
+  paused discards, `errors` filters to WARNING/ERROR/CRITICAL (17 tests).
+  Live-verified end-to-end from Telegram Web: `/errors` silenced INFO batches
+  within one flush, `/all` restored them.
+
 ### Fixed
 
 - **Legacy `builder` citizen_class migration + birth-certificate template

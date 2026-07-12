@@ -517,7 +517,7 @@ class TestBaseBotIntegration:
 
             bot.process_update(fake_update)
 
-            MockStreamer.assert_called_once_with("123:FAKETOKEN", 42, "api")
+            MockStreamer.assert_called_once_with("123:FAKETOKEN", 42, "api", level_filter="all")
             mock_instance.start.assert_called_once()
 
     def test_streamer_not_started_when_branch_name_is_none(self, tmp_path, _patch_base_bot_deps):

@@ -21,6 +21,7 @@ Covers:
 """
 
 import importlib
+import json
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -411,3 +412,169 @@ class TestRelayEnabledByEnv:
         relay = _import_relay()
         with patch.dict("os.environ", {"AIPASS_PRAX_MONITOR_RELAY": "0"}):
             assert relay.is_relay_enabled_by_env() is False
+
+
+# ---------------------------------------------------------------------------
+# Control file: _read_control
+# ---------------------------------------------------------------------------
+
+
+class TestReadControl:
+    """Test _read_control reads, caches, and handles errors."""
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        """Missing control file returns empty dict (defaults)."""
+        relay = _import_relay()
+        setattr(relay, "CONTROL_FILE", tmp_path / "nonexistent.json")
+        assert relay._read_control() == {}
+
+    def test_valid_file_returns_content(self, tmp_path):
+        """Valid JSON control file is read and returned."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps({"paused": True, "level": "errors"}))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        result = relay._read_control()
+        assert result["paused"] is True
+        assert result["level"] == "errors"
+
+    def test_mtime_cache_avoids_reread(self, tmp_path):
+        """Same mtime returns cached result without re-reading the file."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps({"paused": False}))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        first = relay._read_control()
+        ctrl.write_text("INVALID JSON")
+        result = relay._read_control()
+        assert result == first
+
+    def test_mtime_change_triggers_reread(self, tmp_path):
+        """Changed mtime causes re-read of the control file."""
+        import os
+
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps({"paused": False, "level": "all"}))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        relay._read_control()
+        ctrl.write_text(json.dumps({"paused": True, "level": "errors"}))
+        os.utime(ctrl, (ctrl.stat().st_mtime + 1, ctrl.stat().st_mtime + 1))
+        result = relay._read_control()
+        assert result["paused"] is True
+        assert result["level"] == "errors"
+
+    def test_invalid_json_returns_empty_and_warns(self, tmp_path):
+        """Malformed JSON returns empty dict and logs a warning."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text("{bad json!!!")
+        setattr(relay, "CONTROL_FILE", ctrl)
+        result = relay._read_control()
+        assert result == {}
+        relay.logger.warning.assert_called_once()
+
+    def test_non_dict_json_returns_empty_and_warns(self, tmp_path):
+        """JSON that isn't a dict returns empty and logs warning."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps([1, 2, 3]))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        result = relay._read_control()
+        assert result == {}
+        relay.logger.warning.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Control file: flush behavior with pause / level filter
+# ---------------------------------------------------------------------------
+
+
+class TestFlushControl:
+    """Test _flush_buffer honors control file pause and level filtering."""
+
+    def _make_relay(self, tmp_path, control_data=None):
+        """Helper: import relay, wire credentials, point control file at tmp_path."""
+        relay = _import_relay()
+        setattr(relay, "_bot_token", "t")
+        setattr(relay, "_chat_id", 1)
+        setattr(relay, "_RELAY_ACTIVE", True)
+        ctrl = tmp_path / "control.json"
+        if control_data is not None:
+            ctrl.write_text(json.dumps(control_data))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        return relay
+
+    def test_paused_discards_buffer(self, tmp_path):
+        """Paused=true discards buffered lines, nothing sent."""
+        relay = self._make_relay(tmp_path, {"paused": True, "level": "all"})
+        relay._buffer.extend(["line 1", "line 2"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert sent == []
+        assert len(relay._buffer) == 0
+
+    def test_unpaused_sends_all(self, tmp_path):
+        """Paused=false with level=all sends everything."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "all"})
+        relay._buffer.extend(["info line", "WARNING alert"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 2
+
+    def test_level_errors_filters_info_lines(self, tmp_path):
+        """Level=errors drops lines without WARNING/ERROR/CRITICAL markers."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "errors"})
+        relay._buffer.extend(
+            [
+                "normal info line",
+                "[10:00:00] [PRAX] WARNING disk full",
+                "just a log",
+                "[10:00:01] [FLOW] ERROR crash",
+                "[10:00:02] [CLI] CRITICAL meltdown",
+            ]
+        )
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 3
+        assert all(any(m in ln for m in ("WARNING", "ERROR", "CRITICAL")) for ln in sent)
+
+    def test_level_errors_all_filtered_sends_nothing(self, tmp_path):
+        """Level=errors with no matching lines sends nothing."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "errors"})
+        relay._buffer.extend(["info line 1", "info line 2"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert sent == []
+
+    def test_missing_control_file_sends_all(self, tmp_path):
+        """Missing control file = defaults (not paused, level=all)."""
+        relay = self._make_relay(tmp_path)
+        relay._buffer.extend(["line 1", "line 2"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 2
+
+    def test_missing_keys_use_defaults(self, tmp_path):
+        """Control file with empty dict = not paused, level=all."""
+        relay = self._make_relay(tmp_path, {})
+        relay._buffer.extend(["line 1"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 1
+
+    def test_flood_cap_still_applies_after_filter(self, tmp_path):
+        """FLOOD_CAP is enforced after level filtering."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "all"})
+        relay._buffer.extend([f"line {i}" for i in range(200)])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == relay.FLOOD_CAP + 1
+        assert "suppressed" in sent[-1]
