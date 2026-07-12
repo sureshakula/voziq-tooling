@@ -28,7 +28,7 @@ import importlib
 from typing import List
 
 from aipass.prax.apps.modules.logger import system_logger as logger
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, err_console, error, warning
 from aipass.devpulse.apps.handlers.json import json_handler
 
 _VALID_SUBCOMMANDS = ["agent", "timer", "schedule", "status", "cancel", "list"]
@@ -333,9 +333,12 @@ def _handle_agent(sub_args: List[str]) -> bool:
 
     # Reminder, not an error: this call blocks until the agent exits, so it must
     # run via the Monitor tool (not run_in_background) for the wake to fire on
-    # completion. Route through console — error() would print ❌ and trip the
-    # exit-code fail-flag on an otherwise-successful watch (#661 output_routing).
-    console.print("[dim]watchdog agent: invoke via Monitor tool, not run_in_background[/dim]")
+    # completion. MUST go to stderr: the Monitor tool treats every STDOUT line
+    # as a wake event, so a stdout banner fires a spurious wake at arm time —
+    # stdout carries completion/stall events only (#634 contract; VERA feedback
+    # 315c005e). error() is also wrong — ❌ trips the exit-code fail-flag on an
+    # otherwise-successful watch (#661 output_routing).
+    err_console.print("[dim]watchdog agent: invoke via Monitor tool, not run_in_background[/dim]")
 
     timeout = _DEFAULT_AGENT_TIMEOUT
     positional: List[str] = []
