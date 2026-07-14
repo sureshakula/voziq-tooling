@@ -716,7 +716,7 @@ class BaseBot:
         processing_msg_id = processing_result.get("message_id") if processing_result else None
 
         # Write pending file
-        if not self.write_pending_file(chat_id, message_id, processing_msg_id):
+        if not self.write_pending_file(chat_id, message_id, processing_msg_id, injected_prompt=prompt):
             logger.error("Failed to write pending file")
             self.send_message(chat_id, "Internal error writing pending file.")
             return
@@ -814,7 +814,7 @@ class BaseBot:
         processing_msg_id = processing_result.get("message_id") if processing_result else None
 
         # Write pending file
-        if not self.write_pending_file(chat_id, message_id, processing_msg_id):
+        if not self.write_pending_file(chat_id, message_id, processing_msg_id, injected_prompt=prompt):
             logger.error("Failed to write pending file for file upload")
             self.send_message(chat_id, "Internal error writing pending file.")
             return
@@ -1440,7 +1440,13 @@ class BaseBot:
     # PENDING FILE MANAGEMENT
     # =============================================
 
-    def write_pending_file(self, chat_id: int, message_id: int, processing_message_id: Optional[int] = None) -> bool:
+    def write_pending_file(
+        self,
+        chat_id: int,
+        message_id: int,
+        processing_message_id: Optional[int] = None,
+        injected_prompt: str = "",
+    ) -> bool:
         """
         Write the pending file for Stop hook coordination.
 
@@ -1469,6 +1475,8 @@ class BaseBot:
             "transcript_path": str(self._active_transcript_path) if self._active_transcript_path else None,
             "session_id": self._active_session_id,
         }
+        if injected_prompt:
+            pending_data["injected_prompt"] = injected_prompt
         if self._stream:
             pending_data["streaming"] = True
 

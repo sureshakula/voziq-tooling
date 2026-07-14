@@ -87,7 +87,7 @@ class TestInboundReliability:
             patch.object(
                 bot,
                 "write_pending_file",
-                side_effect=lambda *a: (call_order.append("write"), True)[1],
+                side_effect=lambda *a, **kw: (call_order.append("write"), True)[1],
             ),
             patch.object(bot, "inject_message", return_value=True),
             patch.object(bot, "_start_heartbeat"),

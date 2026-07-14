@@ -21,12 +21,14 @@ Tests cover:
 """
 
 import json
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import aipass.skills.lib.telegram.apps.handlers.user_message_relay as relay_mod
 from aipass.skills.lib.telegram.apps.handlers.user_message_relay import (
+    _is_pending_tg_message,
     _is_system_noise,
     find_bot_for_cwd,
     handle,
@@ -223,9 +225,21 @@ class TestSendUserMessage:
 
 
 class TestHandle:
-    def test_skips_subagent(self):
-        result = handle({"agent_type": "subagent", "prompt": "hello"})
+    def test_skips_identified_subagent(self):
+        result = handle({"agent_id": "agent-123", "prompt": "hello"})
         assert result["exit_code"] == 0
+
+    def test_allows_agent_type_claude(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle(
+                {
+                    "agent_type": "claude",
+                    "agent_id": "",
+                    "prompt": "hello",
+                    "cwd": str(bot_dirs["work"]),
+                }
+            )
+        mock_send.assert_called_once()
 
     def test_skips_empty_prompt(self):
         result = handle({"prompt": ""})
@@ -317,9 +331,123 @@ class TestHandle:
             handle({"prompt": "Can you fix that bug?", "cwd": str(bot_dirs["work"])})
         mock_send.assert_called_once()
 
+    def test_skips_pending_tg_message(self, bot_dirs):
+        pending_data = {
+            "chat_id": 42,
+            "bot_token": "123:FAKETOKEN",
+            "bot_id": "test_bot",
+            "injected_prompt": "hello from TG",
+            "timestamp": time.time(),
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            result = handle({"prompt": "hello from TG", "cwd": str(bot_dirs["work"])})
+        assert result["exit_code"] == 0
+        mock_send.assert_not_called()
+
+    def test_allows_message_no_pending(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "hello from terminal", "cwd": str(bot_dirs["work"])})
+        mock_send.assert_called_once()
+
+    def test_allows_message_stale_pending(self, bot_dirs):
+        pending_data = {
+            "chat_id": 42,
+            "bot_token": "123:FAKETOKEN",
+            "bot_id": "test_bot",
+            "injected_prompt": "hello from TG",
+            "timestamp": time.time() - 300,
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "hello from TG", "cwd": str(bot_dirs["work"])})
+        mock_send.assert_called_once()
+
+    def test_allows_message_delivered_pending(self, bot_dirs):
+        pending_data = {
+            "chat_id": 42,
+            "bot_token": "123:FAKETOKEN",
+            "bot_id": "test_bot",
+            "injected_prompt": "hello from TG",
+            "timestamp": time.time(),
+            "delivered": True,
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "hello from TG", "cwd": str(bot_dirs["work"])})
+        mock_send.assert_called_once()
+
+    def test_allows_message_different_text_pending(self, bot_dirs):
+        pending_data = {
+            "chat_id": 42,
+            "bot_token": "123:FAKETOKEN",
+            "bot_id": "test_bot",
+            "injected_prompt": "something else entirely",
+            "timestamp": time.time(),
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "hello from terminal", "cwd": str(bot_dirs["work"])})
+        mock_send.assert_called_once()
+
 
 # =============================================
-# 4. _is_system_noise — unit tests
+# 4. _is_pending_tg_message — unit tests
+# =============================================
+
+
+class TestIsPendingTgMessage:
+    def test_matches_fresh_pending(self, bot_dirs):
+        pending_data = {
+            "injected_prompt": "test msg",
+            "timestamp": time.time(),
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        assert _is_pending_tg_message("test msg", {"bot_id": "test_bot"}) is True
+
+    def test_no_match_different_text(self, bot_dirs):
+        pending_data = {
+            "injected_prompt": "other msg",
+            "timestamp": time.time(),
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        assert _is_pending_tg_message("test msg", {"bot_id": "test_bot"}) is False
+
+    def test_no_match_stale(self, bot_dirs):
+        pending_data = {
+            "injected_prompt": "test msg",
+            "timestamp": time.time() - 300,
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        assert _is_pending_tg_message("test msg", {"bot_id": "test_bot"}) is False
+
+    def test_no_match_delivered(self, bot_dirs):
+        pending_data = {
+            "injected_prompt": "test msg",
+            "timestamp": time.time(),
+            "delivered": True,
+        }
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        assert _is_pending_tg_message("test msg", {"bot_id": "test_bot"}) is False
+
+    def test_no_bot_id(self):
+        assert _is_pending_tg_message("test", {}) is False
+
+    def test_no_pending_file(self, bot_dirs):
+        assert _is_pending_tg_message("test", {"bot_id": "nonexistent"}) is False
+
+    def test_corrupt_pending_file(self, bot_dirs):
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text("not json{{{")
+        assert _is_pending_tg_message("test", {"bot_id": "test_bot"}) is False
+
+    def test_no_injected_prompt_field(self, bot_dirs):
+        pending_data = {"timestamp": time.time()}
+        (bot_dirs["pending"] / "bot-test_bot.json").write_text(json.dumps(pending_data))
+        assert _is_pending_tg_message("test", {"bot_id": "test_bot"}) is False
+
+
+# =============================================
+# 5. _is_system_noise — unit tests
 # =============================================
 
 

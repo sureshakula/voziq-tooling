@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: user_message_relay.py
 # Description: Relay user messages from non-TG doors to the branch TG chat
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2026-07-14
 # Modified: 2026-07-14
 # =============================================
@@ -19,6 +19,7 @@ Registration: @hooks adds this to .aipass/hooks.json + ~/.claude/settings.json.
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -104,6 +105,29 @@ def send_user_message(bot_token: str, chat_id: int, text: str, origin: str = "\U
         return False
 
 
+_PENDING_TTL = 120
+
+
+def _is_pending_tg_message(prompt: str, bot_data: dict) -> bool:
+    """Check if prompt matches a fresh pending TG injection for this bot."""
+    bot_id = bot_data.get("bot_id")
+    if not bot_id:
+        return False
+    pending_path = PENDING_DIR / f"bot-{bot_id}.json"
+    if not pending_path.exists():
+        return False
+    try:
+        pending = json.loads(pending_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    if pending.get("delivered"):
+        return False
+    ts = pending.get("timestamp", 0)
+    if time.time() - ts > _PENDING_TTL:
+        return False
+    return pending.get("injected_prompt", "") == prompt
+
+
 def _is_system_noise(prompt: str) -> bool:
     """Detect non-human system noise that should not be mirrored to TG."""
     if prompt.startswith("[SYSTEM NOTIFICATION"):
@@ -122,13 +146,17 @@ def _is_system_noise(prompt: str) -> bool:
 def handle(hook_data: dict) -> dict:
     """UserPromptSubmit hook handler — relay user message to branch TG chat.
 
-    Skips: subagent prompts, system noise (notifications, local-command output,
-    dispatch wakes), TG-origin messages, duplicate consecutive messages, and
-    branches with no TG bot configured.
+    Skips: identified subagents (non-empty agent_id), system noise (notifications,
+    local-command output, dispatch wakes), TG-origin messages, duplicate
+    consecutive messages, and branches with no TG bot configured.
     """
     global _last_relay_hash  # noqa: PLW0603
     try:
-        if hook_data.get("agent_type", ""):
+        # agent_type is NOT a reliable subagent indicator — main branch chats run
+        # with agent_type="claude" (--agent claude). Subagents spawned by tools
+        # never fire UserPromptSubmit. Defensive: skip only if agent_id is
+        # non-empty, which would indicate a future CC subagent prompt route.
+        if hook_data.get("agent_id", ""):
             return {"stdout": "", "exit_code": 0}
 
         prompt = hook_data.get("prompt", "")
@@ -148,6 +176,9 @@ def handle(hook_data: dict) -> dict:
         cwd = hook_data.get("cwd", "") or str(Path.cwd())
         bot_data = find_bot_for_cwd(cwd)
         if not bot_data:
+            return {"stdout": "", "exit_code": 0}
+
+        if _is_pending_tg_message(prompt, bot_data):
             return {"stdout": "", "exit_code": 0}
 
         bot_token = bot_data["bot_token"]

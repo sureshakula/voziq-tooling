@@ -33,6 +33,19 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **TG mirror live-test fixes: main-chat messages mirror, TG messages don't
+  echo.** Patrick's first morning test caught what 47 green tests missed: the
+  relay's sub-agent skip blocked ALL daemon-backed main chats (they run with
+  `--agent claude`, so `agent_type="claude"` — and real sub-agents never fire
+  UserPromptSubmit at all; the filter's premise was empirically wrong across the
+  entire engine log). Skip is now agent_id-based (defensive, never observed).
+  Second catch from tracing his test: TG messages inject into tmux as raw text —
+  no `via Telegram:` marker — so the TG-origin filter never matched and every
+  TG message would have echoed back once the first fix landed. New structural
+  gate: the bot stores the injected prompt in its pending file; the relay skips
+  a prompt that text-matches a fresh undelivered pending entry. Mirror proven
+  live by Patrick across both directions ("success :)"). 791 TG tests green.
+
 - **DPLAN-0241 round 4 (night shift): user flags survive every launch path, and
   every session is born with an honest name.** R6 — the bug behind Patrick's
   approve-everything chat: the boot menu suppressed its bypass defaults when the
