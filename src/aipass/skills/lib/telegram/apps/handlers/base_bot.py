@@ -229,6 +229,7 @@ class BaseBot:
         self._rate_limit_tracker: dict[int, list] = {}
         self._heartbeat_thread: threading.Thread | None = None
         self._heartbeat_stop = threading.Event()
+        self._heartbeat_gen: int = 0
 
         # Conversation state for /create flow (keyed by chat_id)
         self._create_state: dict[int, dict] = {}
@@ -696,20 +697,8 @@ class BaseBot:
             )
             return
 
-        # Inbound reliability: clean stale pending + warn on in-flight overwrite
-        self.clean_stale_pending()
-        if self.pending_file.exists():
-            try:
-                prev = json.loads(self.pending_file.read_text(encoding="utf-8"))
-                if not prev.get("delivered"):
-                    prev_id = prev.get("message_id", "?")
-                    logger.warning(
-                        "Overwriting undelivered pending (msg_id=%s) with new message %d",
-                        prev_id,
-                        message_id,
-                    )
-            except (json.JSONDecodeError, OSError):
-                pass
+        # Inbound reliability: clean stale pending + finalize stranded placeholder
+        self._finalize_superseded_pending(message_id)
 
         # Send processing indicator
         processing_result = self.send_message(chat_id, PROCESSING_MSG)
@@ -808,6 +797,9 @@ class BaseBot:
             if file_type == "text":
                 file_path.unlink(missing_ok=True)
             return
+
+        # Inbound reliability: clean stale pending + finalize stranded placeholder
+        self._finalize_superseded_pending(message_id)
 
         # Send processing indicator
         processing_result = self.send_message(chat_id, f"Processing {file_type} file...")
@@ -1503,6 +1495,31 @@ class BaseBot:
         except OSError as e:
             logger.warning("Failed to clean stale pending file: %s", e)
 
+    def _finalize_superseded_pending(self, new_message_id: int) -> None:
+        """Clean stale pending and finalize stranded placeholder on overwrite."""
+        self.clean_stale_pending()
+        if not self.pending_file.exists():
+            return
+        try:
+            prev = json.loads(self.pending_file.read_text(encoding="utf-8"))
+            if not prev.get("delivered"):
+                prev_id = prev.get("message_id", "?")
+                logger.warning(
+                    "Overwriting undelivered pending (msg_id=%s) with new message %d",
+                    prev_id,
+                    new_message_id,
+                )
+                prev_proc_id = prev.get("processing_message_id")
+                prev_chat_id = prev.get("chat_id")
+                if prev_proc_id and prev_chat_id:
+                    self.edit_message(
+                        prev_chat_id,
+                        prev_proc_id,
+                        "⏭ Superseded by newer message",
+                    )
+        except (json.JSONDecodeError, OSError):
+            pass
+
     def _resolve_active_transcript(self) -> tuple[str | None, int]:
         """Identify the ACTIVE Claude JSONL transcript and return its path and line count.
 
@@ -1931,13 +1948,15 @@ class BaseBot:
         """
         self._stop_heartbeat()  # Ensure no stale thread
         self._heartbeat_stop.clear()
+        self._heartbeat_gen += 1
+        gen = self._heartbeat_gen
 
         def _heartbeat_loop():
             start = time.time()
 
             # Streaming mode (FPLAN-0297): live transcript tail
             if self._stream and self._active_transcript_path:
-                self._streaming_loop(chat_id, processing_msg_id, start)
+                self._streaming_loop(chat_id, processing_msg_id, start, gen)
                 return
 
             # Batch mode (default): elapsed-time updates
@@ -1951,9 +1970,13 @@ class BaseBot:
                     break
                 if not self._tmux_session_exists():
                     break
+                if self._heartbeat_gen != gen:
+                    break
 
                 elapsed = time.time() - start
                 elapsed_str = self._format_elapsed(elapsed)
+                if self._is_pending_delivered() or self._heartbeat_gen != gen:
+                    break
                 self.edit_message(chat_id, processing_msg_id, f"Processing... ({elapsed_str})")
 
         self._heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True, name=f"heartbeat-{self.bot_id}")
@@ -1998,7 +2021,7 @@ class BaseBot:
     # STREAMING EDIT-IN-PLACE (FPLAN-0297)
     # =============================================
 
-    def _streaming_loop(self, chat_id: int, msg_id: int, start_time: float) -> None:
+    def _streaming_loop(self, chat_id: int, msg_id: int, start_time: float, gen: int) -> None:
         """Stream transcript content into the processing message via edit-in-place."""
         path = self._active_transcript_path
         try:
@@ -2016,6 +2039,8 @@ class BaseBot:
             self._heartbeat_stop.wait(STREAM_INTERVAL)
             if self._heartbeat_stop.is_set():
                 break
+            if self._heartbeat_gen != gen:
+                break
             if self._is_pending_delivered():
                 break
             if not self._tmux_session_exists():
@@ -2026,7 +2051,7 @@ class BaseBot:
             if new_text:
                 buffer += new_text
 
-            if self._is_pending_delivered():
+            if self._is_pending_delivered() or self._heartbeat_gen != gen:
                 break
 
             if not buffer:
@@ -2034,6 +2059,8 @@ class BaseBot:
                 placeholder = f"Processing... ({self._format_elapsed(elapsed)})"
                 now = time.time()
                 if placeholder != last_sent and now >= retry_after_until:
+                    if self._is_pending_delivered() or self._heartbeat_gen != gen:
+                        break
                     ok, retry = self._stream_edit(chat_id, current_msg_id, placeholder)
                     retry_after_until = now + retry if retry > 0 else retry_after_until
                     last_sent = placeholder if ok else last_sent
@@ -2045,6 +2072,9 @@ class BaseBot:
             now = time.time()
             if now < retry_after_until:
                 continue
+
+            if self._is_pending_delivered() or self._heartbeat_gen != gen:
+                break
 
             if len(buffer) > TELEGRAM_CHAR_LIMIT:
                 break_at = buffer.rfind("\n", 0, TELEGRAM_CHAR_LIMIT)

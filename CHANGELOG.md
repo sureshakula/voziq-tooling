@@ -33,6 +33,23 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **TG bot heartbeat race: delivered replies no longer flip back to
+  "Processing…".** Patrick watched his answered bubble get overwritten live: a
+  heartbeat thread stuck >5s in a slow Telegram edit call survived its stop
+  (the join timed out), woke to a *shared* stop Event the next message had
+  already cleared, and re-edited the old placeholder with "Processing…
+  (elapsed)" over the delivered reply. Fixed structurally (@skills, devpulse
+  root-cause brief): a generation counter captured per heartbeat thread —
+  any stale thread breaks before every edit — plus a delivered re-check
+  immediately before each edit call in both batch and streaming loops.
+  Second bug in the same window: rapid-fire messages (photo + text in one
+  turn) overwrite the bot's single pending slot, stranding the earlier
+  placeholder frozen; superseded placeholders are now finalized to
+  "⏭ Superseded by newer message" in both message and file paths. 6 new
+  heartbeat tests; full TG suite 797 green (devpulse-verified). Deployment
+  lesson from the same morning: bot fixes aren't live until the systemd
+  units restart — commit ≠ deploy.
+
 - **TG mirror live-test fixes: main-chat messages mirror, TG messages don't
   echo.** Patrick's first morning test caught what 47 green tests missed: the
   relay's sub-agent skip blocked ALL daemon-backed main chats (they run with
