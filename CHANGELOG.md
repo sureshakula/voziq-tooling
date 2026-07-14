@@ -11,6 +11,22 @@ PyPI version — not the changelog header.
 
 ## [2026-07-14]
 
+### Fixed
+
+- **TG bots no longer hot-spin when the internet drops.** Live find from
+  Patrick's on-location tether outage: DNS failure makes `urlopen` fail
+  instantly (no 30s long-poll wait), so the shared poll loop retried as fast as
+  it could — up to 13 ERROR lines/second per bot, all 5 bots spinning for the
+  whole offline window (rotation saved the disk; nothing saved the CPU, and the
+  flood tripped the medic circuit breaker fleet-wide). Now network-class poll
+  failures (DNS/connection/socket, classified via `_NetworkPollError`) back off
+  exponentially 1s→60s cap and reset on the first successful poll, with
+  log-once semantics: one "unreachable, backing off" line, one summary per 5
+  minutes while offline, one recovery line with suppressed count. Routine
+  long-poll read-timeouts (expected getUpdates behavior, ~863 medic-suppressed
+  events/day) no longer log at all. Bots still self-recover the moment
+  connectivity returns. 25 new tests; 822 TG + 252 skills green.
+
 ### Added
 
 - **Medic is back on — and the loop is proven live.** Off since 2026-05-10 (a

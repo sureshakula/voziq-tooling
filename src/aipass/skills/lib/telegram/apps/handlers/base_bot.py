@@ -139,6 +139,37 @@ CLAUDE_BIN = str(Path.home() / ".local" / "bin" / "claude")
 MIRROR_SESSION_TYPE = "interactive-mirror"
 TEMP_DIR = Path(tempfile.gettempdir()) / "telegram_uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+NETWORK_BACKOFF_INIT = 1  # seconds
+NETWORK_BACKOFF_CAP = 60  # seconds
+NETWORK_LOG_INTERVAL = 300  # 5 minutes between offline summary lines
+
+
+class _NetworkPollError(Exception):
+    """Raised by poll_updates when a network-class error occurs (DNS, connection, socket)."""
+
+
+def _is_network_error(exc: Exception) -> bool:
+    reason = getattr(exc, "reason", None)
+    if isinstance(reason, OSError):
+        return True
+    reason_str = str(reason) if reason else str(exc)
+    for pattern in (
+        "Name or service not known",
+        "getaddrinfo",
+        "Temporary failure",
+        "Network is unreachable",
+        "No route to host",
+        "Connection refused",
+        "Connection reset",
+        "Connection timed out",
+    ):
+        if pattern in reason_str:
+            return True
+    return False
+
+
+def _is_routine_read_timeout(exc: Exception) -> bool:
+    return "timed out" in str(exc) and "read operation" in str(getattr(exc, "reason", exc))
 
 
 # =============================================
@@ -299,16 +330,35 @@ class BaseBot:
         offset = self._load_offset()
         logger.info("Starting poll loop (offset=%d)", offset)
 
-        # Retry backoff sequence: 5s, 10s, 20s, 40s, 60s max
+        # General retry backoff (non-network errors)
         retry_delay = 5
         max_retry_delay = 60
+
+        # Network-error state tracking
+        net_backoff = NETWORK_BACKOFF_INIT
+        net_offline_since: float | None = None
+        net_suppressed = 0
+        net_last_summary: float = 0.0
 
         while self.state["running"]:
             try:
                 updates = self.poll_updates(offset)
 
-                # Reset backoff on successful poll
+                # Reset general backoff on successful poll
                 retry_delay = 5
+
+                # Network recovery
+                if net_offline_since is not None:
+                    elapsed = time.time() - net_offline_since
+                    mins = int(elapsed / 60)
+                    logger.info(
+                        "Telegram reachable again after %dm, %d attempts suppressed",
+                        mins,
+                        net_suppressed,
+                    )
+                    net_offline_since = None
+                    net_suppressed = 0
+                    net_backoff = NETWORK_BACKOFF_INIT
 
                 for update in updates:
                     if not self.state["running"]:
@@ -323,6 +373,26 @@ class BaseBot:
 
                     self.process_update(update)
 
+            except _NetworkPollError as e:
+                self._health["errors"] = self._health.get("errors", 0) + 1
+                now = time.time()
+                if net_offline_since is None:
+                    net_offline_since = now
+                    net_suppressed = 0
+                    net_last_summary = now
+                    logger.error("Telegram unreachable, backing off: %s", e)
+                else:
+                    net_suppressed += 1
+                    if now - net_last_summary >= NETWORK_LOG_INTERVAL:
+                        mins = int((now - net_offline_since) / 60)
+                        logger.warning(
+                            "Still offline (%dm), %d attempts suppressed",
+                            mins,
+                            net_suppressed,
+                        )
+                        net_last_summary = now
+                time.sleep(net_backoff)
+                net_backoff = min(net_backoff * 2, NETWORK_BACKOFF_CAP)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt received")
                 break
@@ -394,8 +464,14 @@ class BaseBot:
             return data.get("result", [])
 
         except URLError as e:
+            if _is_routine_read_timeout(e):
+                return []
+            if _is_network_error(e):
+                raise _NetworkPollError(str(e)) from e
             logger.error("Poll error: %s", e)
             return []
+        except (ConnectionError, OSError) as e:
+            raise _NetworkPollError(str(e)) from e
         except Exception as e:
             logger.error("Unexpected poll error: %s", e)
             return []
