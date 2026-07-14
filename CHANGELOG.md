@@ -9,6 +9,28 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-14]
+
+### Fixed
+
+- **DPLAN-0241 round 4 (night shift): user flags survive every launch path, and
+  every session is born with an honest name.** R6 — the bug behind Patrick's
+  approve-everything chat: the boot menu suppressed its bypass defaults when the
+  user passed `--permission-mode` himself, but only the fresh-launch path threaded
+  the user's flags into the exec — resume, takeover, continue, and dead-window
+  paths all launched flagless. `extra_args` now threads through ALL launch paths
+  (headless `-p` included). R7 — auto-namer: every launch is stamped
+  `--name <branch>-<short-session-id>` (flag live-verified on claude 2.1.209; a
+  user-passed `-n/--name` wins), so made-up auto-names can no longer hide which
+  chat is which. Plus four drill nits: new-over-all ABORTS if the daemon stop
+  fails (one brain even in failure paths), close-all's failure hint no longer
+  recommends the mechanism that just failed, `exit`/`q`/`quit` quietly leave every
+  menu, session rows stay rich (PID, kind, name, age). Surgical-stop probe:
+  `op:kill` exists in the daemon's Unix-socket control protocol (per-job bg stop,
+  8-char sessionId prefix, no auth) — documented in DPLAN-0241, deliberately NOT
+  shipped: undocumented internal protocol. 1048 hooks tests green (102
+  session_boot, 11 real-binary CLI contract).
+
 ## [2026-07-13]
 
 ### Fixed

@@ -54,6 +54,10 @@ class TestClaudeMainFlags:
         h = _get_main_help()
         assert "-p" in h or "--print" in h
 
+    def test_name_flag(self):
+        h = _get_main_help()
+        assert "--name" in h or "-n" in h
+
 
 @_SKIP
 class TestClaudeAgentsFlags:
