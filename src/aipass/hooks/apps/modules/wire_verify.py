@@ -102,14 +102,10 @@ def _check_event_wiring(event_type, hooks_group, pidx, errors, warnings, info):
     if not enabled_hooks:
         return
 
-    provider_wired_hooks = {
-        name: defn for name, defn in enabled_hooks.items() if defn.get("provider_wired", True) is not False
-    }
-
     if pidx is None:
-        if provider_wired_hooks:
+        if enabled_hooks:
             errors.append(
-                f"{event_type}: {len(provider_wired_hooks)} enabled handler(s) in project config"
+                f"{event_type}: {len(enabled_hooks)} enabled handler(s) in project config"
                 f" but NO provider event entry — handlers never fire"
             )
         return
@@ -124,8 +120,6 @@ def _check_event_wiring(event_type, hooks_group, pidx, errors, warnings, info):
         info.append(f"{event_type}: unfiltered bridge, {len(enabled_hooks)} enabled hooks OK")
     else:
         for hook_name, hook_defn in enabled_hooks.items():
-            if hook_defn.get("provider_wired", True) is False:
-                continue
             if hook_name not in filtered:
                 errors.append(
                     f"{event_type}:{hook_name}: enabled in project config"

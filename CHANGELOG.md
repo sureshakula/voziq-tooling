@@ -9,6 +9,31 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-13]
+
+### Fixed
+
+- **Session management overhaul (DPLAN-0241): one brain per branch, attach-first
+  boot menu, honest session listings.** Born from a live incident — Patrick locked
+  out of a running chat for an hour. Root causes, all fixed by @hooks: the bashrc
+  boot shim hijacked EVERY `claude` invocation (so `claude agents`, the real
+  attach path, never executed) — now intercepts only bare/`--permission-mode`
+  launches; session_boot printed one PID from a list and advised `kill` for
+  daemon-managed background sessions (which respawn — the unwinnable loop) — now
+  a 3-option boot menu (resume / start-new-closes-old / close) with per-kind
+  proper stops; presence_gate (single-session enforcement) had NEVER run in
+  production (`provider_wired: false`, absent from settings.json, zero engine
+  entries ever) and carried two latent bugs (self-PID resolver matched
+  comm=="claude" but CC binaries are version-named; agent_type skip waved through
+  daemon bg sessions) — both fixed, wired, shipped OBSERVE-ONLY for a soak period
+  per prior-art recall (the gate false-blocked a real resume in the
+  PRESENCE-file era); wire_verify no longer excludes unwired security hooks from
+  its check (enabled-but-unwired = ERROR); new `drone @hooks sessions` +
+  `sessions reclaim` one-command reset; session listings/names standardized to
+  `PID · branch · short-id · kind · age`. Verified live: gate's first production
+  run correctly logged a would-block for a real duplicate session without
+  self-blocking. 987 hooks tests green (26 new/updated).
+
 ## [2026-07-12]
 
 ### Added

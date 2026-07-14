@@ -155,30 +155,49 @@ def _read_proc_ppid(pid: int) -> int | None:
     return None
 
 
+def _get_ppid_portable(pid: int) -> int | None:
+    """Get parent PID portably (Linux + macOS). Returns None on failure."""
+    import subprocess as _sp
+
+    try:
+        result = _sp.run(
+            ["ps", "-o", "ppid=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return int(result.stdout.strip())
+    except (OSError, ValueError, _sp.TimeoutExpired) as exc:
+        logger.info("[PRESENCE] ppid lookup failed for PID %d: %s", pid, exc)
+    return None
+
+
+def _has_session_file(pid: int) -> bool:
+    """Check if ~/.claude/sessions/<pid>.json exists."""
+    return (Path.home() / ".claude" / "sessions" / f"{pid}.json").is_file()
+
+
 def _resolve_session_pid() -> int | None:
     """Walk the parent process chain to find the persistent claude session PID.
 
     The hook runs as an ephemeral subprocess — os.getpid() gives a PID that dies
-    in milliseconds. The owning claude session is a parent process with comm=claude.
-    Linux only (/proc). Returns None on non-Linux or if no claude ancestor found.
+    in milliseconds. The owning claude session is an ancestor that owns a
+    ~/.claude/sessions/<pid>.json file (CC binary is version-named, so comm
+    matching is unreliable).
     """
-    if sys.platform != "linux":
-        return None
     pid = os.getpid()
     ancestors = []
     for _ in range(12):
-        comm = _read_proc_comm(pid)
-        if not comm:
-            break
-        ancestors.append(f"{pid}:{comm}")
-        if comm == "claude":
+        ancestors.append(str(pid))
+        if _has_session_file(pid):
             logger.info("[PRESENCE] Resolved session PID: %d (chain: %s)", pid, " -> ".join(ancestors))
             return pid
-        ppid = _read_proc_ppid(pid)
-        if not ppid or ppid == pid:
+        ppid = _get_ppid_portable(pid)
+        if not ppid or ppid == pid or ppid <= 1:
             break
         pid = ppid
-    logger.info("[PRESENCE] No claude ancestor found (chain: %s)", " -> ".join(ancestors))
+    logger.info("[PRESENCE] No session-file ancestor found (chain: %s)", " -> ".join(ancestors))
     return None
 
 

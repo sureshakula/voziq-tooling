@@ -6,8 +6,7 @@
     "presence_gate": {
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.security.presence_gate.handle",
-      "matcher": "",
-      "provider_wired": false
+      "matcher": ""
     },
     "identity_injector": {
       "enabled": true,

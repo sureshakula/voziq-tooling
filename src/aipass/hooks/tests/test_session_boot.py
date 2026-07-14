@@ -1,4 +1,4 @@
-"""Tests for session boot wrapper (attach-if-live / start-in-tmux)."""
+"""Tests for session boot wrapper (menu-based attach/start/close)."""
 
 from unittest.mock import MagicMock, patch
 
@@ -107,6 +107,26 @@ class TestIsDescendant:
             assert session_boot._is_descendant(200, 100) is False
 
 
+class TestMakeSessionName:
+    def test_with_session_id(self):
+        assert session_boot._make_session_name("hooks", "abcdef1234") == "hooks-abcdef12"
+
+    def test_without_session_id(self):
+        assert session_boot._make_session_name("hooks") == "hooks"
+
+    def test_empty_session_id(self):
+        assert session_boot._make_session_name("hooks", "") == "hooks"
+
+
+class TestSessionLabel:
+    def test_formats_label(self):
+        session = {"pid": 1234, "sessionId": "abcdef1234", "kind": "interactive"}
+        label = session_boot._session_label(session, "hooks")
+        assert "1234" in label
+        assert "abcdef12" in label
+        assert "interactive" in label
+
+
 class TestBoot:
     def test_already_in_tmux_execs_directly(self, tmp_path):
         with (
@@ -141,40 +161,98 @@ class TestBoot:
         assert result["exit_code"] == 1
         assert "tmux not found" in result["error"]
 
-    def test_live_session_in_tmux_attaches(self, tmp_path):
-        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "name": "hooks-ab"}]
+    def test_live_session_resume_via_tmux(self, tmp_path):
+        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "interactive"}]
         with (
             patch.dict("os.environ", {}, clear=True),
             patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value=""),
             patch.object(session_boot, "_find_tmux_session_for_pid", return_value="hooks"),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
             session_boot.boot(cwd=str(tmp_path))
         mock_exec.assert_called_once_with("tmux", ["tmux", "attach-session", "-t", "hooks"])
 
-    def test_live_session_not_in_tmux_warns(self, tmp_path):
-        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path)}]
+    def test_live_session_resume_continues_dead_window(self, tmp_path):
+        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "interactive"}]
         with (
             patch.dict("os.environ", {}, clear=True),
             patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value=""),
             patch.object(session_boot, "_find_tmux_session_for_pid", return_value=None),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path))
+        args = mock_exec.call_args[0][1]
+        assert "--continue" in args
+
+    def test_live_session_resume_bg_opens_agents(self, tmp_path):
+        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "bg"}]
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value=""),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path))
+        args = mock_exec.call_args[0][1]
+        assert "agents" in args
+
+    def test_live_session_new_stops_old(self, tmp_path):
+        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "interactive"}]
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value="n"),
+            patch.object(session_boot, "_stop_session") as mock_stop,
+            patch.object(session_boot, "_tmux_session_exists", return_value=False),
+            patch(f"{_MOD}.os.execvp"),
+        ):
+            session_boot.boot(cwd=str(tmp_path))
+        mock_stop.assert_called_once()
+
+    def test_live_session_close_stops_and_exits(self, tmp_path):
+        live = [{"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "interactive"}]
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value="c"),
+            patch.object(session_boot, "_stop_session") as mock_stop,
         ):
             result = session_boot.boot(cwd=str(tmp_path))
-        assert result["exit_code"] == 1
-        assert result["action"] == "warn"
-        assert "kill 1234" in result["error"]
-        assert "command claude --resume" in result["error"]
+        mock_stop.assert_called_once()
+        assert result["action"] == "closed"
 
-    def test_no_live_session_starts_fresh(self, tmp_path):
+    def test_no_live_continue_last(self, tmp_path):
         with (
             patch.dict("os.environ", {}, clear=True),
             patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
+            patch.object(session_boot, "_read_choice", return_value=""),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path))
+        args = mock_exec.call_args[0][1]
+        assert "--continue" in args
+
+    def test_no_live_new_starts_fresh(self, tmp_path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=[]),
+            patch.object(session_boot, "_read_choice", return_value="n"),
             patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
@@ -183,15 +261,14 @@ class TestBoot:
         assert args[0] == "tmux"
         assert "new-session" in args[1]
         assert "/usr/local/bin/claude" in args[1]
-        assert "--permission-mode" in args[1]
-        assert "bypassPermissions" in args[1]
 
-    def test_stale_tmux_session_killed(self, tmp_path):
+    def test_stale_tmux_session_killed_on_fresh_start(self, tmp_path):
         with (
             patch.dict("os.environ", {}, clear=True),
             patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
+            patch.object(session_boot, "_read_choice", return_value="n"),
             patch.object(session_boot, "_tmux_session_exists", return_value=True),
             patch(f"{_MOD}.subprocess.run") as mock_run,
             patch(f"{_MOD}.os.execvp"),
@@ -200,18 +277,49 @@ class TestBoot:
         kill_calls = [c for c in mock_run.call_args_list if "kill-session" in str(c)]
         assert len(kill_calls) == 1
 
-    def test_extra_args_passed(self, tmp_path):
+    def test_extra_args_passed_on_fresh_start(self, tmp_path):
         with (
             patch.dict("os.environ", {}, clear=True),
             patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
+            patch.object(session_boot, "_read_choice", return_value="n"),
             patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
             session_boot.boot(cwd=str(tmp_path), extra_args=["--resume"])
         args = mock_exec.call_args[0][1]
         assert "--resume" in args
+
+
+class TestStopSession:
+    def test_bg_job_uses_agents_stop(self):
+        session = {"pid": 1234, "kind": "bg", "jobId": "job-abc"}
+        with patch(f"{_MOD}.subprocess.run", return_value=MagicMock(returncode=0)) as mock_run:
+            session_boot._stop_session(session, "/usr/local/bin/claude")
+        cmd = mock_run.call_args[0][0]
+        assert "agents" in cmd
+        assert "stop" in cmd
+        assert "job-abc" in cmd
+
+    def test_tmux_session_killed(self):
+        session = {"pid": 1234, "kind": "interactive"}
+        with (
+            patch.object(session_boot, "_find_tmux_session_for_pid", return_value="hooks"),
+            patch(f"{_MOD}.subprocess.run") as mock_run,
+        ):
+            session_boot._stop_session(session, "/usr/local/bin/claude")
+        kill_calls = [c for c in mock_run.call_args_list if "kill-session" in str(c)]
+        assert len(kill_calls) == 1
+
+    def test_plain_session_sigterm(self):
+        session = {"pid": 1234, "kind": "interactive"}
+        with (
+            patch.object(session_boot, "_find_tmux_session_for_pid", return_value=None),
+            patch(f"{_MOD}.os.kill") as mock_kill,
+        ):
+            session_boot._stop_session(session, "/usr/local/bin/claude")
+        mock_kill.assert_called_once()
 
 
 class TestMain:
@@ -346,6 +454,7 @@ class TestPermissionModeDedupe:
             patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
+            patch.object(session_boot, "_read_choice", return_value="n"),
             patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
@@ -353,3 +462,40 @@ class TestPermissionModeDedupe:
         cmd = mock_exec.call_args[0][1]
         assert cmd.count("--permission-mode") == 1
         assert "acceptEdits" in cmd
+
+
+class TestMultipleLiveSessions:
+    def test_close_all(self, tmp_path):
+        live = [
+            {"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "interactive"},
+            {"pid": 5678, "sessionId": "def", "cwd": str(tmp_path), "kind": "bg"},
+        ]
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value="c"),
+            patch.object(session_boot, "_stop_session") as mock_stop,
+        ):
+            result = session_boot.boot(cwd=str(tmp_path))
+        assert result["action"] == "closed_all"
+        assert mock_stop.call_count == 2
+
+    def test_pick_by_number(self, tmp_path):
+        live = [
+            {"pid": 1234, "sessionId": "abc", "cwd": str(tmp_path), "kind": "interactive"},
+            {"pid": 5678, "sessionId": "def", "cwd": str(tmp_path), "kind": "bg"},
+        ]
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(session_boot, "_resolve_claude_binary", return_value="/usr/local/bin/claude"),
+            patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
+            patch.object(session_boot, "_find_live_sessions", return_value=live),
+            patch.object(session_boot, "_read_choice", return_value="2"),
+            patch.object(session_boot, "_find_tmux_session_for_pid", return_value=None),
+            patch(f"{_MOD}.os.execvp") as mock_exec,
+        ):
+            session_boot.boot(cwd=str(tmp_path))
+        args = mock_exec.call_args[0][1]
+        assert "agents" in args

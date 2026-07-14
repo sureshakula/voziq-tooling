@@ -26,15 +26,20 @@ fi
 
 SHIM='
 # >>> AIPass boot shim >>>
-# Intercepts claude in AIPass branch dirs to attach-if-live / start-in-tmux.
+# Intercepts bare claude (or claude --permission-mode ...) in AIPass branch dirs.
+# All other invocations (agents, auth, --resume, -c, --help, ...) pass through.
 # Installed by: tools/install_boot_shim.sh
 claude() {
     if [ -d ".trinity" ]; then
-        __VENV_PY__ \
-            -m aipass.hooks.apps.handlers.lifecycle.session_boot "$@"
-    else
-        command claude "$@"
+        case "${1-}" in
+            ""|--permission-mode)
+                __VENV_PY__ \
+                    -m aipass.hooks.apps.handlers.lifecycle.session_boot "$@"
+                return
+                ;;
+        esac
     fi
+    command claude "$@"
 }
 # <<< AIPass boot shim <<<
 '

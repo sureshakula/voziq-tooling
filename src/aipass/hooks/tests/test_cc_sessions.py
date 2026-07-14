@@ -136,14 +136,74 @@ class TestFindOccupant:
         assert result is not None
 
 
+class TestReclaim:
+    def test_reclaim_stops_live_sessions(self, tmp_path):
+        my_pid = os.getpid()
+        s = {"pid": my_pid, "sessionId": "a", "cwd": "/tmp/hooks", "kind": "interactive"}
+        (tmp_path / f"{my_pid}.json").write_text(json.dumps(s))
+        with (
+            patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path),
+            patch.object(cc_sessions, "_stop_session", return_value="stopped") as mock_stop,
+        ):
+            actions = cc_sessions.reclaim()
+        assert len(actions) == 1
+        mock_stop.assert_called_once()
+
+    def test_reclaim_filters_by_branch(self, tmp_path):
+        my_pid = os.getpid()
+        s1 = {"pid": my_pid, "sessionId": "a", "cwd": "/tmp/hooks", "kind": "interactive"}
+        (tmp_path / f"{my_pid}.json").write_text(json.dumps(s1))
+        with (
+            patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path),
+            patch.object(cc_sessions, "_stop_session", return_value="stopped") as mock_stop,
+        ):
+            actions = cc_sessions.reclaim("devpulse")
+        assert actions == []
+        mock_stop.assert_not_called()
+
+    def test_reclaim_empty_no_actions(self, tmp_path):
+        with patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path):
+            actions = cc_sessions.reclaim()
+        assert actions == []
+
+
+class TestSessionHelpers:
+    def test_session_branch(self):
+        assert cc_sessions._session_branch({"cwd": "/tmp/project/src/aipass/hooks"}) == "hooks"
+
+    def test_session_branch_empty_cwd(self):
+        assert cc_sessions._session_branch({"cwd": ""}) == "?"
+
+    def test_session_short_id(self):
+        assert cc_sessions._session_short_id({"sessionId": "abcdef1234567890"}) == "abcdef12"
+
+    def test_session_short_id_short(self):
+        assert cc_sessions._session_short_id({"sessionId": "abc"}) == "abc"
+
+    def test_session_short_id_missing(self):
+        assert cc_sessions._session_short_id({}) == ""
+
+
 class TestIntrospection:
     def test_print_introspection_no_sessions(self, tmp_path):
         with patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path):
             cc_sessions.print_introspection()
 
-    def test_handle_command_cc_sessions(self, tmp_path):
+    def test_handle_command_sessions(self, tmp_path):
+        with patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path):
+            assert cc_sessions.handle_command("sessions", []) is True
+
+    def test_handle_command_cc_sessions_legacy(self, tmp_path):
         with patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path):
             assert cc_sessions.handle_command("cc_sessions", []) is True
+
+    def test_handle_command_sessions_reclaim(self, tmp_path):
+        with patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path):
+            assert cc_sessions.handle_command("sessions", ["reclaim"]) is True
+
+    def test_handle_command_sessions_reclaim_branch(self, tmp_path):
+        with patch.object(cc_sessions, "CC_SESSIONS_DIR", tmp_path):
+            assert cc_sessions.handle_command("sessions", ["reclaim", "@hooks"]) is True
 
     def test_handle_command_help(self):
         assert cc_sessions.handle_command("--help", []) is True
