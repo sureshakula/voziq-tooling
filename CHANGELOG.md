@@ -13,6 +13,26 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **DPLAN-0241 rounds 2-3: Enter IS the takeover — background chats reopen as
+  normal terminal chats.** Live incident round two (Patrick's laptop, 23:00): the
+  boot menu's resume for a background chat opened the `claude agents` viewer, which
+  dispatched his typed message as a brand-new bg job WITHOUT bypass permissions —
+  and the shipped stop path called `claude agents stop`, a subcommand that does not
+  exist (987 mocked tests never noticed). All fixed by @hooks across two rounds,
+  every CLI fact live-verified against claude 2.1.208: phantom stop removed
+  (bg close is now honest — no per-job stop exists in the CLI; SIGTERM never used
+  on bg, the daemon respawns it); Enter on a live bg session now takes the chat
+  over — `claude daemon stop --any` (returncode-checked, blast-radius listing +
+  y/N confirm when other branches' bg sessions would also stop) then `--resume
+  <sessionId>` inside tmux with bypass; ALL interactive launches tmux-wrapped so a
+  closed terminal is always recoverable; multi-session menu shows real session
+  names, requires an explicit pick, and its new/close paths stop-first honestly;
+  new real-binary CLI contract test tier (20 tests probing every claude
+  flag/subcommand our code invokes — the phantom-subcommand class is now
+  structurally unshippable). 1025 hooks tests green. North-star architecture
+  recorded from Patrick's rulings: one conversation per branch; TG/claude.ai/
+  terminal are views of it; agents bind to the machine, not the interface.
+
 - **Session management overhaul (DPLAN-0241): one brain per branch, attach-first
   boot menu, honest session listings.** Born from a live incident — Patrick locked
   out of a running chat for an hour. Root causes, all fixed by @hooks: the bashrc

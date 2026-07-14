@@ -1,11 +1,11 @@
 # =================== AIPass ====================
 # Name: cc_sessions.py
-# Version: 2.0.0
+# Version: 3.0.0
 # Description: CC-native session discovery, listing, and reclaim
 # Branch: hooks
 # Layer: apps/modules
 # Created: 2026-06-30
-# Modified: 2026-07-13
+# Modified: 2026-07-14
 # =============================================
 
 """Read Claude Code native session files (~/.claude/sessions/<pid>.json).
@@ -24,7 +24,6 @@ Exposed as `drone @hooks sessions` (list) and
 import json
 import os
 import signal
-import subprocess
 import sys
 from pathlib import Path
 
@@ -111,7 +110,8 @@ def _format_age(session: dict) -> str:
         if hours > 0:
             return f"{hours}h{minutes}m"
         return f"{minutes}m"
-    except Exception:
+    except Exception as exc:
+        logger.info("[CC_SESSIONS] age format error: %s", exc)
         return "?"
 
 
@@ -183,34 +183,18 @@ def find_occupant(cwd: str, exclude_pid: int | None = None) -> dict | None:
 
 
 def _stop_session(session: dict) -> str:
-    """Properly stop a session. Returns description of action taken."""
+    """Stop a session. Returns description of action taken.
+
+    bg sessions: no per-job stop exists in the CLI. Returns an honest
+    message — never SIGTERMs bg (daemon respawns it).
+    """
     pid = session.get("pid")
     kind = session.get("kind", "unknown")
     branch = _session_branch(session)
 
-    if kind == "bg":
-        job_id = session.get("jobId", "")
-        if job_id:
-            try:
-                result = subprocess.run(
-                    ["claude", "agents", "stop", job_id],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                if result.returncode == 0:
-                    return f"PID {pid} ({branch}): stopped bg job {job_id}"
-            except (OSError, subprocess.TimeoutExpired) as exc:
-                logger.warning("[CC_SESSIONS] Failed to stop bg job %s: %s", job_id, exc)
-
-        if pid and _is_pid_alive(pid):
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except OSError as exc:
-                logger.warning("[CC_SESSIONS] Failed to SIGTERM PID %d: %s", pid, exc)
-                return f"PID {pid} ({branch}): SIGTERM failed ({exc})"
-            return f"PID {pid} ({branch}): sent SIGTERM to bg session (no jobId for proper stop)"
-        return f"PID {pid} ({branch}): already dead"
+    if kind in ("bg", "background"):
+        logger.info("[CC_SESSIONS] Cannot stop bg PID %s — no per-job stop in CLI", pid)
+        return f"PID {pid} ({branch}): bg session — no per-job stop available"
 
     if pid and _is_pid_alive(pid):
         try:

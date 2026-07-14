@@ -1,27 +1,35 @@
 # =================== AIPass ====================
 # Name: session_boot.py
-# Version: 2.0.0
+# Version: 4.0.0
 # Description: Boot wrapper — attach-first menu for Claude Code sessions
 # Branch: hooks
 # Layer: apps/handlers/lifecycle
 # Created: 2026-06-30
-# Modified: 2026-07-13
+# Modified: 2026-07-14
 # =============================================
 
 """Boot wrapper for Claude Code sessions.
 
 When Patrick runs `claude` in a branch directory, this wrapper presents a menu:
 
-Live session exists:
-  devpulse — live chat: PID 773292 · c624cbcd · background · 2h old
+Live session (interactive):
+  hooks — live chat: PID 1234 · abc12345 · interactive · 2h old
     [Enter]  resume this chat
     [n]      start new chat   (closes the one above first)
     [c]      close it and exit
+
+Live session (background):
+  devpulse — live chat: PID 773292 · c624cbcd · background "chroma review" · 2h old
+    [Enter]  resume this chat   (stops bg, reopens as normal chat)
+    [n]      start new chat   (stops bg first)
+    [c]      close it and exit   (stops bg)
 
 No live session:
   devpulse — no live chat
     [Enter]  continue last chat
     [n]      new chat
+
+All interactive launches are tmux-wrapped (closed terminal = recoverable).
 
 Special cases:
   - Already inside tmux → execs claude directly (no nesting).
@@ -148,7 +156,8 @@ def _format_age(session: dict) -> str:
         if hours > 0:
             return f"{hours}h{minutes}m"
         return f"{minutes}m"
-    except Exception:
+    except Exception as exc:
+        logger.info("[SESSION_BOOT] age format error: %s", exc)
         return ""
 
 
@@ -158,13 +167,15 @@ def _session_short_id(session: dict) -> str:
 
 
 def _session_label(session: dict, branch: str) -> str:
-    """Format a session's one-line label per P6: PID · short-id · kind · age."""
+    """Format a session's one-line label: PID · short-id · kind [auto-name] · age."""
     pid = session.get("pid", "?")
     short_id = _session_short_id(session)
     kind = session.get("kind", "unknown")
+    auto_name = session.get("name", "")
+    name_str = f' "{auto_name}"' if auto_name else ""
     age = _format_age(session)
     age_str = f" · {age} old" if age else ""
-    return f"PID {pid} · {short_id} · {kind}{age_str}"
+    return f"PID {pid} · {short_id} · {kind}{name_str}{age_str}"
 
 
 def _read_choice(prompt: str = "> ") -> str:
@@ -176,55 +187,56 @@ def _read_choice(prompt: str = "> ") -> str:
         choice = tty.readline().strip().lower()
         tty.close()
         return choice
-    except OSError:
+    except OSError as exc:
+        logger.info("[SESSION_BOOT] /dev/tty not available: %s", exc)
         return ""
 
 
-def _stop_session(session: dict, claude_bin: str) -> None:
-    """Properly stop a session — never bare kill for bg jobs."""
+def _stop_session(session: dict, claude_bin: str) -> str:
+    """Stop a session. Returns description of action taken.
+
+    bg sessions: no per-job stop exists in the CLI. Returns an honest
+    message — never SIGTERMs bg (daemon respawns it).
+    """
     pid = session.get("pid")
     kind = session.get("kind", "unknown")
 
-    if kind == "bg":
-        job_id = session.get("jobId", "")
-        if job_id:
-            try:
-                subprocess.run(
-                    [claude_bin, "agents", "stop", job_id],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                logger.info("[SESSION_BOOT] Stopped bg job %s (PID %d)", job_id, pid)
-                return
-            except (OSError, subprocess.TimeoutExpired) as exc:
-                logger.warning("[SESSION_BOOT] Failed to stop bg job %s: %s", job_id, exc)
+    if kind in ("bg", "background"):
+        logger.info("[SESSION_BOOT] Cannot stop bg PID %s — no per-job stop in CLI", pid)
+        return f"PID {pid}: bg session — no per-job stop available"
 
     tmux_session = _find_tmux_session_for_pid(pid) if pid else None
     if tmux_session:
         subprocess.run(["tmux", "kill-session", "-t", tmux_session], check=False)
         logger.info("[SESSION_BOOT] Killed tmux session '%s' (PID %d)", tmux_session, pid)
-        return
+        return f"PID {pid}: killed tmux session '{tmux_session}'"
 
     if pid:
         try:
             os.kill(pid, signal.SIGTERM)
             logger.info("[SESSION_BOOT] Sent SIGTERM to PID %d", pid)
+            return f"PID {pid}: sent SIGTERM"
         except ProcessLookupError:
-            pass
+            logger.info("[SESSION_BOOT] PID %d already dead", pid)
+            return f"PID {pid}: already dead"
+        except OSError as exc:
+            logger.warning("[SESSION_BOOT] SIGTERM PID %d failed: %s", pid, exc)
+            return f"PID {pid}: SIGTERM failed ({exc})"
+    return f"PID {pid}: no action"
 
 
-def _resume_session(session: dict, claude_bin: str, defaults: list[str]) -> dict:
-    """Resume a session — right mechanism per kind."""
+def _resume_session(session: dict, branch: str, claude_bin: str, defaults: list[str]) -> dict:
+    """Resume a session — right mechanism per kind.
+
+    bg: takeover (daemon stop + --resume in tmux). Never opens agents view.
+    tmux: attach to existing tmux session.
+    dead-window: --continue in a new tmux session.
+    """
     pid = session.get("pid")
     kind = session.get("kind", "unknown")
 
-    if kind == "bg":
-        cwd = session.get("cwd", "")
-        args = [claude_bin, "agents", "--cwd", cwd] if cwd else [claude_bin, "agents"]
-        logger.info("[SESSION_BOOT] Opening agents view for bg session PID %d", pid)
-        os.execvp(claude_bin, args)
-        return {"exit_code": 0, "action": "agents_view"}
+    if kind in ("bg", "background"):
+        return _takeover_bg(session, branch, claude_bin, defaults)
 
     tmux_session = _find_tmux_session_for_pid(pid) if pid else None
     if tmux_session:
@@ -233,8 +245,7 @@ def _resume_session(session: dict, claude_bin: str, defaults: list[str]) -> dict
         return {"exit_code": 0, "action": "attached", "tmux_session": tmux_session}
 
     logger.info("[SESSION_BOOT] Continuing dead-window session via --continue")
-    os.execvp(claude_bin, [claude_bin] + defaults + ["--continue"])
-    return {"exit_code": 0, "action": "continued"}
+    return _exec_in_tmux(branch, "", claude_bin, [claude_bin] + defaults + ["--continue"])
 
 
 def _make_session_name(branch: str, session_id: str = "") -> str:
@@ -243,6 +254,16 @@ def _make_session_name(branch: str, session_id: str = "") -> str:
     if short_id:
         return f"{branch}-{short_id}"
     return branch
+
+
+def _exec_in_tmux(branch: str, session_id: str, claude_bin: str, claude_cmd: list[str]) -> dict:
+    """Exec a claude command inside a new tmux session."""
+    session_name = _make_session_name(branch, session_id)
+    if _tmux_session_exists(session_name):
+        subprocess.run(["tmux", "kill-session", "-t", session_name], check=False)
+    logger.info("[SESSION_BOOT] Launching in tmux '%s': %s", session_name, " ".join(claude_cmd))
+    os.execvp("tmux", ["tmux", "new-session", "-s", session_name, "--"] + claude_cmd)
+    return {"exit_code": 0, "action": "started", "tmux_session": session_name}
 
 
 def boot(cwd: str | None = None, extra_args: list[str] | None = None) -> dict:
@@ -288,6 +309,102 @@ def boot(cwd: str | None = None, extra_args: list[str] | None = None) -> dict:
     return _menu_no_live(branch, claude_bin, defaults, extra_args)
 
 
+def _has_bg(sessions: list[dict]) -> bool:
+    """Check if any session is a background session."""
+    return any(s.get("kind") in ("bg", "background") for s in sessions)
+
+
+def _get_collateral_bg(branch: str) -> list[dict]:
+    """Find live bg sessions outside the given branch (blast-radius check)."""
+    import importlib
+
+    cc_sessions = importlib.import_module("aipass.hooks.apps.modules.cc_sessions")
+    collateral = []
+    for s in cc_sessions.read_all_sessions():
+        if s.get("kind") not in ("bg", "background"):
+            continue
+        s_branch = Path(s.get("cwd", "")).name
+        if s_branch != branch and s.get("pid") and cc_sessions._is_pid_alive(s["pid"]):
+            collateral.append(s)
+    return collateral
+
+
+def _daemon_stop(claude_bin: str, branch: str, pid: int | None) -> dict:
+    """Run daemon stop --any with blast-radius confirmation.
+
+    Returns {"ok": True} on success, {"ok": False, "error": "..."} on failure.
+    """
+    collateral = _get_collateral_bg(branch)
+    if collateral:
+        sys.stderr.write("  Other branches have live bg sessions that will also stop:\n")
+        for s in collateral:
+            coll_branch = Path(s.get("cwd", "")).name
+            sys.stderr.write(f"    PID {s.get('pid')} · {coll_branch} · {_session_short_id(s)}\n")
+        sys.stderr.write("  Continue? [y/N] ")
+        confirm = _read_choice("")
+        if confirm != "y":
+            return {"ok": False, "error": "cancelled by user"}
+
+    sys.stderr.write("  Stopping background sessions (daemon stop --any)...\n")
+    try:
+        result = subprocess.run(
+            [claude_bin, "daemon", "stop", "--any"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode != 0:
+            stderr_msg = result.stderr.strip()
+            logger.warning("[SESSION_BOOT] daemon stop exit %d: %s", result.returncode, stderr_msg)
+            sys.stderr.write(f"  daemon stop failed (exit {result.returncode}): {stderr_msg}\n")
+            return {"ok": False, "error": f"daemon stop exit {result.returncode}: {stderr_msg}"}
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.warning("[SESSION_BOOT] daemon stop failed: %s", exc)
+        sys.stderr.write(f"  daemon stop failed: {exc}\n")
+        return {"ok": False, "error": f"daemon stop failed: {exc}"}
+
+    import time
+
+    for _ in range(10):
+        time.sleep(1)
+        if not _is_session_file_present(pid):
+            break
+    else:
+        logger.warning("[SESSION_BOOT] Session file for PID %s did not clear after daemon stop", pid)
+
+    return {"ok": True}
+
+
+def _takeover_bg(session: dict, branch: str, claude_bin: str, defaults: list[str]) -> dict:
+    """Take over a bg session: daemon stop --any, poll, then --resume in tmux.
+
+    Checks blast radius first (other branches' bg sessions). On daemon stop
+    failure, aborts honestly. Resumes inside a tmux session so a closed
+    terminal is always recoverable.
+    """
+    session_id = session.get("sessionId", "")
+    pid = session.get("pid")
+
+    stop_result = _daemon_stop(claude_bin, branch, pid)
+    if not stop_result["ok"]:
+        return {"exit_code": 1, "error": stop_result["error"]}
+
+    if session_id:
+        logger.info("[SESSION_BOOT] Resuming session %s after takeover", session_id[:8])
+        return _exec_in_tmux(branch, session_id, claude_bin, [claude_bin] + defaults + ["--resume", session_id])
+
+    logger.info("[SESSION_BOOT] No sessionId for takeover — continuing last")
+    return _exec_in_tmux(branch, "", claude_bin, [claude_bin] + defaults + ["--continue"])
+
+
+def _is_session_file_present(pid: int | None) -> bool:
+    """Check if a CC session file exists for the given PID."""
+    if pid is None:
+        return False
+    session_file = Path.home() / ".claude" / "sessions" / f"{pid}.json"
+    return session_file.exists()
+
+
 def _menu_live(
     live: list[dict],
     branch: str,
@@ -299,21 +416,38 @@ def _menu_live(
     if len(live) == 1:
         session = live[0]
         label = _session_label(session, branch)
+        is_bg = session.get("kind") in ("bg", "background")
         sys.stderr.write(f"\n{branch} — live chat: {label}\n")
-        sys.stderr.write("  [Enter]  resume this chat\n")
-        sys.stderr.write("  [n]      start new chat   (closes the one above first)\n")
-        sys.stderr.write("  [c]      close it and exit\n\n")
+        if is_bg:
+            sys.stderr.write("  [Enter]  resume this chat   (stops bg, reopens as normal chat)\n")
+            sys.stderr.write("  [n]      start new chat   (stops bg first)\n")
+            sys.stderr.write("  [c]      close it and exit   (stops bg)\n\n")
+        else:
+            sys.stderr.write("  [Enter]  resume this chat\n")
+            sys.stderr.write("  [n]      start new chat   (closes the one above first)\n")
+            sys.stderr.write("  [c]      close it and exit\n\n")
 
         choice = _read_choice()
 
         if choice in ("", "r"):
-            return _resume_session(session, claude_bin, defaults)
+            return _resume_session(session, branch, claude_bin, defaults)
         elif choice == "n":
-            _stop_session(session, claude_bin)
+            if is_bg:
+                stop = _daemon_stop(claude_bin, branch, session.get("pid"))
+                if not stop["ok"]:
+                    return {"exit_code": 1, "error": stop["error"]}
+            else:
+                _stop_session(session, claude_bin)
             return _start_fresh(branch, claude_bin, defaults, extra_args)
         elif choice == "c":
-            _stop_session(session, claude_bin)
-            sys.stderr.write(f"  Closed {branch} session.\n")
+            if is_bg:
+                stop = _daemon_stop(claude_bin, branch, session.get("pid"))
+                if not stop["ok"]:
+                    return {"exit_code": 1, "error": stop["error"]}
+                sys.stderr.write(f"  Stopped bg session PID {session.get('pid')}.\n")
+            else:
+                result = _stop_session(session, claude_bin)
+                sys.stderr.write(f"  {result}\n")
             return {"exit_code": 0, "action": "closed"}
         else:
             sys.stderr.write("  Unknown choice. Exiting.\n")
@@ -323,28 +457,63 @@ def _menu_live(
     for i, session in enumerate(live, 1):
         label = _session_label(session, branch)
         sys.stderr.write(f"  [{i}]  {label}\n")
+    sys.stderr.write("  [n]  start new chat\n")
     sys.stderr.write("  [c]  close all and exit\n\n")
 
     choice = _read_choice()
 
     if choice == "c":
-        for session in live:
-            _stop_session(session, claude_bin)
-        sys.stderr.write(f"  Closed all {branch} sessions.\n")
-        return {"exit_code": 0, "action": "closed_all"}
+        return _close_all(live, branch, claude_bin)
+
+    if choice == "n":
+        return _new_over_all(live, branch, claude_bin, defaults, extra_args)
 
     try:
         idx = int(choice) - 1
         if 0 <= idx < len(live):
-            return _resume_session(live[idx], claude_bin, defaults)
+            return _resume_session(live[idx], branch, claude_bin, defaults)
     except (ValueError, IndexError):
-        pass
+        logger.info("[SESSION_BOOT] Invalid menu choice: %r", choice)
 
-    if choice == "" and live:
-        return _resume_session(live[0], claude_bin, defaults)
-
-    sys.stderr.write("  Unknown choice. Exiting.\n")
+    sys.stderr.write("  Pick a number, 'n', or 'c'. Exiting.\n")
     return {"exit_code": 1, "error": "unknown choice"}
+
+
+def _close_all(live: list[dict], branch: str, claude_bin: str) -> dict:
+    """Close all sessions — stop what's stoppable, honest about bg."""
+    non_bg = [s for s in live if s.get("kind") not in ("bg", "background")]
+    bg = [s for s in live if s.get("kind") in ("bg", "background")]
+    for s in non_bg:
+        result = _stop_session(s, claude_bin)
+        sys.stderr.write(f"  {result}\n")
+    if bg:
+        stop = _daemon_stop(claude_bin, branch, bg[0].get("pid"))
+        if stop["ok"]:
+            sys.stderr.write(f"  Stopped {len(bg)} bg session(s) via daemon stop.\n")
+        else:
+            for s in bg:
+                sys.stderr.write(f"  PID {s.get('pid')}: bg session remains (use Enter to take over)\n")
+    return {"exit_code": 0, "action": "closed_all"}
+
+
+def _new_over_all(
+    live: list[dict],
+    branch: str,
+    claude_bin: str,
+    defaults: list[str],
+    extra_args: list[str] | None,
+) -> dict:
+    """Start new chat, stopping what's stoppable first."""
+    non_bg = [s for s in live if s.get("kind") not in ("bg", "background")]
+    bg = [s for s in live if s.get("kind") in ("bg", "background")]
+    for s in non_bg:
+        result = _stop_session(s, claude_bin)
+        sys.stderr.write(f"  {result}\n")
+    if bg:
+        stop = _daemon_stop(claude_bin, branch, bg[0].get("pid"))
+        if not stop["ok"]:
+            sys.stderr.write(f"  {len(bg)} bg session(s) remain — starting new chat anyway\n")
+    return _start_fresh(branch, claude_bin, defaults, extra_args)
 
 
 def _menu_no_live(
@@ -362,8 +531,7 @@ def _menu_no_live(
 
     if choice in ("", "r"):
         logger.info("[SESSION_BOOT] Continuing last chat via --continue")
-        os.execvp(claude_bin, [claude_bin] + defaults + ["--continue"])
-        return {"exit_code": 0, "action": "continued"}
+        return _exec_in_tmux(branch, "", claude_bin, [claude_bin] + defaults + ["--continue"])
     elif choice == "n":
         return _start_fresh(branch, claude_bin, defaults, extra_args)
     else:
