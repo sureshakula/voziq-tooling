@@ -551,6 +551,12 @@
       "lines": [40],
       "pattern": "handler imported directly",
       "reason": "Test helper _import_module() must import the handler module directly to test it. All trigger test files follow this pattern."
+    },
+    {
+      "file": "apps/handlers/medic_state.py",
+      "standard": "unused_function",
+      "pattern": "get_muted_branches",
+      "reason": "Public API returning List[str] of active muted branches. Used by 15+ existing tests and part of the medic_state interface. get_muted_branches_detail() supplements it for status display — this is the simple accessor."
     }
   ],
   "notes": {

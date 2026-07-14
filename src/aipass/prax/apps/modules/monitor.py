@@ -48,7 +48,6 @@ from aipass.prax.apps.handlers.monitoring.telegram_relay import (
     is_relay_enabled_by_env,
 )
 from aipass.prax.apps.handlers.monitoring.pid_cache import get_pid_for_branch as _get_pid_for_branch
-from aipass.prax.apps.handlers.monitoring import instance_lock
 
 import json as _json
 
@@ -177,8 +176,6 @@ def _run_monitor(args: List[str]) -> bool:
     global _event_queue, _module_tracker
     global _display_thread, _file_watcher_thread, _log_watcher_thread
 
-    instance_lock.acquire(error_fn=error)
-
     json_handler.log_operation("monitor_started", {"args": args})
     logger.info(f"Starting unified monitoring (args: {args})")
 
@@ -258,7 +255,6 @@ def _stop_threads():
         if t is not None and t.is_alive():
             t.join(timeout=2.0)
 
-    instance_lock.release()
     logger.info("All monitoring threads stopped")
 
 

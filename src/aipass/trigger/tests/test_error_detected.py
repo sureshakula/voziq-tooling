@@ -8,7 +8,9 @@
 
 """Tests for error_detected event handler: set_send_email_callback, handle_error_detected, and fallback stubs."""
 
+import json
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -399,3 +401,249 @@ class TestFallbackStubs:
         """Module reports registry dispatch as unavailable."""
         mod = _import_module()
         assert mod._REGISTRY_DISPATCH_AVAILABLE is False
+
+
+# ---------------------------------------------------------------------------
+# TTL-aware medic enable/disable
+# ---------------------------------------------------------------------------
+
+
+class TestMedicEnabledTTL:
+    """Tests for _is_medic_enabled TTL expiry behavior."""
+
+    def test_medic_enabled_ttl_expired(self) -> None:
+        """medic_enabled=False with expired TTL -> treated as enabled, dispatch proceeds."""
+        mod = _import_module()
+        real_is_medic_enabled = mod._is_medic_enabled
+        send = _setup_happy_path(mod)
+        mod._is_medic_enabled = real_is_medic_enabled  # type: ignore[attr-defined]
+
+        config_file = mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        past = (datetime.now() - timedelta(hours=1)).isoformat()
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": False,
+                        "medic_disabled_until": past,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mod.handle_error_detected(
+            branch="flow",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_ttl_exp",
+        )
+
+        send.assert_called_once()
+
+    def test_medic_enabled_ttl_active(self) -> None:
+        """medic_enabled=False with future TTL -> medic still disabled, dispatch suppressed."""
+        mod = _import_module()
+        real_is_medic_enabled = mod._is_medic_enabled
+        send = _setup_happy_path(mod)
+        mod._is_medic_enabled = real_is_medic_enabled  # type: ignore[attr-defined]
+
+        config_file = mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        future = (datetime.now() + timedelta(hours=1)).isoformat()
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": False,
+                        "medic_disabled_until": future,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mod.handle_error_detected(
+            branch="flow",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_ttl_act",
+        )
+
+        send.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Branch mute dict/string format support
+# ---------------------------------------------------------------------------
+
+
+class TestBranchMutedFormats:
+    """Tests for _is_branch_muted dict and string format support."""
+
+    def test_branch_muted_dict_format_active(self) -> None:
+        """Dict entry with future expires_at -> branch IS muted, dispatch suppressed."""
+        mod = _import_module()
+        real_is_branch_muted = mod._is_branch_muted
+        send = _setup_happy_path(mod)
+        mod._is_branch_muted = real_is_branch_muted  # type: ignore[attr-defined]
+        mod._get_registered_emails = MagicMock(return_value={"@api", "@flow"})  # type: ignore[attr-defined]
+
+        config_file = mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        future = (datetime.now() + timedelta(hours=1)).isoformat()
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": True,
+                        "muted_branches": [{"name": "api", "expires_at": future}],
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mod.handle_error_detected(
+            branch="api",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_mute_act",
+        )
+
+        send.assert_not_called()
+
+    def test_branch_muted_dict_format_expired(self) -> None:
+        """Dict entry with past expires_at -> branch NOT muted, dispatch proceeds."""
+        mod = _import_module()
+        real_is_branch_muted = mod._is_branch_muted
+        send = _setup_happy_path(mod)
+        mod._is_branch_muted = real_is_branch_muted  # type: ignore[attr-defined]
+        mod._get_registered_emails = MagicMock(return_value={"@api", "@flow"})  # type: ignore[attr-defined]
+
+        config_file = mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        past = (datetime.now() - timedelta(hours=1)).isoformat()
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": True,
+                        "muted_branches": [{"name": "api", "expires_at": past}],
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mod.handle_error_detected(
+            branch="api",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_mute_exp",
+        )
+
+        send.assert_called_once()
+
+    def test_branch_muted_plain_string_backcompat(self) -> None:
+        """Plain string entry in muted_branches -> branch IS muted (permanent)."""
+        mod = _import_module()
+        real_is_branch_muted = mod._is_branch_muted
+        send = _setup_happy_path(mod)
+        mod._is_branch_muted = real_is_branch_muted  # type: ignore[attr-defined]
+        mod._get_registered_emails = MagicMock(return_value={"@api", "@flow"})  # type: ignore[attr-defined]
+
+        config_file = mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": True,
+                        "muted_branches": ["api"],
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mod.handle_error_detected(
+            branch="api",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_str_perm",
+        )
+
+        send.assert_not_called()
+
+    def test_branch_muted_dict_permanent(self) -> None:
+        """Dict entry with expires_at=null -> branch IS muted (permanent)."""
+        mod = _import_module()
+        real_is_branch_muted = mod._is_branch_muted
+        send = _setup_happy_path(mod)
+        mod._is_branch_muted = real_is_branch_muted  # type: ignore[attr-defined]
+        mod._get_registered_emails = MagicMock(return_value={"@api", "@flow"})  # type: ignore[attr-defined]
+
+        config_file = mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": True,
+                        "muted_branches": [{"name": "api", "expires_at": None}],
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mod.handle_error_detected(
+            branch="api",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_dict_perm",
+        )
+
+        send.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# circuit_breaker_probe_succeeded after dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestProbeSucceeded:
+    """Tests for circuit_breaker_probe_succeeded called after dispatch."""
+
+    def test_probe_succeeded_called_after_dispatch(self) -> None:
+        """circuit_breaker_probe_succeeded is called after successful dispatch with fingerprint."""
+        mod = _import_module()
+        send = _setup_happy_path(mod)
+        mod.circuit_breaker_probe_succeeded = MagicMock()  # type: ignore[attr-defined]
+
+        mod.handle_error_detected(
+            branch="flow",
+            module="cfg",
+            message="err",
+            error_hash="h1",
+            count=2,
+            fingerprint="fp_probe",
+        )
+
+        send.assert_called_once()
+        mod.registry_record_dispatch.assert_called_once_with("fp_probe")  # type: ignore[attr-defined]
+        mod.circuit_breaker_probe_succeeded.assert_called_once()  # type: ignore[attr-defined]

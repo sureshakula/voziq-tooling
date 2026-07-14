@@ -13,6 +13,38 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Medic is back on — and the loop is proven live.** Off since 2026-05-10 (a
+  pytest fixture storm flooded the error registry; the off switch was pulled to
+  stop the noise and forgotten for 65 days). Three fixes made re-enable safe:
+  (1) @prax: pytest logging routes to a temp dir when `PYTEST_CURRENT_TEST` is
+  set — test fixtures can never pollute production `logs/` again (the storm
+  class that caused the shutdown); (2) @trigger: circuit breaker self-heals —
+  open breakers half-open on read, close on a successful probe, cooldown decays
+  to base (previously `half_open` was a terminal trap and only manual reset
+  recovered); (3) @trigger: **TTL mutes** — `medic mute @branch` and `medic off`
+  now auto-expire after 24h by default (`--for 48h/7d` custom, `--forever`
+  explicit kill switch; temp `off` keeps detection running). Agents doing build
+  work mute themselves and never have to remember to unmute — the permanent
+  switch that got medic forgotten no longer exists. Breadcrumbs shipped: ai_mail
+  footer + navmap tell every agent to mute before build work. Live-fire proof:
+  a planted commons SQL bug was detected, dispatched, and fixed byte-identical
+  by @commons in 105 seconds (15/15 tests green); a real TG poll error was
+  correctly triaged NOT ACTIONABLE; organic instance-lock noise was correctly
+  triaged LOW/expected. @skills/@api on 7-day mutes until the TG poll-level fix
+  lands. 993 prax + 603 trigger tests green.
+
+- **Prax monitor: concurrent viewers — laptop and Telegram mirror side by
+  side.** Patrick's ruling after being locked out of his own monitor three
+  times: *processes are not agents; display processes must never be
+  single-instance.* The instance lock is gone from the display path — any
+  number of `monitor run` viewers start and render concurrently. The lock is
+  scoped to the one true single-writer responsibility: the Telegram relay
+  (`relay.pid`, held by `prax-monitor.service`); extra instances run
+  viewer-only, so no TG double-sends. The misleading "kill the existing
+  process" error is dead. 998 prax tests green, 3 new concurrent-viewer tests;
+  live-verified: interactive Mission Control rendering while the TG relay
+  service runs untouched.
+
 - **Telegram user-comment mirror: the TG chat now shows the whole conversation,
   whichever door you speak through.** Patrick's spec from the live cross-door
   drill: his own messages typed in the terminal or claude.ai remote never

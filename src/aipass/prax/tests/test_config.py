@@ -47,8 +47,9 @@ def _fresh_import_load(monkeypatch, tmp_path):
     monkeypatch.setattr(load_mod, "PRAX_LOGGER_CONFIG_FILE", prax_json_dir / "prax_logger_config.json")
     # Reset the lazy cache so get_system_logs_dir() re-resolves
     monkeypatch.setattr(load_mod, "_system_logs_dir_cache", None)
-    # Clear test log redirect so tests exercise real path resolution
+    # Clear test log redirects so tests exercise real path resolution
     monkeypatch.delenv("AIPASS_TEST_LOG_DIR", raising=False)
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
     return load_mod
 
@@ -179,6 +180,50 @@ class TestGetModuleLogsDir:
         assert result.is_dir()
         # ECOSYSTEM_ROOT must not be polluted
         assert not (tmp_path / "polyglot").exists()
+
+
+# =============================================
+# TESTS: PYTEST_CURRENT_TEST routing
+# =============================================
+
+
+class TestPytestCurrentTestRouting:
+    """PYTEST_CURRENT_TEST env var routes logs to temp dir, not production."""
+
+    def test_system_logs_routed_to_temp(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+        load_mod = _fresh_import_load(monkeypatch, tmp_path)
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests/test_foo.py::test_bar (call)")
+        result = load_mod.get_system_logs_dir()
+        assert "aipass_test_logs" in str(result)
+        assert result.name == "system"
+        assert result.exists()
+        assert not (tmp_path / "system_logs").exists()
+
+    def test_module_logs_routed_to_temp(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+        load_mod = _fresh_import_load(monkeypatch, tmp_path)
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests/test_foo.py::test_bar (call)")
+        (tmp_path / "flow").mkdir()
+        result = load_mod.get_module_logs_dir("flow")
+        assert "aipass_test_logs" in str(result)
+        assert result.name == "flow"
+        assert result.exists()
+        assert not (tmp_path / "flow" / "logs").exists()
+
+    def test_aipass_test_log_dir_takes_precedence(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+        load_mod = _fresh_import_load(monkeypatch, tmp_path)
+        override = tmp_path / "custom_test_logs"
+        override.mkdir()
+        monkeypatch.setenv("AIPASS_TEST_LOG_DIR", str(override))
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests/test_foo.py::test_bar (call)")
+        result = load_mod.get_system_logs_dir()
+        assert result == override / "system"
+
+    def test_no_pytest_env_uses_production_path(self, mock_prax_infrastructure, monkeypatch, tmp_path):
+        load_mod = _fresh_import_load(monkeypatch, tmp_path)
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+        monkeypatch.setattr(load_mod, "_find_repo_root", lambda: tmp_path)
+        result = load_mod.get_system_logs_dir()
+        assert result == tmp_path / "system_logs"
 
 
 # =============================================

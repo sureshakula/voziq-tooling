@@ -227,6 +227,25 @@ _circuit_breaker = _load_circuit_breaker_state()
 # ---------------------------------------------------------------------------
 
 
+def _evaluate_state() -> None:
+    """Evaluate circuit breaker state transitions on read.
+
+    If state is 'open' and cooldown has expired, transition to 'half_open'
+    with the probe slot available. Called by both circuit_breaker_allows()
+    and get_circuit_breaker_status() so the breaker self-heals even when
+    medic is off and no dispatches are running.
+    """
+    global _circuit_breaker
+    if _circuit_breaker.state != "open":
+        return
+    elapsed = time.time() - _circuit_breaker.opened_at
+    if elapsed >= _circuit_breaker.cooldown_seconds:
+        _circuit_breaker.state = "half_open"
+        _circuit_breaker.half_open_allow = True
+        _circuit_breaker.summary_sent = False
+        _save_circuit_breaker_state()
+
+
 def circuit_breaker_allows() -> bool:
     """Check if the circuit breaker allows dispatch.
 
@@ -234,34 +253,25 @@ def circuit_breaker_allows() -> bool:
     - Closed (normal): All dispatches allowed. Records are checked against
       trip_threshold to determine if breaker should open.
     - Open (paused): No dispatches. Transitions to half_open after cooldown
-      period expires.
-    - Half-Open (testing): Allow ONE dispatch to test recovery. If it
-      resolves, caller should reset to Closed. If another error comes,
-      circuit_breaker_record_error() will re-open with doubled cooldown.
+      period expires (evaluated on read via _evaluate_state).
+    - Half-Open (testing): Allow ONE dispatch to test recovery. On success
+      the caller must call circuit_breaker_probe_succeeded() to close.
+      If another error comes, circuit_breaker_record_error() re-opens
+      with doubled cooldown.
 
     Returns:
         True if dispatch is allowed, False if breaker is blocking
     """
     global _circuit_breaker
-    now = time.time()
+    _evaluate_state()
 
     if _circuit_breaker.state == "closed":
         return True
 
-    if _circuit_breaker.state == "open":
-        elapsed = now - _circuit_breaker.opened_at
-        if elapsed >= _circuit_breaker.cooldown_seconds:
-            # Cooldown expired - transition to half_open
-            # This call IS the probe dispatch, so mark probe as used
-            _circuit_breaker.state = "half_open"
-            _circuit_breaker.half_open_allow = False
-            _circuit_breaker.summary_sent = False
-            return True
-        return False
-
     if _circuit_breaker.state == "half_open":
         if _circuit_breaker.half_open_allow:
             _circuit_breaker.half_open_allow = False
+            _save_circuit_breaker_state()
             return True
         return False
 
@@ -319,6 +329,25 @@ def circuit_breaker_trip(reason: str = "") -> None:
     _save_circuit_breaker_state()
 
 
+def circuit_breaker_probe_succeeded() -> None:
+    """Close the breaker after a successful dispatch during half_open probe.
+
+    Transitions half_open -> closed and resets cooldown to base_cooldown
+    so future trips start with the short cooldown again. No-op if the
+    breaker is not in half_open state.
+    """
+    global _circuit_breaker
+    if _circuit_breaker.state != "half_open":
+        return
+    _circuit_breaker.state = "closed"
+    _circuit_breaker.opened_at = 0.0
+    _circuit_breaker.cooldown_seconds = _circuit_breaker.base_cooldown
+    _circuit_breaker.recent_errors = []
+    _circuit_breaker.summary_sent = False
+    _circuit_breaker.half_open_allow = True
+    _clear_circuit_breaker_state()
+
+
 def circuit_breaker_reset() -> None:
     """Reset circuit breaker to closed state.
 
@@ -339,16 +368,24 @@ def circuit_breaker_reset() -> None:
 def get_circuit_breaker_status() -> dict:
     """Get current circuit breaker state as a dictionary.
 
+    Evaluates state transitions first so the returned state is always
+    up-to-date (e.g. an expired open breaker will report as half_open).
+
     Returns:
         Dict with keys: state, opened_at, cooldown_seconds,
-        recent_error_count, summary_sent
+        recent_error_count, summary_sent, remaining_seconds
     """
+    _evaluate_state()
+    remaining = 0
+    if _circuit_breaker.state == "open":
+        remaining = max(0, int(_circuit_breaker.cooldown_seconds - (time.time() - _circuit_breaker.opened_at)))
     return {
         "state": _circuit_breaker.state,
         "opened_at": _circuit_breaker.opened_at,
         "cooldown_seconds": _circuit_breaker.cooldown_seconds,
         "recent_error_count": len(_circuit_breaker.recent_errors),
         "summary_sent": _circuit_breaker.summary_sent,
+        "remaining_seconds": remaining,
     }
 
 

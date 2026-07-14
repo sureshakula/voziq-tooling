@@ -26,6 +26,7 @@ from urllib.request import urlopen as _http_fetch
 
 from aipass.prax.apps.modules.logger import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.monitoring import instance_lock
 
 logger = get_direct_logger()
 
@@ -72,6 +73,10 @@ def init_relay(enabled: bool, config: Optional[dict] = None) -> None:
         logger.info("[telegram_relay] Incomplete config (missing bot_token or chat_id) — relay inactive")
         return
 
+    if not instance_lock.try_acquire():
+        logger.info("[telegram_relay] Another process owns the TG relay — viewer-only mode")
+        return
+
     _bot_token = token
     _chat_id = int(chat)
     _RELAY_ACTIVE = True
@@ -111,6 +116,7 @@ def stop_relay() -> None:
         _thread.join(timeout=BATCH_INTERVAL + 2)
         _thread = None
 
+    instance_lock.release()
     json_handler.log_operation("relay_stopped", {})
     logger.info("[telegram_relay] Relay stopped")
 

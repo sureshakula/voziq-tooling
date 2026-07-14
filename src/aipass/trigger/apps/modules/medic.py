@@ -30,11 +30,15 @@ from aipass.trigger.apps.handlers.json import json_handler
 from aipass.trigger.apps.handlers.medic_state import (
     is_enabled,
     set_enabled,
-    get_muted_branches,
+    get_muted_branches_detail,
+    get_disabled_until,
     mute_branch,
     unmute_branch,
     get_suppression_stats,
     get_rate_limit_stats,
+    parse_duration,
+    DEFAULT_MUTE_SECONDS,
+    DEFAULT_OFF_SECONDS,
 )
 
 if sys.platform == "win32":
@@ -188,21 +192,24 @@ def print_help() -> None:
     console.rule("COMMANDS")
     console.print()
     console.print("  [bold]on[/bold]                 Enable error dispatch (starts log watcher if needed)")
-    console.print("  [bold]off[/bold]                Disable error dispatch globally (errors still logged)")
+    console.print("  [bold]off[/bold]                Disable dispatch for 24h (detection continues)")
+    console.print("  [bold]off --forever[/bold]      Disable dispatch permanently (stops log watcher)")
     console.print("  [bold]status[/bold]             Show current state, muted branches, and statistics")
-    console.print("  [bold]mute[/bold] @branch       Suppress dispatch for a specific branch")
+    console.print("  [bold]mute[/bold] @branch       Suppress dispatch for 24h (default)")
+    console.print("  [bold]mute[/bold] @branch --for 48h  Custom TTL (e.g. 48h, 7d)")
+    console.print("  [bold]mute[/bold] @branch --forever  Permanent mute")
     console.print("  [bold]unmute[/bold] @branch     Resume dispatch for a muted branch")
     console.print("  [bold]help[/bold]               Show this help")
     console.print()
     console.rule("OFF vs MUTE")
     console.print()
-    console.print("  [yellow]off[/yellow]    Global kill switch. ALL error dispatch stops. No branch")
-    console.print("         receives auto-healing emails. Errors still logged to")
-    console.print("         medic_suppressed.jsonl for review.")
+    console.print("  [yellow]off[/yellow]       24h dispatch suppression (detection continues).")
+    console.print("            Auto-resumes after 24 hours. Use --forever for")
+    console.print("            permanent disable (stops log watcher too).")
     console.print()
-    console.print("  [yellow]mute[/yellow]   Per-branch suppress. Only the muted branch stops receiving")
-    console.print("         dispatch. All other branches continue normally. Muted errors")
-    console.print("         logged to medic_suppressed.jsonl.")
+    console.print("  [yellow]mute[/yellow]      Per-branch suppress for 24h (default).")
+    console.print("            --for 48h or --for 7d for custom duration.")
+    console.print("            --forever for permanent. Auto-expires — no need to unmute.")
     console.print()
     console.rule("EXAMPLES")
     console.print()
@@ -231,20 +238,78 @@ def print_help() -> None:
     console.print()
 
 
+def _parse_duration_args(args: list) -> tuple:
+    """Extract --for <dur> and --forever from args.
+
+    Returns:
+        (duration_seconds_or_None, is_forever, remaining_args)
+        Default (no flags): duration=DEFAULT_MUTE_SECONDS, is_forever=False
+    """
+    remaining = []
+    duration = None
+    is_forever = False
+    i = 0
+    while i < len(args):
+        if args[i] == "--forever":
+            is_forever = True
+            i += 1
+        elif args[i] == "--for" and i + 1 < len(args):
+            parsed = parse_duration(args[i + 1])
+            if parsed is not None:
+                duration = parsed
+            i += 2
+        else:
+            remaining.append(args[i])
+            i += 1
+    if is_forever:
+        return None, True, remaining
+    if duration is not None:
+        return duration, False, remaining
+    return float(DEFAULT_MUTE_SECONDS), False, remaining
+
+
+def _fmt_remaining(iso_expiry: str) -> str:
+    """Format time remaining from an ISO expiry timestamp."""
+    from datetime import datetime
+
+    try:
+        expires = datetime.fromisoformat(iso_expiry)
+        remaining = expires - datetime.now()
+        total_secs = max(0, int(remaining.total_seconds()))
+        if total_secs <= 0:
+            return "expired"
+        hours, rem = divmod(total_secs, 3600)
+        minutes = rem // 60
+        if hours >= 24:
+            days = hours // 24
+            hours = hours % 24
+            return f"{days}d {hours}h"
+        return f"{hours}h {minutes}m"
+    except Exception as exc:
+        logger.warning("[MEDIC] _fmt_remaining parse failed: %s", exc)
+        return "unknown"
+
+
 def _handle_mute(console, args: list) -> None:
-    """Handle 'medic mute @branch'."""
+    """Handle 'medic mute @branch [--for <dur>] [--forever]'."""
     from aipass.cli.apps.modules import error
 
-    if not args:
-        error("Missing branch name", suggestion="Usage: medic mute @branch")
+    duration_secs, is_forever, rest = _parse_duration_args(args)
+
+    if not rest:
+        error("Missing branch name", suggestion="Usage: medic mute @branch [--for 48h] [--forever]")
         return
-    branch_name = _extract_branch_name(args[0])
+    branch_name = _extract_branch_name(rest[0])
     if not branch_name:
-        error("Missing branch name", suggestion="Usage: medic mute @branch")
+        error("Missing branch name", suggestion="Usage: medic mute @branch [--for 48h] [--forever]")
         return
-    if mute_branch(branch_name):
+    if mute_branch(branch_name, duration_seconds=duration_secs):
         logger.info(f"[MEDIC] Muted branch: {branch_name}")
-        console.print(f"  [yellow]Muted[/yellow] @{branch_name} — errors logged but not dispatched")
+        if is_forever or duration_secs is None:
+            console.print(f"  [yellow]Muted[/yellow] @{branch_name} — permanent (use unmute to restore)")
+        else:
+            hours = int(duration_secs) // 3600
+            console.print(f"  [yellow]Muted[/yellow] @{branch_name} — auto-expires in {hours}h")
     else:
         error(f"Failed to mute @{branch_name}", suggestion="Check trigger_config.json")
 
@@ -274,17 +339,33 @@ def _handle_status(console) -> None:
 
     suppression = get_suppression_stats()
     rate_limits = get_rate_limit_stats()
-    muted = get_muted_branches()
+    muted_detail = get_muted_branches_detail()
 
     state_color = "green" if enabled else "yellow"
     state_text = "ENABLED" if enabled else "DISABLED"
+
+    disabled_until = get_disabled_until()
+    if not enabled and disabled_until:
+        remaining = _fmt_remaining(disabled_until)
+        state_text = f"DISABLED (auto-resumes in {remaining})"
+
     if watcher_active:
         watcher_text = "[green]running[/green] (systemd)"
     elif enabled:
         watcher_text = "[yellow]stopped[/yellow] — run [bold]medic on[/bold] to start"
     else:
         watcher_text = "stopped"
-    muted_text = ", ".join(f"@{b}" for b in muted) if muted else "none"
+
+    if muted_detail:
+        muted_parts = []
+        for m in muted_detail:
+            if m["expires_at"] is None:
+                muted_parts.append(f"@{m['name']} [dim](permanent)[/dim]")
+            else:
+                muted_parts.append(f"@{m['name']} [dim]({_fmt_remaining(m['expires_at'])} left)[/dim]")
+        muted_text = ", ".join(muted_parts)
+    else:
+        muted_text = "none"
 
     console.print("Medic Status")
     console.print(f"  State:           [{state_color}]{state_text}[/{state_color}]")
@@ -330,30 +411,47 @@ def _handle_on(console) -> None:
     )
 
 
-def _handle_off(console) -> None:
-    """Handle 'medic off' — disable dispatch and stop watcher."""
+def _handle_off(console, args: list | None = None) -> None:
+    """Handle 'medic off [--forever]' — disable dispatch with 24h TTL or permanently."""
     from rich.panel import Panel
     from aipass.cli.apps.modules import error
 
-    if not set_enabled(False):
-        error("Failed to disable Medic", suggestion="Check trigger_config.json")
-        return
+    args = args or []
+    is_forever = "--forever" in args
 
-    logger.info("[MEDIC] Medic DISABLED - error dispatch suppressed")
-    if _is_service_active():
-        _systemctl("stop")
-        logger.info("[MEDIC] Log watcher service stopped")
-
-    console.print(
-        Panel(
-            "[bold yellow]Medic DISABLED[/bold yellow]\n\n"
-            "Error dispatch is [yellow]suppressed[/yellow]. Errors are still detected\n"
-            "and logged to [dim]medic_suppressed.jsonl[/dim] for review.\n"
-            "Log watcher: [yellow]stopped[/yellow]",
-            title="Medic",
-            border_style="yellow",
+    if is_forever:
+        if not set_enabled(False):
+            error("Failed to disable Medic", suggestion="Check trigger_config.json")
+            return
+        logger.info("[MEDIC] Medic DISABLED permanently")
+        if _is_service_active():
+            _systemctl("stop")
+            logger.info("[MEDIC] Log watcher service stopped")
+        console.print(
+            Panel(
+                "[bold yellow]Medic DISABLED (permanent)[/bold yellow]\n\n"
+                "Error dispatch is [yellow]suppressed[/yellow]. Log watcher stopped.\n"
+                "Use [bold]medic on[/bold] to re-enable.",
+                title="Medic",
+                border_style="yellow",
+            )
         )
-    )
+    else:
+        hours = DEFAULT_OFF_SECONDS // 3600
+        if not set_enabled(False, duration_seconds=float(DEFAULT_OFF_SECONDS)):
+            error("Failed to disable Medic", suggestion="Check trigger_config.json")
+            return
+        logger.info("[MEDIC] Medic DISABLED for %dh", hours)
+        console.print(
+            Panel(
+                f"[bold yellow]Medic DISABLED ({hours}h)[/bold yellow]\n\n"
+                f"Error dispatch suppressed for {hours} hours, then auto-resumes.\n"
+                "Detection continues (log watcher stays running).\n"
+                "Use [bold]medic off --forever[/bold] for permanent disable.",
+                title="Medic",
+                border_style="yellow",
+            )
+        )
 
 
 def _route_medic_module(args: list) -> bool:
@@ -401,7 +499,7 @@ def handle_command(command: str, args: list) -> bool:
         "mute": lambda: _handle_mute(console, args),
         "unmute": lambda: _handle_unmute(console, args),
         "on": lambda: _handle_on(console),
-        "off": lambda: _handle_off(console),
+        "off": lambda: _handle_off(console, args),
         "status": lambda: _handle_status(console),
     }
     handler = handlers.get(command)

@@ -47,6 +47,8 @@ def _mock_infrastructure(monkeypatch):
     medic_state_mod.is_enabled = MagicMock(return_value=True)
     medic_state_mod.set_enabled = MagicMock(return_value=True)
     medic_state_mod.get_muted_branches = MagicMock(return_value=[])
+    medic_state_mod.get_muted_branches_detail = MagicMock(return_value=[])
+    medic_state_mod.get_disabled_until = MagicMock(return_value=None)
     medic_state_mod.mute_branch = MagicMock(return_value=True)
     medic_state_mod.unmute_branch = MagicMock(return_value=True)
     medic_state_mod.get_suppression_stats = MagicMock(
@@ -61,6 +63,9 @@ def _mock_infrastructure(monkeypatch):
             "last_rate_limited": "never",
         }
     )
+    medic_state_mod.parse_duration = MagicMock(return_value=None)
+    medic_state_mod.DEFAULT_MUTE_SECONDS = 86400
+    medic_state_mod.DEFAULT_OFF_SECONDS = 86400
     monkeypatch.setitem(sys.modules, "aipass.trigger.apps.handlers.medic_state", medic_state_mod)
 
     # -- CLI console (lazy import inside handle_command) --------------------
@@ -189,7 +194,7 @@ def test_handle_command_on_failure_prints_error():
 
 
 def test_handle_command_off_disables_medic():
-    """handle_command('off', []) calls set_enabled(False), prints Panel, returns True."""
+    """handle_command('off', []) calls set_enabled with 24h TTL, prints Panel, returns True."""
     medic = _import_medic()
 
     with patch.object(medic, "_systemctl", return_value=True):
@@ -198,21 +203,34 @@ def test_handle_command_off_disables_medic():
 
     assert result is True
     state = _get_medic_state()
-    state.set_enabled.assert_called_with(False)
-    # Verify console.print was called (Panel is a mock object for success output)
+    state.set_enabled.assert_called_with(False, duration_seconds=86400.0)
     console = _get_console()
     assert console.print.call_count >= 1, "console.print should be called with success Panel"
 
 
-def test_handle_command_off_stops_active_service():
-    """handle_command('off', []) stops the service when it is active."""
+def test_handle_command_off_forever_stops_service():
+    """handle_command('off', ['--forever']) stops the service and disables permanently."""
+    medic = _import_medic()
+
+    with patch.object(medic, "_systemctl", return_value=True) as mock_ctl:
+        with patch.object(medic, "_is_service_active", return_value=True):
+            result = medic.handle_command("off", ["--forever"])
+
+    assert result is True
+    state = _get_medic_state()
+    state.set_enabled.assert_called_with(False)
+    mock_ctl.assert_called_with("stop")
+
+
+def test_handle_command_off_ttl_keeps_watcher():
+    """handle_command('off', []) with default TTL does NOT stop the log watcher."""
     medic = _import_medic()
 
     with patch.object(medic, "_systemctl", return_value=True) as mock_ctl:
         with patch.object(medic, "_is_service_active", return_value=True):
             medic.handle_command("off", [])
 
-    mock_ctl.assert_called_with("stop")
+    mock_ctl.assert_not_called()
 
 
 def test_handle_command_off_failure_prints_error():
@@ -249,7 +267,7 @@ def test_handle_command_status_returns_current_state():
     assert result is True
     state = _get_medic_state()
     state.is_enabled.assert_called_once()
-    state.get_muted_branches.assert_called_once()
+    state.get_muted_branches_detail.assert_called_once()
     state.get_suppression_stats.assert_called_once()
     state.get_rate_limit_stats.assert_called_once()
 
@@ -283,19 +301,22 @@ def test_handle_command_status_shows_disabled():
 
 
 def test_handle_command_status_shows_muted_branches():
-    """When branches are muted, status lists them in the muted branches line."""
+    """When branches are muted, status lists them with expiry info."""
     medic = _import_medic()
     state = _get_medic_state()
-    state.get_muted_branches.return_value = ["speakeasy", "api"]
+    state.get_muted_branches_detail.return_value = [
+        {"name": "speakeasy", "expires_at": None},
+        {"name": "api", "expires_at": None},
+    ]
 
     with patch.object(medic, "_is_service_active", return_value=True):
         medic.handle_command("status", [])
 
     console = _get_console()
     printed = _get_print_str_args(console)
-    # Source builds: "  Muted branches:  @speakeasy, @api"
-    muted_line = "  Muted branches:  @speakeasy, @api"
-    assert muted_line in printed, f"Expected muted line '{muted_line}' in printed args: {printed}"
+    muted_lines = [p for p in printed if "Muted branches:" in p]
+    assert muted_lines, f"Expected muted branches line in printed args: {printed}"
+    assert "@speakeasy" in muted_lines[0] and "@api" in muted_lines[0]
 
 
 def test_handle_command_status_suppression_hint_when_disabled():
@@ -319,13 +340,13 @@ def test_handle_command_status_suppression_hint_when_disabled():
 
 
 def test_handle_command_mute_branch():
-    """handle_command('mute', ['@speakeasy']) mutes the branch."""
+    """handle_command('mute', ['@speakeasy']) mutes the branch with 24h default TTL."""
     medic = _import_medic()
     result = medic.handle_command("mute", ["@speakeasy"])
 
     assert result is True
     state = _get_medic_state()
-    state.mute_branch.assert_called_once_with("speakeasy")
+    state.mute_branch.assert_called_once_with("speakeasy", duration_seconds=86400.0)
 
 
 def test_handle_command_mute_branch_without_at():
@@ -334,18 +355,18 @@ def test_handle_command_mute_branch_without_at():
     medic.handle_command("mute", ["speakeasy"])
 
     state = _get_medic_state()
-    state.mute_branch.assert_called_once_with("speakeasy")
+    state.mute_branch.assert_called_once_with("speakeasy", duration_seconds=86400.0)
 
 
 def test_handle_command_mute_prints_confirmation():
-    """Successful mute prints the exact confirmation message with the branch name."""
+    """Successful mute prints confirmation with TTL info."""
     medic = _import_medic()
     medic.handle_command("mute", ["@api"])
 
     console = _get_console()
     printed = _get_print_str_args(console)
-    expected = "  [yellow]Muted[/yellow] @api — errors logged but not dispatched"
-    assert expected in printed, f"Expected mute confirmation '{expected}' in printed args: {printed}"
+    mute_lines = [p for p in printed if "Muted" in p and "@api" in p]
+    assert mute_lines, f"Expected mute confirmation for @api in printed args: {printed}"
 
 
 def test_handle_command_mute_failure_prints_error():
@@ -522,7 +543,7 @@ def test_handle_command_medic_routes_mute_with_args():
 
     assert result is True
     state = _get_medic_state()
-    state.mute_branch.assert_called_once_with("speakeasy")
+    state.mute_branch.assert_called_once_with("speakeasy", duration_seconds=86400.0)
 
 
 # ---------------------------------------------------------------------------

@@ -65,6 +65,7 @@ drone @ai_mail inbox                               # check mail → view <id> �
 drone @flow create . "Subject" [dplan]             # new plan (default FPLAN)
 drone @seedgo audit aipass @branch                 # standards audit (drop @branch = all)
 drone @seedgo checklist <file|dir>                 # quick standards check
+drone @trigger medic mute @<self>                  # BEFORE build/edit work — auto-expires 24h
 drone @git status / diff / log                     # read-only git awareness
 drone @memory search "query"                       # recall archived context
 ```

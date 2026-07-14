@@ -502,3 +502,441 @@ class TestGetRateLimitStats:
 
         assert result["rate_limited_count"] == 1
         assert result["last_rate_limited"] == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Tests -- parse_duration
+# ---------------------------------------------------------------------------
+
+
+class TestParseDuration:
+    """Tests for parse_duration."""
+
+    def test_parse_duration_hours(self, state_mod):
+        """parse_duration converts '24h' to 86400.0 seconds."""
+        result = state_mod.parse_duration("24h")
+
+        assert result == 86400.0
+
+    def test_parse_duration_days(self, state_mod):
+        """parse_duration converts '7d' to 604800.0 seconds."""
+        result = state_mod.parse_duration("7d")
+
+        assert result == 604800.0
+
+    def test_parse_duration_invalid(self, state_mod):
+        """parse_duration returns None for invalid input."""
+        result = state_mod.parse_duration("abc")
+
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Tests -- mute_branch TTL
+# ---------------------------------------------------------------------------
+
+
+class TestMuteBranchTTL:
+    """Tests for mute_branch with TTL support."""
+
+    def test_mute_branch_default_permanent(self, state_mod):
+        """mute_branch with no duration stores dict with expires_at null."""
+        state_mod.mute_branch("api")
+
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        muted = data["config"]["muted_branches"]
+        assert len(muted) == 1
+        assert muted[0] == {"name": "api", "expires_at": None}
+
+    def test_mute_branch_with_ttl(self, state_mod):
+        """mute_branch with duration stores expires_at roughly 1h from now."""
+        from datetime import datetime, timedelta
+
+        before = datetime.now()
+        state_mod.mute_branch("api", duration_seconds=3600)
+        after = datetime.now()
+
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        muted = data["config"]["muted_branches"]
+        assert len(muted) == 1
+        assert muted[0]["name"] == "api"
+        expires = datetime.fromisoformat(muted[0]["expires_at"])
+        assert expires >= before + timedelta(seconds=3600)
+        assert expires <= after + timedelta(seconds=3600)
+
+    def test_mute_forever_null_expires(self, state_mod):
+        """mute_branch with duration_seconds=None stores expires_at as null."""
+        state_mod.mute_branch("api", duration_seconds=None)
+
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        muted = data["config"]["muted_branches"]
+        assert len(muted) == 1
+        assert muted[0]["expires_at"] is None
+
+
+# ---------------------------------------------------------------------------
+# Tests -- get_muted_branches TTL filtering
+# ---------------------------------------------------------------------------
+
+
+class TestGetMutedBranchesTTL:
+    """Tests for get_muted_branches with TTL-aware filtering."""
+
+    def test_get_muted_branches_filters_expired(self, state_mod):
+        """get_muted_branches excludes dict entries whose expires_at is in the past."""
+        from datetime import datetime, timedelta
+
+        expired_ts = (datetime.now() - timedelta(hours=1)).isoformat()
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "muted_branches": [
+                            {"name": "api", "expires_at": expired_ts},
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = state_mod.get_muted_branches()
+
+        assert result == []
+
+    def test_get_muted_branches_keeps_active(self, state_mod):
+        """get_muted_branches includes dict entries whose expires_at is in the future."""
+        from datetime import datetime, timedelta
+
+        future_ts = (datetime.now() + timedelta(hours=1)).isoformat()
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "muted_branches": [
+                            {"name": "api", "expires_at": future_ts},
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = state_mod.get_muted_branches()
+
+        assert result == ["api"]
+
+    def test_get_muted_branches_plain_string_backcompat(self, state_mod):
+        """get_muted_branches returns plain string entries as permanent mutes."""
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps({"config": {"muted_branches": ["speakeasy"]}}),
+            encoding="utf-8",
+        )
+
+        result = state_mod.get_muted_branches()
+
+        assert result == ["speakeasy"]
+
+
+# ---------------------------------------------------------------------------
+# Tests -- get_muted_branches_detail
+# ---------------------------------------------------------------------------
+
+
+class TestGetMutedBranchesDetail:
+    """Tests for get_muted_branches_detail."""
+
+    def test_get_muted_branches_detail_returns_expiry(self, state_mod):
+        """get_muted_branches_detail returns dicts with name and expires_at."""
+        from datetime import datetime, timedelta
+
+        future_ts = (datetime.now() + timedelta(hours=2)).isoformat()
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "muted_branches": [
+                            {"name": "api", "expires_at": future_ts},
+                            "speakeasy",
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = state_mod.get_muted_branches_detail()
+
+        assert len(result) == 2
+        assert result[0] == {"name": "api", "expires_at": future_ts}
+        assert result[1] == {"name": "speakeasy", "expires_at": None}
+
+
+# ---------------------------------------------------------------------------
+# Tests -- is_enabled TTL
+# ---------------------------------------------------------------------------
+
+
+class TestIsEnabledTTL:
+    """Tests for is_enabled with TTL-based disable."""
+
+    def test_is_enabled_ttl_expired_returns_true(self, state_mod):
+        """is_enabled returns True when disabled but medic_disabled_until is in the past."""
+        from datetime import datetime, timedelta
+
+        past_ts = (datetime.now() - timedelta(hours=1)).isoformat()
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": False,
+                        "medic_disabled_until": past_ts,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = state_mod.is_enabled()
+
+        assert result is True
+
+    def test_is_enabled_ttl_active_returns_false(self, state_mod):
+        """is_enabled returns False when disabled and medic_disabled_until is in the future."""
+        from datetime import datetime, timedelta
+
+        future_ts = (datetime.now() + timedelta(hours=1)).isoformat()
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "medic_enabled": False,
+                        "medic_disabled_until": future_ts,
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = state_mod.is_enabled()
+
+        assert result is False
+
+    def test_is_enabled_permanent_off(self, state_mod):
+        """is_enabled returns False when permanently disabled (no medic_disabled_until)."""
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps({"config": {"medic_enabled": False}}),
+            encoding="utf-8",
+        )
+
+        result = state_mod.is_enabled()
+
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Tests -- set_enabled with duration
+# ---------------------------------------------------------------------------
+
+
+class TestSetEnabledDuration:
+    """Tests for set_enabled with duration_seconds parameter."""
+
+    def test_set_enabled_off_with_duration(self, state_mod):
+        """set_enabled(False, duration) stores medic_disabled_until timestamp."""
+        from datetime import datetime, timedelta
+
+        before = datetime.now()
+        state_mod.set_enabled(False, duration_seconds=86400)
+        after = datetime.now()
+
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        assert data["config"]["medic_enabled"] is False
+        disabled_until = data["config"]["medic_disabled_until"]
+        ts = datetime.fromisoformat(disabled_until)
+        assert ts >= before + timedelta(seconds=86400)
+        assert ts <= after + timedelta(seconds=86400)
+
+    def test_set_enabled_on_clears_disabled_until(self, state_mod):
+        """set_enabled(True) clears any existing medic_disabled_until."""
+        # First disable with TTL
+        state_mod.set_enabled(False, duration_seconds=3600)
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        assert "medic_disabled_until" in data["config"]
+
+        # Then re-enable
+        state_mod.set_enabled(True)
+        data = json.loads(config_file.read_text(encoding="utf-8"))
+        assert data["config"]["medic_enabled"] is True
+        assert "medic_disabled_until" not in data["config"]
+
+
+# ---------------------------------------------------------------------------
+# Tests -- get_disabled_until
+# ---------------------------------------------------------------------------
+
+
+class TestGetDisabledUntil:
+    """Tests for get_disabled_until."""
+
+    def test_get_disabled_until_returns_timestamp(self, state_mod):
+        """get_disabled_until returns the ISO timestamp when set."""
+        from datetime import datetime
+
+        state_mod.set_enabled(False, duration_seconds=86400)
+
+        result = state_mod.get_disabled_until()
+
+        assert result is not None
+        ts = datetime.fromisoformat(result)
+        assert ts > datetime.now()
+
+    def test_get_disabled_until_returns_none(self, state_mod):
+        """get_disabled_until returns None when no TTL is set."""
+        state_mod.set_enabled(False)
+
+        result = state_mod.get_disabled_until()
+
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Tests -- unmute_branch with dict entries
+# ---------------------------------------------------------------------------
+
+
+class TestUnmuteBranchDict:
+    """Tests for unmute_branch handling dict-format entries."""
+
+    def test_unmute_handles_dict_entries(self, state_mod):
+        """unmute_branch removes a dict-format mute entry."""
+        state_mod.mute_branch("api", duration_seconds=3600)
+        assert "api" in state_mod.get_muted_branches()
+
+        result = state_mod.unmute_branch("api")
+
+        assert result is True
+        assert "api" not in state_mod.get_muted_branches()
+
+    def test_unmute_handles_mixed_entries(self, state_mod):
+        """unmute_branch removes target from list with both string and dict entries."""
+        from datetime import datetime, timedelta
+
+        future_ts = (datetime.now() + timedelta(hours=2)).isoformat()
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "config": {
+                        "muted_branches": [
+                            "speakeasy",
+                            {"name": "api", "expires_at": future_ts},
+                            {"name": "drone", "expires_at": None},
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        state_mod.unmute_branch("api")
+
+        muted = state_mod.get_muted_branches()
+        assert "speakeasy" in muted
+        assert "api" not in muted
+        assert "drone" in muted
+
+
+# ---------------------------------------------------------------------------
+# Tests -- _clean_expired_mutes
+# ---------------------------------------------------------------------------
+
+
+class TestCleanExpiredMutes:
+    """Tests for _clean_expired_mutes."""
+
+    def test_clean_expired_mutes_removes_old(self, state_mod):
+        """_clean_expired_mutes removes expired dict entries, keeps strings and active dicts."""
+        from datetime import datetime, timedelta
+
+        expired_ts = (datetime.now() - timedelta(hours=1)).isoformat()
+        future_ts = (datetime.now() + timedelta(hours=1)).isoformat()
+
+        data = {
+            "config": {
+                "muted_branches": [
+                    "speakeasy",
+                    {"name": "api", "expires_at": expired_ts},
+                    {"name": "drone", "expires_at": future_ts},
+                    {"name": "flow", "expires_at": None},
+                ]
+            }
+        }
+
+        state_mod._clean_expired_mutes(data)
+
+        remaining = data["config"]["muted_branches"]
+        names = []
+        for entry in remaining:
+            if isinstance(entry, str):
+                names.append(entry)
+            else:
+                names.append(entry["name"])
+        assert "speakeasy" in names
+        assert "api" not in names
+        assert "drone" in names
+        assert "flow" in names
+        assert len(remaining) == 3
+
+
+# ---------------------------------------------------------------------------
+# Tests -- write_config cleans expired mutes
+# ---------------------------------------------------------------------------
+
+
+class TestWriteConfigCleansMutes:
+    """Tests for write_config calling _clean_expired_mutes."""
+
+    def test_write_config_cleans_expired_mutes(self, state_mod):
+        """write_config removes expired mute entries before persisting."""
+        from datetime import datetime, timedelta
+
+        expired_ts = (datetime.now() - timedelta(hours=1)).isoformat()
+        future_ts = (datetime.now() + timedelta(hours=1)).isoformat()
+
+        data = {
+            "config": {
+                "muted_branches": [
+                    {"name": "api", "expires_at": expired_ts},
+                    {"name": "drone", "expires_at": future_ts},
+                ]
+            }
+        }
+
+        state_mod.write_config(data)
+
+        config_file = state_mod.TRIGGER_CONFIG_FILE
+        written = json.loads(config_file.read_text(encoding="utf-8"))
+        muted = written["config"]["muted_branches"]
+        assert len(muted) == 1
+        assert muted[0]["name"] == "drone"

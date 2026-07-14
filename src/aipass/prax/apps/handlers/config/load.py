@@ -31,12 +31,13 @@ import inspect
 import json
 import logging
 import os
-
-logger = logging.getLogger(__name__)
+import tempfile
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from aipass.prax.apps.handlers.json import json_handler
+
+logger = logging.getLogger(__name__)
 
 # =============================================
 # CONFIGURATION
@@ -73,6 +74,10 @@ def get_system_logs_dir() -> Path:
     test_log_dir = os.environ.get("AIPASS_TEST_LOG_DIR")
     if test_log_dir:
         p = Path(test_log_dir) / "system"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        p = Path(tempfile.gettempdir()) / "aipass_test_logs" / "system"
         p.mkdir(parents=True, exist_ok=True)
         return p
     global _system_logs_dir_cache
@@ -131,6 +136,10 @@ def get_module_logs_dir(module_name: Optional[str] = None) -> Path:
     test_log_dir = os.environ.get("AIPASS_TEST_LOG_DIR")
     if test_log_dir:
         p = Path(test_log_dir) / module_name
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        p = Path(tempfile.gettempdir()) / "aipass_test_logs" / module_name
         p.mkdir(parents=True, exist_ok=True)
         return p
 
