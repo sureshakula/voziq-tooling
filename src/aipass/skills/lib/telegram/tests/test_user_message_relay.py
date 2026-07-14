@@ -1,0 +1,355 @@
+# =================== AIPass ====================
+# Name: test_user_message_relay.py
+# Description: Tests for user message relay — UserPromptSubmit hook handler
+# Version: 1.1.0
+# Created: 2026-07-14
+# Modified: 2026-07-14
+# =============================================
+
+"""
+Tests for user_message_relay — the UserPromptSubmit hook handler that posts
+user messages from non-TG doors to the branch TG chat.
+
+Tests cover:
+  - find_bot_for_cwd: env var priority, CWD matching, missing dirs, no match
+  - send_user_message: formatting, truncation, network errors
+  - _is_system_noise: system notifications, task notifications, local-command
+    output, Caveat line, dispatch wake prompts
+  - handle(): skip subagent, skip empty, skip system noise, skip TG-origin,
+    skip dupe, happy path
+  - Dedup: consecutive identical messages skipped, different messages pass
+"""
+
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+import aipass.skills.lib.telegram.apps.handlers.user_message_relay as relay_mod
+from aipass.skills.lib.telegram.apps.handlers.user_message_relay import (
+    _is_system_noise,
+    find_bot_for_cwd,
+    handle,
+    send_user_message,
+)
+
+
+# =============================================
+# FIXTURES
+# =============================================
+
+
+@pytest.fixture(autouse=True)
+def _reset_dedup():
+    """Reset the dedup hash between tests."""
+    relay_mod._last_relay_hash = ""
+    yield
+    relay_mod._last_relay_hash = ""
+
+
+@pytest.fixture()
+def bot_dirs(tmp_path):
+    """Create mirror + pending dirs with a test bot file."""
+    mirror = tmp_path / "mirror"
+    pending = tmp_path / "pending"
+    mirror.mkdir()
+    pending.mkdir()
+
+    work = tmp_path / "branch_workdir"
+    work.mkdir()
+
+    bot_data = {
+        "chat_id": 42,
+        "bot_token": "123:FAKETOKEN",
+        "work_dir": str(work),
+        "bot_id": "test_bot",
+    }
+    (mirror / "bot-test_bot.json").write_text(json.dumps(bot_data))
+
+    with (
+        patch.object(relay_mod, "MIRROR_DIR", mirror),
+        patch.object(relay_mod, "PENDING_DIR", pending),
+    ):
+        yield {"mirror": mirror, "pending": pending, "work": work, "bot_data": bot_data}
+
+
+# =============================================
+# 1. find_bot_for_cwd
+# =============================================
+
+
+class TestFindBotForCwd:
+    def test_finds_by_cwd_match(self, bot_dirs):
+        result = find_bot_for_cwd(str(bot_dirs["work"]))
+        assert result is not None
+        assert result["chat_id"] == 42
+        assert result["bot_token"] == "123:FAKETOKEN"
+
+    def test_finds_by_cwd_subdirectory(self, bot_dirs):
+        sub = bot_dirs["work"] / "some" / "subdir"
+        sub.mkdir(parents=True)
+        result = find_bot_for_cwd(str(sub))
+        assert result is not None
+        assert result["chat_id"] == 42
+
+    def test_returns_none_no_match(self, bot_dirs):
+        result = find_bot_for_cwd("/tmp/nowhere")
+        assert result is None
+
+    def test_env_var_priority(self, bot_dirs):
+        with patch.dict("os.environ", {"AIPASS_BOT_ID": "test_bot"}):
+            result = find_bot_for_cwd("/tmp/anywhere")
+        assert result is not None
+        assert result["bot_id"] == "test_bot"
+
+    def test_env_var_missing_bot(self, tmp_path):
+        mirror = tmp_path / "mirror"
+        mirror.mkdir()
+        with (
+            patch.object(relay_mod, "MIRROR_DIR", mirror),
+            patch.object(relay_mod, "PENDING_DIR", tmp_path / "pending"),
+            patch.dict("os.environ", {"AIPASS_BOT_ID": "nonexistent"}),
+        ):
+            result = find_bot_for_cwd("/tmp")
+        assert result is None
+
+    def test_skips_bot_without_chat_id(self, tmp_path):
+        mirror = tmp_path / "mirror"
+        mirror.mkdir()
+        (mirror / "bot-bad.json").write_text(json.dumps({"bot_token": "tok", "work_dir": "/tmp"}))
+        with (
+            patch.object(relay_mod, "MIRROR_DIR", mirror),
+            patch.object(relay_mod, "PENDING_DIR", tmp_path / "pending"),
+        ):
+            result = find_bot_for_cwd("/tmp")
+        assert result is None
+
+    def test_skips_corrupt_json(self, tmp_path):
+        mirror = tmp_path / "mirror"
+        mirror.mkdir()
+        (mirror / "bot-bad.json").write_text("not json{{{")
+        with (
+            patch.object(relay_mod, "MIRROR_DIR", mirror),
+            patch.object(relay_mod, "PENDING_DIR", tmp_path / "pending"),
+        ):
+            result = find_bot_for_cwd("/tmp")
+        assert result is None
+
+    def test_missing_dirs_no_crash(self, tmp_path):
+        with (
+            patch.object(relay_mod, "MIRROR_DIR", tmp_path / "nope1"),
+            patch.object(relay_mod, "PENDING_DIR", tmp_path / "nope2"),
+        ):
+            result = find_bot_for_cwd("/tmp")
+        assert result is None
+
+    def test_pending_dir_fallback(self, tmp_path):
+        mirror = tmp_path / "mirror"
+        pending = tmp_path / "pending"
+        mirror.mkdir()
+        pending.mkdir()
+        work = tmp_path / "work"
+        work.mkdir()
+        bot_data = {"chat_id": 99, "bot_token": "tok", "work_dir": str(work)}
+        (pending / "bot-pend.json").write_text(json.dumps(bot_data))
+        with (
+            patch.object(relay_mod, "MIRROR_DIR", mirror),
+            patch.object(relay_mod, "PENDING_DIR", pending),
+        ):
+            result = find_bot_for_cwd(str(work))
+        assert result is not None
+        assert result["chat_id"] == 99
+
+
+# =============================================
+# 2. send_user_message
+# =============================================
+
+
+class TestSendUserMessage:
+    def test_sends_formatted_message(self):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"ok": True}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        _urlopen = "aipass.skills.lib.telegram.apps.handlers.user_message_relay.urlopen"
+        with patch(_urlopen, return_value=mock_resp) as mock_url:
+            result = send_user_message("tok", 42, "hello world")
+        assert result is True
+        call_args = mock_url.call_args
+        req = call_args[0][0]
+        body = json.loads(req.data)
+        assert body["chat_id"] == 42
+        assert "hello world" in body["text"]
+        assert body["disable_notification"] is True
+
+    def test_origin_tag_in_message(self):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"ok": True}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        _urlopen = "aipass.skills.lib.telegram.apps.handlers.user_message_relay.urlopen"
+        with patch(_urlopen, return_value=mock_resp) as mock_url:
+            send_user_message("tok", 42, "test", origin="TERM")
+        body = json.loads(mock_url.call_args[0][0].data)
+        assert body["text"].startswith("TERM\n")
+
+    def test_truncation_at_4096(self):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"ok": True}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        _urlopen = "aipass.skills.lib.telegram.apps.handlers.user_message_relay.urlopen"
+        with patch(_urlopen, return_value=mock_resp) as mock_url:
+            send_user_message("tok", 42, "x" * 5000)
+        body = json.loads(mock_url.call_args[0][0].data)
+        assert len(body["text"]) <= 4096
+
+    def test_network_error_returns_false(self):
+        with patch(
+            "aipass.skills.lib.telegram.apps.handlers.user_message_relay.urlopen",
+            side_effect=Exception("network down"),
+        ):
+            result = send_user_message("tok", 42, "test")
+        assert result is False
+
+
+# =============================================
+# 3. handle() — hook handler
+# =============================================
+
+
+class TestHandle:
+    def test_skips_subagent(self):
+        result = handle({"agent_type": "subagent", "prompt": "hello"})
+        assert result["exit_code"] == 0
+
+    def test_skips_empty_prompt(self):
+        result = handle({"prompt": ""})
+        assert result["exit_code"] == 0
+
+    def test_skips_whitespace_only(self):
+        result = handle({"prompt": "   "})
+        assert result["exit_code"] == 0
+
+    def test_skips_missing_prompt(self):
+        result = handle({})
+        assert result["exit_code"] == 0
+
+    def test_skips_tg_origin(self):
+        result = handle({"prompt": "Patrick via Telegram: hello"})
+        assert result["exit_code"] == 0
+
+    def test_skips_no_bot_found(self, tmp_path):
+        with (
+            patch.object(relay_mod, "MIRROR_DIR", tmp_path / "nope1"),
+            patch.object(relay_mod, "PENDING_DIR", tmp_path / "nope2"),
+        ):
+            result = handle({"prompt": "hello", "cwd": "/tmp/nowhere"})
+        assert result["exit_code"] == 0
+
+    def test_happy_path_relays(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            result = handle({"prompt": "hello world", "cwd": str(bot_dirs["work"])})
+        assert result["exit_code"] == 0
+        mock_send.assert_called_once_with("123:FAKETOKEN", 42, "hello world")
+
+    def test_updates_dedup_hash_on_success(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True):
+            handle({"prompt": "hello", "cwd": str(bot_dirs["work"])})
+        assert relay_mod._last_relay_hash != ""
+
+    def test_skips_consecutive_duplicate(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "hello", "cwd": str(bot_dirs["work"])})
+            handle({"prompt": "hello", "cwd": str(bot_dirs["work"])})
+        mock_send.assert_called_once()
+
+    def test_allows_different_after_dupe(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "hello", "cwd": str(bot_dirs["work"])})
+            handle({"prompt": "world", "cwd": str(bot_dirs["work"])})
+        assert mock_send.call_count == 2
+
+    def test_no_dedup_on_send_failure(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=False) as mock_send:
+            handle({"prompt": "hello", "cwd": str(bot_dirs["work"])})
+            handle({"prompt": "hello", "cwd": str(bot_dirs["work"])})
+        assert mock_send.call_count == 2
+
+    def test_exception_returns_clean(self, bot_dirs):
+        with patch.object(relay_mod, "find_bot_for_cwd", side_effect=RuntimeError("boom")):
+            result = handle({"prompt": "hello", "cwd": "/tmp"})
+        assert result["exit_code"] == 0
+
+    def test_skips_system_notification(self):
+        result = handle({"prompt": "[SYSTEM NOTIFICATION - NOT USER INPUT]\nSome event happened"})
+        assert result["exit_code"] == 0
+
+    def test_skips_task_notification(self):
+        result = handle({"prompt": "Some text\n<task-notification>\n<task-id>abc</task-id>\n</task-notification>"})
+        assert result["exit_code"] == 0
+
+    def test_skips_local_command_output(self):
+        result = handle({"prompt": "output\n<command-name>/help</command-name>"})
+        assert result["exit_code"] == 0
+
+    def test_skips_local_command_stdout(self):
+        result = handle({"prompt": "ran a command\n<local-command-stdout>stuff</local-command-stdout>"})
+        assert result["exit_code"] == 0
+
+    def test_skips_caveat_line(self):
+        prompt = "Caveat: messages below were generated by the user while running local commands\nsome output"
+        result = handle({"prompt": prompt})
+        assert result["exit_code"] == 0
+
+    def test_skips_dispatch_wake(self):
+        result = handle(
+            {"prompt": ("Hi. Check inbox, process new emails, update memories when done. IMPORTANT: delete lock file")}
+        )
+        assert result["exit_code"] == 0
+
+    def test_genuine_message_still_relays(self, bot_dirs):
+        with patch.object(relay_mod, "send_user_message", return_value=True) as mock_send:
+            handle({"prompt": "Can you fix that bug?", "cwd": str(bot_dirs["work"])})
+        mock_send.assert_called_once()
+
+
+# =============================================
+# 4. _is_system_noise — unit tests
+# =============================================
+
+
+class TestIsSystemNoise:
+    def test_system_notification_prefix(self):
+        assert _is_system_noise("[SYSTEM NOTIFICATION - NOT USER INPUT]\nblah") is True
+
+    def test_task_notification_tag(self):
+        assert _is_system_noise("prefix\n<task-notification>\nstuff") is True
+
+    def test_command_name_tag(self):
+        assert _is_system_noise("<command-name>/foo</command-name>") is True
+
+    def test_local_command_stdout_tag(self):
+        assert _is_system_noise("<local-command-stdout>output</local-command-stdout>") is True
+
+    def test_caveat_line(self):
+        assert _is_system_noise("messages below were generated by the user while running local commands") is True
+
+    def test_dispatch_wake_prefix(self):
+        assert _is_system_noise("Hi. Check inbox, process new emails, update memories when done.") is True
+
+    def test_genuine_message_passes(self):
+        assert _is_system_noise("Can you fix that bug?") is False
+
+    def test_empty_passes(self):
+        assert _is_system_noise("") is False
+
+    def test_partial_match_not_triggered(self):
+        assert _is_system_noise("I got a SYSTEM NOTIFICATION today") is False
+
+    def test_dispatch_prefix_mid_message_not_triggered(self):
+        assert _is_system_noise("He said Hi. Check inbox, process new emails") is False

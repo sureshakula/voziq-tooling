@@ -696,6 +696,21 @@ class BaseBot:
             )
             return
 
+        # Inbound reliability: clean stale pending + warn on in-flight overwrite
+        self.clean_stale_pending()
+        if self.pending_file.exists():
+            try:
+                prev = json.loads(self.pending_file.read_text(encoding="utf-8"))
+                if not prev.get("delivered"):
+                    prev_id = prev.get("message_id", "?")
+                    logger.warning(
+                        "Overwriting undelivered pending (msg_id=%s) with new message %d",
+                        prev_id,
+                        message_id,
+                    )
+            except (json.JSONDecodeError, OSError):
+                pass
+
         # Send processing indicator
         processing_result = self.send_message(chat_id, PROCESSING_MSG)
         processing_msg_id = processing_result.get("message_id") if processing_result else None

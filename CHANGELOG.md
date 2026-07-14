@@ -11,6 +11,26 @@ PyPI version — not the changelog header.
 
 ## [2026-07-14]
 
+### Added
+
+- **Telegram user-comment mirror: the TG chat now shows the whole conversation,
+  whichever door you speak through.** Patrick's spec from the live cross-door
+  drill: his own messages typed in the terminal or claude.ai remote never
+  appeared in TG — only the replies did. New `user_message_relay` UserPromptSubmit
+  handler (@skills-built, self-contained in the telegram skill, registered by
+  @hooks as the last, crash-isolated entry) posts genuine user messages to the
+  branch's TG chat with an origin tag, silently (`disable_notification`). Noise
+  fences keep it human-only: system/task notifications, slash-command output,
+  dispatch wake prompts, sub-agent prompts, TG-origin echoes, and consecutive
+  dupes are all skipped (structural session-type detection was investigated and
+  rejected — it's session-wide, would eat genuine mid-flight messages). Inbound
+  hardening rides along: stale pending files cleaned before each write, and an
+  undelivered-response overwrite now logs a warning instead of silently losing
+  the reply. 47 new TG tests; registration execution-proven via engine.jsonl and
+  the positive path live-verified — a terminal-door message delivered to the
+  real TG chat. TG dormancy/proactive push deliberately untouched (design chat
+  with Patrick pending).
+
 ### Fixed
 
 - **DPLAN-0241 round 4 (night shift): user flags survive every launch path, and
