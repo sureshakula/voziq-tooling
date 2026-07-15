@@ -11,6 +11,24 @@ PyPI version — not the changelog header.
 
 ## [2026-07-15]
 
+### Added
+
+- **Supply-chain hardening pass (DPLAN-0243): commit signing + hash-pinned CI
+  tooling + release provenance.** All commits are now SSH-signed via a
+  dedicated repo-scoped signing key (first signed commit 9048666c, verified
+  `Good "git" signature`). Every standalone pip tool install across the four
+  CI workflows now installs `--require-hashes` from lock files in
+  `.github/requirements/` (pip/ruff/build/pytest/pip-audit), generated with
+  full multi-platform hash coverage — including the Windows `colorama` marker
+  dependency that naive Linux-side pinning silently drops. `publish.yml`
+  gained a SHA-pinned build-provenance attestation step (activates on the
+  next release), and Dependabot now watches the new lock directory as a
+  grouped `pip` ecosystem. Editable `-e .` installs untouched. Full 31-check
+  CI matrix green on the change. Driven by the OpenSSF Scorecard gaps
+  surfaced via hvtracker.net (HVTrust 82.0, #1 in Multi-Agent Systems);
+  detector-gap correction filed upstream as YugantM/hvtracker#186 (Claude
+  Code-native projects misread as "no Anthropic dependency").
+
 ### Fixed
 
 - **CI green pass on the runaway-log PR — every red was ours, every fix
