@@ -86,28 +86,22 @@ MAX_WAKE_DEPTH = 3
 def _wake_sender(sender: str, branch_email: str, exit_code: int, lock_file: str) -> str:
     """Wake the dispatcher back after target completion.
 
-    Wake-back is owner-only: only the project owner (sealed registry)
-    gets woken.  Non-owners silently skipped.
+    Any citizen sender gets woken back (same availability checks as
+    normal wake — interactive session, active lock, depth cap).
 
     Returns a result tag for the dispatch_wake.log:
       success, blocked_occupied, blocked_locked, blocked_depth,
-      skipped_sender, skipped_not_owner, failed
+      skipped_sender, skipped_self, failed
     """
     if not sender or not sender.strip():
         logger.info("[monitor] Wake-back skipped — no sender")
         return "skipped_sender"
 
-    normalized = f"@{sender.lstrip('@').lower()}"
-
-    try:
-        from aipass.spawn.apps.handlers.registry import is_owner
-    except ImportError:
-        logger.warning("[monitor] Wake-back skipped — is_owner import failed")
-        return "failed"
-
-    if not is_owner(normalized):
-        logger.info("[monitor] Wake-back skipped — sender %s is not project owner", sender)
-        return "skipped_not_owner"
+    normalized_sender = f"@{sender.lstrip('@').lower()}"
+    normalized_target = f"@{branch_email.lstrip('@').lower()}"
+    if normalized_sender == normalized_target:
+        logger.info("[monitor] Wake-back skipped — sender %s is the completed agent (self-wake)", sender)
+        return "skipped_self"
 
     depth = int(os.environ.get("AIPASS_WAKE_DEPTH", "0"))
     if depth >= MAX_WAKE_DEPTH:
@@ -118,7 +112,7 @@ def _wake_sender(sender: str, branch_email: str, exit_code: int, lock_file: str)
         from aipass.ai_mail.apps.handlers.dispatch.wake import wake_branch
 
         os.environ["AIPASS_WAKE_DEPTH"] = str(depth + 1)
-        wake_status, success = wake_branch(sender, auto=True, sender="@ai_mail")
+        wake_status, success = wake_branch(sender, auto=True, sender="")
 
         if success:
             logger.info("[monitor] Wake-back: %s woken after %s completed (exit %d)", sender, branch_email, exit_code)

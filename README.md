@@ -165,7 +165,7 @@ devpulse (orchestrator)
    ├── aipass   — concierge + onboarding (aipass init, doctor, profile)
    ├── drone    — command routing + @agent resolution
    ├── seedgo   — automated quality standards
-   ├── prax     — real-time monitoring across all agents
+   ├── prax     — real-time monitoring + runaway-log detection across all agents
    ├── ai_mail  — agent-to-agent communication + task dispatch
    ├── flow     — plan lifecycle, templates, auto-archival
    ├── spawn    — creates new agents anywhere on your filesystem
@@ -203,9 +203,9 @@ These agents work on the **same filesystem, same project, same time** — no san
 | Agent | Role |
 |-------|------|
 | [**seedgo**](src/aipass/seedgo/README.md) | Automated quality standards, enforced across all agents |
-| [**prax**](src/aipass/prax/README.md) | Real-time monitoring, logs, dashboards |
+| [**prax**](src/aipass/prax/README.md) | Real-time monitoring, logs, dashboards, runaway-log detection |
 | [**flow**](src/aipass/flow/README.md) | Plan lifecycle — multiple template types, auto-archival, vector verification |
-| [**hooks**](src/aipass/hooks/README.md) | Hook engine — per-project config, sound control, event dispatch |
+| [**hooks**](src/aipass/hooks/README.md) | Hook engine — per-project config, sound control, event dispatch, persistent alerts |
 | [**trigger**](src/aipass/trigger/README.md) | Event-driven automation + self-healing |
 | [**cli**](src/aipass/cli/README.md) | Terminal formatting and rich output |
 | [**backup**](src/aipass/backup/README.md) | Local-first backups — snapshots, versioning, restore (optional Google Drive sync) |
@@ -242,7 +242,7 @@ The installer (`./aipass install`, powered by setup.sh) auto-detects which CLIs 
 | Metric | Value |
 |--------|-------|
 | Version | See [git tags](https://github.com/AIOSAI/AIPass/tags) |
-| Agents | 13 core + user-created |
+| Agents | 17 core + user-created |
 | Quality | Automated standards enforced across every agent |
 | Coverage | [![codecov](https://codecov.io/gh/AIOSAI/AIPass/graph/badge.svg)](https://codecov.io/gh/AIOSAI/AIPass) — 75% minimum, CI-gated |
 | Tests | Extensive — every agent ships its own suite |

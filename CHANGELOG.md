@@ -40,6 +40,51 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Runaway-log detection + escalation — designed and built by the agents
+  themselves.** Patrick's mission brief went to @prax as lead ("I don't want it
+  to be you" — devpulse relayed requirements, not a design): prax researched,
+  collaborated with @hooks and @trigger by mail, wrote DPLAN-0242, and ran the
+  build as TDPLAN-0013 across three branches. The system: @prax `rate_tracker`
+  watches every log in `system_logs/` for volume (not content — orthogonal to
+  medic), disk-persisted state, WARNING at >100 lines/min sustained 2 min /
+  CRITICAL at >10 lines/sec 1 min, per-file suppression, runs as a 4th monitor
+  thread, plus `drone @prax log-health` for an at-a-glance rate overview.
+  @trigger registers the new `runaway_log_detected` event and dispatches to the
+  responsible branch with a per-file 30-min cooldown deliberately independent
+  of medic's circuit breaker (a storm can't silence both systems), UNKNOWN
+  attribution falls back to @prax, and every alert is written to
+  `.aipass/alerts.json`. @hooks `persistent_alert` injects an advisory banner
+  into every agent's prompt until the alert is fixed or dismissed
+  (`drone @hooks dismiss <id>`) — general-purpose, any agent can raise alerts.
+  Devpulse verification found and fixed the last-mile gaps: both hooks pieces
+  stopped at the first `.aipass/` dir walking up (every branch has one — the
+  banner could never render), and hooks.json registration alone isn't
+  deployment — the handler needed manual wiring into `~/.claude/settings.json`
+  (agents can't edit it; documented for future handlers). Live-fire acceptance:
+  a planted 240 lines/min storm was detected at 257 lines/min sustained 120s →
+  event → dispatch → **@aipass woke autonomously, root-caused the test writer
+  down to its PID and loop shape, triaged no-action** → alerts.json → banner
+  renders → dismiss clears. ~77 new tests across four branches, suites green
+  (prax 1028, trigger 619, hooks 1071), seedgo 98–100%.
+
+- **Citizens wake each other freely — wake-back for everyone, devpulse
+  unwakeable by design.** Patrick's ruling after two team-mission stalls in one
+  evening (prax emailed sleeping collaborators; trigger replied instead of
+  dispatching back — replies never wake, and wake-back was owner-gated so
+  agent-to-agent dispatch never woke the sender). @ai_mail removed the
+  owner-gate: any citizen sender is woken when its dispatched agent completes
+  (proven live: "@trigger woken after @aipass completed" — first citizen
+  wake-back ever). @devpulse is now structurally unwakeable via a
+  `citizen_class: manager` check on every wake path — mail always lands, wake
+  always skips, no longer dependent on an interactive session happening to be
+  open. The gate removal exposed a self-wake loop within minutes (wake-back
+  sessions were attributed to @ai_mail as sender, so ai_mail kept waking
+  itself; the depth cap stopped it after one cycle) — fixed the same night:
+  self-wake guard + wake-back sessions carry no sender, so chains terminate at
+  the original dispatcher. 765 ai_mail tests green. The navmap gained a
+  "Talking to other agents" section: dispatch vs email semantics, team-relay
+  discipline, and the manager exception.
+
 - **Medic is back on — and the loop is proven live.** Off since 2026-05-10 (a
   pytest fixture storm flooded the error registry; the off switch was pulled to
   stop the noise and forgotten for 65 days). Three fixes made re-enable safe:

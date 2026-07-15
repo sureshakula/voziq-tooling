@@ -36,6 +36,7 @@ def setup_handlers():
     from .cli import handle_cli_header_displayed
     from .plan_file import handle_plan_file_created, handle_plan_file_deleted, handle_plan_file_moved
     from .error_detected import handle_error_detected, set_send_email_callback
+    from .runaway_handler import handle_runaway_log_detected, set_send_email_callback as set_runaway_email_callback
 
     # Wire up email send callback for error_detected handler (avoids handler importing from modules)
     try:
@@ -60,6 +61,7 @@ def setup_handlers():
             return success
 
         set_send_email_callback(_send_email_adapter)
+        set_runaway_email_callback(_send_email_adapter)
     except ImportError:
         _log_warning("ai_mail not available — error notifications won't send")
     from .warning_logged import handle_warning_logged
@@ -79,5 +81,6 @@ def setup_handlers():
     # trigger.on("pr_created", handle_pr_created)  # TDPLAN-0007: status-sync decommissioned
     # trigger.on("pr_merged", handle_pr_merged)  # TDPLAN-0007: status-sync decommissioned
     trigger.on("memory_pool_auto_processed", handle_memory_pool_auto_processed)
+    trigger.on("runaway_log_detected", handle_runaway_log_detected)
 
     json_handler.log_operation("handlers_registered", {"success": True})

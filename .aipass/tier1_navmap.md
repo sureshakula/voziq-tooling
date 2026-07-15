@@ -70,6 +70,15 @@ drone @git status / diff / log                     # read-only git awareness
 drone @memory search "query"                       # recall archived context
 ```
 
+# Talking to other agents
+
+Citizens dispatch each other directly — allowed and expected, no permission needed. Pick by one question: does the recipient need to ACT?
+
+ - Need an answer, input, or work from them → `dispatch` (send + wake). A sleeping agent never reads plain email — a question sent as `email` stalls unread.
+ - FYI only (status, steering an agent already awake) → `email` (no wake).
+ - Replies don't wake either — but wake-back does: when an agent you dispatched completes, YOU are woken automatically. Team mission: the lead dispatches each phase BEFORE sleeping, the worker replies normally, wake-back brings the lead back to verify and hand off the next phase.
+ - Exception — managers (`citizen_class: manager`, e.g. @devpulse) are never dispatched: they hold interactive sessions with the user, so the wake is blocked. `email` them — the mail lands and they see it live.
+
 Always reply to dispatches — reply auto-closes. No silent completions.
 
 # Plans — flow

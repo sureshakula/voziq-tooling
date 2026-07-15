@@ -1,0 +1,368 @@
+# =================== AIPass ====================
+# Name: rate_tracker.py
+# Description: Log file rate tracking for runaway detection
+# Version: 1.1.0
+# Created: 2026-07-14
+# Modified: 2026-07-14
+# =============================================
+
+"""
+Rate Tracker — volume-based runaway-log detection.
+
+Tracks byte growth rate per log file in system_logs/. When a file sustains
+abnormal growth (lines/min above threshold for consecutive intervals), fires
+a ``runaway_log_detected`` event on the trigger event bus.
+
+Orthogonal to medic's content-based ERROR/CRITICAL detection — this catches
+rate regardless of log level.
+
+State persists to ``prax_json/rate_tracker_data.json`` so that rates survive
+across process restarts and CLI invocations can display meaningful data.
+"""
+
+import time
+from collections import deque
+from pathlib import Path
+from typing import Dict, Optional
+
+from aipass.prax.apps.modules.logger import get_direct_logger
+from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.config.load import get_system_logs_dir
+from aipass.prax.apps.handlers.monitoring.branch_detector import detect_branch_from_log
+
+logger = get_direct_logger()
+
+try:
+    from aipass.trigger.apps.modules.core import trigger
+
+    _HAS_TRIGGER = True
+except ImportError as exc:
+    logger.info("[rate_tracker] trigger module not available: %s", exc)
+    trigger = None  # type: ignore[assignment]
+    _HAS_TRIGGER = False
+
+SCAN_INTERVAL = 10.0
+AVG_LINE_BYTES = 120
+
+WARNING_LINES_PER_MIN = 100
+WARNING_SUSTAINED_INTERVALS = 12  # 12 * 10s = 2 min
+
+CRITICAL_LINES_PER_MIN = 600  # 10/sec * 60
+CRITICAL_SUSTAINED_INTERVALS = 6  # 6 * 10s = 1 min
+
+_RATE_HISTORY_SIZE = 30
+
+_DATA_FILE = "rate_tracker"
+
+
+class FileRateState:
+    """Per-file tracking state."""
+
+    __slots__ = (
+        "last_offset",
+        "last_check",
+        "rates",
+        "warning_sustained",
+        "critical_sustained",
+        "fired_warning",
+        "fired_critical",
+    )
+
+    def __init__(self, offset: int, now: float) -> None:
+        self.last_offset: int = offset
+        self.last_check: float = now
+        self.rates: deque = deque(maxlen=_RATE_HISTORY_SIZE)
+        self.warning_sustained: int = 0
+        self.critical_sustained: int = 0
+        self.fired_warning: bool = False
+        self.fired_critical: bool = False
+
+    def to_dict(self) -> dict:
+        """Serialize to a dict for disk persistence."""
+        return {
+            "last_offset": self.last_offset,
+            "last_check": self.last_check,
+            "warning_sustained": self.warning_sustained,
+            "critical_sustained": self.critical_sustained,
+            "fired_warning": self.fired_warning,
+            "fired_critical": self.fired_critical,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "FileRateState":
+        """Restore from a persisted dict."""
+        state = cls(d.get("last_offset", 0), d.get("last_check", 0.0))
+        state.warning_sustained = d.get("warning_sustained", 0)
+        state.critical_sustained = d.get("critical_sustained", 0)
+        state.fired_warning = d.get("fired_warning", False)
+        state.fired_critical = d.get("fired_critical", False)
+        return state
+
+
+_tracked: Dict[str, FileRateState] = {}
+
+_suppressed_files: set = set()
+
+_state_loaded: bool = False
+
+
+def configure_suppression(file_names: Optional[set] = None) -> None:
+    """Set the list of log file names to skip during detection."""
+    global _suppressed_files
+    _suppressed_files = file_names or set()
+
+
+def _load_state() -> None:
+    """Load persisted tracking state from disk on first scan."""
+    global _state_loaded
+    if _state_loaded:
+        return
+    _state_loaded = True
+
+    data = json_handler.load_json(_DATA_FILE, "data")
+    if data is None:
+        return
+
+    files = data.get("files", {})
+    for file_key, state_dict in files.items():
+        if not isinstance(state_dict, dict):
+            continue
+        _tracked[file_key] = FileRateState.from_dict(state_dict)
+
+    count = len(_tracked)
+    if count:
+        logger.info("[rate_tracker] Loaded %d file states from disk", count)
+
+
+def _save_state() -> None:
+    """Persist current tracking state to disk."""
+    files = {}
+    for file_key, state in _tracked.items():
+        files[file_key] = state.to_dict()
+
+    from datetime import date
+
+    today = date.today().isoformat()
+    data = {
+        "module_name": _DATA_FILE,
+        "created": today,
+        "last_updated": today,
+        "files": files,
+    }
+    json_handler.save_json(_DATA_FILE, "data", data)
+
+
+def scan_rates() -> list:
+    """Scan all .log files in system_logs/, update rates, fire events if thresholds met.
+
+    Returns a list of dicts describing each tracked file's current state,
+    suitable for display by the log-health command.
+    """
+    _load_state()
+
+    logs_dir = get_system_logs_dir()
+    if not logs_dir.exists():
+        return []
+
+    now = time.time()
+    results = []
+
+    current_files = set()
+    for log_file in logs_dir.glob("*.log"):
+        file_key = str(log_file)
+        current_files.add(file_key)
+
+        if log_file.name in _suppressed_files:
+            continue
+
+        try:
+            size = log_file.stat().st_size
+        except OSError as exc:
+            logger.info("[rate_tracker] Cannot stat %s: %s", log_file.name, exc)
+            continue
+
+        state = _tracked.get(file_key)
+        if state is None:
+            _tracked[file_key] = FileRateState(size, now)
+            continue
+
+        elapsed = now - state.last_check
+        if elapsed < 1.0:
+            continue
+
+        if size < state.last_offset:
+            state.last_offset = size
+            state.last_check = now
+            state.warning_sustained = 0
+            state.critical_sustained = 0
+            continue
+
+        bytes_added = size - state.last_offset
+        lines_estimate = bytes_added / AVG_LINE_BYTES if bytes_added > 0 else 0.0
+        lines_per_min = (lines_estimate / elapsed) * 60.0
+
+        state.rates.append((now, lines_per_min))
+        state.last_offset = size
+        state.last_check = now
+
+        severity = _evaluate_thresholds(state, lines_per_min, file_key, log_file)
+
+        results.append(
+            {
+                "file": log_file.name,
+                "path": file_key,
+                "size_kb": round(size / 1024, 1),
+                "rate_lines_per_min": round(lines_per_min, 1),
+                "warning_sustained": state.warning_sustained,
+                "critical_sustained": state.critical_sustained,
+                "severity": severity,
+                "branch": detect_branch_from_log(file_key),
+            }
+        )
+
+    stale = [k for k in _tracked if k not in current_files]
+    for k in stale:
+        del _tracked[k]
+
+    _save_state()
+    return results
+
+
+def _evaluate_thresholds(
+    state: FileRateState,
+    lines_per_min: float,
+    file_key: str,
+    log_file: Path,
+) -> Optional[str]:
+    """Update sustained counters and fire events when thresholds are crossed."""
+    severity = None
+
+    if lines_per_min >= CRITICAL_LINES_PER_MIN:
+        state.critical_sustained += 1
+        state.warning_sustained += 1
+    elif lines_per_min >= WARNING_LINES_PER_MIN:
+        state.critical_sustained = 0
+        state.warning_sustained += 1
+    else:
+        if state.fired_warning or state.fired_critical:
+            logger.info(
+                "[rate_tracker] %s rate subsided (%.0f lines/min)",
+                log_file.name,
+                lines_per_min,
+            )
+        state.warning_sustained = 0
+        state.critical_sustained = 0
+        state.fired_warning = False
+        state.fired_critical = False
+        return None
+
+    if state.critical_sustained >= CRITICAL_SUSTAINED_INTERVALS and not state.fired_critical:
+        severity = "critical"
+        state.fired_critical = True
+        duration = state.critical_sustained * SCAN_INTERVAL
+        _fire_event(file_key, lines_per_min, duration, "critical")
+    elif state.warning_sustained >= WARNING_SUSTAINED_INTERVALS and not state.fired_warning:
+        severity = "warning"
+        state.fired_warning = True
+        duration = state.warning_sustained * SCAN_INTERVAL
+        _fire_event(file_key, lines_per_min, duration, "warning")
+    else:
+        if state.critical_sustained > 0:
+            severity = "rising_critical"
+        elif state.warning_sustained > 0:
+            severity = "rising_warning"
+
+    return severity
+
+
+def _fire_event(
+    file_path: str,
+    rate_lines_per_min: float,
+    sustained_duration_sec: float,
+    severity: str,
+) -> None:
+    """Fire runaway_log_detected on the trigger event bus."""
+    branch = detect_branch_from_log(file_path)
+    logger.warning(
+        "[rate_tracker] RUNAWAY %s: %s — %.0f lines/min sustained %.0fs (branch: %s)",
+        severity.upper(),
+        Path(file_path).name,
+        rate_lines_per_min,
+        sustained_duration_sec,
+        branch,
+    )
+    json_handler.log_operation(
+        "runaway_detected",
+        {
+            "file": file_path,
+            "rate": rate_lines_per_min,
+            "duration": sustained_duration_sec,
+            "severity": severity,
+            "branch": branch,
+        },
+    )
+
+    if _HAS_TRIGGER and trigger is not None:
+        trigger.fire(
+            "runaway_log_detected",
+            file_path=file_path,
+            rate_lines_per_min=rate_lines_per_min,
+            sustained_duration_sec=sustained_duration_sec,
+            severity=severity,
+            branch=branch,
+        )
+
+
+def _resolve_severity(state: FileRateState) -> Optional[str]:
+    """Derive display severity from a file's current state."""
+    if state.fired_critical:
+        return "critical"
+    if state.fired_warning:
+        return "warning"
+    if state.critical_sustained > 0:
+        return "rising_critical"
+    if state.warning_sustained > 0:
+        return "rising_warning"
+    return None
+
+
+def _file_size(path: str) -> int:
+    """Read file size, returning 0 on any OS error."""
+    try:
+        return Path(path).stat().st_size
+    except OSError:
+        logger.info("[rate_tracker] Cannot stat %s for snapshot", Path(path).name)
+        return 0
+
+
+def get_snapshot() -> list:
+    """Return the current tracking state without scanning (for display only).
+
+    Loads persisted state from disk if not already loaded, so CLI
+    invocations can display rates collected by the monitor process.
+    """
+    _load_state()
+    results = []
+    for file_key, state in _tracked.items():
+        last_rate = state.rates[-1][1] if state.rates else 0.0
+        results.append(
+            {
+                "file": Path(file_key).name,
+                "path": file_key,
+                "size_kb": round(_file_size(file_key) / 1024, 1),
+                "rate_lines_per_min": round(last_rate, 1),
+                "warning_sustained": state.warning_sustained,
+                "critical_sustained": state.critical_sustained,
+                "severity": _resolve_severity(state),
+                "branch": detect_branch_from_log(file_key),
+            }
+        )
+    return results
+
+
+def reset() -> None:
+    """Clear all tracking state. Used in tests."""
+    global _state_loaded
+    _tracked.clear()
+    _suppressed_files.clear()
+    _state_loaded = False

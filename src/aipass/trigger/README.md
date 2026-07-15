@@ -74,7 +74,7 @@ result = report_error(
 
 ## Events
 
-15 events defined, 13 active (2 decommissioned by TDPLAN-0007). Registered via `handlers/events/registry.py` on first `Trigger.fire()`. All fire through the event bus.
+16 events defined, 14 active (2 decommissioned by TDPLAN-0007). Registered via `handlers/events/registry.py` on first `Trigger.fire()`. All fire through the event bus.
 
 | Event | Handler | Trigger | Action |
 |-------|---------|---------|--------|
@@ -92,6 +92,7 @@ result = report_error(
 | `cli_header_displayed` | `cli.py` | CLI displays headers | Registration hook |
 | `pr_created` | `pr_status_sync.py` | PR opened on GitHub | ~~Runs `drone @prax status sync`~~ **Decommissioned** (TDPLAN-0007) |
 | `pr_merged` | `pr_status_sync.py` | PR merged on GitHub | ~~Runs `drone @prax status sync`~~ **Decommissioned** (TDPLAN-0007) |
+| `runaway_log_detected` | `runaway_handler.py` | Prax rate tracker detects sustained high log volume | Per-file cooldown dispatch to responsible branch; UNKNOWN attribution falls back to @prax; writes alert to `.aipass/alerts.json` |
 | `memory_pool_auto_processed` | `memory_pool.py` | Hook engine runs `auto_process()` | Logs result; on failure fires `error_detected` for Medic dispatch |
 
 ## Medic
@@ -148,7 +149,7 @@ trigger/
 │       ├── json/
 │       │   └── json_handler.py     # JSON structure logging
 │       ├── events/
-│       │   ├── registry.py         # Auto-registers 13 active event handlers
+│       │   ├── registry.py         # Auto-registers 14 active event handlers
 │       │   ├── startup.py          # Startup catch-up scan
 │       │   ├── error_detected.py   # 8-gate Medic dispatch
 │       │   ├── error_logged.py     # Monitor-only (no dispatch)
@@ -159,11 +160,12 @@ trigger/
 │       │   ├── memory_template_updated.py
 │       │   ├── memory.py           # memory_saved placeholder
 │       │   ├── cli.py              # cli_header_displayed hook
+│       │   ├── runaway_handler.py  # Runaway log dispatch (per-file cooldown, independent of Medic)
 │       │   ├── pr_status_sync.py   # PR → prax status sync (decommissioned TDPLAN-0007)
 │       │   └── memory_pool.py     # Pool auto-process observability
 │       └── watchers/
 │           └── log_watcher.py      # System log watcher (system_logs/ dir)
-├── tests/                          # 563 tests across 19 modules
+├── tests/                          # 619 tests across 20 modules
 ├── trigger_json/                   # Runtime state files
 │   ├── trigger_config.json         # Medic state, muted branches
 │   ├── error_registry.json         # All tracked errors
@@ -191,21 +193,21 @@ trigger/
 
 ## Testing
 
-575 tests across 19 test modules, all passing. Coverage: 76/76 public functions (100%).
+619 tests across 20 test modules, all passing. Coverage: 81/81 public functions (100%).
 
 ```bash
 cd src/aipass/trigger && pytest    # Run all tests
 ```
 
-Test files: `test_core`, `test_errors`, `test_medic`, `test_error_registry`, `test_error_reporter`, `test_medic_state`, `test_log_watcher`, `test_watchers_log_watcher`, `test_branch_log_events`, `test_log_events`, `test_json_handler`, `test_pr_status_sync`, `test_error_detected`, `test_event_handlers`, `test_log_watcher_service`, `test_plan_file_handler`, `test_startup_handler`, `test_trigger_entry`, `test_memory_pool_handler`
+Test files: `test_core`, `test_errors`, `test_medic`, `test_error_registry`, `test_error_reporter`, `test_medic_state`, `test_log_watcher`, `test_watchers_log_watcher`, `test_branch_log_events`, `test_log_events`, `test_json_handler`, `test_pr_status_sync`, `test_error_detected`, `test_event_handlers`, `test_log_watcher_service`, `test_plan_file_handler`, `test_startup_handler`, `test_trigger_entry`, `test_memory_pool_handler`, `test_runaway_handler`
 
 ## Compliance
 
-Seedgo: 100% (34/34 standards). Zero type errors. All categories at 100%.
+Seedgo: 100% (41/41 standards). Zero type errors. All categories at 100%.
 
 ---
 
-*Last Updated: 2026-06-06*
+*Last Updated: 2026-07-14*
 
 ---
 [← Back to AIPass](../../../README.md)

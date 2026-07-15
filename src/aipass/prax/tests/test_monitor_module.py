@@ -317,14 +317,14 @@ class TestRenderEvent:
 class TestThreadManagement:
     """Test thread start and stop functions."""
 
-    def test_start_threads_creates_three_threads(self):
-        """_start_threads creates and starts display, file watcher, and log watcher threads."""
+    def test_start_threads_creates_four_threads(self):
+        """_start_threads creates and starts display, file watcher, log watcher, and rate tracker threads."""
         mod = _import_monitor()
         mock_thread = MagicMock()
         with patch("threading.Thread", return_value=mock_thread) as mock_cls:
             mod._start_threads()
-        assert mock_cls.call_count == 3
-        assert mock_thread.start.call_count == 3
+        assert mock_cls.call_count == 4
+        assert mock_thread.start.call_count == 4
 
     def test_stop_threads_sets_stop_event(self):
         """_stop_threads sets the stop event and stops the queue."""

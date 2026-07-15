@@ -63,6 +63,7 @@ _module_tracker: Optional[ModuleTracker] = None
 _display_thread: Optional[threading.Thread] = None
 _file_watcher_thread: Optional[threading.Thread] = None
 _log_watcher_thread: Optional[threading.Thread] = None
+_rate_tracker_thread: Optional[threading.Thread] = None
 
 
 def print_introspection():
@@ -174,7 +175,7 @@ def _load_relay_config() -> Optional[dict]:
 def _run_monitor(args: List[str]) -> bool:
     """Launch Mission Control live monitoring."""
     global _event_queue, _module_tracker
-    global _display_thread, _file_watcher_thread, _log_watcher_thread
+    global _display_thread, _file_watcher_thread, _log_watcher_thread, _rate_tracker_thread
 
     json_handler.log_operation("monitor_started", {"args": args})
     logger.info(f"Starting unified monitoring (args: {args})")
@@ -223,19 +224,19 @@ def _run_monitor(args: List[str]) -> bool:
 
 def _start_threads():
     """Start all monitoring threads"""
-    global _display_thread, _file_watcher_thread, _log_watcher_thread
+    global _display_thread, _file_watcher_thread, _log_watcher_thread, _rate_tracker_thread
 
-    # Display thread - pulls from event queue and displays
     _display_thread = threading.Thread(target=_display_worker, daemon=True)
     _display_thread.start()
 
-    # File watcher thread - watches filesystem changes
     _file_watcher_thread = threading.Thread(target=_file_watcher_worker, daemon=True)
     _file_watcher_thread.start()
 
-    # Log watcher thread - watches log files
     _log_watcher_thread = threading.Thread(target=_log_watcher_worker, daemon=True)
     _log_watcher_thread.start()
+
+    _rate_tracker_thread = threading.Thread(target=_rate_tracker_worker, daemon=True)
+    _rate_tracker_thread.start()
 
     logger.info("All monitoring threads started")
 
@@ -251,7 +252,7 @@ def _stop_threads():
         _event_queue.stop()
 
     # Join all daemon threads with timeout
-    for t in (_display_thread, _file_watcher_thread, _log_watcher_thread):
+    for t in (_display_thread, _file_watcher_thread, _log_watcher_thread, _rate_tracker_thread):
         if t is not None and t.is_alive():
             t.join(timeout=2.0)
 
@@ -485,6 +486,18 @@ def _log_watcher_worker():
             time.sleep(0.1)
     finally:
         stop_log_watcher()
+
+
+def _rate_tracker_worker():
+    """Rate tracker thread — scans system_logs/ for runaway growth every SCAN_INTERVAL."""
+    from aipass.prax.apps.handlers.monitoring.rate_tracker import scan_rates, SCAN_INTERVAL
+
+    while not _stop_event.is_set():
+        try:
+            scan_rates()
+        except Exception as exc:
+            logger.info("[monitor] Rate tracker scan error: %s", exc)
+        _stop_event.wait(SCAN_INTERVAL)
 
 
 def _handle_interactive_cmd(cmd: str, get_help_text) -> None:

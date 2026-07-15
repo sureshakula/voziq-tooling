@@ -25,6 +25,7 @@ Every hook event flows through one engine. Platform bridges normalize the event 
 | `drone @hooks hooksound` | Show current sound mute status |
 | `drone @hooks hooksound off` | Mute all hook sounds |
 | `drone @hooks hooksound on` | Unmute all hook sounds |
+| `drone @hooks dismiss <alert-id>` | Remove an alert from `.aipass/alerts.json` |
 | `drone @hooks cadence` | Show prompt injection cadence config and state |
 | `drone @hooks verify` | Cross-check provider settings vs project hook config |
 | `drone @hooks --help` | Full help reference |
@@ -39,6 +40,8 @@ Hooks operate on two tiers:
 **Tier 2 — Project Config (control).** Each project's `.aipass/hooks.json` controls which hooks fire for that project. Created by `aipass init`. Edit `enabled` flags to turn hooks on/off per project. Use `drone @hooks status` to view current config.
 
 **Why provider-only wiring?** Claude Code does not fire `PreToolUse`/`PostToolUse` hooks from project-level settings — only from user-level settings (DPLAN-0160 platform limitation). So all hook entries live in provider settings, and per-project control happens through `.aipass/hooks.json`.
+
+**Deploying new handlers:** Registering a handler in `.aipass/hooks.json` is necessary but not sufficient. Each event type also needs a matching bridge command entry in `~/.claude/settings.json` — this is human-gated (agents cannot edit provider settings). After building a new handler, email @devpulse to wire the settings.json entry. Without it, the engine never receives the event and the handler never fires.
 
 ## Architecture
 
@@ -55,6 +58,7 @@ src/aipass/hooks/
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   ├── hookstatus.py        # Config viewer (drone @hooks status)
+│   │   ├── alert_dismiss.py      # Dismiss alerts (drone @hooks dismiss <id>)
 │   │   ├── presence.py          # Branch presence — claim/release/refresh for .ai_central/PRESENCE.central.json
 │   │   ├── sandbox.py           # Kernel sandbox — srt/bwrap wrapper + per-role policy generator
 │   │   └── wire_verify.py       # Wire verification — provider ↔ project hook wiring checker
@@ -66,7 +70,8 @@ src/aipass/hooks/
 │   │   │   ├── branch_loader.py #   Injects aipass_local_prompt.md
 │   │   │   ├── tier0_kernel.py  #   Injects tier0 kernel prompt (every turn)
 │   │   │   ├── navmap.py        #   Injects tier1 navmap prompt (periodic)
-│   │   │   └── identity.py      #   Injects passport identity block
+│   │   │   ├── identity.py      #   Injects passport identity block
+│   │   │   └── persistent_alert.py # Injects advisory banners from .aipass/alerts.json
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
 │   │   │   ├── git_gate.py      #   Enforces git access tiers
@@ -91,7 +96,7 @@ src/aipass/hooks/
 │       └── diagnostics.py       # JSONL logging for hook execution
 ├── logs/
 │   └── engine.jsonl             # JSONL diagnostics (every hook execution)
-└── tests/                       # 913 tests across 28 test files
+└── tests/                       # 1071 tests across 29 test files
 ```
 
 ## How It Works
@@ -112,7 +117,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 | Event | Hooks | Description |
 |---|---|---|
-| UserPromptSubmit | presence_gate, identity, email, branch_loader, tier0_kernel, navmap | Presence gate + prompt injection + inbox check |
+| UserPromptSubmit | presence_gate, persistent_alert, identity, email, branch_loader, tier0_kernel, navmap, auto_process, user_message_relay | Presence gate + alerts + prompt injection + inbox + auto-process + TG mirror |
 | PreToolUse | tool_sound, edit_gate, git_gate, rm_gate, registry_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |
@@ -139,6 +144,27 @@ The `git_gate` handler (`security/git_gate.py`) enforces git access via drone to
 ```
 
 **Why it's on by default:** Agents reflexively reach for raw git, which causes state chaos in a multi-agent system. The gate redirects to `drone @git` which enforces access tiers (read-only for most branches, write-only for devpulse). External users who don't need multi-agent git orchestration can safely disable it.
+
+## Persistent Alerts
+
+The `persistent_alert` handler (`prompt/persistent_alert.py`) injects advisory banners into every prompt when active alerts exist. General-purpose — any agent can raise alerts (prax for runaway logs, trigger for medic, backup for sync failures).
+
+**How it works:** Reads `.aipass/alerts.json` at the project root. Each alert has an ID, source, severity (`warning`/`critical`), title, body, and optional `expires_at`. Active alerts render as a banner every turn until dismissed or expired. Expired alerts are auto-cleaned on read.
+
+**Sound:** Piper TTS fires on first injection per alert ID — subsequent turns are silent for known alerts. New alerts trigger a fresh announcement.
+
+**Dismissing alerts:** `drone @hooks dismiss <alert-id>` removes an alert by ID from `alerts.json`.
+
+**Schema:**
+```json
+{
+  "alerts": [{
+    "id": "uuid", "source": "prax", "severity": "warning",
+    "title": "High log rate", "body": "commons exceeds 50 lines/s",
+    "created_at": "iso", "expires_at": "iso or null"
+  }]
+}
+```
 
 ## Kernel Sandbox (srt/bwrap)
 
@@ -180,7 +206,7 @@ The @drone broker validates sandbox policy before agent launch. @ai_mail's dispa
 - All branches via hook dispatch — every Claude Code session routes through the engine
 - @ai_mail dispatch_monitor — sandbox_launch + build_policy for agent launch boundary
 
-*Last Updated: 2026-06-29*
+*Last Updated: 2026-07-15*
 
 ---
 

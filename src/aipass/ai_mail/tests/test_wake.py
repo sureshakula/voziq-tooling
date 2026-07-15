@@ -985,6 +985,57 @@ class TestWakeBranch:
         assert ok is False
         assert any(s[0] == "fail" and "resolve" in s[1] for s in status.steps)
 
+    # --- manager check ---
+
+    def test_manager_target_skips_wake(self, tmp_path, monkeypatch):
+        """Target with citizen_class=manager returns True (mail only, no wake)."""
+        branch_path = _make_wake_fixtures(tmp_path, monkeypatch)
+        trinity = branch_path / ".trinity"
+        trinity.mkdir(parents=True, exist_ok=True)
+        (trinity / "passport.json").write_text(
+            json.dumps({"identity": {"citizen_class": "manager"}}),
+            encoding="utf-8",
+        )
+        status, ok = wake_branch("@testbranch")
+        assert ok is True
+        assert any(s[1] == "manager" for s in status.steps)
+
+    def test_non_manager_target_continues(self, tmp_path, monkeypatch):
+        """Target with non-manager citizen_class proceeds to spawn."""
+        branch_path = _make_wake_fixtures(tmp_path, monkeypatch)
+        trinity = branch_path / ".trinity"
+        trinity.mkdir(parents=True, exist_ok=True)
+        (trinity / "passport.json").write_text(
+            json.dumps({"identity": {"citizen_class": "aipass_framework"}}),
+            encoding="utf-8",
+        )
+        _patch_wake_deps(monkeypatch, _clean_zombies=lambda: 0)
+        monkeypatch.setattr("subprocess.Popen", lambda *a, **kw: _FakeProc())
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.notify.send_notification",
+            lambda *a, **kw: None,
+            raising=False,
+        )
+        status, ok = wake_branch("@testbranch")
+        assert ok is True
+        assert not any(s[1] == "manager" for s in status.steps)
+
+    def test_missing_passport_continues(self, tmp_path, monkeypatch):
+        """No passport.json — wake proceeds normally."""
+        _make_wake_fixtures(tmp_path, monkeypatch)
+        _patch_wake_deps(monkeypatch, _clean_zombies=lambda: 0)
+        monkeypatch.setattr("subprocess.Popen", lambda *a, **kw: _FakeProc())
+        monkeypatch.setattr(
+            "aipass.ai_mail.apps.handlers.notify.send_notification",
+            lambda *a, **kw: None,
+            raising=False,
+        )
+        status, ok = wake_branch("@testbranch")
+        assert ok is True
+        assert not any(s[1] == "manager" for s in status.steps)
+
+    # --- zombie check ---
+
     def test_zombie_check_warns_but_continues(self, tmp_path, monkeypatch):
         """Zombie detected adds warning but dispatch continues."""
         _make_wake_fixtures(tmp_path, monkeypatch)
