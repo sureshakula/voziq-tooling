@@ -66,6 +66,19 @@ PyPI version — not the changelog header.
   evidence now spans all three storm shapes: continuous fast (332/min),
   continuous moderate (257/min), bursty (191/min).
 
+### Added
+
+- **TG streaming v2 polish (DPLAN-0229): the last two finalize paths now
+  honor the streaming flag.** v1 shipped with a deliberate gap — when logs
+  were active mid-turn or the final response exceeded 4096 chars, the Stop
+  hook fell back to "Done." + a fresh message, orphaning the streamed bubble.
+  @hooks threaded `streaming` through `_deliver_chunks`: logs-active now
+  reconcile-edits the streamed message with the final formatted response, and
+  multi-chunk edits chunk 1 in place then sends [2/N]+ as continuations.
+  Batch mode is verified zero-change (regression tests for both paths), plus
+  an edit-fail fallback. 6 new tests, 1077 green. Live streamed-turn proof
+  pending Patrick's next streaming session — honestly flagged, not faked.
+
 ## [2026-07-14]
 
 ### Fixed

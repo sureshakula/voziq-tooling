@@ -1309,6 +1309,117 @@ class TestDeliverChunks:
 
 
 # ===========================================================================
+# _deliver_chunks streaming mode
+# ===========================================================================
+
+
+class TestDeliverChunksStreaming:
+    """Streaming flag changes reconcile behavior — batch unchanged."""
+
+    def test_streaming_logs_active_reconciles_instead_of_done(self):
+        """Streaming + logs_active: edit processing msg with response, not 'Done.'."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+        ):
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, 789, True, streaming=True)
+
+        assert all_sent is True
+        assert chunk_results[0]["method"] == "edit"
+        mock_edit.assert_called_once_with("tok", 123, 789, "Hello")
+
+    def test_streaming_multi_chunk_edits_first_sends_rest(self):
+        """Streaming + multi-chunk: edit chunk 1 into processing msg, send rest."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        sent_texts = []
+
+        def capture_send(bot_token, chat_id, text):
+            sent_texts.append(text)
+            return _ok_result()
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+            patch(f"{MOD}._send_with_retry", side_effect=capture_send),
+        ):
+            all_sent, chunk_results = _deliver_chunks(
+                ["Part A", "Part B", "Part C"], "tok", 123, 789, False, streaming=True
+            )
+
+        assert all_sent is True
+        mock_edit.assert_called_once_with("tok", 123, 789, "Part A")
+        assert chunk_results[0]["method"] == "edit"
+        assert len(sent_texts) == 2
+        assert "[2/3]" in sent_texts[0]
+        assert "[3/3]" in sent_texts[1]
+
+    def test_streaming_multi_chunk_edit_fails_sends_all(self):
+        """Streaming + multi-chunk: if edit fails, fall back to send for chunk 1."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        sent_texts = []
+
+        def capture_send(bot_token, chat_id, text):
+            sent_texts.append(text)
+            return _ok_result()
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_fail_result()),
+            patch(f"{MOD}._send_with_retry", side_effect=capture_send),
+        ):
+            all_sent, chunk_results = _deliver_chunks(["Part A", "Part B"], "tok", 123, 789, False, streaming=True)
+
+        assert all_sent is True
+        assert chunk_results[0]["method"] == "send"
+        assert len(sent_texts) == 2
+
+    def test_batch_logs_active_still_sends_done(self):
+        """Batch mode (no streaming): logs_active still sends 'Done.' — zero regression."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+            patch(f"{MOD}._send_with_retry", return_value=_ok_result()),
+        ):
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, 789, True, streaming=False)
+
+        assert all_sent is True
+        mock_edit.assert_called_once_with("tok", 123, 789, "Done.")
+
+    def test_batch_multi_chunk_still_sends_done(self):
+        """Batch mode (no streaming): multi-chunk still sends 'Done.' — zero regression."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+            patch(f"{MOD}._send_with_retry", return_value=_ok_result()),
+        ):
+            _deliver_chunks(["Part A", "Part B"], "tok", 123, 789, False, streaming=False)
+
+        mock_edit.assert_called_once_with("tok", 123, 789, "Done.")
+
+    def test_streaming_single_no_logs_still_edits(self):
+        """Streaming + single chunk + no logs: same as batch — reconcile-edit."""
+        from aipass.hooks.apps.handlers.notification.telegram_response import _deliver_chunks
+
+        with (
+            patch(LOGGER_PATCH),
+            patch(f"{MOD}.edit_telegram_message", return_value=_ok_result()) as mock_edit,
+        ):
+            all_sent, chunk_results = _deliver_chunks(["Hello"], "tok", 123, 789, False, streaming=True)
+
+        assert all_sent is True
+        mock_edit.assert_called_once_with("tok", 123, 789, "Hello")
+        assert chunk_results[0]["method"] == "edit"
+
+
+# ===========================================================================
 # _advance_pending
 # ===========================================================================
 
