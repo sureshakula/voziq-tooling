@@ -18,6 +18,7 @@ Covers:
 - Flood cap: truncation at 150 lines with suppression notice
 - _render_event calls relay_event in monitor.py
 - is_relay_enabled_by_env for env var detection
+- Offline backoff: doubles+caps, resets on success, log-once, never blocks
 """
 
 import importlib
@@ -57,12 +58,21 @@ def _import_relay():
         else:
             mod = importlib.import_module("aipass.prax.apps.handlers.monitoring.telegram_relay")
 
+    lock_mock = MagicMock()
+    lock_mock.try_acquire = MagicMock(return_value=True)
+    lock_mock.release = MagicMock()
+    setattr(mod, "instance_lock", lock_mock)
+
     setattr(mod, "_RELAY_ACTIVE", False)
     setattr(mod, "_bot_token", None)
     setattr(mod, "_chat_id", None)
     mod._buffer.clear()
     mod._stop_event.clear()
     setattr(mod, "_thread", None)
+    setattr(mod, "_OFFLINE", False)
+    setattr(mod, "_CURRENT_BACKOFF", mod._BACKOFF_INITIAL)
+    setattr(mod, "_NEXT_RETRY", 0.0)
+    setattr(mod, "_SUPPRESSED_COUNT", 0)
     return mod
 
 
@@ -578,3 +588,148 @@ class TestFlushControl:
         relay._flush_buffer()
         assert len(sent) == relay.FLOOD_CAP + 1
         assert "suppressed" in sent[-1]
+
+
+# ---------------------------------------------------------------------------
+# Offline backoff
+# ---------------------------------------------------------------------------
+
+
+class TestOfflineBackoff:
+    """Network-failure backoff: doubles+caps, resets on success, log-once."""
+
+    def _make_relay(self):
+        relay = _import_relay()
+        setattr(relay, "_bot_token", "t")
+        setattr(relay, "_chat_id", 1)
+        setattr(relay, "_RELAY_ACTIVE", True)
+        return relay
+
+    def test_network_error_enters_offline(self):
+        """First URLError sets _offline=True."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        setattr(relay, "_send_message", relay._send_message)
+        with patch.object(relay, "_http_fetch", side_effect=URLError("DNS failed")):
+            result = relay._send_message("hello")
+        assert result is False
+        assert relay._OFFLINE is True
+
+    def test_backoff_doubles_on_repeated_failure(self):
+        """Backoff doubles: 1 → 2 → 4."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+            assert relay._CURRENT_BACKOFF == relay._BACKOFF_INITIAL
+            relay._send_message("b")
+            assert relay._CURRENT_BACKOFF == 2.0
+            relay._send_message("c")
+            assert relay._CURRENT_BACKOFF == 4.0
+
+    def test_backoff_caps_at_60s(self):
+        """Backoff never exceeds _BACKOFF_CAP (60s)."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            for _ in range(20):
+                relay._send_message("x")
+        assert relay._CURRENT_BACKOFF == relay._BACKOFF_CAP
+
+    def test_success_resets_offline(self):
+        """Successful send after offline resets state."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+        assert relay._OFFLINE is True
+
+        ok_response = MagicMock()
+        ok_response.read.return_value = b'{"ok": true}'
+        ok_response.__enter__ = MagicMock(return_value=ok_response)
+        ok_response.__exit__ = MagicMock(return_value=False)
+        with patch.object(relay, "_http_fetch", return_value=ok_response):
+            result = relay._send_message("b")
+        assert result is True
+        assert relay._OFFLINE is False
+        assert relay._CURRENT_BACKOFF == relay._BACKOFF_INITIAL
+        assert relay._SUPPRESSED_COUNT == 0
+
+    def test_flush_suppresses_during_backoff(self):
+        """_flush_buffer skips _send_batched while offline and before next retry."""
+        import time
+
+        relay = self._make_relay()
+        setattr(relay, "_OFFLINE", True)
+        setattr(relay, "_NEXT_RETRY", time.monotonic() + 9999)
+        relay._buffer.extend(["line 1", "line 2", "line 3"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert sent == []
+        assert relay._SUPPRESSED_COUNT == 3
+
+    def test_flush_retries_after_backoff_expires(self):
+        """_flush_buffer attempts send when backoff period has elapsed."""
+        import time
+
+        relay = self._make_relay()
+        setattr(relay, "_OFFLINE", True)
+        setattr(relay, "_NEXT_RETRY", time.monotonic() - 1)
+        relay._buffer.extend(["retry line"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 1
+
+    def test_log_once_on_entering_offline(self):
+        """Only one warning logged on first network failure."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+            relay._send_message("b")
+            relay._send_message("c")
+        warning_calls = relay.logger.warning.call_args_list
+        offline_warnings = [c for c in warning_calls if "offline" in str(c).lower()]
+        assert len(offline_warnings) == 1
+
+    def test_summary_logged_after_interval(self):
+        """Suppression summary logged after _SUMMARY_INTERVAL elapses."""
+        import time
+
+        relay = self._make_relay()
+        setattr(relay, "_OFFLINE", True)
+        setattr(relay, "_NEXT_RETRY", time.monotonic() + 9999)
+        setattr(relay, "_LAST_SUMMARY", time.monotonic() - relay._SUMMARY_INTERVAL - 1)
+        relay._buffer.extend(["line"])
+        setattr(relay, "_send_batched", lambda lines: None)
+        relay._flush_buffer()
+        info_calls = relay.logger.info.call_args_list
+        summary_calls = [c for c in info_calls if "suppressed" in str(c).lower()]
+        assert len(summary_calls) >= 1
+
+    def test_recovery_log_includes_drop_count(self):
+        """Recovery log line includes the number of dropped events."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+        setattr(relay, "_SUPPRESSED_COUNT", 42)
+
+        ok_response = MagicMock()
+        ok_response.read.return_value = b'{"ok": true}'
+        ok_response.__enter__ = MagicMock(return_value=ok_response)
+        ok_response.__exit__ = MagicMock(return_value=False)
+        with patch.object(relay, "_http_fetch", return_value=ok_response):
+            relay._send_message("b")
+        info_calls = relay.logger.info.call_args_list
+        recovery_calls = [c for c in info_calls if "recovered" in str(c).lower()]
+        assert len(recovery_calls) == 1
+        assert "42" in str(recovery_calls[0])

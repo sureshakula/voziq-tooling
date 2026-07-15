@@ -13,6 +13,17 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Prax TG relay gets the same offline backoff as the bots.** Found in
+  Patrick's live plug-pull test: the bots went quiet correctly, but the
+  monitor→Telegram relay kept logging `Send failed` every ~5 seconds (89 lines,
+  no backoff) — and each failed-send error was re-ingested by the log watcher,
+  feeding the relay more events to fail on. Now network-class send failures put
+  the relay in offline mode: doubling backoff (1s→60s cap), flush gate skips
+  sends while offline so the monitor loop never blocks and viewers keep
+  rendering, log-once semantics (one enter line, one 5-minute summary, one
+  recovery line with drop count), full reset on first successful send. 11 new
+  tests; 1007 prax green.
+
 - **TG bots no longer hot-spin when the internet drops.** Live find from
   Patrick's on-location tether outage: DNS failure makes `urlopen` fail
   instantly (no 30s long-poll wait), so the shared poll loop retried as fast as

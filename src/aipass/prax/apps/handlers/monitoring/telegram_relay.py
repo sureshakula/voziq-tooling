@@ -17,6 +17,7 @@ bot config passed by the module layer (monitor.py loads from @api secrets).
 import json
 import os
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -46,6 +47,17 @@ _chat_id: Optional[int] = None
 _RELAY_ACTIVE = False
 _control_mtime: float = 0.0
 _control_cache: dict = {}
+
+_BACKOFF_INITIAL = 1.0
+_BACKOFF_CAP = 60.0
+_SUMMARY_INTERVAL = 300.0
+
+_OFFLINE = False
+_CURRENT_BACKOFF: float = _BACKOFF_INITIAL
+_NEXT_RETRY: float = 0.0
+_OFFLINE_SINCE: float = 0.0
+_SUPPRESSED_COUNT = 0
+_LAST_SUMMARY: float = 0.0
 
 
 def init_relay(enabled: bool, config: Optional[dict] = None) -> None:
@@ -215,6 +227,10 @@ def _flush_buffer() -> None:
         lines = lines[:FLOOD_CAP]
         lines.append(f"…({suppressed} more suppressed)")
 
+    if _OFFLINE and time.monotonic() < _NEXT_RETRY:
+        _count_suppressed(len(lines))
+        return
+
     _send_batched(lines)
 
 
@@ -247,8 +263,20 @@ def _send_batched(lines: list[str]) -> None:
         _send_message("\n".join(batch))
 
 
+def _count_suppressed(count: int) -> None:
+    """Track suppressed events during offline and log a summary at most every 5 minutes."""
+    global _SUPPRESSED_COUNT, _LAST_SUMMARY
+    _SUPPRESSED_COUNT += count
+    now = time.monotonic()
+    if now - _LAST_SUMMARY >= _SUMMARY_INTERVAL:
+        logger.info("[telegram_relay] Still offline — %d events suppressed so far", _SUPPRESSED_COUNT)
+        _LAST_SUMMARY = now
+
+
 def _send_message(text: str) -> bool:
     """POST a single message to the Telegram Bot API."""
+    global _OFFLINE, _CURRENT_BACKOFF, _NEXT_RETRY, _OFFLINE_SINCE, _SUPPRESSED_COUNT, _LAST_SUMMARY
+
     url = f"https://api.telegram.org/bot{_bot_token}/sendMessage"
     payload = json.dumps(
         {
@@ -262,9 +290,29 @@ def _send_message(text: str) -> bool:
     try:
         with _http_fetch(req, timeout=10) as resp:
             result = json.loads(resp.read().decode("utf-8"))
+            if _OFFLINE:
+                duration = time.monotonic() - _OFFLINE_SINCE
+                logger.info(
+                    "[telegram_relay] Recovered (was offline %.0fs, %d events dropped from TG feed)",
+                    duration,
+                    _SUPPRESSED_COUNT,
+                )
+                _OFFLINE = False
+                _CURRENT_BACKOFF = _BACKOFF_INITIAL
+                _SUPPRESSED_COUNT = 0
             return result.get("ok", False)
-    except (URLError, Exception) as e:
-        logger.warning("[telegram_relay] Send failed: %s", e)
+    except (URLError, OSError) as e:
+        now = time.monotonic()
+        if not _OFFLINE:
+            logger.warning("[telegram_relay] TG relay offline: %s", e)
+            _OFFLINE = True
+            _OFFLINE_SINCE = now
+            _CURRENT_BACKOFF = _BACKOFF_INITIAL
+            _SUPPRESSED_COUNT = 0
+            _LAST_SUMMARY = now
+        else:
+            _CURRENT_BACKOFF = min(_CURRENT_BACKOFF * 2, _BACKOFF_CAP)
+        _NEXT_RETRY = now + _CURRENT_BACKOFF
         return False
 
 

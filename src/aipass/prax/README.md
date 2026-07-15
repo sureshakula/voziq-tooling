@@ -143,7 +143,7 @@ prax/
 │       └── watcher/                   # Background system watchers
 ├── prax_json/                         # Auto-created per-module config/data/log files
 ├── templates/                         # Dashboard template schema (DASHBOARD.template.json)
-└── tests/                             # 901 tests across 19 files
+└── tests/                             # 1007 tests across 19 files
 ```
 
 ### Design Pattern
@@ -171,7 +171,7 @@ drone @prax monitor run
 
 ## Tests
 
-901 tests across 19 files, covering all major components:
+1007 tests across 19 files, covering all major components:
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|

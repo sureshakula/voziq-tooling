@@ -83,6 +83,13 @@
       "subject": "Remove single-instance lock from monitor display path — concurrent viewers",
       "date_closed": "2026-07-14",
       "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0325",
+      "type": "FPLAN",
+      "subject": "TG relay send backoff: offline mode + log-once on network failures",
+      "date_closed": "2026-07-14",
+      "location": "prax"
     }
   ],
   "document_metadata": {
