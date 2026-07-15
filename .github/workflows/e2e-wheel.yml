@@ -47,7 +47,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install build tooling
-        run: python -m pip install --upgrade pip build pytest
+        # Hash-pinned (Scorecard: Pinned-Dependencies). e2e.txt carries colorama
+        # explicitly — build/pytest need it only on Windows (os_name == "nt" /
+        # sys_platform == "win32"), and a Linux-generated lock would otherwise
+        # omit it and break the windows-latest leg under --require-hashes.
+        # See .github/requirements/e2e.in.
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
+          python -m pip install --require-hashes -r .github/requirements/e2e.txt
 
       - name: Run cross-OS e2e wiring harness
         # conftest.py builds the wheel + clean venv internally; the outer env

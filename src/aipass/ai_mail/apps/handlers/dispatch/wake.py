@@ -542,14 +542,27 @@ def wake_branch(
     branch_path, email = result
     status.ok("resolve", f"{email} → {branch_path}")
 
-    # Step 3: Zombie check (pre-flight)
+    # Step 3: Manager check — managers are never woken, mail only
+    passport_file = branch_path / ".trinity" / "passport.json"
+    try:
+        with open(passport_file, "r", encoding="utf-8") as f:
+            passport = json.load(f)
+        citizen_class = passport.get("identity", {}).get("citizen_class", "")
+        if citizen_class == "manager":
+            status.info("manager", f"{email} is a manager — mail only, wake skipped")
+            logger.info("[wake] %s is citizen_class=manager — wake skipped, mail delivered", email)
+            return status, True
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        logger.info("[wake] Could not read passport for %s: %s", email, exc)
+
+    # Step 4: Zombie check (pre-flight)
     zombie_count = _clean_zombies()
     if zombie_count > 0:
         status.warn("zombies", f"{zombie_count} zombie Claude process(es) detected")
     else:
         status.ok("pre-flight", "No zombie processes")
 
-    # Step 4: Lock check
+    # Step 5: Lock check
     existing = _check_lock(branch_path)
     if existing is not None:
         pid = existing.get("pid", "?")
@@ -565,7 +578,7 @@ def wake_branch(
 
     status.ok("lock", "No active lock — agent is sleeping")
 
-    # Step 5: Occupancy check
+    # Step 6: Occupancy check
     if _is_branch_occupied(branch_path):
         status.warn("occupancy", f"Interactive Claude session in {branch_path}")
         status.fail("blocked", "Cannot spawn — interactive session running")
@@ -574,7 +587,7 @@ def wake_branch(
 
     status.ok("occupancy", "No interactive session")
 
-    # Step 6: Build spawn command
+    # Step 7: Build spawn command
     config = _load_config()
     max_turns = config.get("max_turns_per_wake", 100)
 

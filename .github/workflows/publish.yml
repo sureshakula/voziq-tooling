@@ -11,13 +11,34 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Job-level permissions REPLACE the top-level block rather than merge with
+    # it, so `contents: read` is restated here on purpose — dropping it would
+    # break actions/checkout. id-token/attestations are what the provenance
+    # attestation below needs (Scorecard: Signed-Releases).
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.13"
-      - run: pip install build
+      # Hash-pinned tool install (Scorecard: Pinned-Dependencies).
+      - run: python -m pip install --require-hashes -r .github/requirements/build.txt
       - run: python -m build
+      - name: Attest build provenance
+        # Signs a provenance statement binding these exact sdist/wheel digests to
+        # this workflow run, via the same keyless Sigstore/OIDC path as the
+        # release signing below. Runs after the artifacts exist and before they
+        # leave the job, so the attested digests are the published ones.
+        # NOTE: the bundle is deliberately NOT written into dist/ — the publish
+        # job feeds dist/* to gh-action-pypi-publish, which rejects any file that
+        # is not a distribution. See the report note on attaching provenance to
+        # the GitHub Release.
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: "dist/*"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist

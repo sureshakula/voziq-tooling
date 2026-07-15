@@ -564,11 +564,19 @@ def handle(hook_data: dict) -> dict:
 
     response_text = _prepend_branch_prefix(response_text)
     logs_were_active = _check_log_streamer_active()
+    streaming = bool(pending_data.get("streaming", False))
 
     chunks = chunk_text(response_text)
-    logger.info("[HOOKS] telegram: sending %d chunk(s) (logs_active=%s)", len(chunks), logs_were_active)
+    logger.info(
+        "[HOOKS] telegram: sending %d chunk(s) (logs_active=%s, streaming=%s)",
+        len(chunks),
+        logs_were_active,
+        streaming,
+    )
 
-    all_sent, chunk_results = _deliver_chunks(chunks, bot_token, chat_id, processing_message_id, logs_were_active)
+    all_sent, chunk_results = _deliver_chunks(
+        chunks, bot_token, chat_id, processing_message_id, logs_were_active, streaming
+    )
 
     _write_delivery_log(response_text, chunks, chunk_results, session_id)
 
@@ -658,6 +666,7 @@ def _deliver_chunks(
     chat_id: int,
     processing_message_id: int | None,
     logs_were_active: bool,
+    streaming: bool = False,
 ) -> tuple[bool, list[dict]]:
     """Send all response chunks to Telegram. Returns (all_sent, per-chunk results)."""
     chunk_results: list[dict] = []
@@ -666,7 +675,8 @@ def _deliver_chunks(
 
     for i, chunk in enumerate(chunks):
         if i == 0 and processing_message_id:
-            if single and not logs_were_active:
+            should_reconcile = streaming or (single and not logs_were_active)
+            if should_reconcile:
                 result = edit_telegram_message(bot_token, chat_id, processing_message_id, chunk)
                 if result["ok"]:
                     chunk_results.append({"idx": i, "method": "edit", **result})

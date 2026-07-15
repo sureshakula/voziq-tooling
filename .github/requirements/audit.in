@@ -1,0 +1,16 @@
+# pip-audit for the security.yml `dependency-scan` job, hash-pinned (Scorecard:
+# Pinned-Dependencies).
+#
+# Target env: ubuntu-latest, Python 3.13. pip-audit's own dependency tree is
+# resolved and hashed here; the project itself is still installed unpinned via
+# `pip install -e .` and scanned with `pip-audit --skip-editable`, so pinning
+# this file does not narrow what the audit covers.
+#
+# TRADE-OFF: pip-audit scans the whole environment, including its own deps. They
+# used to float to latest on every run (self-healing); pinned, a new advisory
+# against one of them reds this job until the pin moves. Dependabot's `pip`
+# entry for /.github/requirements is what keeps that window short.
+#
+# Regenerate:
+#   pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=audit.txt audit.in
+pip-audit==2.10.1

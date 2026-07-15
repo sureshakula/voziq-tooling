@@ -34,6 +34,11 @@ _OCCUPANT = {
 }
 
 
+def _blocking():
+    """Patch observe-only off so blocking tests exercise the block path."""
+    return patch.object(presence_gate, "_OBSERVE_ONLY", False)
+
+
 class TestResolveBranch:
     def test_uses_hook_data_cwd(self, tmp_path):
         branch_dir = tmp_path / "devpulse"
@@ -67,26 +72,45 @@ class TestHandle:
 
     def test_occupant_blocks(self):
         _, _, router = _make_mocks(our_pid=1000, occupant=_OCCUPANT)
-        with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
-            with patch("importlib.import_module", side_effect=router):
-                result = presence_gate.handle({})
+        with (
+            _blocking(),
+            patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True),
+            patch("importlib.import_module", side_effect=router),
+        ):
+            result = presence_gate.handle({})
         assert result["exit_code"] == 2
         parsed = json.loads(result["stdout"])
         assert parsed["decision"] == "block"
         assert "5000" in parsed["reason"]
 
-    def test_block_includes_session_name(self):
+    def test_block_includes_session_info(self):
         _, _, router = _make_mocks(our_pid=1000, occupant=_OCCUPANT)
-        with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
-            with patch("importlib.import_module", side_effect=router):
-                result = presence_gate.handle({})
+        with (
+            _blocking(),
+            patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True),
+            patch("importlib.import_module", side_effect=router),
+        ):
+            result = presence_gate.handle({})
         parsed = json.loads(result["stdout"])
-        assert "hooks-ab" in parsed["reason"]
+        assert "existing" in parsed["reason"]
+        assert "interactive" in parsed["reason"]
 
     def test_subagent_skipped(self):
-        result = presence_gate.handle({"agent_type": "sub"})
+        result = presence_gate.handle({"agent_type": "Explore"})
         assert result["exit_code"] == 0
         assert result["stdout"] == ""
+
+    def test_general_purpose_subagent_skipped(self):
+        result = presence_gate.handle({"agent_type": "general-purpose"})
+        assert result["exit_code"] == 0
+        assert result["stdout"] == ""
+
+    def test_claude_agent_type_not_skipped(self):
+        _, _, router = _make_mocks(our_pid=1000, occupant=None)
+        with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
+            with patch("importlib.import_module", side_effect=router):
+                result = presence_gate.handle({"agent_type": "claude"})
+        assert result["exit_code"] == 0
 
     def test_main_agent_not_skipped(self):
         _, _, router = _make_mocks(our_pid=1000, occupant=None)
@@ -127,13 +151,25 @@ class TestHandle:
         branch_dir.mkdir()
         (branch_dir / ".trinity").mkdir()
         _, _, router = _make_mocks(our_pid=1000, occupant=_OCCUPANT)
-        with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):
-            with patch("importlib.import_module", side_effect=router):
-                result = presence_gate.handle({"cwd": str(branch_dir)})
+        with (
+            _blocking(),
+            patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True),
+            patch("importlib.import_module", side_effect=router),
+        ):
+            result = presence_gate.handle({"cwd": str(branch_dir)})
         parsed = json.loads(result["stdout"])
         assert "devpulse" in parsed["reason"]
-        assert "kill 5000" in parsed["reason"]
-        assert "one session per branch" in parsed["reason"].lower()
+        assert "reclaim" in parsed["reason"]
+
+    def test_observe_only_logs_but_allows(self):
+        _, _, router = _make_mocks(our_pid=1000, occupant=_OCCUPANT)
+        with (
+            patch.object(presence_gate, "_OBSERVE_ONLY", True),
+            patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True),
+            patch("importlib.import_module", side_effect=router),
+        ):
+            result = presence_gate.handle({})
+        assert result["exit_code"] == 0
 
     def test_gate_error_allows(self):
         with patch.dict(os.environ, {"AIPASS_SESSION_TYPE": "interactive"}, clear=True):

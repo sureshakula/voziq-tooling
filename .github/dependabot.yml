@@ -12,6 +12,31 @@ updates:
       prefix-development: "deps"
       include: "scope"
 
+  # Hash-pinned CI tool installs (ruff/build/pytest/pip-audit/pip). Pinning is
+  # what Scorecard's Pinned-Dependencies wants, but a frozen pin rots: these
+  # locks are what security.yml's pip-audit scans, so a new advisory against a
+  # pinned dep reds the job until the pin moves. This entry is what keeps that
+  # window short. Dependabot reads the `pip-compile ...` command out of each
+  # .txt header and regenerates the lock (hashes included) from the .in.
+  # Separate from the "/" pip entry above, which tracks pyproject.toml.
+  - package-ecosystem: "pip"
+    directory: "/.github/requirements"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "ci"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    # packaging/pygments are shared across build.txt, e2e.txt and audit.txt.
+    # Ungrouped, one bump fans out into several PRs that each rewrite a subset
+    # of the locks and conflict with each other. One PR per week moves them all.
+    groups:
+      ci-tooling:
+        patterns:
+          - "*"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

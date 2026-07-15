@@ -139,6 +139,37 @@ CLAUDE_BIN = str(Path.home() / ".local" / "bin" / "claude")
 MIRROR_SESSION_TYPE = "interactive-mirror"
 TEMP_DIR = Path(tempfile.gettempdir()) / "telegram_uploads"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+NETWORK_BACKOFF_INIT = 1  # seconds
+NETWORK_BACKOFF_CAP = 60  # seconds
+NETWORK_LOG_INTERVAL = 300  # 5 minutes between offline summary lines
+
+
+class _NetworkPollError(Exception):
+    """Raised by poll_updates when a network-class error occurs (DNS, connection, socket)."""
+
+
+def _is_network_error(exc: Exception) -> bool:
+    reason = getattr(exc, "reason", None)
+    if isinstance(reason, OSError):
+        return True
+    reason_str = str(reason) if reason else str(exc)
+    for pattern in (
+        "Name or service not known",
+        "getaddrinfo",
+        "Temporary failure",
+        "Network is unreachable",
+        "No route to host",
+        "Connection refused",
+        "Connection reset",
+        "Connection timed out",
+    ):
+        if pattern in reason_str:
+            return True
+    return False
+
+
+def _is_routine_read_timeout(exc: Exception) -> bool:
+    return "timed out" in str(exc) and "read operation" in str(getattr(exc, "reason", exc))
 
 
 # =============================================
@@ -229,6 +260,7 @@ class BaseBot:
         self._rate_limit_tracker: dict[int, list] = {}
         self._heartbeat_thread: threading.Thread | None = None
         self._heartbeat_stop = threading.Event()
+        self._heartbeat_gen: int = 0
 
         # Conversation state for /create flow (keyed by chat_id)
         self._create_state: dict[int, dict] = {}
@@ -298,16 +330,35 @@ class BaseBot:
         offset = self._load_offset()
         logger.info("Starting poll loop (offset=%d)", offset)
 
-        # Retry backoff sequence: 5s, 10s, 20s, 40s, 60s max
+        # General retry backoff (non-network errors)
         retry_delay = 5
         max_retry_delay = 60
+
+        # Network-error state tracking
+        net_backoff = NETWORK_BACKOFF_INIT
+        net_offline_since: float | None = None
+        net_suppressed = 0
+        net_last_summary: float = 0.0
 
         while self.state["running"]:
             try:
                 updates = self.poll_updates(offset)
 
-                # Reset backoff on successful poll
+                # Reset general backoff on successful poll
                 retry_delay = 5
+
+                # Network recovery
+                if net_offline_since is not None:
+                    elapsed = time.time() - net_offline_since
+                    mins = int(elapsed / 60)
+                    logger.info(
+                        "Telegram reachable again after %dm, %d attempts suppressed",
+                        mins,
+                        net_suppressed,
+                    )
+                    net_offline_since = None
+                    net_suppressed = 0
+                    net_backoff = NETWORK_BACKOFF_INIT
 
                 for update in updates:
                     if not self.state["running"]:
@@ -322,6 +373,26 @@ class BaseBot:
 
                     self.process_update(update)
 
+            except _NetworkPollError as e:
+                self._health["errors"] = self._health.get("errors", 0) + 1
+                now = time.time()
+                if net_offline_since is None:
+                    net_offline_since = now
+                    net_suppressed = 0
+                    net_last_summary = now
+                    logger.error("Telegram unreachable, backing off: %s", e)
+                else:
+                    net_suppressed += 1
+                    if now - net_last_summary >= NETWORK_LOG_INTERVAL:
+                        mins = int((now - net_offline_since) / 60)
+                        logger.warning(
+                            "Still offline (%dm), %d attempts suppressed",
+                            mins,
+                            net_suppressed,
+                        )
+                        net_last_summary = now
+                time.sleep(net_backoff)
+                net_backoff = min(net_backoff * 2, NETWORK_BACKOFF_CAP)
             except KeyboardInterrupt:
                 logger.info("KeyboardInterrupt received")
                 break
@@ -393,8 +464,14 @@ class BaseBot:
             return data.get("result", [])
 
         except URLError as e:
+            if _is_routine_read_timeout(e):
+                return []
+            if _is_network_error(e):
+                raise _NetworkPollError(str(e)) from e
             logger.error("Poll error: %s", e)
             return []
+        except (ConnectionError, OSError) as e:
+            raise _NetworkPollError(str(e)) from e
         except Exception as e:
             logger.error("Unexpected poll error: %s", e)
             return []
@@ -509,9 +586,12 @@ class BaseBot:
             self._active_chat_id = chat_id
             self._write_mirror_mapping()
             if self.branch_name is not None and self._log_streamer is None:
-                self._log_streamer = LogStreamer(self.bot_token, chat_id, self.branch_name)
-                self._log_streamer.start()
-                logger.info("Log streamer started for branch: %s", self.branch_name)
+                pref = self._load_logs_preference()
+                pref_mode = pref.get("mode", "all") if pref else "all"
+                if pref_mode != "off":
+                    self._log_streamer = LogStreamer(self.bot_token, chat_id, self.branch_name, level_filter=pref_mode)
+                    self._log_streamer.start()
+                    logger.info("Log streamer started for branch: %s (mode=%s)", self.branch_name, pref_mode)
 
         # Allowlist check
         if not self.is_user_allowed(user_id):
@@ -570,6 +650,11 @@ class BaseBot:
             True if command was handled (caller should return), False to fall through.
         """
         cmd_name, cmd_args = parsed
+
+        # /logs command — session log stream control
+        if cmd_name == "logs":
+            self._handle_logs_command(chat_id, cmd_args)
+            return True
 
         # /monitor command — system-wide log subscription
         if cmd_name == "monitor":
@@ -688,12 +773,15 @@ class BaseBot:
             )
             return
 
+        # Inbound reliability: clean stale pending + finalize stranded placeholder
+        self._finalize_superseded_pending(message_id)
+
         # Send processing indicator
         processing_result = self.send_message(chat_id, PROCESSING_MSG)
         processing_msg_id = processing_result.get("message_id") if processing_result else None
 
         # Write pending file
-        if not self.write_pending_file(chat_id, message_id, processing_msg_id):
+        if not self.write_pending_file(chat_id, message_id, processing_msg_id, injected_prompt=prompt):
             logger.error("Failed to write pending file")
             self.send_message(chat_id, "Internal error writing pending file.")
             return
@@ -786,12 +874,15 @@ class BaseBot:
                 file_path.unlink(missing_ok=True)
             return
 
+        # Inbound reliability: clean stale pending + finalize stranded placeholder
+        self._finalize_superseded_pending(message_id)
+
         # Send processing indicator
         processing_result = self.send_message(chat_id, f"Processing {file_type} file...")
         processing_msg_id = processing_result.get("message_id") if processing_result else None
 
         # Write pending file
-        if not self.write_pending_file(chat_id, message_id, processing_msg_id):
+        if not self.write_pending_file(chat_id, message_id, processing_msg_id, injected_prompt=prompt):
             logger.error("Failed to write pending file for file upload")
             self.send_message(chat_id, "Internal error writing pending file.")
             return
@@ -1417,7 +1508,13 @@ class BaseBot:
     # PENDING FILE MANAGEMENT
     # =============================================
 
-    def write_pending_file(self, chat_id: int, message_id: int, processing_message_id: Optional[int] = None) -> bool:
+    def write_pending_file(
+        self,
+        chat_id: int,
+        message_id: int,
+        processing_message_id: Optional[int] = None,
+        injected_prompt: str = "",
+    ) -> bool:
         """
         Write the pending file for Stop hook coordination.
 
@@ -1446,6 +1543,8 @@ class BaseBot:
             "transcript_path": str(self._active_transcript_path) if self._active_transcript_path else None,
             "session_id": self._active_session_id,
         }
+        if injected_prompt:
+            pending_data["injected_prompt"] = injected_prompt
         if self._stream:
             pending_data["streaming"] = True
 
@@ -1471,6 +1570,31 @@ class BaseBot:
                 logger.info("Cleaned stale pending file (%.0fs old)", age)
         except OSError as e:
             logger.warning("Failed to clean stale pending file: %s", e)
+
+    def _finalize_superseded_pending(self, new_message_id: int) -> None:
+        """Clean stale pending and finalize stranded placeholder on overwrite."""
+        self.clean_stale_pending()
+        if not self.pending_file.exists():
+            return
+        try:
+            prev = json.loads(self.pending_file.read_text(encoding="utf-8"))
+            if not prev.get("delivered"):
+                prev_id = prev.get("message_id", "?")
+                logger.warning(
+                    "Overwriting undelivered pending (msg_id=%s) with new message %d",
+                    prev_id,
+                    new_message_id,
+                )
+                prev_proc_id = prev.get("processing_message_id")
+                prev_chat_id = prev.get("chat_id")
+                if prev_proc_id and prev_chat_id:
+                    self.edit_message(
+                        prev_chat_id,
+                        prev_proc_id,
+                        "⏭ Superseded by newer message",
+                    )
+        except (json.JSONDecodeError, OSError):
+            pass
 
     def _resolve_active_transcript(self) -> tuple[str | None, int]:
         """Identify the ACTIVE Claude JSONL transcript and return its path and line count.
@@ -1900,13 +2024,15 @@ class BaseBot:
         """
         self._stop_heartbeat()  # Ensure no stale thread
         self._heartbeat_stop.clear()
+        self._heartbeat_gen += 1
+        gen = self._heartbeat_gen
 
         def _heartbeat_loop():
             start = time.time()
 
             # Streaming mode (FPLAN-0297): live transcript tail
             if self._stream and self._active_transcript_path:
-                self._streaming_loop(chat_id, processing_msg_id, start)
+                self._streaming_loop(chat_id, processing_msg_id, start, gen)
                 return
 
             # Batch mode (default): elapsed-time updates
@@ -1920,9 +2046,13 @@ class BaseBot:
                     break
                 if not self._tmux_session_exists():
                     break
+                if self._heartbeat_gen != gen:
+                    break
 
                 elapsed = time.time() - start
                 elapsed_str = self._format_elapsed(elapsed)
+                if self._is_pending_delivered() or self._heartbeat_gen != gen:
+                    break
                 self.edit_message(chat_id, processing_msg_id, f"Processing... ({elapsed_str})")
 
         self._heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True, name=f"heartbeat-{self.bot_id}")
@@ -1967,7 +2097,7 @@ class BaseBot:
     # STREAMING EDIT-IN-PLACE (FPLAN-0297)
     # =============================================
 
-    def _streaming_loop(self, chat_id: int, msg_id: int, start_time: float) -> None:
+    def _streaming_loop(self, chat_id: int, msg_id: int, start_time: float, gen: int) -> None:
         """Stream transcript content into the processing message via edit-in-place."""
         path = self._active_transcript_path
         try:
@@ -1985,6 +2115,8 @@ class BaseBot:
             self._heartbeat_stop.wait(STREAM_INTERVAL)
             if self._heartbeat_stop.is_set():
                 break
+            if self._heartbeat_gen != gen:
+                break
             if self._is_pending_delivered():
                 break
             if not self._tmux_session_exists():
@@ -1995,7 +2127,7 @@ class BaseBot:
             if new_text:
                 buffer += new_text
 
-            if self._is_pending_delivered():
+            if self._is_pending_delivered() or self._heartbeat_gen != gen:
                 break
 
             if not buffer:
@@ -2003,6 +2135,8 @@ class BaseBot:
                 placeholder = f"Processing... ({self._format_elapsed(elapsed)})"
                 now = time.time()
                 if placeholder != last_sent and now >= retry_after_until:
+                    if self._is_pending_delivered() or self._heartbeat_gen != gen:
+                        break
                     ok, retry = self._stream_edit(chat_id, current_msg_id, placeholder)
                     retry_after_until = now + retry if retry > 0 else retry_after_until
                     last_sent = placeholder if ok else last_sent
@@ -2014,6 +2148,9 @@ class BaseBot:
             now = time.time()
             if now < retry_after_until:
                 continue
+
+            if self._is_pending_delivered() or self._heartbeat_gen != gen:
+                break
 
             if len(buffer) > TELEGRAM_CHAR_LIMIT:
                 break_at = buffer.rfind("\n", 0, TELEGRAM_CHAR_LIMIT)
@@ -2327,6 +2464,121 @@ class BaseBot:
             logger.error("Failed to clear monitor subscription: %s", e)
             return False
 
+    # =============================================
+    # /LOGS — SESSION LOG STREAM CONTROL
+    # =============================================
+
+    def _handle_logs_command(self, chat_id: int, args: str) -> None:
+        """Route /logs subcommands: on, off, errors, status."""
+        if self.branch_name is None:
+            self.send_message(chat_id, "Not available — this bot has no branch log stream.")
+            return
+
+        subcmd = args.strip().lower().split()[0] if args.strip() else ""
+
+        if subcmd == "on":
+            self._logs_start(chat_id, mode="all")
+        elif subcmd == "off":
+            self._logs_stop(chat_id)
+        elif subcmd == "errors":
+            self._logs_start(chat_id, mode="default")
+        elif subcmd == "status":
+            self._logs_status(chat_id)
+        else:
+            self.send_message(
+                chat_id,
+                "/logs on — full log stream\n"
+                "/logs errors — warnings & errors only\n"
+                "/logs off — stop streaming\n"
+                "/logs status — current state",
+            )
+
+    def _logs_start(self, chat_id: int, mode: str) -> None:
+        """Start or restart the session log streamer with the given mode."""
+        if self._log_streamer is not None:
+            self._log_streamer.stop()
+            self._log_streamer = None
+
+        if not self._save_logs_preference(chat_id, mode):
+            self.send_message(chat_id, "Failed to save logs preference.")
+            return
+
+        self._log_streamer = LogStreamer(
+            self.bot_token,
+            chat_id,
+            self.branch_name,  # type: ignore[arg-type]  # guarded by _handle_logs_command
+            level_filter=mode,
+        )
+        self._log_streamer.start()
+
+        mode_label = "all levels" if mode == "all" else "errors & warnings"
+        self.send_message(
+            chat_id,
+            f"Log streaming: {mode_label}\n\n/logs off to stop\n/logs errors for filtered mode",
+        )
+        logger.info("Log streaming started: chat_id=%s, mode=%s, branch=%s", chat_id, mode, self.branch_name)
+
+    def _logs_stop(self, chat_id: int) -> None:
+        """Stop the session log streamer."""
+        if self._log_streamer is not None:
+            self._log_streamer.stop()
+            self._log_streamer = None
+
+        self._save_logs_preference(chat_id, "off")
+        self.send_message(chat_id, "Log streaming stopped.\n\n/logs on to resume.")
+        logger.info("Log streaming stopped: chat_id=%s, branch=%s", chat_id, self.branch_name)
+
+    def _logs_status(self, chat_id: int) -> None:
+        """Show current log streaming status."""
+        pref = self._load_logs_preference()
+        running = self._log_streamer is not None and self._log_streamer._running
+
+        if not running:
+            mode_info = ""
+            if pref and pref.get("mode") == "off":
+                mode_info = " (disabled)"
+            self.send_message(chat_id, f"Log streaming: stopped{mode_info}\n\n/logs on to start.")
+            return
+
+        mode = pref.get("mode", "all") if pref else "all"
+        mode_label = "all levels" if mode == "all" else "errors & warnings"
+        self.send_message(
+            chat_id,
+            f"Log streaming: active\nMode: {mode_label}\nBranch: {self.branch_name}",
+        )
+
+    def _logs_preference_file(self) -> Path:
+        """Return path to the local logs preference file."""
+        return Path.home() / ".aipass" / "telegram_bots" / f".{self.bot_id}_logs.json"
+
+    def _load_logs_preference(self) -> dict | None:
+        """Load logs preference from local state file."""
+        pref_file = self._logs_preference_file()
+        if not pref_file.exists():
+            return None
+        try:
+            data = json.loads(pref_file.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+            return None
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load logs preference: %s", e)
+            return None
+
+    def _save_logs_preference(self, chat_id: int, mode: str) -> bool:
+        """Persist logs preference to local state file."""
+        pref_file = self._logs_preference_file()
+        try:
+            pref_file.parent.mkdir(parents=True, exist_ok=True)
+            pref_file.write_text(
+                json.dumps({"chat_id": chat_id, "mode": mode}, indent=2),
+                encoding="utf-8",
+            )
+            return True
+        except OSError as e:
+            logger.error("Failed to save logs preference: %s", e)
+            return False
+
     def get_custom_commands(self) -> dict:
         """
         Hook: return additional bot-specific commands.
@@ -2343,6 +2595,11 @@ class BaseBot:
                 "menu_text": "Log monitor",
             },
         }
+        if self.branch_name is not None:
+            commands["logs"] = {
+                "description": "Control branch log streaming — /logs on, off, errors, status",
+                "menu_text": "Log streaming",
+            }
         if self.branch_name is None:
             commands["create"] = {
                 "description": "Create a Telegram bot for a branch — e.g. /create chat devpulse",
@@ -2484,6 +2741,7 @@ class BaseBot:
 
 _BOT_CLASSES = {
     "scheduler": ".scheduler_bot:SchedulerBot",
+    "prax_monitor": ".prax_monitor_bot:PraxMonitorBot",
 }
 
 

@@ -17,7 +17,9 @@ bot config passed by the module layer (monitor.py loads from @api secrets).
 import json
 import os
 import threading
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from urllib.error import URLError
 from urllib.request import Request
@@ -25,12 +27,16 @@ from urllib.request import urlopen as _http_fetch
 
 from aipass.prax.apps.modules.logger import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
+from aipass.prax.apps.handlers.monitoring import instance_lock
 
 logger = get_direct_logger()
 
 BATCH_INTERVAL = 5.0
 TELEGRAM_MAX_LENGTH = 4000
 FLOOD_CAP = 150
+
+CONTROL_FILE = Path.home() / ".aipass" / "telegram_bots" / "prax_monitor_control.json"
+_ERROR_MARKERS = ("WARNING", "ERROR", "CRITICAL")
 
 _lock = threading.Lock()
 _buffer: list[str] = []
@@ -39,6 +45,19 @@ _stop_event = threading.Event()
 _bot_token: Optional[str] = None
 _chat_id: Optional[int] = None
 _RELAY_ACTIVE = False
+_control_mtime: float = 0.0
+_control_cache: dict = {}
+
+_BACKOFF_INITIAL = 1.0
+_BACKOFF_CAP = 60.0
+_SUMMARY_INTERVAL = 300.0
+
+_OFFLINE = False
+_CURRENT_BACKOFF: float = _BACKOFF_INITIAL
+_NEXT_RETRY: float = 0.0
+_OFFLINE_SINCE: float = 0.0
+_SUPPRESSED_COUNT = 0
+_LAST_SUMMARY: float = 0.0
 
 
 def init_relay(enabled: bool, config: Optional[dict] = None) -> None:
@@ -64,6 +83,10 @@ def init_relay(enabled: bool, config: Optional[dict] = None) -> None:
     chat = config.get("chat_id")
     if not token or not chat:
         logger.info("[telegram_relay] Incomplete config (missing bot_token or chat_id) — relay inactive")
+        return
+
+    if not instance_lock.try_acquire():
+        logger.info("[telegram_relay] Another process owns the TG relay — viewer-only mode")
         return
 
     _bot_token = token
@@ -105,6 +128,7 @@ def stop_relay() -> None:
         _thread.join(timeout=BATCH_INTERVAL + 2)
         _thread = None
 
+    instance_lock.release()
     json_handler.log_operation("relay_stopped", {})
     logger.info("[telegram_relay] Relay stopped")
 
@@ -143,8 +167,41 @@ def _format_event(event) -> Optional[str]:
     return f"[{ts}] [{branch_label}] {event.message}"
 
 
+def _read_control() -> dict:
+    """Read the control file, caching by mtime. Returns defaults on missing/invalid file."""
+    global _control_mtime, _control_cache
+
+    try:
+        stat = CONTROL_FILE.stat()
+    except OSError:
+        logger.info("[telegram_relay] Control file not found, using defaults")
+        return {}
+
+    if stat.st_mtime == _control_mtime:
+        return _control_cache
+
+    try:
+        data = json.loads(CONTROL_FILE.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("not a dict")
+        _control_mtime = stat.st_mtime
+        _control_cache = data
+        return data
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        logger.warning("[telegram_relay] Control file parse error, using defaults: %s", exc)
+        _control_mtime = stat.st_mtime
+        _control_cache = {}
+        return {}
+
+
 def _flush_buffer() -> None:
-    """Drain buffer and send to Telegram."""
+    """Drain buffer, apply control-file pause/filter, and send to Telegram.
+
+    Control semantics (written by the @skills TG bot):
+    - paused=true: buffer is discarded, nothing sent.
+    - level="errors": only lines containing WARNING/ERROR/CRITICAL are sent.
+    - level="all" (default): everything is sent.
+    """
     with _lock:
         if not _buffer:
             return
@@ -154,10 +211,25 @@ def _flush_buffer() -> None:
     if not _bot_token or not _chat_id:
         return
 
+    ctrl = _read_control()
+
+    if ctrl.get("paused", False):
+        return
+
+    level = ctrl.get("level", "all")
+    if level == "errors":
+        lines = [ln for ln in lines if any(m in ln for m in _ERROR_MARKERS)]
+        if not lines:
+            return
+
     if len(lines) > FLOOD_CAP:
         suppressed = len(lines) - FLOOD_CAP
         lines = lines[:FLOOD_CAP]
         lines.append(f"…({suppressed} more suppressed)")
+
+    if _OFFLINE and time.monotonic() < _NEXT_RETRY:
+        _count_suppressed(len(lines))
+        return
 
     _send_batched(lines)
 
@@ -191,8 +263,20 @@ def _send_batched(lines: list[str]) -> None:
         _send_message("\n".join(batch))
 
 
+def _count_suppressed(count: int) -> None:
+    """Track suppressed events during offline and log a summary at most every 5 minutes."""
+    global _SUPPRESSED_COUNT, _LAST_SUMMARY
+    _SUPPRESSED_COUNT += count
+    now = time.monotonic()
+    if now - _LAST_SUMMARY >= _SUMMARY_INTERVAL:
+        logger.info("[telegram_relay] Still offline — %d events suppressed so far", _SUPPRESSED_COUNT)
+        _LAST_SUMMARY = now
+
+
 def _send_message(text: str) -> bool:
     """POST a single message to the Telegram Bot API."""
+    global _OFFLINE, _CURRENT_BACKOFF, _NEXT_RETRY, _OFFLINE_SINCE, _SUPPRESSED_COUNT, _LAST_SUMMARY
+
     url = f"https://api.telegram.org/bot{_bot_token}/sendMessage"
     payload = json.dumps(
         {
@@ -206,9 +290,29 @@ def _send_message(text: str) -> bool:
     try:
         with _http_fetch(req, timeout=10) as resp:
             result = json.loads(resp.read().decode("utf-8"))
+            if _OFFLINE:
+                duration = time.monotonic() - _OFFLINE_SINCE
+                logger.info(
+                    "[telegram_relay] Recovered (was offline %.0fs, %d events dropped from TG feed)",
+                    duration,
+                    _SUPPRESSED_COUNT,
+                )
+                _OFFLINE = False
+                _CURRENT_BACKOFF = _BACKOFF_INITIAL
+                _SUPPRESSED_COUNT = 0
             return result.get("ok", False)
-    except (URLError, Exception) as e:
-        logger.warning("[telegram_relay] Send failed: %s", e)
+    except (URLError, OSError) as e:
+        now = time.monotonic()
+        if not _OFFLINE:
+            logger.warning("[telegram_relay] TG relay offline: %s", e)
+            _OFFLINE = True
+            _OFFLINE_SINCE = now
+            _CURRENT_BACKOFF = _BACKOFF_INITIAL
+            _SUPPRESSED_COUNT = 0
+            _LAST_SUMMARY = now
+        else:
+            _CURRENT_BACKOFF = min(_CURRENT_BACKOFF * 2, _BACKOFF_CAP)
+        _NEXT_RETRY = now + _CURRENT_BACKOFF
         return False
 
 

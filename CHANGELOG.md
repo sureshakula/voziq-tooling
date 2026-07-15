@@ -9,6 +9,367 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-15]
+
+### Added
+
+- **Supply-chain hardening pass (DPLAN-0243): commit signing + hash-pinned CI
+  tooling + release provenance.** All commits are now SSH-signed via a
+  dedicated repo-scoped signing key (first signed commit 9048666c, verified
+  `Good "git" signature`). Every standalone pip tool install across the four
+  CI workflows now installs `--require-hashes` from lock files in
+  `.github/requirements/` (pip/ruff/build/pytest/pip-audit), generated with
+  full multi-platform hash coverage — including the Windows `colorama` marker
+  dependency that naive Linux-side pinning silently drops. `publish.yml`
+  gained a SHA-pinned build-provenance attestation step (activates on the
+  next release), and Dependabot now watches the new lock directory as a
+  grouped `pip` ecosystem. Editable `-e .` installs untouched. Full 31-check
+  CI matrix green on the change. Driven by the OpenSSF Scorecard gaps
+  surfaced via hvtracker.net (HVTrust 82.0, #1 in Multi-Agent Systems);
+  detector-gap correction filed upstream as YugantM/hvtracker#186 (Claude
+  Code-native projects misread as "no Anthropic dependency").
+
+### Fixed
+
+- **CI green pass on the runaway-log PR — every red was ours, every fix
+  verified.** Morning-after triage of PR#696's failing checks: the test
+  matrices' only failure was the known parked flake, but lint and the seedgo
+  audit were genuinely red from the previous night's new code. One `ruff
+  format` on trigger's runaway-handler tests fixed lint. The audit findings
+  went back to their owners by dispatch: @hooks built the branch's missing
+  json_handler and wired it into `persistent_alert`/`alert_dismiss`, added the
+  introspection no-args gate, and flattened `_menu_live()`'s nesting
+  (1071 tests green); @prax refactored `rate_tracker.py` to dependency
+  injection — the module layer now injects `logs_dir` and `trigger.fire` via
+  `configure()`, so the handler carries no cross-handler or handler→module
+  imports (1028 tests green). Both branches re-audit at 100% across all 41
+  standards, independently verified. Detection re-proven live post-refactor
+  with a fresh planted log storm. Also trimmed the tier-1 navmap prompt
+  (9.3k → 7.9k chars, under its ~8k injection cap) with the comms doctrine
+  intact.
+
+- **Windows flake pinned: `test_is_pid_alive_dead` escaped the ca096295
+  sweep.** That commit's rule — tests mocking `os.kill` must pin
+  `sys.platform="linux"` because Windows takes the ctypes OpenProcess path and
+  never reaches the mock — was applied to every pid-liveness test except this
+  one. It only failed when PID 1234 happened to be alive on the runner
+  (environment lottery, first hit today). Pinned like its siblings. The
+  remaining Windows session_boot reds and the relay mtime-cache flake predate
+  this PR and stay parked.
+
+- **The parked reds, unparked — Patrick's ruling: red CI is never parked.**
+  "If CI is red, it's because you or I left it red." Both remaining reds fixed
+  by their owners the same hour. @prax root-caused the relay mtime-cache flake:
+  the test only passed when two writes landed in the same mtime-granularity
+  window (true locally, false on CI runners) — fixed by pinning mtime with
+  `os.utime` so the cache contract is tested deterministically, proven 50/50 +
+  20/20 loops. @hooks root-caused the four Windows session_boot reds: the boot
+  path's `_tmux_session_exists()` ran a real `subprocess.run(["tmux", ...])`
+  that Windows runners can't satisfy (WinError 2) — mocked in all four tests
+  per the ca096295 convention, leaving `execvp` (already mocked) as the only
+  terminal call. Ruling recorded in compass; the "forget CI" era is over.
+
+- **Burst-evasion closed: bursty runaways can no longer slip past the rate
+  tracker.** Found live during the morning's chain verification: any single
+  below-threshold 10-second scan window zero-reset the sustain counter, so a
+  bursty writer (20 short lines every 6 seconds — 200 lines/min average, the
+  exact retry-loop-with-sleep shape of the TG relay incident) ran 4 minutes
+  undetected. @prax's fix (rate_tracker v1.2.0): severity now evaluates
+  `max(instant_rate, 60s window average)` — continuous writers behave exactly
+  as before (instant rate dominates), bursts sustain through their gap
+  windows, and subsidence still clears as zeros fill the window. Four new
+  burst tests; live-proven with the previously-evading storm pattern:
+  `RUNAWAY WARNING: prax_burst_storm_test.log — 191 lines/min sustained 120s`
+  in the tracker log, fired from the restarted running service. Detection
+  evidence now spans all three storm shapes: continuous fast (332/min),
+  continuous moderate (257/min), bursty (191/min).
+
+### Added
+
+- **TG streaming v2 polish (DPLAN-0229): the last two finalize paths now
+  honor the streaming flag.** v1 shipped with a deliberate gap — when logs
+  were active mid-turn or the final response exceeded 4096 chars, the Stop
+  hook fell back to "Done." + a fresh message, orphaning the streamed bubble.
+  @hooks threaded `streaming` through `_deliver_chunks`: logs-active now
+  reconcile-edits the streamed message with the final formatted response, and
+  multi-chunk edits chunk 1 in place then sends [2/N]+ as continuations.
+  Batch mode is verified zero-change (regression tests for both paths), plus
+  an edit-fail fallback. 6 new tests, 1077 green. Live streamed-turn proof
+  pending Patrick's next streaming session — honestly flagged, not faked.
+
+## [2026-07-14]
+
+### Fixed
+
+- **Prax TG relay gets the same offline backoff as the bots.** Found in
+  Patrick's live plug-pull test: the bots went quiet correctly, but the
+  monitor→Telegram relay kept logging `Send failed` every ~5 seconds (89 lines,
+  no backoff) — and each failed-send error was re-ingested by the log watcher,
+  feeding the relay more events to fail on. Now network-class send failures put
+  the relay in offline mode: doubling backoff (1s→60s cap), flush gate skips
+  sends while offline so the monitor loop never blocks and viewers keep
+  rendering, log-once semantics (one enter line, one 5-minute summary, one
+  recovery line with drop count), full reset on first successful send. 11 new
+  tests; 1007 prax green.
+
+- **TG bots no longer hot-spin when the internet drops.** Live find from
+  Patrick's on-location tether outage: DNS failure makes `urlopen` fail
+  instantly (no 30s long-poll wait), so the shared poll loop retried as fast as
+  it could — up to 13 ERROR lines/second per bot, all 5 bots spinning for the
+  whole offline window (rotation saved the disk; nothing saved the CPU, and the
+  flood tripped the medic circuit breaker fleet-wide). Now network-class poll
+  failures (DNS/connection/socket, classified via `_NetworkPollError`) back off
+  exponentially 1s→60s cap and reset on the first successful poll, with
+  log-once semantics: one "unreachable, backing off" line, one summary per 5
+  minutes while offline, one recovery line with suppressed count. Routine
+  long-poll read-timeouts (expected getUpdates behavior, ~863 medic-suppressed
+  events/day) no longer log at all. Bots still self-recover the moment
+  connectivity returns. 25 new tests; 822 TG + 252 skills green.
+
+### Added
+
+- **Runaway-log detection + escalation — designed and built by the agents
+  themselves.** Patrick's mission brief went to @prax as lead ("I don't want it
+  to be you" — devpulse relayed requirements, not a design): prax researched,
+  collaborated with @hooks and @trigger by mail, wrote DPLAN-0242, and ran the
+  build as TDPLAN-0013 across three branches. The system: @prax `rate_tracker`
+  watches every log in `system_logs/` for volume (not content — orthogonal to
+  medic), disk-persisted state, WARNING at >100 lines/min sustained 2 min /
+  CRITICAL at >10 lines/sec 1 min, per-file suppression, runs as a 4th monitor
+  thread, plus `drone @prax log-health` for an at-a-glance rate overview.
+  @trigger registers the new `runaway_log_detected` event and dispatches to the
+  responsible branch with a per-file 30-min cooldown deliberately independent
+  of medic's circuit breaker (a storm can't silence both systems), UNKNOWN
+  attribution falls back to @prax, and every alert is written to
+  `.aipass/alerts.json`. @hooks `persistent_alert` injects an advisory banner
+  into every agent's prompt until the alert is fixed or dismissed
+  (`drone @hooks dismiss <id>`) — general-purpose, any agent can raise alerts.
+  Devpulse verification found and fixed the last-mile gaps: both hooks pieces
+  stopped at the first `.aipass/` dir walking up (every branch has one — the
+  banner could never render), and hooks.json registration alone isn't
+  deployment — the handler needed manual wiring into `~/.claude/settings.json`
+  (agents can't edit it; documented for future handlers). Live-fire acceptance:
+  a planted 240 lines/min storm was detected at 257 lines/min sustained 120s →
+  event → dispatch → **@aipass woke autonomously, root-caused the test writer
+  down to its PID and loop shape, triaged no-action** → alerts.json → banner
+  renders → dismiss clears. ~77 new tests across four branches, suites green
+  (prax 1028, trigger 619, hooks 1071), seedgo 98–100%.
+
+- **Citizens wake each other freely — wake-back for everyone, devpulse
+  unwakeable by design.** Patrick's ruling after two team-mission stalls in one
+  evening (prax emailed sleeping collaborators; trigger replied instead of
+  dispatching back — replies never wake, and wake-back was owner-gated so
+  agent-to-agent dispatch never woke the sender). @ai_mail removed the
+  owner-gate: any citizen sender is woken when its dispatched agent completes
+  (proven live: "@trigger woken after @aipass completed" — first citizen
+  wake-back ever). @devpulse is now structurally unwakeable via a
+  `citizen_class: manager` check on every wake path — mail always lands, wake
+  always skips, no longer dependent on an interactive session happening to be
+  open. The gate removal exposed a self-wake loop within minutes (wake-back
+  sessions were attributed to @ai_mail as sender, so ai_mail kept waking
+  itself; the depth cap stopped it after one cycle) — fixed the same night:
+  self-wake guard + wake-back sessions carry no sender, so chains terminate at
+  the original dispatcher. 765 ai_mail tests green. The navmap gained a
+  "Talking to other agents" section: dispatch vs email semantics, team-relay
+  discipline, and the manager exception.
+
+- **Medic is back on — and the loop is proven live.** Off since 2026-05-10 (a
+  pytest fixture storm flooded the error registry; the off switch was pulled to
+  stop the noise and forgotten for 65 days). Three fixes made re-enable safe:
+  (1) @prax: pytest logging routes to a temp dir when `PYTEST_CURRENT_TEST` is
+  set — test fixtures can never pollute production `logs/` again (the storm
+  class that caused the shutdown); (2) @trigger: circuit breaker self-heals —
+  open breakers half-open on read, close on a successful probe, cooldown decays
+  to base (previously `half_open` was a terminal trap and only manual reset
+  recovered); (3) @trigger: **TTL mutes** — `medic mute @branch` and `medic off`
+  now auto-expire after 24h by default (`--for 48h/7d` custom, `--forever`
+  explicit kill switch; temp `off` keeps detection running). Agents doing build
+  work mute themselves and never have to remember to unmute — the permanent
+  switch that got medic forgotten no longer exists. Breadcrumbs shipped: ai_mail
+  footer + navmap tell every agent to mute before build work. Live-fire proof:
+  a planted commons SQL bug was detected, dispatched, and fixed byte-identical
+  by @commons in 105 seconds (15/15 tests green); a real TG poll error was
+  correctly triaged NOT ACTIONABLE; organic instance-lock noise was correctly
+  triaged LOW/expected. @skills/@api on 7-day mutes until the TG poll-level fix
+  lands. 993 prax + 603 trigger tests green.
+
+- **Prax monitor: concurrent viewers — laptop and Telegram mirror side by
+  side.** Patrick's ruling after being locked out of his own monitor three
+  times: *processes are not agents; display processes must never be
+  single-instance.* The instance lock is gone from the display path — any
+  number of `monitor run` viewers start and render concurrently. The lock is
+  scoped to the one true single-writer responsibility: the Telegram relay
+  (`relay.pid`, held by `prax-monitor.service`); extra instances run
+  viewer-only, so no TG double-sends. The misleading "kill the existing
+  process" error is dead. 998 prax tests green, 3 new concurrent-viewer tests;
+  live-verified: interactive Mission Control rendering while the TG relay
+  service runs untouched.
+
+- **Telegram user-comment mirror: the TG chat now shows the whole conversation,
+  whichever door you speak through.** Patrick's spec from the live cross-door
+  drill: his own messages typed in the terminal or claude.ai remote never
+  appeared in TG — only the replies did. New `user_message_relay` UserPromptSubmit
+  handler (@skills-built, self-contained in the telegram skill, registered by
+  @hooks as the last, crash-isolated entry) posts genuine user messages to the
+  branch's TG chat with an origin tag, silently (`disable_notification`). Noise
+  fences keep it human-only: system/task notifications, slash-command output,
+  dispatch wake prompts, sub-agent prompts, TG-origin echoes, and consecutive
+  dupes are all skipped (structural session-type detection was investigated and
+  rejected — it's session-wide, would eat genuine mid-flight messages). Inbound
+  hardening rides along: stale pending files cleaned before each write, and an
+  undelivered-response overwrite now logs a warning instead of silently losing
+  the reply. 47 new TG tests; registration execution-proven via engine.jsonl and
+  the positive path live-verified — a terminal-door message delivered to the
+  real TG chat. TG dormancy/proactive push deliberately untouched (design chat
+  with Patrick pending).
+
+### Fixed
+
+- **TG bot heartbeat race: delivered replies no longer flip back to
+  "Processing…".** Patrick watched his answered bubble get overwritten live: a
+  heartbeat thread stuck >5s in a slow Telegram edit call survived its stop
+  (the join timed out), woke to a *shared* stop Event the next message had
+  already cleared, and re-edited the old placeholder with "Processing…
+  (elapsed)" over the delivered reply. Fixed structurally (@skills, devpulse
+  root-cause brief): a generation counter captured per heartbeat thread —
+  any stale thread breaks before every edit — plus a delivered re-check
+  immediately before each edit call in both batch and streaming loops.
+  Second bug in the same window: rapid-fire messages (photo + text in one
+  turn) overwrite the bot's single pending slot, stranding the earlier
+  placeholder frozen; superseded placeholders are now finalized to
+  "⏭ Superseded by newer message" in both message and file paths. 6 new
+  heartbeat tests; full TG suite 797 green (devpulse-verified). Deployment
+  lesson from the same morning: bot fixes aren't live until the systemd
+  units restart — commit ≠ deploy.
+
+- **TG mirror live-test fixes: main-chat messages mirror, TG messages don't
+  echo.** Patrick's first morning test caught what 47 green tests missed: the
+  relay's sub-agent skip blocked ALL daemon-backed main chats (they run with
+  `--agent claude`, so `agent_type="claude"` — and real sub-agents never fire
+  UserPromptSubmit at all; the filter's premise was empirically wrong across the
+  entire engine log). Skip is now agent_id-based (defensive, never observed).
+  Second catch from tracing his test: TG messages inject into tmux as raw text —
+  no `via Telegram:` marker — so the TG-origin filter never matched and every
+  TG message would have echoed back once the first fix landed. New structural
+  gate: the bot stores the injected prompt in its pending file; the relay skips
+  a prompt that text-matches a fresh undelivered pending entry. Mirror proven
+  live by Patrick across both directions ("success :)"). 791 TG tests green.
+
+- **DPLAN-0241 round 4 (night shift): user flags survive every launch path, and
+  every session is born with an honest name.** R6 — the bug behind Patrick's
+  approve-everything chat: the boot menu suppressed its bypass defaults when the
+  user passed `--permission-mode` himself, but only the fresh-launch path threaded
+  the user's flags into the exec — resume, takeover, continue, and dead-window
+  paths all launched flagless. `extra_args` now threads through ALL launch paths
+  (headless `-p` included). R7 — auto-namer: every launch is stamped
+  `--name <branch>-<short-session-id>` (flag live-verified on claude 2.1.209; a
+  user-passed `-n/--name` wins), so made-up auto-names can no longer hide which
+  chat is which. Plus four drill nits: new-over-all ABORTS if the daemon stop
+  fails (one brain even in failure paths), close-all's failure hint no longer
+  recommends the mechanism that just failed, `exit`/`q`/`quit` quietly leave every
+  menu, session rows stay rich (PID, kind, name, age). Surgical-stop probe:
+  `op:kill` exists in the daemon's Unix-socket control protocol (per-job bg stop,
+  8-char sessionId prefix, no auth) — documented in DPLAN-0241, deliberately NOT
+  shipped: undocumented internal protocol. 1048 hooks tests green (102
+  session_boot, 11 real-binary CLI contract).
+
+## [2026-07-13]
+
+### Fixed
+
+- **DPLAN-0241 rounds 2-3: Enter IS the takeover — background chats reopen as
+  normal terminal chats.** Live incident round two (Patrick's laptop, 23:00): the
+  boot menu's resume for a background chat opened the `claude agents` viewer, which
+  dispatched his typed message as a brand-new bg job WITHOUT bypass permissions —
+  and the shipped stop path called `claude agents stop`, a subcommand that does not
+  exist (987 mocked tests never noticed). All fixed by @hooks across two rounds,
+  every CLI fact live-verified against claude 2.1.208: phantom stop removed
+  (bg close is now honest — no per-job stop exists in the CLI; SIGTERM never used
+  on bg, the daemon respawns it); Enter on a live bg session now takes the chat
+  over — `claude daemon stop --any` (returncode-checked, blast-radius listing +
+  y/N confirm when other branches' bg sessions would also stop) then `--resume
+  <sessionId>` inside tmux with bypass; ALL interactive launches tmux-wrapped so a
+  closed terminal is always recoverable; multi-session menu shows real session
+  names, requires an explicit pick, and its new/close paths stop-first honestly;
+  new real-binary CLI contract test tier (20 tests probing every claude
+  flag/subcommand our code invokes — the phantom-subcommand class is now
+  structurally unshippable). 1025 hooks tests green. North-star architecture
+  recorded from Patrick's rulings: one conversation per branch; TG/claude.ai/
+  terminal are views of it; agents bind to the machine, not the interface.
+
+- **Session management overhaul (DPLAN-0241): one brain per branch, attach-first
+  boot menu, honest session listings.** Born from a live incident — Patrick locked
+  out of a running chat for an hour. Root causes, all fixed by @hooks: the bashrc
+  boot shim hijacked EVERY `claude` invocation (so `claude agents`, the real
+  attach path, never executed) — now intercepts only bare/`--permission-mode`
+  launches; session_boot printed one PID from a list and advised `kill` for
+  daemon-managed background sessions (which respawn — the unwinnable loop) — now
+  a 3-option boot menu (resume / start-new-closes-old / close) with per-kind
+  proper stops; presence_gate (single-session enforcement) had NEVER run in
+  production (`provider_wired: false`, absent from settings.json, zero engine
+  entries ever) and carried two latent bugs (self-PID resolver matched
+  comm=="claude" but CC binaries are version-named; agent_type skip waved through
+  daemon bg sessions) — both fixed, wired, shipped OBSERVE-ONLY for a soak period
+  per prior-art recall (the gate false-blocked a real resume in the
+  PRESENCE-file era); wire_verify no longer excludes unwired security hooks from
+  its check (enabled-but-unwired = ERROR); new `drone @hooks sessions` +
+  `sessions reclaim` one-command reset; session listings/names standardized to
+  `PID · branch · short-id · kind · age`. Verified live: gate's first production
+  run correctly logged a would-block for a real duplicate session without
+  self-blocking. 987 hooks tests green (26 new/updated).
+
+## [2026-07-12]
+
+### Added
+
+- **Telegram log-stream control: `/logs` on branch bots + interactive Prax
+  Monitor chat.** The per-branch session LogStreamer auto-started on first
+  message hardwired to full firehose with no off switch; the Prax Monitor
+  relay chat was send-only — no command menu, and anything typed there was
+  silently never read (nothing polled that token). @skills added `/logs
+  on|errors|off|status` to all branch bots (preference persisted per chat,
+  honored by the auto-start; 33 tests) and a new `PraxMonitorBot` receiver
+  service (`telegram-bot@prax_monitor`) with `/pause /resume /errors /all
+  /status` and a registered command menu (34 tests). @prax made the relay
+  honor the shared control file (`~/.aipass/telegram_bots/
+  prax_monitor_control.json`, frozen contract: paused + level) each 5s flush —
+  paused discards, `errors` filters to WARNING/ERROR/CRITICAL (17 tests).
+  Live-verified end-to-end from Telegram Web: `/errors` silenced INFO batches
+  within one flush, `/all` restored them.
+
+### Fixed
+
+- **Legacy `builder` citizen_class migration + birth-certificate template
+  (fixes #692).** `builder` was renamed to `aipass_framework` on 2026-07-01
+  (13463c0c) as a pure rename, but passports minted pre-rename kept the retired
+  name, and the seedgo Architecture checker requires
+  `spawn/templates/<citizen_class>/` — hard-capping those citizens below 100%
+  (Vera Studio's @vera/@writer stuck at 99%; same legacy class found in 6
+  external projects). @spawn completed the rename instead of resurrecting a
+  `builder` template: `sync-registry --fix` now migrates the exact value
+  `builder` → `aipass_framework` in passports (idempotent, dry-run safe, 3 new
+  tests), so external projects self-heal via `aipass doctor --fix`. Also fixed
+  the template leftover that kept minting the retired name:
+  `birth_certificate.json` now renders `{{CITIZEN_CLASS}}` like the passport
+  does. Verified: dry-run against Vera Studio's live registry plans exactly the
+  two migrations with zero writes; spawn 347 tests green. #695 closed won't-fix
+  (armed Monitor-tool watchdog is the dispatch indicator; always-arm is the
+  rule).
+- **Order-dependent `test_missing_file` + skills test litter (fixes #694).**
+  Root cause was @prax's `json_handler_module` fixture popping EVERY branch's
+  json_handler from `sys.modules` (never restored), orphaning the module object
+  @skills' conftest had patched — `test_missing_file` then re-imported a fresh
+  module pointed at the real `skills_json/`, planted `ghost_config.json`, and
+  failed on it every later full-repo run (the only failure in an 11k-test
+  sweep). @prax scoped the eviction to `aipass.prax.*` via
+  `monkeypatch.delitem` (auto-restore). @skills made all 4 resilience tests
+  hermetic (patch `SKILLS_JSON_DIR` → `tmp_path` inside the test body, immune
+  to sys.modules state), fully-qualified the legacy bare `skills.`
+  `BRANCH_MODULE` in 3 test files (the source of the remaining litter), and
+  fixed a latent wrong-variable assert. Verified: original failing pair now
+  passes both orders, prax+skills+spawn 1576 tests green, `skills_json/` stays
+  clean after a full run.
+
 ## [2026-07-11]
 
 ### Added

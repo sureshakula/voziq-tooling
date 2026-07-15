@@ -22,7 +22,6 @@ Architecture: Module orchestrates, error_registry handler manages data
 import json
 import os
 import sys
-import time
 from typing import Optional
 
 
@@ -465,13 +464,8 @@ def _cmd_circuit_breaker(console, args: list) -> bool:
     if cb_st == "closed":
         console.print("  [dim]Normal operation - all dispatch allowed[/dim]")
     elif cb_st == "open":
-        opened_at = cb.get("opened_at", 0)
-        cooldown = cb.get("cooldown_seconds", 0)
-        if opened_at > 0:
-            remaining = max(0, cooldown - int(time.time() - opened_at))
-            error(f"Dispatch paused - {remaining}s remaining until half-open")
-        else:
-            error("Dispatch paused")
+        remaining = cb.get("remaining_seconds", 0)
+        error(f"Dispatch paused - {remaining}s remaining until half-open")
         console.print()
         console.print("  [dim]Run 'drone @trigger errors circuit-breaker reset' to force close[/dim]")
     elif cb_st == "half_open":

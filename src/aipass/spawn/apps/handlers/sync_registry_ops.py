@@ -608,6 +608,29 @@ def fix_owner_identity(registry_path=None, dry_run=False):
 
     actions.extend(passport_actions)
 
+    # --- migrate legacy citizen_class "builder" → "aipass_framework" ---
+    for branch in branches:
+        branch_dir = project_root / branch.get("path", "")
+        passport_path = branch_dir / ".trinity" / "passport.json"
+        if not passport_path.exists():
+            continue
+        try:
+            passport = json.loads(passport_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning("[fix-identity] Cannot read passport for migration: %s", e)
+            continue
+        current_class = passport.get("identity", {}).get("citizen_class", "")
+        if current_class != "builder":
+            continue
+        passport.setdefault("identity", {})["citizen_class"] = "aipass_framework"
+        if not dry_run:
+            try:
+                passport_path.write_text(json.dumps(passport, indent=2, ensure_ascii=False), encoding="utf-8")
+            except IOError as e:
+                logger.warning("[fix-identity] Failed to migrate citizen_class for %s: %s", branch.get("name", "?"), e)
+                continue
+        actions.append(f"Migrate citizen_class for {branch.get('name', '?')}: builder → aipass_framework")
+
     applied = False
     if registry_changed and not dry_run:
         applied = save_registry(registry_path, reg_data)
@@ -615,6 +638,9 @@ def fix_owner_identity(registry_path=None, dry_run=False):
             logger.info("[fix-identity] Registry updated with %d action(s)", len(actions))
         else:
             logger.error("[fix-identity] Failed to save registry")
+
+    if not registry_changed and actions and not dry_run:
+        applied = True
 
     if dry_run and actions:
         logger.info("[fix-identity] Dry-run: %d action(s) planned", len(actions))

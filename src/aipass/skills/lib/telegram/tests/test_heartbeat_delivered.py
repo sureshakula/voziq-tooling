@@ -244,3 +244,121 @@ class TestReplyNotClobbered:
 
         # Heartbeat saw delivered immediately, never edited
         mock_edit.assert_not_called()
+
+
+# =============================================
+# 5. STALE THREAD CANNOT EDIT (generation counter)
+# =============================================
+
+
+class TestStaleThreadCannotEdit:
+    """A heartbeat thread from a previous generation must not edit after a new start."""
+
+    def test_stale_thread_blocked_by_gen(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        bot.pending_file.parent.mkdir(parents=True, exist_ok=True)
+        bot.pending_file.write_text(json.dumps({"chat_id": 42}), encoding="utf-8")
+
+        edits_by_msg = {}
+
+        def track_edit(chat_id, msg_id, text):
+            edits_by_msg.setdefault(msg_id, []).append(text)
+
+        with (
+            patch.object(bot, "edit_message", side_effect=track_edit),
+            patch.object(bot, "_tmux_session_exists", return_value=True),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.HEARTBEAT_INTERVAL", 0.1),
+        ):
+            # Start heartbeat for msg 100
+            bot._start_heartbeat(42, 100)
+            time.sleep(0.3)
+            # Start new heartbeat for msg 200 (bumps gen, stops old)
+            bot._start_heartbeat(42, 200)
+            time.sleep(0.3)
+            bot._stop_heartbeat()
+
+        # msg 200 should have edits, msg 100 should have stopped
+        assert 200 in edits_by_msg
+        # After new start, no further edits to msg 100
+        edits_100_count = len(edits_by_msg.get(100, []))
+        edits_200_count = len(edits_by_msg.get(200, []))
+        assert edits_200_count >= 1
+        # Old thread may have gotten 1-2 edits before gen mismatch, but not indefinite
+        assert edits_100_count <= 3
+
+    def test_gen_increments_on_each_start(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        bot.pending_file.parent.mkdir(parents=True, exist_ok=True)
+        bot.pending_file.write_text(json.dumps({"chat_id": 42, "delivered": True}), encoding="utf-8")
+
+        assert bot._heartbeat_gen == 0
+        with patch.object(bot, "edit_message"):
+            bot._start_heartbeat(42, 100)
+            assert bot._heartbeat_gen == 1
+            bot._start_heartbeat(42, 200)
+            assert bot._heartbeat_gen == 2
+            bot._stop_heartbeat()
+
+
+# =============================================
+# 6. RAPID-FIRE: stranded placeholder finalized
+# =============================================
+
+
+class TestRapidFireFinalize:
+    """When a new message overwrites undelivered pending, the old placeholder is finalized."""
+
+    def test_superseded_placeholder_edited(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        bot.pending_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Simulate undelivered pending from msg 100 with processing_message_id 500
+        prev_pending = {
+            "chat_id": 42,
+            "message_id": 100,
+            "processing_message_id": 500,
+            "timestamp": time.time(),
+        }
+        bot.pending_file.write_text(json.dumps(prev_pending), encoding="utf-8")
+
+        with patch.object(bot, "edit_message") as mock_edit:
+            bot._finalize_superseded_pending(200)
+
+        mock_edit.assert_called_once_with(42, 500, "⏭ Superseded by newer message")
+
+    def test_no_finalize_when_delivered(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        bot.pending_file.parent.mkdir(parents=True, exist_ok=True)
+
+        prev_pending = {
+            "chat_id": 42,
+            "message_id": 100,
+            "processing_message_id": 500,
+            "delivered": True,
+            "timestamp": time.time(),
+        }
+        bot.pending_file.write_text(json.dumps(prev_pending), encoding="utf-8")
+
+        with patch.object(bot, "edit_message") as mock_edit:
+            bot._finalize_superseded_pending(200)
+
+        mock_edit.assert_not_called()
+
+    def test_no_finalize_when_no_pending(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        assert not bot.pending_file.exists()
+
+        with patch.object(bot, "edit_message") as mock_edit:
+            bot._finalize_superseded_pending(200)
+
+        mock_edit.assert_not_called()
+
+    def test_no_crash_on_corrupt_pending(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        bot.pending_file.parent.mkdir(parents=True, exist_ok=True)
+        bot.pending_file.write_text("not json{{{", encoding="utf-8")
+
+        with patch.object(bot, "edit_message") as mock_edit:
+            bot._finalize_superseded_pending(200)
+
+        mock_edit.assert_not_called()

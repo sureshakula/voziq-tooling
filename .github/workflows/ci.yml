@@ -20,7 +20,9 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.13"
-      - run: pip install ruff
+      # Hash-pinned tool install (Scorecard: Pinned-Dependencies). Pins ruff to
+      # the version this lint gate is known-green against; see .github/requirements/lint.in.
+      - run: python -m pip install --require-hashes -r .github/requirements/lint.txt
       - run: ruff check src/ tests/
       - run: ruff format --check src/ tests/
 
@@ -36,7 +38,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
           pip install -e ".[dev]"
       # tests/e2e build a wheel + clean venv per the dedicated e2e-wheel.yml
       # workflow — they are not part of the fast unit lane.
@@ -57,7 +59,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
           # Install the `memory` extra (numpy/chromadb/fastembed) alongside dev:
           # the diagnostics standard runs pyright over every branch, and memory's
           # handlers import chromadb/numpy. Without these deps installed, pyright
@@ -79,7 +81,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: |
-          python -m pip install --upgrade pip
+          python -m pip install --require-hashes -r .github/requirements/pip.txt
           pip install -e ".[dev]"
       - run: coverage run -m pytest --rootdir=. --ignore=tests/e2e
       - run: coverage xml

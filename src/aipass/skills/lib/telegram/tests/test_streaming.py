@@ -123,7 +123,7 @@ class TestFormatContentBlock:
         assert result is None
 
     def test_not_dict(self):
-        result = BaseBot._format_content_block("not a dict")
+        result = BaseBot._format_content_block("not a dict")  # type: ignore[arg-type]
         assert result is None
 
 
@@ -371,7 +371,7 @@ class TestBatchModeUnchanged:
 
         def delivered_after_one():
             call_count[0] += 1
-            return call_count[0] >= 2
+            return call_count[0] >= 3
 
         bot._is_pending_delivered = delivered_after_one
         bot._heartbeat_stop = threading.Event()
@@ -379,7 +379,7 @@ class TestBatchModeUnchanged:
         if bot._heartbeat_thread:
             bot._heartbeat_thread.join(timeout=35)
         bot._stream_edit.assert_not_called()
-        bot.edit_message.assert_called()
+        bot.edit_message.assert_called()  # type: ignore[union-attr]
 
     def test_stream_false_no_transcript_tail(self, tmp_path, _patch_deps):
         """When stream=False, _tail_transcript_bytes is never called."""
@@ -423,7 +423,7 @@ class TestStreamingLoop:
 
         def stop_after_three():
             call_count[0] += 1
-            return call_count[0] >= 3
+            return call_count[0] >= 4
 
         bot._is_pending_delivered = stop_after_three
         bot._tmux_session_exists = MagicMock(return_value=True)
@@ -439,7 +439,7 @@ class TestStreamingLoop:
 
         bot._heartbeat_stop = threading.Event()
         with patch.object(Path, "stat", fake_stat):
-            bot._streaming_loop(123, 456, time.time())
+            bot._streaming_loop(123, 456, time.time(), bot._heartbeat_gen)
 
         assert bot._stream_edit.call_count >= 1
         edit_text = bot._stream_edit.call_args[0][2]
@@ -463,7 +463,7 @@ class TestStreamingLoop:
         bot._stream_edit = MagicMock(return_value=(True, 0.0))
         bot._heartbeat_stop = threading.Event()
 
-        bot._streaming_loop(123, 456, time.time())
+        bot._streaming_loop(123, 456, time.time(), bot._heartbeat_gen)
 
         # Should show "Processing..." but not re-edit identical text
         first_call_text = bot._stream_edit.call_args_list[0][0][2] if bot._stream_edit.call_count > 0 else ""
@@ -487,14 +487,14 @@ class TestStreamingLoop:
 
         def stop_after_three():
             call_count[0] += 1
-            return call_count[0] >= 3
+            return call_count[0] >= 4
 
         bot._is_pending_delivered = stop_after_three
         bot._tmux_session_exists = MagicMock(return_value=True)
         bot._heartbeat_stop = threading.Event()
 
         with patch.object(Path, "stat", lambda s: type("S", (), {"st_size": 0})()):
-            bot._streaming_loop(123, 456, time.time())
+            bot._streaming_loop(123, 456, time.time(), bot._heartbeat_gen)
 
         # Should have called send_message for the rollover
         bot.send_message.assert_called()
@@ -522,14 +522,14 @@ class TestStreamingLoop:
 
         def stop_after_three():
             tick[0] += 1
-            return tick[0] >= 3
+            return tick[0] >= 4
 
         bot._is_pending_delivered = stop_after_three
         bot._tmux_session_exists = MagicMock(return_value=True)
         bot._heartbeat_stop = threading.Event()
 
         with patch.object(Path, "stat", lambda s: type("S", (), {"st_size": 0})()):
-            bot._streaming_loop(123, 456, time.time())
+            bot._streaming_loop(123, 456, time.time(), bot._heartbeat_gen)
 
         # Only 1 edit attempt — subsequent ticks skipped due to 429 backoff
         assert bot._stream_edit.call_count == 1
@@ -545,7 +545,7 @@ class TestStreamingLoop:
 
         def delivered_after_one():
             call_count[0] += 1
-            return call_count[0] >= 2
+            return call_count[0] >= 3
 
         bot._is_pending_delivered = delivered_after_one
         bot._heartbeat_stop = threading.Event()
@@ -554,7 +554,7 @@ class TestStreamingLoop:
             bot._heartbeat_thread.join(timeout=35)
 
         # Batch mode: edit_message called, _stream_edit not called
-        bot.edit_message.assert_called()
+        bot.edit_message.assert_called()  # type: ignore[union-attr]
         bot._stream_edit.assert_not_called()
 
     def test_mid_loop_delivery_breaks_without_edit(self, tmp_path, _patch_deps):
@@ -580,7 +580,7 @@ class TestStreamingLoop:
         bot._heartbeat_stop = threading.Event()
 
         with patch.object(Path, "stat", lambda s: type("S", (), {"st_size": 0})()):
-            bot._streaming_loop(123, 456, time.time())
+            bot._streaming_loop(123, 456, time.time(), bot._heartbeat_gen)
 
         bot._stream_edit.assert_not_called()
 

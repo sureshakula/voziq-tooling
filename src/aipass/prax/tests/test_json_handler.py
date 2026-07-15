@@ -51,10 +51,10 @@ def cleanup_temp(tmp_path):
 @pytest.fixture
 def json_handler_module(mock_prax_infrastructure, tmp_path, monkeypatch):
     """Import json_handler with mocked dependencies and temp directories."""
-    # Remove cached module to get fresh import
+    # Remove cached prax json_handler modules to get fresh import (scoped to prax only)
     for key in list(sys.modules.keys()):
-        if "json_handler" in key and "aipass" in key:
-            sys.modules.pop(key, None)
+        if "json_handler" in key and key.startswith("aipass.prax."):
+            monkeypatch.delitem(sys.modules, key)
 
     mod = MagicMock()
     mod.PRAX_JSON_DIR = tmp_path / "prax_json"

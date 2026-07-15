@@ -189,7 +189,7 @@ class TestCheckEventWiring:
         assert len(warnings) == 1
         assert "duplicate unfiltered" in warnings[0]
 
-    def test_provider_wired_false_skips_error(self):
+    def test_provider_wired_false_still_errors(self):
         pidx = {"filtered": {"identity_injector": {"": 1}}, "unfiltered": 0, "empty": False}
         hooks_group = {
             "identity_injector": {"enabled": True, "handler": "x"},
@@ -197,15 +197,16 @@ class TestCheckEventWiring:
         }
         errors, warnings, info = [], [], []
         wire_verify._check_event_wiring("UserPromptSubmit", hooks_group, pidx, errors, warnings, info)
-        assert errors == []
+        assert any("presence_gate" in e for e in errors)
 
-    def test_provider_wired_false_no_event_no_error(self):
+    def test_provider_wired_false_no_event_still_errors(self):
         hooks_group = {
             "presence_gate": {"enabled": True, "handler": "y", "provider_wired": False},
         }
         errors, warnings, info = [], [], []
         wire_verify._check_event_wiring("UserPromptSubmit", hooks_group, None, errors, warnings, info)
-        assert errors == []
+        assert len(errors) == 1
+        assert "NO provider event entry" in errors[0]
 
 
 class TestVerifyWiring:
@@ -265,7 +266,7 @@ class TestVerifyWiring:
         assert result["ok"] is False
         assert any("presence_gate" in e for e in result["errors"])
 
-    def test_provider_wired_false_passes(self, tmp_path):
+    def test_provider_wired_false_now_errors(self, tmp_path):
         settings = tmp_path / "settings.json"
         settings.write_text(json.dumps({"hooks": GOOD_PROVIDER}))
         project = {
@@ -276,8 +277,8 @@ class TestVerifyWiring:
             },
         }
         result = wire_verify.verify_wiring(provider_path=settings, project_config=project)
-        assert result["ok"] is True
-        assert not any("presence_gate" in e for e in result["errors"])
+        assert result["ok"] is False
+        assert any("presence_gate" in e for e in result["errors"])
 
     def test_distinct_matchers_no_dupe_warning(self, tmp_path):
         provider = {

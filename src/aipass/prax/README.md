@@ -5,7 +5,7 @@
 **Purpose:** System-wide logging, real-time monitoring, and dashboard infrastructure for AIPass.
 **Module:** `aipass.prax`
 **Version:** 2.0.0
-**Last Updated:** 2026-06-05
+**Last Updated:** 2026-07-14
 
 ---
 
@@ -51,10 +51,22 @@ Real-time unified console showing:
 - **Caller attribution** — `CALLER → TARGET` for drone commands
 - **Model tags** — `[BRANCH/model]` (e.g., `[DEVPULSE/opus]`, `[DEVPULSE/gpt-5.4]`)
 - **Multi-CLI** — Claude Code (JSONL), Codex (JSONL) session monitoring
+- **Rate tracking** — 4th background thread scans `system_logs/` for runaway log growth every 10s
 - **Polling fallback** — automatic fallback when inotify watches are exhausted
 - **Soft start** — only shows new activity after launch (seeks to EOF on startup)
 
 Interactive commands inside the monitor: `help`, `status`, `quit`/`exit`.
+
+### Log Health
+
+```bash
+drone @prax log-health                   # Show module info
+drone @prax log-health scan              # Scan all log files, show current growth rates
+drone @prax log-health snapshot          # Show last known rates (no new scan)
+drone @prax log-health --help            # Log health usage
+```
+
+Quick overview of log file growth rates across `system_logs/`. Powered by the rate tracker handler — `scan` runs a fresh measurement, `snapshot` reads the last persisted state without scanning.
 
 ### Status
 
@@ -123,12 +135,13 @@ prax/
 ├── __init__.py                        # Public API: exports `logger` (NullLogger fallback)
 ├── apps/
 │   ├── prax.py                        # Entry point — auto-discovers modules, routes commands
-│   ├── modules/                       # Business logic (5 command modules)
+│   ├── modules/                       # Business logic (6 command modules)
 │   │   ├── logger.py                  # SystemLogger — auto-routing, two-tier logging
-│   │   ├── monitor.py                 # Mission Control — 3-thread real-time monitoring
+│   │   ├── monitor.py                 # Mission Control — 4-thread real-time monitoring
 │   │   ├── dashboard.py               # Dashboard — template management, refresh, write-through
 │   │   ├── status.py                  # System status — health display (STATUS.md sync dormant)
-│   │   └── log_audit.py              # Log audit — scan, health summary, enforce limits
+│   │   ├── log_audit.py              # Log audit — scan, health summary, enforce limits
+│   │   └── log_health.py             # Log health — rate overview (scan/snapshot)
 │   └── handlers/                      # Implementation details (11 handler directories)
 │       ├── central/                   # Central file reader (.ai_central/*.central.json)
 │       ├── config/                    # Path resolution, log config, ignore patterns
@@ -137,13 +150,13 @@ prax/
 │       ├── json/                      # Auto-creating JSON handler (config/data/log per module)
 │       ├── json_templates/            # Default JSON templates for auto-creation
 │       ├── logging/                   # Setup, rotation, introspection, override, direct logger
-│       ├── monitoring/                # Event queue, branch detector, stream output, log watcher
+│       ├── monitoring/                # Event queue, branch detector, stream output, log watcher, rate tracker
 │       ├── registry/                  # Module registry load/save
 │       ├── status/                    # STATUS.md sync handler (dormant — TDPLAN-0007)
 │       └── watcher/                   # Background system watchers
 ├── prax_json/                         # Auto-created per-module config/data/log files
 ├── templates/                         # Dashboard template schema (DASHBOARD.template.json)
-└── tests/                             # 901 tests across 19 files
+└── tests/                             # 1028 tests across 20 files
 ```
 
 ### Design Pattern
@@ -164,14 +177,15 @@ drone @prax monitor run
 1. **Auto-routing** — `logger.info()` inspects the call stack to identify the caller's module, branch, and file path, then routes the log entry to the correct per-module log file.
 2. **Two-tier logging** — Each log entry goes to both `system_logs/` (central, all branches) and `<branch>/logs/` (branch-local), both with size-based rotation.
 3. **Self-healing** — Auto-creates missing log directories, falls back to `system_logs/external/` for unknown modules, provides NullLogger if prax itself fails to import.
-4. **Mission Control** — Three threads: display worker (pulls from event queue), file watcher (watchdog on branch `apps/` dirs), log watcher (tails `system_logs/*.log`). Falls back to polling when inotify is exhausted.
+4. **Mission Control** — Four threads: display worker (pulls from event queue), file watcher (watchdog on branch `apps/` dirs), log watcher (tails `system_logs/*.log`), rate tracker (scans `system_logs/` for runaway growth every 10s). Falls back to polling when inotify is exhausted.
 5. **Multi-CLI monitoring** — Watches Claude Code JSONL and Codex JSONL session files. Extracts agent activity (thinking, tool use, responses) with model detection and branch resolution.
-6. **Dashboard** — Template-based per-branch dashboard files. Refreshes from central files (`*.central.json`). Write-through API for services to update sections directly.
-7. **STATUS sync** — *(Dormant — TDPLAN-0007)* Previously scanned all branch `STATUS.local.md` files and built aggregated `STATUS.md`. Engine code intact but no longer triggered.
+6. **Runaway-log detection** — Rate tracker measures byte growth per log file, estimates lines/min from byte deltas. Sustained thresholds: WARNING (>100 lines/min for 2 min), CRITICAL (>10 lines/sec for 1 min). Fires `runaway_log_detected` on the trigger event bus. State persists to disk across process restarts. Per-file suppression available.
+7. **Dashboard** — Template-based per-branch dashboard files. Refreshes from central files (`*.central.json`). Write-through API for services to update sections directly.
+8. **STATUS sync** — *(Dormant — TDPLAN-0007)* Previously scanned all branch `STATUS.local.md` files and built aggregated `STATUS.md`. Engine code intact but no longer triggered.
 
 ## Tests
 
-901 tests across 19 files, covering all major components:
+1028 tests across 20 files, covering all major components:
 
 | Test File | Tests | Coverage |
 |-----------|-------|----------|
@@ -179,7 +193,7 @@ drone @prax monitor run
 | test_monitoring_handlers.py | 139 | Branch detector, stream output, event handling |
 | test_operations.py | 99 | Dashboard operations, write-through |
 | test_log_watcher.py | 82 | Log file tailing, agent activity parsing |
-| test_monitor_module.py | 73 | Monitor commands, thread lifecycle |
+| test_monitor_module.py | 73 | Monitor commands, thread lifecycle (4-thread) |
 | test_logging_handlers.py | 41 | Setup, rotation, introspection, direct logger |
 | test_logging.py | 41 | Core logging system |
 | test_logger_module.py | 40 | Logger init, routing, lifecycle |
@@ -193,6 +207,7 @@ drone @prax monitor run
 | test_central.py | 14 | Central reader |
 | test_devpulse_dashboard_plugin.py | 12 | Dashboard plugin (git, session, dispatch) |
 | test_log_audit.py | 10 | Log audit |
+| test_rate_tracker.py | 21 | Rate tracking, thresholds, persistence, suppression |
 | test_status.py | 8 | Status commands |
 
 ## Integration Points
@@ -216,7 +231,7 @@ drone @prax monitor run
 
 ---
 
-*Last Updated: 2026-06-05*
+*Last Updated: 2026-07-14*
 
 ---
 [← Back to AIPass](../../../README.md)

@@ -1012,3 +1012,165 @@ def test_purge_stale_custom_days(tmp_path: Path) -> None:
 
     # 7-day cutoff should remove it
     assert er.purge_stale(days=7) == 1
+
+
+# ===========================================================================
+# 17. Circuit breaker self-heal (_evaluate_state, probe_succeeded, status)
+# ===========================================================================
+
+
+def test_evaluate_state_transitions_open_to_half_open_after_cooldown(tmp_path: Path) -> None:
+    """_evaluate_state transitions open -> half_open when cooldown has expired."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    er.circuit_breaker_trip(reason="test")
+    # Backdate opened_at so cooldown is expired
+    er._circuit_breaker.opened_at = time.time() - er._circuit_breaker.cooldown_seconds - 10
+
+    status = er.get_circuit_breaker_status()
+    assert status["state"] == "half_open"
+
+
+def test_evaluate_state_no_transition_before_cooldown(tmp_path: Path) -> None:
+    """_evaluate_state keeps state open when cooldown has not yet expired."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    er.circuit_breaker_trip(reason="test")
+    # opened_at is now (cooldown is 300s), so it should stay open
+    assert er._circuit_breaker.state == "open"
+
+    status = er.get_circuit_breaker_status()
+    assert status["state"] == "open"
+
+
+def test_evaluate_state_no_op_when_closed(tmp_path: Path) -> None:
+    """_evaluate_state is a no-op when breaker is already closed."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    assert er._circuit_breaker.state == "closed"
+
+    status = er.get_circuit_breaker_status()
+    assert status["state"] == "closed"
+
+
+def test_probe_succeeded_closes_breaker(tmp_path: Path) -> None:
+    """circuit_breaker_probe_succeeded transitions half_open -> closed and resets cooldown."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    # Trip the breaker and expire cooldown to get to half_open
+    er.circuit_breaker_trip(reason="test")
+    er._circuit_breaker.opened_at = time.time() - er._circuit_breaker.cooldown_seconds - 1
+    er.circuit_breaker_allows()  # Transitions to half_open
+    assert er._circuit_breaker.state == "half_open"
+
+    er.circuit_breaker_probe_succeeded()
+
+    assert er._circuit_breaker.state == "closed"
+    assert er._circuit_breaker.cooldown_seconds == er._circuit_breaker.base_cooldown
+    assert er._circuit_breaker.opened_at == 0.0
+    assert er._circuit_breaker.recent_errors == []
+
+
+def test_probe_succeeded_noop_when_closed(tmp_path: Path) -> None:
+    """circuit_breaker_probe_succeeded is a no-op when breaker is closed."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    assert er._circuit_breaker.state == "closed"
+
+    er.circuit_breaker_probe_succeeded()
+
+    assert er._circuit_breaker.state == "closed"
+
+
+def test_probe_succeeded_noop_when_open(tmp_path: Path) -> None:
+    """circuit_breaker_probe_succeeded is a no-op when breaker is open."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    er.circuit_breaker_trip(reason="test")
+    assert er._circuit_breaker.state == "open"
+
+    er.circuit_breaker_probe_succeeded()
+
+    assert er._circuit_breaker.state == "open"
+
+
+def test_status_returns_remaining_seconds(tmp_path: Path) -> None:
+    """get_circuit_breaker_status returns approximately correct remaining_seconds."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    er.circuit_breaker_trip(reason="test")
+    cooldown = er._circuit_breaker.cooldown_seconds
+    # Backdate opened_at by 100 seconds so remaining ~ cooldown - 100
+    er._circuit_breaker.opened_at = time.time() - 100
+
+    status = er.get_circuit_breaker_status()
+    expected_remaining = cooldown - 100
+    # Allow 2-second tolerance for timing
+    assert abs(status["remaining_seconds"] - expected_remaining) <= 2
+
+
+def test_status_remaining_zero_when_closed(tmp_path: Path) -> None:
+    """remaining_seconds is 0 when breaker is closed."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    status = er.get_circuit_breaker_status()
+    assert status["remaining_seconds"] == 0
+
+
+def test_breaker_half_open_on_read_then_allows_probe(tmp_path: Path) -> None:
+    """Expired open breaker transitions to half_open on allows() and consumes probe slot."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    er.circuit_breaker_trip(reason="test")
+    # Expire the cooldown
+    er._circuit_breaker.opened_at = time.time() - er._circuit_breaker.cooldown_seconds - 1
+
+    # First call: transitions open -> half_open, returns True (probe allowed)
+    result = er.circuit_breaker_allows()
+    assert result is True
+    assert er._circuit_breaker.state == "half_open"
+    assert er._circuit_breaker.half_open_allow is False
+
+
+def test_breaker_closes_after_successful_probe_dispatch(tmp_path: Path) -> None:
+    """Full self-heal cycle: open -> half_open -> probe allowed -> probe_succeeded -> closed."""
+    _seed_registry(tmp_path)
+    er = _import_registry()
+    er.circuit_breaker_reset()
+
+    base_cooldown = er._circuit_breaker.base_cooldown
+
+    # Trip the breaker
+    er.circuit_breaker_trip(reason="test")
+    assert er._circuit_breaker.state == "open"
+
+    # Expire the cooldown
+    er._circuit_breaker.opened_at = time.time() - er._circuit_breaker.cooldown_seconds - 1
+
+    # Probe dispatch: transitions open -> half_open and allows
+    assert er.circuit_breaker_allows() is True
+    assert er._circuit_breaker.state == "half_open"
+
+    # Probe succeeded: transitions half_open -> closed
+    er.circuit_breaker_probe_succeeded()
+    assert er._circuit_breaker.state == "closed"
+    assert er._circuit_breaker.cooldown_seconds == base_cooldown
+    assert er._circuit_breaker.opened_at == 0.0

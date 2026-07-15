@@ -6,13 +6,14 @@
 # Modified: 2026-07-10
 # =============================================
 
-"""Single-instance lock for the prax monitor.
+"""Relay-scoped lock for the prax monitor Telegram relay.
 
-Prevents duplicate monitor processes from running concurrently (and
-double-sending Telegram relay messages).  Uses a pidfile with liveness
-check — cross-platform (Linux / macOS / Windows).
+Prevents duplicate Telegram sends when multiple monitor viewers run
+concurrently. The display path is never blocked — only the TG relay
+acquires this lock, so interactive viewers always start.
 
-Lock file lives in prax_json/monitor.pid (outside system_logs/ to avoid
+Uses a pidfile with liveness check — cross-platform (Linux / macOS / Windows).
+Lock file lives in prax_json/relay.pid (outside system_logs/ to avoid
 the tailed-directory feedback loop).
 """
 
@@ -82,14 +83,14 @@ def _is_pid_alive(pid: int) -> bool:
 
 
 def get_lock_path() -> Path:
-    """Return the path for the monitor single-instance lock file."""
+    """Return the path for the relay lock file."""
     if _lock_path_override is not None:
         return _lock_path_override
-    return Path(__file__).resolve().parent.parent.parent / "prax_json" / "monitor.pid"
+    return Path(__file__).resolve().parent.parent.parent / "prax_json" / "relay.pid"
 
 
-def acquire(error_fn=None) -> None:
-    """Acquire single-instance lock. Raises SystemExit(1) if another live instance holds it."""
+def try_acquire() -> bool:
+    """Try to acquire the relay lock. Returns True if acquired, False if held by a live process."""
     global _held_lock
     lock_path = get_lock_path()
     json_handler.log_operation("instance_lock_acquire", {"pid": os.getpid()})
@@ -99,11 +100,8 @@ def acquire(error_fn=None) -> None:
             data = _json.loads(lock_path.read_text(encoding="utf-8"))
             existing_pid = data.get("pid", 0)
             if existing_pid and _is_pid_alive(existing_pid):
-                msg = f"Monitor already running (PID {existing_pid}). Kill the existing process or remove {lock_path}"
-                if error_fn:
-                    error_fn(msg)
-                logger.error("[instance_lock] %s", msg)
-                raise SystemExit(1)
+                logger.info("[instance_lock] Relay lock held by PID %d — skipping TG relay", existing_pid)
+                return False
             logger.info("[instance_lock] Reclaiming stale lock (PID %d is dead)", existing_pid)
         except (ValueError, OSError) as exc:
             logger.info("[instance_lock] Removing corrupt lock file: %s", exc)
@@ -111,7 +109,8 @@ def acquire(error_fn=None) -> None:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(_json.dumps({"pid": os.getpid()}), encoding="utf-8")
     _held_lock = lock_path
-    logger.info("[instance_lock] Acquired (PID %d)", os.getpid())
+    logger.info("[instance_lock] Acquired relay lock (PID %d)", os.getpid())
+    return True
 
 
 def release() -> None:

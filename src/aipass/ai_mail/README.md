@@ -62,19 +62,22 @@ The `dispatch` command sends an email and wakes the target branch in one step. D
 ### Wake Pipeline
 
 1. `dispatch.py` orchestrates: send email via `send_to_single()`, then wake via `wake_branch()`
-2. `wake.py` resolves the branch from the registry, finds the `claude` binary, spawns a subprocess
+2. `wake.py` resolves the branch from the registry, checks `citizen_class` (managers are mail-only — wake skips), finds the `claude` binary, spawns a subprocess
 3. `dispatch_monitor.py` wraps the claude process with safety features:
    - **Startup health check** — monitors JSONL session files for 90s, kills if no activity
    - **Auto-retry** — 3 strikes: attempt 1+2 resume, attempt 3 fresh (new session)
    - **Bounce email** — on final failure, sends error report back to sender
    - **Lock cleanup** — removes `.dispatch.lock` when agent exits
-4. After wake, `_spawn_watchdog()` auto-launches `drone @devpulse watchdog agent @target` as a detached background process
+   - **Wake-back** — on agent exit, wakes the original sender so they can process the result. Wake-back sessions carry an empty sender, so chains terminate at the original dispatcher
 
 ### Safety Limits
 
 - PID-based locking prevents concurrent agents per branch (`.dispatch.lock`)
 - Max turns per wake, max dispatches per branch per day
 - `WAKE_BLOCKLIST` protects `@devpulse` from cross-branch manual wakes
+- **Manager structural block** — branches with `citizen_class: "manager"` in their passport (e.g. `@devpulse`) are unwakeable on all wake paths. Mail delivers, wake skips
+- **Self-wake guard** — if sender equals target, wake-back is skipped (prevents self-loops)
+- **Chain termination** — wake-back sessions carry an empty sender, so the chain always stops at the original dispatcher
 - `dispatch_monitor.py` strips `AIPASS_CALLER_*` env vars to prevent parent context leaking into agent identity
 - `AIPASS_BRANCH_NAME` env var set in spawn_env for CWD-independent identity
 

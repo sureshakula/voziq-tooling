@@ -1,0 +1,15 @@
+# ruff for the ci.yml `lint` job, hash-pinned (Scorecard: Pinned-Dependencies).
+#
+# Target env: ubuntu-latest, Python 3.13. ruff has no dependencies, and
+# --generate-hashes emits every PyPI file hash for the pinned version (all 18
+# platform wheels + sdist), so this lock stays valid if lint ever runs on
+# another OS/arch.
+#
+# 0.15.21 == what the previous unpinned `pip install ruff` resolved to on
+# 2026-07-15, so pinning is a no-op for lint results today. Bumping this file
+# can surface new lint rules — that is the intended, reviewable trade-off.
+# Keep compatible with pyproject.toml's dev extra (`ruff>=0.11`).
+#
+# Regenerate:
+#   pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=lint.txt lint.in
+ruff==0.15.21

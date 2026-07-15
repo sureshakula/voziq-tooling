@@ -18,9 +18,11 @@ Covers:
 - Flood cap: truncation at 150 lines with suppression notice
 - _render_event calls relay_event in monitor.py
 - is_relay_enabled_by_env for env var detection
+- Offline backoff: doubles+caps, resets on success, log-once, never blocks
 """
 
 import importlib
+import json
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -56,12 +58,21 @@ def _import_relay():
         else:
             mod = importlib.import_module("aipass.prax.apps.handlers.monitoring.telegram_relay")
 
+    lock_mock = MagicMock()
+    lock_mock.try_acquire = MagicMock(return_value=True)
+    lock_mock.release = MagicMock()
+    setattr(mod, "instance_lock", lock_mock)
+
     setattr(mod, "_RELAY_ACTIVE", False)
     setattr(mod, "_bot_token", None)
     setattr(mod, "_chat_id", None)
     mod._buffer.clear()
     mod._stop_event.clear()
     setattr(mod, "_thread", None)
+    setattr(mod, "_OFFLINE", False)
+    setattr(mod, "_CURRENT_BACKOFF", mod._BACKOFF_INITIAL)
+    setattr(mod, "_NEXT_RETRY", 0.0)
+    setattr(mod, "_SUPPRESSED_COUNT", 0)
     return mod
 
 
@@ -411,3 +422,318 @@ class TestRelayEnabledByEnv:
         relay = _import_relay()
         with patch.dict("os.environ", {"AIPASS_PRAX_MONITOR_RELAY": "0"}):
             assert relay.is_relay_enabled_by_env() is False
+
+
+# ---------------------------------------------------------------------------
+# Control file: _read_control
+# ---------------------------------------------------------------------------
+
+
+class TestReadControl:
+    """Test _read_control reads, caches, and handles errors."""
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        """Missing control file returns empty dict (defaults)."""
+        relay = _import_relay()
+        setattr(relay, "CONTROL_FILE", tmp_path / "nonexistent.json")
+        assert relay._read_control() == {}
+
+    def test_valid_file_returns_content(self, tmp_path):
+        """Valid JSON control file is read and returned."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps({"paused": True, "level": "errors"}))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        result = relay._read_control()
+        assert result["paused"] is True
+        assert result["level"] == "errors"
+
+    def test_mtime_cache_avoids_reread(self, tmp_path):
+        """Same mtime returns cached result without re-reading the file."""
+        import os
+
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps({"paused": False}))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        first = relay._read_control()
+        cached_mtime = ctrl.stat().st_mtime
+        ctrl.write_text("INVALID JSON")
+        os.utime(ctrl, (cached_mtime, cached_mtime))
+        result = relay._read_control()
+        assert result == first
+
+    def test_mtime_change_triggers_reread(self, tmp_path):
+        """Changed mtime causes re-read of the control file."""
+        import os
+
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps({"paused": False, "level": "all"}))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        relay._read_control()
+        ctrl.write_text(json.dumps({"paused": True, "level": "errors"}))
+        os.utime(ctrl, (ctrl.stat().st_mtime + 1, ctrl.stat().st_mtime + 1))
+        result = relay._read_control()
+        assert result["paused"] is True
+        assert result["level"] == "errors"
+
+    def test_invalid_json_returns_empty_and_warns(self, tmp_path):
+        """Malformed JSON returns empty dict and logs a warning."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text("{bad json!!!")
+        setattr(relay, "CONTROL_FILE", ctrl)
+        result = relay._read_control()
+        assert result == {}
+        relay.logger.warning.assert_called_once()
+
+    def test_non_dict_json_returns_empty_and_warns(self, tmp_path):
+        """JSON that isn't a dict returns empty and logs warning."""
+        relay = _import_relay()
+        ctrl = tmp_path / "control.json"
+        ctrl.write_text(json.dumps([1, 2, 3]))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        result = relay._read_control()
+        assert result == {}
+        relay.logger.warning.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Control file: flush behavior with pause / level filter
+# ---------------------------------------------------------------------------
+
+
+class TestFlushControl:
+    """Test _flush_buffer honors control file pause and level filtering."""
+
+    def _make_relay(self, tmp_path, control_data=None):
+        """Helper: import relay, wire credentials, point control file at tmp_path."""
+        relay = _import_relay()
+        setattr(relay, "_bot_token", "t")
+        setattr(relay, "_chat_id", 1)
+        setattr(relay, "_RELAY_ACTIVE", True)
+        ctrl = tmp_path / "control.json"
+        if control_data is not None:
+            ctrl.write_text(json.dumps(control_data))
+        setattr(relay, "CONTROL_FILE", ctrl)
+        return relay
+
+    def test_paused_discards_buffer(self, tmp_path):
+        """Paused=true discards buffered lines, nothing sent."""
+        relay = self._make_relay(tmp_path, {"paused": True, "level": "all"})
+        relay._buffer.extend(["line 1", "line 2"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert sent == []
+        assert len(relay._buffer) == 0
+
+    def test_unpaused_sends_all(self, tmp_path):
+        """Paused=false with level=all sends everything."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "all"})
+        relay._buffer.extend(["info line", "WARNING alert"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 2
+
+    def test_level_errors_filters_info_lines(self, tmp_path):
+        """Level=errors drops lines without WARNING/ERROR/CRITICAL markers."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "errors"})
+        relay._buffer.extend(
+            [
+                "normal info line",
+                "[10:00:00] [PRAX] WARNING disk full",
+                "just a log",
+                "[10:00:01] [FLOW] ERROR crash",
+                "[10:00:02] [CLI] CRITICAL meltdown",
+            ]
+        )
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 3
+        assert all(any(m in ln for m in ("WARNING", "ERROR", "CRITICAL")) for ln in sent)
+
+    def test_level_errors_all_filtered_sends_nothing(self, tmp_path):
+        """Level=errors with no matching lines sends nothing."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "errors"})
+        relay._buffer.extend(["info line 1", "info line 2"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert sent == []
+
+    def test_missing_control_file_sends_all(self, tmp_path):
+        """Missing control file = defaults (not paused, level=all)."""
+        relay = self._make_relay(tmp_path)
+        relay._buffer.extend(["line 1", "line 2"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 2
+
+    def test_missing_keys_use_defaults(self, tmp_path):
+        """Control file with empty dict = not paused, level=all."""
+        relay = self._make_relay(tmp_path, {})
+        relay._buffer.extend(["line 1"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 1
+
+    def test_flood_cap_still_applies_after_filter(self, tmp_path):
+        """FLOOD_CAP is enforced after level filtering."""
+        relay = self._make_relay(tmp_path, {"paused": False, "level": "all"})
+        relay._buffer.extend([f"line {i}" for i in range(200)])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == relay.FLOOD_CAP + 1
+        assert "suppressed" in sent[-1]
+
+
+# ---------------------------------------------------------------------------
+# Offline backoff
+# ---------------------------------------------------------------------------
+
+
+class TestOfflineBackoff:
+    """Network-failure backoff: doubles+caps, resets on success, log-once."""
+
+    def _make_relay(self):
+        relay = _import_relay()
+        setattr(relay, "_bot_token", "t")
+        setattr(relay, "_chat_id", 1)
+        setattr(relay, "_RELAY_ACTIVE", True)
+        return relay
+
+    def test_network_error_enters_offline(self):
+        """First URLError sets _offline=True."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        setattr(relay, "_send_message", relay._send_message)
+        with patch.object(relay, "_http_fetch", side_effect=URLError("DNS failed")):
+            result = relay._send_message("hello")
+        assert result is False
+        assert relay._OFFLINE is True
+
+    def test_backoff_doubles_on_repeated_failure(self):
+        """Backoff doubles: 1 → 2 → 4."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+            assert relay._CURRENT_BACKOFF == relay._BACKOFF_INITIAL
+            relay._send_message("b")
+            assert relay._CURRENT_BACKOFF == 2.0
+            relay._send_message("c")
+            assert relay._CURRENT_BACKOFF == 4.0
+
+    def test_backoff_caps_at_60s(self):
+        """Backoff never exceeds _BACKOFF_CAP (60s)."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            for _ in range(20):
+                relay._send_message("x")
+        assert relay._CURRENT_BACKOFF == relay._BACKOFF_CAP
+
+    def test_success_resets_offline(self):
+        """Successful send after offline resets state."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+        assert relay._OFFLINE is True
+
+        ok_response = MagicMock()
+        ok_response.read.return_value = b'{"ok": true}'
+        ok_response.__enter__ = MagicMock(return_value=ok_response)
+        ok_response.__exit__ = MagicMock(return_value=False)
+        with patch.object(relay, "_http_fetch", return_value=ok_response):
+            result = relay._send_message("b")
+        assert result is True
+        assert relay._OFFLINE is False
+        assert relay._CURRENT_BACKOFF == relay._BACKOFF_INITIAL
+        assert relay._SUPPRESSED_COUNT == 0
+
+    def test_flush_suppresses_during_backoff(self):
+        """_flush_buffer skips _send_batched while offline and before next retry."""
+        import time
+
+        relay = self._make_relay()
+        setattr(relay, "_OFFLINE", True)
+        setattr(relay, "_NEXT_RETRY", time.monotonic() + 9999)
+        relay._buffer.extend(["line 1", "line 2", "line 3"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert sent == []
+        assert relay._SUPPRESSED_COUNT == 3
+
+    def test_flush_retries_after_backoff_expires(self):
+        """_flush_buffer attempts send when backoff period has elapsed."""
+        import time
+
+        relay = self._make_relay()
+        setattr(relay, "_OFFLINE", True)
+        setattr(relay, "_NEXT_RETRY", time.monotonic() - 1)
+        relay._buffer.extend(["retry line"])
+        sent = []
+        setattr(relay, "_send_batched", lambda lines: sent.extend(lines))
+        relay._flush_buffer()
+        assert len(sent) == 1
+
+    def test_log_once_on_entering_offline(self):
+        """Only one warning logged on first network failure."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+            relay._send_message("b")
+            relay._send_message("c")
+        warning_calls = relay.logger.warning.call_args_list
+        offline_warnings = [c for c in warning_calls if "offline" in str(c).lower()]
+        assert len(offline_warnings) == 1
+
+    def test_summary_logged_after_interval(self):
+        """Suppression summary logged after _SUMMARY_INTERVAL elapses."""
+        import time
+
+        relay = self._make_relay()
+        setattr(relay, "_OFFLINE", True)
+        setattr(relay, "_NEXT_RETRY", time.monotonic() + 9999)
+        setattr(relay, "_LAST_SUMMARY", time.monotonic() - relay._SUMMARY_INTERVAL - 1)
+        relay._buffer.extend(["line"])
+        setattr(relay, "_send_batched", lambda lines: None)
+        relay._flush_buffer()
+        info_calls = relay.logger.info.call_args_list
+        summary_calls = [c for c in info_calls if "suppressed" in str(c).lower()]
+        assert len(summary_calls) >= 1
+
+    def test_recovery_log_includes_drop_count(self):
+        """Recovery log line includes the number of dropped events."""
+        from urllib.error import URLError
+
+        relay = self._make_relay()
+        with patch.object(relay, "_http_fetch", side_effect=URLError("offline")):
+            relay._send_message("a")
+        setattr(relay, "_SUPPRESSED_COUNT", 42)
+
+        ok_response = MagicMock()
+        ok_response.read.return_value = b'{"ok": true}'
+        ok_response.__enter__ = MagicMock(return_value=ok_response)
+        ok_response.__exit__ = MagicMock(return_value=False)
+        with patch.object(relay, "_http_fetch", return_value=ok_response):
+            relay._send_message("b")
+        info_calls = relay.logger.info.call_args_list
+        recovery_calls = [c for c in info_calls if "recovered" in str(c).lower()]
+        assert len(recovery_calls) == 1
+        assert "42" in str(recovery_calls[0])

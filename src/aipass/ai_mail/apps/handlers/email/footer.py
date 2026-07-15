@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: footer.py
 # Description: Email Footer Handler
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-01-29
-# Modified: 2026-01-29
+# Modified: 2026-07-14
 # =============================================
 
 """
@@ -19,6 +19,8 @@ from aipass.ai_mail.apps.handlers.json import json_handler
 # Standard footer for all outgoing emails
 STANDARD_FOOTER = """
 ---
+▶ BUILD/EDIT task? First: drone @trigger medic mute @<your-branch> — auto-expires 24h, no unmute.
+
 ⚠️ TASK CHECKLIST (before marking complete):
 □ SEEDGO CHECK → drone @seedgo audit @branch (80%+)
 □ UPDATE MEMORIES → Your .trinity/local.json records this work

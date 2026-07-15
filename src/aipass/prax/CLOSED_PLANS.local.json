@@ -69,6 +69,34 @@
       "subject": "STATUS decommission — prax dashboard todo_count + engine dormant",
       "date_closed": "2026-06-08",
       "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0321",
+      "type": "FPLAN",
+      "subject": "Pytest log routing: detect test context, route away from production logs",
+      "date_closed": "2026-07-14",
+      "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0323",
+      "type": "FPLAN",
+      "subject": "Remove single-instance lock from monitor display path — concurrent viewers",
+      "date_closed": "2026-07-14",
+      "location": "prax"
+    },
+    {
+      "plan_id": "FPLAN-0325",
+      "type": "FPLAN",
+      "subject": "TG relay send backoff: offline mode + log-once on network failures",
+      "date_closed": "2026-07-14",
+      "location": "prax"
+    },
+    {
+      "plan_id": "TDPLAN-0013",
+      "type": "TDPLAN",
+      "subject": "DPLAN-0242 build: runaway-log detection and escalation",
+      "date_closed": "2026-07-15",
+      "location": "prax"
     }
   ],
   "document_metadata": {

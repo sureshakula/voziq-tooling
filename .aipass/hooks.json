@@ -6,8 +6,12 @@
     "presence_gate": {
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.security.presence_gate.handle",
-      "matcher": "",
-      "provider_wired": false
+      "matcher": ""
+    },
+    "persistent_alert": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.persistent_alert.handle",
+      "matcher": ""
     },
     "identity_injector": {
       "enabled": true,
@@ -39,6 +43,11 @@
       "handler": "aipass.hooks.apps.handlers.lifecycle.auto_process.handle",
       "matcher": "",
       "timeout": 120
+    },
+    "user_message_relay": {
+      "enabled": true,
+      "handler": "aipass.skills.lib.telegram.apps.handlers.user_message_relay.handle",
+      "matcher": ""
     }
   },
 

@@ -81,6 +81,7 @@ try:
     from aipass.trigger.apps.handlers.error_registry import (
         circuit_breaker_allows,
         circuit_breaker_record_error,
+        circuit_breaker_probe_succeeded,
         should_dispatch as registry_should_dispatch,
         record_dispatch as registry_record_dispatch,
     )
@@ -95,6 +96,10 @@ except ImportError:
 
     def circuit_breaker_record_error() -> None:
         """Fallback no-op error recording when error_registry is unavailable."""
+        pass
+
+    def circuit_breaker_probe_succeeded() -> None:
+        """Fallback no-op when error_registry is unavailable."""
         pass
 
     def registry_should_dispatch(fingerprint: str) -> bool:
@@ -116,44 +121,70 @@ def _is_medic_enabled() -> bool:
     """
     Check if medic (auto-healing dispatch) is enabled.
 
-    Reads medic_enabled from trigger_config.json.
+    Reads medic_enabled from trigger_config.json. If disabled with a TTL
+    (medic_disabled_until timestamp), treats an expired TTL as enabled.
     Defaults to True if config is missing or unreadable.
 
     Returns:
         True if medic dispatch is enabled
     """
     try:
-        if TRIGGER_CONFIG_FILE.exists():
-            data = json.loads(TRIGGER_CONFIG_FILE.read_text(encoding="utf-8"))
-            return bool(data.get("config", {}).get("medic_enabled", True))
+        if not TRIGGER_CONFIG_FILE.exists():
+            return True
+        data = json.loads(TRIGGER_CONFIG_FILE.read_text(encoding="utf-8"))
+        config = data.get("config", {})
+        enabled = bool(config.get("medic_enabled", True))
+        if enabled:
+            return True
+        disabled_until = config.get("medic_disabled_until")
+        if disabled_until and datetime.fromisoformat(disabled_until) <= datetime.now():
+            return True
+        return False
     except Exception as exc:
         _log_warning(f"_is_medic_enabled config read failed: {exc}")
-        return True  # Default to enabled on read failure
-    return True
+        return True
+
+
+def _mute_entry_matches(entry, branch_lower: str, now: datetime) -> bool:
+    """Check if a single mute entry matches the branch and is still active."""
+    if isinstance(entry, str):
+        return entry.lower() == branch_lower
+    if not isinstance(entry, dict):
+        return False
+    if entry.get("name", "").lower() != branch_lower:
+        return False
+    expires_at = entry.get("expires_at")
+    if expires_at is None:
+        return True
+    return datetime.fromisoformat(expires_at) > now
 
 
 def _is_branch_muted(branch_name: str) -> bool:
     """
     Check if a specific branch is muted for medic dispatch.
 
-    Reads muted_branches list from trigger_config.json.
-    Muted branches have errors detected but NOT dispatched.
+    Reads muted_branches list from trigger_config.json. Supports both
+    legacy plain-string entries (permanent) and new dict entries with
+    optional expires_at timestamp. Expired TTL mutes are treated as
+    unmuted.
 
     Args:
         branch_name: Branch name (case-insensitive)
 
     Returns:
-        True if branch is in the muted list
+        True if branch is actively muted
     """
     try:
-        if TRIGGER_CONFIG_FILE.exists():
-            data = json.loads(TRIGGER_CONFIG_FILE.read_text(encoding="utf-8"))
-            muted = data.get("config", {}).get("muted_branches", [])
-            return branch_name.lower() in [b.lower() for b in muted]
+        if not TRIGGER_CONFIG_FILE.exists():
+            return False
+        data = json.loads(TRIGGER_CONFIG_FILE.read_text(encoding="utf-8"))
+        muted = data.get("config", {}).get("muted_branches", [])
+        branch_lower = branch_name.lower()
+        now = datetime.now()
+        return any(_mute_entry_matches(e, branch_lower, now) for e in muted)
     except Exception as exc:
         _log_warning(f"_is_branch_muted config read failed: {exc}")
         return False
-    return False
 
 
 def set_send_email_callback(callback: Callable[..., bool]) -> None:
@@ -550,6 +581,7 @@ def handle_error_detected(
         if _REGISTRY_DISPATCH_AVAILABLE and fingerprint:
             # Medic v2: per-fingerprint dispatch tracking
             registry_record_dispatch(fingerprint)
+            circuit_breaker_probe_succeeded()
         else:
             # Legacy: per-branch rate limiting
             _record_dispatch(recipient)

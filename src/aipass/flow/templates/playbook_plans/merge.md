@@ -80,6 +80,7 @@ just that one merge commit — **cosmetic and trivially resolved**.
 - [ ] **Run the CI audit gate LOCALLY before pushing** (local == CI, S199 parity — catches red before the PR): `cd <repo-root> && .venv/bin/python .github/scripts/seedgo_audit.py` → expect all 13 branches `>=100%`, exit 0. Uses a relative `src/aipass` path, so run from the repo **root**, not a branch dir.
 - [ ] Update `CHANGELOG.md` — add entries under a dated section header `## [YYYY-MM-DD]` (the merge date), one section per merge. Sort into Added / Changed / Fixed.
 - [ ] Commit: `drone @git commit "msg" --all` (from a branch dir, e.g. devpulse). New/untracked files (e.g. new templates) — confirm they got staged: `git ls-files <path>` after; `--all` may not pick up untracked.
+- [ ] All commits are auto-SSH-signed via repo-level git config (key `~/.ssh/aipass_signing`, wired 2026-07-15). Nothing manual required; verify with `git log --show-signature -1` if in doubt.
 - [ ] Every commit pushed — local-only commits are invisible
 
 ## 3. Open / update the PR
@@ -95,6 +96,7 @@ The PR gate (verified against `.github/workflows/`):
 - [ ] `security.yml` → Security Scan / dependency-scan
 - [ ] `e2e-wheel.yml` → 3-OS wheel smoke (path-filtered: fires on `src/**`, `tests/e2e/**`, `pyproject.toml`)
 - [ ] `windows-test.yml` / `macos-test.yml` → required checks, run on every PR (must NEVER be path-filtered or they park as "Expected/waiting" forever and block merge)
+- [ ] **Hash-pinned CI deps:** tool installs are pinned from `.github/requirements/*.txt` locks. A new security advisory against a pinned dep (esp. pip-audit's 29-package tree) can red `security.yml` with zero code change on our side. Fix = dependabot lock bump (grouped weekly, label `ci`) or regen via the `pip-compile` command in each `.in` file header — never a code revert.
 - [ ] If "all green but can't merge": it's usually post-push mergeability **lag**. Confirm ground truth via the public API (no gh, no gate):
       - `curl -s https://api.github.com/repos/AIOSAI/AIPass/commits/<sha>/check-runs` → all check-runs success (incl. app checks: codecov, CodeQL)
       - `curl -s https://api.github.com/repos/AIOSAI/AIPass/pulls/<n>` → `mergeable_state: clean`
@@ -123,7 +125,7 @@ The PR gate (verified against `.github/workflows/`):
 
 (aipass is a 2.x library others pin → keep SemVer; the CHANGELOG uses `YYYY-MM-DD` dated section headers.)
 
-How the release fires (verified `publish.yml`): a `v*` **git tag push** runs build → PyPI publish → GitHub Release. Key facts:
+How the release fires (verified `publish.yml`): a `v*` **git tag push** runs build → provenance attestation → PyPI publish → GitHub Release. The attestation step (`actions/attest-build-provenance`, SHA-pinned) runs between build and upload — expect it in the run log; PyPI publish + Release notes extraction unchanged. Key facts:
 - PyPI version = `pyproject.toml [project] version` at the tagged commit — **NOT** the tag string (the tag only *triggers* the build).
 - Tag and `pyproject` version **must match** (`v2.5.2` ⇄ `version = "2.5.2"`), or PyPI publishes the wrong number while the Release is named the tag.
 - PyPI **rejects a duplicate version** → if shipping, you MUST bump.

@@ -1,11 +1,11 @@
 # =================== AIPass ====================
 # Name: presence_gate.py
-# Version: 2.0.0
+# Version: 3.0.0
 # Description: Single-session gate — blocks duplicate Claude runtimes per branch
 # Branch: hooks
 # Layer: apps/handlers/security
 # Created: 2026-06-29
-# Modified: 2026-06-30
+# Modified: 2026-07-13
 # =============================================
 
 """Single-session gate — blocks duplicate Claude runtimes per branch.
@@ -20,10 +20,13 @@ same branch. If occupied by a different PID, blocks. If free, allows.
 handle_stop is a no-op (Stop fires every turn, not just session end; CC-native
 session files handle cleanup on exit).
 
-Skips sub-agents and dispatched/daemon session types.
+Skips true sub-agents (Explore/general-purpose/Plan/etc.) and
+dispatched/daemon session types. Gates main sessions of every kind
+including background sessions with agent_type "claude".
 
-PRESENCE.central.json + presence.py are preserved (not deleted) but the guard
-no longer sources truth from them.
+Ships in OBSERVE-ONLY mode: logs would-block decisions to engine.jsonl
+but never actually blocks. Flip _OBSERVE_ONLY to False after soak period
+confirms zero false positives.
 """
 
 import importlib
@@ -35,6 +38,19 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 
 _ALLOW = {"exit_code": 0, "stdout": ""}
 _NON_BLOCKING_SESSION_TYPES = frozenset({"dispatched", "daemon"})
+
+_OBSERVE_ONLY = True
+
+_SUB_AGENT_TYPES = frozenset(
+    {
+        "general-purpose",
+        "Explore",
+        "Plan",
+        "code-reviewer",
+        "statusline-setup",
+        "Task",
+    }
+)
 
 
 def _resolve_branch(hook_data: dict) -> str:
@@ -50,6 +66,29 @@ def _resolve_branch(hook_data: dict) -> str:
     return Path(cwd).name
 
 
+def _format_session_age(session: dict) -> str:
+    """Format session age from its start time."""
+    started = session.get("startedAt") or session.get("started", "")
+    if not started:
+        return ""
+    try:
+        from datetime import datetime, timezone
+
+        if isinstance(started, (int, float)):
+            start_dt = datetime.fromtimestamp(started / 1000, tz=timezone.utc)
+        else:
+            start_dt = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+        delta = datetime.now(tz=timezone.utc) - start_dt
+        hours = int(delta.total_seconds() // 3600)
+        minutes = int((delta.total_seconds() % 3600) // 60)
+        if hours > 0:
+            return f"{hours}h{minutes}m"
+        return f"{minutes}m"
+    except Exception as exc:
+        logger.info("[presence_gate] age format error: %s", exc)
+        return ""
+
+
 def handle(hook_data: dict) -> dict:
     """UserPromptSubmit gate — enforce one live session per branch.
 
@@ -59,7 +98,7 @@ def handle(hook_data: dict) -> dict:
     """
     try:
         agent_type = hook_data.get("agent_type", "")
-        if agent_type and agent_type != "main":
+        if agent_type in _SUB_AGENT_TYPES:
             return _ALLOW
 
         session_type = os.environ.get("AIPASS_SESSION_TYPE", "interactive")
@@ -79,12 +118,21 @@ def handle(hook_data: dict) -> dict:
             return _ALLOW
 
         occ_pid = occupant.get("pid", "?")
-        occ_name = occupant.get("name", "")
+        occ_kind = occupant.get("kind", "unknown")
+        occ_sid = str(occupant.get("sessionId", ""))[:8]
+        age = _format_session_age(occupant)
+        age_str = f" · {age} old" if age else ""
+
         reason = (
-            f"{branch} is already live at PID {occ_pid}{f' ({occ_name})' if occ_name else ''}"
-            f" — Claude allows one session per branch."
-            f" Attach to that session, or run `kill {occ_pid}` to reclaim the branch, then retry."
+            f"{branch} is already live: PID {occ_pid} · {occ_sid} · {occ_kind}{age_str}\n"
+            f"  Attach to that session, or run: drone @hooks sessions reclaim @{branch}\n"
+            f"  To disable this gate: set presence_gate.enabled=false in .aipass/hooks.json"
         )
+
+        if _OBSERVE_ONLY:
+            logger.warning("[presence_gate] OBSERVE-ONLY would-block: %s", reason)
+            return _ALLOW
+
         logger.warning("[presence_gate] BLOCKED: %s", reason)
         return {
             "exit_code": 2,

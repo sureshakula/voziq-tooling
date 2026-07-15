@@ -551,6 +551,51 @@
       "lines": [40],
       "pattern": "handler imported directly",
       "reason": "Test helper _import_module() must import the handler module directly to test it. All trigger test files follow this pattern."
+    },
+    {
+      "file": "apps/handlers/medic_state.py",
+      "standard": "unused_function",
+      "pattern": "get_muted_branches",
+      "reason": "Public API returning List[str] of active muted branches. Used by 15+ existing tests and part of the medic_state interface. get_muted_branches_detail() supplements it for status display — this is the simple accessor."
+    },
+    {
+      "file": "apps/handlers/events/runaway_handler.py",
+      "standard": "silent_catch",
+      "pattern": "_log_warning except",
+      "reason": "Meta-logging helper: _log_warning() writes directly to file. Its own except block cannot log — you cannot log a failure to log."
+    },
+    {
+      "file": "apps/handlers/events/runaway_handler.py",
+      "standard": "error_handling",
+      "lines": [52],
+      "pattern": "except Exception: pass",
+      "reason": "Meta-logging helper _log_warning() — cannot log a failure to log. Same pattern as silent_catch bypass."
+    },
+    {
+      "file": "apps/handlers/events/runaway_handler.py",
+      "standard": "handlers",
+      "lines": [272],
+      "pattern": "cross-handler import wake_branch",
+      "reason": "Inline import of wake_branch for dispatch — same pattern as error_detected.py line 572. Must wake target branch after email delivery."
+    },
+    {
+      "file": "apps/handlers/events/runaway_handler.py",
+      "standard": "encapsulation",
+      "lines": [272],
+      "pattern": "cross-handler import wake_branch",
+      "reason": "Inline import of wake_branch for dispatch — same pattern as error_detected.py. Handler must wake target branch after email delivery."
+    },
+    {
+      "file": "tests/test_runaway_handler.py",
+      "standard": "architecture",
+      "pattern": "3-layer structure",
+      "reason": "Test file — tests/ is the standard location for unit tests, not part of the apps/modules/handlers source tree."
+    },
+    {
+      "file": "tests/test_runaway_handler.py",
+      "standard": "encapsulation",
+      "pattern": "handler imported directly",
+      "reason": "Test must import the handler module directly to test it. All trigger test files follow this pattern."
     }
   ],
   "notes": {

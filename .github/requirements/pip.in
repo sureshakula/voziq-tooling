@@ -1,0 +1,13 @@
+# pip self-upgrade, hash-pinned (OpenSSF Scorecard: Pinned-Dependencies).
+#
+# Replaces `python -m pip install --upgrade pip` in ci.yml, security.yml and
+# e2e-wheel.yml. pip has no runtime dependencies, so this lock is inherently
+# portable across every OS and Python in the CI matrix (3.10-3.13).
+#
+# 26.1.2 is deliberate, not merely "latest": security.yml's pip-audit scans the
+# whole environment and the runner's bundled pip (26.1.1) carries PYSEC-2026-196
+# (fixed in 26.1.2). Do not pin below 26.1.2 — audit will red.
+#
+# Regenerate:
+#   pip-compile --allow-unsafe --generate-hashes --no-emit-index-url --output-file=pip.txt pip.in
+pip==26.1.2

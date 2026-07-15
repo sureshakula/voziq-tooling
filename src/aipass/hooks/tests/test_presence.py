@@ -47,45 +47,36 @@ def _patch_session_pid(pid):
 
 
 class TestResolveSessionPid:
-    def test_finds_claude_ancestor(self):
-        comm_map = {100: "python3", 90: "bash", 80: "claude"}
+    def test_finds_session_file_ancestor(self):
         ppid_map = {100: 90, 90: 80}
         with (
-            patch("sys.platform", "linux"),
             patch("os.getpid", return_value=100),
-            patch.object(presence, "_read_proc_comm", side_effect=lambda p: comm_map.get(p, "")),
-            patch.object(presence, "_read_proc_ppid", side_effect=lambda p: ppid_map.get(p)),
+            patch.object(presence, "_has_session_file", side_effect=lambda p: p == 80),
+            patch.object(presence, "_get_ppid_portable", side_effect=lambda p: ppid_map.get(p)),
         ):
             assert presence._resolve_session_pid() == 80
 
-    def test_no_claude_ancestor_returns_none(self):
-        comm_map = {100: "python3", 90: "bash", 80: "init"}
+    def test_no_session_file_ancestor_returns_none(self):
         ppid_map = {100: 90, 90: 80, 80: 1}
         with (
-            patch("sys.platform", "linux"),
             patch("os.getpid", return_value=100),
-            patch.object(presence, "_read_proc_comm", side_effect=lambda p: comm_map.get(p, "")),
-            patch.object(presence, "_read_proc_ppid", side_effect=lambda p: ppid_map.get(p)),
+            patch.object(presence, "_has_session_file", return_value=False),
+            patch.object(presence, "_get_ppid_portable", side_effect=lambda p: ppid_map.get(p)),
         ):
             assert presence._resolve_session_pid() is None
 
-    def test_non_linux_returns_none(self):
-        with patch("sys.platform", "win32"):
-            assert presence._resolve_session_pid() is None
-
-    def test_proc_read_failure_returns_none(self):
+    def test_ppid_failure_returns_none(self):
         with (
-            patch("sys.platform", "linux"),
             patch("os.getpid", return_value=100),
-            patch.object(presence, "_read_proc_comm", return_value=""),
+            patch.object(presence, "_has_session_file", return_value=False),
+            patch.object(presence, "_get_ppid_portable", return_value=None),
         ):
             assert presence._resolve_session_pid() is None
 
-    def test_direct_claude_process(self):
+    def test_direct_session_process(self):
         with (
-            patch("sys.platform", "linux"),
             patch("os.getpid", return_value=100),
-            patch.object(presence, "_read_proc_comm", return_value="claude"),
+            patch.object(presence, "_has_session_file", side_effect=lambda p: p == 100),
         ):
             assert presence._resolve_session_pid() == 100
 
@@ -440,7 +431,7 @@ class TestLiveness:
             mock_kill.assert_called_once_with(1234, 0)
 
     def test_is_pid_alive_dead(self):
-        with patch("os.kill", side_effect=ProcessLookupError):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=ProcessLookupError):
             assert presence._is_pid_alive(1234) is False
 
     def test_is_pid_alive_permission_error(self):

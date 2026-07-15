@@ -177,7 +177,7 @@ spawn/
 
 ## Tests
 
-**344 tests | 0 skipped | 0 failed** across 14 test files:
+**347 tests | 0 skipped | 0 failed** across 14 test files:
 
 | File | Focus |
 |------|-------|
