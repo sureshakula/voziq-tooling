@@ -431,7 +431,7 @@ class TestLiveness:
             mock_kill.assert_called_once_with(1234, 0)
 
     def test_is_pid_alive_dead(self):
-        with patch("os.kill", side_effect=ProcessLookupError):
+        with patch("sys.platform", "linux"), patch("os.kill", side_effect=ProcessLookupError):
             assert presence._is_pid_alive(1234) is False
 
     def test_is_pid_alive_permission_error(self):

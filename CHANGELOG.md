@@ -30,6 +30,15 @@ PyPI version — not the changelog header.
   (9.3k → 7.9k chars, under its ~8k injection cap) with the comms doctrine
   intact.
 
+- **Windows flake pinned: `test_is_pid_alive_dead` escaped the ca096295
+  sweep.** That commit's rule — tests mocking `os.kill` must pin
+  `sys.platform="linux"` because Windows takes the ctypes OpenProcess path and
+  never reaches the mock — was applied to every pid-liveness test except this
+  one. It only failed when PID 1234 happened to be alive on the runner
+  (environment lottery, first hit today). Pinned like its siblings. The
+  remaining Windows session_boot reds and the relay mtime-cache flake predate
+  this PR and stay parked.
+
 ## [2026-07-14]
 
 ### Fixed
