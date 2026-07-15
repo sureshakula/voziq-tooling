@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: test_rate_tracker.py
 # Description: Tests for the rate tracker runaway-log detector
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-07-14
-# Modified: 2026-07-14
+# Modified: 2026-07-15
 # =============================================
 
 """Tests for apps/handlers/monitoring/rate_tracker.py
@@ -13,9 +13,10 @@ Covers:
 - Sustained threshold detection (WARNING and CRITICAL)
 - Subsidence reset when rate drops
 - Per-file suppression
-- Event firing via trigger
+- Event firing via callback
 - File disappearance handling
-- get_snapshot() and reset()
+- get_snapshot() and configure()
+- Disk persistence
 """
 
 import sys
@@ -29,7 +30,7 @@ _HANDLER_MOCKS = {
 }
 
 
-def _import_tracker(monkeypatch):
+def _import_tracker(monkeypatch, logs_dir=None):
     """Import (or reload) rate_tracker with handler mocks."""
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     fresh = {k: MagicMock() for k in _HANDLER_MOCKS}
@@ -41,12 +42,14 @@ def _import_tracker(monkeypatch):
         else:
             mod = importlib.import_module("aipass.prax.apps.handlers.monitoring.rate_tracker")
 
-        trigger_mock = MagicMock()
-        setattr(mod, "trigger", trigger_mock)
-        setattr(mod, "_HAS_TRIGGER", True)
-
-        mod.reset()
-        return mod, trigger_mock
+        event_mock = MagicMock()
+        mod._tracked.clear()
+        mod._suppressed_files.clear()
+        setattr(mod, "_state_loaded", False)
+        setattr(mod, "_logs_dir", None)
+        setattr(mod, "_EVENT_CALLBACK", None)
+        mod.configure(logs_dir=logs_dir, event_callback=event_mock)
+        return mod, event_mock
 
 
 class TestRateCalculation:
@@ -54,32 +57,28 @@ class TestRateCalculation:
 
     def test_first_scan_initializes_no_rate(self, tmp_path, monkeypatch):
         """First scan seeds offsets — no rate calculated yet."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("line1\n" * 10)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "test_module.log").write_text("line1\n" * 10)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            results = mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        results = mod.scan_rates()
 
         assert results == []
 
     def test_second_scan_calculates_rate(self, tmp_path, monkeypatch):
         """Second scan with growth produces a rate."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         log_file.write_text("x" * 1300)
 
-        with (
-            patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-            patch.object(mod.time, "time", return_value=time.time() + 10.0),
-        ):
+        with patch.object(mod.time, "time", return_value=time.time() + 10.0):
             results = mod.scan_rates()
 
         assert len(results) == 1
@@ -87,18 +86,14 @@ class TestRateCalculation:
 
     def test_no_growth_produces_zero_rate(self, tmp_path, monkeypatch):
         """File that hasn't grown has rate 0."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 100)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "test_module.log").write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
-        with (
-            patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-            patch.object(mod.time, "time", return_value=time.time() + 10.0),
-        ):
+        with patch.object(mod.time, "time", return_value=time.time() + 10.0):
             results = mod.scan_rates()
 
         assert len(results) == 1
@@ -106,20 +101,17 @@ class TestRateCalculation:
 
     def test_truncated_file_resets_offset(self, tmp_path, monkeypatch):
         """File that shrinks (rotation) resets offset without error."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 10000)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         log_file.write_text("x" * 100)
 
-        with (
-            patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-            patch.object(mod.time, "time", return_value=time.time() + 10.0),
-        ):
+        with patch.object(mod.time, "time", return_value=time.time() + 10.0):
             results = mod.scan_rates()
 
         assert results == []
@@ -135,85 +127,82 @@ class TestSustainedThresholds:
         for i in range(intervals):
             log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
 
-            with (
-                patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-                patch.object(
-                    mod.time,
-                    "time",
-                    return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
-                ),
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
             ):
                 results = mod.scan_rates()
         return results
 
     def test_warning_fires_after_sustained_intervals(self, tmp_path, monkeypatch):
         """WARNING fires after WARNING_SUSTAINED_INTERVALS above WARNING_LINES_PER_MIN."""
-        mod, trigger_mock = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.WARNING_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         self._grow_file(log_file, bytes_per_interval, mod, mod.WARNING_SUSTAINED_INTERVALS)
 
-        trigger_mock.fire.assert_called_once()
-        call_args = trigger_mock.fire.call_args
+        event_mock.assert_called_once()
+        call_args = event_mock.call_args
         assert call_args[0][0] == "runaway_log_detected"
         assert call_args[1]["severity"] == "warning"
 
     def test_warning_does_not_fire_before_sustained(self, tmp_path, monkeypatch):
         """WARNING does not fire before reaching sustained count."""
-        mod, trigger_mock = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.WARNING_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         self._grow_file(log_file, bytes_per_interval, mod, mod.WARNING_SUSTAINED_INTERVALS - 1)
 
-        trigger_mock.fire.assert_not_called()
+        event_mock.assert_not_called()
 
     def test_critical_fires_after_sustained_intervals(self, tmp_path, monkeypatch):
         """CRITICAL fires after CRITICAL_SUSTAINED_INTERVALS above CRITICAL_LINES_PER_MIN."""
-        mod, trigger_mock = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.CRITICAL_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         self._grow_file(log_file, bytes_per_interval, mod, mod.CRITICAL_SUSTAINED_INTERVALS)
 
-        assert trigger_mock.fire.call_count == 1
-        call_args = trigger_mock.fire.call_args
+        assert event_mock.call_count == 1
+        call_args = event_mock.call_args
         assert call_args[1]["severity"] == "critical"
 
     def test_fires_only_once_until_subsides(self, tmp_path, monkeypatch):
         """Event fires once — not again on continued high rate."""
-        mod, trigger_mock = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.WARNING_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         self._grow_file(log_file, bytes_per_interval, mod, mod.WARNING_SUSTAINED_INTERVALS + 5)
 
-        assert trigger_mock.fire.call_count == 1
+        assert event_mock.call_count == 1
 
 
 class TestSubsidence:
@@ -221,56 +210,48 @@ class TestSubsidence:
 
     def test_subsidence_resets_and_allows_refire(self, tmp_path, monkeypatch):
         """After rate drops and rises again, event can fire again."""
-        mod, trigger_mock = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+
         base_time = time.time()
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.WARNING_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         for i in range(mod.WARNING_SUSTAINED_INTERVALS):
             log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
-            with (
-                patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-                patch.object(
-                    mod.time,
-                    "time",
-                    return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
-                ),
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
             ):
                 mod.scan_rates()
 
-        assert trigger_mock.fire.call_count == 1
+        assert event_mock.call_count == 1
 
         idle_offset = mod.WARNING_SUSTAINED_INTERVALS + 1
-        with (
-            patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-            patch.object(
-                mod.time,
-                "time",
-                return_value=base_time + idle_offset * mod.SCAN_INTERVAL,
-            ),
+        with patch.object(
+            mod.time,
+            "time",
+            return_value=base_time + idle_offset * mod.SCAN_INTERVAL,
         ):
             mod.scan_rates()
 
         for i in range(mod.WARNING_SUSTAINED_INTERVALS):
             log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
             offset = idle_offset + i + 1
-            with (
-                patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-                patch.object(
-                    mod.time,
-                    "time",
-                    return_value=base_time + offset * mod.SCAN_INTERVAL,
-                ),
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + offset * mod.SCAN_INTERVAL,
             ):
                 mod.scan_rates()
 
-        assert trigger_mock.fire.call_count == 2
+        assert event_mock.call_count == 2
 
 
 class TestSuppression:
@@ -278,30 +259,28 @@ class TestSuppression:
 
     def test_suppressed_file_not_tracked(self, tmp_path, monkeypatch):
         """Suppressed files are skipped entirely."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "noisy_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 10000)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "noisy_module.log").write_text("x" * 10000)
 
-        mod.configure_suppression({"noisy_module.log"})
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.configure(suppressed_files={"noisy_module.log"})
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
-            mod.scan_rates()
+        mod.scan_rates()
+        mod.scan_rates()
 
         assert "noisy_module.log" not in {Path(k).name for k in mod._tracked}
 
     def test_non_suppressed_file_tracked(self, tmp_path, monkeypatch):
         """Non-suppressed files are tracked normally."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "normal_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 100)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "normal_module.log").write_text("x" * 100)
 
-        mod.configure_suppression({"other_module.log"})
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.configure(suppressed_files={"other_module.log"})
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod.scan_rates()
 
         assert any("normal_module.log" in k for k in mod._tracked)
 
@@ -311,30 +290,28 @@ class TestEventPayload:
 
     def test_event_payload_fields(self, tmp_path, monkeypatch):
         """Fired event includes all required fields."""
-        mod, trigger_mock = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+
         base_time = time.time()
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.WARNING_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         for i in range(mod.WARNING_SUSTAINED_INTERVALS):
             log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
-            with (
-                patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-                patch.object(
-                    mod.time,
-                    "time",
-                    return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
-                ),
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
             ):
                 mod.scan_rates()
 
-        call_kwargs = trigger_mock.fire.call_args[1]
+        call_kwargs = event_mock.call_args[1]
         assert "file_path" in call_kwargs
         assert "rate_lines_per_min" in call_kwargs
         assert "sustained_duration_sec" in call_kwargs
@@ -348,20 +325,19 @@ class TestFileDisappearance:
 
     def test_deleted_file_removed_from_tracking(self, tmp_path, monkeypatch):
         """File removed between scans is cleaned from _tracked."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "ephemeral.log"
-        log_file.parent.mkdir(parents=True)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "ephemeral.log"
         log_file.write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         assert any("ephemeral.log" in k for k in mod._tracked)
 
         log_file.unlink()
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod.scan_rates()
 
         assert not any("ephemeral.log" in k for k in mod._tracked)
 
@@ -371,13 +347,12 @@ class TestSnapshot:
 
     def test_snapshot_returns_tracked_files(self, tmp_path, monkeypatch):
         """Snapshot includes files from a previous scan."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 100)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "test_module.log").write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         snapshot = mod.get_snapshot()
         assert len(snapshot) == 1
@@ -389,53 +364,49 @@ class TestSnapshot:
         assert mod.get_snapshot() == []
 
 
-class TestReset:
-    """reset() clears all state."""
+class TestConfigure:
+    """configure() sets module-level dependencies."""
 
-    def test_reset_clears_tracked(self, tmp_path, monkeypatch):
-        """After reset, tracked dict is empty."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 100)
+    def test_configure_clears_tracked_on_reimport(self, tmp_path, monkeypatch):
+        """Fresh import via _import_tracker starts with empty tracked dict."""
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "test_module.log").write_text("x" * 100)
 
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.scan_rates()
 
         assert len(mod._tracked) > 0
-        mod.reset()
+
+        mod._tracked.clear()
         assert len(mod._tracked) == 0
 
 
 class TestNoTrigger:
-    """When trigger is unavailable, detection still works — just no event fired."""
+    """When no event callback is set, detection still works — just no event fired."""
 
-    def test_detection_without_trigger(self, tmp_path, monkeypatch):
-        """Rate tracking and threshold detection work without trigger."""
-        mod, _ = _import_tracker(monkeypatch)
-        setattr(mod, "_HAS_TRIGGER", False)
-        setattr(mod, "trigger", None)
-
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
+    def test_detection_without_callback(self, tmp_path, monkeypatch):
+        """Rate tracking and threshold detection work without event callback."""
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
         log_file.write_text("x" * 100)
 
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        mod.configure(event_callback=None)
+
         base_time = time.time()
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod.scan_rates()
 
         bytes_per_interval = int(mod.WARNING_LINES_PER_MIN * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60 * 1.5)
 
         results = []
         for i in range(mod.WARNING_SUSTAINED_INTERVALS):
             log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
-            with (
-                patch.object(mod, "get_system_logs_dir", return_value=log_file.parent),
-                patch.object(
-                    mod.time,
-                    "time",
-                    return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
-                ),
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
             ):
                 results = mod.scan_rates()
 
@@ -447,14 +418,14 @@ class TestPersistence:
 
     def test_scan_saves_state_to_disk(self, tmp_path, monkeypatch):
         """scan_rates() calls save_json after scanning."""
-        mod, _ = _import_tracker(monkeypatch)
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 100)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        (logs_dir / "test_module.log").write_text("x" * 100)
+
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
 
         json_handler_mock = mod.json_handler
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            mod.scan_rates()
+        mod.scan_rates()
 
         json_handler_mock.save_json.assert_called()
         call_args = json_handler_mock.save_json.call_args
@@ -466,12 +437,17 @@ class TestPersistence:
 
     def test_load_restores_offsets_from_disk(self, tmp_path, monkeypatch):
         """Loading persisted state restores file offsets so second scan can compute rates."""
-        mod, _ = _import_tracker(monkeypatch)
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
+        log_file.write_text("x" * 1300)
+
+        mod, _ = _import_tracker(monkeypatch, logs_dir=logs_dir)
 
         persisted = {
             "module_name": "rate_tracker",
             "files": {
-                str(tmp_path / "system" / "test_module.log"): {
+                str(log_file): {
                     "last_offset": 100,
                     "last_check": time.time() - 15.0,
                     "warning_sustained": 0,
@@ -483,12 +459,7 @@ class TestPersistence:
         }
         mod.json_handler.load_json.return_value = persisted
 
-        log_file = tmp_path / "system" / "test_module.log"
-        log_file.parent.mkdir(parents=True)
-        log_file.write_text("x" * 1300)
-
-        with patch.object(mod, "get_system_logs_dir", return_value=log_file.parent):
-            results = mod.scan_rates()
+        results = mod.scan_rates()
 
         assert len(results) == 1
         assert results[0]["rate_lines_per_min"] > 0
@@ -501,9 +472,11 @@ class TestPersistence:
         mod._load_state()
         assert len(mod._tracked) == 0
 
-    def test_reset_clears_state_loaded_flag(self, monkeypatch):
-        """reset() clears _state_loaded so next scan reloads from disk."""
+    def test_reimport_clears_state_loaded_flag(self, monkeypatch):
+        """Fresh _import_tracker resets _state_loaded so next scan reloads from disk."""
         mod, _ = _import_tracker(monkeypatch)
         setattr(mod, "_state_loaded", True)
-        mod.reset()
+        assert mod._state_loaded is True
+
+        mod, _ = _import_tracker(monkeypatch)
         assert mod._state_loaded is False

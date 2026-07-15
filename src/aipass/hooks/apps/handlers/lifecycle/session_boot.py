@@ -423,6 +423,71 @@ def _is_session_file_present(pid: int | None) -> bool:
     return session_file.exists()
 
 
+def _menu_single_session(
+    session: dict,
+    branch: str,
+    claude_bin: str,
+    defaults: list[str],
+    extra_args: list[str] | None,
+) -> dict:
+    """Handle menu for a single live session."""
+    label = _session_label(session, branch)
+    is_bg = session.get("kind") in ("bg", "background")
+    sys.stderr.write(f"\n{branch} — live chat: {label}\n")
+    if is_bg:
+        sys.stderr.write("  [Enter]  resume this chat   (stops bg, reopens as normal chat)\n")
+        sys.stderr.write("  [n]      start new chat   (stops bg first)\n")
+        sys.stderr.write("  [c]      close it and exit   (stops bg)\n\n")
+    else:
+        sys.stderr.write("  [Enter]  resume this chat\n")
+        sys.stderr.write("  [n]      start new chat   (closes the one above first)\n")
+        sys.stderr.write("  [c]      close it and exit\n\n")
+
+    choice = _read_choice()
+
+    if choice in ("", "r"):
+        return _resume_session(session, branch, claude_bin, defaults, extra_args)
+    if choice == "n":
+        return _menu_single_new(session, is_bg, branch, claude_bin, defaults, extra_args)
+    if choice == "c":
+        return _menu_single_close(session, is_bg, branch, claude_bin)
+    if choice in ("exit", "q", "quit"):
+        return {"exit_code": 0, "action": "quit"}
+    sys.stderr.write("  Unknown choice. Exiting.\n")
+    return {"exit_code": 1, "error": "unknown choice"}
+
+
+def _menu_single_new(
+    session: dict,
+    is_bg: bool,
+    branch: str,
+    claude_bin: str,
+    defaults: list[str],
+    extra_args: list[str] | None,
+) -> dict:
+    """Handle 'n' choice for single session — stop current, start fresh."""
+    if is_bg:
+        stop = _daemon_stop(claude_bin, branch, session.get("pid"))
+        if not stop["ok"]:
+            return {"exit_code": 1, "error": stop["error"]}
+    else:
+        _stop_session(session, claude_bin)
+    return _start_fresh(branch, claude_bin, defaults, extra_args)
+
+
+def _menu_single_close(session: dict, is_bg: bool, branch: str, claude_bin: str) -> dict:
+    """Handle 'c' choice for single session — close and exit."""
+    if is_bg:
+        stop = _daemon_stop(claude_bin, branch, session.get("pid"))
+        if not stop["ok"]:
+            return {"exit_code": 1, "error": stop["error"]}
+        sys.stderr.write(f"  Stopped bg session PID {session.get('pid')}.\n")
+    else:
+        result = _stop_session(session, claude_bin)
+        sys.stderr.write(f"  {result}\n")
+    return {"exit_code": 0, "action": "closed"}
+
+
 def _menu_live(
     live: list[dict],
     branch: str,
@@ -432,46 +497,7 @@ def _menu_live(
 ) -> dict:
     """Display menu when live session(s) exist."""
     if len(live) == 1:
-        session = live[0]
-        label = _session_label(session, branch)
-        is_bg = session.get("kind") in ("bg", "background")
-        sys.stderr.write(f"\n{branch} — live chat: {label}\n")
-        if is_bg:
-            sys.stderr.write("  [Enter]  resume this chat   (stops bg, reopens as normal chat)\n")
-            sys.stderr.write("  [n]      start new chat   (stops bg first)\n")
-            sys.stderr.write("  [c]      close it and exit   (stops bg)\n\n")
-        else:
-            sys.stderr.write("  [Enter]  resume this chat\n")
-            sys.stderr.write("  [n]      start new chat   (closes the one above first)\n")
-            sys.stderr.write("  [c]      close it and exit\n\n")
-
-        choice = _read_choice()
-
-        if choice in ("", "r"):
-            return _resume_session(session, branch, claude_bin, defaults, extra_args)
-        elif choice == "n":
-            if is_bg:
-                stop = _daemon_stop(claude_bin, branch, session.get("pid"))
-                if not stop["ok"]:
-                    return {"exit_code": 1, "error": stop["error"]}
-            else:
-                _stop_session(session, claude_bin)
-            return _start_fresh(branch, claude_bin, defaults, extra_args)
-        elif choice == "c":
-            if is_bg:
-                stop = _daemon_stop(claude_bin, branch, session.get("pid"))
-                if not stop["ok"]:
-                    return {"exit_code": 1, "error": stop["error"]}
-                sys.stderr.write(f"  Stopped bg session PID {session.get('pid')}.\n")
-            else:
-                result = _stop_session(session, claude_bin)
-                sys.stderr.write(f"  {result}\n")
-            return {"exit_code": 0, "action": "closed"}
-        elif choice in ("exit", "q", "quit"):
-            return {"exit_code": 0, "action": "quit"}
-        else:
-            sys.stderr.write("  Unknown choice. Exiting.\n")
-            return {"exit_code": 1, "error": "unknown choice"}
+        return _menu_single_session(live[0], branch, claude_bin, defaults, extra_args)
 
     sys.stderr.write(f"\n{branch} — {len(live)} live sessions:\n")
     for i, session in enumerate(live, 1):

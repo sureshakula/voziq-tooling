@@ -9,6 +9,27 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-15]
+
+### Fixed
+
+- **CI green pass on the runaway-log PR — every red was ours, every fix
+  verified.** Morning-after triage of PR#696's failing checks: the test
+  matrices' only failure was the known parked flake, but lint and the seedgo
+  audit were genuinely red from the previous night's new code. One `ruff
+  format` on trigger's runaway-handler tests fixed lint. The audit findings
+  went back to their owners by dispatch: @hooks built the branch's missing
+  json_handler and wired it into `persistent_alert`/`alert_dismiss`, added the
+  introspection no-args gate, and flattened `_menu_live()`'s nesting
+  (1071 tests green); @prax refactored `rate_tracker.py` to dependency
+  injection — the module layer now injects `logs_dir` and `trigger.fire` via
+  `configure()`, so the handler carries no cross-handler or handler→module
+  imports (1028 tests green). Both branches re-audit at 100% across all 41
+  standards, independently verified. Detection re-proven live post-refactor
+  with a fresh planted log storm. Also trimmed the tier-1 navmap prompt
+  (9.3k → 7.9k chars, under its ~8k injection cap) with the comms doctrine
+  intact.
+
 ## [2026-07-14]
 
 ### Fixed

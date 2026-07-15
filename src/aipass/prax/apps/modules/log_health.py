@@ -121,6 +121,17 @@ def _display_rates(results: list, is_scan: bool) -> None:
     console.print()
 
 
+def _get_event_callback():
+    """Return trigger.fire if available, else None."""
+    try:
+        from aipass.trigger.apps.modules.core import trigger
+
+        return trigger.fire
+    except ImportError as exc:
+        logger.info("[log-health] trigger not available: %s", exc)
+        return None
+
+
 def handle_command(command: str, args: List[str]) -> bool:
     """Handle log-health command.
 
@@ -142,7 +153,10 @@ def handle_command(command: str, args: List[str]) -> bool:
         print_help()
         return True
 
-    from aipass.prax.apps.handlers.monitoring.rate_tracker import scan_rates, get_snapshot
+    from aipass.prax.apps.handlers.monitoring.rate_tracker import scan_rates, get_snapshot, configure
+    from aipass.prax.apps.handlers.config.load import get_system_logs_dir
+
+    configure(logs_dir=get_system_logs_dir(), event_callback=_get_event_callback())
 
     subcmd = args[0]
     logger.info("[log-health] %s", subcmd)

@@ -221,11 +221,7 @@ class TestNoEmailCallback:
         )
 
         calls = mod._append_jsonl.call_args_list  # type: ignore[union-attr]
-        warning_calls = [
-            c
-            for c in calls
-            if isinstance(c[0][1], dict) and c[0][1].get("level") == "WARNING"
-        ]
+        warning_calls = [c for c in calls if isinstance(c[0][1], dict) and c[0][1].get("level") == "WARNING"]
         assert len(warning_calls) >= 1
         assert "No email callback" in warning_calls[0][0][1]["msg"]
 
@@ -410,11 +406,7 @@ class TestSuppressionLog:
         )
 
         calls = mod._append_jsonl.call_args_list  # type: ignore[union-attr]
-        suppression_calls = [
-            c
-            for c in calls
-            if isinstance(c[0][1], dict) and c[0][1].get("reason") == "cooldown"
-        ]
+        suppression_calls = [c for c in calls if isinstance(c[0][1], dict) and c[0][1].get("reason") == "cooldown"]
         assert len(suppression_calls) == 1
         assert suppression_calls[0][0][1]["file"] == file_path
 
@@ -435,11 +427,7 @@ class TestSuppressionLog:
         )
 
         calls = mod._append_jsonl.call_args_list  # type: ignore[union-attr]
-        suppression_calls = [
-            c
-            for c in calls
-            if isinstance(c[0][1], dict) and c[0][1].get("reason") == "branch_muted"
-        ]
+        suppression_calls = [c for c in calls if isinstance(c[0][1], dict) and c[0][1].get("reason") == "branch_muted"]
         assert len(suppression_calls) == 1
         assert suppression_calls[0][0][1]["branch"] == "flow"
 

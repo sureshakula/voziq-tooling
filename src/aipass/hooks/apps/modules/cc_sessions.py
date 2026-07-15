@@ -264,9 +264,7 @@ def handle_command(command: str, args: list) -> bool:
 
     if command in ("sessions", "cc_sessions"):
         if not args:
-            CONSOLE.print("[bold cyan]sessions[/bold cyan]")
-            CONSOLE.print(f"  Sessions dir: {CC_SESSIONS_DIR}")
-            _print_sessions_list()
+            print_introspection()
             return True
 
         if args[0] == "reclaim":

@@ -27,19 +27,9 @@ from typing import Dict, Optional
 
 from aipass.prax.apps.modules.logger import get_direct_logger
 from aipass.prax.apps.handlers.json import json_handler
-from aipass.prax.apps.handlers.config.load import get_system_logs_dir
 from aipass.prax.apps.handlers.monitoring.branch_detector import detect_branch_from_log
 
 logger = get_direct_logger()
-
-try:
-    from aipass.trigger.apps.modules.core import trigger
-
-    _HAS_TRIGGER = True
-except ImportError as exc:
-    logger.info("[rate_tracker] trigger module not available: %s", exc)
-    trigger = None  # type: ignore[assignment]
-    _HAS_TRIGGER = False
 
 SCAN_INTERVAL = 10.0
 AVG_LINE_BYTES = 120
@@ -103,13 +93,32 @@ _tracked: Dict[str, FileRateState] = {}
 
 _suppressed_files: set = set()
 
+_logs_dir: Optional[Path] = None
+
+_EVENT_CALLBACK = None
+
 _state_loaded: bool = False
 
 
-def configure_suppression(file_names: Optional[set] = None) -> None:
-    """Set the list of log file names to skip during detection."""
-    global _suppressed_files
-    _suppressed_files = file_names or set()
+def configure(
+    logs_dir: Optional[Path] = None,
+    event_callback=None,
+    suppressed_files: Optional[set] = None,
+) -> None:
+    """Inject dependencies from the module layer.
+
+    Args:
+        logs_dir: Path to system_logs/ directory to scan.
+        event_callback: Callable(event_name, **kwargs) for firing events.
+        suppressed_files: Set of log file names to skip during detection.
+    """
+    global _logs_dir, _EVENT_CALLBACK, _suppressed_files
+    if logs_dir is not None:
+        _logs_dir = logs_dir
+    if event_callback is not None:
+        _EVENT_CALLBACK = event_callback
+    if suppressed_files is not None:
+        _suppressed_files = suppressed_files
 
 
 def _load_state() -> None:
@@ -160,15 +169,14 @@ def scan_rates() -> list:
     """
     _load_state()
 
-    logs_dir = get_system_logs_dir()
-    if not logs_dir.exists():
+    if _logs_dir is None or not _logs_dir.exists():
         return []
 
     now = time.time()
     results = []
 
     current_files = set()
-    for log_file in logs_dir.glob("*.log"):
+    for log_file in _logs_dir.glob("*.log"):
         file_key = str(log_file)
         current_files.add(file_key)
 
@@ -302,8 +310,8 @@ def _fire_event(
         },
     )
 
-    if _HAS_TRIGGER and trigger is not None:
-        trigger.fire(
+    if _EVENT_CALLBACK is not None:
+        _EVENT_CALLBACK(
             "runaway_log_detected",
             file_path=file_path,
             rate_lines_per_min=rate_lines_per_min,
@@ -358,11 +366,3 @@ def get_snapshot() -> list:
             }
         )
     return results
-
-
-def reset() -> None:
-    """Clear all tracking state. Used in tests."""
-    global _state_loaded
-    _tracked.clear()
-    _suppressed_files.clear()
-    _state_loaded = False

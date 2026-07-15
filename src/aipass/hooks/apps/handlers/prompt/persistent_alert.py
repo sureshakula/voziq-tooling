@@ -14,6 +14,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from aipass.hooks.apps.handlers.json import json_handler
 from aipass.prax.apps.modules.logger import system_logger as logger
 
 _announced: set[str] = set()
@@ -124,6 +125,7 @@ def handle(hook_data: dict) -> dict:
         plural = "s" if count != 1 else ""
         sound = f"alert: {count} active alert{plural}"
 
+    json_handler.log_operation("inject_alerts", {"count": len(alerts)})
     logger.info("[HOOKS] persistent_alert: %d active alerts injected", len(alerts))
     result = {"stdout": banner, "exit_code": 0}
     if sound:
