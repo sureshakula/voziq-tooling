@@ -1,9 +1,9 @@
 # =================== AIPass ====================
 # Name: rate_tracker.py
 # Description: Log file rate tracking for runaway detection
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2026-07-14
-# Modified: 2026-07-14
+# Modified: 2026-07-15
 # =============================================
 
 """
@@ -41,6 +41,7 @@ CRITICAL_LINES_PER_MIN = 600  # 10/sec * 60
 CRITICAL_SUSTAINED_INTERVALS = 6  # 6 * 10s = 1 min
 
 _RATE_HISTORY_SIZE = 30
+_WINDOW_INTERVALS = 6
 
 _DATA_FILE = "rate_tracker"
 
@@ -236,6 +237,14 @@ def scan_rates() -> list:
     return results
 
 
+def _window_average(state: FileRateState) -> float:
+    """Average lines/min over the last _WINDOW_INTERVALS entries."""
+    if not state.rates:
+        return 0.0
+    window = list(state.rates)[-_WINDOW_INTERVALS:]
+    return sum(r for _, r in window) / len(window)
+
+
 def _evaluate_thresholds(
     state: FileRateState,
     lines_per_min: float,
@@ -244,19 +253,20 @@ def _evaluate_thresholds(
 ) -> Optional[str]:
     """Update sustained counters and fire events when thresholds are crossed."""
     severity = None
+    effective_rate = max(lines_per_min, _window_average(state))
 
-    if lines_per_min >= CRITICAL_LINES_PER_MIN:
+    if effective_rate >= CRITICAL_LINES_PER_MIN:
         state.critical_sustained += 1
         state.warning_sustained += 1
-    elif lines_per_min >= WARNING_LINES_PER_MIN:
+    elif effective_rate >= WARNING_LINES_PER_MIN:
         state.critical_sustained = 0
         state.warning_sustained += 1
     else:
         if state.fired_warning or state.fired_critical:
             logger.info(
-                "[rate_tracker] %s rate subsided (%.0f lines/min)",
+                "[rate_tracker] %s rate subsided (%.0f lines/min avg)",
                 log_file.name,
-                lines_per_min,
+                effective_rate,
             )
         state.warning_sustained = 0
         state.critical_sustained = 0
@@ -268,12 +278,12 @@ def _evaluate_thresholds(
         severity = "critical"
         state.fired_critical = True
         duration = state.critical_sustained * SCAN_INTERVAL
-        _fire_event(file_key, lines_per_min, duration, "critical")
+        _fire_event(file_key, effective_rate, duration, "critical")
     elif state.warning_sustained >= WARNING_SUSTAINED_INTERVALS and not state.fired_warning:
         severity = "warning"
         state.fired_warning = True
         duration = state.warning_sustained * SCAN_INTERVAL
-        _fire_event(file_key, lines_per_min, duration, "warning")
+        _fire_event(file_key, effective_rate, duration, "warning")
     else:
         if state.critical_sustained > 0:
             severity = "rising_critical"

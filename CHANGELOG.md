@@ -51,6 +51,21 @@ PyPI version — not the changelog header.
   per the ca096295 convention, leaving `execvp` (already mocked) as the only
   terminal call. Ruling recorded in compass; the "forget CI" era is over.
 
+- **Burst-evasion closed: bursty runaways can no longer slip past the rate
+  tracker.** Found live during the morning's chain verification: any single
+  below-threshold 10-second scan window zero-reset the sustain counter, so a
+  bursty writer (20 short lines every 6 seconds — 200 lines/min average, the
+  exact retry-loop-with-sleep shape of the TG relay incident) ran 4 minutes
+  undetected. @prax's fix (rate_tracker v1.2.0): severity now evaluates
+  `max(instant_rate, 60s window average)` — continuous writers behave exactly
+  as before (instant rate dominates), bursts sustain through their gap
+  windows, and subsidence still clears as zeros fill the window. Four new
+  burst tests; live-proven with the previously-evading storm pattern:
+  `RUNAWAY WARNING: prax_burst_storm_test.log — 191 lines/min sustained 120s`
+  in the tracker log, fired from the restarted running service. Detection
+  evidence now spans all three storm shapes: continuous fast (332/min),
+  continuous moderate (257/min), bursty (191/min).
+
 ## [2026-07-14]
 
 ### Fixed

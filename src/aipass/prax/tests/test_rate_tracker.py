@@ -1,7 +1,7 @@
 # =================== AIPass ====================
 # Name: test_rate_tracker.py
 # Description: Tests for the rate tracker runaway-log detector
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2026-07-14
 # Modified: 2026-07-15
 # =============================================
@@ -11,6 +11,7 @@
 Covers:
 - Rate calculation from byte offset changes
 - Sustained threshold detection (WARNING and CRITICAL)
+- Burst detection via rolling-window average
 - Subsidence reset when rate drops
 - Per-file suppression
 - Event firing via callback
@@ -233,25 +234,152 @@ class TestSubsidence:
 
         assert event_mock.call_count == 1
 
-        idle_offset = mod.WARNING_SUSTAINED_INTERVALS + 1
-        with patch.object(
-            mod.time,
-            "time",
-            return_value=base_time + idle_offset * mod.SCAN_INTERVAL,
-        ):
-            mod.scan_rates()
-
-        for i in range(mod.WARNING_SUSTAINED_INTERVALS):
-            log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
-            offset = idle_offset + i + 1
+        for j in range(mod._WINDOW_INTERVALS):
+            idle_offset = mod.WARNING_SUSTAINED_INTERVALS + j + 1
             with patch.object(
                 mod.time,
                 "time",
-                return_value=base_time + offset * mod.SCAN_INTERVAL,
+                return_value=base_time + idle_offset * mod.SCAN_INTERVAL,
+            ):
+                mod.scan_rates()
+
+        gap = mod.WARNING_SUSTAINED_INTERVALS + mod._WINDOW_INTERVALS
+        for i in range(mod.WARNING_SUSTAINED_INTERVALS):
+            log_file.write_bytes(b"x" * bytes_per_interval + log_file.read_bytes())
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (gap + i + 1) * mod.SCAN_INTERVAL,
             ):
                 mod.scan_rates()
 
         assert event_mock.call_count == 2
+
+
+class TestBurstDetection:
+    """Window average catches bursty writers that evade per-interval checks."""
+
+    def test_bursty_writer_fires_warning(self, tmp_path, monkeypatch):
+        """Alternating high/zero intervals averaging above threshold fires WARNING."""
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
+        log_file.write_text("x" * 100)
+
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        base_time = time.time()
+        mod.scan_rates()
+
+        bytes_burst = int(mod.WARNING_LINES_PER_MIN * 3 * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60)
+
+        for i in range(mod.WARNING_SUSTAINED_INTERVALS):
+            if i % 2 == 0:
+                log_file.write_bytes(b"x" * bytes_burst + log_file.read_bytes())
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
+            ):
+                mod.scan_rates()
+
+        event_mock.assert_called_once()
+        assert event_mock.call_args[1]["severity"] == "warning"
+
+    def test_single_burst_does_not_fire(self, tmp_path, monkeypatch):
+        """One burst followed by silence clears before reaching sustained threshold."""
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
+        log_file.write_text("x" * 100)
+
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        base_time = time.time()
+        mod.scan_rates()
+
+        bytes_burst = int(mod.WARNING_LINES_PER_MIN * 3 * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60)
+
+        log_file.write_bytes(b"x" * bytes_burst + log_file.read_bytes())
+        with patch.object(
+            mod.time,
+            "time",
+            return_value=base_time + mod.SCAN_INTERVAL,
+        ):
+            mod.scan_rates()
+
+        for i in range(mod.WARNING_SUSTAINED_INTERVALS):
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 2) * mod.SCAN_INTERVAL,
+            ):
+                mod.scan_rates()
+
+        event_mock.assert_not_called()
+
+    def test_bursty_critical_fires(self, tmp_path, monkeypatch):
+        """Alternating very-high/zero intervals averaging above critical threshold fires CRITICAL."""
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
+        log_file.write_text("x" * 100)
+
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        base_time = time.time()
+        mod.scan_rates()
+
+        bytes_burst = int(mod.CRITICAL_LINES_PER_MIN * 3 * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60)
+
+        for i in range(mod.CRITICAL_SUSTAINED_INTERVALS):
+            if i % 2 == 0:
+                log_file.write_bytes(b"x" * bytes_burst + log_file.read_bytes())
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
+            ):
+                mod.scan_rates()
+
+        assert event_mock.call_count == 1
+        assert event_mock.call_args[1]["severity"] == "critical"
+
+    def test_window_average_subsides_after_storm(self, tmp_path, monkeypatch):
+        """Window average drops below threshold after burst stops — no false latch."""
+        logs_dir = tmp_path / "system"
+        logs_dir.mkdir(parents=True)
+        log_file = logs_dir / "test_module.log"
+        log_file.write_text("x" * 100)
+
+        mod, event_mock = _import_tracker(monkeypatch, logs_dir=logs_dir)
+        base_time = time.time()
+        mod.scan_rates()
+
+        bytes_burst = int(mod.WARNING_LINES_PER_MIN * 3 * mod.AVG_LINE_BYTES * mod.SCAN_INTERVAL / 60)
+
+        for i in range(mod.WARNING_SUSTAINED_INTERVALS):
+            if i % 2 == 0:
+                log_file.write_bytes(b"x" * bytes_burst + log_file.read_bytes())
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (i + 1) * mod.SCAN_INTERVAL,
+            ):
+                mod.scan_rates()
+
+        assert event_mock.call_count == 1
+
+        offset = mod.WARNING_SUSTAINED_INTERVALS
+        for j in range(mod._WINDOW_INTERVALS):
+            with patch.object(
+                mod.time,
+                "time",
+                return_value=base_time + (offset + j + 1) * mod.SCAN_INTERVAL,
+            ):
+                mod.scan_rates()
+
+        file_key = str(log_file)
+        state = mod._tracked[file_key]
+        assert state.warning_sustained == 0
+        assert state.fired_warning is False
 
 
 class TestSuppression:
