@@ -39,6 +39,18 @@ PyPI version — not the changelog header.
   remaining Windows session_boot reds and the relay mtime-cache flake predate
   this PR and stay parked.
 
+- **The parked reds, unparked — Patrick's ruling: red CI is never parked.**
+  "If CI is red, it's because you or I left it red." Both remaining reds fixed
+  by their owners the same hour. @prax root-caused the relay mtime-cache flake:
+  the test only passed when two writes landed in the same mtime-granularity
+  window (true locally, false on CI runners) — fixed by pinning mtime with
+  `os.utime` so the cache contract is tested deterministically, proven 50/50 +
+  20/20 loops. @hooks root-caused the four Windows session_boot reds: the boot
+  path's `_tmux_session_exists()` ran a real `subprocess.run(["tmux", ...])`
+  that Windows runners can't satisfy (WinError 2) — mocked in all four tests
+  per the ca096295 convention, leaving `execvp` (already mocked) as the only
+  terminal call. Ruling recorded in compass; the "forget CI" era is over.
+
 ## [2026-07-14]
 
 ### Fixed

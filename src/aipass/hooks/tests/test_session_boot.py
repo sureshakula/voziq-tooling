@@ -206,6 +206,7 @@ class TestBoot:
             patch.object(session_boot, "_find_live_sessions", return_value=live),
             patch.object(session_boot, "_read_choice", return_value=""),
             patch.object(session_boot, "_find_tmux_session_for_pid", return_value=None),
+            patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
             session_boot.boot(cwd=str(tmp_path))
@@ -264,6 +265,7 @@ class TestBoot:
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
             patch.object(session_boot, "_read_choice", return_value=""),
+            patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
             session_boot.boot(cwd=str(tmp_path))
@@ -892,6 +894,7 @@ class TestExtraArgsThreading:
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
             patch.object(session_boot, "_read_choice", return_value=""),
+            patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
             session_boot.boot(cwd=str(tmp_path), extra_args=["--permission-mode", "plan"])
@@ -1065,6 +1068,7 @@ class TestAutoNamer:
             patch.object(session_boot, "_find_tmux", return_value="/usr/bin/tmux"),
             patch.object(session_boot, "_find_live_sessions", return_value=[]),
             patch.object(session_boot, "_read_choice", return_value=""),
+            patch.object(session_boot, "_tmux_session_exists", return_value=False),
             patch(f"{_MOD}.os.execvp") as mock_exec,
         ):
             session_boot.boot(cwd=str(tmp_path))

@@ -450,12 +450,16 @@ class TestReadControl:
 
     def test_mtime_cache_avoids_reread(self, tmp_path):
         """Same mtime returns cached result without re-reading the file."""
+        import os
+
         relay = _import_relay()
         ctrl = tmp_path / "control.json"
         ctrl.write_text(json.dumps({"paused": False}))
         setattr(relay, "CONTROL_FILE", ctrl)
         first = relay._read_control()
+        cached_mtime = ctrl.stat().st_mtime
         ctrl.write_text("INVALID JSON")
+        os.utime(ctrl, (cached_mtime, cached_mtime))
         result = relay._read_control()
         assert result == first
 
