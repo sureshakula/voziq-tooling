@@ -355,6 +355,7 @@ class TestHandleCustomCommand:
             "@seedgo",
             "audit",
             args=["aipass"],
+            timeout=None,
             interactive=True,
         )
 
@@ -380,6 +381,7 @@ class TestHandleCustomCommand:
             "@seedgo",
             "audit",
             args=["aipass", "@drone"],
+            timeout=None,
             interactive=True,
         )
 
@@ -616,6 +618,7 @@ class TestMainIntegration:
             "@seedgo",
             "audit",
             args=["aipass"],
+            timeout=None,
             interactive=True,
         )
 
@@ -642,6 +645,7 @@ class TestMainIntegration:
             "@seedgo",
             "audit",
             args=["aipass", "@drone"],
+            timeout=None,
             interactive=True,
         )
 
@@ -714,5 +718,6 @@ class TestMatchCommandIntegration:
             "@flow",
             "create",
             args=["--type=plan", "my-plan"],
+            timeout=None,
             interactive=False,
         )

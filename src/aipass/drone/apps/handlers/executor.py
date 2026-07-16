@@ -21,6 +21,29 @@ from .exceptions import CommandExecutionError
 from aipass.drone.apps.handlers.json import json_handler
 
 
+DEFAULT_TIMEOUT = 30
+
+TIMEOUT_OVERRIDES: dict[str, dict[str, int]] = {
+    "memory": {"process-plans": 120},
+    "flow": {"close": 90},
+}
+
+
+def resolve_timeout(branch: str, command: str | None, explicit: int | None = None) -> int:
+    """Resolve subprocess timeout for a branch command.
+
+    Priority: explicit flag > per-command policy > DEFAULT_TIMEOUT.
+    """
+    if explicit is not None:
+        return explicit
+    branch_key = branch.lstrip("@").lower()
+    if command and branch_key in TIMEOUT_OVERRIDES:
+        cmd_timeout = TIMEOUT_OVERRIDES[branch_key].get(command)
+        if cmd_timeout is not None:
+            return cmd_timeout
+    return DEFAULT_TIMEOUT
+
+
 @dataclass
 class CommandResult:
     """Result of a routed command execution."""
@@ -82,7 +105,10 @@ def execute_command(
             return CommandResult(stdout="", stderr="", exit_code=130, branch="", command="")
         raise
     except subprocess.TimeoutExpired as e:
-        raise CommandExecutionError(f"Command timed out after {timeout}s: {' '.join(full_cmd)}") from e
+        raise CommandExecutionError(
+            f"Command timed out after {timeout}s: {' '.join(full_cmd)}\n"
+            f"  Override with: drone @<target> <command> --timeout <seconds>"
+        ) from e
     except FileNotFoundError as e:
         raise CommandExecutionError(f"Executable not found: {executable!r}") from e
     except OSError as e:

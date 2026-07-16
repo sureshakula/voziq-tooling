@@ -20,7 +20,7 @@ from typing import Dict, List, Optional
 
 from aipass.prax.apps.modules.logger import system_logger
 from aipass.cli.apps.modules import console
-from aipass.drone.apps.handlers.executor import CommandResult
+from aipass.drone.apps.handlers.executor import CommandResult, resolve_timeout
 from aipass.drone.apps.handlers.json import json_handler
 from aipass.drone.apps.handlers.router_handler import (
     detect_caller_branch_name,
@@ -90,28 +90,38 @@ def route_command(
     target: str,
     command: Optional[str] = None,
     args: Optional[List[str]] = None,
-    timeout: int = 30,
+    timeout: int | None = None,
     interactive: bool = False,
 ) -> CommandResult:
     """Route a command to a branch's entry point.
 
     Resolves @target to a path, then delegates to the handler for execution.
     When command is None, runs the branch with no args (introspection).
+
+    Timeout resolution: explicit value > per-command policy > DEFAULT_TIMEOUT.
     """
     branch_path = resolve_branch(target)
     branch_name = target.lstrip("@").lower()
+    resolved_timeout = resolve_timeout(branch_name, command, timeout)
 
     caller = detect_caller_branch_name(Path.cwd())
     if not caller:
         caller = os.environ.get("AIPASS_BRANCH_NAME")
     caller_tag = f" [CALLER:{caller.upper()}]" if caller else ""
-    logger.info("Routing @%s%s → %s %s", branch_name, caller_tag, command or "(introspection)", args or [])
+    logger.info(
+        "Routing @%s%s → %s %s (timeout=%ds)",
+        branch_name,
+        caller_tag,
+        command or "(introspection)",
+        args or [],
+        resolved_timeout,
+    )
     return execute_branch_command(
         branch_path=branch_path,
         branch_name=branch_name,
         command=command,
         args=args,
-        timeout=timeout,
+        timeout=resolved_timeout,
         interactive=interactive,
     )
 
@@ -147,7 +157,7 @@ def print_introspection():
 def route_all(
     command: str,
     args: Optional[List[str]] = None,
-    timeout: int = 30,
+    timeout: int | None = None,
 ) -> Dict[str, CommandResult]:
     """Route the same command to ALL active branches in the registry."""
     if args is None:

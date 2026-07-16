@@ -9,6 +9,27 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-16]
+
+### Added
+
+- **Close pipeline completes itself (DPLAN-0245): auto-vectorization +
+  crash-safe registry writes + drone timeout policy.** Closing a plan now
+  produces all side effects from one command — `post_close_runner` invokes
+  @memory's plan intake directly after archival (detached, loud on failure,
+  drains any backlog it finds), so plans can no longer silently pile up
+  unvectorized. Plan registry saves (@flow `save_registry` + mbank
+  `save_flow_registry`) now use the O_EXCL lockfile + atomic
+  tempfile-and-replace pattern, closing the same lost-update race class fixed
+  earlier in CLOSED_PLANS. @drone gained a 3-layer timeout policy: per-command
+  overrides (`@memory process-plans` 120s, `@flow close` 90s), a `--timeout N`
+  flag, 30s default — replacing the flat 30s guillotine that killed legitimate
+  long commands mid-pipeline; the timeout error now says how to override.
+  Proven end-to-end live: one `drone @flow close` on a throwaway plan yielded
+  archive + vectors + ledger + registry with zero manual steps, and the
+  auto-trigger swept a pre-existing backlog file on its first run. 730 flow +
+  878 drone tests green, seedgo 100%.
+
 ## [2026-07-15]
 
 ### Fixed

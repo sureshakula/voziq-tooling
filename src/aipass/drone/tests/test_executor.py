@@ -8,7 +8,12 @@ from unittest.mock import patch
 import pytest
 
 from aipass.drone.apps.handlers.exceptions import CommandExecutionError
-from aipass.drone.apps.handlers.executor import execute_command
+from aipass.drone.apps.handlers.executor import (
+    DEFAULT_TIMEOUT,
+    TIMEOUT_OVERRIDES,
+    execute_command,
+    resolve_timeout,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -389,3 +394,63 @@ class TestShellSecurity:
         # The semicolon is treated as literal text, not a shell separator
         assert result.stdout.strip() == "hello; echo pwned"
         assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# 11. resolve_timeout — policy resolution
+# ---------------------------------------------------------------------------
+
+
+class TestResolveTimeout:
+    """Timeout resolution: explicit > policy > default."""
+
+    def test_default_timeout(self):
+        """Unknown branch+command returns DEFAULT_TIMEOUT."""
+        assert resolve_timeout("unknown", "whatever") == DEFAULT_TIMEOUT
+
+    def test_policy_override(self):
+        """Known branch+command returns the policy value."""
+        for branch, cmds in TIMEOUT_OVERRIDES.items():
+            for cmd, expected in cmds.items():
+                assert resolve_timeout(branch, cmd) == expected
+
+    def test_explicit_wins_over_policy(self):
+        """Explicit timeout overrides the policy map."""
+        branch = next(iter(TIMEOUT_OVERRIDES))
+        cmd = next(iter(TIMEOUT_OVERRIDES[branch]))
+        assert resolve_timeout(branch, cmd, explicit=999) == 999
+
+    def test_explicit_wins_over_default(self):
+        """Explicit timeout overrides the default."""
+        assert resolve_timeout("unknown", "whatever", explicit=42) == 42
+
+    def test_none_command_returns_default(self):
+        """None command (introspection) returns default."""
+        assert resolve_timeout("memory", None) == DEFAULT_TIMEOUT
+
+    def test_at_prefix_stripped(self):
+        """Leading @ on branch name is stripped before lookup."""
+        for branch in TIMEOUT_OVERRIDES:
+            cmd = next(iter(TIMEOUT_OVERRIDES[branch]))
+            expected = TIMEOUT_OVERRIDES[branch][cmd]
+            assert resolve_timeout(f"@{branch}", cmd) == expected
+
+
+# ---------------------------------------------------------------------------
+# 12. Timeout error message includes --timeout hint
+# ---------------------------------------------------------------------------
+
+
+class TestTimeoutErrorMessage:
+    """Timeout error tells the caller how to override."""
+
+    def test_timeout_error_includes_override_hint(self, temp_test_dir: Path):
+        """The timeout error message mentions --timeout."""
+        with pytest.raises(CommandExecutionError, match="--timeout") as exc_info:
+            execute_command(
+                sys.executable,
+                ["-c", "import time; time.sleep(10)"],
+                cwd=str(temp_test_dir),
+                timeout=1,
+            )
+        assert "--timeout" in str(exc_info.value)
