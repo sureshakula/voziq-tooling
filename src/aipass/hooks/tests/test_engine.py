@@ -23,6 +23,7 @@ from aipass.hooks.apps.modules.engine import (
     _log,
 )
 from aipass.hooks.apps.handlers.config.loader import find_project_config
+from aipass.hooks.apps.handlers.config.trust_registry import enroll
 
 
 class TestMatches:
@@ -276,7 +277,13 @@ class TestFindProjectConfig:
     """Tests for find_project_config() CWD walk."""
 
     def test_finds_config_in_cwd(self, hooks_config_file, temp_test_dir, mock_logger):
-        with patch("aipass.hooks.apps.modules.engine.Path.cwd", return_value=temp_test_dir):
+        reg_path = temp_test_dir / "registry.json"
+        with patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path):
+            enroll(str(temp_test_dir))
+        with (
+            patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path),
+            patch("aipass.hooks.apps.handlers.config.loader.Path.cwd", return_value=temp_test_dir),
+        ):
             config = find_project_config()
         assert config is not None
         assert config["hooks_enabled"] is True
@@ -295,9 +302,15 @@ class TestFindProjectConfig:
             "Stop": {"sound": {"enabled": True, "command": "python3 $AIPASS_HOME/hook.py", "matcher": ""}},
         }
         (config_dir / "hooks.json").write_text(json.dumps(config))
-        with patch("aipass.hooks.apps.modules.engine.Path.cwd", return_value=temp_test_dir):
-            with patch("aipass.hooks.apps.handlers.config.loader.AIPASS_HOME", "/test/path"):
-                result = find_project_config()
+        reg_path = temp_test_dir / "registry.json"
+        with patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path):
+            enroll(str(temp_test_dir))
+        with (
+            patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path),
+            patch("aipass.hooks.apps.handlers.config.loader.Path.cwd", return_value=temp_test_dir),
+            patch("aipass.hooks.apps.handlers.config.loader.AIPASS_HOME", "/test/path"),
+        ):
+            result = find_project_config()
         assert result is not None
         assert "/test/path/hook.py" in result["Stop"]["sound"]["command"]
 
@@ -502,7 +515,13 @@ class TestInitProvisioning:
         (config_dir / "hooks.json").write_text('{"hooks_enabled": true}')
         sub_dir = temp_test_dir / "deep" / "nested" / "path"
         sub_dir.mkdir(parents=True)
-        with patch("aipass.hooks.apps.modules.engine.Path.cwd", return_value=sub_dir):
+        reg_path = temp_test_dir / "registry.json"
+        with patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path):
+            enroll(str(temp_test_dir))
+        with (
+            patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path),
+            patch("aipass.hooks.apps.handlers.config.loader.Path.cwd", return_value=sub_dir),
+        ):
             config = find_project_config()
         assert config is not None
         assert config["hooks_enabled"] is True
@@ -719,6 +738,153 @@ class TestMockInfrastructure:
         assert hasattr(engine, "dispatch")
         assert hasattr(engine, "_matches")
         assert hasattr(engine, "_run_hook")
+
+
+class TestLayerATrustEnforcement:
+    """DPLAN-0244 Layer A: engine refuses command-type from project config, enforces handler namespace."""
+
+    def test_command_type_refused_from_project_config(self, mock_logger):
+        config = {
+            "hooks_enabled": True,
+            "_source": "project",
+            "PreToolUse": {
+                "evil_cmd": {
+                    "enabled": True,
+                    "command": "echo PWNED",
+                    "matcher": "",
+                }
+            },
+        }
+        with patch("aipass.hooks.apps.modules.engine._log") as mock_log:
+            with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
+                result = dispatch("PreToolUse", '{"tool_name":"Edit"}', config)
+        mock_run.assert_not_called()
+        assert result == ("", 0)
+        log_calls = [c[0][0] for c in mock_log.call_args_list]
+        assert any(e.get("action") == "refused_command_type" for e in log_calls if isinstance(e, dict))
+
+    def test_handler_namespace_enforced(self, mock_logger):
+        from aipass.hooks.apps.modules.engine import _run_handler
+
+        result = _run_handler("evil.payload.handle", {})
+        assert result["exit_code"] == -1
+        assert "namespace refused" in result["stderr"]
+
+    def test_handler_aipass_namespace_allowed(self, mock_logger):
+        from aipass.hooks.apps.modules.engine import _run_handler
+
+        mock_handler = MagicMock(return_value={"exit_code": 0, "stdout": "ok"})
+        mock_module = MagicMock()
+        mock_module.handle = mock_handler
+        with patch("importlib.import_module", return_value=mock_module):
+            result = _run_handler("aipass.hooks.apps.handlers.notification.stop_sound.handle", {})
+        assert result["exit_code"] == 0
+
+    def test_command_type_allowed_from_default_config(self, mock_logger):
+        config = {
+            "hooks_enabled": True,
+            "_source": "default",
+            "Stop": {
+                "cmd_hook": {
+                    "enabled": True,
+                    "command": "echo allowed",
+                    "matcher": "",
+                }
+            },
+        }
+        with patch("aipass.hooks.apps.modules.engine._log"):
+            with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
+                mock_run.return_value = {
+                    "exit_code": 0,
+                    "stdout": "allowed",
+                    "stderr": "",
+                    "elapsed_ms": 5,
+                }
+                result = dispatch("Stop", "{}", config)
+        mock_run.assert_called_once()
+        assert "allowed" in result[0]
+
+    def test_mixed_config_partial_refusal(self, mock_logger):
+        config = {
+            "hooks_enabled": True,
+            "_source": "project",
+            "UserPromptSubmit": {
+                "good_handler": {
+                    "enabled": True,
+                    "handler": "aipass.hooks.apps.handlers.notification.stop_sound.handle",
+                    "matcher": "",
+                },
+                "evil_cmd": {
+                    "enabled": True,
+                    "command": "echo PWNED",
+                    "matcher": "",
+                },
+            },
+        }
+        mock_handler_func = MagicMock(return_value={"exit_code": 0, "stdout": "handler_ok"})
+        mock_module = MagicMock()
+        mock_module.handle = mock_handler_func
+        with patch("aipass.hooks.apps.modules.engine._log"):
+            with patch("importlib.import_module", return_value=mock_module):
+                with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
+                    result = dispatch("UserPromptSubmit", "{}", config)
+        mock_run.assert_not_called()
+        assert "handler_ok" in result[0]
+        assert result[1] == 0
+
+    def test_source_overwrite_not_merge(self, temp_test_dir, mock_logger):
+        config_dir = temp_test_dir / ".aipass"
+        config_dir.mkdir()
+        hostile_config = {
+            "hooks_enabled": True,
+            "_source": "provider",
+            "SessionStart": {
+                "evil": {
+                    "enabled": True,
+                    "command": "echo PWNED",
+                    "matcher": "",
+                }
+            },
+        }
+        (config_dir / "hooks.json").write_text(json.dumps(hostile_config))
+        reg_path = temp_test_dir / "registry.json"
+        with patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path):
+            enroll(str(temp_test_dir))
+        with (
+            patch("aipass.hooks.apps.handlers.config.trust_registry.REGISTRY_PATH", reg_path),
+            patch("aipass.hooks.apps.handlers.config.loader.Path.cwd", return_value=temp_test_dir),
+        ):
+            loaded = find_project_config()
+        assert loaded is not None
+        assert loaded["_source"] == "project"
+        with patch("aipass.hooks.apps.modules.engine._log"):
+            with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
+                result = dispatch("SessionStart", "{}", loaded)
+        mock_run.assert_not_called()
+        assert result == ("", 0)
+
+    def test_command_without_source_defaults_allowed(self, mock_logger):
+        config = {
+            "hooks_enabled": True,
+            "Stop": {
+                "cmd_hook": {
+                    "enabled": True,
+                    "command": "echo ok",
+                    "matcher": "",
+                }
+            },
+        }
+        with patch("aipass.hooks.apps.modules.engine._log"):
+            with patch("aipass.hooks.apps.modules.engine._run_hook") as mock_run:
+                mock_run.return_value = {
+                    "exit_code": 0,
+                    "stdout": "ok",
+                    "stderr": "",
+                    "elapsed_ms": 5,
+                }
+                result = dispatch("Stop", "{}", config)
+        mock_run.assert_called_once()
+        assert "ok" in result[0]
 
 
 class TestJsonHandlerNotApplicable:

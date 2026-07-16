@@ -11,6 +11,26 @@ PyPI version — not the changelog header.
 
 ## [2026-07-15]
 
+### Security
+
+- **Hook config trust model hardening (DPLAN-0244): closes a zero-interaction
+  RCE from untrusted `.aipass/hooks.json`.** The hook loader walked up from CWD
+  and trusted any `.aipass/hooks.json` it found; since the bridge is wired
+  globally in provider settings, a hostile repo shipping a `command`-type hook
+  could execute arbitrary shell on `SessionStart` with no user interaction.
+  Fixed with defense-in-depth. **Layer A (engine):** per-project configs may no
+  longer run `command`-type hooks (refused via an unconditionally-stamped
+  `_source` provenance flag), and handler paths are gated to the `aipass.*`
+  namespace. **Layer B (loader + CLI):** a trusted-project registry
+  (`~/.aipass/trusted_projects.json`, path + sha256) that the loader checks
+  fail-closed; on upgrade it bootstraps **only** the `$AIPASS_HOME` install
+  (never trust-on-first-use of an arbitrary directory); `aipass init`/`init
+  update` auto-enroll, and new `aipass trust`/`revoke` commands manage
+  enrollment. Both gates proven to block the attack independently via a live
+  acceptance test driving the real bridge with a real payload. 1105 hooks +
+  133 aipass tests green. Origin: external scan (false positive at
+  `engine.py:37`) whose triage surfaced the real adjacent hole.
+
 ### Added
 
 - **Supply-chain hardening pass (DPLAN-0243): commit signing + hash-pinned CI

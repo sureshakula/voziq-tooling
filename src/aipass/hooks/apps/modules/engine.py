@@ -65,6 +65,18 @@ def _run_handler(handler_path: str, hook_data: dict) -> dict:
     start = time.monotonic()
     try:
         module_path, func_name = handler_path.rsplit(".", 1)
+        if not module_path.startswith("aipass."):
+            elapsed_ms = (time.monotonic() - start) * 1000
+            logger.warning(
+                "[HOOKS] handler path refused (not in aipass.* namespace): %s",
+                handler_path,
+            )
+            return {
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": f"handler namespace refused: {handler_path}",
+                "elapsed_ms": round(elapsed_ms, 1),
+            }
         module = importlib.import_module(module_path)
         handler_func = getattr(module, func_name)
         result = handler_func(hook_data)
@@ -133,6 +145,22 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> tuple[str, int]:
                     "action": "skipped_no_match",
                     "matcher": matcher,
                     "value": match_value,
+                }
+            )
+            continue
+
+        if command and not handler and config.get("_source") == "project":
+            logger.warning(
+                "[HOOKS] %s.%s REFUSED: command-type not allowed in per-project config",
+                event_type,
+                hook_name,
+            )
+            _log(
+                {
+                    "ts": time.time(),
+                    "event": event_type,
+                    "hook": hook_name,
+                    "action": "refused_command_type",
                 }
             )
             continue
