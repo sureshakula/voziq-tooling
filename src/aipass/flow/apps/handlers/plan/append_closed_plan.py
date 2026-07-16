@@ -3,7 +3,7 @@
 # Description: Closed Plans Local Registry Handler
 # Version: 0.1.0
 # Created: 2026-03-03
-# Modified: 2026-03-03
+# Modified: 2026-07-15
 # =============================================
 
 """
@@ -13,8 +13,11 @@ Appends a closed plan entry to the branch's CLOSED_PLANS.local.json file.
 Creates the file if it doesn't exist.
 """
 
+# ruff: noqa: E402
 import json
+import os
 import re
+import time
 from pathlib import Path
 
 # INFRASTRUCTURE IMPORT PATTERN
@@ -26,6 +29,31 @@ from aipass.flow.apps.handlers.json import json_handler
 
 MODULE_NAME = "append_closed_plan"
 CLOSED_PLANS_FILE = "CLOSED_PLANS.local.json"
+
+_LOCK_RETRIES = 10
+_LOCK_BACKOFF_BASE = 0.05
+
+
+def _acquire_append_lock(lock_path: Path) -> bool:
+    """Atomically acquire a lockfile via O_CREAT|O_EXCL with retry+backoff."""
+    for attempt in range(_LOCK_RETRIES):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            logger.info("[%s] Lock contention on %s, retry %d", MODULE_NAME, lock_path, attempt + 1)
+            time.sleep(_LOCK_BACKOFF_BASE * (2**attempt))
+    return False
+
+
+def _release_append_lock(lock_path: Path) -> None:
+    """Remove lockfile, tolerating already-removed."""
+    try:
+        lock_path.unlink(missing_ok=True)
+    except OSError as exc:
+        logger.warning("[%s] Could not release lock %s: %s", MODULE_NAME, lock_path, exc)
 
 
 def append_to_closed_plans(plan_key: str, plan_info: dict, plan_location: Path) -> bool:
@@ -61,27 +89,35 @@ def append_to_closed_plans(plan_key: str, plan_info: dict, plan_location: Path) 
             "location": plan_info.get("relative_path", ""),
         }
 
-        # Read existing file or create new structure
+        # Locked read-modify-write to prevent lost updates under concurrent close
         closed_plans_path = plan_location / CLOSED_PLANS_FILE
+        lock_path = closed_plans_path.with_suffix(".lock")
 
-        if closed_plans_path.exists():
-            with open(closed_plans_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        else:
-            data = {"closed_plans": []}
+        if not _acquire_append_lock(lock_path):
+            logger.error(
+                f"[{MODULE_NAME}] Could not acquire lock for {closed_plans_path} after {_LOCK_RETRIES} retries"
+            )
+            return False
 
-        # Check for duplicate plan_id before appending
-        existing_ids = {p.get("plan_id") for p in data.get("closed_plans", [])}
-        if plan_id in existing_ids:
-            logger.info(f"[{MODULE_NAME}] {plan_id} already in {CLOSED_PLANS_FILE} at {plan_location}, skipping")
-            return True
+        try:
+            if closed_plans_path.exists():
+                with open(closed_plans_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            else:
+                data = {"closed_plans": []}
 
-        # Append and write
-        data["closed_plans"].append(entry)
+            existing_ids = {p.get("plan_id") for p in data.get("closed_plans", [])}
+            if plan_id in existing_ids:
+                logger.info(f"[{MODULE_NAME}] {plan_id} already in {CLOSED_PLANS_FILE} at {plan_location}, skipping")
+                return True
 
-        with open(closed_plans_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
+            data["closed_plans"].append(entry)
+
+            with open(closed_plans_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+        finally:
+            _release_append_lock(lock_path)
 
         logger.info(f"[{MODULE_NAME}] Appended {plan_id} to {closed_plans_path}")
         json_handler.log_operation(

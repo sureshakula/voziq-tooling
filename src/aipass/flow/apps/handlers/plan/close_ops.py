@@ -379,9 +379,22 @@ def close_plan_impl(
         try:
             from aipass.flow.apps.handlers.plan.append_closed_plan import append_to_closed_plans
 
-            append_to_closed_plans(plan_key, plan_info, plan_file.parent)
+            if not append_to_closed_plans(plan_key, plan_info, plan_file.parent):
+                logger.error(f"[{MODULE_NAME}] CLOSED_PLANS append failed for {plan_prefix}-{plan_key}")
+                messages.append(
+                    {
+                        "type": "warning",
+                        "text": f"  CLOSED_PLANS append failed for {plan_prefix}-{plan_key}",
+                    }
+                )
         except Exception as e:
-            logger.warning(f"[{MODULE_NAME}] CLOSED_PLANS update failed (non-critical): {e}")
+            logger.error(f"[{MODULE_NAME}] CLOSED_PLANS update failed: {e}")
+            messages.append(
+                {
+                    "type": "warning",
+                    "text": f"  CLOSED_PLANS update failed: {e}",
+                }
+            )
 
         # Fire trigger event for plan closure
         if trigger_fire_fn is not None:
