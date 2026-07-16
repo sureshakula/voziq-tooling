@@ -407,6 +407,11 @@
       "reason": "Sound handler \u2014 no JSON operations, plays WAV files."
     },
     {
+      "file": "apps/handlers/config/trust_registry.py",
+      "standard": "unused_function",
+      "reason": "enroll() and revoke() are the public API consumed CROSS-BRANCH by @aipass CLI (init/trust/revoke commands, DPLAN-0244 phase 2). seedgo's intra-branch static analysis cannot see cross-branch callers. read_registry() also exported for @aipass CLI use."
+    },
+    {
       "file": "apps/handlers/config/loader.py",
       "standard": "json_structure",
       "reason": "Config loader does $AIPASS_HOME variable expansion before JSON parse \u2014 json_handler does not support this."

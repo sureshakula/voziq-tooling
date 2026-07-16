@@ -375,6 +375,41 @@
       "file": "shared/json_ops.py",
       "standard": "unused_function",
       "reason": "backup_json() is consumed by @spawn (cross-branch caller). Appears unused in @aipass-only scan but is a shared API."
+    },
+    {
+      "file": "apps/modules/trust.py",
+      "standard": "encapsulation",
+      "reason": "Imports frozen trust_registry interface (enroll/revoke/is_trusted/read_registry) from @hooks by DPLAN-0244 design. Cross-branch import required — the registry module lives in hooks, consumers live in aipass."
+    },
+    {
+      "file": "apps/modules/trust.py",
+      "standard": "json_structure",
+      "reason": "No JSON file operations — trust.py is a thin CLI wrapper that delegates all JSON I/O to the trust_registry module in @hooks. No json_handler needed."
+    },
+    {
+      "file": "apps/modules/trust.py",
+      "standard": "introspection",
+      "reason": "aipass is binary-invoked: bare 'aipass trust' shows registry table; introspection via --info"
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "encapsulation",
+      "reason": "Imports enroll() from @hooks trust_registry (DPLAN-0244 frozen interface). Cross-branch import required — init must enroll projects in the trust registry after writing hooks.json."
+    },
+    {
+      "file": "apps/handlers/init/bootstrap.py",
+      "standard": "handlers",
+      "reason": "Imports enroll() from @hooks trust_registry by DPLAN-0244 design. Cross-handler import required — bootstrap auto-enrolls projects after hooks.json creation/merge."
+    },
+    {
+      "file": "tests/test_trust.py",
+      "standard": "architecture",
+      "reason": "Test file lives in tests/ by convention — not in apps/. Standard 3-layer structure applies to production code only."
+    },
+    {
+      "file": "tests/test_trust.py",
+      "standard": "encapsulation",
+      "reason": "Tests import trust_registry directly to verify enrollment/revocation in isolation with monkeypatched REGISTRY_PATH."
     }
   ]
 }

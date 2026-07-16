@@ -22,7 +22,8 @@ aipass/
 │   │   ├── help_chat.py                   # README-backed Q&A (reads via readme_map handler)
 │   │   ├── init_flow.py                   # 10-stage guided setup
 │   │   ├── install.py                     # aipass install — one-command bootstrap (clone + setup + init)
-│   │   └── profile.py                     # User profile read/write
+│   │   ├── profile.py                     # User profile read/write
+│   │   └── trust.py                       # Trust registry — aipass trust / aipass revoke
 │   ├── handlers/
 │   │   ├── cross_os/                      # Cross-OS pre-flight: gap_registry, preflight, run_record
 │   │   ├── handoff_platform/              # Platform-specific handoff detection
@@ -56,6 +57,8 @@ aipass/
 | `aipass init` | 10-stage guided setup (resumable) |
 | `aipass install` | One-command bootstrap — clone + setup.sh + hooks, then hand off to init (`--no-init`/`--with-init`/`--path`/`--here`) |
 | `aipass profile` | Show/edit user profile |
+| `aipass trust [path]` | Show enrolled projects or enroll a project in the trust registry |
+| `aipass revoke <path>` | Remove a project from the trust registry |
 | `aipass --version` | Version |
 
 ## Integration Points

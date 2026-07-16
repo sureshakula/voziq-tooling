@@ -19,27 +19,61 @@ from __future__ import annotations
 from pathlib import Path
 
 from aipass.cli.apps.modules import console, error, success
-from aipass.hooks.apps.handlers.config.trust_registry import enroll, revoke
+from aipass.hooks.apps.handlers.config.trust_registry import (
+    enroll,
+    read_registry,
+    revoke,
+)
 from aipass.prax import logger
 
 COMMAND = "trust"
 _COMMAND_REVOKE = "revoke"
 
 
-def _print_help() -> None:
+def print_introspection() -> None:
+    """Display the current trusted-project registry."""
+    from rich.table import Table
+
+    registry = read_registry()
+    projects = registry.get("projects", {})
+
+    console.print()
+    console.print("[bold cyan]aipass trust[/bold cyan] — trusted-project registry")
+    console.print()
+
+    if not projects:
+        console.print("[dim]No projects enrolled.[/dim]")
+    else:
+        table = Table(show_header=True, header_style="bold yellow")
+        table.add_column("Project", style="cyan")
+        table.add_column("Hash", style="dim", max_width=24)
+        table.add_column("Enrolled")
+        for path, entry in projects.items():
+            short_hash = entry.get("config_hash", "")[:18] + "..."
+            table.add_row(path, short_hash, entry.get("enrolled", ""))
+        console.print(table)
+
+    console.print()
+    console.print("[dim]Use 'aipass trust <path>' to enroll or 'aipass revoke <path>' to remove.[/dim]")
+    console.print()
+
+
+def print_help() -> None:
+    """Print usage help for the trust/revoke commands."""
     console.print()
     console.print("[bold cyan]aipass trust / revoke[/bold cyan] — trusted-project registry")
     console.print()
     console.print("[yellow]USAGE:[/yellow]")
-    console.print("  [green]aipass trust <path>[/green]    [dim]# Enroll a project (requires .aipass/hooks.json)[/dim]")
-    console.print("  [green]aipass revoke <path>[/green]   [dim]# Remove a project from the registry[/dim]")
+    console.print("  [green]aipass trust[/green]            [dim]# Show enrolled projects[/dim]")
+    console.print(
+        "  [green]aipass trust <path>[/green]     [dim]# Enroll a project (requires .aipass/hooks.json)[/dim]"
+    )
+    console.print("  [green]aipass revoke <path>[/green]    [dim]# Remove a project from the registry[/dim]")
     console.print()
 
 
-def _handle_trust(args: list[str]) -> bool:
-    if not args or args[0] in ("--help", "-h"):
-        _print_help()
-        return True
+def _do_trust(args: list[str]) -> bool:
+    """Execute the trust enrollment for a given path."""
     target = Path(args[0]).resolve()
     if not target.is_dir():
         error(f"Not a directory: {target}")
@@ -56,10 +90,8 @@ def _handle_trust(args: list[str]) -> bool:
     return True
 
 
-def _handle_revoke(args: list[str]) -> bool:
-    if not args or args[0] in ("--help", "-h"):
-        _print_help()
-        return True
+def _do_revoke(args: list[str]) -> bool:
+    """Execute the revocation for a given path."""
     target = Path(args[0]).resolve()
     if revoke(str(target)):
         success(f"Revoked {target}")
@@ -72,7 +104,19 @@ def _handle_revoke(args: list[str]) -> bool:
 def handle_command(command: str, args: list[str]) -> bool:
     """Route trust/revoke subcommands. Returns True if handled."""
     if command == COMMAND:
-        return _handle_trust(args)
+        if not args:
+            print_introspection()
+            return True
+        if args[0] in ("--help", "-h", "help"):
+            print_help()
+            return True
+        if args[0] == "--info":
+            print_introspection()
+            return True
+        return _do_trust(args)
     if command == _COMMAND_REVOKE:
-        return _handle_revoke(args)
+        if not args or args[0] in ("--help", "-h", "help"):
+            print_help()
+            return True
+        return _do_revoke(args)
     return False
