@@ -67,11 +67,29 @@ def _store_vectors(branch, memory_type, embeddings, documents, metadatas, db_pat
         embedding_function=None,
     )
 
-    # Content-hash IDs prevent duplicates across rollover runs
-    ids = [f"{branch}_{memory_type}_{hashlib.sha256(doc.encode()).hexdigest()[:16]}" for doc in documents]
+    # Content-hash IDs — idempotent across runs.  When metadata carries
+    # source_file (e.g. plans intake), salt the hash so identical boilerplate
+    # from different files gets distinct IDs and per-file provenance survives.
+    ids = []
+    for doc, meta in zip(documents, metadatas):
+        salt = meta.get("source_file", "") if isinstance(meta, dict) else ""
+        hash_input = f"{salt}:{doc}" if salt else doc
+        ids.append(f"{branch}_{memory_type}_{hashlib.sha256(hash_input.encode()).hexdigest()[:16]}")
 
     # Chroma expects lists, not numpy arrays
     embeddings_list = [emb.tolist() if hasattr(emb, "tolist") else emb for emb in embeddings]
+
+    # Safety net: deduplicate within batch — ChromaDB rejects non-unique IDs
+    # in a single upsert call.
+    seen = {}
+    for i, doc_id in enumerate(ids):
+        seen[doc_id] = i
+    if len(seen) < len(ids):
+        unique_indices = sorted(seen.values())
+        ids = [ids[i] for i in unique_indices]
+        embeddings_list = [embeddings_list[i] for i in unique_indices]
+        documents = [documents[i] for i in unique_indices]
+        metadatas = [metadatas[i] for i in unique_indices]
 
     # Upsert: idempotent — same content gets same ID, no duplicates
     collection.upsert(embeddings=embeddings_list, documents=documents, metadatas=metadatas, ids=ids)
