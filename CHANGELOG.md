@@ -11,6 +11,38 @@ PyPI version — not the changelog header.
 
 ## [2026-07-15]
 
+### Fixed
+
+- **Plan vectorization pipeline unwedged (DPLAN-0245): 57 closed plans were
+  silently missing from semantic memory since mid-June.** Vector IDs were pure
+  content hashes, so identical template boilerplate across different plans
+  produced duplicate IDs within one ChromaDB upsert — the store rejected the
+  entire batch, and the all-or-nothing intake retried the same failing batch
+  forever. Fixed in @memory: IDs are now salted with the source filename when
+  present (rollover hashes unchanged — no re-vectorization churn), in-batch
+  dedup as a safety net, and `process_plans()` now runs per-file with the
+  manifest saved after each success so a poison file can never wedge the queue
+  again. Backlog drained and verified: 229/229 archived plans vectorized, 1112
+  chunks, formerly-lost plans answering semantic queries at 85%+ similarity.
+  990 memory tests green.
+
+- **CLOSED_PLANS ledger append race (@flow): concurrent plan closes lost
+  entries.** `append_to_closed_plans` was an unlocked read-modify-write; the
+  S314 bulk sweep lost 18 of 21 entries to it (reconciled by hand). Now guarded
+  by an `O_CREAT|O_EXCL` lockfile with retry/backoff, and the previously
+  silent append failure is surfaced in close output and logs. 730 flow tests
+  green.
+
+- **Telegram routine read-timeouts no longer logged as errors (@skills,
+  Patrick ruling): ends the medic wake-loop.** A routine long-poll read
+  timeout (`socket.timeout` — an `OSError` subclass) slipped past the earlier
+  `URLError`-only guard into the network-outage path, logging ERROR once per
+  episode (~576 lines/30h) and waking @trigger's medic each time. The
+  `_is_routine_read_timeout` guard now covers the `OSError` handler too, and
+  the genuine-outage episode-start line is demoted ERROR→WARNING (backoff
+  self-heals; recovery already logs INFO; medic only fires on ERROR/CRITICAL).
+  Real failures still log ERROR. 825 telegram tests green.
+
 ### Security
 
 - **Hook config trust model hardening (DPLAN-0244): closes a zero-interaction

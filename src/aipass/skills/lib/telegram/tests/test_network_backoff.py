@@ -164,6 +164,36 @@ class TestPollUpdatesErrorClassification:
             with pytest.raises(_NetworkPollError):
                 bot.poll_updates(0)
 
+    def test_bare_socket_timeout_returns_empty(self, tmp_path, _patch_base_bot_deps):
+        """socket.timeout (subclass of OSError) with 'read operation' should be silenced, not raised."""
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        import socket
+
+        exc = socket.timeout("The read operation timed out")
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", side_effect=exc):
+            result = bot.poll_updates(0)
+        assert result == []
+
+    def test_bare_socket_timeout_no_error_log(self, tmp_path, _patch_base_bot_deps):
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        import socket
+
+        exc = socket.timeout("The read operation timed out")
+        with (
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", side_effect=exc),
+            patch("aipass.skills.lib.telegram.apps.handlers.base_bot.logger") as mock_logger,
+        ):
+            bot.poll_updates(0)
+        mock_logger.error.assert_not_called()
+
+    def test_bare_connect_timeout_raises_network_error(self, tmp_path, _patch_base_bot_deps):
+        """A connect timeout (not read) IS a network error."""
+        bot = _make_bot(tmp_path, _patch_base_bot_deps)
+        exc = TimeoutError("Connection timed out")
+        with patch("aipass.skills.lib.telegram.apps.handlers.base_bot.urlopen", side_effect=exc):
+            with pytest.raises(_NetworkPollError):
+                bot.poll_updates(0)
+
     def test_non_network_urlerror_logs_error(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         exc = URLError("HTTP Error 502")
@@ -247,7 +277,7 @@ class TestRunLoopNetworkBackoff:
 
 
 class TestLogOnceSemantics:
-    def test_first_failure_logs_error(self, tmp_path, _patch_base_bot_deps):
+    def test_first_failure_logs_warning(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
         call_count = 0
 
@@ -266,8 +296,10 @@ class TestLogOnceSemantics:
         ):
             bot.run()
 
+        warn_calls = [c for c in mock_logger.warning.call_args_list if "unreachable" in str(c)]
+        assert len(warn_calls) == 1
         error_calls = [c for c in mock_logger.error.call_args_list if "unreachable" in str(c)]
-        assert len(error_calls) == 1
+        assert len(error_calls) == 0
 
     def test_subsequent_failures_suppressed(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)
@@ -288,9 +320,9 @@ class TestLogOnceSemantics:
         ):
             bot.run()
 
-        error_calls = [c for c in mock_logger.error.call_args_list if "unreachable" in str(c)]
-        # Only one "unreachable" error, not 10
-        assert len(error_calls) == 1
+        warn_calls = [c for c in mock_logger.warning.call_args_list if "unreachable" in str(c)]
+        # Only one "unreachable" warning, not 10
+        assert len(warn_calls) == 1
 
     def test_recovery_logs_info(self, tmp_path, _patch_base_bot_deps):
         bot = _make_bot(tmp_path, _patch_base_bot_deps)

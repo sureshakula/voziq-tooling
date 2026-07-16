@@ -380,7 +380,7 @@ class BaseBot:
                     net_offline_since = now
                     net_suppressed = 0
                     net_last_summary = now
-                    logger.error("Telegram unreachable, backing off: %s", e)
+                    logger.warning("Telegram unreachable, backing off: %s", e)
                 else:
                     net_suppressed += 1
                     if now - net_last_summary >= NETWORK_LOG_INTERVAL:
@@ -471,6 +471,8 @@ class BaseBot:
             logger.error("Poll error: %s", e)
             return []
         except (ConnectionError, OSError) as e:
+            if _is_routine_read_timeout(e):
+                return []
             raise _NetworkPollError(str(e)) from e
         except Exception as e:
             logger.error("Unexpected poll error: %s", e)
