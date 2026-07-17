@@ -152,6 +152,79 @@ def _check_plan(plan_label, db_path=None):
     return {"success": True, "found": match_count > 0, "count": match_count, "source_files": sorted(matching_files)}
 
 
+def _get_by_source(collection_name, source_pattern, n_results=5, db_path=None):
+    """Fetch documents whose source_file metadata contains a pattern.
+
+    Args:
+        collection_name: Name of the ChromaDB collection
+        source_pattern: Substring to match in source_file metadata
+        n_results: Maximum number of results to return
+        db_path: Optional path to Chroma database
+
+    Returns:
+        Dict with success, results list (document, metadata, id)
+    """
+    client = _get_client(db_path)
+
+    try:
+        collection = client.get_collection(collection_name, embedding_function=None)
+    except Exception as e:
+        logger.warning(f"[chroma_subprocess] Collection '{collection_name}' not found in get_by_source: {e}")
+        return {"success": False, "error": f"Collection '{collection_name}' not found: {e}"}
+
+    result = collection.get(include=["metadatas", "documents"])
+    matches = []
+    for i, meta in enumerate(result.get("metadatas", [])):
+        source = meta.get("source_file", "")
+        if source_pattern in source:
+            matches.append(
+                {
+                    "collection": collection_name,
+                    "document": result["documents"][i],
+                    "metadata": meta,
+                    "id": result["ids"][i],
+                    "distance": 0.0,
+                }
+            )
+            if len(matches) >= n_results:
+                break
+
+    return {"success": True, "results": matches, "count": len(matches)}
+
+
+def _delete_by_source(collection_name, source_pattern, db_path=None):
+    """Delete vectors whose source_file metadata contains a pattern.
+
+    Args:
+        collection_name: Name of the ChromaDB collection
+        source_pattern: Substring to match in source_file metadata
+        db_path: Optional path to Chroma database
+
+    Returns:
+        Dict with success, deleted count, and matched IDs
+    """
+    client = _get_client(db_path)
+
+    try:
+        collection = client.get_collection(collection_name, embedding_function=None)
+    except Exception as e:
+        logger.warning(f"[chroma_subprocess] Collection '{collection_name}' not found in delete_by_source: {e}")
+        return {"success": False, "error": f"Collection '{collection_name}' not found: {e}"}
+
+    result = collection.get(include=["metadatas"])
+    ids_to_delete = []
+    for i, meta in enumerate(result.get("metadatas", [])):
+        source = meta.get("source_file", "")
+        if source_pattern in source:
+            ids_to_delete.append(result["ids"][i])
+
+    if not ids_to_delete:
+        return {"success": True, "deleted": 0, "ids": [], "message": "No matching vectors found"}
+
+    collection.delete(ids=ids_to_delete)
+    return {"success": True, "deleted": len(ids_to_delete), "ids": ids_to_delete}
+
+
 def _search_vectors(query_embedding, branch=None, memory_type=None, n_results=5, db_path=None):
     """Search for similar vectors."""
     client = _get_client(db_path)
@@ -232,6 +305,19 @@ def main():
             )
         elif operation == "check_plan":
             result = _check_plan(plan_label=input_data.get("plan_label"), db_path=input_data.get("db_path"))
+        elif operation == "get_by_source":
+            result = _get_by_source(
+                collection_name=input_data.get("collection_name"),
+                source_pattern=input_data.get("source_pattern"),
+                n_results=input_data.get("n_results", 5),
+                db_path=input_data.get("db_path"),
+            )
+        elif operation == "delete_by_source":
+            result = _delete_by_source(
+                collection_name=input_data.get("collection_name"),
+                source_pattern=input_data.get("source_pattern"),
+                db_path=input_data.get("db_path"),
+            )
         else:
             result = {"success": False, "error": f"Unknown operation: {operation}"}
 
