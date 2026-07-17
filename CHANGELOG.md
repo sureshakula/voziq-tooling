@@ -9,6 +9,17 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-17]
+
+### Changed
+
+- **Merge playbook SOP refined from live run PPLAN-0010.** The raw
+  `git fetch origin main:main` step (now blocked by the git gate) is replaced
+  with `drone @git sync` in both places it appeared, and the template opens
+  with the exact create command (`drone @flow create . "Merge summary" merge
+  pplan` — template name before type), closing the trap where the wrong arg
+  order silently stamps the default template.
+
 ## [2026-07-16]
 
 ### Added

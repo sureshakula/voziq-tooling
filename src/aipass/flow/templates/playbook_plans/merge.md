@@ -1,5 +1,7 @@
 # {plan_number} - {subject} (MERGE)
 
+> **Create:** `drone @flow create . "Merge summary" merge pplan` (template name before type)
+
 **Created**: {today}
 **Branch**: {location}
 **Status**: Active
@@ -59,10 +61,9 @@ just that one merge commit — **cosmetic and trivially resolved**.
   WORKS** — a clean fast-forward realign, no merge commit created, no history rewrite.
 - **Realign dev to even** (recommended): `drone @git sync` from dev (clean FF), or
   manually `git merge --ff-only origin/main` on dev. No force-push, no rebase needed.
-- **Sync local `main` ref WITHOUT checkout**: `git fetch origin main:main` — updates the
-  local main ref to match origin with **zero working-tree touch, no checkout**. This is the
-  answer to the IDE "switch to main → your local changes would be overwritten by checkout"
-  dialog: that dialog is git SAFETY working — **Cancel, never Force Checkout**. You never
+- **Local main behind?** `drone @git sync` from dev handles it (stays on dev, clean FF).
+  If the IDE shows "switch to main → your local changes would be overwritten by checkout" —
+  that dialog is git SAFETY working — **Cancel, never Force Checkout**. You never
   need to stand on main.
 
 ---
@@ -112,7 +113,7 @@ The PR gate (verified against `.github/workflows/`):
 
 - [ ] **Expect `dev` to show "1 behind main" — that's the merge commit, it's cosmetic + fast-forwardable.** See "Why dev shows behind main" up top.
 - [ ] **Realign dev** (recommended): `drone @git sync` from dev, or `git merge --ff-only origin/main` on dev. Clean FF, no merge commit, no rewrite.
-- [ ] **Stay on `dev`. Do not check out `main`.** Local main being behind is fine — sync it without checkout: `git fetch origin main:main` (zero working-tree touch).
+- [ ] **Stay on `dev`. Do not check out `main`.** Local main being behind is fine — `drone @git sync` from dev covers it.
 - [ ] Never rebase, never reset, never checkout main.
 - [ ] Dependabot / other PRs targeting main: they go green once main has the fix + bots rebase — check after the push
 
