@@ -13,6 +13,23 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Compass curation v2 Track 1 (DPLAN-0246/FPLAN-0331): supersedes links +
+  write-time conflict check.** A correcting compass entry now archives and
+  links what it replaces in one transaction (`compass add --supersedes N`);
+  query renders both directions ("supersedes #N" / "ARCHIVED — superseded by
+  #M") so a retracted decision can never masquerade as current truth. Every
+  `compass add` FTS-checks the new text against active entries and prints a
+  non-blocking "possible conflict with #X" advisory — flag-and-ask, no LLM, no
+  auto-resolve (boardroom ruling). New `compass note <id>` command (FTS
+  re-index proven by test), `--include-archived` query flag (the avoid-list is
+  finally searchable), dead `score` column removed from all code surfaces
+  (kept inert on disk — zero migration risk). Idempotent PRAGMA-checked
+  migration ran clean on the production store (128 rows, no loss); the four
+  fresh-eyes-audit archive pairs got their links backfilled. /prep now runs
+  one `compass review` per session — curation living in a path that already
+  runs, the lesson of all three compass eras. 435 devpulse tests green,
+  seedgo 31/31 on both touched modules.
+
 - **Close pipeline completes itself (DPLAN-0245): auto-vectorization +
   crash-safe registry writes + drone timeout policy.** Closing a plan now
   produces all side effects from one command — `post_close_runner` invokes

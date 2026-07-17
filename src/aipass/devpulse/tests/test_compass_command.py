@@ -275,3 +275,176 @@ def test_flag_without_value_errors(capsys, db):
     assert compass_cmd.handle_command("compass", ["query", "x", "--rating"]) is True
     out = _output(capsys).lower()
     assert "rating" in out and "value" in out
+
+
+# ---------------------------------------------------------------------------
+# supersedes — atomic archive + link, both pointer directions
+# ---------------------------------------------------------------------------
+
+
+def test_add_supersedes_archives_and_links(capsys, db):
+    """add --supersedes N archives #N, links the new row, shows 'supersedes #N'."""
+    old = _add(capsys, db, "old ctx sessions", "use sessions", "good")
+    capsys.readouterr()
+    assert (
+        compass_cmd.handle_command(
+            "compass",
+            [
+                "add",
+                "new ctx jwt",
+                "switch to jwt",
+                "--rating",
+                "good",
+                "--supersedes",
+                str(old),
+                "--db",
+                db,
+            ],
+        )
+        is True
+    )
+    out = _output(capsys)
+    assert f"supersedes #{old}" in out
+
+    # The archived row is gone from the default (active-only) query...
+    q = _query_out(capsys, db, "sessions")
+    assert "0 result(s)" in q
+
+    # ...but --include-archived surfaces it WITH its status + forward pointer.
+    q2 = _query_out(capsys, db, "sessions", "--include-archived")
+    assert "ARCHIVED" in q2.upper()
+    assert "superseded by #" in q2.lower()
+
+
+def test_add_supersedes_bad_id_errors_no_write(capsys, db):
+    """add --supersedes to a missing id errors and writes nothing."""
+    capsys.readouterr()
+    compass_cmd.handle_command(
+        "compass",
+        ["add", "ctx", "dec", "--rating", "good", "--supersedes", "9999", "--db", db],
+    )
+    out = _output(capsys).lower()
+    assert "9999" in out
+    assert "total decisions: 0" in _stats_out(capsys, db).lower()
+
+
+def test_add_supersedes_non_integer_errors(capsys, db):
+    """A non-integer --supersedes fails loud."""
+    assert (
+        compass_cmd.handle_command(
+            "compass",
+            ["add", "ctx", "dec", "--rating", "good", "--supersedes", "abc", "--db", db],
+        )
+        is True
+    )
+    out = _output(capsys).lower()
+    assert "supersedes" in out and "integer" in out
+
+
+# ---------------------------------------------------------------------------
+# write-time conflict advisory — non-blocking
+# ---------------------------------------------------------------------------
+
+
+def test_add_conflict_advisory_prints_but_does_not_block(capsys, db):
+    """An overlapping active row triggers an advisory; the add still succeeds."""
+    _add(capsys, db, "caching layer strategy", "add redis caching", "good")
+    capsys.readouterr()
+    compass_cmd.handle_command(
+        "compass",
+        ["add", "caching approach again", "another caching layer", "--rating", "good", "--db", db],
+    )
+    out = _output(capsys)
+    assert "possible conflict" in out.lower()
+    assert "--supersedes" in out  # advisory hints the fix
+    assert "Added decision" in out  # NON-BLOCKING: still added
+
+
+def test_add_no_conflict_on_empty_store(capsys, db):
+    """First add on an empty store prints no advisory."""
+    capsys.readouterr()
+    compass_cmd.handle_command("compass", ["add", "unique ctx", "unique dec", "--rating", "good", "--db", db])
+    out = _output(capsys).lower()
+    assert "possible conflict" not in out
+
+
+# ---------------------------------------------------------------------------
+# note — set a note, prove it is immediately searchable
+# ---------------------------------------------------------------------------
+
+
+def test_note_command_sets_and_is_searchable(capsys, db):
+    """note <id> "text" sets the note; a later query finds the new note text."""
+    did = _add(capsys, db, "note cmd ctx", "note cmd dec", "good")
+    capsys.readouterr()
+    assert compass_cmd.handle_command("compass", ["note", str(did), "findme pterodactyl", "--db", db]) is True
+    out = _output(capsys).lower()
+    assert "note set" in out
+
+    q = _query_out(capsys, db, "pterodactyl")
+    assert "1 result(s)" in q
+
+
+def test_note_help(capsys):
+    """compass note --help prints per-subcommand usage."""
+    assert compass_cmd.handle_command("compass", ["note", "--help"]) is True
+    out = _output(capsys).lower()
+    assert "note" in out and "usage" in out
+
+
+def test_note_missing_id_warns(capsys, db):
+    """note on a non-existent id reports nothing changed, does not crash."""
+    assert compass_cmd.handle_command("compass", ["note", "999", "text", "--db", db]) is True
+    out = _output(capsys).lower()
+    assert "999" in out and ("nothing changed" in out or "no decision" in out)
+
+
+def test_note_missing_args_shows_usage(capsys, db):
+    """note with too few args shows usage."""
+    assert compass_cmd.handle_command("compass", ["note", "5", "--db", db]) is True
+    out = _output(capsys).lower()
+    assert "usage" in out
+
+
+def test_help_and_introspection_list_note(capsys):
+    """Both --help and bare introspection advertise the note subcommand."""
+    compass_cmd.handle_command("compass", ["--help"])
+    assert "note" in _output(capsys).lower()
+    compass_cmd.handle_command("compass", [])
+    assert "note" in _output(capsys).lower()
+
+
+# ---------------------------------------------------------------------------
+# --include-archived — archived hits must show status + supersession pointer
+# ---------------------------------------------------------------------------
+
+
+def test_include_archived_shows_archived_pointer(capsys, db):
+    """--include-archived surfaces an archived row flagged with its successor."""
+    old = _add(capsys, db, "archived-visible ctx", "the old choice", "bad")
+    capsys.readouterr()
+    compass_cmd.handle_command(
+        "compass",
+        [
+            "add",
+            "replacement ctx",
+            "the new choice",
+            "--rating",
+            "good",
+            "--supersedes",
+            str(old),
+            "--db",
+            db,
+        ],
+    )
+    capsys.readouterr()
+
+    # Default query hides the archived row.
+    q = _query_out(capsys, db, "old choice")
+    assert "0 result(s)" in q
+
+    # With the flag it appears, unmistakably marked archived + superseded.
+    q2 = _query_out(capsys, db, "old choice", "--include-archived")
+    assert "1 result(s)" in q2
+    assert "archived" in q2.lower()
+    assert "superseded by #" in q2.lower()

@@ -55,7 +55,12 @@ Quick checks beat assumptions: `ls`/`find` for files, `git ls-files`/`grep` for 
 - Run `drone @ai_mail inbox 2>/dev/null` — report any unread emails
 - Close any that were already processed but not formally closed
 
-## 5. Loose Ends
+## 5. Compass Review (Devpulse only)
+
+- Run ONE `drone @devpulse compass review` — it serves the oldest-unreviewed entry. Judge it: still true → confirm; superseded → archive it and note what replaced it; wrong → fix or archive.
+- One entry per prep, every prep. This is the curation cadence — review only works if it actually runs (DPLAN-0246: all 127 entries sat unreviewed because nothing invoked it).
+
+## 6. Loose Ends
 
 - Flag anything in-flight: running background agents, dispatched branches waiting for replies, pending decisions
 - If anything can't survive compaction (e.g., agent IDs needed for resume), write it to local.json todos[]
@@ -71,5 +76,6 @@ Prep complete:
 - Plans: [which ones updated]
 - Git: [branch, uncommitted count, suggestion]
 - Inbox: [count, action taken]
+- Compass: [entry #N reviewed — verdict]
 - Loose ends: [any flagged]
 ```
