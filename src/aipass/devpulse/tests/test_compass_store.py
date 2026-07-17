@@ -441,3 +441,94 @@ class TestScoreRemoved:
         result = compass.review(db_path=db)
         assert result is not None
         assert "score" not in result
+
+
+class TestRecall:
+    """recall_decisions/mark_surfaced — the Track 2 ambient-recall read path."""
+
+    def test_recall_returns_scored_active_candidates(self, db):
+        """Raw prompt text yields active hits, each with relevance in (0, 1)."""
+        compass.add_decision("vectorization pipeline ctx", "salt vector ids", "good", db_path=db)
+        hits = compass.recall_decisions("we are working on the vectorization pipeline", db_path=db)
+        assert hits and hits[0]["decision"] == "salt vector ids"
+        assert 0.0 < hits[0]["relevance"] < 1.0
+
+    def test_recall_is_side_effect_free(self, db):
+        """A recall does NOT bump times_surfaced — candidates are not surfacings."""
+        compass.add_decision("recall counter ctx", "stay untouched", "good", db_path=db)
+        rid = compass.recall_decisions("recall counter", db_path=db)[0]["id"]
+        compass.recall_decisions("recall counter", db_path=db)
+        hit = compass.query_decisions("untouched", db_path=db)[0]
+        assert hit["id"] == rid
+        # query_decisions itself increments once; recalls added nothing.
+        assert hit["times_surfaced"] == 1
+
+    def test_recall_excludes_archived(self, db):
+        """Archived rows never come back as ambient candidates."""
+        rid = compass.add_decision("archived recall ctx", "dead ruling", "bad", db_path=db)
+        compass.archive(rid, db_path=db)
+        assert compass.recall_decisions("archived recall dead ruling", db_path=db) == []
+
+    def test_recall_survives_fts_syntax_in_prompt(self, db):
+        """FTS5 syntax characters in a prompt cannot crash the MATCH."""
+        compass.add_decision("syntax safety ctx", "quote all tokens", "good", db_path=db)
+        hits = compass.recall_decisions('safety AND (tokens) OR "quote" NEAR *:^-', db_path=db)
+        assert hits and hits[0]["decision"] == "quote all tokens"
+
+    def test_recall_empty_prompt_returns_empty(self, db):
+        """No usable tokens → empty list, no error."""
+        assert compass.recall_decisions("", db_path=db) == []
+        assert compass.recall_decisions("()!@#$", db_path=db) == []
+
+    def test_recall_ranks_most_relevant_first(self, db):
+        """Denser overlap outranks a single shared token."""
+        compass.add_decision("alpha beta gamma delta", "dense match", "good", db_path=db)
+        compass.add_decision("alpha unrelated topic here", "sparse match", "good", db_path=db)
+        hits = compass.recall_decisions("alpha beta gamma delta", limit=2, db_path=db)
+        assert hits[0]["decision"] == "dense match"
+        assert hits[0]["relevance"] > hits[1]["relevance"]
+
+    def test_recall_invalid_limit_raises(self, db):
+        """Non-positive limit fails honestly."""
+        with pytest.raises(ValueError):
+            compass.recall_decisions("anything", limit=0, db_path=db)
+
+    def test_mark_surfaced_counts_only_injected(self, db):
+        """mark_surfaced increments exactly the ids the caller reports."""
+        a = compass.add_decision("mark ctx one", "dec one xyzzy", "good", db_path=db)
+        b = compass.add_decision("mark ctx two", "dec two xyzzy", "good", db_path=db)
+        assert compass.mark_surfaced([a], db_path=db) == 1
+        hits = {h["id"]: h for h in compass.query_decisions("xyzzy", limit=5, db_path=db)}
+        # query bumps both by 1; only a carries the extra mark_surfaced bump.
+        assert hits[a]["times_surfaced"] == 2
+        assert hits[b]["times_surfaced"] == 1
+
+    def test_mark_surfaced_empty_list_is_noop(self, db):
+        """An empty id list returns 0 and touches nothing."""
+        assert compass.mark_surfaced([], db_path=db) == 0
+
+    def test_recall_stopwords_do_not_drive_ranking(self, db):
+        """Filler words in the prompt cannot outrank topic words (FPLAN-0332)."""
+        compass.add_decision(
+            "docker sop ctx with the and on for filler heavy text",
+            "push dev first clone in container",
+            "good",
+            db_path=db,
+        )
+        compass.add_decision(
+            "compass curation ctx",
+            "supersedes links archive corrections",
+            "good",
+            db_path=db,
+        )
+        hits = compass.recall_decisions(
+            "lets keep working on the compass supersedes links and curation",
+            limit=2,
+            db_path=db,
+        )
+        assert hits[0]["decision"] == "supersedes links archive corrections"
+
+    def test_recall_all_stopword_prompt_returns_empty(self, db):
+        """A prompt made only of stopwords yields no candidates, no error."""
+        compass.add_decision("some ctx", "some dec", "good", db_path=db)
+        assert compass.recall_decisions("what is it and how do we", db_path=db) == []

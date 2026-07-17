@@ -37,7 +37,15 @@ from typing import List, Optional
 from aipass.prax import logger
 from aipass.cli.apps.modules import err_console, error, warning
 from aipass.devpulse.apps.handlers import compass
+from aipass.devpulse.apps.handlers.compass import mark_surfaced, recall_decisions
 from aipass.devpulse.apps.handlers.json import json_handler
+
+# Public cross-branch recall API (DPLAN-0246 Track 2). Other branches import
+# at the modules/ boundary ONLY (seedgo boardroom ruling):
+#   from aipass.devpulse.apps.modules.compass import recall_decisions, mark_surfaced
+# recall_decisions(prompt_text, limit) -> scored candidates, side-effect-free;
+# mark_surfaced(ids) counts only what the caller actually injected.
+__all__ = ["handle_command", "mark_surfaced", "recall_decisions"]
 
 console = err_console
 

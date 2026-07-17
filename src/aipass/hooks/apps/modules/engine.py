@@ -14,6 +14,7 @@ import importlib
 import json
 import os
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -101,6 +102,63 @@ def _matches(matcher: str, value: str) -> bool:
     return value in matcher.split("|")
 
 
+_BUDGET_KEYS = ("max_per_session", "min_spacing_turns", "cooldown_seconds")
+
+
+def _budget_state_path(session_id: str = "") -> Path | None:
+    if not session_id:
+        session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    if not session_id:
+        return None
+    return Path(tempfile.gettempdir()) / f"aipass-handler-budget-{session_id}.json"
+
+
+def _load_budget_state(session_id: str = "") -> dict:
+    path = _budget_state_path(session_id)
+    if path is None or not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.info("[HOOKS] budget: state read failed: %s", exc)
+        return {}
+
+
+def _save_budget_state(state: dict, session_id: str = "") -> None:
+    path = _budget_state_path(session_id)
+    if path is None:
+        return
+    try:
+        path.write_text(json.dumps(state), encoding="utf-8")
+    except OSError as exc:
+        logger.info("[HOOKS] budget: state write failed: %s", exc)
+
+
+def _check_budget(hook_name: str, budget_cfg: dict, budget_state: dict) -> tuple[bool, str]:
+    """Check if handler is within its per-session budget."""
+    hs = budget_state.get(hook_name, {})
+    fire_count = hs.get("fire_count", 0)
+
+    max_fires = budget_cfg.get("max_per_session")
+    if max_fires is not None and fire_count >= max_fires:
+        return False, f"budget exhausted ({fire_count}/{max_fires})"
+
+    if fire_count > 0:
+        min_spacing = budget_cfg.get("min_spacing_turns")
+        if min_spacing is not None:
+            turns_since = hs.get("turns_since_fire", 0)
+            if turns_since < min_spacing:
+                return False, f"spacing ({turns_since}/{min_spacing})"
+
+        cooldown = budget_cfg.get("cooldown_seconds")
+        if cooldown is not None:
+            elapsed = time.time() - hs.get("last_fire_time", 0.0)
+            if elapsed < cooldown:
+                return False, f"cooldown ({int(cooldown - elapsed)}s)"
+
+    return True, "ok"
+
+
 def dispatch(event_type: str, stdin_data: str, config: dict) -> tuple[str, int]:
     """Core dispatch — run hooks for event, return (merged_stdout, exit_code)."""
     if not config.get("hooks_enabled", True):
@@ -123,6 +181,9 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> tuple[str, int]:
 
     outputs = []
     total_start = time.monotonic()
+    budget_state = None
+    budget_dirty = False
+    payload_session_id = parsed.get("session_id", "")
 
     for hook_name, hook_def in event_hooks.items():
         if not hook_def.get("enabled", True):
@@ -164,6 +225,27 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> tuple[str, int]:
                 }
             )
             continue
+
+        budget_cfg = {k: hook_def[k] for k in _BUDGET_KEYS if k in hook_def}
+        if budget_cfg:
+            if budget_state is None:
+                budget_state = _load_budget_state(payload_session_id)
+            hs = budget_state.setdefault(hook_name, {})
+            hs["turns_since_fire"] = hs.get("turns_since_fire", 0) + 1
+            budget_dirty = True
+            allowed, reason = _check_budget(hook_name, budget_cfg, budget_state)
+            if not allowed:
+                logger.info("[HOOKS] %s.%s budget: %s", event_type, hook_name, reason)
+                _log(
+                    {
+                        "ts": time.time(),
+                        "event": event_type,
+                        "hook": hook_name,
+                        "action": "budget_suppressed",
+                        "reason": reason,
+                    }
+                )
+                continue
 
         if handler:
             result = _run_handler(handler, parsed)
@@ -244,6 +326,15 @@ def dispatch(event_type: str, stdin_data: str, config: dict) -> tuple[str, int]:
 
         if result["stdout"]:
             outputs.append(result["stdout"])
+            if budget_cfg and budget_state is not None:
+                hs = budget_state.setdefault(hook_name, {})
+                hs["fire_count"] = hs.get("fire_count", 0) + 1
+                hs["last_fire_time"] = time.time()
+                hs["turns_since_fire"] = 0
+                budget_dirty = True
+
+    if budget_dirty and budget_state is not None:
+        _save_budget_state(budget_state, payload_session_id)
 
     total_ms = (time.monotonic() - total_start) * 1000
     logger.info("[HOOKS] %s complete: %d hooks %dms", event_type, len(outputs), total_ms)

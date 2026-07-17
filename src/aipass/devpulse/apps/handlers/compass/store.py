@@ -589,3 +589,174 @@ def review(
     logger.info("[compass] review surfaced id=%s stamped=%s", result["id"], stamp)
     json_handler.log_operation("compass_review", {"id": result["id"], "last_reviewed": stamp})
     return result
+
+
+# Ambient recall caps the OR-expansion of a raw prompt: beyond this many unique
+# tokens the extra words add noise, not recall, and the MATCH string balloons.
+_RECALL_MAX_TOKENS = 64
+
+# Stopwords never reach the MATCH: in an OR-of-tokens query, high-frequency
+# filler ("lets keep working on the...") outweighs topic words in BM25 and
+# surfaces unrelated entries — proven live in the FPLAN-0332 acceptance run.
+# Three categories, all query-side only (entry text is never filtered):
+# grammatical stopwords; conversational filler verbs that open most prompts
+# ("lets keep working on / need to fix"); greeting/small-talk words ("good
+# morning", "how did it go last night"). In a technical store casual words are
+# RARE (df 1-2), so rarity scoring alone cannot reject them — they must never
+# become query tokens at all. The topic space is open; this filler set is
+# closed and small, which is why filtering here works.
+_RECALL_STOPWORDS = frozenset(
+    """a an and about again also are as at back be bit but by can could did do
+    does for from had has have how i if in is it its just me my no not of on
+    or our so still sure than thanks thank that the their then there these
+    they this to too u ur us was way we well were what when where which who
+    why will with would yes you your
+    add check doing done fix get go going keep lets look make need now see
+    should try use want work working write
+    day days good hello hey hi im ive last morning night ok okay please right
+    today tomorrow tonight week yesterday""".split()
+)
+
+
+def recall_decisions(
+    prompt_text: str,
+    limit: int = 3,
+    db_path: Optional[Path | str] = None,
+) -> list[dict]:
+    """Return scored ambient-recall candidates for raw prompt text.
+
+    The Track 2 read path (DPLAN-0246): a hooks handler passes the raw user
+    prompt; governance (@memory's ``should_surface``) judges the candidates.
+    Side-effect-free — ``times_surfaced`` is NOT incremented here, because a
+    candidate is not yet surfaced; the caller reports actual injections via
+    :func:`mark_surfaced` so the counter stays honest.
+
+    The prompt is arbitrary text, never FTS5 syntax: unique word tokens (first
+    ``_RECALL_MAX_TOKENS``) are OR-ed as quoted literals, ACTIVE rows only,
+    ranked by BM25. Each result dict carries ``relevance`` — the BM25 magnitude
+    mapped to (0, 1) via ``m / (1 + m)``, higher = more relevant — so
+    governance thresholds live on a bounded scale.
+
+    Args:
+        prompt_text: Raw prompt text (any content, any length).
+        limit: Max candidates to return (default 3).
+        db_path: Optional DB path override.
+
+    Returns:
+        A list of active decision dicts (most relevant first), each with a
+        ``relevance`` float in (0, 1); empty when the prompt has no usable
+        tokens or nothing matches.
+
+    Raises:
+        ValueError: On non-positive limit.
+    """
+    if limit <= 0:
+        raise ValueError(f"limit must be a positive integer, got {limit!r}")
+
+    tokens = _FTS_WORD.findall(prompt_text or "")
+    unique: list[str] = []
+    seen: set[str] = set()
+    for t in tokens:
+        lowered = t.lower()
+        if lowered not in seen and lowered not in _RECALL_STOPWORDS:
+            seen.add(lowered)
+            unique.append(t)
+        if len(unique) >= _RECALL_MAX_TOKENS:
+            break
+    if not unique:
+        return []
+    match = " OR ".join(f'"{t}"' for t in unique)
+
+    select_cols = ", ".join(f"d.{c}" for c in _DECISION_COLUMNS)
+    sql = f"""
+        SELECT {select_cols}, bm25(decisions_fts) AS rank,
+               (d.context || ' ' || d.decision || ' ' ||
+                COALESCE(d.note, '') || ' ' || COALESCE(d.tags, '')) AS _text
+        FROM decisions_fts f
+        JOIN decisions d ON d.id = f.rowid
+        WHERE decisions_fts MATCH ?
+          AND d.status = 'active'
+        ORDER BY bm25(decisions_fts) ASC
+        LIMIT ?
+    """
+    conn = _connect(db_path)
+    try:
+        # Over-fetch: rare-token scoring below reorders, so BM25's top-N alone
+        # would let a filler-heavy row crowd out a topical one.
+        rows = conn.execute(sql, (match, max(limit * 3, 10))).fetchall()
+
+        # Rarity cutoff: a token is evidence only if few entries contain it.
+        active_total = conn.execute("SELECT count(*) FROM decisions WHERE status = 'active'").fetchone()[0]
+        rare_cutoff = max(3, active_total // 10)
+
+        # Document frequency per prompt token, ONE query against the FTS index.
+        df: dict[str, int] = {}
+        for t in unique:
+            df[t.lower()] = conn.execute(
+                "SELECT count(*) FROM decisions_fts f JOIN decisions d ON d.id = f.rowid "
+                "WHERE decisions_fts MATCH ? AND d.status = 'active'",
+                (f'"{t}"',),
+            ).fetchone()[0]
+
+        results = []
+        for row in rows:
+            item = _row_to_dict(row)
+            text = row["_text"].lower()
+            # Rare-token evidence: how many DISTINCTIVE prompt words this entry
+            # actually contains. Filler matches score zero — an entry with no
+            # rare-token overlap must not surface (FPLAN-0332 acceptance: a
+            # haiku prompt surfaced an unrelated ruling on BM25 alone).
+            matched_rare = sum(
+                1
+                for t in unique
+                if df[t.lower()] <= rare_cutoff and re.search(rf"\b{re.escape(t)}", text, re.IGNORECASE)
+            )
+            item["relevance"] = matched_rare / (1.0 + matched_rare)
+            item["_bm25"] = row["rank"]
+            results.append(item)
+
+        results.sort(key=lambda r: (-r["relevance"], r["_bm25"]))
+        results = results[:limit]
+        for r in results:
+            del r["_bm25"]
+    finally:
+        conn.close()
+
+    logger.info("[compass] recall -> %d candidate(s)", len(results))
+    return results
+
+
+def mark_surfaced(
+    decision_ids: list[int],
+    db_path: Optional[Path | str] = None,
+) -> int:
+    """Increment ``times_surfaced`` for decisions actually injected.
+
+    The write half of the recall contract: :func:`recall_decisions` returns
+    candidates without side effects; whatever governance approves and the
+    caller truly injects gets counted here — never the merely-considered.
+
+    Args:
+        decision_ids: Ids of the decisions that were injected.
+        db_path: Optional DB path override.
+
+    Returns:
+        Number of rows updated (0 for an empty list).
+    """
+    if not decision_ids:
+        return 0
+
+    conn = _connect(db_path)
+    try:
+        placeholders = ",".join("?" for _ in decision_ids)
+        cur = conn.execute(
+            f"UPDATE decisions SET times_surfaced = times_surfaced + 1 WHERE id IN ({placeholders})",
+            list(decision_ids),
+        )
+        conn.commit()
+        updated = cur.rowcount
+    finally:
+        conn.close()
+
+    logger.info("[compass] mark_surfaced -> %d row(s)", updated)
+    return updated

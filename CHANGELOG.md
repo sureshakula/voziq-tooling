@@ -13,6 +13,30 @@ PyPI version — not the changelog header.
 
 ### Added
 
+- **Compass ambient recall — Track 2 (DPLAN-0246/FPLAN-0332): rated decisions
+  surface unprompted.** On every user prompt, a new hooks handler
+  (`compass_recall`, registered in `.aipass/hooks.json` only) queries compass
+  FTS with the prompt text and injects matching rulings VERBATIM —
+  `[BAD] #56: <decision text>` — tidbits, never vibes. Three branches, one
+  pipeline, each piece behind a modules/-boundary API: devpulse's
+  `recall_decisions()` (side-effect-free scored candidates; rare-token
+  evidence scoring + a query-side stopword filter so greeting/filler words
+  can't fake relevance) + `mark_surfaced()` (counts only real injections);
+  @memory's pure `should_surface()` governance (promoted from the dormant
+  symbolic engine: threshold, 5/session cap, 10-message spacing — first
+  surface exempt, 300s cooldown, dedup; state-in/state-out, caller persists);
+  @hooks' 90-line handler + engine per-handler budget (errors never block a
+  prompt — `compass_recall_unreachable` log signature for @trigger's watcher).
+  Live acceptance matrix through the real bridge: topic-with-history prompts
+  recall the right ruling (a CI prompt surfaced the red-CI-never-parked
+  ruling), small talk and greetings stay silent, repeat prompts gate on
+  spacing. Review caught and fixed pre-ship: wrong payload key (`userInput` →
+  `prompt`), phantom `CLAUDE_CODE_SESSION_ID` env (session id is
+  stdin-payload-only), spacing gate blocking the first surface, and a trust
+  registry re-enrollment gap that silently disabled ALL project hooks for 20
+  minutes after the hooks.json edit. 446 devpulse + 1011 memory + 1129 hooks
+  tests green; seedgo 31/31 on every touched module.
+
 - **Compass curation v2 Track 1 (DPLAN-0246/FPLAN-0331): supersedes links +
   write-time conflict check.** A correcting compass entry now archives and
   links what it replaces in one transaction (`compass add --supersedes N`);
