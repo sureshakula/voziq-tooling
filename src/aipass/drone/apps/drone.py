@@ -51,6 +51,21 @@ INTERACTIVE_COMMANDS = ("monitor", "audit", "watchdog", "status")
 INTERACTIVE_BRANCHES = ("cli", "backup")
 
 
+def _extract_timeout(args: list[str]) -> tuple[list[str], int | None]:
+    """Extract --drone-timeout N from an arg list. Returns (cleaned_args, timeout_or_None)."""
+    if "--drone-timeout" not in args:
+        return args, None
+    idx = args.index("--drone-timeout")
+    if idx + 1 >= len(args):
+        return args, None
+    try:
+        timeout = int(args[idx + 1])
+    except ValueError:
+        logger.info("--drone-timeout value %r is not an integer, ignoring", args[idx + 1])
+        return args, None
+    return args[:idx] + args[idx + 2 :], timeout
+
+
 # =============================================================================
 # AUTO-DISCOVERY
 # =============================================================================
@@ -92,6 +107,7 @@ def show_help() -> None:
     table.add_row("list", "List registered custom commands")
     table.add_row("remove <name>", "Remove a custom command")
     table.add_row("rm <path> [<path>...]", "Contained safe-delete (project + tmp)")
+    table.add_row("--drone-timeout <seconds>", "Override subprocess timeout (default 30s)")
     table.add_row("--help", "Show this help")
     table.add_row("--version", "Show version")
 
@@ -340,6 +356,7 @@ def _handle_custom_command(args: list[str]) -> int:
     target = cmd_data["target"]
     command = cmd_data["command"]
     cmd_args = list(cmd_data.get("args", [])) + remaining_args
+    cmd_args, explicit_timeout = _extract_timeout(cmd_args)
     module_name = target.lstrip("@").lower()
 
     interactive = command in INTERACTIVE_COMMANDS or module_name in INTERACTIVE_BRANCHES
@@ -349,6 +366,7 @@ def _handle_custom_command(args: list[str]) -> int:
             target,
             command,
             args=cmd_args if cmd_args else None,
+            timeout=explicit_timeout,
             interactive=interactive,
         )
     except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:
@@ -412,6 +430,7 @@ def _handle_target(args: List[str]) -> int:
     """Handle `drone @target command [args]` or `drone @target --help`."""
     target = args[0]
     rest = args[1:]
+    rest, explicit_timeout = _extract_timeout(rest)
     module_name = target.lstrip("@").lower()
 
     first_cmd = rest[0] if rest and rest[0] not in ("--help", "-h") else None
@@ -470,6 +489,7 @@ def _handle_target(args: List[str]) -> int:
             target,
             command,
             args=cmd_args if cmd_args else None,
+            timeout=explicit_timeout,
             interactive=interactive,
         )
     except (BranchNotFoundError, CommandExecutionError, RegistryError) as exc:

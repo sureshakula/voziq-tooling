@@ -13,6 +13,8 @@ These steps are sequential and dependent — run each ONCE, wait for the result,
  - Read: `.trinity/passport.json`, `.trinity/local.json`, `.trinity/observations.json`, `README.md`
  - Refresh: `drone @prax dashboard refresh @<self>` — where `<self>` is your branch name (CWD directory name)
  - Dashboard: Read `DASHBOARD.local.json` — act on what needs attention (new mail → check inbox, active plans → note them). This is your single status glance.
+ - announce ur current (PID)
+
 
 Use drone commands for all operations. Never raw git, gh, file access, or python -m when drone provides it.
 

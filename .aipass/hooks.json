@@ -38,6 +38,12 @@
       "handler": "aipass.hooks.apps.handlers.prompt.navmap.handle",
       "matcher": ""
     },
+    "compass_recall": {
+      "enabled": true,
+      "handler": "aipass.hooks.apps.handlers.prompt.compass_recall.handle",
+      "matcher": "",
+      "max_per_session": 10
+    },
     "auto_process": {
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.lifecycle.auto_process.handle",
@@ -76,11 +82,6 @@
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.security.registry_gate.handle",
       "matcher": "Bash|Edit|MultiEdit|Write|NotebookEdit"
-    },
-    "engine_test_sound": {
-      "enabled": false,
-      "command": "python3 $AIPASS_HOME/.claude/hooks/engine_test_sound.py",
-      "matcher": "WebSearch"
     }
   },
 

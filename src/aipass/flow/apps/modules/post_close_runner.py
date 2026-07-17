@@ -32,7 +32,7 @@ if sys.platform == "win32":
 
 from pathlib import Path
 
-from aipass.cli.apps.modules import console, error, warning
+from aipass.cli.apps.modules import console, error, success, warning
 from aipass.flow.apps.handlers.json import json_handler
 from aipass.flow.apps.handlers.mbank.process import process_closed_plans
 from aipass.flow.apps.handlers.runner.lock_ops import acquire_lock, release_lock
@@ -80,7 +80,25 @@ def handle_command(command: str, args: list) -> bool:
 
     try:
         process_closed_plans()
-        console.print("[green]Processing complete[/green]")
+
+        try:
+            import importlib
+
+            _plans_mod = importlib.import_module("aipass.memory.apps.handlers.intake.plans_processor")
+            result = _plans_mod.process_plans()
+            if result.get("success"):
+                count = result.get("files_processed", 0)
+                chunks = result.get("total_chunks", 0)
+                if count > 0:
+                    success(f"Vectorized {count} plan(s) ({chunks} chunks)")
+                logger.info("[%s] Plan vectorization: %s", MODULE_NAME, result)
+            else:
+                logger.error("[%s] Plan vectorization failed: %s", MODULE_NAME, result.get("error", "unknown"))
+                error(f"Vectorization failed: {result.get('error', 'unknown')}")
+        except Exception as e:
+            logger.error("[%s] Plan vectorization error: %s", MODULE_NAME, e)
+            error(f"Vectorization error: {e}")
+
     except Exception as e:
         logger.error(f"[{MODULE_NAME}] Background processing failed: {e}")
         error(f"Processing failed: {e}")
@@ -130,6 +148,19 @@ if __name__ == "__main__":
 
     try:
         process_closed_plans()
+
+        try:
+            import importlib
+
+            _plans_mod = importlib.import_module("aipass.memory.apps.handlers.intake.plans_processor")
+            result = _plans_mod.process_plans()
+            if result.get("success"):
+                logger.info("[%s] Plan vectorization: %s", MODULE_NAME, result)
+            else:
+                logger.error("[%s] Plan vectorization failed: %s", MODULE_NAME, result.get("error", "unknown"))
+        except Exception as e:
+            logger.error("[%s] Plan vectorization error: %s", MODULE_NAME, e)
+
     except Exception as e:
         logger.error(f"[{MODULE_NAME}] Background processing failed: {e}")
     finally:

@@ -25,6 +25,8 @@ Usage:
 """
 
 import json
+import os
+import time
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any
@@ -43,6 +45,35 @@ FLOW_ROOT = _PKG_ROOT / "flow"
 MODULE_NAME = "save_registry"
 FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
 REGISTRY_FILE = FLOW_JSON_DIR / "fplan_registry.json"
+
+_LOCK_RETRIES = 10
+_LOCK_BACKOFF_BASE = 0.05
+
+
+def _acquire_lock(lock_path: Path) -> bool:
+    """Atomically acquire a lockfile via O_CREAT|O_EXCL with retry+backoff."""
+    for attempt in range(_LOCK_RETRIES):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            logger.info("[%s] Lock contention on %s, retry %d", MODULE_NAME, lock_path, attempt + 1)
+            time.sleep(_LOCK_BACKOFF_BASE * (2**attempt))
+        except OSError as exc:
+            logger.warning("[%s] Lock creation failed for %s: %s", MODULE_NAME, lock_path, exc)
+            return False
+    return False
+
+
+def _release_lock(lock_path: Path) -> None:
+    """Remove lockfile, tolerating already-removed."""
+    try:
+        lock_path.unlink(missing_ok=True)
+    except OSError as exc:
+        logger.warning("[%s] Could not release lock %s: %s", MODULE_NAME, lock_path, exc)
+
 
 # =============================================
 # HANDLER FUNCTION
@@ -64,15 +95,30 @@ def save_registry(registry: Dict[str, Any], registry_file: str | None = None) ->
 
     Automatically updates the last_updated timestamp before saving.
     Creates the flow_json directory if it doesn't exist.
+    Uses a lockfile to serialize concurrent writes and atomic
+    tempfile+rename to prevent torn reads.
     """
     target = FLOW_JSON_DIR / registry_file if registry_file else REGISTRY_FILE
+    lock_path = target.with_suffix(".lock")
 
     try:
         FLOW_JSON_DIR.mkdir(parents=True, exist_ok=True)
-        registry["_notice"] = "DO NOT MANUALLY EDIT — managed by flow close pipeline"
-        registry["last_updated"] = datetime.now(timezone.utc).isoformat()
-        with open(target, "w", encoding="utf-8") as f:
-            json.dump(registry, f, indent=2, ensure_ascii=False)
+
+        if not _acquire_lock(lock_path):
+            logger.error("[%s] Could not acquire lock for %s after %d retries", MODULE_NAME, target, _LOCK_RETRIES)
+            return False
+
+        try:
+            registry["_notice"] = "DO NOT MANUALLY EDIT — managed by flow close pipeline"
+            registry["last_updated"] = datetime.now(timezone.utc).isoformat()
+
+            tmp_path = target.with_suffix(".tmp")
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(registry, f, indent=2, ensure_ascii=False)
+            os.replace(str(tmp_path), str(target))
+        finally:
+            _release_lock(lock_path)
+
         json_handler.log_operation(
             "registry_saved",
             {

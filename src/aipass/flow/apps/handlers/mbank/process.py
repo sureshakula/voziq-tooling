@@ -19,13 +19,16 @@ Key Functions:
 - verify_and_heal_orphaned_plans() - Orphan healing logic
 """
 
+# ruff: noqa: E402
 from pathlib import Path
 
 _PKG_ROOT = Path(__file__).resolve().parents[4]
 
 # Standard imports
 import json
+import os
 import shutil
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Any
 
@@ -41,6 +44,35 @@ from aipass.prax.apps.modules.logger import system_logger as logger
 
 FLOW_ROOT = _PKG_ROOT / "flow"
 FLOW_JSON_DIR = FLOW_ROOT / "flow_json"
+
+MODULE_NAME = "mbank_process"
+_LOCK_RETRIES = 10
+_LOCK_BACKOFF_BASE = 0.05
+
+
+def _acquire_lock(lock_path: Path) -> bool:
+    """Atomically acquire a lockfile via O_CREAT|O_EXCL with retry+backoff."""
+    for attempt in range(_LOCK_RETRIES):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            logger.info("[%s] Lock contention on %s, retry %d", MODULE_NAME, lock_path, attempt + 1)
+            time.sleep(_LOCK_BACKOFF_BASE * (2**attempt))
+        except OSError as exc:
+            logger.warning("[%s] Lock creation failed for %s: %s", MODULE_NAME, lock_path, exc)
+            return False
+    return False
+
+
+def _release_lock(lock_path: Path) -> None:
+    """Remove lockfile, tolerating already-removed."""
+    try:
+        lock_path.unlink(missing_ok=True)
+    except OSError as exc:
+        logger.warning("[%s] Could not release lock %s: %s", MODULE_NAME, lock_path, exc)
 
 
 def _find_repo_root() -> Path:
@@ -97,12 +129,22 @@ def load_flow_registry(registry_file: str | None = None) -> Dict[str, Any]:
 
 
 def save_flow_registry(registry: Dict[str, Any], registry_file: str | None = None) -> None:
-    """Save a plan registry."""
+    """Save a plan registry with lockfile + atomic write."""
     target = FLOW_JSON_DIR / registry_file if registry_file else REGISTRY_FILE
+    lock_path = target.with_suffix(".lock")
+
     try:
-        registry["last_updated"] = datetime.now(timezone.utc).isoformat()
-        with open(target, "w", encoding="utf-8") as f:
-            json.dump(registry, f, indent=2, ensure_ascii=False)
+        if not _acquire_lock(lock_path):
+            raise OSError(f"Could not acquire lock for {target}")
+
+        try:
+            registry["last_updated"] = datetime.now(timezone.utc).isoformat()
+            tmp_path = target.with_suffix(".tmp")
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(registry, f, indent=2, ensure_ascii=False)
+            os.replace(str(tmp_path), str(target))
+        finally:
+            _release_lock(lock_path)
     except Exception as e:
         raise Exception(f"Failed to save flow registry: {e}")
 
@@ -361,7 +403,10 @@ def is_template_content(content: str) -> bool:
 #         today = datetime.now().strftime("%Y%m%d")
 #         plan_num = plan_path.stem.replace("FPLAN-", "")
 #         template_suffix = "-TEMP" if is_template else ""
-#         filename = f"{folder_context}-{analysis['type']}-{analysis['category']}-{analysis['action']}-FPLAN-{plan_num}{template_suffix}-{today}.md"
+#         filename = (
+#             f"{folder_context}-{analysis['type']}-{analysis['category']}"
+#             f"-{analysis['action']}-FPLAN-{plan_num}{template_suffix}-{today}.md"
+#         )
 #
 #         filename = re.sub(r'[<>:"|?*]', '-', filename)
 #         filename = re.sub(r'-+', '-', filename)
@@ -627,7 +672,7 @@ def process_closed_plans() -> Dict[str, Any]:
 
                 if archive_success:
                     processed_count += 1
-                    # Vector intake handled by close_ops.py via drone @memory process-plans
+                    # Vector intake triggered by post_close_runner via direct import
                     results.append({"plan": plan_label, "status": "archived", "correlation_id": correlation_id})
                 else:
                     error_count += 1

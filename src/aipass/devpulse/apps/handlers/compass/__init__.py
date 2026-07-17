@@ -23,9 +23,13 @@ from aipass.devpulse.apps.handlers.compass.store import (
     VALID_STATUSES,
     add_decision,
     archive,
+    find_conflicts,
+    mark_surfaced,
     query_decisions,
     rate,
+    recall_decisions,
     review,
+    set_note,
     stats,
 )
 
@@ -36,8 +40,12 @@ __all__ = [
     "VALID_STATUSES",
     "add_decision",
     "archive",
+    "find_conflicts",
+    "mark_surfaced",
     "query_decisions",
     "rate",
+    "recall_decisions",
     "review",
+    "set_note",
     "stats",
 ]

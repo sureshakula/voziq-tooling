@@ -44,7 +44,7 @@ src/aipass/devpulse/
 │   │   └── watchdog/            # Agent, timer, schedule, registry
 │   └── plugins/                 # Plugin extension point
 ├── devpulse_json/               # JSON handler storage (config, data, logs per module)
-├── tests/                       # 309 tests
+├── tests/                       # 348 tests
 ├── artifacts/                   # Birth certificate, reports
 ├── dropbox/                     # Received files, archived plans, install audit
 ├── docs/                        # Transition notes

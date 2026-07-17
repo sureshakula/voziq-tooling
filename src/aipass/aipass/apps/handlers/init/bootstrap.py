@@ -246,6 +246,22 @@ def _claude_settings(aipass_home: str | None = None) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
+def _enroll_project(target: Path) -> None:
+    """Enroll a project in the trusted-project registry (DPLAN-0244).
+
+    Lazy import to keep bootstrap.py free of prax/module-level deps.
+    """
+    try:
+        from aipass.hooks.apps.handlers.config.trust_registry import enroll
+
+        if enroll(str(target)):
+            logger.info("Enrolled project in trust registry: %s", target)
+        else:
+            logger.warning("Trust enrollment failed for %s", target)
+    except ImportError as exc:
+        logger.info("Trust registry unavailable, skipping enrollment: %s", exc)
+
+
 def _guard_init(target: Path) -> None:
     """Block init if target is inside an agent branch or existing project.
 
@@ -362,6 +378,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         if template.is_file():
             shutil.copy2(str(template), str(hooks_json_path))
             created.append(str(hooks_json_path))
+            _enroll_project(target)
         else:
             logger.info("hooks template not found at %s — skipping", template)
 
@@ -573,6 +590,7 @@ def update_project(target: Path) -> dict:
             if existing_hooks != merged_hooks:
                 hooks_json_path.write_text(merged_hooks_content, encoding="utf-8")
                 updated.append(str(hooks_json_path))
+                _enroll_project(target)
             else:
                 already_current.append(str(hooks_json_path))
         else:
@@ -581,6 +599,7 @@ def update_project(target: Path) -> dict:
                 encoding="utf-8",
             )
             updated.append(str(hooks_json_path))
+            _enroll_project(target)
     elif hooks_json_path.exists():
         already_current.append(str(hooks_json_path))
 

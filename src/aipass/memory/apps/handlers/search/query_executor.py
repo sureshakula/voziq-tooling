@@ -18,6 +18,7 @@ Purpose:
     layer to satisfy thin-module standard.
 """
 
+import re
 import subprocess
 import json
 import os
@@ -211,6 +212,77 @@ def _filter_results(results: list, n_results: int) -> list:
 
 
 # =============================================================================
+# PLAN-ID EXACT MATCHING
+# =============================================================================
+
+_PLAN_ID_RE = re.compile(
+    r"(?:^|\b)((?:d|f|p|td|a)plan)[\s\-_]*(\d{3,5})\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_plan_id(query: str) -> str | None:
+    """Extract a normalized plan ID (e.g. 'FPLAN-0332') from a query string."""
+    m = _PLAN_ID_RE.search(query)
+    if not m:
+        return None
+    prefix = m.group(1).upper()
+    number = m.group(2)
+    return f"{prefix}-{number}"
+
+
+def _fetch_plan_by_metadata(plan_id: str, n_results: int) -> list:
+    """Fetch plan chunks directly from ChromaDB by source_file metadata."""
+    input_data = {
+        "operation": "get_by_source",
+        "collection_name": "flow_plans",
+        "source_pattern": plan_id,
+        "n_results": n_results,
+    }
+    try:
+        result = subprocess.run(
+            [str(MEMORY_PYTHON), str(CHROMA_SUBPROCESS_SCRIPT)],
+            input=json.dumps(input_data),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return []
+        data = json.loads(result.stdout)
+        if not data.get("success"):
+            return []
+        return data.get("results", [])
+    except Exception as e:
+        logger.warning(f"[search] Plan metadata fetch failed: {e}")
+        return []
+
+
+def _pin_plan_id_matches(query: str, filtered: list, n_results: int) -> list:
+    """Pin exact plan-ID matches to the top of results.
+
+    If the query contains a plan-ID pattern, fetch matching chunks directly
+    from ChromaDB metadata (bypassing embedding similarity) and pin them.
+    """
+    plan_id = _extract_plan_id(query)
+    if not plan_id:
+        return filtered
+
+    exact = _fetch_plan_by_metadata(plan_id, n_results)
+    if not exact:
+        return filtered
+
+    for r in exact:
+        r["similarity"] = 1.0
+
+    logger.info(f"[search] Pinned {len(exact)} exact matches for {plan_id}")
+
+    seen_ids = {r.get("id") for r in exact}
+    rest = [r for r in filtered if r.get("id") not in seen_ids]
+    return (exact + rest)[:n_results]
+
+
+# =============================================================================
 # PUBLIC API
 # =============================================================================
 
@@ -272,6 +344,9 @@ def execute_search(
 
     # Step 3: Filter and score results
     filtered_results = _filter_results(raw_results, n_results)
+
+    # Step 4: Pin exact plan-ID matches to the top
+    filtered_results = _pin_plan_id_matches(query, filtered_results, n_results)
 
     logger.info(f"[search] Filtered to {len(filtered_results)} relevant results")
 

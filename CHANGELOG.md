@@ -9,7 +9,161 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-16]
+
+### Added
+
+- **Compass ambient recall — Track 2 (DPLAN-0246/FPLAN-0332): rated decisions
+  surface unprompted.** On every user prompt, a new hooks handler
+  (`compass_recall`, registered in `.aipass/hooks.json` only) queries compass
+  FTS with the prompt text and injects matching rulings VERBATIM —
+  `[BAD] #56: <decision text>` — tidbits, never vibes. Three branches, one
+  pipeline, each piece behind a modules/-boundary API: devpulse's
+  `recall_decisions()` (side-effect-free scored candidates; rare-token
+  evidence scoring + a query-side stopword filter so greeting/filler words
+  can't fake relevance) + `mark_surfaced()` (counts only real injections);
+  @memory's pure `should_surface()` governance (promoted from the dormant
+  symbolic engine: threshold, 5/session cap, 10-message spacing — first
+  surface exempt, 300s cooldown, dedup; state-in/state-out, caller persists);
+  @hooks' 90-line handler + engine per-handler budget (errors never block a
+  prompt — `compass_recall_unreachable` log signature for @trigger's watcher).
+  Live acceptance matrix through the real bridge: topic-with-history prompts
+  recall the right ruling (a CI prompt surfaced the red-CI-never-parked
+  ruling), small talk and greetings stay silent, repeat prompts gate on
+  spacing. Review caught and fixed pre-ship: wrong payload key (`userInput` →
+  `prompt`), phantom `CLAUDE_CODE_SESSION_ID` env (session id is
+  stdin-payload-only), spacing gate blocking the first surface, and a trust
+  registry re-enrollment gap that silently disabled ALL project hooks for 20
+  minutes after the hooks.json edit. 446 devpulse + 1011 memory + 1129 hooks
+  tests green; seedgo 31/31 on every touched module.
+
+- **Compass curation v2 Track 1 (DPLAN-0246/FPLAN-0331): supersedes links +
+  write-time conflict check.** A correcting compass entry now archives and
+  links what it replaces in one transaction (`compass add --supersedes N`);
+  query renders both directions ("supersedes #N" / "ARCHIVED — superseded by
+  #M") so a retracted decision can never masquerade as current truth. Every
+  `compass add` FTS-checks the new text against active entries and prints a
+  non-blocking "possible conflict with #X" advisory — flag-and-ask, no LLM, no
+  auto-resolve (boardroom ruling). New `compass note <id>` command (FTS
+  re-index proven by test), `--include-archived` query flag (the avoid-list is
+  finally searchable), dead `score` column removed from all code surfaces
+  (kept inert on disk — zero migration risk). Idempotent PRAGMA-checked
+  migration ran clean on the production store (128 rows, no loss); the four
+  fresh-eyes-audit archive pairs got their links backfilled. /prep now runs
+  one `compass review` per session — curation living in a path that already
+  runs, the lesson of all three compass eras. 435 devpulse tests green,
+  seedgo 31/31 on both touched modules.
+
+- **Close pipeline completes itself (DPLAN-0245): auto-vectorization +
+  crash-safe registry writes + drone timeout policy.** Closing a plan now
+  produces all side effects from one command — `post_close_runner` invokes
+  @memory's plan intake directly after archival (detached, loud on failure,
+  drains any backlog it finds), so plans can no longer silently pile up
+  unvectorized. Plan registry saves (@flow `save_registry` + mbank
+  `save_flow_registry`) now use the O_EXCL lockfile + atomic
+  tempfile-and-replace pattern, closing the same lost-update race class fixed
+  earlier in CLOSED_PLANS. @drone gained a 3-layer timeout policy: per-command
+  overrides (`@memory process-plans` 120s, `@flow close` 90s), a `--timeout N`
+  flag, 30s default — replacing the flat 30s guillotine that killed legitimate
+  long commands mid-pipeline; the timeout error now says how to override.
+  Proven end-to-end live: one `drone @flow close` on a throwaway plan yielded
+  archive + vectors + ledger + registry with zero manual steps, and the
+  auto-trigger swept a pre-existing backlog file on its first run. 730 flow +
+  878 drone tests green, seedgo 100%.
+
+### Fixed
+
+- **CI seedgo gate back to 100% across all 17 branches.** The Track 2 compass
+  recall code left three branches at 99%: @hooks' compass_recall handler was
+  missing json_handler operation logging and had two silent catches (now
+  logged); @memory's governance module held its implementation in modules/
+  (moved to handlers/governance/engine.py with modules/governance.py as the
+  thin re-export — the cross-branch import path is unchanged and live-E2E
+  verified through the real bridge); devpulse's README test count had drifted
+  (309 → 348). Audits re-run per branch: 100% overall, all suites green.
+
+- **Plan-number memory search hits the exact plan.** Searching a plan ID
+  ('DPLAN-0244', 'fplan 0332' — any case, dash or space) now pins the exact
+  plan as the top result at 100%, via a metadata lookup on the vector store's
+  source-file field instead of embedding similarity (which treats all plan IDs
+  as near-identical strings and never surfaced the target). Patrick ruling:
+  searching a plan number must return that plan first. Semantic search quality
+  for normal queries is unchanged. Also purged 193 junk vectors — throwaway
+  probe/flaky test plans from scratchpad sessions (dv4 batch, probe_test_plan,
+  throwaway_e2e_proof) that had leaked into the store. 1011 memory tests green.
+
+- **drone --timeout collision: router flag swallowed module flags.** The
+  DPLAN-0245 subprocess-timeout flag consumed the first `--timeout` token
+  anywhere in argv, so module-level flags silently vanished — watchdog's
+  `--timeout 1800` never arrived and long watches died at the 600s default
+  (live repro x2). Drone's flag is now namespaced `--drone-timeout`; plain
+  `--timeout` passes through untouched to the target module, with a regression
+  test pinning the passthrough. Per-command overrides intact. 879 drone tests
+  green, seedgo 100%.
+
+- **@memory command routing eaten by the new governance module.** The
+  governance module shipped in Track 2 had the wrong `handle_command`
+  signature (`args: list` instead of `command: str, args: list`) and always
+  returned True, so auto-discovery routed EVERY @memory command through it
+  first — `drone @memory search` answered "governance: unknown command 's'".
+  Fixed to the standard signature returning False for commands not its own;
+  search verified live (135 results). Library modules must decline commands
+  they don't own or they silently hijack the whole CLI. 1011 memory tests
+  green, seedgo 31/31.
+
 ## [2026-07-15]
+
+### Fixed
+
+- **Plan vectorization pipeline unwedged (DPLAN-0245): 57 closed plans were
+  silently missing from semantic memory since mid-June.** Vector IDs were pure
+  content hashes, so identical template boilerplate across different plans
+  produced duplicate IDs within one ChromaDB upsert — the store rejected the
+  entire batch, and the all-or-nothing intake retried the same failing batch
+  forever. Fixed in @memory: IDs are now salted with the source filename when
+  present (rollover hashes unchanged — no re-vectorization churn), in-batch
+  dedup as a safety net, and `process_plans()` now runs per-file with the
+  manifest saved after each success so a poison file can never wedge the queue
+  again. Backlog drained and verified: 229/229 archived plans vectorized, 1112
+  chunks, formerly-lost plans answering semantic queries at 85%+ similarity.
+  990 memory tests green.
+
+- **CLOSED_PLANS ledger append race (@flow): concurrent plan closes lost
+  entries.** `append_to_closed_plans` was an unlocked read-modify-write; the
+  S314 bulk sweep lost 18 of 21 entries to it (reconciled by hand). Now guarded
+  by an `O_CREAT|O_EXCL` lockfile with retry/backoff, and the previously
+  silent append failure is surfaced in close output and logs. 730 flow tests
+  green.
+
+- **Telegram routine read-timeouts no longer logged as errors (@skills,
+  Patrick ruling): ends the medic wake-loop.** A routine long-poll read
+  timeout (`socket.timeout` — an `OSError` subclass) slipped past the earlier
+  `URLError`-only guard into the network-outage path, logging ERROR once per
+  episode (~576 lines/30h) and waking @trigger's medic each time. The
+  `_is_routine_read_timeout` guard now covers the `OSError` handler too, and
+  the genuine-outage episode-start line is demoted ERROR→WARNING (backoff
+  self-heals; recovery already logs INFO; medic only fires on ERROR/CRITICAL).
+  Real failures still log ERROR. 825 telegram tests green.
+
+### Security
+
+- **Hook config trust model hardening (DPLAN-0244): closes a zero-interaction
+  RCE from untrusted `.aipass/hooks.json`.** The hook loader walked up from CWD
+  and trusted any `.aipass/hooks.json` it found; since the bridge is wired
+  globally in provider settings, a hostile repo shipping a `command`-type hook
+  could execute arbitrary shell on `SessionStart` with no user interaction.
+  Fixed with defense-in-depth. **Layer A (engine):** per-project configs may no
+  longer run `command`-type hooks (refused via an unconditionally-stamped
+  `_source` provenance flag), and handler paths are gated to the `aipass.*`
+  namespace. **Layer B (loader + CLI):** a trusted-project registry
+  (`~/.aipass/trusted_projects.json`, path + sha256) that the loader checks
+  fail-closed; on upgrade it bootstraps **only** the `$AIPASS_HOME` install
+  (never trust-on-first-use of an arbitrary directory); `aipass init`/`init
+  update` auto-enroll, and new `aipass trust`/`revoke` commands manage
+  enrollment. Both gates proven to block the attack independently via a live
+  acceptance test driving the real bridge with a real payload. 1105 hooks +
+  133 aipass tests green. Origin: external scan (false positive at
+  `engine.py:37`) whose triage surfaced the real adjacent hole.
 
 ### Added
 

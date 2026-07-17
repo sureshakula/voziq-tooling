@@ -501,7 +501,7 @@ class TestProcessPlans:
         monkeypatch.setattr(
             mod,
             "_embed_texts",
-            lambda texts: {"success": True, "embeddings": [[0.1, 0.2]] * len(texts)},
+            lambda texts, timeout=120: {"success": True, "embeddings": [[0.1, 0.2]] * len(texts)},
         )
         monkeypatch.setattr(
             mod,
@@ -547,7 +547,7 @@ class TestProcessPlans:
         monkeypatch.setattr(
             mod,
             "_embed_texts",
-            lambda texts: {"success": False, "error": "GPU out of memory"},
+            lambda texts, timeout=120: {"success": False, "error": "GPU out of memory"},
         )
 
         mock_jh = MagicMock()
@@ -584,7 +584,7 @@ class TestProcessPlans:
         monkeypatch.setattr(
             mod,
             "_embed_texts",
-            lambda texts: {"success": True, "embeddings": []},
+            lambda texts, timeout=120: {"success": True, "embeddings": []},
         )
 
         mock_jh = MagicMock()
@@ -620,7 +620,7 @@ class TestProcessPlans:
         monkeypatch.setattr(
             mod,
             "_embed_texts",
-            lambda texts: {"success": True, "embeddings": [[0.1, 0.2]] * len(texts)},
+            lambda texts, timeout=120: {"success": True, "embeddings": [[0.1, 0.2]] * len(texts)},
         )
         monkeypatch.setattr(
             mod,
