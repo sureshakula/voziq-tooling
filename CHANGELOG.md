@@ -71,6 +71,18 @@ PyPI version — not the changelog header.
   auto-trigger swept a pre-existing backlog file on its first run. 730 flow +
   878 drone tests green, seedgo 100%.
 
+### Fixed
+
+- **@memory command routing eaten by the new governance module.** The
+  governance module shipped in Track 2 had the wrong `handle_command`
+  signature (`args: list` instead of `command: str, args: list`) and always
+  returned True, so auto-discovery routed EVERY @memory command through it
+  first — `drone @memory search` answered "governance: unknown command 's'".
+  Fixed to the standard signature returning False for commands not its own;
+  search verified live (135 results). Library modules must decline commands
+  they don't own or they silently hijack the whole CLI. 1011 memory tests
+  green, seedgo 31/31.
+
 ## [2026-07-15]
 
 ### Fixed

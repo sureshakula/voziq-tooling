@@ -189,18 +189,21 @@ def print_introspection() -> None:
     console.print("[dim]Library module — import from: aipass.memory.apps.modules.governance[/dim]")
 
 
-def handle_command(args: list, _remaining: list | None = None) -> bool:
+def handle_command(command: str, args: list) -> bool:
     """Entry point for drone module discovery — governance has no CLI surface."""
+    if command != "governance":
+        return False
+
     if not args:
         print_introspection()
         return True
-
-    from aipass.cli.apps.modules import warning
 
     if args[0] in ("--help", "-h", "help"):
         print_introspection()
         return True
 
-    warning(f"governance: unknown command '{args[0]}'")
+    from aipass.cli.apps.modules import warning
+
+    warning(f"governance: unknown subcommand '{args[0]}'")
     print_introspection()
     return True
