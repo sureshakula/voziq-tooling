@@ -463,6 +463,16 @@
       "reason": "Cross-branch public API — called by @spawn's build_replacements_dict to resolve {{*_META}} placeholders at branch creation."
     },
     {
+      "file": "apps/modules/governance.py",
+      "standard": "unused_function",
+      "reason": "Cross-branch public API — should_surface, record_message, new_state re-exported for @hooks compass_recall and @devpulse recall query."
+    },
+    {
+      "file": "apps/handlers/governance/engine.py",
+      "standard": "unused_function",
+      "reason": "Implementation functions re-exported via modules/governance.py for cross-branch consumers."
+    },
+    {
       "file": "apps/modules/templates.py",
       "standard": "deep_nesting",
       "reason": "handle_command() routes 6 subcommands with validation — nesting is inherent to command dispatch."

@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 from aipass.prax.apps.modules.logger import system_logger as logger
+from aipass.hooks.apps.handlers.json import json_handler
 
 _STATE_DIR = Path(tempfile.gettempdir())
 
@@ -38,7 +39,8 @@ def _load_state(hook_data: dict | None = None) -> dict:
         return _fresh_state()
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.info("[HOOKS] compass_recall: state read failed: %s", exc)
         return _fresh_state()
 
 
@@ -47,7 +49,8 @@ def _fresh_state() -> dict:
         from aipass.memory.apps.modules.governance import new_state
 
         return new_state()
-    except Exception:
+    except Exception as exc:
+        logger.info("[HOOKS] compass_recall: governance import failed: %s", exc)
         return {"surfaces_count": 0, "messages_since_last": 0, "last_surface_time": 0.0, "surfaced_ids": []}
 
 
@@ -105,6 +108,7 @@ def handle(hook_data: dict) -> dict:
             lines.append(f"[{rating}] #{c['id']}: {c['decision']}")
 
         mark_surfaced([c["id"] for c in approved])
+        json_handler.log_operation("compass_recall", {"count": len(approved)})
 
         return {"stdout": "\n".join(lines), "exit_code": 0}
 

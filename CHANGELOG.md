@@ -73,6 +73,15 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **CI seedgo gate back to 100% across all 17 branches.** The Track 2 compass
+  recall code left three branches at 99%: @hooks' compass_recall handler was
+  missing json_handler operation logging and had two silent catches (now
+  logged); @memory's governance module held its implementation in modules/
+  (moved to handlers/governance/engine.py with modules/governance.py as the
+  thin re-export — the cross-branch import path is unchanged and live-E2E
+  verified through the real bridge); devpulse's README test count had drifted
+  (309 → 348). Audits re-run per branch: 100% overall, all suites green.
+
 - **Plan-number memory search hits the exact plan.** Searching a plan ID
   ('DPLAN-0244', 'fplan 0332' — any case, dash or space) now pins the exact
   plan as the top result at 100%, via a metadata lookup on the vector store's

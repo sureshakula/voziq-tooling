@@ -45,15 +45,17 @@ drone @memory watch                        # Auto-rollover watcher daemon (Ctrl+
 memory/
 ├── apps/
 │   ├── memory.py                # Entry point — auto-discovers modules
-│   ├── modules/                 # 6 modules
+│   ├── modules/                 # 7 modules
+│   │   ├── governance.py        # Surfacing governance — re-exports from handlers
 │   │   ├── lint.py              # Entry limit violation scanner (read-only)
 │   │   ├── rollover.py          # Rollover orchestration, status, sync-lines
 │   │   ├── search.py            # Semantic query routing
 │   │   ├── symbolic.py          # Fragmented memory extraction and search
 │   │   ├── templates.py         # Template push, diff, status
 │   │   └── verify.py            # Plan vectorization check
-│   └── handlers/                # 14 handler groups
+│   └── handlers/                # 15 handler groups
 │       ├── archive/             # indexer.py
+│       ├── governance/          # engine.py — surfacing decision logic
 │       ├── intake/              # plans_processor.py, pool_processor.py
 │       ├── json/                # json_handler.py, memory_files.py, entry_limits.py, lint_handler.py, config_loader.py
 │       ├── learnings/           # manager.py
