@@ -446,11 +446,11 @@ class TestTimeoutErrorMessage:
 
     def test_timeout_error_includes_override_hint(self, temp_test_dir: Path):
         """The timeout error message mentions --timeout."""
-        with pytest.raises(CommandExecutionError, match="--timeout") as exc_info:
+        with pytest.raises(CommandExecutionError, match="--drone-timeout") as exc_info:
             execute_command(
                 sys.executable,
                 ["-c", "import time; time.sleep(10)"],
                 cwd=str(temp_test_dir),
                 timeout=1,
             )
-        assert "--timeout" in str(exc_info.value)
+        assert "--drone-timeout" in str(exc_info.value)

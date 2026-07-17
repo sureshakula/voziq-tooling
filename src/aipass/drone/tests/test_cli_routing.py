@@ -911,10 +911,10 @@ class TestAipassIntercept:
 
 
 class TestExtractTimeout:
-    """Tests for --timeout flag extraction from arg lists."""
+    """Tests for --drone-timeout flag extraction from arg lists."""
 
     def test_no_flag(self) -> None:
-        """Args without --timeout pass through unchanged."""
+        """Args without --drone-timeout pass through unchanged."""
         from aipass.drone.apps.drone import _extract_timeout
 
         args = ["close", "FPLAN-0313"]
@@ -923,43 +923,43 @@ class TestExtractTimeout:
         assert timeout is None
 
     def test_flag_at_end(self) -> None:
-        """--timeout N at end of args is extracted."""
+        """--drone-timeout N at end of args is extracted."""
         from aipass.drone.apps.drone import _extract_timeout
 
-        cleaned, timeout = _extract_timeout(["process-plans", "--timeout", "120"])
+        cleaned, timeout = _extract_timeout(["process-plans", "--drone-timeout", "120"])
         assert cleaned == ["process-plans"]
         assert timeout == 120
 
     def test_flag_at_start(self) -> None:
-        """--timeout N at start of args is extracted."""
+        """--drone-timeout N at start of args is extracted."""
         from aipass.drone.apps.drone import _extract_timeout
 
-        cleaned, timeout = _extract_timeout(["--timeout", "90", "close", "FPLAN-0313"])
+        cleaned, timeout = _extract_timeout(["--drone-timeout", "90", "close", "FPLAN-0313"])
         assert cleaned == ["close", "FPLAN-0313"]
         assert timeout == 90
 
     def test_flag_in_middle(self) -> None:
-        """--timeout N in the middle of args is extracted."""
+        """--drone-timeout N in the middle of args is extracted."""
         from aipass.drone.apps.drone import _extract_timeout
 
-        cleaned, timeout = _extract_timeout(["close", "--timeout", "60", "FPLAN-0313"])
+        cleaned, timeout = _extract_timeout(["close", "--drone-timeout", "60", "FPLAN-0313"])
         assert cleaned == ["close", "FPLAN-0313"]
         assert timeout == 60
 
     def test_flag_without_value(self) -> None:
-        """--timeout at end with no value returns None and leaves args."""
+        """--drone-timeout at end with no value returns None and leaves args."""
         from aipass.drone.apps.drone import _extract_timeout
 
-        args = ["close", "--timeout"]
+        args = ["close", "--drone-timeout"]
         cleaned, timeout = _extract_timeout(args)
         assert cleaned == args
         assert timeout is None
 
     def test_flag_non_integer_value(self) -> None:
-        """--timeout with non-integer value returns None and leaves args."""
+        """--drone-timeout with non-integer value returns None and leaves args."""
         from aipass.drone.apps.drone import _extract_timeout
 
-        args = ["close", "--timeout", "abc"]
+        args = ["close", "--drone-timeout", "abc"]
         cleaned, timeout = _extract_timeout(args)
         assert cleaned == args
         assert timeout is None
@@ -970,4 +970,13 @@ class TestExtractTimeout:
 
         cleaned, timeout = _extract_timeout([])
         assert cleaned == []
+        assert timeout is None
+
+    def test_plain_timeout_passes_through(self) -> None:
+        """--timeout (without drone- prefix) is NOT consumed — passes to target."""
+        from aipass.drone.apps.drone import _extract_timeout
+
+        args = ["watchdog", "agent", "@memory", "--timeout", "1800"]
+        cleaned, timeout = _extract_timeout(args)
+        assert cleaned == args
         assert timeout is None

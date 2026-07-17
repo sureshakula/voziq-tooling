@@ -52,16 +52,16 @@ INTERACTIVE_BRANCHES = ("cli", "backup")
 
 
 def _extract_timeout(args: list[str]) -> tuple[list[str], int | None]:
-    """Extract --timeout N from an arg list. Returns (cleaned_args, timeout_or_None)."""
-    if "--timeout" not in args:
+    """Extract --drone-timeout N from an arg list. Returns (cleaned_args, timeout_or_None)."""
+    if "--drone-timeout" not in args:
         return args, None
-    idx = args.index("--timeout")
+    idx = args.index("--drone-timeout")
     if idx + 1 >= len(args):
         return args, None
     try:
         timeout = int(args[idx + 1])
     except ValueError:
-        logger.info("--timeout value %r is not an integer, ignoring", args[idx + 1])
+        logger.info("--drone-timeout value %r is not an integer, ignoring", args[idx + 1])
         return args, None
     return args[:idx] + args[idx + 2 :], timeout
 
@@ -107,7 +107,7 @@ def show_help() -> None:
     table.add_row("list", "List registered custom commands")
     table.add_row("remove <name>", "Remove a custom command")
     table.add_row("rm <path> [<path>...]", "Contained safe-delete (project + tmp)")
-    table.add_row("--timeout <seconds>", "Override subprocess timeout (default 30s)")
+    table.add_row("--drone-timeout <seconds>", "Override subprocess timeout (default 30s)")
     table.add_row("--help", "Show this help")
     table.add_row("--version", "Show version")
 

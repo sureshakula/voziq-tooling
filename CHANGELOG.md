@@ -73,6 +73,25 @@ PyPI version — not the changelog header.
 
 ### Fixed
 
+- **Plan-number memory search hits the exact plan.** Searching a plan ID
+  ('DPLAN-0244', 'fplan 0332' — any case, dash or space) now pins the exact
+  plan as the top result at 100%, via a metadata lookup on the vector store's
+  source-file field instead of embedding similarity (which treats all plan IDs
+  as near-identical strings and never surfaced the target). Patrick ruling:
+  searching a plan number must return that plan first. Semantic search quality
+  for normal queries is unchanged. Also purged 193 junk vectors — throwaway
+  probe/flaky test plans from scratchpad sessions (dv4 batch, probe_test_plan,
+  throwaway_e2e_proof) that had leaked into the store. 1011 memory tests green.
+
+- **drone --timeout collision: router flag swallowed module flags.** The
+  DPLAN-0245 subprocess-timeout flag consumed the first `--timeout` token
+  anywhere in argv, so module-level flags silently vanished — watchdog's
+  `--timeout 1800` never arrived and long watches died at the 600s default
+  (live repro x2). Drone's flag is now namespaced `--drone-timeout`; plain
+  `--timeout` passes through untouched to the target module, with a regression
+  test pinning the passthrough. Per-command overrides intact. 879 drone tests
+  green, seedgo 100%.
+
 - **@memory command routing eaten by the new governance module.** The
   governance module shipped in Track 2 had the wrong `handle_command`
   signature (`args: list` instead of `command: str, args: list`) and always

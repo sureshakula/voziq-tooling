@@ -107,7 +107,7 @@ def execute_command(
     except subprocess.TimeoutExpired as e:
         raise CommandExecutionError(
             f"Command timed out after {timeout}s: {' '.join(full_cmd)}\n"
-            f"  Override with: drone @<target> <command> --timeout <seconds>"
+            f"  Override with: drone @<target> <command> --drone-timeout <seconds>"
         ) from e
     except FileNotFoundError as e:
         raise CommandExecutionError(f"Executable not found: {executable!r}") from e
