@@ -74,7 +74,7 @@ just that one merge commit — **cosmetic and trivially resolved**.
 - [ ] Confirm what's shipping — scan uncommitted changes + already-pushed dev commits ahead of main: `git rev-list --count main..dev` (read git, raw ok)
 - [ ] No surprise files (stray `/tmp` artifacts, test pollution, `.recovery`/`.archive` churn). Clean = archive, never delete.
 - [ ] **Version state check** (informs the bump decision): read the **two** release-tied versions — `grep '^version' pyproject.toml` and `grep __version__ src/aipass/__init__.py` (they should match; if drifted, note it) — and what PyPI already has: `curl -s https://pypi.org/pypi/aipass/json | python3 -c "import sys,json;print(json.load(sys.stdin)['info']['version'])"`. PyPI rejects a duplicate, so the target must be > published.
-- [ ] Decide: **release tag this merge?** (tag = PyPI publish + GitHub Release). If yes, note target version. (Significance call is the user's — the PATCH-default rule below is guidance, and the actual release history is a useful tie-breaker.)
+- [ ] **Release tag: default YES with PATCH bump.** Every dev-to-main merge ships a PATCH bump + tag so PyPI always tracks main (Patrick ruling S318, 2026-07-17 — version numbers carry no significance during beta). Override to MINOR/MAJOR only when warranted; skip only if explicitly told.
 
 ## 2. Verify, commit, CHANGELOG
 
@@ -117,10 +117,12 @@ The PR gate (verified against `.github/workflows/`):
 - [ ] Never rebase, never reset, never checkout main.
 - [ ] Dependabot / other PRs targeting main: they go green once main has the fix + bots rebase — check after the push
 
-## 7. Release tag (only if cutting a release)
+## 7. Release tag
 
-**Versioning rule — bump by SIGNIFICANCE, not cadence:**
-- **PATCH** (`x.y.Z+1`) = fix / internal / standards / UX only → the default for most merges
+**Standing default: PATCH bump every merge** (Patrick ruling S318, 2026-07-17). PyPI should always track main; version numbers carry no significance during beta. Big jump reserved for beta exit.
+
+Reference (SemVer — for when significance matters post-beta):
+- **PATCH** (`x.y.Z+1`) = fix / internal / standards / UX only
 - **MINOR** (`x.Y+1.0`) = a new backward-compatible user-facing feature shipped
 - **MAJOR** (`X+1.0.0`) = breaking public-API change
 

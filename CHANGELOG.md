@@ -11,7 +11,22 @@ PyPI version — not the changelog header.
 
 ## [2026-07-17]
 
+**v2.7.2** — everything merged since v2.7.1, headlined by the compass decision
+engine v2: curation with supersedes links + write-time conflict advisories
+(Track 1), and ambient recall — rated past decisions now surface verbatim into
+live sessions on matching prompts, governed by session caps and spacing
+(Track 2). Also in this release: the plan close pipeline completes itself
+(auto-vectorization + crash-safe registry writes), drone's 3-layer subprocess
+timeout policy with a collision-free `--drone-timeout` flag, plan-number memory
+search that pins the exact plan, a fleet-wide seedgo 100% restoration, and
+SSH-signed commits now verifying on GitHub. Details in the sections below
+(2026-07-16 carries the full stories).
+
 ### Changed
+
+- **Release cadence ruling: every dev→main merge ships a PATCH bump + tag by
+  default.** PyPI tracks main, always current; version numbers carry no
+  significance during beta — the big jump is reserved for beta exit.
 
 - **Merge playbook SOP refined from live run PPLAN-0010.** The raw
   `git fetch origin main:main` step (now blocked by the git gate) is replaced
