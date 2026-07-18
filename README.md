@@ -13,8 +13,6 @@
 <p align="center"><strong>Persistent Agent Workspace</strong></p>
 <p align="center"><em>AI agents that remember, collaborate, and never start from zero.</em></p>
 
-![demo](assets/demo.gif)
-
 ---
 
 ## The Problem
