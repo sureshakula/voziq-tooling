@@ -190,9 +190,13 @@ class TestFeedbackPulseToggle:
     """Tests for the _is_disabled toggle and sentinel file."""
 
     def test_no_aipass_dir_is_disabled(self, tmp_path):
-        from aipass.hooks.apps.handlers.prompt.feedback_pulse import _is_disabled
+        from aipass.hooks.apps.handlers.prompt import feedback_pulse
 
-        assert _is_disabled(str(tmp_path)) is True
+        # The walk climbs to the drive root, so a real .aipass in any ancestor
+        # (e.g. the CI runner's home after windows-setup installs AIPass) leaks
+        # into the result — the no-dir case is only constructible by patching.
+        with patch.object(feedback_pulse, "_find_aipass_dir", return_value=None):
+            assert feedback_pulse._is_disabled(str(tmp_path)) is True
 
     def test_aipass_dir_no_sentinel_is_enabled(self, tmp_path):
         (tmp_path / ".aipass").mkdir()
