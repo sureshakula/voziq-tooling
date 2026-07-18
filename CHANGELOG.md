@@ -42,6 +42,26 @@ and README to the house pattern: 17/17 branches at 100%.
 - **Root `.gitignore`**: `projects/*` ignored (each project is its own repo);
   only the future catalog README stays trackable.
 
+### Added (second pass — the agent becomes a real citizen)
+
+- **`aipass new` agents are now spawn-issued full citizens** (FPLAN-0334): the
+  hand-rolled scaffold in the new_project handler is retired for a
+  `spawn_agent()` call against @spawn's new `project_agent` template — branch
+  prompt, structured mailbox, birth certificate, trinity trio, dashboard,
+  house-pattern entry point, and a branch-style README. One authority issues
+  citizens; project agents inherit template evolution for free.
+- **Agent home = `src/<project>/<agent>/`**, mirroring the host's
+  `src/aipass/<branch>` layout (door-test ruling: the project root is never an
+  agent home). Seat paths are relative like host seats; the registry walk stops
+  at the first project registry. The first agent is the project's **manager**
+  (`citizen_class: manager` — its devpulse), named after the project.
+- **Birth-commit hygiene**: the `.venv` symlink (absolute host path) and the
+  registry lock file are no longer tracked in new projects' birth commits.
+- **Boundary verified live in all four directions**: host↔project email and
+  dispatch all refused — project→host lands on the ai_mail cross-project check
+  with its feedback-channel pointer, closing the leak found in the S319
+  prototype probes.
+
 ### Changed
 
 - **aipass front door rebuilt**: `--help` now follows the house pattern with a

@@ -19,9 +19,10 @@ from unittest.mock import patch
 import pytest  # pyright: ignore[reportMissingImports]
 
 from aipass.aipass.apps.handlers.new_project import (
+    _agent_home,
     _registry_name,
+    _spawn_project_agent,
     _validate_name,
-    _write_agent,
     _write_registry,
     _write_template,
     create_project,
@@ -126,6 +127,10 @@ def test_write_template_empty(tmp_path):
     assert (tmp_path / ".gitignore").exists()
     assert not (tmp_path / "pyproject.toml").exists()
     assert not (tmp_path / "src").exists()
+    gitignore = (tmp_path / ".gitignore").read_text()
+    assert ".venv\n" in gitignore
+    assert ".venv/\n" not in gitignore
+    assert "*_REGISTRY.lock" in gitignore
 
 
 # ---------------------------------------------------------------------------
@@ -305,83 +310,74 @@ def test_create_project_registry_before_scaffold(host_env, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# _write_agent
+# _spawn_project_agent (delegates to spawn_agent)
 # ---------------------------------------------------------------------------
 
-
-def test_write_agent_creates_passport(tmp_path):
-    """Passport is written with correct credential linkage."""
-    rid, fname = _write_registry(tmp_path, "agentapp")
-    files = _write_agent(tmp_path, "agentapp", rid, fname)
-    assert ".trinity/passport.json" in files
-    passport = json.loads((tmp_path / ".trinity" / "passport.json").read_text())
-    assert passport["citizenship"]["registry_id"] == rid
-    assert passport["branch_info"]["branch_name"] == "AGENTAPP"
-    assert passport["identity"]["role"] == "project_agent"
+_SPAWN_SUCCESS = {
+    "success": True,
+    "branch_name": "DEMO",
+    "path": "/tmp/demo",
+    "files_copied": 12,
+    "registry_updated": True,
+    "validation_issues": [],
+}
 
 
-def test_write_agent_seats_in_registry(tmp_path):
-    """Registry total_branches updated and branch entry added."""
-    rid, fname = _write_registry(tmp_path, "seated")
-    _write_agent(tmp_path, "seated", rid, fname)
-    reg = json.loads((tmp_path / fname).read_text())
-    assert reg["metadata"]["total_branches"] == 1
-    assert len(reg["branches"]) == 1
-    assert reg["branches"][0]["registry_id"] == rid
-    assert reg["branches"][0]["name"] == "SEATED"
+def test_agent_home_simple():
+    """Agent home is src/<pkg>/<pkg>/."""
+    from pathlib import Path
+
+    home = _agent_home(Path("/proj"), "demo")
+    assert home == Path("/proj/src/demo/demo")
 
 
-def test_write_agent_credential_linkage(tmp_path):
-    """registry.metadata.id == passport.citizenship.registry_id."""
-    rid, fname = _write_registry(tmp_path, "linked")
-    _write_agent(tmp_path, "linked", rid, fname)
-    reg = json.loads((tmp_path / fname).read_text())
-    passport = json.loads((tmp_path / ".trinity" / "passport.json").read_text())
-    assert reg["metadata"]["id"] == passport["citizenship"]["registry_id"]
+def test_agent_home_hyphenated():
+    """Hyphens normalized to underscores, matching python template."""
+    from pathlib import Path
+
+    home = _agent_home(Path("/proj"), "my-app")
+    assert home == Path("/proj/src/my_app/my_app")
 
 
-def test_write_agent_creates_entry_point(tmp_path):
-    """Entry point apps/<name>.py is created and contains hello handler."""
-    rid, fname = _write_registry(tmp_path, "myagent")
-    files = _write_agent(tmp_path, "myagent", rid, fname)
-    assert "apps/myagent.py" in files
-    content = (tmp_path / "apps" / "myagent.py").read_text()
-    assert "def main()" in content
-    assert "def print_introspection()" in content
-    assert "def print_help()" in content
-    assert '"hello"' in content
+def test_spawn_project_agent_calls_spawn(tmp_path):
+    """Calls spawn_agent with correct citizen_class, purpose, and agent_home path."""
+    with patch(
+        "aipass.aipass.apps.handlers.new_project.spawn_agent",
+        return_value=_SPAWN_SUCCESS,
+    ) as mock_spawn:
+        result = _spawn_project_agent(tmp_path, "demo")
+    expected_home = str(tmp_path / "src" / "demo" / "demo")
+    mock_spawn.assert_called_once_with(
+        target_path=expected_home,
+        role="project_agent",
+        purpose="Resident agent of the demo project.",
+        citizen_class="project_agent",
+    )
+    assert result["success"] is True
+    assert result["branch_name"] == "DEMO"
 
 
-def test_write_agent_creates_apps_skeleton(tmp_path):
-    """Apps skeleton: __init__.py, modules/, handlers/."""
-    rid, fname = _write_registry(tmp_path, "skel")
-    files = _write_agent(tmp_path, "skel", rid, fname)
-    assert "apps/__init__.py" in files
-    assert "apps/modules/__init__.py" in files
-    assert "apps/handlers/__init__.py" in files
-    assert (tmp_path / "apps" / "modules" / "__init__.py").exists()
-    assert (tmp_path / "apps" / "handlers" / "__init__.py").exists()
+def test_spawn_project_agent_raises_on_failure(tmp_path):
+    """Raises RuntimeError when spawn_agent returns success=False."""
+    with (
+        patch(
+            "aipass.aipass.apps.handlers.new_project.spawn_agent",
+            return_value={"success": False, "error": "template missing"},
+        ),
+        pytest.raises(RuntimeError, match="spawn_agent failed.*template missing"),
+    ):
+        _spawn_project_agent(tmp_path, "broken")
 
 
-def test_write_agent_creates_trinity_full_set(tmp_path):
-    """Full .trinity/ set: passport, local.json, observations.json."""
-    rid, fname = _write_registry(tmp_path, "fullset")
-    files = _write_agent(tmp_path, "fullset", rid, fname)
-    assert ".trinity/passport.json" in files
-    assert ".trinity/local.json" in files
-    assert ".trinity/observations.json" in files
-    local = json.loads((tmp_path / ".trinity" / "local.json").read_text())
-    assert local["document_metadata"]["managed_by"] == "FULLSET"
-    obs = json.loads((tmp_path / ".trinity" / "observations.json").read_text())
-    assert obs["document_metadata"]["managed_by"] == "FULLSET"
-
-
-def test_write_agent_creates_mailbox_and_logs(tmp_path):
-    """Mailbox and logs directories created."""
-    rid, fname = _write_registry(tmp_path, "dirs")
-    _write_agent(tmp_path, "dirs", rid, fname)
-    assert (tmp_path / ".ai_mail.local").is_dir()
-    assert (tmp_path / "logs").is_dir()
+def test_spawn_project_agent_returns_spawn_result(tmp_path):
+    """Returns the full result dict from spawn_agent."""
+    with patch(
+        "aipass.aipass.apps.handlers.new_project.spawn_agent",
+        return_value={**_SPAWN_SUCCESS, "citizen_number": 1},
+    ):
+        result = _spawn_project_agent(tmp_path, "demo")
+    assert result["files_copied"] == 12
+    assert result["citizen_number"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +386,42 @@ def test_write_agent_creates_mailbox_and_logs(tmp_path):
 
 
 def test_create_project_with_agent(host_env, monkeypatch):
-    """WITH-agent path: full framework agent created."""
+    """WITH-agent path: spawn_agent called, result propagated."""
+    monkeypatch.chdir(host_env)
+    spawn_ok = {
+        "success": True,
+        "branch_name": "WITHAGENT",
+        "path": str(host_env / "projects" / "withagent"),
+        "files_copied": 15,
+        "registry_updated": True,
+        "validation_issues": [],
+    }
+    with (
+        patch("subprocess.run", side_effect=_mock_git_run),
+        patch(
+            "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
+            return_value=None,
+        ),
+        patch("aipass.aipass.apps.handlers.init.bootstrap._enroll_project"),
+        patch(
+            "aipass.aipass.apps.handlers.new_project.spawn_agent",
+            return_value=spawn_ok,
+        ) as mock_spawn,
+    ):
+        result = create_project("withagent", template="empty", no_agent=False)
+
+    assert result["agent_created"] is True
+    assert result["spawn_result"] == spawn_ok
+    expected_home = str(host_env / "projects" / "withagent" / "src" / "withagent" / "withagent")
+    assert result["agent_home"] == expected_home
+    mock_spawn.assert_called_once()
+    call_kwargs = mock_spawn.call_args[1]
+    assert call_kwargs["target_path"] == expected_home
+    assert call_kwargs["citizen_class"] == "project_agent"
+
+
+def test_create_project_spawn_failure_cleans_up(host_env, monkeypatch):
+    """spawn_agent failure triggers cleanup — no partial project left."""
     monkeypatch.chdir(host_env)
     with (
         patch("subprocess.run", side_effect=_mock_git_run),
@@ -399,24 +430,34 @@ def test_create_project_with_agent(host_env, monkeypatch):
             return_value=None,
         ),
         patch("aipass.aipass.apps.handlers.init.bootstrap._enroll_project"),
+        patch(
+            "aipass.aipass.apps.handlers.new_project.spawn_agent",
+            return_value={"success": False, "error": "template missing"},
+        ),
+        pytest.raises(RuntimeError, match="spawn_agent failed"),
     ):
-        result = create_project("withagent", template="empty", no_agent=False)
+        create_project("failspawn", template="empty", no_agent=False)
 
-    assert result["agent_created"] is True
-    target = Path(result["target"])
-    assert (target / ".trinity" / "passport.json").exists()
-    assert (target / ".trinity" / "local.json").exists()
-    assert (target / ".trinity" / "observations.json").exists()
-    assert (target / "apps" / "withagent.py").exists()
-    assert (target / "apps" / "modules" / "__init__.py").exists()
-    assert (target / "apps" / "handlers" / "__init__.py").exists()
-    assert (target / ".ai_mail.local").is_dir()
-    assert (target / "logs").is_dir()
-    passport = json.loads((target / ".trinity" / "passport.json").read_text())
-    assert passport["citizenship"]["registry_id"] == result["registry_id"]
-    reg = json.loads((target / result["registry_file"]).read_text())
-    assert reg["metadata"]["total_branches"] == 1
-    assert reg["branches"][0]["registry_id"] == result["registry_id"]
+    assert not (host_env / "projects" / "failspawn").exists()
+
+
+def test_create_project_no_agent_next_steps(host_env, monkeypatch):
+    """no_agent output omits 'meet your project agent' line."""
+    from aipass.aipass.apps.modules.new_project import handle_command
+
+    monkeypatch.chdir(host_env)
+    with (
+        patch("subprocess.run", side_effect=_mock_git_run),
+        patch(
+            "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
+            return_value=None,
+        ),
+        patch("aipass.aipass.apps.handlers.init.bootstrap._enroll_project"),
+        patch("aipass.aipass.apps.modules.new_project.console") as mock_con,
+    ):
+        handle_command("new", ["cosmtest", "--template", "empty", "--no-agent"])
+    printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
+    assert "meet your project agent" not in printed
 
 
 def test_create_project_no_agent_flag(host_env, monkeypatch):
@@ -433,8 +474,9 @@ def test_create_project_no_agent_flag(host_env, monkeypatch):
         result = create_project("noagent", template="empty", no_agent=True)
 
     assert result["agent_created"] is False
+    assert result["agent_home"] is None
     target = Path(result["target"])
-    assert not (target / ".trinity").exists()
+    assert not (target / "src" / "noagent" / "noagent").exists()
     reg = json.loads((target / result["registry_file"]).read_text())
     assert reg["metadata"]["total_branches"] == 0
 

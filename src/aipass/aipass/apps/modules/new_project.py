@@ -193,8 +193,11 @@ def handle_command(command: str, args: list[str]) -> bool:
         console.print("  [dim]Agent:[/dim]     skipped (--no-agent)")
     console.print()
     console.print("[yellow]Next steps:[/yellow]")
-    console.print(f"  [cyan]cd {result['target']}[/cyan]")
-    console.print("  [cyan]claude[/cyan]              [dim]# meet your project agent[/dim]")
+    if result["agent_created"]:
+        console.print(f"  [cyan]cd {result['agent_home']}[/cyan]")
+        console.print("  [cyan]claude[/cyan]              [dim]# meet your project agent[/dim]")
+    else:
+        console.print(f"  [cyan]cd {result['target']}[/cyan]")
     console.print()
 
     json_handler.log_operation(

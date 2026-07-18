@@ -27,6 +27,11 @@ CITIZEN_CLASSES = {
         "description": "Full 3-layer branch with apps/, modules/, handlers/",
         "default": True,
     },
+    "project_agent": {
+        "template_dir": "project_agent",
+        "description": "Project-root resident agent (manager class, collision-safe)",
+        "default": False,
+    },
 }
 
 # The default class when none is specified

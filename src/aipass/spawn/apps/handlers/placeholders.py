@@ -41,11 +41,12 @@ def build_replacements_dict(target_dir, branch_name, **overrides):
     lower = branch_name.lower().replace("-", "_")
     now = datetime.now()
 
-    registry_id = ""
-    registry_path = find_registry(start_path=Path(target_dir).parent)
-    if registry_path.exists():
-        data = json.loads(registry_path.read_text(encoding="utf-8"))
-        registry_id = data.get("metadata", {}).get("id", "")
+    registry_id = overrides.get("registry_id", "")
+    if not registry_id:
+        registry_path = find_registry(start_path=Path(target_dir).parent)
+        if registry_path.exists():
+            data = json.loads(registry_path.read_text(encoding="utf-8"))
+            registry_id = data.get("metadata", {}).get("id", "")
 
     replacements = {
         "BRANCHNAME": upper,
