@@ -53,6 +53,11 @@ and README to the house pattern: 17/17 branches at 100%.
 - **Fleet-100 sweep**: 15 branches gained Quick Start READMEs and/or
   Usage/Examples help sections — each owner fixed their own front against the
   new gate.
+- **Debug_Print detector hardened**: the regex-based checker matched `print(`
+  inside string literals (flagging cli_ux_check's own error messages — the
+  auditor was the last branch under 100%). String content is now stripped
+  before matching, with a regression test; plus a depth-5 nesting refactor in
+  the same file.
 
 **v2.7.2** — everything merged since v2.7.1, headlined by the compass decision
 engine v2: curation with supersedes links + write-time conflict advisories

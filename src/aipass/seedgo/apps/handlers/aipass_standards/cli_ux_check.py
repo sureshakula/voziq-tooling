@@ -214,20 +214,10 @@ def _find_function(tree: ast.Module, name: str) -> Optional[ast.FunctionDef]:
 
 
 def _collect_string_constants(func_node: ast.FunctionDef) -> List[str]:
-    """
-    Extract all string constants from a function body, including strings
-    inside f-strings (ast.JoinedStr -> ast.Constant).
-    """
-    strings: List[str] = []
-    for node in ast.walk(func_node):
-        if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            strings.append(node.value)
-        elif isinstance(node, ast.JoinedStr):
-            # f-string: extract string parts
-            for part in node.values:
-                if isinstance(part, ast.Constant) and isinstance(part.value, str):
-                    strings.append(part.value)
-    return strings
+    """Extract all string constants from a function body, including f-string parts."""
+    return [
+        node.value for node in ast.walk(func_node) if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
 
 
 # ---------------------------------------------------------------------------

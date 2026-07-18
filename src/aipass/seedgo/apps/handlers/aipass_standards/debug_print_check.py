@@ -34,6 +34,9 @@ _DOCTEST_RE = re.compile(r"^\s*(\.\.\.|>>>)\s")
 # Test file name patterns
 _TEST_FILE_RE = re.compile(r"^(test_.+|.+_test|conftest)\.py$")
 
+# String literals — strip content before regex to avoid false positives on print( inside strings
+_STRING_LITERAL_RE = re.compile(r'""".*?"""|\'\'\'.*?\'\'\'|"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'')
+
 
 def _is_in_main_block(lines: list[str], lineno: int) -> bool:
     """
@@ -108,8 +111,9 @@ def _scan_file(file_path: Path) -> tuple[list[int], str | None]:
         if _DOCTEST_RE.match(line):
             continue
 
-        # Strip inline comments before checking for print(
+        # Strip inline comments and string literal contents before checking
         code_part = line.split("#")[0]
+        code_part = _STRING_LITERAL_RE.sub('""', code_part)
 
         if not _PRINT_RE.search(code_part):
             continue
