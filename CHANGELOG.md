@@ -9,9 +9,54 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-18]
+
+**v2.7.3** — the onboarding chain: from `git clone` to a conversation with an
+agent that remembers you. Install's three dead-ends are gone — the default
+`init` path, headless runs, and `aipass new` all now end where they should:
+`install` chains through the guided init and **opens a live conversation with
+the AIPass concierge**, first prompt authored with the install report in its
+context. The concierge's Welcome Mode (research-backed opener, one name-ask,
+deferred setup triage, hooks-first health check via a real @hooks dispatch,
+every suggestion with its exact command) was proven in a live multi-turn
+door-test — including the second-session payoff: relaunch, and it picks up
+mid-task where you left off. Plus `aipass new` and the front-door overhaul below.
+
+### Added (onboarding chain — TDPLAN-0014)
+
+- **Install→chat handoff**: after init returns, install `launch_inline`s the
+  concierge with an authored first prompt (fresh-install recognition + binary
+  report). TTY-only; headless returns cleanly.
+- **Welcome Mode** in the concierge branch prompt: capability opener with 3–5
+  concrete starters, single graceful name-ask, ~turn-5 setup push ("every
+  machine is different"), hooks-first verification incl. trust-registry
+  enrollment, setup plan seeded from the cross-OS checklist, Windows→WSL
+  recommendation, prax-monitor + hooksound tips, exact copy-paste command with
+  every suggestion.
+- **Feedback pulse** (@hooks): one ignorable line every ~10 turns with the repo
+  feedback link — `aipass feedback on/off` (alias for `drone @hooks feedback`)
+  turns it off. Registered disabled for the AIPass host itself. 25 tests.
+- **Dead-end kills**: empty-template init now runs handoff + report stages
+  (default path ends in the conversation); non-interactive installs complete
+  with defaults and exit 0 (headless stage 9 prints the launch command instead
+  of spawning); `aipass new` auto-launches into the new project's manager agent
+  on a TTY with a printed fallback and Ctrl-C escape line.
+- **Unified handoff prompt**: one `INIT_PROMPT` constant (was two drifting
+  strings in init_flow vs handoff).
+
+### Fixed (onboarding chain)
+
+- Non-TTY `aipass init run` crashed with EOFError at the first prompt (caught
+  in a live door-test after unit suites ran green — the prompt layer now
+  auto-detects non-TTY and takes defaults).
+- `aipass new` outside an AIPass environment now exits 1 instead of 0.
+- Empty-template handoff messaging no longer claims an agent exists
+  ("Your project is ready", resolved absolute path instead of `cd .`).
+- Stage numbering shows a skip notice instead of silently jumping 5→8.
+
 ## [2026-07-17]
 
-**v2.7.3** — `aipass new` and the front-door overhaul. The `projects/`
+**v2.7.3 (first pass)** — `aipass new` and the front-door overhaul. The `projects/`
 directory is now a first-class playground: `aipass new <name>` creates a fully
 isolated project — own registry, own git repo with a birth commit, born
 deployable — with a full framework resident agent that answers

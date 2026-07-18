@@ -447,6 +447,11 @@
       "reason": "MUTE_FLAG.unlink() removes a /tmp mute flag file for sound toggle \u2014 not a tracked resource or production data deletion. Deliberate user action via 'drone @hooks hooksound on'."
     },
     {
+      "file": "apps/modules/feedback.py",
+      "standard": "trigger",
+      "reason": "sentinel.unlink() removes a .aipass/feedback_off toggle file \u2014 not a tracked resource. Deliberate user action via 'drone @hooks feedback on'."
+    },
+    {
       "file": "apps/modules/hookstatus.py",
       "standard": "json_structure",
       "reason": "Read-only config viewer \u2014 delegates JSON loading to config/loader.py, no direct JSON file ops."

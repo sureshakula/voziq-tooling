@@ -15,6 +15,7 @@ AIPass scaffold, and optional resident agent. Born deployable.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from aipass.aipass.apps.handlers.json import json_handler
@@ -180,7 +181,7 @@ def handle_command(command: str, args: list[str]) -> bool:
     except (RuntimeError, ValueError) as e:
         logger.warning("[AIPASS] new project failed: %s", e)
         error(str(e))
-        return True
+        sys.exit(1)
 
     console.print()
     success(f"Project '{name}' created at {result['target']}")
@@ -191,6 +192,26 @@ def handle_command(command: str, args: list[str]) -> bool:
         console.print("  [dim]Agent:[/dim]     created (full framework agent)")
     else:
         console.print("  [dim]Agent:[/dim]     skipped (--no-agent)")
+
+    json_handler.log_operation(
+        "new_project_create",
+        {"name": name, "template": template, "target": result["target"]},
+    )
+    logger.info("[AIPASS] new project: %s (%s) at %s", name, template, result["target"])
+
+    if result["agent_created"] and sys.stdin.isatty():
+        console.print()
+        console.print("[dim]Launching your manager agent — Ctrl-C to stay in the shell[/dim]")
+        console.print()
+        from aipass.aipass.apps.handlers.handoff_platform import launch_inline
+
+        launch_inline(
+            "claude",
+            "You are the new resident agent of this project."
+            " Read your passport and README, then tell me what you can do.",
+            result["agent_home"],
+        )
+
     console.print()
     console.print("[yellow]Next steps:[/yellow]")
     if result["agent_created"]:
@@ -199,10 +220,4 @@ def handle_command(command: str, args: list[str]) -> bool:
     else:
         console.print(f"  [cyan]cd {result['target']}[/cyan]")
     console.print()
-
-    json_handler.log_operation(
-        "new_project_create",
-        {"name": name, "template": template, "target": result["target"]},
-    )
-    logger.info("[AIPASS] new project: %s (%s) at %s", name, template, result["target"])
     return True

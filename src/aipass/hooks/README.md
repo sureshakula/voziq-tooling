@@ -35,6 +35,9 @@ drone @hooks --help              # Full help reference
 | `drone @hooks hooksound` | Show current sound mute status |
 | `drone @hooks hooksound off` | Mute all hook sounds |
 | `drone @hooks hooksound on` | Unmute all hook sounds |
+| `drone @hooks feedback` | Show feedback pulse status (enabled/disabled) |
+| `drone @hooks feedback off` | Disable feedback pulse for this project |
+| `drone @hooks feedback on` | Enable feedback pulse for this project |
 | `drone @hooks dismiss <alert-id>` | Remove an alert from `.aipass/alerts.json` |
 | `drone @hooks cadence` | Show prompt injection cadence config and state |
 | `drone @hooks verify` | Cross-check provider settings vs project hook config |
@@ -66,6 +69,7 @@ src/aipass/hooks/
 │   │   ├── hook_test.py         # Portable test runner (drone @hooks test)
 │   │   ├── cc_sessions.py       # CC-native session file reader (~/.claude/sessions/<pid>.json)
 │   │   ├── engine.py            # Core dispatch — routes events to handlers
+│   │   ├── feedback.py          # Feedback pulse toggle (drone @hooks feedback on/off)
 │   │   ├── hooksound.py         # Sound control (drone @hooks hooksound on/off)
 │   │   ├── hookstatus.py        # Config viewer (drone @hooks status)
 │   │   ├── alert_dismiss.py      # Dismiss alerts (drone @hooks dismiss <id>)
@@ -81,6 +85,7 @@ src/aipass/hooks/
 │   │   │   ├── tier0_kernel.py  #   Injects tier0 kernel prompt (every turn)
 │   │   │   ├── navmap.py        #   Injects tier1 navmap prompt (periodic)
 │   │   │   ├── identity.py      #   Injects passport identity block
+│   │   │   ├── feedback_pulse.py #  Periodic feedback ask (~10 turns, toggleable)
 │   │   │   └── persistent_alert.py # Injects advisory banners from .aipass/alerts.json
 │   │   ├── security/            # Enforcement hooks
 │   │   │   ├── edit_gate.py     #   Blocks unsafe edits (cross-branch, inbox, diagnostics)
@@ -127,7 +132,7 @@ Handlers are called **dynamically at runtime** — the engine uses `importlib.im
 
 | Event | Hooks | Description |
 |---|---|---|
-| UserPromptSubmit | presence_gate, persistent_alert, identity, email, branch_loader, tier0_kernel, navmap, auto_process, user_message_relay | Presence gate + alerts + prompt injection + inbox + auto-process + TG mirror |
+| UserPromptSubmit | presence_gate, persistent_alert, identity, email, branch_loader, tier0_kernel, navmap, feedback_pulse, auto_process, user_message_relay | Presence gate + alerts + prompt injection + inbox + feedback + auto-process + TG mirror |
 | PreToolUse | tool_sound, edit_gate, git_gate, rm_gate, registry_gate | Security gates + guardrails + sound |
 | PostToolUse | auto_fix, auto_watchdog | Diagnostics + watchdog |
 | SubagentStop | subagent_gate | Seedgo validation |

@@ -50,6 +50,7 @@ _PUBLIC_COMMANDS = {
     "new": "Create a project inside AIPass",
     "profile": "Show/edit user profile",
     "trust": "Trust registry — enroll/revoke projects",
+    "feedback": "Toggle the feedback reminder on/off",
 }
 
 # =============================================================================

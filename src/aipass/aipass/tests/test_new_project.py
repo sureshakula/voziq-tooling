@@ -624,6 +624,104 @@ def test_prompt_agent_eof():
 
 
 # ---------------------------------------------------------------------------
+# TTY auto-launch (FIX 3: aipass new auto-launches on TTY)
+# ---------------------------------------------------------------------------
+
+
+def test_tty_auto_launches_agent(host_env, monkeypatch):
+    """On a TTY with an agent created, launch_inline is called."""
+    from aipass.aipass.apps.modules.new_project import handle_command
+
+    monkeypatch.chdir(host_env)
+    spawn_ok = {
+        "success": True,
+        "branch_name": "LAUNCH",
+        "path": str(host_env / "projects" / "launch"),
+        "files_copied": 12,
+        "registry_updated": True,
+        "validation_issues": [],
+    }
+    with (
+        patch("subprocess.run", side_effect=_mock_git_run),
+        patch("builtins.input", return_value=""),
+        patch(
+            "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
+            return_value=None,
+        ),
+        patch("aipass.aipass.apps.handlers.init.bootstrap._enroll_project"),
+        patch(
+            "aipass.aipass.apps.handlers.new_project.spawn_agent",
+            return_value=spawn_ok,
+        ),
+        patch("aipass.aipass.apps.modules.new_project.console"),
+        patch("aipass.aipass.apps.modules.new_project.sys") as mock_sys,
+        patch("aipass.aipass.apps.handlers.handoff_platform.launch_inline") as mock_launch,
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        handle_command("new", ["launch", "--template", "empty"])
+    mock_launch.assert_called_once()
+    assert "launch" in mock_launch.call_args[0][2]
+
+
+def test_no_tty_skips_auto_launch(host_env, monkeypatch):
+    """On a non-TTY, launch_inline is NOT called — fallback to printed instructions."""
+    from aipass.aipass.apps.modules.new_project import handle_command
+
+    monkeypatch.chdir(host_env)
+    spawn_ok = {
+        "success": True,
+        "branch_name": "PIPED",
+        "path": str(host_env / "projects" / "piped"),
+        "files_copied": 12,
+        "registry_updated": True,
+        "validation_issues": [],
+    }
+    with (
+        patch("subprocess.run", side_effect=_mock_git_run),
+        patch("builtins.input", return_value=""),
+        patch(
+            "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
+            return_value=None,
+        ),
+        patch("aipass.aipass.apps.handlers.init.bootstrap._enroll_project"),
+        patch(
+            "aipass.aipass.apps.handlers.new_project.spawn_agent",
+            return_value=spawn_ok,
+        ),
+        patch("aipass.aipass.apps.modules.new_project.console") as mock_con,
+        patch("aipass.aipass.apps.modules.new_project.sys") as mock_sys,
+        patch("aipass.aipass.apps.handlers.handoff_platform.launch_inline") as mock_launch,
+    ):
+        mock_sys.stdin.isatty.return_value = False
+        handle_command("new", ["piped", "--template", "empty"])
+    mock_launch.assert_not_called()
+    printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
+    assert "cd" in printed
+    assert "claude" in printed
+
+
+def test_no_agent_skips_auto_launch(host_env, monkeypatch):
+    """With --no-agent, launch_inline is not called even on TTY."""
+    from aipass.aipass.apps.modules.new_project import handle_command
+
+    monkeypatch.chdir(host_env)
+    with (
+        patch("subprocess.run", side_effect=_mock_git_run),
+        patch(
+            "aipass.aipass.apps.handlers.init.bootstrap._detect_aipass_home",
+            return_value=None,
+        ),
+        patch("aipass.aipass.apps.handlers.init.bootstrap._enroll_project"),
+        patch("aipass.aipass.apps.modules.new_project.console"),
+        patch("aipass.aipass.apps.modules.new_project.sys") as mock_sys,
+        patch("aipass.aipass.apps.handlers.handoff_platform.launch_inline") as mock_launch,
+    ):
+        mock_sys.stdin.isatty.return_value = True
+        handle_command("new", ["nolaunch", "--template", "empty", "--no-agent"])
+    mock_launch.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # aipass.py entry point help (cli_ux)
 # ---------------------------------------------------------------------------
 

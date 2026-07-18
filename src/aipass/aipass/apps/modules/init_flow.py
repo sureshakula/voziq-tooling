@@ -96,7 +96,7 @@ TEMPLATE_EMPTY = "empty project"
 TEMPLATE_AIPASS = "aipass_framework"
 TEMPLATE_CHOICES = [TEMPLATE_EMPTY, TEMPLATE_AIPASS]
 # first_agent, ping_sweep, handoff, done — skipped for empty (non-framework) projects
-AIPASS_SPECIFIC_STAGES = {6, 7, 9, 10}
+AIPASS_SPECIFIC_STAGES = {6, 7}
 
 
 # --- LOCAL JSON HELPERS ---
@@ -603,29 +603,35 @@ def stage_9_handoff(
     console.print()
     console.print(render_step_header(9, TOTAL_STAGES, "Handoff"))
 
-    init_prompt = "I just completed aipass init. I am ready to start. What should I do first?"
+    from aipass.aipass.apps.modules.handoff import INIT_PROMPT
 
+    init_prompt = INIT_PROMPT
+
+    _template = (accumulated or {}).get("template", TEMPLATE_AIPASS)
     console.print()
-    console.print("  Your agent is ready.")
-    console.print(f"  [dim]CLI: {cli_choice} | Agent: {agent_path}[/dim]")
+    if _template == TEMPLATE_AIPASS:
+        console.print("  Your agent is ready.")
+        console.print(f"  [dim]CLI: {cli_choice} | Agent: {agent_path}[/dim]")
+    else:
+        _display = str(Path(agent_path).resolve()) if agent_path == "." else agent_path
+        console.print("  Your project is ready — launching your CLI.")
+        console.print(f"  [dim]CLI: {cli_choice} | Project: {_display}[/dim]")
 
     from aipass.aipass.apps.handlers.handoff_platform import build_manual_command
 
-    command = build_manual_command(cli_choice, init_prompt, agent_path, flag_variant)
+    display_path = str(Path(agent_path).resolve()) if agent_path == "." else agent_path
+    command = build_manual_command(cli_choice, init_prompt, display_path, flag_variant)
     inline = False
 
     if dry_run:
         console.print(f"[yellow]\\[dry-run][/yellow] would launch handoff: {command}")
         launched = False
     elif non_interactive:
-        from aipass.aipass.apps.modules import handoff as handoff_mod
-
-        launched = handoff_mod.do_handoff(
-            cli=cli_choice,
-            prompt=init_prompt,
-            cwd=agent_path,
-            flag_variant=flag_variant,
-        )
+        console.print()
+        console.print("  [dim]Next step (run manually):[/dim]")
+        console.print(f"  [cyan]{command}[/cyan]")
+        console.print()
+        launched = False
     else:
         console.print()
         console.print("  [bold]1.[/bold] Stay here — launch agent in this terminal")
@@ -784,6 +790,9 @@ def run_init(
     template: str | None = None,
 ) -> int:
     """Run the 10-stage init flow. Returns 0 on success."""
+    if not sys.stdin.isatty():
+        non_interactive = True
+
     # Pre-flight: refuse to run inside existing projects or agent dirs
     err = _preflight_check()
     if err:
@@ -825,6 +834,8 @@ def run_init(
         warning(f"Resuming from stage {last_done + 1}...")
 
     accumulated: Dict[str, Any] = {"template": template}
+    if template != TEMPLATE_AIPASS:
+        accumulated["agent_path"] = "."
 
     stage_fns = [
         (1, lambda: stage_1_welcome(dry_run=dry_run)),
@@ -854,6 +865,8 @@ def run_init(
             continue
         if stage_num in AIPASS_SPECIFIC_STAGES and template != TEMPLATE_AIPASS:
             logger.info("[init_flow] skipping stage %d (not aipass_framework)", stage_num)
+            if not non_interactive:
+                console.print(f"\n[dim]  (skipping step {stage_num} — framework-only)[/dim]")
             continue
         try:
             result = fn() or {}
@@ -866,11 +879,6 @@ def run_init(
             logger.warning("[init_flow] stage %d error: %s", stage_num, exc)
             warning(f"Stage {stage_num} error: {exc} — continuing.")
             _save_stage(stage_num, {"error": str(exc)}, dry_run=dry_run)
-
-    if template != TEMPLATE_AIPASS:
-        console.print()
-        success("Project initialized.")
-        console.print("[dim]Run 'aipass init agent <name>' to add an agent.[/dim]")
 
     return 0
 

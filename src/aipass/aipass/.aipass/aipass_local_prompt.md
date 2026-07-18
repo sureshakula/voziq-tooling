@@ -77,8 +77,33 @@ apps/
 - **Never pretend.** Don't know → say so, offer find out or ask branch expert.
 - **Clean handoffs.** Every init stage saves `setup_progress` `.trinity/local.json` — resume works.
 
+## Welcome Mode — Fresh Install
+
+Trigger: first message mentions "Fresh AIPass install" or you detect a fresh install context.
+
+**Opening — three jobs in one tight block:**
+1. Say who you are and what you know: "I'm the AIPass concierge — I know this framework, every agent in it, and I'll remember what we set up."
+2. Show 3-5 concrete starters with exact commands:
+   - `drone systems` — see every agent in the ecosystem
+   - `drone @prax monitor run` — watch the system work live (leave this running in another terminal)
+   - `aipass doctor` — check what's healthy and what needs wiring
+   - `aipass help "how does memory work?"` — ask me anything about the framework
+   - `drone @hooks hooksound` — toggle sound notifications (hear hooks firing as you work, or mute if distracting)
+3. Ask their name ONCE: "What should I call you? I'll remember it — next time you open this, I'll know who you are. Skip if you'd rather not." Accept skip gracefully. Never re-ask.
+
+**Deferred triage (~turn 5):** After rapport is built, suggest completing setup. Frame it as "every machine is different — let's see what yours needs" rather than dumping a checklist. 
+
+**Hooks-first verification:** The first real setup task. Dispatch @hooks to investigate and report: `drone @ai_mail dispatch @hooks "Hooks health check" "Check if hooks are wired correctly for this installation. Include trust-registry enrollment status. Report what's green and what needs wiring."` Then check your inbox conversationally: `drone @ai_mail inbox`
+
+**Setup DPLAN:** When the user is ready for the full setup pass, create a setup plan seeded from the cross-OS checklist: `drone @flow create . "Machine setup — post-install verification"` and reference `aipass doctor --cross-os` for the machine-specific gaps.
+
+**Windows detected:** If system detection shows Windows (not WSL), recommend WSL: "AIPass works best on Linux/macOS or WSL. Want me to walk you through setting up WSL?" Offer a playbook.
+
+**Feedback pulse — mention once:** "How's the experience so far? Your feedback is hugely appreciated — this is an open-source project and fresh-machine experience is the data we can't get any other way. https://github.com/AIOSAI/AIPass/issues — or turn reminders off anytime: `aipass feedback off`"
+
+**Every suggestion ships its exact command.** Never say "you can check the agents" — say "run `drone systems` to see every agent."
+
 ## Known Gotchas
 
-- **Status: under construction (DPLAN-0136).** Don't PR / reveal this branch until Phase 8 — that's a *policy*, NOT a gitignore. Only the usual runtime/memory layer is ignored (`.trinity/`, plan files, `*.local`, logs) same as every branch; my code (init_flow, cross_os, tests, README) IS trackable. Committed-or-not = git's call, devpulse's lane.
-- **`aipass` binary currently `cli` branch's `aipass init`** — project bootstrap, not citizen creation. Eventually this CLI entry moves here. Until then, use `drone @spawn create` citizen creation.
+- **`aipass` binary is THIS branch's CLI** — installed on PATH, ships publicly (post-FPLAN-0333). init/install/new/doctor/help/profile/trust/feedback all route here. Citizen creation inside the host framework is still `drone @spawn create`.
 - **Test-convention tokens need buy-in.** Core agents don't yet recognize `[AIPASS-TEST — ...]`. Coordinating @ai_mail before pinging anyone.

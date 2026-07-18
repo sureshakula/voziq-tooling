@@ -179,17 +179,21 @@ def _verify_binaries(home: Path) -> Dict[str, str | None]:
     return {"drone": drone, "aipass": aipass}
 
 
-def _should_run_init(non_interactive: bool, with_init: bool, no_init: bool) -> bool:
-    """Decide whether to auto-launch init. --no-init wins; --with-init forces on.
+def _build_install_prompt(home: Path, bins: dict) -> str:
+    """Compose the authored first prompt for the post-install @aipass chat."""
+    parts = [f"Fresh AIPass install completed at {home}."]
+    for name, path in bins.items():
+        if path:
+            parts.append(f"{name}: {path}.")
+    parts.append(
+        "This is my first time here — what can I do with AIPass? Show me a few things to try, with the exact commands."
+    )
+    return " ".join(parts)
 
-    Default: interactive flows chain into init ("one command, done"); headless
-    flows stop at a wired engine and print the next command (safe for CI/Docker).
-    """
-    if no_init:
-        return False
-    if with_init:
-        return True
-    return not non_interactive
+
+def _should_run_init(no_init: bool) -> bool:
+    """Decide whether to auto-launch init. --no-init skips; default = always chain."""
+    return not no_init
 
 
 def _handoff_to_init(
@@ -357,13 +361,26 @@ def run_install(
     # Step 4 — hand off into init (or print next steps)
     console.print()
     console.print(render_step_header(4, TOTAL_STEPS, "First project"))
-    run_it = _should_run_init(non_interactive, with_init, no_init)
+    run_it = _should_run_init(no_init)
     _handoff_to_init(home, bins.get("aipass"), non_interactive, dry_run, project, run_it)
 
+    # Log BEFORE exec — launch_inline replaces the process and never returns
     json_handler.log_operation(
         "aipass_install",
         {"home": str(home), "non_interactive": non_interactive, "dry_run": dry_run, "init": run_it},
     )
+
+    # Install-to-chat handoff — launch @aipass concierge in same terminal
+    if run_it and not dry_run and sys.stdin.isatty():
+        prompt = _build_install_prompt(home, bins)
+        aipass_branch = str(Path(__file__).resolve().parents[2])
+        console.print()
+        console.print("[dim]Launching the AIPass concierge — Ctrl-C to stay in the shell[/dim]")
+        console.print()
+        from aipass.aipass.apps.handlers.handoff_platform import launch_inline
+
+        launch_inline("claude", prompt, aipass_branch)
+
     return 0
 
 

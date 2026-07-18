@@ -35,7 +35,8 @@ aipass/
 │   │   ├── install.py                     # aipass install — one-command bootstrap (clone + setup + init)
 │   │   ├── new_project.py                 # aipass new — create projects inside the installation
 │   │   ├── profile.py                     # User profile read/write
-│   │   └── trust.py                       # Trust registry — aipass trust / aipass revoke
+│   │   ├── trust.py                       # Trust registry — aipass trust / aipass revoke
+│   │   └── feedback.py                    # Feedback pulse toggle — aipass feedback on/off
 │   ├── handlers/
 │   │   ├── cross_os/                      # Cross-OS pre-flight: gap_registry, preflight, run_record
 │   │   ├── handoff_platform/              # Platform-specific handoff detection
@@ -49,7 +50,7 @@ aipass/
 │   │   ├── system_detect/                 # OS, shell, Python, RAM, CPU
 │   │   └── ui/                            # Progress bars, menus, banners
 │   └── plugins/
-├── tests/                                 # 723 passing
+├── tests/                                 # 756 passing
 ├── requirements.project.txt               # Project-specific Python dependencies
 ├── .trinity/                              # Identity + session history + observations
 └── README.md
@@ -75,6 +76,7 @@ aipass/
 | `aipass new <name> --no-agent` | Create without resident agent |
 | `aipass trust [path]` | Show enrolled projects or enroll a project in the trust registry |
 | `aipass revoke <path>` | Remove a project from the trust registry |
+| `aipass feedback on/off` | Toggle the feedback reminder pulse (delegates to @hooks) |
 | `aipass --version` | Version |
 
 ## Integration Points

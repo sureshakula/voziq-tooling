@@ -586,6 +586,17 @@ class TestStages:
             result = stage_9_handoff(agent_path="src/mybot", non_interactive=True)
         assert "src/mybot" in result["handoff_command"]
 
+    def test_stage_9_non_interactive_no_spawn(self, tmp_local_json) -> None:
+        """Non-interactive stage 9 prints the command but never spawns a session."""
+        with (
+            patch(f"{_MOD}.console"),
+            patch("aipass.aipass.apps.modules.handoff.do_handoff") as mock_handoff,
+        ):
+            result = stage_9_handoff(non_interactive=True)
+        mock_handoff.assert_not_called()
+        assert result["launched"] is False
+        assert result["handoff_command"]
+
     def test_stage_10_done_returns_empty(self, tmp_local_json) -> None:
         """stage_10_done returns {} and marks stage 10 complete."""
         with patch(f"{_MOD}.console"):
@@ -785,8 +796,8 @@ class TestTemplateSelector:
         ]
         return {name: MagicMock(return_value={}) for name in stage_names}
 
-    def test_empty_project_default_skips_scaffold(self, tmp_local_json) -> None:
-        """empty project (default) = no scaffold; framework-only stages 6,7,9,10 skipped."""
+    def test_empty_project_default_skips_agent_and_ping(self, tmp_local_json) -> None:
+        """empty project (default) = no scaffold; framework-only stages 6,7 skipped; 9,10 run."""
         mocks = self._stage_patches()
         with patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks):
             result = run_init(non_interactive=True, template=TEMPLATE_EMPTY)
@@ -798,9 +809,11 @@ class TestTemplateSelector:
             "stage_4_style_questions",
             "stage_5_tool_choice",
             "stage_8_smoke_test",
+            "stage_9_handoff",
+            "stage_10_done",
         ):
             assert mocks[name].called, f"{name} should have been called"
-        for name in ("stage_6_first_agent", "stage_7_ping_sweep", "stage_9_handoff", "stage_10_done"):
+        for name in ("stage_6_first_agent", "stage_7_ping_sweep"):
             assert not mocks[name].called, f"{name} should NOT have been called"
 
     def test_aipass_framework_runs_full_scaffold(self, tmp_local_json) -> None:
@@ -862,6 +875,27 @@ class TestTemplateSelector:
             assert "setup.sh" in msg
             assert "pip" not in msg
 
+    def test_empty_template_stage9_gets_cwd_as_agent_path(self, tmp_local_json) -> None:
+        """Empty template sets agent_path='.' so stage 9 hands off from CWD."""
+        mocks = self._stage_patches()
+        with patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks):
+            run_init(non_interactive=True, template=TEMPLATE_EMPTY)
+        stage_9_call = mocks["stage_9_handoff"].call_args
+        assert stage_9_call is not None
+        agent_path_arg = stage_9_call[0][2] if len(stage_9_call[0]) > 2 else stage_9_call[1].get("agent_path", "")
+        assert agent_path_arg == "."
+
+    def test_non_tty_forces_non_interactive(self, tmp_local_json) -> None:
+        """When stdin is not a TTY, run_init auto-forces non_interactive (no crash)."""
+        mocks = self._stage_patches()
+        with (
+            patch.multiple(_MOD, console=MagicMock(), warning=MagicMock(), **mocks),
+            patch("sys.stdin") as mock_stdin,
+        ):
+            mock_stdin.isatty.return_value = False
+            rc = run_init(non_interactive=False, template=TEMPLATE_EMPTY)
+        assert rc == 0
+
     def test_aipass_specific_stages_constant(self) -> None:
-        """AIPASS_SPECIFIC_STAGES contains exactly {6, 7, 9, 10}."""
-        assert AIPASS_SPECIFIC_STAGES == {6, 7, 9, 10}
+        """AIPASS_SPECIFIC_STAGES contains exactly {6, 7} — stages 9/10 run for ALL templates."""
+        assert AIPASS_SPECIFIC_STAGES == {6, 7}
