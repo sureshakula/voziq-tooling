@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: doctor_wire.py
+# Name: _doctor_wire.py
 # Description: Auto-wire provider settings from manifest into user config
 # Version: 1.0.0
 # Created: 2026-05-08

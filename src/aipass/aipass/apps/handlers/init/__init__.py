@@ -11,6 +11,7 @@
 from aipass.aipass.apps.handlers.init.bootstrap import (
     _sanitize_name,
     init_project,
+    is_projects_child,
     update_project,
 )
 from aipass.aipass.apps.handlers.init.scaffold_content import (
@@ -25,6 +26,7 @@ __all__ = [
     "global_prompt_md",
     "inbox_json",
     "init_project",
+    "is_projects_child",
     "prep_md",
     "update_project",
     "with_source",

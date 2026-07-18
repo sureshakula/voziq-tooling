@@ -117,6 +117,12 @@ def print_help():
     console.print()
     console.print("[bold cyan]PRAX - System-Wide Logging Infrastructure[/bold cyan]")
     console.print()
+    console.print("[dim]Unified logging system for AIPass ecosystem[/dim]")
+    console.print()
+
+    console.print("[bold cyan]Usage:[/bold cyan]")
+    console.print("  [green]drone @prax <command>[/green] [dim][options][/dim]")
+    console.print()
 
     console.print("[yellow]Commands:[/yellow]")
     console.print("  [cyan]monitor[/cyan]     Mission Control - unified real-time monitoring")

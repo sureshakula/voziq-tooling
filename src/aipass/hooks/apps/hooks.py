@@ -33,9 +33,7 @@ if sys.platform == "win32":
             _reconfigure(encoding="utf-8", errors="replace")
 
 from aipass.prax.apps.modules.logger import system_logger as logger  # noqa: E402
-from aipass.cli.apps.modules import err_console  # noqa: E402
-
-CONSOLE = err_console
+from aipass.cli.apps.modules import console  # noqa: E402
 
 # =============================================================================
 # MODULE DISCOVERY
@@ -85,86 +83,86 @@ def discover_modules() -> list[Any]:
 def print_introspection():
     """Print branch introspection — discovered modules and capabilities."""
     modules = discover_modules()
-    CONSOLE.print()
-    CONSOLE.print("[bold cyan]HOOKS — Hook Infrastructure for AIPass[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print("[dim]Dispatches hooks across platforms with per-project config, logging, and crash isolation.[/dim]")
-    CONSOLE.print()
+    console.print()
+    console.print("[bold cyan]HOOKS — Hook Infrastructure for AIPass[/bold cyan]")
+    console.print()
+    console.print("[dim]Dispatches hooks across platforms with per-project config, logging, and crash isolation.[/dim]")
+    console.print()
 
-    CONSOLE.print(f"[yellow]Discovered Modules:[/yellow] {len(modules)}")
-    CONSOLE.print()
+    console.print(f"[yellow]Discovered Modules:[/yellow] {len(modules)}")
+    console.print()
     for module in modules:
         name = module.__name__.split(".")[-1]
         desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
-        CONSOLE.print(f"  [cyan]•[/cyan] {name:20} [dim]{desc}[/dim]")
+        console.print(f"  [cyan]•[/cyan] {name:20} [dim]{desc}[/dim]")
 
-    CONSOLE.print()
-    CONSOLE.print("Run [green]'drone @hooks --help'[/green] for usage information")
-    CONSOLE.print()
+    console.print()
+    console.print("Run [green]'drone @hooks --help'[/green] for usage information")
+    console.print()
 
 
 def print_help():
     """Print CLI help — usage instructions and available commands."""
     modules = discover_modules()
-    CONSOLE.print()
-    CONSOLE.print("[bold cyan]HOOKS[/bold cyan] [dim]v1.1.0[/dim] — Hook Infrastructure for AIPass")
-    CONSOLE.print()
-    CONSOLE.print("[dim]Dispatches hooks across platforms with per-project config, logging, and crash isolation.[/dim]")
-    CONSOLE.print()
-    CONSOLE.print("─" * 70)
-    CONSOLE.print()
+    console.print()
+    console.print("[bold cyan]HOOKS[/bold cyan] [dim]v1.1.0[/dim] — Hook Infrastructure for AIPass")
+    console.print()
+    console.print("[dim]Dispatches hooks across platforms with per-project config, logging, and crash isolation.[/dim]")
+    console.print()
+    console.print("─" * 70)
+    console.print()
 
-    CONSOLE.print("[bold cyan]USAGE:[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print("  [dim]drone @hooks <command> [args...][/dim]")
-    CONSOLE.print("  [dim]drone @hooks --help[/dim]")
-    CONSOLE.print()
-    CONSOLE.print("─" * 70)
-    CONSOLE.print()
+    console.print("[bold cyan]USAGE:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @hooks <command> [args...][/dim]")
+    console.print("  [dim]drone @hooks --help[/dim]")
+    console.print()
+    console.print("─" * 70)
+    console.print()
 
-    CONSOLE.print("[bold cyan]COMMANDS:[/bold cyan]")
-    CONSOLE.print()
+    console.print("[bold cyan]COMMANDS:[/bold cyan]")
+    console.print()
     for module in modules:
         commands = getattr(module, "HELP_COMMANDS", None)
         if commands:
             for cmd, desc in commands:
-                CONSOLE.print(f"  [green]{cmd:26}[/green] [dim]{desc}[/dim]")
+                console.print(f"  [green]{cmd:26}[/green] [dim]{desc}[/dim]")
         else:
             name = module.__name__.split(".")[-1]
             desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
-            CONSOLE.print(f"  [green]{name:26}[/green] [dim]{desc}[/dim]")
+            console.print(f"  [green]{name:26}[/green] [dim]{desc}[/dim]")
 
-    CONSOLE.print()
-    CONSOLE.print("─" * 70)
-    CONSOLE.print()
+    console.print()
+    console.print("─" * 70)
+    console.print()
 
-    CONSOLE.print("[bold cyan]BRIDGES:[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print(
+    console.print("[bold cyan]BRIDGES:[/bold cyan]")
+    console.print()
+    console.print(
         "  [green]claude[/green]                     [dim]Claude Code bridge (provider settings entry point)[/dim]"
     )
-    CONSOLE.print()
-    CONSOLE.print("─" * 70)
-    CONSOLE.print()
+    console.print()
+    console.print("─" * 70)
+    console.print()
 
-    CONSOLE.print("[bold cyan]EXAMPLES:[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print("  [dim]drone @hooks status[/dim]              [dim]# Show hook config for current project[/dim]")
-    CONSOLE.print("  [dim]drone @hooks log[/dim]                 [dim]# Tail recent hook activity[/dim]")
-    CONSOLE.print("  [dim]drone @hooks hooksound off[/dim]       [dim]# Mute all hook sounds[/dim]")
-    CONSOLE.print("  [dim]drone @hooks hooksound on[/dim]        [dim]# Unmute all hook sounds[/dim]")
-    CONSOLE.print()
-    CONSOLE.print("─" * 70)
-    CONSOLE.print()
+    console.print("[bold cyan]EXAMPLES:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @hooks status[/dim]              [dim]# Show hook config for current project[/dim]")
+    console.print("  [dim]drone @hooks log[/dim]                 [dim]# Tail recent hook activity[/dim]")
+    console.print("  [dim]drone @hooks hooksound off[/dim]       [dim]# Mute all hook sounds[/dim]")
+    console.print("  [dim]drone @hooks hooksound on[/dim]        [dim]# Unmute all hook sounds[/dim]")
+    console.print()
+    console.print("─" * 70)
+    console.print()
 
-    CONSOLE.print("[bold cyan]FLAGS:[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print("  [green]--help, -h[/green]                 [dim]Show this help message[/dim]")
-    CONSOLE.print("  [green]--version, -V[/green]              [dim]Show version[/dim]")
-    CONSOLE.print()
-    CONSOLE.print("[bold]TIP:[/bold] For command-specific help:")
-    CONSOLE.print("  [dim]drone @hooks <command> --help[/dim]")
-    CONSOLE.print()
+    console.print("[bold cyan]FLAGS:[/bold cyan]")
+    console.print()
+    console.print("  [green]--help, -h[/green]                 [dim]Show this help message[/dim]")
+    console.print("  [green]--version, -V[/green]              [dim]Show version[/dim]")
+    console.print()
+    console.print("[bold]TIP:[/bold] For command-specific help:")
+    console.print("  [dim]drone @hooks <command> --help[/dim]")
+    console.print()
 
 
 def route_command(command: str, args: list[str], modules: list[Any]) -> bool:
@@ -192,7 +190,7 @@ def handle_command(command: str, args: list) -> bool:
         return True
 
     if command in ["--version", "-V"]:
-        CONSOLE.print("hooks 1.1.0")
+        console.print("hooks 1.1.0")
         return True
 
     return route_command(command, args, modules)
@@ -209,7 +207,7 @@ def main() -> int:
     if handle_command(args[0], args[1:]):
         return 0
 
-    CONSOLE.print(f"Unknown command: {args[0]}. Try: drone @hooks --help")
+    console.print(f"Unknown command: {args[0]}. Try: drone @hooks --help")
     return 1
 
 

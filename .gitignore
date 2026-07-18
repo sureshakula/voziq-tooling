@@ -124,6 +124,12 @@ src/aipass/*/apps/integrations/**
 src/aipass/hooks/tools/*
 !src/aipass/hooks/tools/install_boot_shim.sh
 
+# User/sample projects — each is its own git repo (git init on create).
+# Contents never belong to the AIPass repo; only the catalog README is tracked
+# so the public repo can point at the standalone project repos.
+projects/*
+!projects/README.md
+
 # CI artifacts
 windows-pytest-results/
 

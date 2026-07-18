@@ -197,3 +197,66 @@ def test_collect_py_files_empty_branch(tmp_path):
 
     result = _collect_py_files(tmp_path)
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Tests -- uppercase registry name resolves to lowercase entry point
+# ---------------------------------------------------------------------------
+
+
+def test_uppercase_registry_name_resolves_to_lowercase_entry(tmp_path):
+    """Branches with uppercase registry names (BACKUP, HOOKS, etc.) must
+    resolve to lowercase filesystem paths for entry_file."""
+    from aipass.seedgo.apps.handlers.audit.discovery import _branches_from_registry
+
+    # Create a mock registry with uppercase branch name
+    branch_dir = tmp_path / "backup"
+    branch_dir.mkdir()
+    apps_dir = branch_dir / "apps"
+    apps_dir.mkdir()
+    (apps_dir / "backup.py").write_text("def main(): pass\n")
+
+    registry = {
+        "branches": [
+            {"name": "BACKUP", "path": str(branch_dir)},
+        ]
+    }
+    reg_file = tmp_path / "TEST_REGISTRY.json"
+    import json
+
+    reg_file.write_text(json.dumps(registry))
+
+    result = _branches_from_registry(reg_file)
+    assert len(result) == 1
+    assert result[0]["name"] == "BACKUP"
+    assert result[0]["entry_file"].endswith("backup.py")
+    assert "BACKUP.py" not in result[0]["entry_file"]
+
+
+def test_uppercase_registry_name_no_entry_when_only_uppercase_file(tmp_path):
+    """If a branch only has an UPPERCASE.py file (not lowercase), it should not be found."""
+    from aipass.seedgo.apps.handlers.audit.discovery import _branches_from_registry
+
+    branch_dir = tmp_path / "backup"
+    branch_dir.mkdir()
+    apps_dir = branch_dir / "apps"
+    apps_dir.mkdir()
+    (apps_dir / "BACKUP.py").write_text("def main(): pass\n")
+
+    registry = {
+        "branches": [
+            {"name": "BACKUP", "path": str(branch_dir)},
+        ]
+    }
+    reg_file = tmp_path / "TEST_REGISTRY.json"
+    import json
+
+    reg_file.write_text(json.dumps(registry))
+
+    result = _branches_from_registry(reg_file)
+    # On case-insensitive filesystems (macOS/Windows), BACKUP.py might match backup.py
+    # On case-sensitive (Linux), no match → empty result
+    import platform
+
+    if platform.system() == "Linux":
+        assert len(result) == 0

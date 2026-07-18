@@ -20,6 +20,24 @@
 
 ---
 
+## Quick Start
+
+```bash
+# Create a new branch
+drone @spawn create /path/to/my_agent --role "Analyst" --purpose "Data reports"
+
+# Preview an update before applying
+drone @spawn update @my_agent
+
+# Apply the update
+drone @spawn update @my_agent --apply
+
+# Check registry health
+drone @spawn sync-registry
+```
+
+---
+
 ## Citizen Classes
 
 Every branch belongs to a **citizen class**, which determines its template:

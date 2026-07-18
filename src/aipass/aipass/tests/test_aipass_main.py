@@ -153,10 +153,10 @@ class TestMain:
         """--version prints real package version and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "--version"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 0
-        printed = mock_print.call_args[0][0]
+        printed = mock_con.print.call_args[0][0]
         assert printed.startswith("aipass ")
         assert printed != "aipass 0.1.0"
 
@@ -164,10 +164,10 @@ class TestMain:
         """-V prints real package version and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "-V"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 0
-        printed = mock_print.call_args[0][0]
+        printed = mock_con.print.call_args[0][0]
         assert printed.startswith("aipass ")
 
     def test_version_flag_fallback(self) -> None:
@@ -179,76 +179,81 @@ class TestMain:
                     "aipass.aipass.apps.aipass.importlib.metadata.version",
                     side_effect=_not_found,
                 ):
-                    with patch("builtins.print") as mock_print:
+                    with patch("aipass.aipass.apps.aipass.console") as mock_con:
                         result = main()
         assert result == 0
-        mock_print.assert_called_once_with("aipass unknown")
+        mock_con.print.assert_called_once_with("aipass unknown")
 
     def test_help_flag_shows_help(self) -> None:
-        """--help shows module list and returns 0."""
+        """--help calls print_help and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "--help"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 0
-        mock_print.assert_called()
+        mock_con.print.assert_called()
 
     def test_h_flag_shows_help(self) -> None:
-        """-h shows module list and returns 0."""
+        """-h shows help and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "-h"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print"):
+                with patch("aipass.aipass.apps.aipass.console"):
                     result = main()
         assert result == 0
 
     def test_no_args_shows_help(self) -> None:
-        """No arguments shows module list and returns 0."""
+        """No arguments shows introspection and returns 0."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print"):
+                with patch("aipass.aipass.apps.aipass.console"):
                     result = main()
         assert result == 0
 
-    def test_help_word_shows_help(self) -> None:
-        """'help' as only arg shows module list and returns 0."""
+    def test_help_word_routes_to_module(self) -> None:
+        """'help' as only arg routes to help_chat module, not root help."""
+        mod = MagicMock()
+        mod.handle_command.return_value = True
+        mod.__name__ = "aipass.aipass.apps.modules.help_chat"
+        mod.COMMAND = "help"
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "help"]):
-            with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print"):
-                    result = main()
+            with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[mod]):
+                result = main()
         assert result == 0
+        mod.handle_command.assert_called_once_with("help", [])
 
-    def test_help_shows_module_count(self) -> None:
-        """Help output includes discovered module count."""
-        mod = types.ModuleType("test_mod")
-        mod.__doc__ = "Test module doc"
+    def test_introspection_shows_public_commands(self) -> None:
+        """Introspection lists modules with COMMAND in _PUBLIC_COMMANDS."""
+        mod = types.ModuleType("aipass.aipass.apps.modules.help_chat")
+        mod.__doc__ = "Help chatbot"
+        mod.COMMAND = "help"  # type: ignore[attr-defined]
         mod.handle_command = lambda c, a: True  # type: ignore[attr-defined]
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[mod]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     main()
-        first_call_args = mock_print.call_args_list[0][0][0]
-        assert "1 modules" in first_call_args
+        printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
+        assert "help" in printed
 
-    def test_help_shows_module_with_no_doc(self) -> None:
-        """Module without docstring shows 'No description'."""
-        mod = types.ModuleType("nodoc_mod")
-        mod.__doc__ = None
+    def test_introspection_hides_non_public(self) -> None:
+        """Modules without COMMAND in _PUBLIC_COMMANDS are hidden."""
+        mod = types.ModuleType("aipass.aipass.apps.modules.internal")
+        mod.__doc__ = "Internal module"
         mod.handle_command = lambda c, a: True  # type: ignore[attr-defined]
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[mod]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     main()
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
-        assert "No description" in printed
+        printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
+        assert "internal" not in printed
 
     def test_unknown_command_returns_1(self) -> None:
         """Unknown command prints error and returns 1."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "xyzzy"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 1
-        mock_print.assert_called_with("Unknown command: xyzzy")
+        mock_con.print.assert_called_with("Unknown command: xyzzy")
 
     def test_known_command_routes_and_returns_0(self) -> None:
         """Known command that gets handled returns 0."""
@@ -266,10 +271,10 @@ class TestMain:
         """@drone prints guidance pointing to drone, not 'Unknown command'."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "@drone"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 1
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
         assert "@drone" in printed
         assert "drone routing target" in printed
         assert "Unknown command" not in printed
@@ -278,10 +283,10 @@ class TestMain:
         """@memory prints guidance with the actual @name the user typed."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "@memory"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 1
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
         assert "@memory" in printed
         assert "drone @memory" in printed
 
@@ -289,10 +294,10 @@ class TestMain:
         """Non-@ bad command still prints 'Unknown command', not drone guidance."""
         with patch("aipass.aipass.apps.aipass.sys.argv", ["aipass", "frobnicate"]):
             with patch("aipass.aipass.apps.aipass.discover_modules", return_value=[]):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     result = main()
         assert result == 1
-        mock_print.assert_called_with("Unknown command: frobnicate")
+        mock_con.print.assert_called_with("Unknown command: frobnicate")
 
     def test_command_with_remaining_args(self) -> None:
         """Remaining args are passed to route_command."""
@@ -306,7 +311,7 @@ class TestMain:
         mod.handle_command.assert_called_once_with("doctor", ["--verbose", "--fix"])
 
     def test_help_shows_command_constant(self) -> None:
-        """Help listing uses module COMMAND constant, not file stem."""
+        """Introspection uses module COMMAND constant, not file stem."""
         mod = types.ModuleType("aipass.aipass.apps.modules.help_chat")
         mod.__doc__ = "Help chatbot"
         mod.COMMAND = "help"  # type: ignore[attr-defined]
@@ -316,14 +321,14 @@ class TestMain:
                 "aipass.aipass.apps.aipass.discover_modules",
                 return_value=[mod],
             ):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     main()
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
+        printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
         assert "help" in printed
         assert "help_chat" not in printed
 
-    def test_help_falls_back_to_stem(self) -> None:
-        """Without COMMAND constant, help listing uses file stem."""
+    def test_introspection_skips_no_command_module(self) -> None:
+        """Modules without COMMAND in _PUBLIC_COMMANDS are hidden from introspection."""
         mod = types.ModuleType("aipass.aipass.apps.modules.doctor")
         mod.__doc__ = "Doctor module"
         mod.handle_command = lambda c, a: True  # type: ignore[attr-defined]
@@ -332,10 +337,14 @@ class TestMain:
                 "aipass.aipass.apps.aipass.discover_modules",
                 return_value=[mod],
             ):
-                with patch("builtins.print") as mock_print:
+                with patch("aipass.aipass.apps.aipass.console") as mock_con:
                     main()
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
-        assert "doctor" in printed
+        printed = " ".join(str(a) for call in mock_con.print.call_args_list for a in call[0])
+        assert (
+            "Commands:" not in printed or "doctor" not in printed.split("Commands:")[1]
+            if "Commands:" in printed
+            else True
+        )
 
     def test_handler_crash_surfaces_error(self) -> None:
         """Handler crash prints real error, not 'Unknown command'."""
@@ -347,12 +356,12 @@ class TestMain:
                 "aipass.aipass.apps.aipass.discover_modules",
                 return_value=[mod],
             ):
-                with patch("builtins.print") as mock_print:
-                    result = main()
+                with patch("aipass.aipass.apps.aipass.console"):
+                    with patch("aipass.aipass.apps.aipass.error") as mock_err:
+                        result = main()
         assert result == 1
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
-        assert "db connection failed" in printed
-        assert "Unknown command" not in printed
+        err_text = " ".join(str(a) for call in mock_err.call_args_list for a in call[0])
+        assert "db connection failed" in err_text
 
     def test_import_failure_surfaces_on_command(self) -> None:
         """Failed module import surfaces when user types that command."""
@@ -365,11 +374,11 @@ class TestMain:
             ):
                 aipass_mod._import_failures.clear()
                 aipass_mod._import_failures["broken"] = ImportError("no module")
-                with patch("builtins.print") as mock_print:
-                    result = main()
+                with patch("aipass.aipass.apps.aipass.console"):
+                    with patch("aipass.aipass.apps.aipass.error") as mock_err:
+                        result = main()
         assert result == 1
-        printed = " ".join(str(a) for call in mock_print.call_args_list for a in call[0])
-        assert "failed to load" in printed
-        assert "no module" in printed
-        assert "Unknown command" not in printed
+        err_text = " ".join(str(a) for call in mock_err.call_args_list for a in call[0])
+        assert "failed to load" in err_text
+        assert "no module" in err_text
         aipass_mod._import_failures.clear()

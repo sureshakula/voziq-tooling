@@ -18,6 +18,27 @@ drone @api <command> [args]
 
 ---
 
+## Quick Start
+
+```bash
+# Validate your API key
+drone @api validate
+
+# Test the connection
+drone @api test
+
+# List available models
+drone @api models
+
+# Make an API call
+drone @api call "Hello, world" --model anthropic/claude-3.5-sonnet
+
+# Check usage stats
+drone @api stats
+```
+
+---
+
 ## Commands
 
 | Command | Description |

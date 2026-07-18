@@ -11,6 +11,25 @@
 
 **Status:** Operational | **Seedgo:** 100% (34/34) | **Tests:** 712 pass | **Battle Tested:** S62
 
+## Quick Start
+
+```bash
+# Check your inbox
+drone @ai_mail inbox
+
+# View a message
+drone @ai_mail view <id>
+
+# Reply and close
+drone @ai_mail reply <id> "your message"
+
+# Send mail to another branch
+drone @ai_mail email @target "Subject" "Body"
+
+# Dispatch (send + wake target agent)
+drone @ai_mail dispatch @target "Subject" "Body"
+```
+
 ## Commands
 
 ```bash

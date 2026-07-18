@@ -35,7 +35,7 @@ cd AIPass
 ./aipass install                      # installs everything, then walks you into your first project
 ```
 
-One command does it all: builds the environment, puts `aipass` + `drone` on your PATH, then chains straight into a guided init that creates your project, your first agent, and opens a terminal where that agent is already running. Say "hi" — it knows who it is. Come back tomorrow — it remembers.
+One command does it all: builds the environment, puts `aipass` + `drone` on your PATH, walks you through a guided init — and ends **in a conversation**. The AIPass concierge opens right in your terminal with your install report in hand: it welcomes you, asks your name once, shows you around, and checks what your machine still needs — every machine is different. Come back tomorrow and it picks up exactly where you left off. That's the whole interface: say "hi".
 
 This is the base framework. It gives your agents the infrastructure to persist, communicate, and organize — everything else you build on top.
 
@@ -85,21 +85,32 @@ cd AIPass
 ./aipass install                      # Creates venv, installs, puts `aipass` + `drone` on your PATH, bootstraps 17 agents
 ```
 
-On an interactive terminal, install ends by chaining into `aipass init run` — one command takes you from clone to a working first project. Pass `--no-init` to skip the chain, `--project <dir>` to pick where the project lands (CI and piped shells skip automatically). `./aipass` is a thin repo-root launcher over `setup.sh`; after setup it simply forwards to the installed `aipass` binary.
+On an interactive terminal, install chains into `aipass init run` and ends in a live conversation with the AIPass concierge — one command takes you from clone to talking with an agent that knows your machine. Pass `--no-init` to skip the chain, `--project <dir>` to pick where the project lands. Non-interactive shells (CI, pipes) complete with defaults and exit 0 — no prompts, no spawned sessions; the handoff prints as a next-step command instead. `./aipass` is a thin repo-root launcher over `setup.sh`; after setup it simply forwards to the installed `aipass` binary.
 
 ### 2. Your own project (if you skipped the chain)
 
+Two ways in. From anywhere inside your AIPass environment, `aipass new` builds a complete project around a resident manager agent:
+
 ```bash
-cd ~ && mkdir my-project && cd my-project
-aipass init run                       # Guided setup — project, first agent, terminal handoff
+aipass new my-project --template python   # Project + resident manager agent + git birth commit
 ```
 
-That's it. Your agent has identity, memory, a mailbox, and access to every AIPass service — planning, quality audits, dispatch, real-time monitoring. All through `drone @branch command`.
+It mints the project registry, spawns a full citizen (identity, memory, mailbox, birth certificate) at `src/my_project/my_project`, makes the first commit — and drops you straight into a conversation with your new manager.
+
+Or bring your own directory, anywhere on disk:
+
+```bash
+cd ~ && mkdir my-project && cd my-project
+aipass init run                       # Guided setup — project, first agent, ends in the conversation
+```
+
+Either way your agent has identity, memory, a mailbox, and access to every AIPass service — planning, quality audits, dispatch, real-time monitoring. All through `drone @branch command`.
 
 ```bash
 aipass init                           # Just the scaffold (no guided setup)
 aipass init agent my_agent            # Add another agent
 aipass doctor                         # Check system health
+aipass feedback off                   # Silence the occasional how-are-we-doing ask
 ```
 
 > **Need help?** [Ask in Discussions](https://github.com/AIOSAI/AIPass/discussions) or [file feedback](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml) — both take 30 seconds.
@@ -151,7 +162,7 @@ drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 
 
 **Two ways to use AIPass:**
 
-- **Your own project:** `aipass init run` sets up a new project with your first agent. Add more agents as you need them. Your first agent is the orchestrator — it coordinates the others.
+- **Your own project:** `aipass new <name>` builds a project around a resident manager agent, or `aipass init run` sets one up in a directory you bring. Add more agents as you need them. Your first agent is the orchestrator — it coordinates the others.
 - **The full framework:** Clone the repo to work with all 17 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
 
 ---

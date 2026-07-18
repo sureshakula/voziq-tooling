@@ -1,5 +1,5 @@
 # =================== AIPass ====================
-# Name: doctor_fix.py
+# Name: _doctor_fix.py
 # Description: Structure remediation report for aipass doctor --fix
 # Version: 1.0.0
 # Created: 2026-05-15

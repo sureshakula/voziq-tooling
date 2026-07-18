@@ -262,8 +262,29 @@ def _enroll_project(target: Path) -> None:
         logger.info("Trust registry unavailable, skipping enrollment: %s", exc)
 
 
-def _guard_init(target: Path) -> None:
+def is_projects_child(target: Path) -> bool:
+    """True if *target* is ``<host>/projects/<name>`` — a valid nested project path.
+
+    The host is identified by having a ``*_REGISTRY.json`` in the grandparent
+    of target (i.e. target's parent is named ``projects``).
+    """
+    resolved = target.resolve()
+    if resolved.parent.name != "projects":
+        return False
+    host = resolved.parent.parent
+    try:
+        return any(f.is_file() and f.name.endswith("_REGISTRY.json") for f in host.iterdir())
+    except OSError as exc:
+        logger.info("is_projects_child: could not read host dir %s: %s", host, exc)
+        return False
+
+
+def _guard_init(target: Path, *, allow_projects_child: bool = False) -> None:
     """Block init if target is inside an agent branch or existing project.
+
+    When *allow_projects_child* is True, the nested-project checks are
+    skipped for targets that are ``<host>/projects/<name>``.  This is used
+    by ``aipass new`` to create projects inside the installation.
 
     Raises RuntimeError with explanation if init should not proceed.
     """
@@ -286,6 +307,8 @@ def _guard_init(target: Path) -> None:
     # Block: target already has a registry (is already a project)
     for f in target.iterdir() if target.is_dir() else []:
         if f.is_file() and f.name.endswith("_REGISTRY.json"):
+            if allow_projects_child and is_projects_child(target):
+                break
             raise RuntimeError(
                 f"BLOCKED: '{target}' is already an AIPass project (has {f.name}). "
                 "Use 'aipass init update' to upgrade an existing project."
@@ -296,6 +319,8 @@ def _guard_init(target: Path) -> None:
             continue
         for f in parent.iterdir():
             if f.is_file() and f.name.endswith("_REGISTRY.json"):
+                if allow_projects_child and is_projects_child(target):
+                    return
                 raise RuntimeError(
                     f"BLOCKED: '{target}' is inside AIPass project at '{parent}' (has {f.name}). "
                     "Cannot create a nested project."
@@ -304,12 +329,18 @@ def _guard_init(target: Path) -> None:
             break
 
 
-def init_project(target: Path, project_name: str | None = None) -> dict:
+def init_project(
+    target: Path,
+    project_name: str | None = None,
+    *,
+    allow_projects_child: bool = False,
+) -> dict:
     """Initialize an AIPass project in the target directory.
 
     Args:
         target: Directory to initialize
         project_name: Name for the registry (defaults to directory name)
+        allow_projects_child: When True, allow init inside ``<host>/projects/<name>``.
 
     Returns:
         dict with registry_id, registry_file, project_name, target, created_files
@@ -319,7 +350,7 @@ def init_project(target: Path, project_name: str | None = None) -> dict:
         RuntimeError: If target is inside an agent branch or existing project
     """
     target = target.resolve()
-    _guard_init(target)
+    _guard_init(target, allow_projects_child=allow_projects_child)
     if not target.exists():
         target.mkdir(parents=True)
 

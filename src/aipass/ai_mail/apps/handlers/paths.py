@@ -16,7 +16,9 @@ Consolidated from 8 identical copies per DPLAN-0036 audit.
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
+from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
 
 if sys.platform == "win32":
@@ -34,6 +36,23 @@ def find_repo_root() -> Path:
         if (parent / "AIPASS_REGISTRY.json").exists():
             return parent
     return Path.cwd()
+
+
+def find_project_root(start: Path) -> Optional[Path]:
+    """Walk up from *start* to find the first *_REGISTRY.json (project root).
+
+    Returns the directory containing the registry, or None if not found.
+    Stops at filesystem root.
+    """
+    current = start.resolve()
+    for candidate in [current] + list(current.parents):
+        try:
+            if any(candidate.glob("*_REGISTRY.json")):
+                return candidate
+        except OSError as exc:
+            logger.warning("[paths] find_project_root: glob failed at %s: %s", candidate, exc)
+            break
+    return None
 
 
 if __name__ == "__main__":

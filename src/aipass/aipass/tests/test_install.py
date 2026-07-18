@@ -17,6 +17,7 @@ from aipass.aipass.apps.modules.install import (
     DEFAULT_HOME,
     DEFAULT_PROJECT,
     TOTAL_STEPS,
+    _build_install_prompt,
     _clone_repo,
     _handoff_to_init,
     _looks_like_aipass_tree,
@@ -215,21 +216,13 @@ class TestRunInstall:
 class TestShouldRunInit:
     """Deciding whether the install chains into init."""
 
-    def test_no_init_wins(self) -> None:
-        """--no-init disables the handoff even alongside --with-init."""
-        assert _should_run_init(non_interactive=False, with_init=True, no_init=True) is False
+    def test_no_init_skips(self) -> None:
+        """--no-init disables the handoff."""
+        assert _should_run_init(no_init=True) is False
 
-    def test_with_init_forces_headless(self) -> None:
-        """--with-init runs init even when the install was headless."""
-        assert _should_run_init(non_interactive=True, with_init=True, no_init=False) is True
-
-    def test_headless_defaults_off(self) -> None:
-        """A plain headless install stops before init."""
-        assert _should_run_init(non_interactive=True, with_init=False, no_init=False) is False
-
-    def test_interactive_defaults_on(self) -> None:
-        """A plain interactive install chains into init."""
-        assert _should_run_init(non_interactive=False, with_init=False, no_init=False) is True
+    def test_default_chains(self) -> None:
+        """Default: always chain into init."""
+        assert _should_run_init(no_init=False) is True
 
 
 class TestResolveProjectDir:
@@ -325,6 +318,75 @@ class TestHandleCommand:
         assert kwargs["with_init"] is True
         assert kwargs["no_init"] is True
         assert kwargs["project"] == "/x/proj"
+
+
+class TestBuildInstallPrompt:
+    """Authored first prompt for the post-install @aipass chat."""
+
+    def test_includes_home(self, tmp_path: Path) -> None:
+        """Prompt mentions the install home directory."""
+        prompt = _build_install_prompt(tmp_path, {"drone": "/x/drone", "aipass": "/x/aipass"})
+        assert str(tmp_path) in prompt
+
+    def test_includes_verified_bins(self) -> None:
+        """Verified binary paths appear in the prompt."""
+        prompt = _build_install_prompt(Path("/h"), {"drone": "/x/drone", "aipass": "/x/aipass"})
+        assert "/x/drone" in prompt
+        assert "/x/aipass" in prompt
+
+    def test_omits_none_bins(self) -> None:
+        """Binaries that weren't found are omitted, not shown as None."""
+        prompt = _build_install_prompt(Path("/h"), {"drone": None, "aipass": "/x/aipass"})
+        assert "None" not in prompt
+        assert "/x/aipass" in prompt
+
+    def test_ends_with_question(self) -> None:
+        """Prompt ends by asking what to explore."""
+        prompt = _build_install_prompt(Path("/h"), {})
+        assert "?" in prompt
+
+
+class TestInstallChatHandoff:
+    """Install-to-chat handoff launches @aipass after init on TTY."""
+
+    def test_tty_launches_inline(self) -> None:
+        """Interactive TTY install launches the @aipass concierge after init."""
+        home = Path("/fake/AIPass")
+        with (
+            patch(f"{_MOD}._resolve_home", return_value=home),
+            patch(f"{_MOD}.is_throwaway_path", return_value=False),
+            patch(f"{_MOD}._clone_repo", return_value=True),
+            patch(f"{_MOD}._run_setup", return_value=True),
+            patch(f"{_MOD}._verify_binaries", return_value={"drone": "/x/drone", "aipass": "/x/aipass"}),
+            patch(f"{_MOD}._check_and_fix_owner"),
+            patch(f"{_MOD}._handoff_to_init"),
+            patch(f"{_MOD}.sys.stdin") as mock_stdin,
+            patch("aipass.aipass.apps.handlers.handoff_platform.launch_inline") as mock_launch,
+        ):
+            mock_stdin.isatty.return_value = True
+            run_install(non_interactive=False, dry_run=False)
+        mock_launch.assert_called_once()
+        prompt_arg = mock_launch.call_args[0][1]
+        assert "Fresh AIPass install" in prompt_arg
+
+    def test_no_tty_skips_launch(self) -> None:
+        """Non-TTY install skips the chat handoff."""
+        home = Path("/fake/AIPass")
+        with (
+            patch(f"{_MOD}._resolve_home", return_value=home),
+            patch(f"{_MOD}.is_throwaway_path", return_value=False),
+            patch(f"{_MOD}._clone_repo", return_value=True),
+            patch(f"{_MOD}._run_setup", return_value=True),
+            patch(f"{_MOD}._verify_binaries", return_value={"drone": "/x/drone", "aipass": "/x/aipass"}),
+            patch(f"{_MOD}._check_and_fix_owner"),
+            patch(f"{_MOD}._handoff_to_init"),
+            patch(f"{_MOD}.sys.stdin") as mock_stdin,
+            patch("aipass.aipass.apps.handlers.handoff_platform.launch_inline") as mock_launch,
+        ):
+            mock_stdin.isatty.return_value = False
+            rc = run_install(non_interactive=True, dry_run=False)
+        mock_launch.assert_not_called()
+        assert rc == 0
 
 
 class TestSmoke:

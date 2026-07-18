@@ -5,7 +5,16 @@
 **Purpose:** Event bus and error dispatch for AIPass. Branches fire events, registered handlers react. Medic watches logs for errors, fingerprints them, gates dispatch through an 8-stage pipeline, and notifies the responsible branch.
 **Module:** `aipass.trigger`
 **Version:** 2.2.0
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-07-17
+
+## Quick Start
+
+```bash
+drone @trigger status                        # Event bus + medic state
+drone @trigger errors list                   # View tracked errors
+drone @trigger medic status                  # Check dispatch gating
+drone @trigger fire error_detected branch=api error_type=ImportError
+```
 
 ## Commands
 

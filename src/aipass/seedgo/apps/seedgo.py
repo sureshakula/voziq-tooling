@@ -241,6 +241,21 @@ def print_help() -> None:
     console.print("─" * 70)
     console.print()
 
+    console.print("[yellow]Examples:[/yellow]")
+    console.print()
+    console.print("  [dim]# Check a single file against all standards[/dim]")
+    console.print("  [green]drone @seedgo checklist src/aipass/flow/apps/flow.py[/green]")
+    console.print()
+    console.print("  [dim]# Audit a specific branch[/dim]")
+    console.print("  [green]drone @seedgo audit aipass @flow[/green]")
+    console.print()
+    console.print("  [dim]# Look up what a standard checks[/dim]")
+    console.print("  [green]drone @seedgo standards_query aipass_standards cli[/green]")
+    console.print()
+
+    console.print("─" * 70)
+    console.print()
+
     # Commands line for drone discovery
     console.print(
         "[dim]Commands: audit, standards_audit, standards_query, checklist, diagnostics,"

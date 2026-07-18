@@ -9,6 +9,25 @@
 
 ---
 
+## Quick Start
+
+```bash
+# List all available skills
+drone @skills list
+
+# Get details about a skill
+drone @skills info telegram
+
+# Run a skill
+drone @skills run inbox_check
+
+# Create a new skill
+drone @skills create my-skill --with-handler
+
+# Check if a skill's requirements are met
+drone @skills validate telegram
+```
+
 ## Overview
 
 ## Three Tiers

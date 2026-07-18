@@ -260,6 +260,13 @@ def _spawn_agent(
         reg_path = _find_project_registry(target)
     citizen_number = get_next_citizen_number(reg_path)
 
+    # Read registry_id from the resolved registry for credential linkage
+    resolved_registry_id = ""
+    if reg_path.exists():
+        reg_data = json_handler.read_json(reg_path)
+        if reg_data:
+            resolved_registry_id = reg_data.get("metadata", {}).get("id", "")
+
     # Build placeholder replacements
     meta_tabs = _load_meta_tabs()
     replacements = build_replacements_dict(
@@ -272,6 +279,7 @@ def _spawn_agent(
         citizen_number=citizen_number,
         citizen_class=citizen_class,
         meta_tabs=meta_tabs,
+        registry_id=resolved_registry_id,
     )
 
     # Step 1: Copy template with placeholder replacement in content

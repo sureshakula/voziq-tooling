@@ -22,7 +22,7 @@ from typing import Dict, Tuple, List, Optional, Callable
 
 from aipass.prax.apps.modules.logger import system_logger as logger
 from aipass.ai_mail.apps.handlers.json import json_handler
-from aipass.ai_mail.apps.handlers.paths import find_repo_root
+from aipass.ai_mail.apps.handlers.paths import find_repo_root, find_project_root
 from aipass.ai_mail.apps.handlers.registry.read import get_all_branches
 
 if sys.platform == "win32":
@@ -213,6 +213,44 @@ def _resolve_reply_path() -> str:
     return ""
 
 
+def _check_cross_project_boundary(recipient_path: Path, sender_email: str) -> Tuple[bool, str]:
+    """Refuse mail when sender and recipient are in different projects.
+
+    Compares project roots (first *_REGISTRY.json found walking up) for the
+    sender (from AIPASS_CALLER_CWD) and recipient (from resolved branch path).
+    Same-project and host-to-host mail passes through unchanged.
+
+    Returns:
+        (True, error_message) to refuse, (False, "") to allow.
+    """
+    caller_cwd = os.environ.get("AIPASS_CALLER_CWD", "")
+    if not caller_cwd:
+        return False, ""
+
+    sender_root = find_project_root(Path(caller_cwd))
+    if sender_root is None:
+        return False, ""
+
+    recipient_root = find_project_root(recipient_path)
+    if recipient_root is None:
+        return False, ""
+
+    if sender_root == recipient_root:
+        return False, ""
+
+    sender_name = sender_email or os.environ.get("AIPASS_CALLER_BRANCH", "unknown")
+    logger.warning(
+        "[delivery] cross-project mail refused: sender root %s != recipient root %s",
+        sender_root,
+        recipient_root,
+    )
+    return True, (
+        f"Cross-project mail refused: {sender_name} (project: {sender_root.name}) "
+        f"cannot send to this branch (project: {recipient_root.name}). "
+        f"Use the feedback channel for cross-project communication."
+    )
+
+
 def deliver_email_to_branch(
     to_branch: str, email_data: Dict, on_delivered: Optional[Callable] = None
 ) -> Tuple[bool, str]:
@@ -282,6 +320,11 @@ def deliver_email_to_branch(
     branch_path = Path(raw_path)
     if not branch_path.is_absolute():
         branch_path = (_REPO_ROOT / branch_path).resolve()
+
+    # Cross-project boundary: refuse mail when sender and recipient are in different projects
+    refused, refusal_msg = _check_cross_project_boundary(branch_path, sender_email)
+    if refused:
+        return False, refusal_msg
 
     # Find the branch's .ai_mail.local/inbox.json file
     if branch_path == Path("/") or branch_path == _REPO_ROOT:

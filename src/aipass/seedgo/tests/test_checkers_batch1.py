@@ -329,6 +329,22 @@ def test_debug_print_check_bypass_respected(tmp_path):
     assert result["score"] == 100, f"Bypass should yield 100: {result}"
 
 
+def test_debug_print_string_literal_not_flagged(tmp_path):
+    """print() mentioned inside string literals must not trigger false positives."""
+    f = tmp_path / "messages.py"
+    f.write_text(
+        '"""Module with print() in docstring."""\n\n'
+        "def check():\n"
+        '    msg = "use console.print() not bare print()"\n'
+        "    return msg\n",
+        encoding="utf-8",
+    )
+    from aipass.seedgo.apps.handlers.aipass_standards.debug_print_check import check_module
+
+    result = check_module(str(f))
+    assert result["score"] == 100, f"print() inside strings should not flag: {result}"
+
+
 # ===========================================================================
 # 6. deep_nesting_check
 # ===========================================================================

@@ -6,13 +6,14 @@
 # Modified: 2026-04-03
 # =============================================
 
-"""Tests for paths module -- repo root discovery."""
+"""Tests for paths module -- repo root discovery and project root resolution."""
 
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import aipass.ai_mail.apps.handlers.paths as mod
+from aipass.ai_mail.apps.handlers.paths import find_project_root
 
 
 # --- Fixtures --------------------------------------------------------
@@ -84,3 +85,53 @@ def test_find_repo_root_finds_registry_in_same_dir(tmp_path, monkeypatch):
 
     result = mod.find_repo_root()
     assert result == tmp_path
+
+
+# --- find_project_root tests --------------------------------------------
+
+
+def test_find_project_root_finds_registry(tmp_path):
+    """Returns directory containing *_REGISTRY.json."""
+    project = tmp_path / "projects" / "myproj"
+    deep = project / "src" / "pkg"
+    deep.mkdir(parents=True)
+    (project / "MYPROJ_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    assert find_project_root(deep) == project
+
+
+def test_find_project_root_finds_host_registry(tmp_path):
+    """Returns host repo root when AIPASS_REGISTRY.json is the first hit."""
+    host = tmp_path / "repo"
+    branch = host / "src" / "aipass" / "branch"
+    branch.mkdir(parents=True)
+    (host / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    assert find_project_root(branch) == host
+
+
+def test_find_project_root_stops_at_first_registry(tmp_path):
+    """Nested project registry is found before the host registry."""
+    host = tmp_path / "repo"
+    project = host / "projects" / "inner"
+    deep = project / "src"
+    deep.mkdir(parents=True)
+    (host / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+    (project / "INNER_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    assert find_project_root(deep) == project
+
+
+def test_find_project_root_none_when_no_registry(tmp_path):
+    """Returns None when no *_REGISTRY.json is found anywhere."""
+    deep = tmp_path / "a" / "b" / "c"
+    deep.mkdir(parents=True)
+
+    assert find_project_root(deep) is None
+
+
+def test_find_project_root_at_start_dir(tmp_path):
+    """Returns start dir itself when it contains the registry."""
+    (tmp_path / "PROJ_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    assert find_project_root(tmp_path) == tmp_path

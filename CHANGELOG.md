@@ -9,7 +9,120 @@ PyPI version — not the changelog header.
 
 ---
 
+## [2026-07-18]
+
+**v2.7.3** — the onboarding chain: from `git clone` to a conversation with an
+agent that remembers you. Install's three dead-ends are gone — the default
+`init` path, headless runs, and `aipass new` all now end where they should:
+`install` chains through the guided init and **opens a live conversation with
+the AIPass concierge**, first prompt authored with the install report in its
+context. The concierge's Welcome Mode (research-backed opener, one name-ask,
+deferred setup triage, hooks-first health check via a real @hooks dispatch,
+every suggestion with its exact command) was proven in a live multi-turn
+door-test — including the second-session payoff: relaunch, and it picks up
+mid-task where you left off. Plus `aipass new` and the front-door overhaul below.
+
+### Added (onboarding chain — TDPLAN-0014)
+
+- **Install→chat handoff**: after init returns, install `launch_inline`s the
+  concierge with an authored first prompt (fresh-install recognition + binary
+  report). TTY-only; headless returns cleanly.
+- **Welcome Mode** in the concierge branch prompt: capability opener with 3–5
+  concrete starters, single graceful name-ask, ~turn-5 setup push ("every
+  machine is different"), hooks-first verification incl. trust-registry
+  enrollment, setup plan seeded from the cross-OS checklist, Windows→WSL
+  recommendation, prax-monitor + hooksound tips, exact copy-paste command with
+  every suggestion.
+- **Feedback pulse** (@hooks): one ignorable line every ~10 turns with the repo
+  feedback link — `aipass feedback on/off` (alias for `drone @hooks feedback`)
+  turns it off. Registered disabled for the AIPass host itself. 25 tests.
+- **Dead-end kills**: empty-template init now runs handoff + report stages
+  (default path ends in the conversation); non-interactive installs complete
+  with defaults and exit 0 (headless stage 9 prints the launch command instead
+  of spawning); `aipass new` auto-launches into the new project's manager agent
+  on a TTY with a printed fallback and Ctrl-C escape line.
+- **Unified handoff prompt**: one `INIT_PROMPT` constant (was two drifting
+  strings in init_flow vs handoff).
+
+### Fixed (onboarding chain)
+
+- Non-TTY `aipass init run` crashed with EOFError at the first prompt (caught
+  in a live door-test after unit suites ran green — the prompt layer now
+  auto-detects non-TTY and takes defaults).
+- `aipass new` outside an AIPass environment now exits 1 instead of 0.
+- Empty-template handoff messaging no longer claims an agent exists
+  ("Your project is ready", resolved absolute path instead of `cd .`).
+- Stage numbering shows a skip notice instead of silently jumping 5→8.
+
 ## [2026-07-17]
+
+**v2.7.3 (first pass)** — `aipass new` and the front-door overhaul. The `projects/`
+directory is now a first-class playground: `aipass new <name>` creates a fully
+isolated project — own registry, own git repo with a birth commit, born
+deployable — with a full framework resident agent that answers
+`drone @<name>` from inside the project while staying invisible to the host
+roster. ai_mail enforces the project boundary (cross-project mail is refused
+with a pointer to the feedback channel). A live door-test of the aipass CLI
+exposed a blind spot in the audit — perfect structural scores on an unusable
+front door — so seedgo grew two user-facing-quality standards (`cli_ux`,
+`readme_quality`) and a fleet-100 campaign brought every branch's help output
+and README to the house pattern: 17/17 branches at 100%.
+
+### Added
+
+- **`aipass new <name>`** (module + handler): creates `projects/<name>` with
+  registry-first credential linkage (`registry.metadata.id ==
+  passport.citizenship.registry_id`), empty/python templates, interactive
+  template + agent prompts (flags for scripted use), a full framework agent
+  (entry point, modules/handlers skeleton, trinity set, mailbox, tier files),
+  git init + birth commit, and next-step output. 49 tests.
+- **seedgo standards 41–42**: `cli_ux` (8 AST checks — two-tier help, Rich
+  console, styled title, purpose line, --help pointer, Usage, Examples, no
+  exposed internal plumbing) and `readme_quality` (Quick Start with runnable
+  code block, stranger accessibility, invoke/entry-point match, early
+  what-description). 36 tests + case-resolution regression tests.
+- **ai_mail cross-project boundary**: sender and recipient project roots
+  compared on delivery; cross-project sends refused with a feedback-channel
+  pointer. Fail-open for internal/unregistered sends. 13 tests.
+- **Root `.gitignore`**: `projects/*` ignored (each project is its own repo);
+  only the future catalog README stays trackable.
+
+### Added (second pass — the agent becomes a real citizen)
+
+- **`aipass new` agents are now spawn-issued full citizens** (FPLAN-0334): the
+  hand-rolled scaffold in the new_project handler is retired for a
+  `spawn_agent()` call against @spawn's new `project_agent` template — branch
+  prompt, structured mailbox, birth certificate, trinity trio, dashboard,
+  house-pattern entry point, and a branch-style README. One authority issues
+  citizens; project agents inherit template evolution for free.
+- **Agent home = `src/<project>/<agent>/`**, mirroring the host's
+  `src/aipass/<branch>` layout (door-test ruling: the project root is never an
+  agent home). Seat paths are relative like host seats; the registry walk stops
+  at the first project registry. The first agent is the project's **manager**
+  (`citizen_class: manager` — its devpulse), named after the project.
+- **Birth-commit hygiene**: the `.venv` symlink (absolute host path) and the
+  registry lock file are no longer tracked in new projects' birth commits.
+- **Boundary verified live in all four directions**: host↔project email and
+  dispatch all refused — project→host lands on the ai_mail cross-project check
+  with its feedback-channel pointer, closing the leak found in the S319
+  prototype probes.
+
+### Changed
+
+- **aipass front door rebuilt**: `--help` now follows the house pattern with a
+  curated command list, usage, and examples (internal plumbing hidden —
+  `doctor_fix`/`doctor_wire` renamed underscore-private); `aipass help` shows
+  the Q&A screen instead of falling through to the module dump; README
+  rewritten to pass the stranger test with a Quick Start and the correct
+  invocation.
+- **Fleet-100 sweep**: 15 branches gained Quick Start READMEs and/or
+  Usage/Examples help sections — each owner fixed their own front against the
+  new gate.
+- **Debug_Print detector hardened**: the regex-based checker matched `print(`
+  inside string literals (flagging cli_ux_check's own error messages — the
+  auditor was the last branch under 100%). String content is now stripped
+  before matching, with a regression test; plus a depth-5 nesting refactor in
+  the same file.
 
 **v2.7.2** — everything merged since v2.7.1, headlined by the compass decision
 engine v2: curation with supersedes links + write-time conflict advisories

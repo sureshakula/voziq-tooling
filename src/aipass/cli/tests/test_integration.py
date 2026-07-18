@@ -51,7 +51,7 @@ class TestMainFlow:
         """No args shows introspection and returns 0."""
         cons, _get_output = _make_capture_console()
         with (
-            patch.object(cli_module, "CONSOLE", cons),
+            patch.object(cli_module, "console", cons),
             patch.object(display, "CONSOLE", cons),
             patch("sys.argv", ["cli"]),
         ):
@@ -63,7 +63,7 @@ class TestMainFlow:
         cons, _get_output = _make_capture_console()
         err_cons, _get_err = _make_capture_console()
         with (
-            patch.object(cli_module, "CONSOLE", cons),
+            patch.object(cli_module, "console", cons),
             patch.object(display, "CONSOLE", cons),
             patch.object(display, "err_console", err_cons),
             patch.object(display, "_TRIGGER", None),
@@ -77,7 +77,7 @@ class TestMainFlow:
         """--version returns 0."""
         cons, get_output = _make_capture_console()
         with (
-            patch.object(cli_module, "CONSOLE", cons),
+            patch.object(cli_module, "console", cons),
             patch.object(display, "CONSOLE", cons),
             patch("sys.argv", ["cli", "--version"]),
         ):
@@ -91,7 +91,7 @@ class TestMainFlow:
         cons, _get_output = _make_capture_console()
         err_cons, get_err = _make_capture_console()
         with (
-            patch.object(cli_module, "CONSOLE", cons),
+            patch.object(cli_module, "console", cons),
             patch.object(display, "CONSOLE", cons),
             patch.object(display, "err_console", err_cons),
             patch("sys.argv", ["cli", "nonexistent_cmd_xyz"]),
@@ -106,7 +106,7 @@ class TestMainFlow:
         cons, _get_output = _make_capture_console()
         err_cons, _get_err = _make_capture_console()
         with (
-            patch.object(cli_module, "CONSOLE", cons),
+            patch.object(cli_module, "console", cons),
             patch.object(display, "CONSOLE", cons),
             patch.object(display, "err_console", err_cons),
             patch.object(display, "_TRIGGER", None),
@@ -125,7 +125,7 @@ class TestMainFlow:
         """cli_entry() is the console_scripts entry point — verify it's callable."""
         cons, _get_output = _make_capture_console()
         with (
-            patch.object(cli_module, "CONSOLE", cons),
+            patch.object(cli_module, "console", cons),
             patch.object(display, "CONSOLE", cons),
             patch("sys.argv", ["aipass", "--version"]),
             pytest.raises(SystemExit) as exc_info,

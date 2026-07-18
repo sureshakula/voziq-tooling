@@ -656,7 +656,7 @@ class TestReconcileStaleDeny:
 
     def test_no_settings_file_returns_empty(self, tmp_path) -> None:
         """Missing settings.json returns no results."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         with patch("aipass.aipass.apps.handlers.provider_reconcile.Path.home", return_value=tmp_path):
             results = reconcile_stale_deny(fix=False)
@@ -664,7 +664,7 @@ class TestReconcileStaleDeny:
 
     def test_no_stale_rules_returns_pass(self, tmp_path) -> None:
         """Settings with no stale rm rules returns PASS."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -680,7 +680,7 @@ class TestReconcileStaleDeny:
 
     def test_stale_rules_detected_without_fix(self, tmp_path) -> None:
         """Stale rm rules present returns WARN when fix=False."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -697,7 +697,7 @@ class TestReconcileStaleDeny:
 
     def test_fix_removes_stale_rules(self, tmp_path) -> None:
         """fix=True removes stale rules and preserves others."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -719,7 +719,7 @@ class TestReconcileStaleDeny:
 
     def test_fix_single_stale_rule(self, tmp_path) -> None:
         """fix=True works when only one of two stale rules is present."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -736,7 +736,7 @@ class TestReconcileStaleDeny:
 
     def test_fix_idempotent(self, tmp_path) -> None:
         """Running fix twice is safe — second run returns PASS with no stale rules."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -753,7 +753,7 @@ class TestReconcileStaleDeny:
 
     def test_empty_deny_list_returns_pass(self, tmp_path) -> None:
         """Empty deny list returns PASS."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -765,7 +765,7 @@ class TestReconcileStaleDeny:
 
     def test_no_permissions_key_returns_pass(self, tmp_path) -> None:
         """Settings without permissions key returns PASS."""
-        from aipass.aipass.apps.modules.doctor_wire import reconcile_stale_deny
+        from aipass.aipass.apps.modules._doctor_wire import reconcile_stale_deny
 
         settings = tmp_path / ".claude" / "settings.json"
         settings.parent.mkdir(parents=True)
@@ -781,10 +781,10 @@ class TestCheckWireVerify:
 
     def test_pass_on_zero_exit(self) -> None:
         """Exit 0 from drone @hooks verify produces a PASS row."""
-        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+        from aipass.aipass.apps.modules._doctor_wire import check_wire_verify
 
         fake = MagicMock(returncode=0, stdout="✓ Wire check passed\n\n0 errors, 0 warnings\n")
-        with patch("aipass.aipass.apps.modules.doctor_wire.subprocess.run", return_value=fake):
+        with patch("aipass.aipass.apps.modules._doctor_wire.subprocess.run", return_value=fake):
             results = check_wire_verify()
         assert len(results) == 1
         assert results[0].label == "wire verify"
@@ -792,10 +792,10 @@ class TestCheckWireVerify:
 
     def test_fail_on_nonzero_exit(self) -> None:
         """Non-zero exit from drone @hooks verify produces a FAIL row."""
-        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+        from aipass.aipass.apps.modules._doctor_wire import check_wire_verify
 
         fake = MagicMock(returncode=1, stdout="ERROR empty array\n2 errors, 0 warnings\n")
-        with patch("aipass.aipass.apps.modules.doctor_wire.subprocess.run", return_value=fake):
+        with patch("aipass.aipass.apps.modules._doctor_wire.subprocess.run", return_value=fake):
             results = check_wire_verify()
         assert len(results) == 1
         assert results[0].glyph == "[red]✗[/red]"
@@ -803,10 +803,10 @@ class TestCheckWireVerify:
 
     def test_warn_on_drone_not_found(self) -> None:
         """FileNotFoundError (drone missing) produces a WARN row."""
-        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+        from aipass.aipass.apps.modules._doctor_wire import check_wire_verify
 
         with patch(
-            "aipass.aipass.apps.modules.doctor_wire.subprocess.run",
+            "aipass.aipass.apps.modules._doctor_wire.subprocess.run",
             side_effect=FileNotFoundError("drone"),
         ):
             results = check_wire_verify()
@@ -817,10 +817,10 @@ class TestCheckWireVerify:
         """TimeoutExpired produces a WARN row."""
         import subprocess as sp
 
-        from aipass.aipass.apps.modules.doctor_wire import check_wire_verify
+        from aipass.aipass.apps.modules._doctor_wire import check_wire_verify
 
         with patch(
-            "aipass.aipass.apps.modules.doctor_wire.subprocess.run",
+            "aipass.aipass.apps.modules._doctor_wire.subprocess.run",
             side_effect=sp.TimeoutExpired(cmd="drone", timeout=10),
         ):
             results = check_wire_verify()
@@ -849,15 +849,15 @@ class TestPromptAutoWireIsatty:
 
     def test_non_tty_stdin_skips_prompt_and_declines(self) -> None:
         """Non-tty stdin must NOT call input() — it declines and warns instead."""
-        from aipass.aipass.apps.modules import doctor_wire
+        from aipass.aipass.apps.modules import _doctor_wire
 
         with (
-            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch.object(_doctor_wire.sys, "stdin") as mock_stdin,
             patch("builtins.input") as mock_input,
-            patch.object(doctor_wire, "_print_manual_wire_warning") as mock_warn,
+            patch.object(_doctor_wire, "_print_manual_wire_warning") as mock_warn,
         ):
             mock_stdin.isatty.return_value = False
-            result = doctor_wire._prompt_auto_wire(**self._args())
+            result = _doctor_wire._prompt_auto_wire(**self._args())
 
         assert result is False
         mock_input.assert_not_called()
@@ -865,30 +865,30 @@ class TestPromptAutoWireIsatty:
 
     def test_tty_stdin_prompts_and_respects_decline(self) -> None:
         """Tty stdin still prompts; a 'n' answer declines."""
-        from aipass.aipass.apps.modules import doctor_wire
+        from aipass.aipass.apps.modules import _doctor_wire
 
         with (
-            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch.object(_doctor_wire.sys, "stdin") as mock_stdin,
             patch("builtins.input", return_value="n") as mock_input,
-            patch.object(doctor_wire, "_print_manual_wire_warning"),
+            patch.object(_doctor_wire, "_print_manual_wire_warning"),
         ):
             mock_stdin.isatty.return_value = True
-            result = doctor_wire._prompt_auto_wire(**self._args())
+            result = _doctor_wire._prompt_auto_wire(**self._args())
 
         assert result is False
         mock_input.assert_called_once()
 
     def test_tty_stdin_accepts_and_wires(self) -> None:
         """Tty stdin with a 'y' answer runs the wire and returns True."""
-        from aipass.aipass.apps.modules import doctor_wire
+        from aipass.aipass.apps.modules import _doctor_wire
 
         with (
-            patch.object(doctor_wire.sys, "stdin") as mock_stdin,
+            patch.object(_doctor_wire.sys, "stdin") as mock_stdin,
             patch("builtins.input", return_value="y"),
-            patch.object(doctor_wire, "_auto_wire_provider", return_value=["wired hook"]) as mock_wire,
+            patch.object(_doctor_wire, "_auto_wire_provider", return_value=["wired hook"]) as mock_wire,
         ):
             mock_stdin.isatty.return_value = True
-            result = doctor_wire._prompt_auto_wire(**self._args())
+            result = _doctor_wire._prompt_auto_wire(**self._args())
 
         assert result is True
         mock_wire.assert_called_once()

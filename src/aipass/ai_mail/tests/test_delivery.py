@@ -17,6 +17,7 @@ from unittest.mock import patch, MagicMock
 
 import aipass.ai_mail.apps.handlers.email.delivery as delivery_mod
 from aipass.ai_mail.apps.handlers.email.delivery import (
+    _check_cross_project_boundary,
     _migrate_inbox_format,
     _is_private_branch_email,
     _resolve_reply_path,
@@ -493,3 +494,121 @@ def test_deliver_stores_reply_path_from_env(tmp_path, repo_root, noop_inbox_lock
     msg = inbox["messages"][0]
     assert "reply_path" in msg
     assert msg["reply_path"] == str(inbox_file)
+
+
+# ---- _check_cross_project_boundary() tests ------------------------------
+
+
+def test_cross_project_no_caller_cwd_allows(tmp_path, monkeypatch):
+    """No AIPASS_CALLER_CWD → host-internal, always allowed."""
+    monkeypatch.delenv("AIPASS_CALLER_CWD", raising=False)
+    refused, _ = _check_cross_project_boundary(tmp_path, "@sender")
+    assert refused is False
+
+
+def test_cross_project_same_root_allows(tmp_path, monkeypatch):
+    """Sender and recipient in the same project → allowed."""
+    (tmp_path / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+    sender_dir = tmp_path / "src" / "branch_a"
+    sender_dir.mkdir(parents=True)
+    recipient_dir = tmp_path / "src" / "branch_b"
+    recipient_dir.mkdir(parents=True)
+
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(sender_dir))
+    refused, _ = _check_cross_project_boundary(recipient_dir, "@branch_b")
+    assert refused is False
+
+
+def test_cross_project_different_roots_refuses(tmp_path, monkeypatch):
+    """Sender in nested project, recipient in host → refused."""
+    host = tmp_path / "host"
+    host.mkdir()
+    (host / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+    recipient_dir = host / "src" / "devpulse"
+    recipient_dir.mkdir(parents=True)
+
+    project = host / "projects" / "myproj"
+    project.mkdir(parents=True)
+    (project / "MYPROJ_REGISTRY.json").write_text("{}", encoding="utf-8")
+    sender_dir = project / "src"
+    sender_dir.mkdir(parents=True)
+
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(sender_dir))
+    refused, msg = _check_cross_project_boundary(recipient_dir, "@proj_agent")
+    assert refused is True
+    assert "Cross-project mail refused" in msg
+    assert "feedback channel" in msg
+
+
+def test_cross_project_sender_no_registry_allows(tmp_path, monkeypatch):
+    """Sender in dir with no registry → cannot determine boundary, allow."""
+    isolated = tmp_path / "nowhere"
+    isolated.mkdir()
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(isolated))
+
+    recipient = tmp_path / "host" / "branch"
+    recipient.mkdir(parents=True)
+    (tmp_path / "host" / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    refused, _ = _check_cross_project_boundary(recipient, "@branch")
+    assert refused is False
+
+
+def test_cross_project_recipient_no_registry_allows(tmp_path, monkeypatch):
+    """Recipient in dir with no registry → cannot determine boundary, allow."""
+    sender_dir = tmp_path / "host" / "src"
+    sender_dir.mkdir(parents=True)
+    (tmp_path / "host" / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(sender_dir))
+
+    recipient = tmp_path / "orphan"
+    recipient.mkdir()
+
+    refused, _ = _check_cross_project_boundary(recipient, "@orphan")
+    assert refused is False
+
+
+def test_cross_project_delivery_e2e_refused(tmp_path, repo_root, noop_inbox_lock, monkeypatch):
+    """End-to-end: delivery from nested project to host branch is refused."""
+    host_root = repo_root
+    (host_root / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    branches = _setup_branch(tmp_path)
+
+    project = host_root / "projects" / "testproj"
+    project.mkdir(parents=True)
+    (project / "TESTPROJ_REGISTRY.json").write_text("{}", encoding="utf-8")
+    sender_cwd = project / "src"
+    sender_cwd.mkdir()
+
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(sender_cwd))
+
+    with patch.object(delivery_mod, "get_all_branches", return_value=branches):
+        success, error = deliver_email_to_branch(
+            "@target",
+            _make_email_data(sender="@testproj"),
+        )
+
+    assert success is False
+    assert "Cross-project mail refused" in error
+
+
+def test_cross_project_delivery_same_project_allowed(tmp_path, repo_root, noop_inbox_lock, monkeypatch):
+    """End-to-end: delivery within the same project is allowed."""
+    (repo_root / "AIPASS_REGISTRY.json").write_text("{}", encoding="utf-8")
+
+    branches = _setup_branch(tmp_path)
+
+    sender_cwd = tmp_path / "src" / "other_branch"
+    sender_cwd.mkdir(parents=True)
+
+    monkeypatch.setenv("AIPASS_CALLER_CWD", str(sender_cwd))
+
+    with patch.object(delivery_mod, "get_all_branches", return_value=branches):
+        success, error = deliver_email_to_branch(
+            "@target",
+            _make_email_data(),
+        )
+
+    assert success is True
+    assert error == ""

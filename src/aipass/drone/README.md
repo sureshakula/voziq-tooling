@@ -21,6 +21,17 @@
 
 ---
 
+## Quick Start
+
+```bash
+drone systems                     # See all registered branches
+drone @seedgo audit aipass        # Route a command to a branch
+drone @flow --help                # Show help for any branch
+drone scan @memory                # Discover available commands
+```
+
+---
+
 ## Commands / Usage
 
 Drone provides a CLI for terminal use and a Python API for programmatic access.

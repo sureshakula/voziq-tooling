@@ -44,6 +44,11 @@
       "matcher": "",
       "max_per_session": 10
     },
+    "feedback_pulse": {
+      "enabled": false,
+      "handler": "aipass.hooks.apps.handlers.prompt.feedback_pulse.handle",
+      "matcher": ""
+    },
     "auto_process": {
       "enabled": true,
       "handler": "aipass.hooks.apps.handlers.lifecycle.auto_process.handle",

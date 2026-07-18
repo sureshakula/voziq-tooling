@@ -7,7 +7,16 @@
 **Version:** 2.1.0
 **Seedgo:** 99%
 **Tests:** 127 passing (5 files)
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-07-17
+
+## Quick Start
+
+```bash
+drone @cli                     # Show discovered modules
+drone @cli display demo        # Run display function showcase
+drone @cli templates demo      # Run operation template showcase
+drone @cli --help              # Full usage guide
+```
 
 ## Usage
 

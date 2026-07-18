@@ -8,6 +8,18 @@
 
 ---
 
+## Quick Start
+
+```bash
+drone @memory search "query"            # Search archived memories across all branches
+drone @memory rollover status           # Show what needs archiving per branch
+drone @memory rollover check            # Dry run — preview pending rollovers
+drone @memory lint                      # Audit .trinity entries for limit violations
+drone @memory watch                     # Auto-rollover watcher (Ctrl+C to stop)
+```
+
+---
+
 ## Commands
 
 ```bash

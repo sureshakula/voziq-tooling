@@ -179,6 +179,15 @@ def print_help(modules: List[Any]):
     console.print("─" * 70)
     console.print()
 
+    console.print("[bold cyan]EXAMPLES:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @trigger fire error_detected branch=api error_type=ImportError[/dim]")
+    console.print("  [dim]drone @trigger errors list[/dim]")
+    console.print("  [dim]drone @trigger medic status[/dim]")
+    console.print()
+    console.print("─" * 70)
+    console.print()
+
     console.print("[bold]TIP:[/bold] For module-specific help:")
     console.print("  [dim]drone @trigger <command> --help[/dim]")
     console.print()
