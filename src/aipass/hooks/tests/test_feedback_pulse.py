@@ -53,7 +53,7 @@ class TestFeedbackPulseHandler:
                 result = self._handler()({"session_id": "test-fire"})
 
         assert "feedback" in result["stdout"].lower()
-        assert "github.com" in result["stdout"]
+        assert "https://github.com/AIOSAI/AIPass/issues" in result["stdout"]
 
     def test_fires_on_turn_20(self, tmp_path):
         result = {"stdout": "", "exit_code": 0}
