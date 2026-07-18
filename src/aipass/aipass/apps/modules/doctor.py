@@ -54,11 +54,11 @@ from aipass.aipass.apps.handlers.structure_scan.structure_scanner import (
     find_project_root,
     scan_agents,
 )
-from aipass.aipass.apps.modules.doctor_fix import (
+from aipass.aipass.apps.modules._doctor_fix import (
     print_json_report,
     print_remediation_report,
 )
-from aipass.aipass.apps.modules.doctor_wire import (
+from aipass.aipass.apps.modules._doctor_wire import (
     _auto_wire_provider,
     _prompt_auto_wire as prompt_auto_wire,
     check_wire_verify,
@@ -80,6 +80,8 @@ from aipass.aipass.apps.handlers.ui.progress import (
     format_check,
     make_doctor_progress,
 )
+
+COMMAND = "doctor"
 
 _BRANCH_ROOT = Path(__file__).resolve().parents[2]
 

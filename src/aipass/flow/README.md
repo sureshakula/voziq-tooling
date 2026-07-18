@@ -26,6 +26,18 @@ Flow is AIPass's plan management system. Every branch uses flow to create, track
 
 ---
 
+## Quick Start
+
+```bash
+drone @flow create . "My task description"          # Create a plan in the current directory
+drone @flow list open                                # See all open plans
+drone @flow close FPLAN-0042                         # Close a completed plan
+drone @flow create . "Design topic" dplan            # Create a design plan (DPLAN)
+drone @flow templates                                # List available plan types
+```
+
+---
+
 ## Commands
 
 ```bash

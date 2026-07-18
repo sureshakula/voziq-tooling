@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from aipass.aipass.apps.modules.doctor_fix import (
+from aipass.aipass.apps.modules._doctor_fix import (
     RemediationItem,
     detect_project_name,
     format_json_report,
@@ -68,7 +68,7 @@ class TestDetectProjectName:
         no_reg = tmp_path / "empty_project"
         no_reg.mkdir()
         with patch(
-            "aipass.aipass.apps.modules.doctor_fix._discover_registry",
+            "aipass.aipass.apps.modules._doctor_fix._discover_registry",
             return_value=no_reg / "MISSING_REGISTRY.json",
         ):
             result = detect_project_name(no_reg)
@@ -368,16 +368,16 @@ class TestPrintFunctions:
 class TestDoctorFixHandleCommand:
     def test_wrong_command(self) -> None:
         """Non-doctor_fix commands are not handled."""
-        from aipass.aipass.apps.modules.doctor_fix import handle_command
+        from aipass.aipass.apps.modules._doctor_fix import handle_command
 
         assert handle_command("doctor", []) is False
         assert handle_command("help", []) is False
 
     def test_no_args_shows_usage(self) -> None:
         """No args shows usage message (not introspection banner)."""
-        from aipass.aipass.apps.modules.doctor_fix import handle_command
+        from aipass.aipass.apps.modules._doctor_fix import handle_command
 
-        with patch("aipass.aipass.apps.modules.doctor_fix.console") as mock_console:
+        with patch("aipass.aipass.apps.modules._doctor_fix.console") as mock_console:
             result = handle_command("doctor_fix", [])
         assert result is True
         printed = " ".join(str(c) for c in mock_console.print.call_args_list)
@@ -385,9 +385,9 @@ class TestDoctorFixHandleCommand:
 
     def test_info_flag(self) -> None:
         """--info triggers print_introspection."""
-        from aipass.aipass.apps.modules.doctor_fix import handle_command
+        from aipass.aipass.apps.modules._doctor_fix import handle_command
 
-        with patch("aipass.aipass.apps.modules.doctor_fix.print_introspection") as mock:
+        with patch("aipass.aipass.apps.modules._doctor_fix.print_introspection") as mock:
             result = handle_command("doctor_fix", ["--info"])
         assert result is True
         mock.assert_called_once()

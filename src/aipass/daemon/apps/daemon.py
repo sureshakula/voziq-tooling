@@ -162,8 +162,22 @@ def print_help(modules: List[Any]):
     console.print("-" * 70)
     console.print()
 
+    console.print("[bold cyan]EXAMPLES:[/bold cyan]")
+    console.print()
+    console.print("  [yellow]Status & monitoring:[/yellow]")
+    console.print("    [dim]drone @daemon update[/dim]                            [dim]# Status digest[/dim]")
+    console.print("    [dim]drone @daemon activity[/dim]                          [dim]# Quick 24h summary[/dim]")
+    console.print("    [dim]drone @daemon activity-report --json[/dim]            [dim]# Full report (raw)[/dim]")
+    console.print("    [dim]drone @daemon branch-health DAEMON[/dim]              [dim]# Single branch dive[/dim]")
+    console.print()
+    console.print("  [yellow]Scheduler:[/yellow]")
+    console.print("    [dim]drone @daemon queue[/dim]                             [dim]# View pending jobs[/dim]")
+    console.print("    [dim]drone @daemon run[/dim]                               [dim]# Fire due jobs now[/dim]")
+    console.print("    [dim]drone @daemon install-timer[/dim]                     [dim]# Enable systemd timer[/dim]")
+    console.print()
+
     console.print("[bold]TIP:[/bold] For module-specific help:")
-    console.print("  [dim]daemon <command> --help[/dim]")
+    console.print("  [dim]drone @daemon <command> --help[/dim]")
     console.print()
 
 

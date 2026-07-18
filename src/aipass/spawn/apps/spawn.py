@@ -76,6 +76,17 @@ def print_help():
     warning("--dry-run", details="Preview changes without modifying files (default for update/repair)")
     warning("--trace", details="Enable verbose logging")
     console.print()
+    console.print("[yellow]Examples:[/yellow]")
+    console.print()
+    console.print("  [dim]# Create a new branch with role and purpose[/dim]")
+    console.print('  [green]drone @spawn create /path/to/new_agent --role "Analyst" --purpose "Reports"[/green]')
+    console.print()
+    console.print("  [dim]# Preview an update before applying[/dim]")
+    console.print("  [green]drone @spawn update @branch_name[/green]")
+    console.print()
+    console.print("  [dim]# Sync registry against filesystem[/dim]")
+    console.print("  [green]drone @spawn sync-registry --fix[/green]")
+    console.print()
 
 
 def handle_create(args):
@@ -211,6 +222,8 @@ def print_introspection():
     console.print("    [dim]- sync_templates.py (handle_sync_templates — template synchronization)[/dim]")
     console.print("    [dim]- regenerate_registry.py (handle_regenerate_registry — regenerate template registry)[/dim]")
     console.print("    [dim]- repair.py (handle_repair — project structure repair)[/dim]")
+    console.print()
+    console.print("[dim]Run 'drone @spawn --help' for usage information[/dim]")
     console.print()
 
 

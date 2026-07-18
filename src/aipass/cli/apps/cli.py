@@ -37,7 +37,7 @@ from rich.panel import Panel
 from rich import box
 
 # CLI modules (showcasing our own services!)
-from aipass.cli.apps.modules.display import console as CONSOLE, header, error
+from aipass.cli.apps.modules.display import console, header, error
 
 VERSION = "2.1.0"
 CLI_ROOT = Path(__file__).parent
@@ -110,37 +110,37 @@ def print_introspection() -> None:
     command_modules = [m for m in modules if getattr(m, "__name__", "").split(".")[-1] not in SERVICE_MODULES]
     service_modules = [m for m in modules if getattr(m, "__name__", "").split(".")[-1] in SERVICE_MODULES]
 
-    CONSOLE.print()
-    CONSOLE.print("[bold cyan]CLI - Command Line Interface Branch[/bold cyan]")
-    CONSOLE.print(f"  Version: {VERSION}")
-    CONSOLE.print()
-    CONSOLE.print("[dim]Universal Display & Output Service Provider[/dim]")
-    CONSOLE.print()
+    console.print()
+    console.print("[bold cyan]CLI - Command Line Interface Branch[/bold cyan]")
+    console.print(f"  Version: {VERSION}")
+    console.print()
+    console.print("[dim]Universal Display & Output Service Provider[/dim]")
+    console.print()
 
     # Discovered command modules
-    CONSOLE.print(f"[yellow]Discovered Modules:[/yellow] {len(command_modules)}")
+    console.print(f"[yellow]Discovered Modules:[/yellow] {len(command_modules)}")
     for module in command_modules:
         name = getattr(module, "__name__", "unknown").split(".")[-1]
         desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
-        CONSOLE.print(f"  [cyan]\u2022[/cyan] {name} \u2014 {desc}")
+        console.print(f"  [cyan]\u2022[/cyan] {name} \u2014 {desc}")
     if not command_modules:
-        CONSOLE.print("  [dim]No command modules discovered[/dim]")
-    CONSOLE.print()
+        console.print("  [dim]No command modules discovered[/dim]")
+    console.print()
 
     # Service modules (import-only, but with utility commands)
     if service_modules:
-        CONSOLE.print(f"[yellow]Services:[/yellow] {len(service_modules)}")
+        console.print(f"[yellow]Services:[/yellow] {len(service_modules)}")
         for module in service_modules:
             name = getattr(module, "__name__", "unknown").split(".")[-1]
             desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
-            CONSOLE.print(f"  [cyan]\u2022[/cyan] {name} \u2014 {desc}")
-        CONSOLE.print()
+            console.print(f"  [cyan]\u2022[/cyan] {name} \u2014 {desc}")
+        console.print()
 
-    CONSOLE.print("[yellow]Next:[/yellow]  Explore a module")
-    CONSOLE.print("  [green]drone @cli display[/green]              [dim]# Display module info[/dim]")
-    CONSOLE.print("  [green]drone @cli display demo[/green]         [dim]# Run display showcase[/dim]")
-    CONSOLE.print("  [green]drone @cli --help[/green]               [dim]# Full usage guide[/dim]")
-    CONSOLE.print()
+    console.print("[yellow]Next:[/yellow]  Explore a module")
+    console.print("  [green]drone @cli display[/green]              [dim]# Display module info[/dim]")
+    console.print("  [green]drone @cli display demo[/green]         [dim]# Run display showcase[/dim]")
+    console.print("  [green]drone @cli --help[/green]               [dim]# Full usage guide[/dim]")
+    console.print()
 
 
 def print_help() -> None:
@@ -149,45 +149,54 @@ def print_help() -> None:
     Shows COMMANDS, EXAMPLES, full reference.
     Follows seedgo help pattern.
     """
-    CONSOLE.print()
+    console.print()
 
     header("CLI - Display & Templates Service Provider")
 
-    CONSOLE.print("[dim]Universal display and output formatting for all AIPass branches[/dim]")
-    CONSOLE.print()
-    CONSOLE.print("\u2500" * 70)
-    CONSOLE.print()
+    console.print("[dim]Universal display and output formatting for all AIPass branches[/dim]")
+    console.print()
+    console.print("\u2500" * 70)
+    console.print()
+
+    # Usage
+    console.print("[bold cyan]USAGE:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @cli <command> [args...][/dim]")
+    console.print("  [dim]drone @cli --help[/dim]")
+    console.print()
+    console.print("\u2500" * 70)
+    console.print()
 
     # What is CLI
-    CONSOLE.print("[bold cyan]WHAT IS CLI?[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print("CLI is the [bold]Display & Templates Service[/bold] - like Prax for logging:")
-    CONSOLE.print("  [green]\u2713[/green] Centralized display formatting (headers, tables, panels)")
-    CONSOLE.print("  [green]\u2713[/green] Reusable templates for common operations")
-    CONSOLE.print("  [green]\u2713[/green] Rich library integration for beautiful output")
-    CONSOLE.print("  [green]\u2713[/green] Consistent styling across all AIPass branches")
-    CONSOLE.print()
-    CONSOLE.print("Update CLI once \u2192 All branches instantly benefit from improvements")
-    CONSOLE.print()
-    CONSOLE.print("\u2500" * 70)
-    CONSOLE.print()
+    console.print("[bold cyan]WHAT IS CLI?[/bold cyan]")
+    console.print()
+    console.print("CLI is the [bold]Display & Templates Service[/bold] - like Prax for logging:")
+    console.print("  [green]\u2713[/green] Centralized display formatting (headers, tables, panels)")
+    console.print("  [green]\u2713[/green] Reusable templates for common operations")
+    console.print("  [green]\u2713[/green] Rich library integration for beautiful output")
+    console.print("  [green]\u2713[/green] Consistent styling across all AIPass branches")
+    console.print()
+    console.print("Update CLI once \u2192 All branches instantly benefit from improvements")
+    console.print()
+    console.print("\u2500" * 70)
+    console.print()
 
     # Commands
-    CONSOLE.print("[bold cyan]COMMANDS:[/bold cyan]")
-    CONSOLE.print()
-    CONSOLE.print("  [green]drone @cli[/green]                             [dim]# Show discovered modules[/dim]")
-    CONSOLE.print("  [green]drone @cli display[/green]                     [dim]# Display module info[/dim]")
-    CONSOLE.print("  [green]drone @cli display demo[/green]                [dim]# Run display demo[/dim]")
-    CONSOLE.print("  [green]drone @cli templates[/green]                   [dim]# Templates module info[/dim]")
-    CONSOLE.print("  [green]drone @cli templates demo[/green]              [dim]# Run templates demo[/dim]")
-    CONSOLE.print("  [green]drone @cli --help[/green]                      [dim]# This help message[/dim]")
-    CONSOLE.print()
-    CONSOLE.print("\u2500" * 70)
-    CONSOLE.print()
+    console.print("[bold cyan]COMMANDS:[/bold cyan]")
+    console.print()
+    console.print("  [green]drone @cli[/green]                             [dim]# Show discovered modules[/dim]")
+    console.print("  [green]drone @cli display[/green]                     [dim]# Display module info[/dim]")
+    console.print("  [green]drone @cli display demo[/green]                [dim]# Run display demo[/dim]")
+    console.print("  [green]drone @cli templates[/green]                   [dim]# Templates module info[/dim]")
+    console.print("  [green]drone @cli templates demo[/green]              [dim]# Run templates demo[/dim]")
+    console.print("  [green]drone @cli --help[/green]                      [dim]# This help message[/dim]")
+    console.print()
+    console.print("\u2500" * 70)
+    console.print()
 
     # Public services
-    CONSOLE.print("[bold cyan]PUBLIC SERVICES (apps/modules/):[/bold cyan]")
-    CONSOLE.print()
+    console.print("[bold cyan]PUBLIC SERVICES (apps/modules/):[/bold cyan]")
+    console.print()
 
     services_table = Table(show_header=True, header_style="bold cyan", border_style="dim")
     services_table.add_column("Module", style="green")
@@ -199,34 +208,34 @@ def print_help() -> None:
     )
     services_table.add_row("templates", "operation_start(), operation_complete()", "Standard operation patterns")
 
-    CONSOLE.print(services_table)
-    CONSOLE.print()
-    CONSOLE.print("\u2500" * 70)
-    CONSOLE.print()
+    console.print(services_table)
+    console.print()
+    console.print("\u2500" * 70)
+    console.print()
 
     # Import examples
-    CONSOLE.print("[bold cyan]HOW TO IMPORT CLI SERVICES:[/bold cyan]")
-    CONSOLE.print()
+    console.print("[bold cyan]HOW TO IMPORT CLI SERVICES:[/bold cyan]")
+    console.print()
 
-    CONSOLE.print("[yellow]Display functions:[/yellow]")
-    CONSOLE.print("[dim]  from aipass.cli.apps.modules.display import header, success, error, warning[/dim]")
-    CONSOLE.print()
+    console.print("[yellow]Display functions:[/yellow]")
+    console.print("[dim]  from aipass.cli.apps.modules.display import header, success, error, warning[/dim]")
+    console.print()
 
-    CONSOLE.print("[yellow]Templates:[/yellow]")
-    CONSOLE.print("[dim]  from aipass.cli.apps.modules.templates import operation_start, operation_complete[/dim]")
-    CONSOLE.print()
+    console.print("[yellow]Templates:[/yellow]")
+    console.print("[dim]  from aipass.cli.apps.modules.templates import operation_start, operation_complete[/dim]")
+    console.print()
 
-    CONSOLE.print("[yellow]Rich console:[/yellow]")
-    CONSOLE.print("[dim]  from aipass.cli.apps.modules.display import console[/dim]")
-    CONSOLE.print("[dim]  console.print('[bold]Hello[/bold]')  # Rich formatted output[/dim]")
-    CONSOLE.print()
+    console.print("[yellow]Rich console:[/yellow]")
+    console.print("[dim]  from aipass.cli.apps.modules.display import console[/dim]")
+    console.print("[dim]  console.print('[bold]Hello[/bold]')  # Rich formatted output[/dim]")
+    console.print()
 
-    CONSOLE.print("\u2500" * 70)
-    CONSOLE.print()
+    console.print("\u2500" * 70)
+    console.print()
 
     # Architecture
-    CONSOLE.print("[bold cyan]ARCHITECTURE:[/bold cyan]")
-    CONSOLE.print()
+    console.print("[bold cyan]ARCHITECTURE:[/bold cyan]")
+    console.print()
 
     arch_text = """[bold]CLI Branch Structure:[/bold]
 
@@ -240,19 +249,19 @@ def print_help() -> None:
 [green]\u2713[/green] Rich library        = Underlying formatting engine
   - Console, Table, Panel, Columns, Text styling"""
 
-    CONSOLE.print(Panel(arch_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
-    CONSOLE.print()
-    CONSOLE.print("\u2500" * 70)
-    CONSOLE.print()
+    console.print(Panel(arch_text, border_style="green", padding=(1, 2), box=box.ROUNDED))
+    console.print()
+    console.print("\u2500" * 70)
+    console.print()
 
     # Drone compliance — commands line
-    CONSOLE.print("[dim]Commands: display, templates, demo, --help[/dim]")
-    CONSOLE.print()
+    console.print("[dim]Commands: display, templates, demo, --help[/dim]")
+    console.print()
 
 
 def show_version():
     """Print version."""
-    CONSOLE.print(f"CLI v{VERSION}")
+    console.print(f"CLI v{VERSION}")
 
 
 # =============================================================================
@@ -306,9 +315,9 @@ if __name__ == "__main__":
         sys.exit(main())
     except KeyboardInterrupt:
         logger.warning("CLI interrupted by user")
-        CONSOLE.print("\n[yellow]Operation cancelled[/yellow]")
+        console.print("\n[yellow]Operation cancelled[/yellow]")
         sys.exit(0)
     except Exception as e:
         logger.error(f"CLI error: {e}", exc_info=True)
-        CONSOLE.print(f"\n[red]Error: {e}[/red]")
+        error(str(e))
         sys.exit(1)

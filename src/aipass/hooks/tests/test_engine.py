@@ -375,8 +375,8 @@ class TestHooksEntryPoint:
 
         print_introspection()
         captured = capsys.readouterr()
-        assert "HOOKS" in captured.err
-        assert "Discovered Modules" in captured.err
+        assert "HOOKS" in captured.out
+        assert "Discovered Modules" in captured.out
 
     def test_handle_command_returns_bool(self):
         from aipass.hooks.apps.hooks import handle_command
@@ -592,35 +592,35 @@ class TestCliRouting:
 
         print_help()
         captured = capsys.readouterr()
-        assert "HOOKS" in captured.err
-        assert "drone @hooks" in captured.err
+        assert "HOOKS" in captured.out
+        assert "drone @hooks" in captured.out
 
     def test_print_help_surfaces_subcommands(self, capsys):
         from aipass.hooks.apps.hooks import print_help
 
         print_help()
         captured = capsys.readouterr()
-        assert "hooksound on" in captured.err
-        assert "hooksound off" in captured.err
-        assert "status" in captured.err
-        assert "log" in captured.err
+        assert "hooksound on" in captured.out
+        assert "hooksound off" in captured.out
+        assert "status" in captured.out
+        assert "log" in captured.out
 
     def test_print_help_has_examples_section(self, capsys):
         from aipass.hooks.apps.hooks import print_help
 
         print_help()
         captured = capsys.readouterr()
-        assert "EXAMPLES" in captured.err
-        assert "drone @hooks status" in captured.err
-        assert "drone @hooks hooksound off" in captured.err
+        assert "EXAMPLES" in captured.out
+        assert "drone @hooks status" in captured.out
+        assert "drone @hooks hooksound off" in captured.out
 
     def test_print_help_has_usage_section(self, capsys):
         from aipass.hooks.apps.hooks import print_help
 
         print_help()
         captured = capsys.readouterr()
-        assert "USAGE" in captured.err
-        assert "drone @hooks <command>" in captured.err
+        assert "USAGE" in captured.out
+        assert "drone @hooks <command>" in captured.out
 
     def test_help_commands_auto_discovered(self, capsys):
         from aipass.hooks.apps.hooks import print_help
@@ -631,7 +631,7 @@ class TestCliRouting:
         print_help()
         captured = capsys.readouterr()
         for cmd, _ in hs_cmds + hst_cmds + eng_cmds:
-            assert cmd in captured.err
+            assert cmd in captured.out
 
     def test_output_capture_status(self, capsys):
         from aipass.hooks.apps.hooks import handle_command
@@ -647,7 +647,7 @@ class TestCliRouting:
         with patch("sys.argv", ["hooks", "--version"]):
             main()
         captured = capsys.readouterr()
-        assert "1.1.0" in captured.err
+        assert "1.1.0" in captured.out
 
 
 class TestConfigDataContracts:

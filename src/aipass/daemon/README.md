@@ -10,6 +10,20 @@
 
 ---
 
+## Quick Start
+
+```bash
+drone @daemon                           # Show discovered modules
+drone @daemon update                    # Status digest
+drone @daemon activity                  # Quick 24h activity summary
+drone @daemon queue                     # View pending scheduled jobs
+drone @daemon run                       # Fire all due jobs now
+drone @daemon branch-health DAEMON      # Deep dive on a branch
+drone @daemon install-timer             # Enable systemd 2-min timer
+```
+
+---
+
 ## Overview
 
 Builder citizen -- full 3-layer architecture with identity and memory. DAEMON serves as the background orchestration branch: it discovers modules at startup, routes CLI commands to them, and provides introspection and help output via Rich console.

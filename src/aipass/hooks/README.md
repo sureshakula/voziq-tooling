@@ -2,15 +2,25 @@
 
 # Hooks
 
-> Hook infrastructure for AIPass. Single engine dispatches all hooks across platforms (Claude, Codex) with per-project config, full logging, and crash isolation. The 13th citizen.
+> Hook infrastructure for AIPass. A single dispatch engine routes hook events across platforms (Claude Code, Codex) with per-project configuration, full logging, and crash isolation.
 
-Every hook event flows through one engine. Platform bridges normalize the event format, the engine reads per-project config (`.aipass/hooks.json`), dispatches matching handlers, and logs everything to prax + JSONL.
+Every hook event flows through one engine. Platform bridges normalize the event format, the engine reads per-project config (`.aipass/hooks.json`), dispatches matching handlers, and logs everything to JSONL diagnostics.
+
+## Quick Start
+
+```bash
+drone @hooks status              # Show hook config for current project
+drone @hooks log                 # Tail recent hook activity
+drone @hooks engine              # Show connected handlers
+drone @hooks verify              # Cross-check provider ↔ project wiring
+drone @hooks --help              # Full help reference
+```
 
 ## Start here
 
 | You want to | Read |
 |---|---|
-| Identity, memory, session history | [`.trinity/`](.trinity/) |
+| Identity, session history | [`.trinity/`](.trinity/) |
 | Hook engine design | `DPLAN-0184` |
 | Per-project config | `.aipass/hooks.json` |
 

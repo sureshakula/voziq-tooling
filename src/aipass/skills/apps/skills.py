@@ -38,6 +38,8 @@ def print_introspection():
     console.print("    [dim]- creator.py (create_skill — scaffold new skills from templates)[/dim]")
     console.print("    [dim]- validator.py (validate_skill — check skill requirements)[/dim]")
     console.print()
+    console.print("[dim]Run 'drone @skills --help' for usage information[/dim]")
+    console.print()
 
 
 def handle_command(command, args=None):
@@ -124,6 +126,17 @@ def print_help():
     console.print("  1. .aipass/skills/           Project-local skills")
     console.print("  2. ~/.aipass/skills/         Global user skills")
     console.print("  3. src/aipass/skills/lib/     Built-in skills")
+    console.print()
+    console.print("Examples:")
+    console.print()
+    console.print("  [dim]# List all available skills[/dim]")
+    console.print("  [green]drone @skills list[/green]")
+    console.print()
+    console.print("  [dim]# Get info about a skill[/dim]")
+    console.print("  [green]drone @skills info telegram[/green]")
+    console.print()
+    console.print("  [dim]# Create a new skill[/dim]")
+    console.print("  [green]drone @skills create my-skill --with-handler[/green]")
 
 
 def _cmd_list():

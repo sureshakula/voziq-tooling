@@ -93,7 +93,7 @@ def _discover_modules() -> list[tuple[str, str]]:
 # =============================================================================
 
 
-def show_help() -> None:
+def print_help() -> None:
     """Display drone help with Rich formatting."""
     table = Table(show_header=False, box=None, pad_edge=False, show_edge=False)
     table.add_column(style="cyan", no_wrap=True)
@@ -116,20 +116,20 @@ def show_help() -> None:
     console.print()
     console.print("[dim]Routes commands to registered AIPass branches and modules.[/dim]")
     console.print()
+    console.print("[bold cyan]USAGE:[/bold cyan]")
+    console.print()
+    console.print("  [dim]drone @<target> <command> [args...][/dim]")
+    console.print("  [dim]drone <built-in> [args...][/dim]")
+    console.print("  [dim]drone --help[/dim]")
+    console.print()
     console.print(table)
     console.print()
-    console.print("[bold]Examples:[/bold]")
+    console.print("[bold cyan]EXAMPLES:[/bold cyan]")
+    console.print()
     console.print("  [green]drone @seedgo audit aipass[/green]")
     console.print("  [green]drone @flow status[/green]")
     console.print("  [green]drone systems[/green]")
-    console.print("  [green]drone activate @seedgo[/green]")
-    console.print("  [green]drone audit[/green]  [dim](custom shortcut)[/dim]")
     console.print()
-
-
-def print_help() -> None:
-    """Alias for seedgo standard compliance (audit expects print_help)."""
-    show_help()
 
 
 def print_introspection() -> None:

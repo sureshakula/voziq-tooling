@@ -330,7 +330,7 @@ class TestReturnTypeContracts:
 
     def test_doctor_wire_handle_command_returns_bool(self):
         """Doctor wire handle_command returns True for match, False otherwise."""
-        from aipass.aipass.apps.modules.doctor_wire import handle_command as wire_cmd
+        from aipass.aipass.apps.modules._doctor_wire import handle_command as wire_cmd
 
         assert wire_cmd("doctor_wire", []) is True
         assert wire_cmd("not_wire", []) is False

@@ -15,6 +15,18 @@ DevPulse handles the day-to-day: working with the user to plan, design, troubles
 | Active plans | `drone @flow list open` |
 | Branch list | `drone systems` |
 
+## Quick Start
+
+```bash
+# Talk to the hub — it picks up where the last session left off
+cd src/aipass/devpulse
+claude
+
+# Or drive it via drone from anywhere in AIPass
+drone @devpulse compass query "registry"   # search rated decisions
+drone @devpulse feedback inbox             # cross-project feedback
+```
+
 ## Invoke
 
 ```bash

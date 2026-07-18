@@ -35,7 +35,22 @@ if sys.platform == "win32":
         if _reconfigure is not None:
             _reconfigure(encoding="utf-8", errors="replace")
 
+from aipass.cli.apps.modules import console, error
 from aipass.prax import logger
+
+# =============================================================================
+# COMMANDS — public-facing labels and descriptions
+# =============================================================================
+
+_PUBLIC_COMMANDS = {
+    "doctor": "System health — structure, registry, hooks, tests",
+    "help": "README-backed Q&A — ask about any branch",
+    "init": "Guided setup for new users (10 stages, resumable)",
+    "install": "One-command bootstrap — clone + setup + init",
+    "new": "Create a project inside AIPass",
+    "profile": "Show/edit user profile",
+    "trust": "Trust registry — enroll/revoke projects",
+}
 
 # =============================================================================
 # MODULE DISCOVERY
@@ -72,6 +87,81 @@ def discover_modules() -> List[Any]:
     return modules
 
 
+# =============================================================================
+# HELP OUTPUT — house pattern (cli_ux)
+# =============================================================================
+
+
+def print_introspection(modules: List[Any] | None = None) -> None:
+    """Bare invocation — title, purpose, public commands, --help pointer."""
+    console.print()
+    console.print("[bold cyan]AIPASS — Concierge & Setup[/bold cyan]")
+    console.print("[dim]The friendly front door for AIPass. Setup, diagnostics, documentation, project creation.[/dim]")
+    console.print()
+
+    if modules is None:
+        modules = discover_modules()
+
+    commands = []
+    for module in modules:
+        name = getattr(module, "COMMAND", None)
+        if name and name in _PUBLIC_COMMANDS:
+            commands.append((name, _PUBLIC_COMMANDS[name]))
+    commands.sort()
+
+    if commands:
+        console.print("[yellow]Commands:[/yellow]")
+        for name, desc in commands:
+            console.print(f"  [green]{name:16}[/green] [dim]{desc}[/dim]")
+        console.print()
+
+    console.print("[dim]Run 'aipass --help' for usage and examples[/dim]")
+    console.print()
+
+
+def print_help(modules: List[Any] | None = None) -> None:
+    """Full help — usage, commands, examples."""
+    console.print()
+    console.print("[bold cyan]AIPASS — Concierge & Setup[/bold cyan]")
+    console.print("[dim]The friendly front door for AIPass. Setup, diagnostics, documentation, project creation.[/dim]")
+    console.print()
+
+    console.print("[yellow]Usage:[/yellow]")
+    console.print("  [green]aipass[/green] [dim]<command>[/dim] [dim][options][/dim]")
+    console.print("  [green]aipass[/green]                       [dim]Show commands[/dim]")
+    console.print("  [green]aipass[/green] [dim]<command>[/dim] [dim]--help[/dim]     [dim]Help for a command[/dim]")
+    console.print()
+
+    console.print("[yellow]Commands:[/yellow]")
+    console.print(
+        "  [green]doctor[/green]                       [dim]System health — structure, registry, hooks, tests[/dim]"
+    )
+    console.print("  [green]doctor --fix[/green]                 [dim]Remediation report with repair commands[/dim]")
+    console.print("  [green]doctor --json[/green]                [dim]JSON output for structure scan[/dim]")
+    console.print("  [green]doctor --cross-os[/green]            [dim]Cross-OS pre-flight check[/dim]")
+    console.print("  [green]help <question>[/green]              [dim]Search branch documentation (Q&A)[/dim]")
+    console.print(
+        "  [green]init[/green]                         [dim]Guided setup for new users (10 stages, resumable)[/dim]"
+    )
+    console.print(
+        "  [green]install[/green]                      [dim]One-command bootstrap — clone + setup.sh + hooks[/dim]"
+    )
+    console.print("  [green]new <name>[/green]                   [dim]Create a project inside AIPass[/dim]")
+    console.print("  [green]profile[/green]                      [dim]Show/edit user profile[/dim]")
+    console.print(
+        "  [green]trust[/green] [dim][path][/dim]                [dim]Trust registry — enroll/revoke projects[/dim]"
+    )
+    console.print("  [green]--version[/green]                    [dim]Show version[/dim]")
+    console.print()
+
+    console.print("[yellow]Examples:[/yellow]")
+    console.print("  [green]aipass doctor[/green]                       [dim]Check system health[/dim]")
+    console.print("  [green]aipass help what does drone do[/green]      [dim]Search documentation[/dim]")
+    console.print("  [green]aipass new myapp --template python[/green]  [dim]Create a Python project[/dim]")
+    console.print("  [green]aipass init[/green]                         [dim]Start guided setup[/dim]")
+    console.print()
+
+
 def route_command(command: str, args: List[str], modules: List[Any]) -> bool:
     """Route command to appropriate module.
 
@@ -105,17 +195,15 @@ def main():
         except importlib.metadata.PackageNotFoundError:
             logger.info("[AIPASS] Package metadata not found, version unknown")
             version = "unknown"
-        print(f"aipass {version}")
+        console.print(f"aipass {version}")
         return 0
 
-    show_root_help = len(args) == 0 or args[0] in ["--help", "-h"] or (args[0] == "help" and len(args) == 1)
-    if show_root_help:
-        print(f"AIPASS - {len(modules)} modules discovered")
-        for module in modules:
-            stem = module.__name__.split(".")[-1]
-            name = getattr(module, "COMMAND", stem)
-            desc = (module.__doc__ or "").strip().split("\n")[0] if module.__doc__ else "No description"
-            print(f"  {name:20} {desc}")
+    if not args:
+        print_introspection(modules)
+        return 0
+
+    if args[0] in ("--help", "-h"):
+        print_help(modules)
         return 0
 
     command = args[0]
@@ -126,31 +214,31 @@ def main():
         for module in modules:
             if module.handle_command(command, ["--help"]):
                 return 0
-        print(f"Unknown command: {command}")
+        console.print(f"Unknown command: {command}")
         return 1
 
     try:
         if route_command(command, remaining, modules):
             return 0
     except Exception as e:
-        print(f"Error: '{command}' crashed: {e}")
+        error(f"'{command}' crashed: {e}")
         logger.error(f"[AIPASS] '{command}' traceback", exc_info=True)
         return 1
 
     if command.startswith("@"):
-        print(f"{command} is a drone routing target, not an aipass command.")
-        print("aipass is your front-door CLI; drone is the agent router — two separate tools.")
-        print()
-        print(f"  Reach an agent:   drone {command} ...   ·  drone systems")
-        print("  aipass commands:  aipass --help")
+        console.print(f"{command} is a drone routing target, not an aipass command.")
+        console.print("aipass is your front-door CLI; drone is the agent router — two separate tools.")
+        console.print()
+        console.print(f"  Reach an agent:   drone {command} ...   ·  drone systems")
+        console.print("  aipass commands:  aipass --help")
         return 1
 
     for stem, err in _import_failures.items():
         if command in (stem, stem.replace("_", "")):
-            print(f"Error: '{command}' failed to load: {err}")
+            error(f"'{command}' failed to load: {err}")
             return 1
 
-    print(f"Unknown command: {command}")
+    console.print(f"Unknown command: {command}")
     return 1
 
 

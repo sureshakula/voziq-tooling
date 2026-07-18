@@ -729,8 +729,12 @@ def stage_10_done(accumulated: Dict[str, Any] | None = None, dry_run: bool = Fal
 
 
 # --- MAIN RUNNER ---
-def _preflight_check() -> str | None:
-    """Return an error message if CWD is unsafe for init, else None."""
+def _preflight_check(*, allow_projects_child: bool = False) -> str | None:
+    """Return an error message if CWD is unsafe for init, else None.
+
+    When *allow_projects_child* is True, the nested-project check is skipped
+    if CWD is ``<host>/projects/<name>``.
+    """
     cwd = Path.cwd()
     # Block if inside an agent directory
     if (cwd / ".trinity" / "passport.json").is_file():
@@ -738,6 +742,12 @@ def _preflight_check() -> str | None:
             "This directory is an agent branch (has .trinity/passport.json).\n"
             "Agents are managed by 'drone @spawn', not 'aipass init'."
         )
+    # Early exit: if CWD is a valid <host>/projects/<name>, skip nesting check
+    if allow_projects_child:
+        from aipass.aipass.apps.handlers.init.bootstrap import is_projects_child
+
+        if is_projects_child(cwd):
+            return None
     # Block if inside an existing AIPass project (registry above us).
     # Walking up to the filesystem root can hit ancestors that can't be
     # enumerated or stat'd — e.g. locked Windows system entries at the drive

@@ -213,6 +213,24 @@ def print_help():
     console.print("─" * 70)
     console.print()
 
+    console.print("[bold cyan]EXAMPLES:[/bold cyan]")
+    console.print()
+    console.print("  [yellow]Credentials:[/yellow]")
+    console.print("    [dim]drone @api get-key[/dim]                              [dim]# Show OpenRouter key[/dim]")
+    console.print("    [dim]drone @api validate[/dim]                             [dim]# Validate OpenRouter key[/dim]")
+    console.print("    [dim]drone @api validate google[/dim]                      [dim]# Validate Google OAuth2[/dim]")
+    console.print()
+    console.print("  [yellow]Models & calls:[/yellow]")
+    console.print("    [dim]drone @api models --all[/dim]                         [dim]# List all models[/dim]")
+    console.print('    [dim]drone @api call "Summarize this" --model anthropic/claude-3.5-sonnet[/dim]')
+    console.print()
+    console.print("  [yellow]Usage tracking:[/yellow]")
+    console.print("    [dim]drone @api stats[/dim]                                [dim]# Overall usage stats[/dim]")
+    console.print("    [dim]drone @api caller-usage flow[/dim]                    [dim]# Usage by caller[/dim]")
+    console.print()
+    console.print("─" * 70)
+    console.print()
+
     console.print(
         "[dim]Commands: get-key, get-secret, validate, test, models, status, call,"
         " list-providers, init, track, stats, session, caller-usage, cleanup[/dim]"

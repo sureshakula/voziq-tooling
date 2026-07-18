@@ -1,11 +1,22 @@
 # AIPASS
 
-Concierge and librarian for AIPass. Greets new users, walks them through setup, answers how-things-work questions, hands off to their chosen CLI.
+The friendly front door for AIPass. Walks new users through setup, runs system diagnostics, answers documentation questions, and creates projects inside the AIPass environment.
+
+## Quick Start
+
+```bash
+aipass                              # Show available commands
+aipass doctor                       # Check system health
+aipass help what does drone do      # Search branch documentation
+aipass new myapp --template python  # Create a new project
+aipass init                         # Guided setup (10 stages, resumable)
+```
 
 ## Invoke
 
 ```
-drone @aipass <command>
+aipass <command> [options]
+aipass <command> --help
 ```
 
 ## Architecture
@@ -16,27 +27,29 @@ aipass/
 │   ├── aipass.py                          # Entry point — subcommand dispatch
 │   ├── modules/
 │   │   ├── doctor.py                      # System health aggregation + cross-OS pre-flight (--cross-os)
-│   │   ├── doctor_fix.py                  # Remediation report (--fix, --json)
-│   │   ├── doctor_wire.py                 # Auto-wire provider settings + stale-deny re-export
+│   │   ├── _doctor_fix.py                 # Remediation report (--fix, --json) [internal]
+│   │   ├── _doctor_wire.py                # Auto-wire provider settings + stale-deny re-export [internal]
 │   │   ├── handoff.py                     # CLI handoff (placeholder)
 │   │   ├── help_chat.py                   # README-backed Q&A (reads via readme_map handler)
 │   │   ├── init_flow.py                   # 10-stage guided setup
 │   │   ├── install.py                     # aipass install — one-command bootstrap (clone + setup + init)
+│   │   ├── new_project.py                 # aipass new — create projects inside the installation
 │   │   ├── profile.py                     # User profile read/write
 │   │   └── trust.py                       # Trust registry — aipass trust / aipass revoke
 │   ├── handlers/
 │   │   ├── cross_os/                      # Cross-OS pre-flight: gap_registry, preflight, run_record
 │   │   ├── handoff_platform/              # Platform-specific handoff detection
 │   │   ├── init/                          # bootstrap.py, scaffold_content.py
+│   │   ├── new_project/                   # Project creation logic (registry, template, scaffold, git init)
 │   │   ├── json/                          # JSON read/write utilities
 │   │   ├── ping_sweep/                    # Branch reachability verification
-│   │   ├── provider_reconcile.py           # Stale deny-rule detection + fix
+│   │   ├── provider_reconcile.py          # Stale deny-rule detection + fix
 │   │   ├── readme_map/                    # Live file reads + branch routing
 │   │   ├── structure_scan/                # Agent placement + pollution detection
 │   │   ├── system_detect/                 # OS, shell, Python, RAM, CPU
 │   │   └── ui/                            # Progress bars, menus, banners
 │   └── plugins/
-├── tests/                                 # 609 passing
+├── tests/                                 # 723 passing
 ├── requirements.project.txt               # Project-specific Python dependencies
 ├── .trinity/                              # Identity + session history + observations
 └── README.md
@@ -46,17 +59,20 @@ aipass/
 
 | Command | Description |
 |---------|-------------|
-| `aipass` | Help banner |
+| `aipass` | Show available commands |
 | `aipass help [Q]` | README-backed Q&A with branch routing |
 | `aipass doctor` | System health — structure, registry, hooks, pytest |
 | `aipass doctor --fix` | Remediation report with `drone @spawn repair` commands |
 | `aipass doctor --json` | JSON output for structure scan results |
-| `aipass doctor --cross-os` | Cross-OS pre-flight (Layer-3-lite, machine) — OS-gap cross-ref + routing/versions/hookstatus |
-| `aipass doctor --cross-os --e2e` | ...also runs the real Layer-2 e2e wiring suite (heavy, opt-in) |
-| `aipass doctor --cross-os --record [PATH]` | Write a machine-filled Run Record for the human Layer-3 acceptance pass |
+| `aipass doctor --cross-os` | Cross-OS pre-flight — OS-gap cross-ref + routing/versions/hookstatus |
+| `aipass doctor --cross-os --e2e` | ...also runs the real e2e wiring suite (heavy, opt-in) |
+| `aipass doctor --cross-os --record [PATH]` | Write a machine-filled Run Record for the human acceptance pass |
 | `aipass init` | 10-stage guided setup (resumable) |
-| `aipass install` | One-command bootstrap — clone + setup.sh + hooks, then hand off to init (`--no-init`/`--with-init`/`--path`/`--here`) |
+| `aipass install` | One-command bootstrap — clone + setup.sh + hooks, then hand off to init |
 | `aipass profile` | Show/edit user profile |
+| `aipass new <name>` | Create a project in projects/ — own git repo, AIPass scaffold, resident agent |
+| `aipass new <name> --template python` | Create with Python template (pyproject + src/) |
+| `aipass new <name> --no-agent` | Create without resident agent |
 | `aipass trust [path]` | Show enrolled projects or enroll a project in the trust registry |
 | `aipass revoke <path>` | Remove a project from the trust registry |
 | `aipass --version` | Version |
@@ -79,7 +95,7 @@ Humans only. Nothing in AIPass depends on this branch.
 
 ## Tests
 
-609 passing — `pytest src/aipass/aipass/tests/`
+723 passing — `pytest src/aipass/aipass/tests/`
 
 ## Known Issues
 
@@ -87,4 +103,4 @@ Humans only. Nothing in AIPass depends on this branch.
 
 ## Last Updated
 
-Last Updated: 2026-07-05
+Last Updated: 2026-07-17

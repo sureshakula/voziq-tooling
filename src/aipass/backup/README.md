@@ -79,6 +79,27 @@ All 11 commands are auto-discovered by the entry point router.
 
 ---
 
+## Quick Start
+
+```bash
+# Register a project for backup
+drone @backup register /path/to/project --name myapp
+
+# Full mirror snapshot
+drone @backup snapshot @myapp
+
+# Incremental timestamped backup
+drone @backup versioned @myapp
+
+# Check backup status
+drone @backup status @myapp
+
+# List available versions of a file
+drone @backup restore @myapp list src/main.py
+```
+
+---
+
 ## `.backup/` Store Structure
 
 Each registered project gets a `.backup/` directory at its root:

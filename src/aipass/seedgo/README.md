@@ -2,10 +2,20 @@
 
 # Seedgo
 
-**Purpose:** Standards compliance platform for AIPass. Audits all 11 core agents against 40 code standards + diagnostics, manages bypass rules, runs proof certification, and provides per-file checklist validation consumed by auto-fix hooks.
+**Purpose:** Standards compliance platform for AIPass. Audits all 11 core agents against 42 code standards + diagnostics, manages bypass rules, runs proof certification, and provides per-file checklist validation consumed by the PostToolUse auto-fix gate.
 **Module:** `aipass.seedgo`
 **Version:** 2.0.0
 **Created:** 2026-03-05
+
+---
+
+## Quick Start
+
+```bash
+drone @seedgo audit aipass              # Audit all branches against all standards
+drone @seedgo checklist <file>          # Check a single file
+drone @seedgo standards_query aipass_standards cli  # Look up what a standard checks
+```
 
 ---
 

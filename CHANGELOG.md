@@ -11,6 +11,49 @@ PyPI version — not the changelog header.
 
 ## [2026-07-17]
 
+**v2.7.3** — `aipass new` and the front-door overhaul. The `projects/`
+directory is now a first-class playground: `aipass new <name>` creates a fully
+isolated project — own registry, own git repo with a birth commit, born
+deployable — with a full framework resident agent that answers
+`drone @<name>` from inside the project while staying invisible to the host
+roster. ai_mail enforces the project boundary (cross-project mail is refused
+with a pointer to the feedback channel). A live door-test of the aipass CLI
+exposed a blind spot in the audit — perfect structural scores on an unusable
+front door — so seedgo grew two user-facing-quality standards (`cli_ux`,
+`readme_quality`) and a fleet-100 campaign brought every branch's help output
+and README to the house pattern: 17/17 branches at 100%.
+
+### Added
+
+- **`aipass new <name>`** (module + handler): creates `projects/<name>` with
+  registry-first credential linkage (`registry.metadata.id ==
+  passport.citizenship.registry_id`), empty/python templates, interactive
+  template + agent prompts (flags for scripted use), a full framework agent
+  (entry point, modules/handlers skeleton, trinity set, mailbox, tier files),
+  git init + birth commit, and next-step output. 49 tests.
+- **seedgo standards 41–42**: `cli_ux` (8 AST checks — two-tier help, Rich
+  console, styled title, purpose line, --help pointer, Usage, Examples, no
+  exposed internal plumbing) and `readme_quality` (Quick Start with runnable
+  code block, stranger accessibility, invoke/entry-point match, early
+  what-description). 36 tests + case-resolution regression tests.
+- **ai_mail cross-project boundary**: sender and recipient project roots
+  compared on delivery; cross-project sends refused with a feedback-channel
+  pointer. Fail-open for internal/unregistered sends. 13 tests.
+- **Root `.gitignore`**: `projects/*` ignored (each project is its own repo);
+  only the future catalog README stays trackable.
+
+### Changed
+
+- **aipass front door rebuilt**: `--help` now follows the house pattern with a
+  curated command list, usage, and examples (internal plumbing hidden —
+  `doctor_fix`/`doctor_wire` renamed underscore-private); `aipass help` shows
+  the Q&A screen instead of falling through to the module dump; README
+  rewritten to pass the stranger test with a Quick Start and the correct
+  invocation.
+- **Fleet-100 sweep**: 15 branches gained Quick Start READMEs and/or
+  Usage/Examples help sections — each owner fixed their own front against the
+  new gate.
+
 **v2.7.2** — everything merged since v2.7.1, headlined by the compass decision
 engine v2: curation with supersedes links + write-time conflict advisories
 (Track 1), and ambient recall — rated past decisions now surface verbatim into
