@@ -12,6 +12,15 @@
 </p>
 <p align="center"><strong>Persistent Agent Workspace</strong></p>
 <p align="center"><em>AI agents that remember, collaborate, and never start from zero.</em></p>
+<p align="center">
+  <a href="https://aipass.ai">aipass.ai</a> ·
+  <a href="https://pypi.org/project/aipass/">PyPI</a> ·
+  <a href="https://reddit.com/r/AIPass">r/AIPass</a> ·
+  <a href="https://github.com/AIOSAI/AIPass/discussions">Discussions</a>
+</p>
+
+<!-- GIF SLOT 1 — hero (~20s): clone → ./aipass install → live conversation with the concierge.
+     ![demo](assets/hero.gif) -->
 
 ---
 
@@ -25,51 +34,15 @@ That's not a team. That's a room full of people wearing headphones.
 
 ## What AIPass Does
 
-AIPass is a CLI-native scaffold that adds **persistent memory, identity, and coordination** to your AI agents. You bring your project — AIPass adds the agent layer on top. No UI, no dashboard. You work in your terminal.
-
-```bash
-git clone https://github.com/AIOSAI/AIPass.git
-cd AIPass
-./aipass install                      # installs everything, then walks you into your first project
-```
-
-One command does it all: builds the environment, puts `aipass` + `drone` on your PATH, walks you through a guided init — and ends **in a conversation**. The AIPass concierge opens right in your terminal with your install report in hand: it welcomes you, asks your name once, shows you around, and checks what your machine still needs — every machine is different. Come back tomorrow and it picks up exactly where you left off. That's the whole interface: say "hi".
-
-This is the base framework. It gives your agents the infrastructure to persist, communicate, and organize — everything else you build on top.
-
-Here's what lands in your project:
-
-```
-my-project/
-├── .aipass/                # Project config + prompts
-├── .claude/                # Hooks (injected automatically)
-├── src/my_project/
-│   └── my_agent/
-│       ├── .trinity/       # Identity + memory (3 JSON files)
-│       ├── .ai_mail.local/ # Local mailbox
-│       ├── apps/           # Your agent's code
-│       └── README.md       # Domain knowledge
-├── CLAUDE.md               # Project instructions
-└── MY-PROJECT_REGISTRY.json
-```
-
-Everything is plain files. No daemon, no hidden state. Delete the directory and it's gone.
-
-**Start with one agent.** Add more when you need them:
-
-```bash
-aipass init agent my-agent            # Full agent: apps, mail, memory, identity
-```
-
-**What makes this different:**
+AIPass is a CLI-native scaffold that adds **persistent memory, identity, and coordination** to your AI agents. You bring your project — AIPass adds the agent layer on top. No UI, no dashboard, no cloud. Everything is plain files on your machine; delete the directory and it's gone.
 
 - **Agents are persistent.** They remember across sessions. Expertise develops over time. Nobody starts from zero.
 - **Bring your own project.** AIPass adds agent infrastructure to whatever you're building. It's a scaffold, not a product — you shape it.
 - **Everything is local.** Memory is JSON files. Communication is local mailbox files. No cloud, no external APIs.
 - **Shared workspace.** All agents work on the same filesystem, same project, same time. No sandboxes.
-- **One command for everything.** AIPass ships with `drone`, a CLI router — `drone @agent command` reaches any agent. Learn it once, use it everywhere.
+- **One command for everything.** `drone @agent command` reaches any agent. Learn it once, use it everywhere.
 
-**Runs on your existing CLI subscription.** Claude Pro/Max or Codex — AIPass uses the same CLI binary you already run. No extra API keys, no extra costs for core functionality.
+**Runs on your existing Claude subscription.** AIPass drives the same [Claude Code](https://code.claude.com/docs) binary you already run — Pro or Max. No extra API keys, no extra costs for core functionality.
 
 ---
 
@@ -80,10 +53,17 @@ aipass init agent my-agent            # Full agent: apps, mail, memory, identity
 ```bash
 git clone https://github.com/AIOSAI/AIPass.git
 cd AIPass
-./aipass install                      # Creates venv, installs, puts `aipass` + `drone` on your PATH, bootstraps 17 agents
+./aipass install
 ```
 
-On an interactive terminal, install chains into `aipass init run` and ends in a live conversation with the AIPass concierge — one command takes you from clone to talking with an agent that knows your machine. Pass `--no-init` to skip the chain, `--project <dir>` to pick where the project lands. Non-interactive shells (CI, pipes) complete with defaults and exit 0 — no prompts, no spawned sessions; the handoff prints as a next-step command instead. `./aipass` is a thin repo-root launcher over `setup.sh`; after setup it simply forwards to the installed `aipass` binary.
+One command does it all: builds the environment, puts `aipass` + `drone` on your PATH, bootstraps the 17-agent reference fleet, then walks you through a guided init — and ends **in a conversation**. The AIPass concierge opens right in your terminal with your install report in hand: it welcomes you, asks your name once, shows you around, and checks what your machine still needs — every machine is different.
+
+Come back tomorrow, say "hi", and it picks up exactly where you left off. That's the whole interface.
+
+<!-- GIF SLOT 2 — memory payoff (~15s): close the terminal, reopen, "hi", the agent recalls yesterday.
+     ![memory](assets/memory.gif) -->
+
+Options: `--no-init` skips the guided chain, `--project <dir>` picks where your project lands. Non-interactive shells (CI, pipes) complete with defaults and exit 0 — no prompts, no spawned sessions; the handoff prints as a next-step command instead. The installer wires Claude Code hooks automatically — merging with any hooks you've already configured, never overwriting them. `./aipass` is a thin repo-root launcher over `setup.sh`; after setup it forwards to the installed `aipass` binary.
 
 ### 2. Your own project (if you skipped the chain)
 
@@ -102,7 +82,7 @@ cd ~ && mkdir my-project && cd my-project
 aipass init run                       # Guided setup — project, first agent, ends in the conversation
 ```
 
-Either way your agent has identity, memory, a mailbox, and access to every AIPass service — planning, quality audits, dispatch, real-time monitoring. All through `drone @branch command`.
+Either way your agent has identity, memory, a mailbox, and access to every AIPass service — planning, quality audits, dispatch, real-time monitoring.
 
 ```bash
 aipass init                           # Just the scaffold (no guided setup)
@@ -111,11 +91,9 @@ aipass doctor                         # Check system health
 aipass feedback off                   # Silence the occasional how-are-we-doing ask
 ```
 
-> **Need help?** [Ask in Discussions](https://github.com/AIOSAI/AIPass/discussions) or [file feedback](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml) — both take 30 seconds.
+### 3. Meet the fleet
 
-### 3. Explore the full framework
-
-The clone above already includes all 17 agents working together — the reference implementation:
+The clone already includes all 17 agents working together — the reference implementation that maintains AIPass itself:
 
 ```bash
 cd src/aipass/devpulse
@@ -123,45 +101,33 @@ claude                                # Talk to the orchestrator
 ```
 
 ```bash
-# Things you can do:
-aipass doctor                            # Check system health
-drone @seedgo audit aipass               # Run automated quality checks across all agents
-drone @flow create . "Add user auth"     # Create a work plan
-drone @ai_mail dispatch @agent "Sub" "Body"  # Send task + wake an agent
+drone @seedgo audit aipass                       # Quality checks across all agents
+drone @flow create . "Add user auth"             # Create a work plan
+drone @ai_mail dispatch @agent "Subject" "Body"  # Send a task + wake an agent
 ```
+
+> **Need help?** [Ask in Discussions](https://github.com/AIOSAI/AIPass/discussions) or [file feedback](https://github.com/AIOSAI/AIPass/issues/new?template=feedback.yml) — both take 30 seconds.
 
 ---
 
 ## How It Works
 
-**One agent:** Run `aipass init run` and in 5 minutes you have a project with an agent that reads `.trinity/` on startup and picks up where it left off. Memory starts as plain JSON files — no setup required. When they fill up, older entries automatically archive into ChromaDB for long-term search. Nothing is lost.
+**Memory.** Every agent owns a `.trinity/` directory — identity, session history, learnings — read on startup, updated as it works. Memory starts as plain JSON, no setup required. When files fill up, older entries automatically archive into ChromaDB for long-term semantic search. Nothing is lost.
 
-**A team:** When one agent isn't enough, every agent shares the same structure:
+**One structure.** Every agent — yours and the reference fleet — shares the same layout. If you know one agent, you know all of them:
 
 ```
-src/my-project/<agent>/
+src/my_project/<agent>/
 ├── .trinity/           # Identity + memory (persists across sessions)
 ├── .ai_mail.local/     # Mailbox (receives tasks, sends results)
 ├── apps/               # Entry point → modules → handlers
-└── README.md           # Domain knowledge (the agent reads this on startup)
+└── README.md           # Domain knowledge (read on startup)
 ```
 
-Identical layout everywhere. If you know one agent, you know all of them. `drone` is the single command that routes to any agent:
+**One router.** `drone @branch command [args]` reaches any agent — routing, access tiers, and @agent resolution handled for you. Agents use the same commands to reach each other: they dispatch work, share findings, and wake whoever they're waiting on.
 
-```bash
-drone @branch command [args]    # Every agent, every task. Drone handles routing.
-```
-
-```bash
-drone @seedgo audit aipass                   # Run quality checks on everything
-drone @flow create . "Refactor auth module"  # Create a work plan
-drone @ai_mail dispatch @agent "Archive old sessions" "Find sessions older than 30 days"
-```
-
-**Two ways to use AIPass:**
-
-- **Your own project:** `aipass new <name>` builds a project around a resident manager agent, or `aipass init run` sets one up in a directory you bring. Add more agents as you need them. Your first agent is the orchestrator — it coordinates the others.
-- **The full framework:** Clone the repo to work with all 17 core agents. Talk to `devpulse` (the orchestrator), dispatch work across specialists. Agents work in parallel and report back.
+<!-- GIF SLOT 3 — team (~20s): dispatch a task to an agent, watchdog wake-back, result lands.
+     ![team](assets/team.gif) -->
 
 ---
 
@@ -188,8 +154,6 @@ devpulse (orchestrator)
    ├── skills   — discoverable capability units any agent can run
    └── commons  — the social space — post, comment, vote, gather
 ```
-
-These agents work on the **same filesystem, same project, same time** — no sandboxes, no worktrees. This is the pattern your projects inherit.
 
 <details>
 <summary>Agent details</summary>
@@ -231,19 +195,6 @@ These agents work on the **same filesystem, same project, same time** — no san
 
 ---
 
-## CLI Support
-
-AIPass is built and tested with **Claude Code** on Linux/WSL.
-
-| CLI | Autonomous Mode | Status |
-|-----|----------------|--------|
-| [Claude Code](https://code.claude.com/docs) | `claude -p "prompt" --permission-mode bypassPermissions` | Fully tested |
-| [Codex](https://github.com/openai/codex) | `codex exec "prompt" --dangerously-bypass-approvals-and-sandbox` | Experimental |
-
-The installer (`./aipass install`, powered by setup.sh) auto-detects which CLIs are installed and configures hooks for each — merging with any hooks you've already wired, never overwriting them.
-
----
-
 ## Project Status
 
 **Beta.** Actively developed by a solo developer working with the AI agents themselves — every PR, every test, every fix is human-AI collaboration.
@@ -258,24 +209,13 @@ The installer (`./aipass install`, powered by setup.sh) auto-detects which CLIs 
 
 Each agent documents its own operational status in its branch README — what works, what doesn't, and why.
 
----
-
 ## Requirements
 
 - Python 3.10+
 - [Claude Code](https://code.claude.com/docs)
-- Linux, macOS, or WSL (all CI-tested)
+- Linux or WSL
 - `sudo` access optional (for `/usr/local/bin` symlinks — falls back to `~/.local/bin` without sudo)
 - API keys optional (OpenRouter/OpenAI — for optional add-on agents)
-
-## Roadmap
-
-These items have partial work done and are under ongoing testing:
-
-- **macOS support** — CI green, full test suite passing ([#360](https://github.com/AIOSAI/AIPass/issues/360))
-- **Windows native** — CI green, full test suite passing
-- **Codex CLI** — hooks and AGENTS.md wired, needs end-to-end testing
-- **Fork contributor workflow** — improved error handling for fork-based PRs ([#329](https://github.com/AIOSAI/AIPass/issues/329))
 
 ---
 
@@ -314,9 +254,9 @@ This archives the agent's directory and removes it from the registry.
 
 ### Use your existing subscription
 
-AIPass runs on your **existing CLI subscription** — Claude Pro/Max or Codex. No API keys required for core functionality. No extra costs beyond your existing subscription.
+AIPass runs on your **existing Claude subscription** — Pro or Max. No API keys required for core functionality. No extra costs beyond your existing subscription.
 
-This works because AIPass runs each CLI as an **official subprocess** — the same binary you'd run yourself in a terminal. It doesn't extract credentials, proxy API calls, or intercept tokens. Your subscription stays within the provider's infrastructure at all times.
+This works because AIPass runs Claude Code as an **official subprocess** — the same binary you'd run yourself in a terminal. It doesn't extract credentials, proxy API calls, or intercept tokens. Your subscription stays within the provider's infrastructure at all times.
 
 ### What AIPass does NOT do
 
@@ -325,7 +265,7 @@ This works because AIPass runs each CLI as an **official subprocess** — the sa
 - Bypass rate limits or prompt caching
 - Impersonate official CLI clients
 
-Claude Code is proprietary but officially supports hooks and subprocess usage. Codex CLI is open source (Apache 2.0).
+Claude Code is proprietary but officially supports hooks and subprocess usage.
 
 > API keys are only needed for optional add-on agents (OpenRouter/OpenAI). For server/automated deployments, API key authentication is recommended per [Anthropic's guidance](https://code.claude.com/docs/en/legal-and-compliance).
 

@@ -11,6 +11,15 @@ PyPI version — not the changelog header.
 
 ## [2026-07-18]
 
+**docs** — root README v3 restructure (DPLAN-0249): single-funnel story with
+zero duplicated commands (install, `aipass new`/`init run`, trees, drone
+examples each taught exactly once), hero link line to aipass.ai/PyPI/r/AIPass,
+three reserved gif slots. Positioning ruling: the README tells only the
+Claude Code on Linux/WSL story — Codex/macOS/Windows mentions and the Roadmap
+section removed (code support unchanged; Docker distribution will serve those
+users later). Earlier same day: stale demo.gif embed dropped (#701) and
+aipass.ai realigned to the v2.7.3 front door.
+
 **v2.7.3** — the onboarding chain: from `git clone` to a conversation with an
 agent that remembers you. Install's three dead-ends are gone — the default
 `init` path, headless runs, and `aipass new` all now end where they should:
