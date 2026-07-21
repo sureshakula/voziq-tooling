@@ -1,0 +1,8 @@
+# Client short codes, one per line. The no_hardcoded_client hook blocks any
+# .py or .sql write containing one of these. Replace the examples with the
+# real codes before the pilot starts. Comments and blank lines are ignored.
+#
+# Examples (replace):
+ACME
+HSEC01
+PEST02
