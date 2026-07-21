@@ -6,11 +6,11 @@
     "allow": [
       "Write(.claude/hooks/probes/**)",
       "Edit(.claude/hooks/probes/**)",
-      "Bash(mkdir*)"
+      "Bash(mkdir*)",
+      "Bash(git *)"
     ],
     "deny": [
       "EnterPlanMode",
-      "Bash(git *)",
       "Read(/home/patrick/Patrick-Personal/**)",
       "Edit(/home/patrick/Patrick-Personal/**)",
       "Write(/home/patrick/Patrick-Personal/**)",
