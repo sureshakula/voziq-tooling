@@ -1,8 +1,0 @@
-*
-!aipass_global_prompt.md
-!hooks.json
-!.gitignore
-!project_CLAUDE.md
-!project_global_prompt.md
-!project_hooks.json
-#Do not add other exceptions here without careful consideration. Developer permissions0ns needed.
