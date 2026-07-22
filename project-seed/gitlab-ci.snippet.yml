@@ -1,0 +1,49 @@
+# Server-side enforcement for every merge request, regardless of which AI
+# tool (or none) produced the changes. Client-side hooks (voziq-pilot-kit)
+# are per-seat convenience for Claude Code users; these jobs are the actual
+# gate. Merge into the shared CI config, or `include:` this file from it.
+
+brain-secret-scan:
+  stage: test
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source . --no-git --verbose
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+client-code-check:
+  stage: test
+  image: alpine:latest
+  script:
+    - |
+      CODES_FILE=".claude/hooks/client_codes.txt"
+      if [ ! -f "$CODES_FILE" ]; then
+        echo "No client_codes.txt; skipping."
+        exit 0
+      fi
+      FAIL=0
+      for code in $(grep -v '^#' "$CODES_FILE" | grep -v '^$'); do
+        hits=$(grep -rniw "$code" --include='*.py' --include='*.sql' . \
+          | grep -vi 'config\|fixtures\|tests/data' || true)
+        if [ -n "$hits" ]; then
+          echo "Client code '$code' hardcoded in code files:"
+          echo "$hits"
+          FAIL=1
+        fi
+      done
+      exit $FAIL
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+ruff-check:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install --quiet ruff
+    - ruff check .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      exists:
+        - "**/*.py"
