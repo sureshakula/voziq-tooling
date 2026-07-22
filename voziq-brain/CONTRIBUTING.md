@@ -2,7 +2,7 @@
 
 ## The short version
 
-Write half a page, use the template for the folder you're writing in, open a PR. A reviewer approves it in under a minute or tells you what to fix. That's the whole process.
+Write half a page, use the template for the folder you're writing in, open a merge request. A reviewer approves it in under a minute or tells you what to fix. That's the whole process.
 
 ## What goes where
 
@@ -18,12 +18,13 @@ Session notes are the compost heap. When the same lesson shows up in two or thre
 
 ## Front matter
 
-Every note starts with this block. The search index reads it, so skipping it makes your note invisible to semantic search later.
+Every note starts with this block. The search index reads it, so skipping it makes your note invisible to semantic search later. The fields follow Google's Open Knowledge Format (OKF), so any OKF-aware agent or tool can consume the brain with no integration work; `type` is the one field OKF requires.
 
 ```yaml
 ---
+type: runbook          # decision | runbook | domain | session | spec
 title: Backfill churn features for a client
-date: 2026-07-21
+timestamp: 2026-07-22
 author: suresh
 tags: [pipeline, churn, backfill]
 status: current        # current | superseded | draft
@@ -47,7 +48,7 @@ Approving a brain PR means checking four things:
 1. True. You'd bet on the content being correct as written.
 2. Durable. It will still matter in three months. "The build was flaky today" is not a note; "the build flakes when X" is.
 3. Findable. Right folder, sensible title, tags someone would actually search.
-4. Clean. No credentials, no tokens, no customer PII, no raw client data. Client-specific facts use the client's short code, not end-customer details.
+4. Clean. No credentials, no tokens, no customer PII, no raw client data. Client-specific facts use the client's short code, not end-customer details. And because the brain is readable org-wide: nothing commercially sensitive or personnel-related, no comp, no contract terms, no legal matters.
 
 Reject fast and kindly. A rejected note costs two minutes; a wrong note that survives costs someone a debugging day next quarter.
 

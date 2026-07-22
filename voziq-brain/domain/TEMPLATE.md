@@ -1,6 +1,7 @@
 ---
+type: domain
 title:
-date:
+timestamp:
 author:
 tags: []
 status: current

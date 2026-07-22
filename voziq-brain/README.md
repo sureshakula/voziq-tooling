@@ -18,7 +18,7 @@ Per-seat AI tooling gives each engineer an assistant that remembers their own wo
 | `onboarding/` | What a new engineer reads in week one. | Environment setup, who owns what |
 | `sessions/` | Distilled learnings from individual work sessions. Raw material for the other folders. | "2026-07-21: pipeline retry behavior" |
 | `docs/` | Documentation about the brain itself, including the MCP server spec. | |
-| `capture/` | The `/brain-memo` command engineers copy into their project repos. | |
+| `capture/` | The `/brain-lint` maintenance command, plus a pointer to the deployable `/brain-memo` in `project-seed/`. | |
 
 ## Ground rules
 
@@ -37,10 +37,13 @@ To write: open a PR. `CONTRIBUTING.md` covers what goes where, the templates, an
 
 ## Standing this up
 
-1. Create an empty private repo named `voziq-brain` in the VOZIQ org.
+1. Create an empty private repo at `voziqai/brain`, top level in the GitLab org so the whole company can use it, not just engineering.
 2. Copy the contents of this folder to its root and push.
-3. Enable branch protection on main: require one PR review, no direct pushes, no force pushes.
-4. Copy `capture/brain-memo.md` into each project repo as `.claude/commands/brain-memo.md`.
+3. Protect the main branch: require one merge-request approval, no direct pushes, no force pushes.
+4. Deploy the on-ramp to every project from `project-seed/` (sibling folder in this tooling repo): the `/brain-memo` command, a CLAUDE.md section, and the `BRAIN_REPO_PATH` convention.
 5. Seed it: each engineer writes one runbook and one domain note in the first week. The repo has to be worth searching before anyone will search it.
+6. Schedule `/brain-lint` (see `capture/brain-lint.md`) monthly once the repo has real content.
+
+Front matter follows Google's Open Knowledge Format, so the brain is a valid OKF bundle any OKF-aware tool can consume.
 
 Tooling (the MCP server, the index) comes after the content. A repo with twenty good notes and no server beats a server over an empty repo.

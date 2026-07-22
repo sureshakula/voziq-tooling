@@ -1,6 +1,7 @@
 ---
+type: session
 title:
-date:
+timestamp:
 author:          # the engineer, not the agent
 tags: []
 status: current

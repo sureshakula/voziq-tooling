@@ -1,6 +1,7 @@
 ---
+type: decision
 title:
-date:
+timestamp:
 author:
 tags: []
 status: proposed

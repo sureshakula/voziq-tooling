@@ -1,6 +1,7 @@
 ---
+type: decision
 title: Brain repo conventions
-date: 2026-07-21
+timestamp: 2026-07-22
 author: suresh
 tags: [meta, process]
 status: accepted
