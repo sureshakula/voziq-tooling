@@ -2,7 +2,7 @@
 description: Distill this session into a VOZIQ brain note and file it as a merge request
 ---
 
-Distill this session into a note for the voziqai/brain knowledge repo. Follow these steps exactly.
+Distill this session into a note for the voziq/brain knowledge repo (git.voziq.com). Follow these steps exactly.
 
 1. Decide whether there is anything worth keeping. The test: would any part of this session help a teammate in three months? If not, say so and stop. Do not file a note to have filed a note.
 

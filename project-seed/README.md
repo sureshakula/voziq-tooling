@@ -1,6 +1,6 @@
 # Project seed for the VOZIQ brain
 
-The on-ramp seeded into every VOZIQ project so the brain (`voziqai/brain` on GitLab) is one command away from any repo, whatever AI tool the engineer runs: Claude Code, Copilot, Codex, Cursor, GLM through a compatible CLI, or no tool at all. This is the on-ramp only. Brain content never gets seeded into projects; knowledge lives centrally, tagged by project, or findability dies.
+The on-ramp seeded into every VOZIQ project so the brain (`voziq/brain` on git.voziq.com) is one command away from any repo, whatever AI tool the engineer runs: Claude Code, Copilot, Codex, Cursor, GLM through a compatible CLI, or no tool at all. This is the on-ramp only. Brain content never gets seeded into projects; knowledge lives centrally, tagged by project, or findability dies.
 
 ## Design
 
@@ -29,7 +29,7 @@ Existing projects: a one-time sweep. For each repo, branch, copy the files in, a
 Per engineer, once: clone the brain somewhere stable and set `BRAIN_REPO_PATH` in their shell profile.
 
 ```bash
-git clone git@gitlab.com:voziqai/brain.git ~/voziq/brain
+git clone https://git.voziq.com/voziq/brain.git ~/voziq/brain
 export BRAIN_REPO_PATH=~/voziq/brain
 ```
 

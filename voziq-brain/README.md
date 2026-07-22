@@ -37,7 +37,7 @@ To write: open a PR. `CONTRIBUTING.md` covers what goes where, the templates, an
 
 ## Standing this up
 
-1. Create an empty private repo at `voziqai/brain`, top level in the GitLab org so the whole company can use it, not just engineering.
+1. Create an empty private repo at `voziq/brain`, top level on git.voziq.com so the whole company can use it, not just engineering.
 2. Copy the contents of this folder to its root and push.
 3. Protect the main branch: require one merge-request approval, no direct pushes, no force pushes.
 4. Deploy the on-ramp to every project from `project-seed/` (sibling folder in this tooling repo): the `/brain-memo` command, a CLAUDE.md section, and the `BRAIN_REPO_PATH` convention.
